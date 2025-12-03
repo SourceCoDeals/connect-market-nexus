@@ -11,7 +11,8 @@ import {
   GitBranch,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import { useState } from "react";
 import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-sourcing";
 import { useUnviewedConnectionRequests } from "@/hooks/admin/use-unviewed-connection-requests";
 import { useUnviewedUsers } from "@/hooks/admin/use-unviewed-users";
+import { useUnviewedOwnerLeads } from "@/hooks/admin/use-unviewed-owner-leads";
 
 const AdminLayout = () => {
   const { user } = useAuth();
@@ -30,6 +32,7 @@ const AdminLayout = () => {
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
+  const { unviewedCount: unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -88,7 +91,7 @@ const AdminLayout = () => {
               label="Users"
               isActive={location.pathname.includes('/admin/users')}
               collapsed={sidebarCollapsed}
-              badge={unviewedUsersCount}
+              badge={unviewedUsersCount + unviewedOwnerLeadsCount}
             />
             <NavLink 
               to="/admin/listings" 

@@ -48,6 +48,25 @@ export function useOwnerInquiry() {
         return false;
       }
 
+      // Send email notification to admin (fire and forget)
+      try {
+        await supabase.functions.invoke("send-owner-inquiry-notification", {
+          body: {
+            name: data.name,
+            email: data.email,
+            phone: data.phone_number,
+            companyName: data.company_name,
+            businessWebsite: data.business_website,
+            revenueRange: data.estimated_revenue_range,
+            saleTimeline: data.sale_timeline,
+            message: data.message,
+          },
+        });
+      } catch (emailError) {
+        // Don't fail the submission if email fails
+        console.error("Failed to send notification email:", emailError);
+      }
+
       toast({
         title: "Inquiry submitted",
         description: "We'll be in touch within 24-48 hours.",

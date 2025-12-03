@@ -143,6 +143,30 @@ export type Database = {
           },
         ]
       }
+      admin_owner_leads_views: {
+        Row: {
+          admin_id: string
+          created_at: string | null
+          id: string
+          last_viewed_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       admin_signature_preferences: {
         Row: {
           admin_id: string
@@ -1813,6 +1837,7 @@ export type Database = {
       }
       inbound_leads: {
         Row: {
+          admin_notes: string | null
           business_website: string | null
           company_name: string | null
           converted_at: string | null
@@ -1842,6 +1867,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_notes?: string | null
           business_website?: string | null
           company_name?: string | null
           converted_at?: string | null
@@ -1871,6 +1897,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_notes?: string | null
           business_website?: string | null
           company_name?: string | null
           converted_at?: string | null

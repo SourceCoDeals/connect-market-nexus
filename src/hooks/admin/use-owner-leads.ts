@@ -13,6 +13,7 @@ export interface OwnerLead {
   estimated_revenue_range: string | null;
   sale_timeline: string | null;
   message: string | null;
+  admin_notes: string | null;
   status: string;
   created_at: string;
   updated_at: string;

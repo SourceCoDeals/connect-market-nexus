@@ -1,0 +1,71 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
+
+export function useUnviewedOwnerLeads() {
+  const { user } = useAuth();
+
+  const query = useQuery({
+    queryKey: ['unviewed-owner-leads-count'],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+
+      // Get the admin's last viewed timestamp
+      const { data: viewData } = await supabase
+        .from('admin_owner_leads_views')
+        .select('last_viewed_at')
+        .eq('admin_id', user.id)
+        .single();
+
+      const lastViewedAt = viewData?.last_viewed_at;
+
+      // Count owner leads created after last view
+      let queryBuilder = supabase
+        .from('inbound_leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('lead_type', 'owner');
+
+      if (lastViewedAt) {
+        queryBuilder = queryBuilder.gt('created_at', lastViewedAt);
+      }
+
+      const { count, error } = await queryBuilder;
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!user?.id,
+    staleTime: 30000,
+  });
+
+  // Set up real-time subscription for new owner leads
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('owner-leads-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'inbound_leads',
+          filter: 'lead_type=eq.owner',
+        },
+        () => {
+          query.refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  return {
+    unviewedCount: query.data || 0,
+    isLoading: query.isLoading,
+  };
+}

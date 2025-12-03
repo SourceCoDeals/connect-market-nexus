@@ -19,6 +19,7 @@ import { AdminNotificationBell } from "./AdminNotificationBell";
 import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-sourcing";
 import { useUnviewedConnectionRequests } from "@/hooks/admin/use-unviewed-connection-requests";
 import { useUnviewedUsers } from "@/hooks/admin/use-unviewed-users";
+import { useUnviewedOwnerLeads } from "@/hooks/admin/use-unviewed-owner-leads";
 
 interface AdminNavbarProps {
   className?: string;
@@ -31,6 +32,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
+  const { unviewedCount: unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
 
   const navItems = [
     {
@@ -44,7 +46,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
       label: "Users",
       icon: <Users className="h-4 w-4 mr-2" />,
       active: location.pathname.includes('/admin/users'),
-      badge: unviewedUsersCount
+      badge: unviewedUsersCount + unviewedOwnerLeadsCount
     },
     {
       to: "/admin/listings",
