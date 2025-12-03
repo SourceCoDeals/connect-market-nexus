@@ -27,9 +27,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // No user - redirect to login
+  // No user - redirect to welcome/persona selection
   if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/welcome" state={{ from: location.pathname }} replace />;
   }
 
   // Check admin requirement

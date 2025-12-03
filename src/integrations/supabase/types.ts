@@ -1813,6 +1813,7 @@ export type Database = {
       }
       inbound_leads: {
         Row: {
+          business_website: string | null
           company_name: string | null
           converted_at: string | null
           converted_by: string | null
@@ -1820,9 +1821,11 @@ export type Database = {
           created_at: string
           duplicate_info: string | null
           email: string
+          estimated_revenue_range: string | null
           firm_id: string | null
           id: string
           is_duplicate: boolean | null
+          lead_type: string | null
           mapped_at: string | null
           mapped_by: string | null
           mapped_to_listing_id: string | null
@@ -1832,12 +1835,14 @@ export type Database = {
           phone_number: string | null
           priority_score: number
           role: string | null
+          sale_timeline: string | null
           source: string
           source_form_name: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          business_website?: string | null
           company_name?: string | null
           converted_at?: string | null
           converted_by?: string | null
@@ -1845,9 +1850,11 @@ export type Database = {
           created_at?: string
           duplicate_info?: string | null
           email: string
+          estimated_revenue_range?: string | null
           firm_id?: string | null
           id?: string
           is_duplicate?: boolean | null
+          lead_type?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapped_to_listing_id?: string | null
@@ -1857,12 +1864,14 @@ export type Database = {
           phone_number?: string | null
           priority_score?: number
           role?: string | null
+          sale_timeline?: string | null
           source?: string
           source_form_name?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          business_website?: string | null
           company_name?: string | null
           converted_at?: string | null
           converted_by?: string | null
@@ -1870,9 +1879,11 @@ export type Database = {
           created_at?: string
           duplicate_info?: string | null
           email?: string
+          estimated_revenue_range?: string | null
           firm_id?: string | null
           id?: string
           is_duplicate?: boolean | null
+          lead_type?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapped_to_listing_id?: string | null
@@ -1882,6 +1893,7 @@ export type Database = {
           phone_number?: string | null
           priority_score?: number
           role?: string | null
+          sale_timeline?: string | null
           source?: string
           source_form_name?: string | null
           status?: string
