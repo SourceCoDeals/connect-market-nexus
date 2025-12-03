@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -122,7 +122,7 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
             const isExpanded = expandedUserId === user.id;
 
             return (
-              <>
+              <React.Fragment key={user.id}>
                 <TableRow
                   key={user.id}
                   className="cursor-pointer hover:bg-muted/50"
@@ -282,7 +282,7 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
                 </TableCell>
               </TableRow>
             )}
-              </>
+              </React.Fragment>
             );
           })}
         </TableBody>
