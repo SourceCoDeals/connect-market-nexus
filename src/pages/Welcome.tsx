@@ -32,7 +32,7 @@ const Welcome = () => {
           business opportunities in the $1M-$50M revenue range.
         </p>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          We source deals directly from owners considering an exit—before they go to brokers 
+          We source deals directly from owners considering an exit - before they go to brokers 
           or public listings. Whether you're looking to acquire a company or exploring what 
           your business might be worth, our network provides access without the noise.
         </p>
