@@ -168,19 +168,6 @@ const AdminUsers = () => {
 
       {/* Main content with generous padding */}
       <div className="px-8 py-8">
-        {/* View Switcher - Primary: Buyers/Owners, Secondary: Marketplace/Non-Marketplace */}
-        <div className="mb-6">
-          <UserViewSwitcher
-            primaryView={primaryView}
-            secondaryView={secondaryView}
-            onPrimaryViewChange={setPrimaryView}
-            onSecondaryViewChange={setSecondaryView}
-            marketplaceCount={usersData.length}
-            nonMarketplaceCount={nonMarketplaceUsers.length}
-            ownerLeadsCount={ownerLeads.length}
-          />
-        </div>
-
         {/* Conditional Content Based on Primary View */}
         {primaryView === 'buyers' ? (
           <>
@@ -196,6 +183,18 @@ const AdminUsers = () => {
 
             {/* Buyer Tables */}
             <div className="mt-6 bg-card rounded-lg border overflow-hidden">
+              {/* View Switcher - just above table */}
+              <div className="px-4 py-3 border-b bg-muted/30">
+                <UserViewSwitcher
+                  primaryView={primaryView}
+                  secondaryView={secondaryView}
+                  onPrimaryViewChange={setPrimaryView}
+                  onSecondaryViewChange={setSecondaryView}
+                  marketplaceCount={usersData.length}
+                  nonMarketplaceCount={nonMarketplaceUsers.length}
+                  ownerLeadsCount={ownerLeads.length}
+                />
+              </div>
               {secondaryView === 'marketplace' ? (
                 isMobile ? (
                   <div className="p-4">
@@ -233,7 +232,21 @@ const AdminUsers = () => {
           </>
         ) : (
           /* Owner Leads Table */
-          <OwnerLeadsTable />
+          <div className="bg-card rounded-lg border overflow-hidden">
+            {/* View Switcher - just above table */}
+            <div className="px-4 py-3 border-b bg-muted/30">
+              <UserViewSwitcher
+                primaryView={primaryView}
+                secondaryView={secondaryView}
+                onPrimaryViewChange={setPrimaryView}
+                onSecondaryViewChange={setSecondaryView}
+                marketplaceCount={usersData.length}
+                nonMarketplaceCount={nonMarketplaceUsers.length}
+                ownerLeadsCount={ownerLeads.length}
+              />
+            </div>
+            <OwnerLeadsTable />
+          </div>
         )}
 
         {/* All user action dialogs */}
