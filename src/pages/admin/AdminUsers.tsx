@@ -24,24 +24,37 @@ import { OwnerLeadsTable } from "@/components/admin/OwnerLeadsTable";
 import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
 import { UserViewSwitcher } from "@/components/admin/UserViewSwitcher";
 import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
+import { useOwnerLeads } from "@/hooks/admin/use-owner-leads";
+import { useMarkOwnerLeadsViewed } from "@/hooks/admin/use-mark-owner-leads-viewed";
 
-type UserView = 'marketplace' | 'non-marketplace';
+type PrimaryView = 'buyers' | 'owners';
+type SecondaryView = 'marketplace' | 'non-marketplace';
 
 const AdminUsers = () => {
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { data: nonMarketplaceUsers = [], isLoading: isLoadingNonMarketplace } = useNonMarketplaceUsers();
+  const { data: ownerLeads = [] } = useOwnerLeads();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { isConnected } = useRealtimeAdmin();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [activeView, setActiveView] = useState<UserView>('marketplace');
-  const { markAsViewed } = useMarkUsersViewed();
+  const [primaryView, setPrimaryView] = useState<PrimaryView>('buyers');
+  const [secondaryView, setSecondaryView] = useState<SecondaryView>('marketplace');
+  const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
+  const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
 
   // Mark users as viewed when component mounts
   useEffect(() => {
-    markAsViewed();
+    markUsersAsViewed();
   }, []);
+
+  // Mark owner leads as viewed when switching to owners view
+  useEffect(() => {
+    if (primaryView === 'owners') {
+      markOwnerLeadsAsViewed();
+    }
+  }, [primaryView]);
 
   // Update filtered users when usersData changes
   useEffect(() => {
@@ -120,7 +133,10 @@ const AdminUsers = () => {
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
               <p className="text-sm text-muted-foreground">
-                Manage user registrations, approvals, and profile data
+                {primaryView === 'buyers' 
+                  ? 'Manage buyer registrations, approvals, and profile data'
+                  : 'Manage owner/seller inquiries and leads'
+                }
               </p>
             </div>
             
@@ -136,12 +152,6 @@ const AdminUsers = () => {
                 Users
               </TabsTrigger>
               <TabsTrigger 
-                value="owner-leads"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Owner Leads
-              </TabsTrigger>
-              <TabsTrigger 
                 value="firms"
                 asChild
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
@@ -152,74 +162,79 @@ const AdminUsers = () => {
                 </Link>
               </TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="owner-leads" className="mt-0">
-              <div className="px-8 py-6">
-                <OwnerLeadsTable />
-              </div>
-            </TabsContent>
           </Tabs>
         </div>
       </div>
 
       {/* Main content with generous padding */}
       <div className="px-8 py-8">
-        <EnhancedUserManagement
-          users={usersData}
-          onApprove={approveUser}
-          onMakeAdmin={makeAdmin}
-          onRevokeAdmin={revokeAdmin}
-          onDelete={deleteUser}
-          isLoading={isLoading}
-          onFilteredUsersChange={setFilteredUsers}
-        />
-
-        {/* View Switcher - Positioned above table */}
-        <div className="mt-8 mb-4">
+        {/* View Switcher - Primary: Buyers/Owners, Secondary: Marketplace/Non-Marketplace */}
+        <div className="mb-6">
           <UserViewSwitcher
-            activeView={activeView}
-            onViewChange={setActiveView}
+            primaryView={primaryView}
+            secondaryView={secondaryView}
+            onPrimaryViewChange={setPrimaryView}
+            onSecondaryViewChange={setSecondaryView}
             marketplaceCount={usersData.length}
             nonMarketplaceCount={nonMarketplaceUsers.length}
+            ownerLeadsCount={ownerLeads.length}
           />
         </div>
 
-        {/* Conditional Table Rendering */}
-        <div className="bg-card rounded-lg border overflow-hidden">
-          {activeView === 'marketplace' ? (
-            isMobile ? (
-              <div className="p-4">
-                <MobileUsersTable
-                  users={filteredUsers}
-                  onApprove={approveUser}
-                  onMakeAdmin={makeAdmin}
-                  onRevokeAdmin={revokeAdmin}
-                  onDelete={deleteUser}
-                  isLoading={isLoading}
-                  onSendFeeAgreement={() => {}}
-                  onSendNDAEmail={() => {}}
-                />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <UsersTable
-                  users={filteredUsers}
-                  onApprove={approveUser}
-                  onMakeAdmin={makeAdmin}
-                  onRevokeAdmin={revokeAdmin}
-                  onDelete={deleteUser}
-                  isLoading={isLoading}
-                />
-              </div>
-            )
-          ) : (
-            <NonMarketplaceUsersTable
-              users={nonMarketplaceUsers}
-              isLoading={isLoadingNonMarketplace}
-              filters={{}}
+        {/* Conditional Content Based on Primary View */}
+        {primaryView === 'buyers' ? (
+          <>
+            <EnhancedUserManagement
+              users={usersData}
+              onApprove={approveUser}
+              onMakeAdmin={makeAdmin}
+              onRevokeAdmin={revokeAdmin}
+              onDelete={deleteUser}
+              isLoading={isLoading}
+              onFilteredUsersChange={setFilteredUsers}
             />
-          )}
-        </div>
+
+            {/* Buyer Tables */}
+            <div className="mt-6 bg-card rounded-lg border overflow-hidden">
+              {secondaryView === 'marketplace' ? (
+                isMobile ? (
+                  <div className="p-4">
+                    <MobileUsersTable
+                      users={filteredUsers}
+                      onApprove={approveUser}
+                      onMakeAdmin={makeAdmin}
+                      onRevokeAdmin={revokeAdmin}
+                      onDelete={deleteUser}
+                      isLoading={isLoading}
+                      onSendFeeAgreement={() => {}}
+                      onSendNDAEmail={() => {}}
+                    />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <UsersTable
+                      users={filteredUsers}
+                      onApprove={approveUser}
+                      onMakeAdmin={makeAdmin}
+                      onRevokeAdmin={revokeAdmin}
+                      onDelete={deleteUser}
+                      isLoading={isLoading}
+                    />
+                  </div>
+                )
+              ) : (
+                <NonMarketplaceUsersTable
+                  users={nonMarketplaceUsers}
+                  isLoading={isLoadingNonMarketplace}
+                  filters={{}}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          /* Owner Leads Table */
+          <OwnerLeadsTable />
+        )}
 
         {/* All user action dialogs */}
         <ApprovalEmailDialog />
