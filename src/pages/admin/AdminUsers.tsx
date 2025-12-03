@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
@@ -24,6 +23,7 @@ import { OwnerLeadsStats } from "@/components/admin/OwnerLeadsStats";
 import { OwnerLeadsFilters } from "@/components/admin/OwnerLeadsFilters";
 import { OwnerLeadsTableContent } from "@/components/admin/OwnerLeadsTableContent";
 import { OwnerLead } from "@/hooks/admin/use-owner-leads";
+import { cn } from "@/lib/utils";
 
 type PrimaryView = 'buyers' | 'owners';
 type SecondaryView = 'marketplace' | 'non-marketplace';
@@ -45,24 +45,20 @@ const AdminUsers = () => {
   const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
   const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
 
-  // Mark users as viewed when component mounts
   useEffect(() => {
     markUsersAsViewed();
   }, []);
 
-  // Mark owner leads as viewed when switching to owners view
   useEffect(() => {
     if (primaryView === 'owners') {
       markOwnerLeadsAsViewed();
     }
   }, [primaryView]);
 
-  // Update filtered users when usersData changes
   useEffect(() => {
     setFilteredUsers(usersData);
   }, [usersData]);
 
-  // Update filtered owner leads when ownerLeads changes
   useEffect(() => {
     setFilteredOwnerLeads(ownerLeads);
   }, [ownerLeads]);
@@ -117,7 +113,7 @@ const AdminUsers = () => {
           <AlertCircle className="h-16 w-16 text-destructive mb-4" />
           <h2 className="text-xl md:text-2xl font-bold mb-2">Error Loading Users</h2>
           <p className="text-muted-foreground text-center mb-6 max-w-md text-sm md:text-base">
-            There was an error loading the user data. This might be due to a database connection issue or permissions problem.
+            There was an error loading the user data.
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
             <Button onClick={handleRetry} className="flex items-center gap-2">
@@ -133,7 +129,8 @@ const AdminUsers = () => {
     );
   }
 
-  const isCurrentlyLoading = primaryView === 'buyers' ? isLoading : isLoadingOwnerLeads;
+  const isBuyersView = primaryView === 'buyers';
+  const isOwnersView = primaryView === 'owners';
 
   return (
     <div className="min-h-screen bg-background">
@@ -144,7 +141,7 @@ const AdminUsers = () => {
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
               <p className="text-sm text-muted-foreground">
-                {primaryView === 'buyers' 
+                {isBuyersView 
                   ? 'Manage buyer registrations, approvals, and profile data'
                   : 'Manage owner/seller inquiries and leads'
                 }
@@ -177,7 +174,7 @@ const AdminUsers = () => {
 
       {/* Main content */}
       <div className="px-8 py-8">
-        {/* View Switcher - FIXED POSITION */}
+        {/* View Switcher */}
         <div className="mb-6">
           <UserViewSwitcher
             primaryView={primaryView}
@@ -190,9 +187,10 @@ const AdminUsers = () => {
           />
         </div>
 
-        {/* Stats Section - CONSISTENT STRUCTURE */}
+        {/* Stats & Filters - Keep both mounted, toggle visibility with CSS */}
         <div className="mb-6">
-          {primaryView === 'buyers' ? (
+          {/* Buyers stats/filters - hidden when owners view */}
+          <div className={cn(!isBuyersView && "hidden")}>
             <EnhancedUserManagement
               users={usersData}
               onApprove={approveUser}
@@ -202,74 +200,86 @@ const AdminUsers = () => {
               isLoading={isLoading}
               onFilteredUsersChange={setFilteredUsers}
             />
-          ) : (
-            <div className="space-y-6">
-              <OwnerLeadsStats leads={ownerLeads} />
-              <OwnerLeadsFilters 
-                leads={ownerLeads} 
-                onFilteredLeadsChange={setFilteredOwnerLeads} 
-              />
-            </div>
-          )}
+          </div>
+
+          {/* Owners stats/filters - hidden when buyers view */}
+          <div className={cn(!isOwnersView && "hidden", "space-y-6")}>
+            <OwnerLeadsStats leads={ownerLeads} />
+            <OwnerLeadsFilters 
+              leads={ownerLeads} 
+              onFilteredLeadsChange={setFilteredOwnerLeads} 
+            />
+          </div>
         </div>
 
-        {/* Table Container - SAME WRAPPER FOR ALL */}
+        {/* Table Container - Keep all tables mounted, toggle visibility */}
         <div className="bg-card rounded-lg border overflow-hidden">
-          {isCurrentlyLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : primaryView === 'buyers' ? (
-            secondaryView === 'marketplace' ? (
-              isMobile ? (
-                <div className="p-4">
-                  <MobileUsersTable
-                    users={filteredUsers}
-                    onApprove={approveUser}
-                    onMakeAdmin={makeAdmin}
-                    onRevokeAdmin={revokeAdmin}
-                    onDelete={deleteUser}
-                    isLoading={isLoading}
-                    onSendFeeAgreement={() => {}}
-                    onSendNDAEmail={() => {}}
-                  />
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <UsersTable
-                    users={filteredUsers}
-                    onApprove={approveUser}
-                    onMakeAdmin={makeAdmin}
-                    onRevokeAdmin={revokeAdmin}
-                    onDelete={deleteUser}
-                    isLoading={isLoading}
-                  />
-                </div>
-              )
+          {/* Buyers table - marketplace */}
+          <div className={cn(!(isBuyersView && secondaryView === 'marketplace') && "hidden")}>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : isMobile ? (
+              <div className="p-4">
+                <MobileUsersTable
+                  users={filteredUsers}
+                  onApprove={approveUser}
+                  onMakeAdmin={makeAdmin}
+                  onRevokeAdmin={revokeAdmin}
+                  onDelete={deleteUser}
+                  isLoading={isLoading}
+                  onSendFeeAgreement={() => {}}
+                  onSendNDAEmail={() => {}}
+                />
+              </div>
             ) : (
-              <NonMarketplaceUsersTable
-                users={nonMarketplaceUsers}
-                isLoading={isLoadingNonMarketplace}
-                filters={{}}
-              />
-            )
-          ) : filteredOwnerLeads.length === 0 ? (
-            <div className="text-center py-12">
-              <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-1">No owner inquiries yet</h3>
-              <p className="text-sm text-muted-foreground">
-                Owner inquiries from the /sell form will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <OwnerLeadsTableContent
-                leads={filteredOwnerLeads}
-                onStatusChange={handleOwnerStatusChange}
-                onNotesUpdate={handleOwnerNotesUpdate}
-              />
-            </div>
-          )}
+              <div className="overflow-x-auto">
+                <UsersTable
+                  users={filteredUsers}
+                  onApprove={approveUser}
+                  onMakeAdmin={makeAdmin}
+                  onRevokeAdmin={revokeAdmin}
+                  onDelete={deleteUser}
+                  isLoading={isLoading}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Buyers table - non-marketplace */}
+          <div className={cn(!(isBuyersView && secondaryView === 'non-marketplace') && "hidden")}>
+            <NonMarketplaceUsersTable
+              users={nonMarketplaceUsers}
+              isLoading={isLoadingNonMarketplace}
+              filters={{}}
+            />
+          </div>
+
+          {/* Owners table */}
+          <div className={cn(!isOwnersView && "hidden")}>
+            {isLoadingOwnerLeads ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredOwnerLeads.length === 0 ? (
+              <div className="text-center py-12">
+                <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-1">No owner inquiries yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Owner inquiries from the /sell form will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <OwnerLeadsTableContent
+                  leads={filteredOwnerLeads}
+                  onStatusChange={handleOwnerStatusChange}
+                  onNotesUpdate={handleOwnerNotesUpdate}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Dialogs */}
