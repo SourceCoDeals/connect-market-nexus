@@ -309,7 +309,7 @@ const OwnerInquiry = () => {
             {/* Submit Button */}
             <Button 
               type="submit" 
-              className="w-full h-11 text-sm font-medium"
+              className="w-full text-sm font-medium"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Submitting..." : "Submit Inquiry"}
@@ -323,7 +323,7 @@ const OwnerInquiry = () => {
       </Card>
 
       {/* Alternative CTA */}
-      <div className="text-sm text-muted-foreground mt-8">
+      <div className="text-xs text-muted-foreground mt-6">
         Looking to acquire a business instead?{" "}
         <Link to="/signup" className="text-primary font-medium hover:underline">
           Create a buyer account
