@@ -91,17 +91,17 @@ const OwnerInquiry = () => {
   };
 
   const rightContent = (
-    <div className="space-y-8 pr-8">
+    <div className="space-y-6 pr-8">
       {/* Welcome Header */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
           Welcome to SourceCo
         </h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           We connect business owners with qualified buyers who understand your industry—without 
           the public exposure of listing on the open market.
         </p>
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           Our team will reach out within 24-48 hours to learn about your goals and discuss 
           how we can help—whether you're ready to sell now or just exploring your options.
         </p>
@@ -109,16 +109,16 @@ const OwnerInquiry = () => {
 
       {/* Testimonial */}
       <Card className="bg-background/80 border border-border/50 shadow-sm">
-        <CardContent className="p-5 space-y-3">
+        <CardContent className="p-4 space-y-2">
           <div className="flex items-start space-x-3">
-            <div className="w-9 h-9 rounded-full overflow-hidden bg-muted flex-shrink-0">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex-shrink-0">
               <img 
                 src={bradDaughertyImage} 
                 alt="Brad Daughterty"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="space-y-2 flex-1 relative">
+            <div className="space-y-1.5 flex-1 relative">
               <blockquote className="text-xs text-foreground leading-relaxed italic">
                 "SourceCo's team clearly understood our investment thesis and effectively 
                 conveyed our value to owners. Their process resulted in multiple LOIs and 
@@ -128,7 +128,7 @@ const OwnerInquiry = () => {
                 <div className="text-xs font-medium text-foreground">
                   Brad Daughterty
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-[10px] text-muted-foreground">
                   CFO, <a 
                     href="https://sportsfacilities.com/" 
                     target="_blank" 
@@ -143,7 +143,7 @@ const OwnerInquiry = () => {
                 <img 
                   src={sfcLogo} 
                   alt="Sports Facilities Companies"
-                  className="h-5 w-auto opacity-60"
+                  className="h-4 w-auto opacity-60"
                 />
               </div>
             </div>
@@ -152,17 +152,17 @@ const OwnerInquiry = () => {
       </Card>
 
       {/* Value Props */}
-      <div className="space-y-3 text-xs text-muted-foreground">
+      <div className="space-y-2 text-xs text-muted-foreground">
         <div className="flex items-center space-x-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          <div className="w-1 h-1 rounded-full bg-primary/40" />
           <span>Confidential, no public listing</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          <div className="w-1 h-1 rounded-full bg-primary/40" />
           <span>Pre-qualified buyers who can close</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          <div className="w-1 h-1 rounded-full bg-primary/40" />
           <span>No obligation, exploratory conversations welcome</span>
         </div>
       </div>
@@ -177,90 +177,89 @@ const OwnerInquiry = () => {
       backLinkText="Back to selection"
     >
       <Card className="border-0 shadow-none bg-transparent">
-        <CardHeader className="space-y-1 pb-8 px-0">
-          <CardTitle className="text-2xl font-semibold tracking-tight">
+        <CardHeader className="space-y-1 pb-6 px-0">
+          <CardTitle className="text-xl font-semibold tracking-tight">
             Let's start the conversation
           </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
+          <CardDescription className="text-xs text-muted-foreground">
             A member of our team will reach out within 24-48 hours.
           </CardDescription>
         </CardHeader>
         
         <CardContent className="px-0">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name & Email Row */}
-            <div className="grid md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Full Name</label>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Full Name</label>
                 <Input
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   placeholder="John Smith"
-                  className={`h-11 ${errors.name ? "border-destructive" : ""}`}
+                  className={errors.name ? "border-destructive" : ""}
                 />
                 {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
               </div>
               
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Email Address</label>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Email Address</label>
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange("email", e.target.value)}
                   placeholder="john@company.com"
-                  className={`h-11 ${errors.email ? "border-destructive" : ""}`}
+                  className={errors.email ? "border-destructive" : ""}
                 />
                 {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
             </div>
 
             {/* Phone & Company Row */}
-            <div className="grid md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Phone Number</label>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Phone Number</label>
                 <Input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleChange("phone", e.target.value)}
                   placeholder="(555) 123-4567"
-                  className={`h-11 ${errors.phone ? "border-destructive" : ""}`}
+                  className={errors.phone ? "border-destructive" : ""}
                 />
                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
               </div>
               
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Company Name</label>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Company Name</label>
                 <Input
                   value={formData.companyName}
                   onChange={(e) => handleChange("companyName", e.target.value)}
                   placeholder="Acme Industries"
-                  className={`h-11 ${errors.companyName ? "border-destructive" : ""}`}
+                  className={errors.companyName ? "border-destructive" : ""}
                 />
                 {errors.companyName && <p className="text-xs text-destructive">{errors.companyName}</p>}
               </div>
             </div>
 
             {/* Website (optional) */}
-            <div className="space-y-2">
-              <label className="text-sm text-foreground">Business Website</label>
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Business Website</label>
               <Input
                 type="url"
                 value={formData.businessWebsite}
                 onChange={(e) => handleChange("businessWebsite", e.target.value)}
                 placeholder="https://www.yourcompany.com"
-                className="h-11"
               />
             </div>
 
             {/* Revenue & Timeline Row */}
-            <div className="grid md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Estimated Annual Revenue</label>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Estimated Annual Revenue</label>
                 <Select 
                   value={formData.revenueRange} 
                   onValueChange={(value) => handleChange("revenueRange", value)}
                 >
-                  <SelectTrigger className={`h-11 ${errors.revenueRange ? "border-destructive" : ""}`}>
+                  <SelectTrigger className={errors.revenueRange ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select range" />
                   </SelectTrigger>
                   <SelectContent>
@@ -274,13 +273,13 @@ const OwnerInquiry = () => {
                 {errors.revenueRange && <p className="text-xs text-destructive">{errors.revenueRange}</p>}
               </div>
               
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Timeline</label>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Timeline</label>
                 <Select 
                   value={formData.saleTimeline} 
                   onValueChange={(value) => handleChange("saleTimeline", value)}
                 >
-                  <SelectTrigger className={`h-11 ${errors.saleTimeline ? "border-destructive" : ""}`}>
+                  <SelectTrigger className={errors.saleTimeline ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select timeline" />
                   </SelectTrigger>
                   <SelectContent>
@@ -296,13 +295,13 @@ const OwnerInquiry = () => {
             </div>
 
             {/* Description */}
-            <div className="space-y-2">
-              <label className="text-sm text-foreground">Tell us about your business</label>
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Tell us about your business</label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
                 placeholder="Brief description of your business, industry, and what makes it unique..."
-                rows={4}
+                rows={3}
                 className="resize-none"
               />
             </div>
@@ -316,7 +315,7 @@ const OwnerInquiry = () => {
               {isSubmitting ? "Submitting..." : "Submit Inquiry"}
             </Button>
             
-            <p className="text-xs text-center text-muted-foreground pt-2">
+            <p className="text-xs text-center text-muted-foreground pt-1">
               By submitting, you agree to be contacted by our team.
             </p>
           </form>
