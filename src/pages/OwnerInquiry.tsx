@@ -103,12 +103,12 @@ const OwnerInquiry = () => {
           Welcome to SourceCo
         </h2>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          We connect business owners with qualified buyers who understand your industry—without 
+          We connect business owners with qualified buyers who understand your industry, without 
           the public exposure of listing on the open market.
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           Our team will reach out within 24-48 hours to learn about your goals and discuss 
-          how we can help—whether you're ready to sell now or just exploring your options.
+          how we can help, whether you are ready to sell now or just exploring your options.
         </p>
       </div>
 
