@@ -10,10 +10,10 @@ const CalendarRightContent = () => {
     <div className="h-full flex flex-col">
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-foreground mb-2">
-          Ready to connect sooner?
+          Schedule a Call Now
         </h2>
         <p className="text-sm text-muted-foreground">
-          Schedule a quick introductory call with our team to discuss your goals.
+          Book a 30-minute introductory call with our team.
         </p>
       </div>
 
@@ -57,8 +57,8 @@ const OwnerInquirySuccess = () => {
         </h1>
         
         <p className="text-sm text-muted-foreground mb-8">
-          Our team will review your submission and reach out within{" "}
-          <span className="text-foreground">24-48 hours</span> to discuss your goals.
+          Our team will reach out within{" "}
+          <span className="text-foreground">24-48 hours</span> to connect you with qualified, institutional buyers.
         </p>
 
         <div className="mb-8">
@@ -69,19 +69,19 @@ const OwnerInquirySuccess = () => {
             <li className="flex items-start gap-3">
               <span className="w-1 h-1 rounded-full bg-primary mt-2 flex-shrink-0" />
               <span className="text-sm text-muted-foreground">
-                We review your inquiry and business profile
+                We review your business and understand your goals
               </span>
             </li>
             <li className="flex items-start gap-3">
               <span className="w-1 h-1 rounded-full bg-primary mt-2 flex-shrink-0" />
               <span className="text-sm text-muted-foreground">
-                A team member reaches out to schedule an introductory call
+                We introduce you to pre-qualified buyers with verified financials
               </span>
             </li>
             <li className="flex items-start gap-3">
               <span className="w-1 h-1 rounded-full bg-primary mt-2 flex-shrink-0" />
               <span className="text-sm text-muted-foreground">
-                Together, we explore the best path forward for your exit
+                You meet with serious acquirers, not tire-kickers
               </span>
             </li>
           </ul>
