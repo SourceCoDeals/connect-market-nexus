@@ -107,8 +107,8 @@ const OwnerInquiry = () => {
           the public exposure of listing on the open market.
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Our team will reach out within 24-48 hours to learn about your goals and discuss 
-          how we can help, whether you are ready to sell now or just exploring your options.
+          Our team will reach out within 1-4 hours to learn about your goals and discuss 
+          your options, <span className="font-semibold text-foreground">at no cost to you</span>.
         </p>
       </div>
 
@@ -187,7 +187,7 @@ const OwnerInquiry = () => {
             Let's start the conversation
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            A member of our team will reach out within 24-48 hours.
+            A member of our team will reach out within 1-4 hours.
           </CardDescription>
         </CardHeader>
         
