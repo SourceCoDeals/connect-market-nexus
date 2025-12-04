@@ -1543,7 +1543,7 @@ const Signup = () => {
           with verified financials and motivated sellers ready to transact.
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Join our network of acquirers who source deals directly from owners—before 
+          Join our network of acquirers who source deals directly from owners, before 
           they go to brokers or public listings.
         </p>
       </div>
