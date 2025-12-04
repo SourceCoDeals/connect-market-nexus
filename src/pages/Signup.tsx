@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChipInput } from "@/components/ui/chip-input";
 import { parseCurrency } from "@/lib/currency-utils";
-import { processUrl, isValidUrlFormat } from "@/lib/url-utils";
+import { processUrl, isValidUrlFormat, isValidLinkedInFormat, processLinkedInUrl } from "@/lib/url-utils";
 import { StepIndicator } from "@/components/ui/step-indicator";
 import { ArrowLeft } from "lucide-react";
 
@@ -307,8 +307,8 @@ const Signup = () => {
           errors.push("Please enter a valid website URL (e.g., example.com or www.example.com)");
         }
         // LinkedIn validation - optional but validate format if provided
-        if (formData.linkedinProfile && !formData.linkedinProfile.match(/^https?:\/\/(www\.)?linkedin\.com\/.+/)) {
-          errors.push("Please enter a valid LinkedIn URL");
+        if (formData.linkedinProfile && !isValidLinkedInFormat(formData.linkedinProfile)) {
+          errors.push("Please enter a valid LinkedIn URL (e.g., linkedin.com/in/yourname)");
         }
         break;
       }
@@ -387,6 +387,8 @@ const Signup = () => {
               }
               if (!formData.buyerOrgUrl) {
                 errors.push("Buyer organization website is required");
+              } else if (!isValidUrlFormat(formData.buyerOrgUrl)) {
+                errors.push("Please enter a valid buyer organization website (e.g., company.com)");
               }
             }
             break;
@@ -500,7 +502,7 @@ const Signup = () => {
         email: email,
         company: company,
         website: processUrl(website),
-        linkedin_profile: linkedinProfile,
+        linkedin_profile: processLinkedInUrl(linkedinProfile),
         phone_number: phoneNumber,
         buyer_type: buyerType as BuyerType,
         ideal_target_description: idealTargetDescription,
@@ -528,7 +530,7 @@ const Signup = () => {
         // Corporate Development
         owning_business_unit: formData.owningBusinessUnit || '',
         deal_size_band: formData.dealSizeBand || '',
-        buyer_org_url: formData.buyerOrgUrl || '',
+        buyer_org_url: formData.buyerOrgUrl ? processUrl(formData.buyerOrgUrl) : '',
         integration_plan: formData.integrationPlan || [],
         corpdev_intent: formData.corpdevIntent || '',
         // Family Office
