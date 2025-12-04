@@ -1,91 +1,112 @@
-
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { AuthLayout } from "@/components/layout/AuthLayout";
+
+const CalendarRightContent = () => {
+  const [calendarLoaded, setCalendarLoaded] = useState(false);
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-foreground mb-2">
+          Ready to connect sooner?
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Schedule a quick introductory call with our team to discuss your goals.
+        </p>
+      </div>
+
+      <div className="flex-1 relative min-h-[400px] rounded-lg overflow-hidden bg-background/50">
+        {!calendarLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Loading calendar...</span>
+            </div>
+          </div>
+        )}
+        <iframe
+          src="https://tidycal.com/tomosmughan/30-minute-meeting"
+          className={`w-full h-full min-h-[400px] border-0 transition-opacity duration-300 ${
+            calendarLoaded ? "opacity-100" : "opacity-0"
+          }`}
+          onLoad={() => setCalendarLoaded(true)}
+          title="Schedule a call"
+        />
+      </div>
+
+      <div className="mt-4 text-center">
+        <Link 
+          to="/welcome" 
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Skip for now
+        </Link>
+      </div>
+    </div>
+  );
+};
 
 const OwnerInquirySuccess = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
-      {/* Header */}
-      <header className="w-full py-6 px-6 border-b border-border/50">
-        <div className="max-w-3xl mx-auto">
-          <Link to="/welcome" className="flex items-center gap-3">
-            <img 
-              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-              alt="SourceCo Logo" 
-              className="h-8 w-8"
-            />
-            <div>
-              <h1 className="text-lg font-bold text-foreground">SourceCo</h1>
-            </div>
-          </Link>
-        </div>
-      </header>
+    <AuthLayout rightContent={<CalendarRightContent />}>
+      <div className="max-w-md">
+        <h1 className="text-xl font-semibold text-foreground mb-3">
+          We've received your inquiry
+        </h1>
+        
+        <p className="text-sm text-muted-foreground mb-8">
+          Our team will review your submission and reach out within{" "}
+          <span className="text-foreground">24-48 hours</span> to discuss your goals.
+        </p>
 
-      {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="max-w-md w-full text-center">
-          {/* Success Icon */}
-          <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-success" />
-          </div>
-
-          {/* Success Message */}
-          <h2 className="text-xl md:text-2xl font-semibold text-foreground mb-4">
-            Thank You for Reaching Out
+        <div className="mb-8">
+          <h2 className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+            What happens next
           </h2>
+          <ul className="space-y-3">
+            <li className="flex items-start gap-3">
+              <span className="w-1 h-1 rounded-full bg-primary mt-2 flex-shrink-0" />
+              <span className="text-sm text-muted-foreground">
+                We review your inquiry and business profile
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="w-1 h-1 rounded-full bg-primary mt-2 flex-shrink-0" />
+              <span className="text-sm text-muted-foreground">
+                A team member reaches out to schedule an introductory call
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="w-1 h-1 rounded-full bg-primary mt-2 flex-shrink-0" />
+              <span className="text-sm text-muted-foreground">
+                Together, we explore the best path forward for your exit
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="space-y-4">
+          <Link 
+            to="/welcome" 
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Return home
+          </Link>
           
-          <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-            We've received your inquiry and a member of our team will contact you within 
-            <span className="font-medium text-foreground"> 24-48 hours</span> to discuss your goals and how we can help.
-          </p>
-
-          {/* What's Next */}
-          <div className="bg-card border border-border rounded-xl p-6 mb-8 text-left shadow-sm">
-            <h3 className="font-medium text-foreground mb-4 text-sm">What happens next?</h3>
-            <ul className="space-y-3 text-xs text-muted-foreground">
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-muted text-primary text-xs font-medium flex items-center justify-center">1</span>
-                <span>Our team reviews your inquiry and business profile</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-muted text-primary text-xs font-medium flex items-center justify-center">2</span>
-                <span>We'll reach out to schedule an introductory call</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-muted text-primary text-xs font-medium flex items-center justify-center">3</span>
-                <span>Together, we'll explore the best path forward for your exit</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* CTAs */}
-          <div className="space-y-3">
-            <Link to="/welcome">
-              <Button variant="outline" className="w-full text-sm">
-                Return to Home
-              </Button>
-            </Link>
-            
-            <p className="text-xs text-muted-foreground">
-              Interested in browsing acquisition opportunities?{" "}
-              <Link to="/signup" className="text-primary font-medium hover:underline inline-flex items-center gap-1">
-                Create a buyer account <ArrowRight className="h-3 w-3" />
-              </Link>
-            </p>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="py-6 px-6 border-t border-border/50">
-        <div className="max-w-6xl mx-auto text-center">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} SourceCo. All rights reserved.
+            Looking to buy instead?{" "}
+            <Link 
+              to="/signup" 
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Create a buyer account <ArrowRight className="h-3 w-3" />
+            </Link>
           </p>
         </div>
-      </footer>
-    </div>
+      </div>
+    </AuthLayout>
   );
 };
 
