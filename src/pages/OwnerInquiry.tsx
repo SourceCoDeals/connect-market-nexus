@@ -108,7 +108,7 @@ const OwnerInquiry = () => {
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           Our team will reach out within 1-4 hours to learn about your goals and discuss 
-          your options, <span className="font-semibold text-foreground">at no cost to you</span>.
+          your options, whether you are ready to sell now or just exploring, <span className="font-semibold text-foreground">at no cost to you</span>.
         </p>
       </div>
 
