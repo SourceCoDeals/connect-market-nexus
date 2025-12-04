@@ -48,6 +48,7 @@ import { User } from "@/types";
 import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
 import { parseCurrency } from "@/lib/currency-utils";
 import { standardizeCategories, standardizeLocations } from "@/lib/standardization";
+import { processUrl, isValidUrlFormat, isValidLinkedInFormat, processLinkedInUrl } from "@/lib/url-utils";
 
 const Profile = () => {
   const { user, updateUserProfile } = useAuth();
@@ -154,11 +155,41 @@ const Profile = () => {
     e.preventDefault();
     if (!user) return;
     
+    // Validate URL fields
+    if (formData.website && !isValidUrlFormat(formData.website)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid website",
+        description: "Please enter a valid website URL (e.g., example.com)",
+      });
+      return;
+    }
+    if (formData.linkedin_profile && !isValidLinkedInFormat(formData.linkedin_profile)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid LinkedIn URL",
+        description: "Please enter a valid LinkedIn URL (e.g., linkedin.com/in/yourname)",
+      });
+      return;
+    }
+    if (formData.buyer_org_url && !isValidUrlFormat(formData.buyer_org_url)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid organization URL",
+        description: "Please enter a valid URL (e.g., company.com)",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
       // Normalize currency fields and standardize categories/locations before sending
       const normalizedData = {
         ...formData,
+        // Process URL fields
+        website: formData.website ? processUrl(formData.website) : formData.website,
+        linkedin_profile: formData.linkedin_profile ? processLinkedInUrl(formData.linkedin_profile) : formData.linkedin_profile,
+        buyer_org_url: formData.buyer_org_url ? processUrl(formData.buyer_org_url) : formData.buyer_org_url,
         // Ensure correct DB column names
         flex_subxm_ebitda: formData.flex_subxm_ebitda ?? null,
         revenue_range_min: formData.revenue_range_min || null,

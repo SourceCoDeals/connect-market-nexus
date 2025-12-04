@@ -25,6 +25,7 @@ export const processUrl = (url: string | null | undefined): string => {
 
 /**
  * Validates if a URL is in a valid format (with or without protocol)
+ * Supports: domain.com, www.domain.com, sub.domain.com, domain.co.uk, https://domain.com
  */
 export const isValidUrlFormat = (url: string | null | undefined): boolean => {
   if (!url || !url.trim()) {
@@ -33,14 +34,52 @@ export const isValidUrlFormat = (url: string | null | undefined): boolean => {
 
   const trimmedUrl = url.trim();
   
-  // Basic URL pattern that accepts:
+  // Comprehensive URL pattern that accepts:
+  // - domain.com, domain.co.uk (multi-part TLDs)
   // - www.domain.com
-  // - domain.com
-  // - https://domain.com
-  // - http://domain.com
-  const urlPattern = /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/.*)?$/;
+  // - sub.domain.com (subdomains)
+  // - https://domain.com, http://domain.com
+  // - Paths, query strings: domain.com/path?query=value
+  const urlPattern = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/[^\s]*)?$/;
   
   return urlPattern.test(trimmedUrl);
+};
+
+/**
+ * Validates if a LinkedIn URL is in a valid format
+ * Accepts: linkedin.com/in/username, www.linkedin.com/company/name, https://linkedin.com/in/user
+ */
+export const isValidLinkedInFormat = (url: string | null | undefined): boolean => {
+  if (!url || !url.trim()) {
+    return true; // Empty is valid (optional field)
+  }
+
+  const trimmedUrl = url.trim();
+  
+  // LinkedIn URL pattern - accepts with or without protocol/www
+  // Matches: linkedin.com/in/*, linkedin.com/company/*, etc.
+  const linkedinPattern = /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company|school|groups)\/[a-zA-Z0-9_-]+\/?.*$/i;
+  
+  return linkedinPattern.test(trimmedUrl);
+};
+
+/**
+ * Processes a LinkedIn URL to ensure it has proper protocol
+ */
+export const processLinkedInUrl = (url: string | null | undefined): string => {
+  if (!url || !url.trim()) {
+    return '';
+  }
+
+  const trimmedUrl = url.trim();
+  
+  // If already has protocol, return as-is
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    return trimmedUrl;
+  }
+  
+  // Add https:// prefix
+  return `https://${trimmedUrl}`;
 };
 
 /**

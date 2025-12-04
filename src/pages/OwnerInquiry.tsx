@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import bradDaughertyImage from '@/assets/brad-daugherty.png';
 import sfcLogo from '@/assets/sfc-logo.png';
+import { isValidUrlFormat, processUrl } from "@/lib/url-utils";
 
 const REVENUE_RANGES = [
   { value: "under_1m", label: "Under $1M" },
@@ -57,6 +58,10 @@ const OwnerInquiry = () => {
     if (!formData.companyName.trim()) newErrors.companyName = "Company name is required";
     if (!formData.revenueRange) newErrors.revenueRange = "Please select a revenue range";
     if (!formData.saleTimeline) newErrors.saleTimeline = "Please select a timeline";
+    // Validate business website format if provided
+    if (formData.businessWebsite && !isValidUrlFormat(formData.businessWebsite)) {
+      newErrors.businessWebsite = "Please enter a valid website (e.g., yourcompany.com)";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -72,7 +77,7 @@ const OwnerInquiry = () => {
       email: formData.email,
       phone_number: formData.phone,
       company_name: formData.companyName,
-      business_website: formData.businessWebsite || null,
+      business_website: formData.businessWebsite ? processUrl(formData.businessWebsite) : null,
       estimated_revenue_range: formData.revenueRange,
       sale_timeline: formData.saleTimeline,
       message: formData.description || null,
@@ -244,11 +249,12 @@ const OwnerInquiry = () => {
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Business Website</label>
               <Input
-                type="url"
                 value={formData.businessWebsite}
                 onChange={(e) => handleChange("businessWebsite", e.target.value)}
                 placeholder="yourcompany.com"
+                className={errors.businessWebsite ? "border-destructive" : ""}
               />
+              {errors.businessWebsite && <p className="text-xs text-destructive">{errors.businessWebsite}</p>}
             </div>
 
             {/* Revenue & Timeline Row */}
