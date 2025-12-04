@@ -58,7 +58,7 @@ const OwnerInquirySuccess = () => {
         
         <p className="text-sm text-muted-foreground mb-8">
           Our team will reach out within{" "}
-          <span className="text-foreground">24-48 hours</span> to connect you with qualified, institutional buyers.
+          <span className="text-foreground">4 hours</span> to connect you with qualified, institutional buyers.
         </p>
 
         <div className="mb-8">
