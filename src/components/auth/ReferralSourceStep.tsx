@@ -137,7 +137,6 @@ export function ReferralSourceStep({
               <Checkbox
                 id={`sourcing-${option.value}`}
                 checked={dealSourcingMethods.includes(option.value)}
-                onCheckedChange={(checked) => handleMethodToggle(option.value, checked as boolean)}
                 className="pointer-events-none"
               />
               <Label 
