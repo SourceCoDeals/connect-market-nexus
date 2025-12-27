@@ -107,6 +107,10 @@ export interface User {
   exclusions?: string[];
   include_keywords?: string[];
   
+  // Referral source tracking (How did you hear about us?)
+  referral_source?: string;
+  referral_source_detail?: string;
+  
   // Additional investment criteria fields
   company_type?: string;
   years_in_business?: number;

@@ -2809,6 +2809,8 @@ export type Database = {
           permanent_capital: boolean | null
           phone_number: string | null
           portfolio_company_addon: string | null
+          referral_source: string | null
+          referral_source_detail: string | null
           revenue_range_max: string | null
           revenue_range_min: string | null
           search_stage: string | null
@@ -2890,6 +2892,8 @@ export type Database = {
           permanent_capital?: boolean | null
           phone_number?: string | null
           portfolio_company_addon?: string | null
+          referral_source?: string | null
+          referral_source_detail?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
           search_stage?: string | null
@@ -2971,6 +2975,8 @@ export type Database = {
           permanent_capital?: boolean | null
           phone_number?: string | null
           portfolio_company_addon?: string | null
+          referral_source?: string | null
+          referral_source_detail?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
           search_stage?: string | null
@@ -3934,19 +3940,19 @@ export type Database = {
             Args: {
               p_firm_id: string
               p_is_signed: boolean
-              p_signed_by_name?: string
+              p_signed_at?: string
               p_signed_by_user_id?: string
             }
-            Returns: undefined
+            Returns: boolean
           }
         | {
             Args: {
               p_firm_id: string
               p_is_signed: boolean
-              p_signed_at?: string
+              p_signed_by_name?: string
               p_signed_by_user_id?: string
             }
-            Returns: boolean
+            Returns: undefined
           }
       update_fee_agreement_firm_status_with_notes: {
         Args: {
@@ -4013,19 +4019,19 @@ export type Database = {
             Args: {
               p_firm_id: string
               p_is_signed: boolean
-              p_signed_by_name?: string
+              p_signed_at?: string
               p_signed_by_user_id?: string
             }
-            Returns: undefined
+            Returns: boolean
           }
         | {
             Args: {
               p_firm_id: string
               p_is_signed: boolean
-              p_signed_at?: string
+              p_signed_by_name?: string
               p_signed_by_user_id?: string
             }
-            Returns: boolean
+            Returns: undefined
           }
       update_nda_firm_status_with_notes: {
         Args: {

@@ -21,12 +21,14 @@ import { parseCurrency } from "@/lib/currency-utils";
 import { processUrl, isValidUrlFormat, isValidLinkedInFormat, processLinkedInUrl } from "@/lib/url-utils";
 import { StepIndicator } from "@/components/ui/step-indicator";
 import { ArrowLeft } from "lucide-react";
+import { ReferralSourceStep } from "@/components/auth/ReferralSourceStep";
 
 const steps = [
   "Account Information",
   "Personal Details", 
   "Buyer Type",
   "Buyer Profile",
+  "How did you hear about us?",
 ];
 
 import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
@@ -147,6 +149,9 @@ const Signup = () => {
     dealIntent?: string;
     exclusions?: string[];
     includeKeywords?: string[];
+    // Referral source tracking (Step 5)
+    referralSource?: string;
+    referralSourceDetail?: string;
   }>({
     email: "",
     password: "",
@@ -216,6 +221,9 @@ const Signup = () => {
     dealIntent: "",
     exclusions: [],
     includeKeywords: [],
+    // Referral source tracking (Step 5)
+    referralSource: "",
+    referralSourceDetail: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -571,6 +579,9 @@ const Signup = () => {
         deal_intent: formData.dealIntent || '',
         exclusions: formData.exclusions || [],
         include_keywords: formData.includeKeywords || [],
+        // Referral source tracking (Step 5)
+        referral_source: formData.referralSource || '',
+        referral_source_detail: formData.referralSourceDetail || '',
       };
       
       await signup(signupData, formData.password);
@@ -1525,6 +1536,15 @@ const Signup = () => {
               />
             </div>
           </div>
+        );
+      case 4:
+        return (
+          <ReferralSourceStep
+            referralSource={formData.referralSource || ''}
+            referralSourceDetail={formData.referralSourceDetail || ''}
+            onSourceChange={(source) => setFormData(prev => ({ ...prev, referralSource: source }))}
+            onDetailChange={(detail) => setFormData(prev => ({ ...prev, referralSourceDetail: detail }))}
+          />
         );
       default:
         return null;
