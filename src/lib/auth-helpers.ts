@@ -133,6 +133,16 @@ export function createUserObject(profile: any): User {
           ? profile.include_keywords.split(',').map(s => s.trim()).filter(s => s)
           : [],
       
+      // Referral source tracking (Step 3)
+      referral_source: profile.referral_source || null,
+      referral_source_detail: profile.referral_source_detail || null,
+      
+      // Deal sourcing questions (Step 3)
+      deal_sourcing_methods: Array.isArray(profile.deal_sourcing_methods) 
+        ? profile.deal_sourcing_methods 
+        : [],
+      target_acquisition_volume: profile.target_acquisition_volume || null,
+      
       get firstName() { return this.first_name; },
       get lastName() { return this.last_name; },
       get phoneNumber() { return this.phone_number; },
