@@ -149,9 +149,12 @@ const Signup = () => {
     dealIntent?: string;
     exclusions?: string[];
     includeKeywords?: string[];
-    // Referral source tracking (Step 5)
+    // Referral source tracking (Step 3)
     referralSource?: string;
     referralSourceDetail?: string;
+    // Deal sourcing questions (Step 3)
+    dealSourcingMethods?: string[];
+    targetAcquisitionVolume?: string;
   }>({
     email: "",
     password: "",
@@ -221,9 +224,12 @@ const Signup = () => {
     dealIntent: "",
     exclusions: [],
     includeKeywords: [],
-    // Referral source tracking (Step 5)
+    // Referral source tracking (Step 3)
     referralSource: "",
     referralSourceDetail: "",
+    // Deal sourcing questions (Step 3)
+    dealSourcingMethods: [],
+    targetAcquisitionVolume: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -583,9 +589,12 @@ const Signup = () => {
         deal_intent: formData.dealIntent || '',
         exclusions: formData.exclusions || [],
         include_keywords: formData.includeKeywords || [],
-        // Referral source tracking (Step 5)
+        // Referral source tracking (Step 3)
         referral_source: formData.referralSource || '',
         referral_source_detail: formData.referralSourceDetail || '',
+        // Deal sourcing questions (Step 3)
+        deal_sourcing_methods: formData.dealSourcingMethods || [],
+        target_acquisition_volume: formData.targetAcquisitionVolume || '',
       };
       
       await signup(signupData, formData.password);
@@ -1546,8 +1555,12 @@ const Signup = () => {
           <ReferralSourceStep
             referralSource={formData.referralSource || ''}
             referralSourceDetail={formData.referralSourceDetail || ''}
+            dealSourcingMethods={formData.dealSourcingMethods || []}
+            targetAcquisitionVolume={formData.targetAcquisitionVolume || ''}
             onSourceChange={(source) => setFormData(prev => ({ ...prev, referralSource: source }))}
             onDetailChange={(detail) => setFormData(prev => ({ ...prev, referralSourceDetail: detail }))}
+            onDealSourcingMethodsChange={(methods) => setFormData(prev => ({ ...prev, dealSourcingMethods: methods }))}
+            onTargetAcquisitionVolumeChange={(volume) => setFormData(prev => ({ ...prev, targetAcquisitionVolume: volume }))}
           />
         );
       default:

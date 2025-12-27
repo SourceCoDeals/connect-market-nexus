@@ -92,6 +92,18 @@ const UserDetails = ({ user }: { user: User }) => {
                   )}
                 </div>
               )}
+              {user.deal_sourcing_methods && user.deal_sourcing_methods.length > 0 && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Deal Sourcing:</span>{" "}
+                  <span className="capitalize">{user.deal_sourcing_methods.map(m => m.replace(/_/g, ' ')).join(', ')}</span>
+                </div>
+              )}
+              {user.target_acquisition_volume && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Target Acquisitions (12mo):</span>{" "}
+                  <span className="capitalize">{user.target_acquisition_volume.replace(/_/g, ' ')}</span>
+                </div>
+              )}
             </div>
           </div>
 

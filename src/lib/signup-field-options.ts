@@ -179,3 +179,22 @@ export const DEAL_INTENT_OPTIONS = [
   { value: 'platform_and_addons', label: 'Platform and add-ons' },
   { value: 'platform_only', label: 'Platform only' }
 ] as const;
+
+// Deal sourcing methods (multi-select)
+export const DEAL_SOURCING_METHOD_OPTIONS = [
+  { value: 'in_house_bd', label: 'In-house BD team' },
+  { value: 'brokers_bankers', label: 'Brokers / Bankers (inbound)' },
+  { value: 'databases', label: 'Databases (Grata, PitchBook, etc.)' },
+  { value: 'proprietary_outreach', label: 'Proprietary outreach' },
+  { value: 'buy_side_firms', label: 'Buy-side advisory firms' },
+  { value: 'not_actively_sourcing', label: 'Not actively sourcing yet' }
+] as const;
+
+// Target acquisition volume (dropdown)
+export const TARGET_ACQUISITION_VOLUME_OPTIONS = [
+  { value: 'exploring', label: 'Exploring opportunities' },
+  { value: '1_2', label: '1–2 deals' },
+  { value: '3_5', label: '3–5 deals' },
+  { value: '6_10', label: '6–10 deals' },
+  { value: '10_plus', label: '10+ deals' }
+] as const;

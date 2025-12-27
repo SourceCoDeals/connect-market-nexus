@@ -111,6 +111,10 @@ export interface User {
   referral_source?: string;
   referral_source_detail?: string;
   
+  // Deal sourcing questions
+  deal_sourcing_methods?: string[];
+  target_acquisition_volume?: string;
+  
   // Additional investment criteria fields
   company_type?: string;
   years_in_business?: number;
