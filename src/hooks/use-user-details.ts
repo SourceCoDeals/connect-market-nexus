@@ -12,6 +12,8 @@ export interface UserDetails {
   approval_status: string;
   email_verified: boolean;
   created_at: string;
+  referral_source: string | null;
+  referral_source_detail: string | null;
   initial_session?: {
     session_id: string | null;
     referrer: string | null;
