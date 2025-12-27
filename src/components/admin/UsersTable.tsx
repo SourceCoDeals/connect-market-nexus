@@ -83,6 +83,15 @@ const UserDetails = ({ user }: { user: User }) => {
               <div>
                 <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
               </div>
+              {user.referral_source && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">How They Found Us:</span>{" "}
+                  <span className="capitalize">{user.referral_source.replace(/_/g, ' ')}</span>
+                  {user.referral_source_detail && (
+                    <span className="text-muted-foreground ml-1">({user.referral_source_detail})</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
