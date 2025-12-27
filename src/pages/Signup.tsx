@@ -26,9 +26,9 @@ import { ReferralSourceStep } from "@/components/auth/ReferralSourceStep";
 const steps = [
   "Account Information",
   "Personal Details", 
+  "How did you hear about us?",
   "Buyer Type",
   "Buyer Profile",
-  "How did you hear about us?",
 ];
 
 import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
@@ -321,6 +321,10 @@ const Signup = () => {
         break;
       }
       case 2: {
+        // Referral source step - optional, no validation required
+        break;
+      }
+      case 3: {
         // Buyer type validation
         if (!formData.buyerType) {
           errors.push("Please select a buyer type");
@@ -408,8 +412,8 @@ const Signup = () => {
         }
         break;
       }
-      case 3: {
-        // Enhanced validation
+      case 4: {
+        // Enhanced validation (Buyer Profile)
         if (!formData.idealTargetDescription.trim() || formData.idealTargetDescription.length < 10) {
           errors.push("Please provide at least 10 characters describing your ideal targets");
         }
@@ -750,7 +754,7 @@ const Signup = () => {
             </div>
           </div>
         );
-      case 2:
+      case 3:
         return (
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -1355,7 +1359,7 @@ const Signup = () => {
             )}
           </div>
         );
-      case 3:
+      case 4:
         return (
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -1537,7 +1541,7 @@ const Signup = () => {
             </div>
           </div>
         );
-      case 4:
+      case 2:
         return (
           <ReferralSourceStep
             referralSource={formData.referralSource || ''}
@@ -1675,22 +1679,31 @@ const Signup = () => {
           {/* Navigation buttons */}
           <div className="w-full space-y-3">
             {currentStep === steps.length - 1 ? (
+              <Button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isLoading || isSubmitting}
+                className="w-full text-sm font-medium"
+              >
+                {isLoading || isSubmitting ? "Creating account..." : "Create account"}
+              </Button>
+            ) : currentStep === 2 ? (
+              // Step 3 (index 2) - Referral source step - show Continue + Skip
               <>
                 <Button
-                  type="submit"
-                  onClick={handleSubmit}
+                  type="button"
+                  onClick={handleNext}
                   disabled={isLoading || isSubmitting}
                   className="w-full text-sm font-medium"
                 >
-                  {isLoading || isSubmitting ? "Creating account..." : "Create account"}
+                  Continue
                 </Button>
-                {/* Skip button for optional Step 5 */}
                 <button
                   type="button"
-                  onClick={(e) => {
-                    // Clear referral data and submit
+                  onClick={() => {
+                    // Clear referral data and skip to next step
                     setFormData(prev => ({ ...prev, referralSource: '', referralSourceDetail: '' }));
-                    handleSubmit(e);
+                    setCurrentStep(prev => prev + 1);
                   }}
                   disabled={isLoading || isSubmitting}
                   className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
