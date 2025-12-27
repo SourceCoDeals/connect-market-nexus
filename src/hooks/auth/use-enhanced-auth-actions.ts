@@ -52,6 +52,9 @@ export function useEnhancedAuthActions() {
             ...(userData.funding_source && { funding_source: userData.funding_source }),
             ...(userData.needs_loan && { needs_loan: userData.needs_loan }),
             ...(userData.ideal_target && { ideal_target: userData.ideal_target }),
+            // Referral source tracking
+            ...(userData.referral_source && { referral_source: userData.referral_source }),
+            ...(userData.referral_source_detail && { referral_source_detail: userData.referral_source_detail }),
           }
         }
       });
