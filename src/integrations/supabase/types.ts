@@ -2759,6 +2759,7 @@ export type Database = {
           created_at: string
           deal_intent: string | null
           deal_size_band: string | null
+          deal_sourcing_methods: string[] | null
           deal_structure_preference: string | null
           deleted_at: string | null
           deploying_capital_now: string | null
@@ -2816,6 +2817,7 @@ export type Database = {
           search_stage: string | null
           search_type: string | null
           specific_business_search: string | null
+          target_acquisition_volume: string | null
           target_company_size: string | null
           target_deal_size_max: number | null
           target_deal_size_min: number | null
@@ -2842,6 +2844,7 @@ export type Database = {
           created_at?: string
           deal_intent?: string | null
           deal_size_band?: string | null
+          deal_sourcing_methods?: string[] | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
           deploying_capital_now?: string | null
@@ -2899,6 +2902,7 @@ export type Database = {
           search_stage?: string | null
           search_type?: string | null
           specific_business_search?: string | null
+          target_acquisition_volume?: string | null
           target_company_size?: string | null
           target_deal_size_max?: number | null
           target_deal_size_min?: number | null
@@ -2925,6 +2929,7 @@ export type Database = {
           created_at?: string
           deal_intent?: string | null
           deal_size_band?: string | null
+          deal_sourcing_methods?: string[] | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
           deploying_capital_now?: string | null
@@ -2982,6 +2987,7 @@ export type Database = {
           search_stage?: string | null
           search_type?: string | null
           specific_business_search?: string | null
+          target_acquisition_volume?: string | null
           target_company_size?: string | null
           target_deal_size_max?: number | null
           target_deal_size_min?: number | null

@@ -1,6 +1,12 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { 
+  DEAL_SOURCING_METHOD_OPTIONS, 
+  TARGET_ACQUISITION_VOLUME_OPTIONS 
+} from "@/lib/signup-field-options";
 
 // Referral source options matching the Attio screenshot
 const REFERRAL_SOURCES = [
@@ -22,68 +28,153 @@ const REFERRAL_SOURCES = [
 interface ReferralSourceStepProps {
   referralSource: string;
   referralSourceDetail: string;
+  dealSourcingMethods: string[];
+  targetAcquisitionVolume: string;
   onSourceChange: (source: string) => void;
   onDetailChange: (detail: string) => void;
+  onDealSourcingMethodsChange: (methods: string[]) => void;
+  onTargetAcquisitionVolumeChange: (volume: string) => void;
 }
 
 export function ReferralSourceStep({
   referralSource,
   referralSourceDetail,
+  dealSourcingMethods,
+  targetAcquisitionVolume,
   onSourceChange,
   onDetailChange,
+  onDealSourcingMethodsChange,
+  onTargetAcquisitionVolumeChange,
 }: ReferralSourceStepProps) {
   const selectedOption = REFERRAL_SOURCES.find(s => s.id === referralSource);
 
+  const handleMethodToggle = (methodValue: string, checked: boolean) => {
+    if (checked) {
+      onDealSourcingMethodsChange([...dealSourcingMethods, methodValue]);
+    } else {
+      onDealSourcingMethodsChange(dealSourcingMethods.filter(m => m !== methodValue));
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <Label className="text-sm font-medium text-foreground">
-          How did you hear about us?
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          This helps us understand how you found us. This step is optional.
-        </p>
-      </div>
-
-      {/* Source Selection Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {REFERRAL_SOURCES.map((source) => (
-          <button
-            key={source.id}
-            type="button"
-            onClick={() => {
-              onSourceChange(source.id);
-              onDetailChange(''); // Reset detail when source changes
-            }}
-            className={cn(
-              "px-3 py-2.5 text-xs font-medium rounded-lg border transition-all duration-150",
-              "hover:border-primary/50 hover:bg-accent/50",
-              "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
-              referralSource === source.id
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-background text-foreground"
-            )}
-          >
-            {source.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Conditional Follow-up Question */}
-      {selectedOption && (
-        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-          <Label htmlFor="referralDetail" className="text-xs text-muted-foreground">
-            {selectedOption.followUpQuestion}
+    <div className="space-y-8">
+      {/* How did you hear about us? */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">
+            How did you hear about us?
           </Label>
-          <Input
-            id="referralDetail"
-            value={referralSourceDetail}
-            onChange={(e) => onDetailChange(e.target.value)}
-            placeholder={selectedOption.placeholder}
-            className="text-sm"
-          />
+          <p className="text-xs text-muted-foreground">
+            This helps us understand how you found us. All questions on this page are optional.
+          </p>
         </div>
-      )}
+
+        {/* Source Selection Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {REFERRAL_SOURCES.map((source) => (
+            <button
+              key={source.id}
+              type="button"
+              onClick={() => {
+                onSourceChange(source.id);
+                onDetailChange(''); // Reset detail when source changes
+              }}
+              className={cn(
+                "px-3 py-2.5 text-xs font-medium rounded-lg border transition-all duration-150",
+                "hover:border-primary/50 hover:bg-accent/50",
+                "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
+                referralSource === source.id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-foreground"
+              )}
+            >
+              {source.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Conditional Follow-up Question */}
+        {selectedOption && (
+          <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+            <Label htmlFor="referralDetail" className="text-xs text-muted-foreground">
+              {selectedOption.followUpQuestion}
+            </Label>
+            <Input
+              id="referralDetail"
+              value={referralSourceDetail}
+              onChange={(e) => onDetailChange(e.target.value)}
+              placeholder={selectedOption.placeholder}
+              className="text-sm"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Deal Sourcing Methods */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">
+            How do you typically source acquisition targets today?
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Select all that apply.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {DEAL_SOURCING_METHOD_OPTIONS.map((option) => (
+            <div 
+              key={option.value} 
+              className={cn(
+                "flex items-center space-x-3 p-3 rounded-lg border transition-all duration-150 cursor-pointer",
+                "hover:border-primary/50 hover:bg-accent/30",
+                dealSourcingMethods.includes(option.value)
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-background"
+              )}
+              onClick={() => handleMethodToggle(option.value, !dealSourcingMethods.includes(option.value))}
+            >
+              <Checkbox
+                id={`sourcing-${option.value}`}
+                checked={dealSourcingMethods.includes(option.value)}
+                onCheckedChange={(checked) => handleMethodToggle(option.value, checked as boolean)}
+                className="pointer-events-none"
+              />
+              <Label 
+                htmlFor={`sourcing-${option.value}`} 
+                className="text-xs font-normal cursor-pointer flex-1"
+              >
+                {option.label}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Target Acquisition Volume */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">
+            How many acquisitions are you targeting in the next 12 months?
+          </Label>
+        </div>
+
+        <Select
+          value={targetAcquisitionVolume}
+          onValueChange={onTargetAcquisitionVolumeChange}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select..." />
+          </SelectTrigger>
+          <SelectContent>
+            {TARGET_ACQUISITION_VOLUME_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

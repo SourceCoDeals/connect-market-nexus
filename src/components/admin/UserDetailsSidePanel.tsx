@@ -310,6 +310,32 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                   </div>
                 )}
 
+                {/* Deal Sourcing Methods */}
+                {userDetails?.deal_sourcing_methods && userDetails.deal_sourcing_methods.length > 0 && (
+                  <div className="flex items-start justify-between py-2">
+                    <span className="text-xs text-muted-foreground">Deal Sourcing</span>
+                    <div className="text-right max-w-[60%]">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {userDetails.deal_sourcing_methods.map((method: string) => (
+                          <Badge key={method} variant="secondary" className="text-xs capitalize">
+                            {method.replace(/_/g, ' ')}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Target Acquisition Volume */}
+                {userDetails?.target_acquisition_volume && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-xs text-muted-foreground">Target Acquisitions (12mo)</span>
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {userDetails.target_acquisition_volume.replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
+                )}
+
                 {/* Approval Status */}
                 {userDetails?.approval_status && (
                   <div className="flex items-center justify-between py-2">
