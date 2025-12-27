@@ -293,6 +293,23 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                   </div>
                 )}
 
+                {/* How did you hear about us? */}
+                {userDetails?.referral_source && (
+                  <div className="flex items-start justify-between py-2">
+                    <span className="text-xs text-muted-foreground">How They Found Us</span>
+                    <div className="text-right">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {userDetails.referral_source.replace(/_/g, ' ')}
+                      </Badge>
+                      {userDetails?.referral_source_detail && (
+                        <p className="text-xs text-muted-foreground mt-1 max-w-[150px]">
+                          {userDetails.referral_source_detail}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Approval Status */}
                 {userDetails?.approval_status && (
                   <div className="flex items-center justify-between py-2">
