@@ -1714,8 +1714,14 @@ const Signup = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    // Clear referral data and skip to next step
-                    setFormData(prev => ({ ...prev, referralSource: '', referralSourceDetail: '' }));
+                    // Clear all Step 3 data and skip to next step
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      referralSource: '', 
+                      referralSourceDetail: '',
+                      dealSourcingMethods: [],
+                      targetAcquisitionVolume: ''
+                    }));
                     setCurrentStep(prev => prev + 1);
                   }}
                   disabled={isLoading || isSubmitting}

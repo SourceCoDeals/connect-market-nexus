@@ -1,8 +1,8 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 import { 
   DEAL_SOURCING_METHOD_OPTIONS, 
   TARGET_ACQUISITION_VOLUME_OPTIONS 
@@ -48,11 +48,12 @@ export function ReferralSourceStep({
 }: ReferralSourceStepProps) {
   const selectedOption = REFERRAL_SOURCES.find(s => s.id === referralSource);
 
-  const handleMethodToggle = (methodValue: string, checked: boolean) => {
-    if (checked) {
-      onDealSourcingMethodsChange([...dealSourcingMethods, methodValue]);
-    } else {
+  const handleMethodToggle = (methodValue: string) => {
+    const isSelected = dealSourcingMethods.includes(methodValue);
+    if (isSelected) {
       onDealSourcingMethodsChange(dealSourcingMethods.filter(m => m !== methodValue));
+    } else {
+      onDealSourcingMethodsChange([...dealSourcingMethods, methodValue]);
     }
   };
 
@@ -122,31 +123,39 @@ export function ReferralSourceStep({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {DEAL_SOURCING_METHOD_OPTIONS.map((option) => (
-            <div 
-              key={option.value} 
-              className={cn(
-                "flex items-center space-x-3 p-3 rounded-lg border transition-all duration-150 cursor-pointer",
-                "hover:border-primary/50 hover:bg-accent/30",
-                dealSourcingMethods.includes(option.value)
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-background"
-              )}
-              onClick={() => handleMethodToggle(option.value, !dealSourcingMethods.includes(option.value))}
-            >
-              <Checkbox
-                id={`sourcing-${option.value}`}
-                checked={dealSourcingMethods.includes(option.value)}
-                className="pointer-events-none"
-              />
-              <Label 
-                htmlFor={`sourcing-${option.value}`} 
-                className="text-xs font-normal cursor-pointer flex-1"
+          {DEAL_SOURCING_METHOD_OPTIONS.map((option) => {
+            const isSelected = dealSourcingMethods.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleMethodToggle(option.value)}
+                className={cn(
+                  "flex items-center space-x-3 p-3 rounded-lg border transition-all duration-150 text-left",
+                  "hover:border-primary/50 hover:bg-accent/30",
+                  "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
+                  isSelected
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-background"
+                )}
+                aria-pressed={isSelected}
               >
-                {option.label}
-              </Label>
-            </div>
-          ))}
+                <div 
+                  className={cn(
+                    "flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                    isSelected 
+                      ? "bg-primary border-primary" 
+                      : "bg-background border-border"
+                  )}
+                >
+                  {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                </div>
+                <span className="text-xs font-normal flex-1">
+                  {option.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
