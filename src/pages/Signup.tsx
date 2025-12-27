@@ -1675,14 +1675,29 @@ const Signup = () => {
           {/* Navigation buttons */}
           <div className="w-full space-y-3">
             {currentStep === steps.length - 1 ? (
-              <Button
-                type="submit"
-                onClick={handleSubmit}
-                disabled={isLoading || isSubmitting}
-                className="w-full text-sm font-medium"
-              >
-                {isLoading || isSubmitting ? "Creating account..." : "Create account"}
-              </Button>
+              <>
+                <Button
+                  type="submit"
+                  onClick={handleSubmit}
+                  disabled={isLoading || isSubmitting}
+                  className="w-full text-sm font-medium"
+                >
+                  {isLoading || isSubmitting ? "Creating account..." : "Create account"}
+                </Button>
+                {/* Skip button for optional Step 5 */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    // Clear referral data and submit
+                    setFormData(prev => ({ ...prev, referralSource: '', referralSourceDetail: '' }));
+                    handleSubmit(e);
+                  }}
+                  disabled={isLoading || isSubmitting}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Skip this step
+                </button>
+              </>
             ) : (
               <Button
                 type="button"
