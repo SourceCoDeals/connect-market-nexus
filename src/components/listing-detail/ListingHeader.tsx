@@ -30,8 +30,8 @@ export function ListingHeader({
     if (daysDiff === 0) return "Listed today";
     if (daysDiff === 1) return "Listed yesterday";
     if (daysDiff < 7) return `Listed ${daysDiff}d ago`;
-    if (daysDiff < 30) return `Listed ${Math.floor(daysDiff / 7)}w ago`;
-    return "Listed 30+ days ago";
+    if (daysDiff < 14) return `Listed ${Math.floor(daysDiff / 7)}w ago`;
+    return "Listed 14+ days ago";
   };
 
   return (
