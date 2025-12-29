@@ -11,8 +11,8 @@ interface ListingInfoProps {
 const ListingInfo = ({ id, createdAt }: ListingInfoProps) => {
   const getListingAge = (dateString: string) => {
     const days = differenceInDays(new Date(), new Date(dateString));
-    if (days >= 30) {
-      return "Longer than 30 days";
+    if (days >= 14) {
+      return "Over 14 days ago";
     }
     return days === 0 ? "Today" : days === 1 ? "1 day ago" : `${days} days ago`;
   };
