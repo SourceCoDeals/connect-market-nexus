@@ -120,6 +120,14 @@ export const isFieldRelevantForBuyerType = (fieldKey: string, buyerType: BuyerTy
   return relevantFields.includes(fieldKey);
 };
 
+// Sourcing & Discovery fields (applies to all buyer types)
+export const SOURCING_FIELDS = [
+  'referral_source',
+  'referral_source_detail',
+  'deal_sourcing_methods',
+  'target_acquisition_volume',
+] as const;
+
 // Field display labels
 export const FIELD_LABELS = {
   first_name: 'First Name',
@@ -182,6 +190,11 @@ export const FIELD_LABELS = {
   deal_intent: 'Deal Intent',
   exclusions: 'Hard Exclusions',
   include_keywords: 'Keywords',
+  // Sourcing & Discovery labels
+  referral_source: 'How They Found Us',
+  referral_source_detail: 'Referral Details',
+  deal_sourcing_methods: 'Deal Sourcing Methods',
+  target_acquisition_volume: 'Target Acquisitions (12mo)',
 } as const;
 
 // Get field categories for organization
@@ -204,5 +217,6 @@ export const getFieldCategories = (buyerType: BuyerType | 'admin') => {
       ...(buyerType !== 'privateEquity' && buyerType !== 'independentSponsor' ? BUYER_TYPE_FIELD_MAPPINGS.revenue : []),
     ],
     'Financial Information': getBuyerSpecificFields(buyerType),
+    'Sourcing & Discovery': [...SOURCING_FIELDS],
   };
 };

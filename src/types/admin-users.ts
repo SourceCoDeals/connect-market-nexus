@@ -44,6 +44,11 @@ export interface User {
   funding_source?: string;
   needs_loan?: string;
   ideal_target?: string;
+  // Sourcing & Discovery fields
+  referral_source?: string;
+  referral_source_detail?: string;
+  deal_sourcing_methods?: string[];
+  target_acquisition_volume?: string;
 }
 
 export interface AdminConnectionRequest {

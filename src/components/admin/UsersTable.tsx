@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download, Shield } from "lucide-react";
+import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download, Shield, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +19,7 @@ import { SimpleNDADialog } from "./SimpleNDADialog";
 import { UserActivityTimeline } from "./UserActivityTimeline";
 import { UserFirmBadge } from "./UserFirmBadge";
 
-import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import { getFieldCategories, FIELD_LABELS, SOURCING_FIELDS } from '@/lib/buyer-type-fields';
 import { formatFieldValue } from '@/lib/field-formatting';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
@@ -83,27 +83,6 @@ const UserDetails = ({ user }: { user: User }) => {
               <div>
                 <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
               </div>
-              {user.referral_source && (
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">How They Found Us:</span>{" "}
-                  <span className="capitalize">{user.referral_source.replace(/_/g, ' ')}</span>
-                  {user.referral_source_detail && (
-                    <span className="text-muted-foreground ml-1">({user.referral_source_detail})</span>
-                  )}
-                </div>
-              )}
-              {user.deal_sourcing_methods && user.deal_sourcing_methods.length > 0 && (
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Deal Sourcing:</span>{" "}
-                  <span className="capitalize">{user.deal_sourcing_methods.map(m => m.replace(/_/g, ' ')).join(', ')}</span>
-                </div>
-              )}
-              {user.target_acquisition_volume && (
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Target Acquisitions (12mo):</span>{" "}
-                  <span className="capitalize">{user.target_acquisition_volume.replace(/_/g, ' ')}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -117,6 +96,7 @@ const UserDetails = ({ user }: { user: User }) => {
                   {categoryName === 'Contact Information' && <Mail className="h-4 w-4" />}
                   {categoryName === 'Business Profile' && <Building className="h-4 w-4" />}
                   {categoryName === 'Financial Information' && <UserIcon className="h-4 w-4" />}
+                  {categoryName === 'Sourcing & Discovery' && <Search className="h-4 w-4" />}
                   {categoryName}
                   {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
                 </h4>
@@ -227,6 +207,47 @@ const UserDetails = ({ user }: { user: User }) => {
                       return (
                         <div key={fieldKey}>
                           <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
+                        </div>
+                      );
+                    }
+                    
+                    // Handle deal_sourcing_methods array
+                    if (fieldKey === 'deal_sourcing_methods') {
+                      const methods = fieldValue as string[] | undefined;
+                      return (
+                        <div key={fieldKey} className="col-span-2">
+                          <span className="text-muted-foreground">{fieldLabel}:</span>
+                          <div className="mt-1">
+                            {methods && methods.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {methods.map((method, index) => (
+                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded capitalize">
+                                    {method.replace(/_/g, ' ')}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : '—'}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle referral_source with special formatting
+                    if (fieldKey === 'referral_source') {
+                      return (
+                        <div key={fieldKey}>
+                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}</span>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle target_acquisition_volume with special formatting
+                    if (fieldKey === 'target_acquisition_volume') {
+                      return (
+                        <div key={fieldKey}>
+                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}</span>
                         </div>
                       );
                     }
