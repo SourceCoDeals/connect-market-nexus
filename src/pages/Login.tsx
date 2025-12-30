@@ -17,10 +17,15 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Simple redirect if already logged in
+  // Simple redirect if already logged in - route based on approval status
   useEffect(() => {
     if (authChecked && user) {
-      const redirectPath = user.is_admin ? "/admin" : "/marketplace";
+      let redirectPath = "/marketplace";
+      if (user.is_admin) {
+        redirectPath = "/admin";
+      } else if (user.approval_status !== 'approved') {
+        redirectPath = "/pending-approval";
+      }
       navigate(redirectPath, { replace: true });
     }
   }, [user, authChecked, navigate]);
