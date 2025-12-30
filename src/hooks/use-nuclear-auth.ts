@@ -36,9 +36,19 @@ export function useNuclearAuth() {
             .single();
 
           // Self-healing: if profile missing, create one from auth metadata
+          // Include all fields to prevent data loss if DB trigger failed
           if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
             console.log('Profile missing, attempting self-heal for:', session.user.email);
             const meta = session.user.user_metadata || {};
+            
+            // Parse arrays safely
+            const parseArray = (val: any): any[] => {
+              if (Array.isArray(val)) return val;
+              if (typeof val === 'string' && val.startsWith('[')) {
+                try { return JSON.parse(val); } catch { return []; }
+              }
+              return [];
+            };
             
             const { data: newProfile, error: insertError } = await supabase
               .from('profiles')
@@ -51,6 +61,16 @@ export function useNuclearAuth() {
                 buyer_type: meta.buyer_type || meta.buyerType || 'individual',
                 website: meta.website || '',
                 linkedin_profile: meta.linkedin_profile || meta.linkedinProfile || '',
+                phone_number: meta.phone_number || meta.phoneNumber || '',
+                job_title: meta.job_title || meta.jobTitle || '',
+                // Key arrays from signup
+                business_categories: parseArray(meta.business_categories || meta.businessCategories),
+                target_locations: parseArray(meta.target_locations || meta.targetLocations),
+                // Step 3 fields - critical to capture
+                referral_source: meta.referral_source || meta.referralSource || null,
+                referral_source_detail: meta.referral_source_detail || meta.referralSourceDetail || null,
+                deal_sourcing_methods: parseArray(meta.deal_sourcing_methods || meta.dealSourcingMethods),
+                target_acquisition_volume: meta.target_acquisition_volume || meta.targetAcquisitionVolume || null,
                 approval_status: 'pending',
                 email_verified: !!session.user.email_confirmed_at,
               }, { onConflict: 'id' })
