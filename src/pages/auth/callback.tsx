@@ -29,11 +29,41 @@ export default function AuthCallback() {
           console.log('✅ User session found, checking profile...');
           
           // Get latest profile data to see if verification was successful
-          const { data: profile } = await supabase
+          let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('email_verified, approval_status, is_admin, first_name, last_name, email')
             .eq('id', data.session.user.id)
             .single();
+
+          // Self-healing: if profile missing, create one from auth metadata
+          if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
+            console.log('⚠️ Profile missing in callback, attempting self-heal for:', data.session.user.email);
+            const meta = data.session.user.user_metadata || {};
+            
+            const { data: newProfile, error: insertError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: data.session.user.id,
+                email: data.session.user.email || '',
+                first_name: meta.first_name || meta.firstName || 'Unknown',
+                last_name: meta.last_name || meta.lastName || 'User',
+                company: meta.company || '',
+                buyer_type: meta.buyer_type || meta.buyerType || 'individual',
+                website: meta.website || '',
+                linkedin_profile: meta.linkedin_profile || meta.linkedinProfile || '',
+                approval_status: 'pending',
+                email_verified: !!data.session.user.email_confirmed_at,
+              }, { onConflict: 'id' })
+              .select('email_verified, approval_status, is_admin, first_name, last_name, email')
+              .single();
+            
+            if (insertError) {
+              console.error('Self-heal profile creation failed in callback:', insertError);
+            } else {
+              console.log('✅ Self-healed profile created successfully in callback');
+              profile = newProfile;
+            }
+          }
 
           console.log('📋 Profile data:', { 
             email_verified: profile?.email_verified, 

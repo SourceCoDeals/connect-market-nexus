@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, CheckCircle, Clock, LogOut, Loader2, AlertCircle, Info } from 'lucide-react';
+import { Mail, CheckCircle, Clock, LogOut, Loader2, AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -11,9 +11,10 @@ import { cleanupAuthState } from '@/lib/auth-helpers';
 const PendingApproval = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, refreshUserProfile } = useAuth();
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
   // Handle navigation for approved users
   useEffect(() => {
@@ -160,6 +161,28 @@ const PendingApproval = () => {
       navigate('/login', { replace: true });
     } finally {
       setIsLoggingOut(false);
+    }
+  };
+
+  const handleCheckStatus = async () => {
+    setIsCheckingStatus(true);
+    try {
+      await refreshUserProfile();
+      toast({
+        title: "Status checked",
+        description: user?.approval_status === 'approved' 
+          ? "Your account has been approved!" 
+          : "Your account is still pending approval.",
+      });
+    } catch (error) {
+      console.error("Failed to check status:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to check status",
+        description: "Please try again.",
+      });
+    } finally {
+      setIsCheckingStatus(false);
     }
   };
 
@@ -325,6 +348,25 @@ const PendingApproval = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
+            {uiState === 'approved_pending' && (
+              <Button
+                onClick={handleCheckStatus}
+                disabled={isCheckingStatus}
+                className="w-full"
+              >
+                {isCheckingStatus ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Check Approval Status
+                  </>
+                )}
+              </Button>
+            )}
             {uiState !== 'approved_pending' && (
               <Button
                 onClick={handleResendVerification}
