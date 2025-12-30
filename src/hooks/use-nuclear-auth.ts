@@ -20,7 +20,7 @@ export function useNuclearAuth() {
     // Simplified - no early token detection in auth hook
     // Let PendingApproval page handle all verification scenarios
 
-    // Simple session check - no complex initialization
+    // Simple session check with self-healing for missing profiles
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -29,11 +29,41 @@ export function useNuclearAuth() {
         
         if (session?.user) {
           // Fetch profile data directly
-          const { data: profile } = await supabase
+          let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
+
+          // Self-healing: if profile missing, create one from auth metadata
+          if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
+            console.log('Profile missing, attempting self-heal for:', session.user.email);
+            const meta = session.user.user_metadata || {};
+            
+            const { data: newProfile, error: insertError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: session.user.id,
+                email: session.user.email || '',
+                first_name: meta.first_name || meta.firstName || 'Unknown',
+                last_name: meta.last_name || meta.lastName || 'User',
+                company: meta.company || '',
+                buyer_type: meta.buyer_type || meta.buyerType || 'individual',
+                website: meta.website || '',
+                linkedin_profile: meta.linkedin_profile || meta.linkedinProfile || '',
+                approval_status: 'pending',
+                email_verified: !!session.user.email_confirmed_at,
+              }, { onConflict: 'id' })
+              .select()
+              .single();
+            
+            if (insertError) {
+              console.error('Self-heal profile creation failed:', insertError);
+            } else {
+              console.log('Self-healed profile created successfully');
+              profile = newProfile;
+            }
+          }
 
           if (profile && isMounted) {
             const appUser = createUserObject(profile);
