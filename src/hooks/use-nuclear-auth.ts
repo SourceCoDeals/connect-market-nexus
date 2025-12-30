@@ -226,6 +226,12 @@ export function useNuclearAuth() {
             : (typeof userData.include_keywords === 'string' && userData.include_keywords
                 ? (userData.include_keywords as string).split(',').map(s => s.trim()).filter(Boolean)
                 : []),
+          // Referral source tracking (Step 3 - How did you hear about us?)
+          referral_source: userData.referral_source || '',
+          referral_source_detail: userData.referral_source_detail || '',
+          // Deal sourcing questions (Step 3)
+          deal_sourcing_methods: Array.isArray(userData.deal_sourcing_methods) ? userData.deal_sourcing_methods : [],
+          target_acquisition_volume: userData.target_acquisition_volume || '',
         }
       }
     });
