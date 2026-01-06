@@ -3197,6 +3197,39 @@ export type Database = {
           },
         ]
       }
+      trigger_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          trigger_name: string
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          trigger_name: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          trigger_name?: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_activity: {
         Row: {
           activity_type: string
@@ -3607,6 +3640,14 @@ export type Database = {
           target_user_id: string
         }
         Returns: boolean
+      }
+      check_orphaned_auth_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          user_email: string
+          user_id: string
+        }[]
       }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       convert_inbound_lead_to_request: {
