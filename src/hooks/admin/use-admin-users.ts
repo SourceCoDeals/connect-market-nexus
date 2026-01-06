@@ -27,13 +27,9 @@ export function useAdminUsers() {
             throw profilesError;
           }
 
-          return profilesData?.map(profile => {
-            try {
-              return createUserObject(profile);
-            } catch (err) {
-              return null;
-            }
-          }).filter(Boolean) || [];
+          // createUserObject NEVER throws - always returns valid User
+          // Users with _hasDataIssues flag will still be visible in admin
+          return profilesData?.map(profile => createUserObject(profile)) || [];
         } catch (error) {
           throw error;
         }
