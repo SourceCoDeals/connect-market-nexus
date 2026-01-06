@@ -111,8 +111,8 @@ export interface User {
   referral_source?: string;
   referral_source_detail?: string;
   
-  // Deal sourcing questions
-  deal_sourcing_methods?: string[];
+  // Deal sourcing questions (stored as jsonb in DB)
+  deal_sourcing_methods?: string[] | unknown;
   target_acquisition_volume?: string;
   
   // Additional investment criteria fields
