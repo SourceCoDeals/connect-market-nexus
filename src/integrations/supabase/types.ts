@@ -2759,7 +2759,7 @@ export type Database = {
           created_at: string
           deal_intent: string | null
           deal_size_band: string | null
-          deal_sourcing_methods: string[] | null
+          deal_sourcing_methods: Json | null
           deal_structure_preference: string | null
           deleted_at: string | null
           deploying_capital_now: string | null
@@ -2844,7 +2844,7 @@ export type Database = {
           created_at?: string
           deal_intent?: string | null
           deal_size_band?: string | null
-          deal_sourcing_methods?: string[] | null
+          deal_sourcing_methods?: Json | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
           deploying_capital_now?: string | null
@@ -2860,7 +2860,7 @@ export type Database = {
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
           financing_plan?: Json | null
-          first_name: string
+          first_name?: string
           flex_sub2m_ebitda?: boolean | null
           flex_subxm_ebitda?: boolean | null
           fund_size?: string | null
@@ -2877,8 +2877,8 @@ export type Database = {
           is_admin?: boolean | null
           is_funded?: string | null
           job_title?: string | null
-          last_name: string
-          linkedin_profile: string
+          last_name?: string
+          linkedin_profile?: string
           mandate_blurb?: string | null
           max_equity_today_band?: string | null
           nda_email_sent?: boolean | null
@@ -2909,7 +2909,7 @@ export type Database = {
           target_locations?: Json | null
           updated_at?: string
           uses_bank_finance?: string | null
-          website: string
+          website?: string
         }
         Update: {
           acq_equity_band?: string | null
@@ -2929,7 +2929,7 @@ export type Database = {
           created_at?: string
           deal_intent?: string | null
           deal_size_band?: string | null
-          deal_sourcing_methods?: string[] | null
+          deal_sourcing_methods?: Json | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
           deploying_capital_now?: string | null

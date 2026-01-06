@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 export interface UserDetails {
   id: string;
@@ -14,7 +15,7 @@ export interface UserDetails {
   created_at: string;
   referral_source: string | null;
   referral_source_detail: string | null;
-  deal_sourcing_methods: string[] | null;
+  deal_sourcing_methods: Json | null;
   target_acquisition_volume: string | null;
   initial_session?: {
     session_id: string | null;

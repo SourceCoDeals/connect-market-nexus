@@ -47,7 +47,7 @@ export interface User {
   // Sourcing & Discovery fields
   referral_source?: string;
   referral_source_detail?: string;
-  deal_sourcing_methods?: string[];
+  deal_sourcing_methods?: string[] | unknown;
   target_acquisition_volume?: string;
 }
 

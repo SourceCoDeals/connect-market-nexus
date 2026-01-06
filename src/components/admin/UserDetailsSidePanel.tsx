@@ -311,12 +311,12 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                 )}
 
                 {/* Deal Sourcing Methods */}
-                {userDetails?.deal_sourcing_methods && userDetails.deal_sourcing_methods.length > 0 && (
+                {userDetails?.deal_sourcing_methods && Array.isArray(userDetails.deal_sourcing_methods) && userDetails.deal_sourcing_methods.length > 0 && (
                   <div className="flex items-start justify-between py-2">
                     <span className="text-xs text-muted-foreground">Deal Sourcing</span>
                     <div className="text-right max-w-[60%]">
                       <div className="flex flex-wrap justify-end gap-1">
-                        {userDetails.deal_sourcing_methods.map((method: string) => (
+                        {(userDetails.deal_sourcing_methods as string[]).map((method: string) => (
                           <Badge key={method} variant="secondary" className="text-xs capitalize">
                             {method.replace(/_/g, ' ')}
                           </Badge>
