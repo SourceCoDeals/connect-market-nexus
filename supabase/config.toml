@@ -116,3 +116,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.send-owner-inquiry-notification]
 verify_jwt = false
+[functions.sync-missing-profiles]
+verify_jwt = false

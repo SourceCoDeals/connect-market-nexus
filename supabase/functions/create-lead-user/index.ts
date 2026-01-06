@@ -56,21 +56,21 @@ Deno.serve(async (req) => {
 
     console.log('Created auth user:', authUser.user.id)
 
-    // Create profile
+    // Create profile using upsert to handle potential conflicts with trigger
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert([{
+      .upsert({
         id: authUser.user.id,
         email,
         first_name: firstName,
         last_name: lastName,
-        company,
-        phone_number: phoneNumber,
+        company: company || '',
+        phone_number: phoneNumber || '',
         buyer_type: buyerType,
         website: '',
         linkedin_profile: '',
         approval_status: 'approved'
-      }])
+      }, { onConflict: 'id' })
 
     if (profileError) {
       console.error('Profile creation error:', profileError)
