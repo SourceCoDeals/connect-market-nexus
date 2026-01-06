@@ -1,0 +1,46 @@
+
+-- Create missing profile for Alex Gilbert with all required NOT NULL fields
+INSERT INTO public.profiles (
+  id,
+  email,
+  first_name,
+  last_name,
+  website,
+  linkedin_profile,
+  phone_number,
+  job_title,
+  company,
+  buyer_type,
+  approval_status,
+  email_verified,
+  business_categories,
+  target_locations,
+  investment_size,
+  geographic_focus,
+  industry_expertise,
+  exclusions,
+  include_keywords,
+  deal_sourcing_methods
+) VALUES (
+  'cff272b9-c2e4-4804-8189-0fdc60392b23',
+  'ajgtf3@gmail.com',
+  'Alex',
+  'Gilbert',
+  '',
+  '',
+  '',
+  '',
+  '',
+  'individual',
+  'pending',
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb,
+  '[]'::jsonb,
+  '[]'::jsonb,
+  '[]'::jsonb,
+  '[]'::jsonb,
+  '[]'::jsonb,
+  ARRAY[]::text[]
+)
+ON CONFLICT (id) DO NOTHING;
