@@ -3616,10 +3616,21 @@ export type Database = {
         }
         Returns: boolean
       }
-      calculate_buyer_priority_score: {
-        Args: { buyer_type_param: string }
-        Returns: number
-      }
+      calculate_buyer_priority_score:
+        | { Args: { buyer_type_param: string }; Returns: number }
+        | {
+            Args: {
+              p_acquisition_timeline: string
+              p_annual_revenue: string
+              p_business_categories: string[]
+              p_buyer_type: string
+              p_capital_available: string
+              p_company_name: string
+              p_is_registered_user?: boolean
+              p_target_locations: string[]
+            }
+            Returns: number
+          }
       calculate_deal_buyer_priority: {
         Args: { deal_row: Database["public"]["Tables"]["deals"]["Row"] }
         Returns: number
@@ -3675,7 +3686,7 @@ export type Database = {
         }
         Returns: Json
       }
-      extract_domain: { Args: { input_text: string }; Returns: string }
+      extract_domain: { Args: { email: string }; Returns: string }
       generate_deal_identifier: { Args: never; Returns: string }
       get_all_user_roles: {
         Args: never
@@ -3684,6 +3695,16 @@ export type Database = {
           granted_by: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
+        }[]
+      }
+      get_connection_request_analytics: {
+        Args: { time_range?: string }
+        Returns: {
+          approved_requests: number
+          conversion_rate: number
+          pending_requests: number
+          rejected_requests: number
+          total_requests: number
         }[]
       }
       get_connection_request_conflicts: {
@@ -3754,6 +3775,15 @@ export type Database = {
           stage_position: number
           total_activities: number
           total_tasks: number
+        }[]
+      }
+      get_engagement_analytics: {
+        Args: { time_range?: string }
+        Returns: {
+          active_users: number
+          avg_engagement_score: number
+          top_engaged_users: Json
+          total_users: number
         }[]
       }
       get_feedback_analytics: {
@@ -3837,6 +3867,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment: { Args: { x: number }; Returns: number }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       log_fee_agreement_email: {
@@ -3886,17 +3917,10 @@ export type Database = {
         Returns: boolean
       }
       move_deal_stage_with_ownership: {
-        Args: {
-          p_current_admin_id: string
-          p_deal_id: string
-          p_new_stage_id: string
-        }
-        Returns: Json
+        Args: { p_admin_id: string; p_deal_id: string; p_new_stage_id: string }
+        Returns: undefined
       }
-      normalize_company_name: {
-        Args: { company_name: string }
-        Returns: string
-      }
+      normalize_company_name: { Args: { name: string }; Returns: string }
       preview_profile_data_restoration: {
         Args: never
         Returns: {
@@ -3915,7 +3939,9 @@ export type Database = {
         Returns: boolean
       }
       refresh_analytics_views: { Args: never; Returns: undefined }
-      reset_all_admin_notifications: { Args: never; Returns: undefined }
+      reset_all_admin_notifications:
+        | { Args: never; Returns: undefined }
+        | { Args: { admin_uuid: string }; Returns: undefined }
       restore_deal: { Args: { deal_id: string }; Returns: boolean }
       restore_profile_data_automated: {
         Args: never
@@ -3969,10 +3995,9 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_daily_metrics: {
-        Args: { target_date?: string }
-        Returns: undefined
-      }
+      update_daily_metrics:
+        | { Args: never; Returns: undefined }
+        | { Args: { target_date?: string }; Returns: undefined }
       update_deal_owner: {
         Args: { p_actor_id?: string; p_assigned_to: string; p_deal_id: string }
         Returns: Json
