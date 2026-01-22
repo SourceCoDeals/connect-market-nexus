@@ -43,6 +43,7 @@ import ReMarketingUniverseDetail from "@/pages/admin/remarketing/ReMarketingUniv
 import ReMarketingBuyers from "@/pages/admin/remarketing/ReMarketingBuyers";
 import ReMarketingBuyerDetail from "@/pages/admin/remarketing/ReMarketingBuyerDetail";
 import ReMarketingDealMatching from "@/pages/admin/remarketing/ReMarketingDealMatching";
+import ReMarketingIntroductions from "@/pages/admin/remarketing/ReMarketingIntroductions";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
 import { SimpleToastProvider } from "@/components/ui/simple-toast";
@@ -127,6 +128,7 @@ function App() {
               <Route path="remarketing/buyers" element={<ReMarketingBuyers />} />
               <Route path="remarketing/buyers/:id" element={<ReMarketingBuyerDetail />} />
               <Route path="remarketing/matching/:listingId" element={<ReMarketingDealMatching />} />
+              <Route path="remarketing/introductions/:listingId" element={<ReMarketingIntroductions />} />
             </Route>
             
             {/* Catch-all route for 404 Not Found */}
