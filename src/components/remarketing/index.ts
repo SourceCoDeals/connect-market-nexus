@@ -18,5 +18,12 @@ export { DocumentUploadSection } from './DocumentUploadSection';
 export { MAGuideEditor } from './MAGuideEditor';
 export { UniverseTemplates } from './UniverseTemplates';
 
+// Analytics Components
+export { MatchingFunnel } from './MatchingFunnel';
+export { TierDistributionChart } from './TierDistributionChart';
+export { ScoringTrendsChart } from './ScoringTrendsChart';
+export { CategoryPerformanceChart } from './CategoryPerformanceChart';
+export { UniversePerformanceTable } from './UniversePerformanceTable';
+
 // Import Components
 export { default as BuyerCSVImport } from './BuyerCSVImport';
