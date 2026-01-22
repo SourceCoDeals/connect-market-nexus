@@ -118,3 +118,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.sync-missing-profiles]
 verify_jwt = false
+[functions.score-buyer-deal]
+verify_jwt = true
