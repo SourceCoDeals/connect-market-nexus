@@ -256,9 +256,9 @@ const ReMarketingDashboard = () => {
           <CardTitle className="text-lg">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
-              <Link to="/admin/remarketing/universes/new">
+              <Link to="/admin/remarketing/universes?new=true">
                 <Plus className="h-5 w-5" />
                 <span>Create Universe</span>
               </Link>
@@ -270,9 +270,15 @@ const ReMarketingDashboard = () => {
               </Link>
             </Button>
             <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
-              <Link to="/admin/listings">
+              <Link to="/admin/remarketing/deals">
+                <Building2 className="h-5 w-5" />
+                <span>View All Deals</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+              <Link to="/admin/remarketing/analytics">
                 <TrendingUp className="h-5 w-5" />
-                <span>Match Listings</span>
+                <span>View Analytics</span>
               </Link>
             </Button>
           </div>

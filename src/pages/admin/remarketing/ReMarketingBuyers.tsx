@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Table,
   TableBody,
   TableCell,
@@ -14,30 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Link } from "react-router-dom";
-import { 
-  Building2, 
-  Plus,
-  Search,
-  MoreVertical,
-  Pencil,
-  Trash2,
-  Upload,
-  ExternalLink
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -47,11 +27,34 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+  Search, 
+  Plus, 
+  MoreHorizontal, 
+  Users, 
+  Building,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle
+} from "lucide-react";
 import { toast } from "sonner";
-import type { BuyerType } from "@/types/remarketing";
-import { BuyerCSVImport } from "@/components/remarketing/BuyerCSVImport";
+import { BuyerCSVImport } from "@/components/remarketing";
+import type { BuyerType, DataCompleteness } from "@/types/remarketing";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'pe_firm', label: 'PE Firm' },
@@ -61,24 +64,30 @@ const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+type BuyerTab = 'all' | 'pe_firm' | 'platform';
+
 const ReMarketingBuyers = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<BuyerTab>('all');
   const [universeFilter, setUniverseFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newBuyer, setNewBuyer] = useState({
-    company_name: '',
-    company_website: '',
-    buyer_type: 'pe_firm' as BuyerType,
-    universe_id: '',
-    notes: '',
-  });
   
-  const queryClient = useQueryClient();
+  // New buyer form state
+  const [newBuyer, setNewBuyer] = useState({
+    company_name: "",
+    company_website: "",
+    buyer_type: "" as BuyerType | "",
+    universe_id: "",
+    thesis_summary: "",
+    notes: "",
+  });
 
-  // Fetch all buyers
-  const { data: buyers, isLoading } = useQuery({
-    queryKey: ['remarketing', 'buyers', typeFilter, universeFilter],
+  // Fetch buyers with universe info
+  const { data: buyers, isLoading: buyersLoading } = useQuery({
+    queryKey: ['remarketing', 'buyers', activeTab, universeFilter],
     queryFn: async () => {
       let query = supabase
         .from('remarketing_buyers')
@@ -88,21 +97,26 @@ const ReMarketingBuyers = () => {
         `)
         .eq('archived', false)
         .order('company_name');
-      
-      if (typeFilter !== 'all') {
-        query = query.eq('buyer_type', typeFilter);
+
+      // Filter by tab (buyer type)
+      if (activeTab === 'pe_firm') {
+        query = query.eq('buyer_type', 'pe_firm');
+      } else if (activeTab === 'platform') {
+        query = query.eq('buyer_type', 'platform');
       }
-      if (universeFilter !== 'all') {
+
+      // Filter by universe
+      if (universeFilter !== "all") {
         query = query.eq('universe_id', universeFilter);
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return data;
     }
   });
 
-  // Fetch universes for filter
+  // Fetch universes for filter/dropdown
   const { data: universes } = useQuery({
     queryKey: ['remarketing', 'universes'],
     queryFn: async () => {
@@ -111,98 +125,133 @@ const ReMarketingBuyers = () => {
         .select('id, name')
         .eq('archived', false)
         .order('name');
-      
+
       if (error) throw error;
-      return data || [];
+      return data;
     }
   });
 
-  const addBuyerMutation = useMutation({
+  // Count by type
+  const { data: typeCounts } = useQuery({
+    queryKey: ['remarketing', 'buyer-type-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_buyers')
+        .select('buyer_type')
+        .eq('archived', false);
+
+      if (error) throw error;
+
+      const counts = { pe_firm: 0, platform: 0, other: 0 };
+      data?.forEach(b => {
+        if (b.buyer_type === 'pe_firm') counts.pe_firm++;
+        else if (b.buyer_type === 'platform') counts.platform++;
+        else counts.other++;
+      });
+      return counts;
+    }
+  });
+
+  // Create buyer mutation
+  const createMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
         .from('remarketing_buyers')
-        .insert([{
-          ...newBuyer,
+        .insert({
+          company_name: newBuyer.company_name,
+          company_website: newBuyer.company_website || null,
+          buyer_type: newBuyer.buyer_type || null,
           universe_id: newBuyer.universe_id || null,
-        }]);
-      
+          thesis_summary: newBuyer.thesis_summary || null,
+          notes: newBuyer.notes || null,
+        });
+
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-      toast.success('Buyer added');
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success(`${newBuyer.company_name} has been added.`);
+      setNewBuyer({ company_name: "", company_website: "", buyer_type: "", universe_id: "", thesis_summary: "", notes: "" });
       setIsAddDialogOpen(false);
-      setNewBuyer({
-        company_name: '',
-        company_website: '',
-        buyer_type: 'pe_firm',
-        universe_id: '',
-        notes: '',
-      });
     },
-    onError: () => {
-      toast.error('Failed to add buyer');
+    onError: (error: Error) => {
+      toast.error(error.message);
     }
   });
 
-  const deleteBuyerMutation = useMutation({
+  // Delete buyer mutation
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('remarketing_buyers')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-      toast.success('Buyer deleted');
-    },
-    onError: () => {
-      toast.error('Failed to delete buyer');
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success("Buyer deleted");
     }
   });
 
-  const filteredBuyers = buyers?.filter(buyer =>
-    buyer.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    buyer.company_website?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter buyers by search
+  const filteredBuyers = useMemo(() => {
+    if (!buyers) return [];
+    if (!search) return buyers;
+    
+    const searchLower = search.toLowerCase();
+    return buyers.filter(b => 
+      b.company_name?.toLowerCase().includes(searchLower) ||
+      b.company_website?.toLowerCase().includes(searchLower) ||
+      b.thesis_summary?.toLowerCase().includes(searchLower)
+    );
+  }, [buyers, search]);
 
-  const getDataCompletenessColor = (level: string | null) => {
+  const getDataCompletenessIcon = (level: DataCompleteness | null) => {
     switch (level) {
-      case 'high': return 'default';
-      case 'medium': return 'secondary';
-      default: return 'outline';
+      case 'high':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'medium':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      case 'low':
+        return <HelpCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
     }
   };
+
+  const getBuyerTypeLabel = (type: string | null) => {
+    const found = BUYER_TYPES.find(t => t.value === type);
+    return found?.label || type || '-';
+  };
+
+  const totalBuyers = (typeCounts?.pe_firm || 0) + (typeCounts?.platform || 0) + (typeCounts?.other || 0);
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">External Buyers</h1>
+          <h1 className="text-2xl font-bold text-foreground">All Buyers</h1>
           <p className="text-muted-foreground">
-            Manage PE firms, platforms, and strategic buyers
+            {typeCounts?.pe_firm || 0} PE firms · {typeCounts?.platform || 0} platforms
           </p>
         </div>
-        <div className="flex gap-2">
-          <BuyerCSVImport 
-            universeId={universeFilter !== 'all' ? universeFilter : undefined}
-            onComplete={() => queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] })}
-          />
+        <div className="flex items-center gap-2">
+          <BuyerCSVImport />
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
                 Add Buyer
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Add New Buyer</DialogTitle>
                 <DialogDescription>
-                  Add a new external buyer to your database
+                  Add a new buyer to your database. You can enrich their data later.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -210,7 +259,7 @@ const ReMarketingBuyers = () => {
                   <Label htmlFor="company_name">Company Name *</Label>
                   <Input
                     id="company_name"
-                    placeholder="e.g., Blackstone"
+                    placeholder="e.g., Apex Capital Partners"
                     value={newBuyer.company_name}
                     onChange={(e) => setNewBuyer({ ...newBuyer, company_name: e.target.value })}
                   />
@@ -224,49 +273,60 @@ const ReMarketingBuyers = () => {
                     onChange={(e) => setNewBuyer({ ...newBuyer, company_website: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Buyer Type</Label>
-                  <Select
-                    value={newBuyer.buyer_type}
-                    onValueChange={(value) => setNewBuyer({ ...newBuyer, buyer_type: value as BuyerType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BUYER_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="buyer_type">Buyer Type</Label>
+                    <Select
+                      value={newBuyer.buyer_type}
+                      onValueChange={(value) => setNewBuyer({ ...newBuyer, buyer_type: value as BuyerType })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUYER_TYPES.map(type => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="universe_id">Buyer Universe</Label>
+                    <Select
+                      value={newBuyer.universe_id}
+                      onValueChange={(value) => setNewBuyer({ ...newBuyer, universe_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select universe" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {universes?.map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Universe</Label>
-                  <Select
-                    value={newBuyer.universe_id}
-                    onValueChange={(value) => setNewBuyer({ ...newBuyer, universe_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select universe (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {universes?.map((universe) => (
-                        <SelectItem key={universe.id} value={universe.id}>
-                          {universe.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="thesis_summary">Investment Thesis</Label>
+                  <Textarea
+                    id="thesis_summary"
+                    placeholder="Brief description of their investment focus..."
+                    value={newBuyer.thesis_summary}
+                    onChange={(e) => setNewBuyer({ ...newBuyer, thesis_summary: e.target.value })}
+                    rows={3}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
                     id="notes"
-                    placeholder="Any additional notes..."
+                    placeholder="Additional notes..."
                     value={newBuyer.notes}
                     onChange={(e) => setNewBuyer({ ...newBuyer, notes: e.target.value })}
+                    rows={2}
                   />
                 </div>
               </div>
@@ -275,10 +335,10 @@ const ReMarketingBuyers = () => {
                   Cancel
                 </Button>
                 <Button 
-                  onClick={() => addBuyerMutation.mutate()}
-                  disabled={!newBuyer.company_name || addBuyerMutation.isPending}
+                  onClick={() => createMutation.mutate()}
+                  disabled={!newBuyer.company_name.trim() || createMutation.isPending}
                 >
-                  {addBuyerMutation.isPending ? 'Adding...' : 'Add Buyer'}
+                  {createMutation.isPending ? "Adding..." : "Add Buyer"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -286,140 +346,165 @@ const ReMarketingBuyers = () => {
         </div>
       </div>
 
+      {/* Tabs for buyer types */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as BuyerTab)}>
+        <TabsList>
+          <TabsTrigger value="all">
+            All ({totalBuyers})
+          </TabsTrigger>
+          <TabsTrigger value="pe_firm">
+            PE Firms ({typeCounts?.pe_firm || 0})
+          </TabsTrigger>
+          <TabsTrigger value="platform">
+            Platforms ({typeCounts?.platform || 0})
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Filters */}
-      <div className="flex gap-4 items-center flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search buyers..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {BUYER_TYPES.map((type) => (
-              <SelectItem key={type.value} value={type.value}>
-                {type.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={universeFilter} onValueChange={setUniverseFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Universe" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Universes</SelectItem>
-            {universes?.map((universe) => (
-              <SelectItem key={universe.id} value={universe.id}>
-                {universe.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search buyers by name, website, or thesis..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Select value={universeFilter} onValueChange={setUniverseFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All Universes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Universes</SelectItem>
+                {universes?.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Buyers Table */}
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6 space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-12" />
-              ))}
-            </div>
-          ) : filteredBuyers?.length === 0 ? (
-            <div className="text-center py-12">
-              <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="font-semibold text-lg mb-1">No buyers found</h3>
-              <p className="text-muted-foreground mb-4">
-                {search ? 'Try a different search term' : 'Add your first buyer to get started'}
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Company</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Industry / Universe</TableHead>
+                <TableHead>Thesis</TableHead>
+                <TableHead className="text-center">Data</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {buyersLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-4 mx-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  </TableRow>
+                ))
+              ) : filteredBuyers.length === 0 ? (
                 <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Universe</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No buyers found</p>
+                    <p className="text-sm">Add buyers manually or import from CSV</p>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBuyers?.map((buyer: any) => (
-                  <TableRow key={buyer.id}>
+              ) : (
+                filteredBuyers.map((buyer) => (
+                  <TableRow 
+                    key={buyer.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
+                  >
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{buyer.company_name}</p>
-                        {buyer.company_website && (
-                          <a 
-                            href={buyer.company_website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-muted-foreground hover:underline flex items-center gap-1"
-                          >
-                            {new URL(buyer.company_website).hostname}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                          {buyer.buyer_type === 'pe_firm' ? (
+                            <Building className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Users className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{buyer.company_name}</p>
+                          {buyer.company_website && (
+                            <p className="text-xs text-muted-foreground">{buyer.company_website}</p>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {buyer.buyer_type?.replace('_', ' ') || 'Unknown'}
+                      <Badge variant="outline" className="text-xs">
+                        {getBuyerTypeLabel(buyer.buyer_type)}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {buyer.universe?.name || (
-                        <span className="text-muted-foreground">—</span>
+                      {buyer.universe?.name ? (
+                        <Badge variant="secondary" className="text-xs">
+                          {buyer.universe.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getDataCompletenessColor(buyer.data_completeness)}>
-                        {buyer.data_completeness || 'low'}
-                      </Badge>
+                      <p className="text-sm text-muted-foreground truncate max-w-[250px]">
+                        {buyer.thesis_summary || '-'}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {getDataCompletenessIcon(buyer.data_completeness as DataCompleteness | null)}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link to={`/admin/remarketing/buyers/${buyer.id}`}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </Link>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/admin/remarketing/buyers/${buyer.id}`);
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem
+                          <DropdownMenuItem 
                             className="text-destructive"
-                            onClick={() => {
-                              if (confirm('Delete this buyer?')) {
-                                deleteBuyerMutation.mutate(buyer.id);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Are you sure you want to delete this buyer?')) {
+                                deleteMutation.mutate(buyer.id);
                               }
                             }}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
+                            <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                ))
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
