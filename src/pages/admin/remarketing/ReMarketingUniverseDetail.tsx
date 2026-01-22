@@ -360,29 +360,65 @@ const ReMarketingUniverseDetail = () => {
 
         {/* Criteria Tab */}
         <TabsContent value="criteria">
-          <Card>
-            <CardHeader>
-              <CardTitle>Fit Criteria</CardTitle>
-              <CardDescription>
-                Define the criteria for matching buyers to listings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="fit_criteria">Natural Language Criteria</Label>
-                <Textarea
-                  id="fit_criteria"
-                  placeholder="Describe your ideal buyer fit criteria in natural language. For example: 'PE firms focused on home services with existing HVAC or plumbing platforms, targeting $5M-$30M revenue businesses in the Southeast...'"
-                  value={formData.fit_criteria}
-                  onChange={(e) => setFormData({ ...formData, fit_criteria: e.target.value })}
-                  rows={6}
-                />
-                <p className="text-sm text-muted-foreground">
-                  The AI will use this to score buyer-deal matches
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fit Criteria</CardTitle>
+                <CardDescription>
+                  Define the criteria for matching buyers to listings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="fit_criteria">Natural Language Criteria</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={parseCriteria}
+                      disabled={isParsing || !formData.fit_criteria.trim()}
+                    >
+                      {isParsing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Parsing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          AI Parse
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <Textarea
+                    id="fit_criteria"
+                    placeholder="Describe your ideal buyer fit criteria in natural language. For example: 'PE firms focused on home services with existing HVAC or plumbing platforms, targeting $5M-$30M revenue businesses in the Southeast...'"
+                    value={formData.fit_criteria}
+                    onChange={(e) => setFormData({ ...formData, fit_criteria: e.target.value })}
+                    rows={6}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Enter criteria above then click "AI Parse" to auto-fill structured fields below
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Structured Criteria */}
+            <StructuredCriteriaPanel
+              sizeCriteria={sizeCriteria}
+              geographyCriteria={geographyCriteria}
+              serviceCriteria={serviceCriteria}
+              buyerTypesCriteria={buyerTypesCriteria}
+              scoringBehavior={scoringBehavior}
+              onSizeCriteriaChange={setSizeCriteria}
+              onGeographyCriteriaChange={setGeographyCriteria}
+              onServiceCriteriaChange={setServiceCriteria}
+              onBuyerTypesCriteriaChange={setBuyerTypesCriteria}
+              onScoringBehaviorChange={setScoringBehavior}
+            />
+          </div>
         </TabsContent>
 
         {/* Weights Tab */}
