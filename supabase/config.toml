@@ -122,3 +122,5 @@ verify_jwt = false
 verify_jwt = true
 [functions.map-csv-columns]
 verify_jwt = true
+[functions.enrich-buyer]
+verify_jwt = true
