@@ -16,6 +16,10 @@ interface BulkScoreRequest {
   listingId: string;
   universeId: string;
   buyerIds?: string[];
+  options?: {
+    rescoreExisting?: boolean;
+    minDataCompleteness?: 'high' | 'medium' | 'low';
+  };
 }
 
 serve(async (req) => {
@@ -124,7 +128,9 @@ async function handleBulkScore(
   apiKey: string,
   corsHeaders: Record<string, string>
 ) {
-  const { listingId, universeId, buyerIds } = request;
+  const { listingId, universeId, buyerIds, options } = request;
+  const rescoreExisting = options?.rescoreExisting ?? false;
+  const minDataCompleteness = options?.minDataCompleteness;
 
   // Fetch listing
   const { data: listing, error: listingError } = await supabase
@@ -137,7 +143,7 @@ async function handleBulkScore(
     throw new Error("Listing not found");
   }
 
-  // Fetch universe
+  // Fetch universe with structured criteria
   const { data: universe, error: universeError } = await supabase
     .from("remarketing_buyer_universes")
     .select("*")
@@ -159,6 +165,16 @@ async function handleBulkScore(
     buyerQuery = buyerQuery.in("id", buyerIds);
   }
 
+  // Filter by data completeness if specified
+  if (minDataCompleteness) {
+    if (minDataCompleteness === 'high') {
+      buyerQuery = buyerQuery.eq('data_completeness', 'high');
+    } else if (minDataCompleteness === 'medium') {
+      buyerQuery = buyerQuery.in('data_completeness', ['high', 'medium']);
+    }
+    // 'low' means all, so no filter
+  }
+
   const { data: buyers, error: buyersError } = await buyerQuery;
 
   if (buyersError) {
@@ -172,15 +188,40 @@ async function handleBulkScore(
     );
   }
 
-  console.log(`Scoring ${buyers.length} buyers for listing ${listingId}`);
+  // If not rescoring, filter out buyers that already have scores
+  let buyersToScore = buyers;
+  if (!rescoreExisting) {
+    const { data: existingScores } = await supabase
+      .from("remarketing_scores")
+      .select("buyer_id")
+      .eq("listing_id", listingId);
+
+    const scoredBuyerIds = new Set((existingScores || []).map((s: any) => s.buyer_id));
+    buyersToScore = buyers.filter((b: any) => !scoredBuyerIds.has(b.id));
+
+    if (buyersToScore.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          scores: [], 
+          message: "All buyers already scored",
+          totalProcessed: 0,
+          totalBuyers: buyers.length
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+  }
+
+  console.log(`Scoring ${buyersToScore.length} buyers for listing ${listingId} (rescore: ${rescoreExisting})`);
 
   // Process in batches to avoid rate limits
   const batchSize = 5;
   const scores: any[] = [];
   const errors: string[] = [];
 
-  for (let i = 0; i < buyers.length; i += batchSize) {
-    const batch = buyers.slice(i, i + batchSize);
+  for (let i = 0; i < buyersToScore.length; i += batchSize) {
+    const batch = buyersToScore.slice(i, i + batchSize);
     
     const batchPromises = batch.map(async (buyer: any) => {
       try {
@@ -217,7 +258,7 @@ async function handleBulkScore(
     }
 
     // Small delay between batches to avoid rate limits
-    if (i + batchSize < buyers.length) {
+    if (i + batchSize < buyersToScore.length) {
       await new Promise(r => setTimeout(r, 200));
     }
   }
@@ -228,7 +269,7 @@ async function handleBulkScore(
       scores, 
       errors: errors.length > 0 ? errors : undefined,
       totalProcessed: scores.length,
-      totalBuyers: buyers.length 
+      totalBuyers: buyersToScore.length 
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
