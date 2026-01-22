@@ -277,10 +277,20 @@ serve(async (req) => {
           }
 
           // The CSV has: title, transcript_type, url, notes, extracted_data
+          // The source column has a check constraint: must be 'call', 'meeting', 'email', 'other'
+          const validSources = ['call', 'meeting', 'email', 'other'];
+          let sourceValue = 'other';
+          if (row.transcript_type) {
+            const typeLC = row.transcript_type.toLowerCase();
+            if (typeLC.includes('call')) sourceValue = 'call';
+            else if (typeLC.includes('meeting')) sourceValue = 'meeting';
+            else if (typeLC.includes('email')) sourceValue = 'email';
+          }
+          
           const transcriptData = {
             buyer_id: mappedBuyerId,
             transcript_text: row.notes || row.title || row.transcript_type || 'Imported transcript',
-            source: row.transcript_type || row.url || null,
+            source: sourceValue,
             extracted_data: parseJson(row.extracted_data),
             processed_at: row.processed_at || null,
           };
@@ -370,12 +380,16 @@ serve(async (req) => {
           const mappedBuyerId = buyerIdMap[row.buyer_id];
           const mappedListingId = dealIdMap[row.deal_id];
           
+          console.log(`Learning: buyer ${row.buyer_id} -> ${mappedBuyerId}, deal ${row.deal_id} -> ${mappedListingId}`);
+          
           if (!mappedBuyerId) {
-            results.learningHistory.errors.push(`Learning: No buyer mapping`);
+            console.log(`Learning: No buyer mapping for ${row.buyer_id}`);
+            results.learningHistory.errors.push(`Learning: No buyer mapping for ${row.buyer_id}`);
             continue;
           }
           if (!mappedListingId) {
-            results.learningHistory.errors.push(`Learning: No listing mapping`);
+            console.log(`Learning: No listing mapping for ${row.deal_id}`);
+            results.learningHistory.errors.push(`Learning: No listing mapping for ${row.deal_id}`);
             continue;
           }
 
@@ -388,11 +402,13 @@ serve(async (req) => {
             action_by: row.created_by || null,
           };
 
+          console.log(`Inserting learning history: ${JSON.stringify(historyData)}`);
           const { error } = await supabase
             .from('buyer_learning_history')
             .insert(historyData);
 
           if (error) {
+            console.log(`Learning error: ${error.message}`);
             results.learningHistory.errors.push(`Learning: ${error.message}`);
           } else {
             results.learningHistory.imported++;
