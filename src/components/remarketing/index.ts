@@ -43,3 +43,8 @@ export { IntroductionStatusCard } from './IntroductionStatusCard';
 
 // Learning Components
 export { LearningInsightsPanel } from './LearningInsightsPanel';
+
+// Layout Components
+export { ReMarketingSidebar } from './ReMarketingSidebar';
+export { ReMarketingLayout } from './ReMarketingLayout';
+export { IntelligenceCoverageBar } from './IntelligenceCoverageBar';
