@@ -51,6 +51,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { BuyerType } from "@/types/remarketing";
+import { BuyerCSVImport } from "@/components/remarketing/BuyerCSVImport";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'pe_firm', label: 'PE Firm' },
@@ -186,10 +187,10 @@ const ReMarketingBuyers = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Import CSV
-          </Button>
+          <BuyerCSVImport 
+            universeId={universeFilter !== 'all' ? universeFilter : undefined}
+            onComplete={() => queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] })}
+          />
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button>
