@@ -48,6 +48,7 @@ import {
   Phone
 } from "lucide-react";
 import { toast } from "sonner";
+import { EnrichmentButton, IntelligenceBadge } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
@@ -305,14 +306,30 @@ const ReMarketingBuyerDetail = () => {
               {isNew ? 'Add a new external buyer' : 'Edit buyer details and contacts'}
             </p>
           </div>
+          {!isNew && buyer && (
+            <IntelligenceBadge 
+              completeness={(buyer.data_completeness as DataCompleteness) || null} 
+              size="md"
+            />
+          )}
         </div>
-        <Button 
-          onClick={() => saveMutation.mutate()}
-          disabled={!formData.company_name || saveMutation.isPending}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {saveMutation.isPending ? 'Saving...' : 'Save'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {!isNew && (
+            <EnrichmentButton
+              buyerId={id!}
+              buyerName={formData.company_name}
+              hasWebsite={!!formData.company_website}
+              lastEnriched={buyer?.data_last_updated}
+            />
+          )}
+          <Button 
+            onClick={() => saveMutation.mutate()}
+            disabled={!formData.company_name || saveMutation.isPending}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            {saveMutation.isPending ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="details" className="space-y-6">
