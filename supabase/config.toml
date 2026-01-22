@@ -128,3 +128,7 @@ verify_jwt = true
 verify_jwt = true
 [functions.generate-ma-guide]
 verify_jwt = true
+[functions.extract-transcript]
+verify_jwt = true
+[functions.query-buyer-universe]
+verify_jwt = true
