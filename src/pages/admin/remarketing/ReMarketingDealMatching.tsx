@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,7 +24,8 @@ import {
   Briefcase,
   ExternalLink,
   Loader2,
-  Users
+  Users,
+  Lightbulb
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -39,11 +41,16 @@ import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
 
 const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
+  const { user } = useAuth();
   const [selectedUniverse, setSelectedUniverse] = useState<string>("");
   const [isScoring, setIsScoring] = useState(false);
   const [scoringProgress, setScoringProgress] = useState(0);
   const [passDialogOpen, setPassDialogOpen] = useState(false);
-  const [selectedBuyerForPass, setSelectedBuyerForPass] = useState<{ id: string; name: string } | null>(null);
+  const [selectedBuyerForPass, setSelectedBuyerForPass] = useState<{ 
+    id: string; 
+    name: string;
+    scoreData?: any;
+  } | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch the listing
@@ -77,6 +84,27 @@ const ReMarketingDealMatching = () => {
     }
   });
 
+  // Auto-suggest universe based on listing category
+  useEffect(() => {
+    if (listing && universes && universes.length > 0 && !selectedUniverse) {
+      const listingCategory = listing.category?.toLowerCase() || '';
+      const listingCategories = (listing.categories || []).map((c: string) => c.toLowerCase());
+      
+      // Try to find a matching universe
+      const matchedUniverse = universes.find(u => {
+        const universeName = u.name.toLowerCase();
+        // Check if universe name contains any of the categories
+        return listingCategories.some((cat: string) => 
+          universeName.includes(cat) || cat.includes(universeName.split(' ')[0])
+        ) || universeName.includes(listingCategory);
+      });
+
+      if (matchedUniverse) {
+        setSelectedUniverse(matchedUniverse.id);
+      }
+    }
+  }, [listing, universes, selectedUniverse]);
+
   // Fetch existing scores for this listing
   const { data: scores, isLoading: scoresLoading } = useQuery({
     queryKey: ['remarketing', 'scores', listingId, selectedUniverse],
@@ -101,18 +129,43 @@ const ReMarketingDealMatching = () => {
     enabled: !!listingId
   });
 
+  // Log learning history helper
+  const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
+    try {
+      await supabase.from('buyer_learning_history').insert({
+        buyer_id: scoreData.buyer_id,
+        listing_id: listingId,
+        universe_id: scoreData.universe_id,
+        score_id: scoreData.id,
+        action,
+        pass_reason: passReason,
+        pass_category: passCategory,
+        composite_score: scoreData.composite_score,
+        geography_score: scoreData.geography_score,
+        size_score: scoreData.size_score,
+        service_score: scoreData.service_score,
+        owner_goals_score: scoreData.owner_goals_score,
+        action_by: user?.id,
+      });
+    } catch (error) {
+      console.error('Failed to log learning history:', error);
+    }
+  };
+
   // Update score status mutation
   const updateScoreMutation = useMutation({
     mutationFn: async ({ 
       id, 
       status, 
       pass_reason,
-      pass_category 
+      pass_category,
+      scoreData
     }: { 
       id: string; 
       status: string; 
       pass_reason?: string;
       pass_category?: string;
+      scoreData?: any;
     }) => {
       const { error } = await supabase
         .from('remarketing_scores')
@@ -120,9 +173,20 @@ const ReMarketingDealMatching = () => {
         .eq('id', id);
       
       if (error) throw error;
+
+      // Log to learning history
+      if (scoreData) {
+        await logLearningHistory(
+          scoreData, 
+          status as 'approved' | 'passed', 
+          pass_reason, 
+          pass_category
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'learning-insights'] });
       toast.success('Match updated');
     },
     onError: () => {
@@ -174,8 +238,8 @@ const ReMarketingDealMatching = () => {
   };
 
   // Handle pass with dialog
-  const handleOpenPassDialog = (scoreId: string, buyerName: string) => {
-    setSelectedBuyerForPass({ id: scoreId, name: buyerName });
+  const handleOpenPassDialog = (scoreId: string, buyerName: string, scoreData?: any) => {
+    setSelectedBuyerForPass({ id: scoreId, name: buyerName, scoreData });
     setPassDialogOpen(true);
   };
 
@@ -185,7 +249,8 @@ const ReMarketingDealMatching = () => {
         id: selectedBuyerForPass.id, 
         status: 'passed',
         pass_reason: reason,
-        pass_category: category
+        pass_category: category,
+        scoreData: selectedBuyerForPass.scoreData
       });
       setPassDialogOpen(false);
       setSelectedBuyerForPass(null);
@@ -193,8 +258,8 @@ const ReMarketingDealMatching = () => {
   };
 
   // Handle approve
-  const handleApprove = (scoreId: string) => {
-    updateScoreMutation.mutate({ id: scoreId, status: 'approved' });
+  const handleApprove = (scoreId: string, scoreData?: any) => {
+    updateScoreMutation.mutate({ id: scoreId, status: 'approved', scoreData });
   };
 
   if (listingLoading) {

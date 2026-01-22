@@ -132,3 +132,7 @@ verify_jwt = true
 verify_jwt = true
 [functions.query-buyer-universe]
 verify_jwt = true
+[functions.recalculate-deal-weights]
+verify_jwt = true
+[functions.dedupe-buyers]
+verify_jwt = true

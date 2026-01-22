@@ -315,6 +315,96 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_learning_history: {
+        Row: {
+          action: string
+          action_by: string | null
+          buyer_id: string
+          composite_score: number | null
+          created_at: string | null
+          geography_score: number | null
+          id: string
+          listing_id: string
+          owner_goals_score: number | null
+          pass_category: string | null
+          pass_reason: string | null
+          score_id: string | null
+          service_score: number | null
+          size_score: number | null
+          universe_id: string | null
+        }
+        Insert: {
+          action: string
+          action_by?: string | null
+          buyer_id: string
+          composite_score?: number | null
+          created_at?: string | null
+          geography_score?: number | null
+          id?: string
+          listing_id: string
+          owner_goals_score?: number | null
+          pass_category?: string | null
+          pass_reason?: string | null
+          score_id?: string | null
+          service_score?: number | null
+          size_score?: number | null
+          universe_id?: string | null
+        }
+        Update: {
+          action?: string
+          action_by?: string | null
+          buyer_id?: string
+          composite_score?: number | null
+          created_at?: string | null
+          geography_score?: number | null
+          id?: string
+          listing_id?: string
+          owner_goals_score?: number | null
+          pass_category?: string | null
+          pass_reason?: string | null
+          score_id?: string | null
+          service_score?: number | null
+          size_score?: number | null
+          universe_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_learning_history_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_learning_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_learning_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_learning_history_score_id_fkey"
+            columns: ["score_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_scores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_learning_history_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_transcripts: {
         Row: {
           buyer_id: string
