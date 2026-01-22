@@ -1,113 +1,280 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "react-router-dom";
-import { 
-  Target, 
-  Plus,
-  Search,
-  MoreVertical,
-  Pencil,
-  Archive,
-  Trash2,
-  ArrowRight
-} from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { 
+  Search, 
+  Plus, 
+  MoreHorizontal, 
+  Globe2, 
+  Users, 
+  Building2,
+  Pencil,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  ArrowUpDown
+} from "lucide-react";
 import { toast } from "sonner";
+import { IntelligenceCoverageBar } from "@/components/remarketing";
+
+type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
+type SortOrder = 'asc' | 'desc';
 
 const ReMarketingUniverses = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const queryClient = useQueryClient();
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  
+  // New universe dialog
+  const showNewDialog = searchParams.get('new') === 'true';
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
 
+  // Fetch universes with buyer counts
   const { data: universes, isLoading } = useQuery({
-    queryKey: ['remarketing', 'universes', showArchived],
+    queryKey: ['remarketing', 'universes-with-stats', showArchived],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('remarketing_buyer_universes')
         .select('*')
+        .eq('archived', showArchived)
         .order('created_at', { ascending: false });
-      
-      if (!showArchived) {
-        query = query.eq('archived', false);
-      }
 
-      const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return data;
     }
   });
 
-  // Get buyer counts per universe
-  const { data: buyerCounts } = useQuery({
-    queryKey: ['remarketing', 'buyers', 'counts'],
+  // Fetch buyer counts per universe
+  const { data: buyerStats } = useQuery({
+    queryKey: ['remarketing', 'universe-buyer-stats'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('universe_id')
+        .select('universe_id, data_completeness')
         .eq('archived', false);
-      
+
       if (error) throw error;
-      
-      const counts: Record<string, number> = {};
+
+      // Aggregate by universe
+      const stats: Record<string, { total: number; intelligent: number }> = {};
       data?.forEach(buyer => {
-        if (buyer.universe_id) {
-          counts[buyer.universe_id] = (counts[buyer.universe_id] || 0) + 1;
+        if (!buyer.universe_id) return;
+        if (!stats[buyer.universe_id]) {
+          stats[buyer.universe_id] = { total: 0, intelligent: 0 };
         }
+        stats[buyer.universe_id].total++;
+        if (buyer.data_completeness === 'high') {
+          stats[buyer.universe_id].intelligent++;
+        }
+      });
+      return stats;
+    }
+  });
+
+  // Fetch deal counts per universe (from scores)
+  const { data: dealStats } = useQuery({
+    queryKey: ['remarketing', 'universe-deal-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_scores')
+        .select('universe_id, listing_id');
+
+      if (error) throw error;
+
+      // Count unique deals per universe
+      const stats: Record<string, Set<string>> = {};
+      data?.forEach(score => {
+        if (!score.universe_id) return;
+        if (!stats[score.universe_id]) {
+          stats[score.universe_id] = new Set();
+        }
+        stats[score.universe_id].add(score.listing_id);
+      });
+
+      // Convert to counts
+      const counts: Record<string, number> = {};
+      Object.keys(stats).forEach(key => {
+        counts[key] = stats[key].size;
       });
       return counts;
     }
   });
 
+  // Count archived universes
+  const { data: archivedCount } = useQuery({
+    queryKey: ['remarketing', 'archived-universe-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('remarketing_buyer_universes')
+        .select('id', { count: 'exact', head: true })
+        .eq('archived', true);
+
+      if (error) throw error;
+      return count || 0;
+    }
+  });
+
+  // Create universe mutation
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_buyer_universes')
+        .insert({
+          name: newName,
+          description: newDescription || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success(`"${newName}" has been created.`);
+      setNewName("");
+      setNewDescription("");
+      setSearchParams({});
+      navigate(`/admin/remarketing/universes/${data.id}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
+  // Archive/restore mutation
   const archiveMutation = useMutation({
     mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
       const { error } = await supabase
         .from('remarketing_buyer_universes')
         .update({ archived })
         .eq('id', id);
-      
+
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'universes'] });
-      toast.success('Universe updated');
-    },
-    onError: () => {
-      toast.error('Failed to update universe');
+    onSuccess: (_, { archived }) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success(archived ? "Universe archived" : "Universe restored");
     }
   });
 
+  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('remarketing_buyer_universes')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'universes'] });
-      toast.success('Universe deleted');
-    },
-    onError: () => {
-      toast.error('Failed to delete universe');
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success("Universe deleted");
     }
   });
 
-  const filteredUniverses = universes?.filter(universe =>
-    universe.name.toLowerCase().includes(search.toLowerCase()) ||
-    universe.description?.toLowerCase().includes(search.toLowerCase())
+  // Sort handler
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Filter and sort universes
+  const sortedUniverses = useMemo(() => {
+    if (!universes) return [];
+    
+    let filtered = universes.filter(u => {
+      if (!search) return true;
+      return u.name.toLowerCase().includes(search.toLowerCase()) ||
+        u.description?.toLowerCase().includes(search.toLowerCase());
+    });
+
+    return filtered.sort((a, b) => {
+      let aVal: number | string;
+      let bVal: number | string;
+
+      switch (sortField) {
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'buyers':
+          aVal = buyerStats?.[a.id]?.total || 0;
+          bVal = buyerStats?.[b.id]?.total || 0;
+          break;
+        case 'deals':
+          aVal = dealStats?.[a.id] || 0;
+          bVal = dealStats?.[b.id] || 0;
+          break;
+        case 'coverage':
+          const aStats = buyerStats?.[a.id];
+          const bStats = buyerStats?.[b.id];
+          aVal = aStats && aStats.total > 0 ? (aStats.intelligent / aStats.total) * 100 : 0;
+          bVal = bStats && bStats.total > 0 ? (bStats.intelligent / bStats.total) * 100 : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortOrder === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+    });
+  }, [universes, search, sortField, sortOrder, buyerStats, dealStats]);
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <TableHead 
+      className="cursor-pointer hover:bg-muted/50 select-none"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === field ? 'text-foreground' : 'text-muted-foreground/50'}`} />
+      </div>
+    </TableHead>
   );
 
   return (
@@ -115,137 +282,243 @@ const ReMarketingUniverses = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Buyer Universes</h1>
+          <h1 className="text-2xl font-bold text-foreground">Buyer Universes</h1>
           <p className="text-muted-foreground">
-            Manage your buyer groups organized by industry or criteria
+            {universes?.length || 0} universes {archivedCount ? `· ${archivedCount} archived` : ''}
           </p>
         </div>
-        <Button asChild>
-          <Link to="/admin/remarketing/universes/new">
-            <Plus className="mr-2 h-4 w-4" />
-            New Universe
-          </Link>
+        <Button onClick={() => setSearchParams({ new: 'true' })} className="gap-2">
+          <Plus className="h-4 w-4" />
+          New Universe
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search universes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant={showArchived ? "secondary" : "outline"}
-          size="sm"
-          onClick={() => setShowArchived(!showArchived)}
-        >
-          <Archive className="mr-2 h-4 w-4" />
-          {showArchived ? 'Showing Archived' : 'Show Archived'}
-        </Button>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search universes..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-archived"
+                checked={showArchived}
+                onCheckedChange={setShowArchived}
+              />
+              <Label htmlFor="show-archived" className="text-sm text-muted-foreground">
+                Show archived ({archivedCount})
+              </Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Universe Grid */}
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
-      ) : filteredUniverses?.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Target className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <h3 className="font-semibold text-lg mb-1">No universes found</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              {search ? 'Try a different search term' : 'Create your first buyer universe to get started'}
-            </p>
-            {!search && (
-              <Button asChild>
-                <Link to="/admin/remarketing/universes/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Universe
-                </Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredUniverses?.map((universe) => (
-            <Card 
-              key={universe.id} 
-              className={`group hover:shadow-md transition-shadow ${universe.archived ? 'opacity-60' : ''}`}
+      {/* Universes Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <SortableHeader field="name">Industry / Universe</SortableHeader>
+                <SortableHeader field="buyers">Buyers</SortableHeader>
+                <SortableHeader field="deals">Deals</SortableHeader>
+                <SortableHeader field="coverage">Intelligence Coverage</SortableHeader>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  </TableRow>
+                ))
+              ) : sortedUniverses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <Globe2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No universes found</p>
+                    <p className="text-sm">Create your first buyer universe to get started</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => setSearchParams({ new: 'true' })}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Universe
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sortedUniverses.map((universe) => {
+                  const stats = buyerStats?.[universe.id] || { total: 0, intelligent: 0 };
+                  const deals = dealStats?.[universe.id] || 0;
+                  const coverage = stats.total > 0 
+                    ? Math.round((stats.intelligent / stats.total) * 100) 
+                    : 0;
+
+                  return (
+                    <TableRow 
+                      key={universe.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/admin/remarketing/universes/${universe.id}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Globe2 className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{universe.name}</p>
+                            {universe.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[250px]">
+                                {universe.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span className="font-medium text-foreground">{stats.total}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Building2 className="h-4 w-4" />
+                          <span className="font-medium text-foreground">{deals}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="w-40">
+                          <IntelligenceCoverageBar 
+                            current={stats.intelligent} 
+                            total={stats.total} 
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={coverage >= 50 ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {coverage}% intel
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/remarketing/universes/${universe.id}`);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              archiveMutation.mutate({ id: universe.id, archived: !universe.archived });
+                            }}>
+                              {universe.archived ? (
+                                <>
+                                  <ArchiveRestore className="h-4 w-4 mr-2" />
+                                  Restore
+                                </>
+                              ) : (
+                                <>
+                                  <Archive className="h-4 w-4 mr-2" />
+                                  Archive
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            {universe.archived && (
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Are you sure you want to permanently delete this universe?')) {
+                                    deleteMutation.mutate(universe.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* New Universe Dialog */}
+      <Dialog open={showNewDialog} onOpenChange={(open) => !open && setSearchParams({})}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Buyer Universe</DialogTitle>
+            <DialogDescription>
+              A buyer universe is a collection of buyers that share similar characteristics and investment criteria.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Universe Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g., HVAC & Plumbing PE"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Input
+                id="description"
+                placeholder="Brief description of this buyer universe"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSearchParams({})}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => createMutation.mutate()}
+              disabled={!newName.trim() || createMutation.isPending}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{universe.name}</CardTitle>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to={`/admin/remarketing/universes/${universe.id}`}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => archiveMutation.mutate({ 
-                          id: universe.id, 
-                          archived: !universe.archived 
-                        })}
-                      >
-                        <Archive className="mr-2 h-4 w-4" />
-                        {universe.archived ? 'Unarchive' : 'Archive'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => {
-                          if (confirm('Delete this universe? This cannot be undone.')) {
-                            deleteMutation.mutate(universe.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <CardDescription className="line-clamp-2">
-                  {universe.description || 'No description'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{buyerCounts?.[universe.id] || 0} buyers</span>
-                    {universe.archived && (
-                      <Badge variant="secondary">Archived</Badge>
-                    )}
-                  </div>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/admin/remarketing/universes/${universe.id}`}>
-                      View <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              {createMutation.isPending ? "Creating..." : "Create Universe"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
