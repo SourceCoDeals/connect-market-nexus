@@ -3454,41 +3454,68 @@ export type Database = {
       remarketing_buyer_contacts: {
         Row: {
           buyer_id: string
+          company_type: string | null
           created_at: string
           email: string | null
+          email_confidence: string | null
           id: string
+          is_deal_team: boolean | null
           is_primary: boolean
+          is_primary_contact: boolean | null
           linkedin_url: string | null
           name: string
           notes: string | null
           phone: string | null
+          priority_level: number | null
           role: string | null
+          role_category: string | null
+          salesforce_id: string | null
+          source: string | null
+          source_url: string | null
           updated_at: string
         }
         Insert: {
           buyer_id: string
+          company_type?: string | null
           created_at?: string
           email?: string | null
+          email_confidence?: string | null
           id?: string
+          is_deal_team?: boolean | null
           is_primary?: boolean
+          is_primary_contact?: boolean | null
           linkedin_url?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          priority_level?: number | null
           role?: string | null
+          role_category?: string | null
+          salesforce_id?: string | null
+          source?: string | null
+          source_url?: string | null
           updated_at?: string
         }
         Update: {
           buyer_id?: string
+          company_type?: string | null
           created_at?: string
           email?: string | null
+          email_confidence?: string | null
           id?: string
+          is_deal_team?: boolean | null
           is_primary?: boolean
+          is_primary_contact?: boolean | null
           linkedin_url?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          priority_level?: number | null
           role?: string | null
+          role_category?: string | null
+          salesforce_id?: string | null
+          source?: string | null
+          source_url?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3513,6 +3540,8 @@ export type Database = {
           geography_criteria: Json | null
           geography_weight: number
           id: string
+          industry_template: string | null
+          kpi_scoring_config: Json | null
           ma_guide_content: string | null
           name: string
           owner_goals_weight: number
@@ -3534,6 +3563,8 @@ export type Database = {
           geography_criteria?: Json | null
           geography_weight?: number
           id?: string
+          industry_template?: string | null
+          kpi_scoring_config?: Json | null
           ma_guide_content?: string | null
           name: string
           owner_goals_weight?: number
@@ -3555,6 +3586,8 @@ export type Database = {
           geography_criteria?: Json | null
           geography_weight?: number
           id?: string
+          industry_template?: string | null
+          kpi_scoring_config?: Json | null
           ma_guide_content?: string | null
           name?: string
           owner_goals_weight?: number
@@ -3569,7 +3602,11 @@ export type Database = {
       }
       remarketing_buyers: {
         Row: {
+          acquisition_appetite: string | null
+          acquisition_frequency: string | null
           archived: boolean
+          business_summary: string | null
+          buyer_linkedin: string | null
           buyer_type: string | null
           company_name: string
           company_website: string | null
@@ -3580,12 +3617,27 @@ export type Database = {
           extraction_sources: Json | null
           fee_agreement_status: string | null
           geographic_footprint: string[] | null
+          has_fee_agreement: boolean | null
+          hq_city: string | null
+          hq_country: string | null
+          hq_region: string | null
+          hq_state: string | null
           id: string
           industry_tracker_id: string | null
+          industry_vertical: string | null
           notes: string | null
+          num_platforms: number | null
+          operating_locations: string[] | null
           pe_firm_id: string | null
+          pe_firm_linkedin: string | null
+          pe_firm_name: string | null
+          pe_firm_website: string | null
+          platform_website: string | null
           portfolio_companies: Json | null
           recent_acquisitions: Json | null
+          service_regions: string[] | null
+          specialized_focus: string | null
+          strategic_priorities: string[] | null
           target_ebitda_max: number | null
           target_ebitda_min: number | null
           target_geographies: string[] | null
@@ -3595,11 +3647,16 @@ export type Database = {
           target_services: string[] | null
           thesis_confidence: string | null
           thesis_summary: string | null
+          total_acquisitions: number | null
           universe_id: string | null
           updated_at: string
         }
         Insert: {
+          acquisition_appetite?: string | null
+          acquisition_frequency?: string | null
           archived?: boolean
+          business_summary?: string | null
+          buyer_linkedin?: string | null
           buyer_type?: string | null
           company_name: string
           company_website?: string | null
@@ -3610,12 +3667,27 @@ export type Database = {
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
+          has_fee_agreement?: boolean | null
+          hq_city?: string | null
+          hq_country?: string | null
+          hq_region?: string | null
+          hq_state?: string | null
           id?: string
           industry_tracker_id?: string | null
+          industry_vertical?: string | null
           notes?: string | null
+          num_platforms?: number | null
+          operating_locations?: string[] | null
           pe_firm_id?: string | null
+          pe_firm_linkedin?: string | null
+          pe_firm_name?: string | null
+          pe_firm_website?: string | null
+          platform_website?: string | null
           portfolio_companies?: Json | null
           recent_acquisitions?: Json | null
+          service_regions?: string[] | null
+          specialized_focus?: string | null
+          strategic_priorities?: string[] | null
           target_ebitda_max?: number | null
           target_ebitda_min?: number | null
           target_geographies?: string[] | null
@@ -3625,11 +3697,16 @@ export type Database = {
           target_services?: string[] | null
           thesis_confidence?: string | null
           thesis_summary?: string | null
+          total_acquisitions?: number | null
           universe_id?: string | null
           updated_at?: string
         }
         Update: {
+          acquisition_appetite?: string | null
+          acquisition_frequency?: string | null
           archived?: boolean
+          business_summary?: string | null
+          buyer_linkedin?: string | null
           buyer_type?: string | null
           company_name?: string
           company_website?: string | null
@@ -3640,12 +3717,27 @@ export type Database = {
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
+          has_fee_agreement?: boolean | null
+          hq_city?: string | null
+          hq_country?: string | null
+          hq_region?: string | null
+          hq_state?: string | null
           id?: string
           industry_tracker_id?: string | null
+          industry_vertical?: string | null
           notes?: string | null
+          num_platforms?: number | null
+          operating_locations?: string[] | null
           pe_firm_id?: string | null
+          pe_firm_linkedin?: string | null
+          pe_firm_name?: string | null
+          pe_firm_website?: string | null
+          platform_website?: string | null
           portfolio_companies?: Json | null
           recent_acquisitions?: Json | null
+          service_regions?: string[] | null
+          specialized_focus?: string | null
+          strategic_priorities?: string[] | null
           target_ebitda_max?: number | null
           target_ebitda_min?: number | null
           target_geographies?: string[] | null
@@ -3655,6 +3747,7 @@ export type Database = {
           target_services?: string[] | null
           thesis_confidence?: string | null
           thesis_summary?: string | null
+          total_acquisitions?: number | null
           universe_id?: string | null
           updated_at?: string
         }
@@ -3684,67 +3777,94 @@ export type Database = {
       }
       remarketing_scores: {
         Row: {
+          acquisition_score: number | null
+          business_model_score: number | null
           buyer_id: string
           composite_score: number
           created_at: string
           data_completeness: string | null
           fit_reasoning: string | null
           geography_score: number | null
+          hidden_from_deal: boolean | null
           human_override_score: number | null
           id: string
           listing_id: string
           owner_goals_score: number | null
           pass_category: string | null
           pass_reason: string | null
+          portfolio_score: number | null
+          rejected_at: string | null
+          rejection_category: string | null
+          rejection_notes: string | null
+          rejection_reason: string | null
           scored_at: string | null
           scored_by: string | null
           service_score: number | null
           size_score: number | null
           status: string
+          thesis_bonus: number | null
           tier: string | null
           universe_id: string | null
           updated_at: string
         }
         Insert: {
+          acquisition_score?: number | null
+          business_model_score?: number | null
           buyer_id: string
           composite_score?: number
           created_at?: string
           data_completeness?: string | null
           fit_reasoning?: string | null
           geography_score?: number | null
+          hidden_from_deal?: boolean | null
           human_override_score?: number | null
           id?: string
           listing_id: string
           owner_goals_score?: number | null
           pass_category?: string | null
           pass_reason?: string | null
+          portfolio_score?: number | null
+          rejected_at?: string | null
+          rejection_category?: string | null
+          rejection_notes?: string | null
+          rejection_reason?: string | null
           scored_at?: string | null
           scored_by?: string | null
           service_score?: number | null
           size_score?: number | null
           status?: string
+          thesis_bonus?: number | null
           tier?: string | null
           universe_id?: string | null
           updated_at?: string
         }
         Update: {
+          acquisition_score?: number | null
+          business_model_score?: number | null
           buyer_id?: string
           composite_score?: number
           created_at?: string
           data_completeness?: string | null
           fit_reasoning?: string | null
           geography_score?: number | null
+          hidden_from_deal?: boolean | null
           human_override_score?: number | null
           id?: string
           listing_id?: string
           owner_goals_score?: number | null
           pass_category?: string | null
           pass_reason?: string | null
+          portfolio_score?: number | null
+          rejected_at?: string | null
+          rejection_category?: string | null
+          rejection_notes?: string | null
+          rejection_reason?: string | null
           scored_at?: string | null
           scored_by?: string | null
           service_score?: number | null
           size_score?: number | null
           status?: string
+          thesis_bonus?: number | null
           tier?: string | null
           universe_id?: string | null
           updated_at?: string

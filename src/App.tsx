@@ -47,6 +47,7 @@ import ReMarketingIntroductions from "@/pages/admin/remarketing/ReMarketingIntro
 import ReMarketingAnalytics from "@/pages/admin/remarketing/ReMarketingAnalytics";
 import ReMarketingDeals from "@/pages/admin/remarketing/ReMarketingDeals";
 import ReMarketingDealDetail from "@/pages/admin/remarketing/ReMarketingDealDetail";
+import ReMarketingDataImport from "@/pages/admin/remarketing/ReMarketingDataImport";
 import { ReMarketingLayout } from "@/components/remarketing";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
@@ -140,6 +141,7 @@ function App() {
               <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
               <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
               <Route path="analytics" element={<ReMarketingAnalytics />} />
+              <Route path="import" element={<ReMarketingDataImport />} />
             </Route>
             
             {/* Catch-all route for 404 Not Found */}
