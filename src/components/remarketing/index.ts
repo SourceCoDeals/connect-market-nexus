@@ -5,6 +5,9 @@ export { ScoreBreakdown } from './ScoreBreakdown';
 export { AIReasoningPanel } from './AIReasoningPanel';
 export { PassReasonDialog } from './PassReasonDialog';
 export { IntelligenceBadge } from './IntelligenceBadge';
+export { BulkScoringPanel } from './BulkScoringPanel';
+export { ScoreFilters, filterScores } from './ScoreFilters';
+export type { ScoreFiltersState } from './ScoreFilters';
 
 // Enrichment Components
 export { EnrichmentButton } from './EnrichmentButton';
