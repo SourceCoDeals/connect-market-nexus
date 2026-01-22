@@ -45,6 +45,8 @@ import ReMarketingBuyerDetail from "@/pages/admin/remarketing/ReMarketingBuyerDe
 import ReMarketingDealMatching from "@/pages/admin/remarketing/ReMarketingDealMatching";
 import ReMarketingIntroductions from "@/pages/admin/remarketing/ReMarketingIntroductions";
 import ReMarketingAnalytics from "@/pages/admin/remarketing/ReMarketingAnalytics";
+import ReMarketingDeals from "@/pages/admin/remarketing/ReMarketingDeals";
+import { ReMarketingLayout } from "@/components/remarketing";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
 import { SimpleToastProvider } from "@/components/ui/simple-toast";
@@ -123,14 +125,19 @@ function App() {
               <Route path="deal-sourcing" element={<AdminDealSourcing />} />
               <Route path="pipeline" element={<AdminPipeline />} />
               <Route path="notifications" element={<AdminNotifications />} />
-              <Route path="remarketing" element={<ReMarketingDashboard />} />
-              <Route path="remarketing/universes" element={<ReMarketingUniverses />} />
-              <Route path="remarketing/universes/:id" element={<ReMarketingUniverseDetail />} />
-              <Route path="remarketing/buyers" element={<ReMarketingBuyers />} />
-              <Route path="remarketing/buyers/:id" element={<ReMarketingBuyerDetail />} />
-              <Route path="remarketing/matching/:listingId" element={<ReMarketingDealMatching />} />
-              <Route path="remarketing/introductions/:listingId" element={<ReMarketingIntroductions />} />
-              <Route path="remarketing/analytics" element={<ReMarketingAnalytics />} />
+            </Route>
+
+            {/* Remarketing routes with dedicated ReMarketingLayout */}
+            <Route path="/admin/remarketing" element={<ProtectedRoute requireAdmin={true}><ReMarketingLayout /></ProtectedRoute>}>
+              <Route index element={<ReMarketingDashboard />} />
+              <Route path="universes" element={<ReMarketingUniverses />} />
+              <Route path="universes/:id" element={<ReMarketingUniverseDetail />} />
+              <Route path="deals" element={<ReMarketingDeals />} />
+              <Route path="buyers" element={<ReMarketingBuyers />} />
+              <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
+              <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
+              <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
+              <Route path="analytics" element={<ReMarketingAnalytics />} />
             </Route>
             
             {/* Catch-all route for 404 Not Found */}
