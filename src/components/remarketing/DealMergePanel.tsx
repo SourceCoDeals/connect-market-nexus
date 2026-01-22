@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,9 +38,18 @@ import {
   MapPin,
   ArrowRight,
   Sparkles,
-  FileText
+  FileText,
+  Download
 } from "lucide-react";
 import { toast } from "sonner";
+
+// Export interface for deal mappings
+export interface DealIdMapping {
+  referenceDealId: string;
+  referenceDomain: string;
+  listingId: string;
+  matchedBy: string;
+}
 
 interface ReferenceDeal {
   id: string;
@@ -69,6 +78,10 @@ interface MergeMapping {
   listingId: string | null;
   action: 'link' | 'create' | 'skip';
   confidence: 'high' | 'medium' | 'low';
+}
+
+interface DealMergePanelProps {
+  onMappingsCreated?: (mappings: DealIdMapping[]) => void;
 }
 
 // Parse CSV data for reference deals
@@ -176,12 +189,13 @@ const formatCurrency = (value: number | null | undefined) => {
   return `$${value.toFixed(0)}`;
 };
 
-export const DealMergePanel = () => {
+export const DealMergePanel = ({ onMappingsCreated }: DealMergePanelProps) => {
   const queryClient = useQueryClient();
   const [mappings, setMappings] = useState<MergeMapping[]>([]);
   const [referenceDeals, setReferenceDeals] = useState<ReferenceDeal[]>([]);
   const [selectedDeal, setSelectedDeal] = useState<ReferenceDeal | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [createdMappings, setCreatedMappings] = useState<DealIdMapping[]>([]);
 
   // Fetch marketplace listings
   const { data: listings, isLoading: listingsLoading } = useQuery({
@@ -232,37 +246,83 @@ export const DealMergePanel = () => {
       const linksToCreate = mappings.filter(m => m.action === 'link' && m.listingId);
       const dealsToCreate = mappings.filter(m => m.action === 'create');
       
-      // For linked deals, we could store the reference in deal_transcripts or a new table
-      // For now, log the mappings
-      console.log('Links to create:', linksToCreate);
-      console.log('Deals to create:', dealsToCreate);
+      // Build deal ID mappings for export
+      const dealMappings: DealIdMapping[] = [];
       
       // Create deal transcripts for linked deals with transcript_link
       for (const mapping of linksToCreate) {
         const deal = referenceDeals.find(d => d.id === mapping.referenceDealId);
-        if (deal?.transcript_link && mapping.listingId) {
-          await supabase
-            .from('deal_transcripts')
-            .upsert({
-              listing_id: mapping.listingId,
-              transcript_text: `Reference Deal: ${deal.company_name}\n\nOwner Goals: ${deal.owner_goals || 'Not specified'}\n\nAdditional Info: ${deal.additional_info || 'None'}`,
-              source: deal.transcript_link || 'reference-import',
-            }, {
-              onConflict: 'listing_id'
-            });
+        if (deal && mapping.listingId) {
+          // Store the mapping
+          dealMappings.push({
+            referenceDealId: deal.id,
+            referenceDomain: deal.domain || deal.company_name,
+            listingId: mapping.listingId,
+            matchedBy: mapping.confidence === 'high' ? 'domain' : 
+                       mapping.confidence === 'medium' ? 'name' : 'financial'
+          });
+          
+          // Create deal transcript if we have additional info
+          if (deal.transcript_link || deal.additional_info || deal.owner_goals) {
+            await supabase
+              .from('deal_transcripts')
+              .upsert({
+                listing_id: mapping.listingId,
+                transcript_text: `Reference Deal: ${deal.company_name}\n\nOwner Goals: ${deal.owner_goals || 'Not specified'}\n\nAdditional Info: ${deal.additional_info || 'None'}`,
+                source: deal.transcript_link || 'reference-import',
+              }, {
+                onConflict: 'listing_id'
+              });
+          }
         }
       }
       
-      return { linked: linksToCreate.length, created: dealsToCreate.length };
+      return { linked: linksToCreate.length, created: dealsToCreate.length, mappings: dealMappings };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
-      toast.success(`Merged ${result.linked} deals, created ${result.created} new listings`);
+      setCreatedMappings(result.mappings);
+      
+      // Call callback with mappings
+      if (onMappingsCreated) {
+        onMappingsCreated(result.mappings);
+      }
+      
+      // Also store in localStorage for persistence across import steps
+      try {
+        const existingMappings = JSON.parse(localStorage.getItem('dealIdMappings') || '{}');
+        const newMappings = result.mappings.reduce((acc, m) => {
+          acc[m.referenceDealId] = m.listingId;
+          return acc;
+        }, {} as Record<string, string>);
+        localStorage.setItem('dealIdMappings', JSON.stringify({ ...existingMappings, ...newMappings }));
+      } catch (e) {
+        console.error('Failed to store deal mappings:', e);
+      }
+      
+      toast.success(`Merged ${result.linked} deals, created ${result.mappings.length} mappings`);
     },
     onError: (error: Error) => {
       toast.error(error.message);
     }
   });
+
+  // Export mappings as JSON
+  const exportMappings = () => {
+    const storedMappings = localStorage.getItem('dealIdMappings');
+    if (storedMappings) {
+      const blob = new Blob([storedMappings], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'deal-id-mappings.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Mappings exported');
+    } else {
+      toast.error('No mappings to export');
+    }
+  };
 
   const linkedCount = mappings.filter(m => m.action === 'link').length;
   const skipCount = mappings.filter(m => m.action === 'skip').length;
@@ -278,10 +338,18 @@ export const DealMergePanel = () => {
                 Match and merge reference deals with existing marketplace listings
               </CardDescription>
             </div>
-            <Button onClick={loadReferenceDeals} disabled={listingsLoading}>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Load & Auto-Match
-            </Button>
+            <div className="flex items-center gap-2">
+              {createdMappings.length > 0 && (
+                <Button variant="outline" size="sm" onClick={exportMappings}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Mappings
+                </Button>
+              )}
+              <Button onClick={loadReferenceDeals} disabled={listingsLoading}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Load & Auto-Match
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -306,6 +374,11 @@ export const DealMergePanel = () => {
                   <X className="h-3 w-3 mr-1" />
                   {skipCount} Unmatched
                 </Badge>
+                {createdMappings.length > 0 && (
+                  <Badge className="bg-blue-500 text-sm px-3 py-1">
+                    {createdMappings.length} Mappings Created
+                  </Badge>
+                )}
               </div>
 
               {/* Mappings Table */}
@@ -461,22 +534,9 @@ export const DealMergePanel = () => {
               {selectedDeal.additional_info && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Additional Info</p>
-                  <p className="text-sm bg-muted p-3 rounded-lg whitespace-pre-wrap max-h-[200px] overflow-auto">
+                  <p className="text-sm bg-muted p-3 rounded-lg whitespace-pre-wrap max-h-48 overflow-auto">
                     {selectedDeal.additional_info}
                   </p>
-                </div>
-              )}
-              {selectedDeal.transcript_link && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Transcript</p>
-                  <a 
-                    href={selectedDeal.transcript_link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {selectedDeal.transcript_link}
-                  </a>
                 </div>
               )}
             </div>
@@ -491,5 +551,3 @@ export const DealMergePanel = () => {
     </div>
   );
 };
-
-export default DealMergePanel;
