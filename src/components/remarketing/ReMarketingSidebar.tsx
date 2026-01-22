@@ -8,7 +8,8 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -47,6 +48,11 @@ const navItems: NavItem[] = [
     label: "Analytics",
     href: "/admin/remarketing/analytics",
     icon: <BarChart3 className="h-5 w-5" />,
+  },
+  {
+    label: "Data Import",
+    href: "/admin/remarketing/import",
+    icon: <Upload className="h-5 w-5" />,
   },
 ];
 
