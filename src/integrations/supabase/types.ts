@@ -2477,6 +2477,126 @@ export type Database = {
         }
         Relationships: []
       }
+      outreach_records: {
+        Row: {
+          buyer_id: string
+          cim_sent_at: string | null
+          cim_sent_by: string | null
+          contacted_at: string | null
+          contacted_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          last_contact_date: string | null
+          listing_id: string
+          meeting_notes: string | null
+          meeting_scheduled_at: string | null
+          nda_sent_at: string | null
+          nda_sent_by: string | null
+          nda_signed_at: string | null
+          next_action: string | null
+          next_action_date: string | null
+          notes: string | null
+          outcome: string | null
+          outcome_at: string | null
+          outcome_notes: string | null
+          priority: string | null
+          score_id: string | null
+          universe_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          cim_sent_at?: string | null
+          cim_sent_by?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_contact_date?: string | null
+          listing_id: string
+          meeting_notes?: string | null
+          meeting_scheduled_at?: string | null
+          nda_sent_at?: string | null
+          nda_sent_by?: string | null
+          nda_signed_at?: string | null
+          next_action?: string | null
+          next_action_date?: string | null
+          notes?: string | null
+          outcome?: string | null
+          outcome_at?: string | null
+          outcome_notes?: string | null
+          priority?: string | null
+          score_id?: string | null
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          cim_sent_at?: string | null
+          cim_sent_by?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_contact_date?: string | null
+          listing_id?: string
+          meeting_notes?: string | null
+          meeting_scheduled_at?: string | null
+          nda_sent_at?: string | null
+          nda_sent_by?: string | null
+          nda_signed_at?: string | null
+          next_action?: string | null
+          next_action_date?: string | null
+          notes?: string | null
+          outcome?: string | null
+          outcome_at?: string | null
+          outcome_notes?: string | null
+          priority?: string | null
+          score_id?: string | null
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_records_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_records_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_records_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_records_score_id_fkey"
+            columns: ["score_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_scores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_records_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_intro_notifications: {
         Row: {
           created_at: string | null

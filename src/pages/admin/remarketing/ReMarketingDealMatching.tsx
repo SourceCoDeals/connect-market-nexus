@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -19,47 +18,32 @@ import {
   Sparkles,
   Check,
   X,
-  Building2,
   MapPin,
   DollarSign,
   Briefcase,
-  ChevronDown,
-  ChevronUp,
-  Loader2
+  ExternalLink,
+  Loader2,
+  Users
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { ScoreTier } from "@/types/remarketing";
-
-// Score tier configuration
-const TIER_CONFIG: Record<ScoreTier, { label: string; color: string; bgColor: string }> = {
-  'A': { label: 'Excellent', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
-  'B': { label: 'Good', color: 'text-blue-700', bgColor: 'bg-blue-100' },
-  'C': { label: 'Fair', color: 'text-amber-700', bgColor: 'bg-amber-100' },
-  'D': { label: 'Poor', color: 'text-red-700', bgColor: 'bg-red-100' },
-};
-
-const getScoreColor = (score: number) => {
-  if (score >= 80) return 'text-emerald-600';
-  if (score >= 70) return 'text-lime-600';
-  if (score >= 60) return 'text-amber-600';
-  if (score >= 50) return 'text-orange-600';
-  return 'text-red-600';
-};
-
-const getTier = (score: number): ScoreTier => {
-  if (score >= 85) return 'A';
-  if (score >= 70) return 'B';
-  if (score >= 55) return 'C';
-  return 'D';
-};
+import { 
+  ScoreBadge, 
+  ScoreTierBadge, 
+  ScoreBreakdown, 
+  AIReasoningPanel,
+  PassReasonDialog,
+  IntelligenceBadge 
+} from "@/components/remarketing";
+import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
 
 const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
   const [selectedUniverse, setSelectedUniverse] = useState<string>("");
-  const [expandedBuyer, setExpandedBuyer] = useState<string | null>(null);
   const [isScoring, setIsScoring] = useState(false);
   const [scoringProgress, setScoringProgress] = useState(0);
+  const [passDialogOpen, setPassDialogOpen] = useState(false);
+  const [selectedBuyerForPass, setSelectedBuyerForPass] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch the listing
@@ -119,10 +103,20 @@ const ReMarketingDealMatching = () => {
 
   // Update score status mutation
   const updateScoreMutation = useMutation({
-    mutationFn: async ({ id, status, pass_reason }: { id: string; status: string; pass_reason?: string }) => {
+    mutationFn: async ({ 
+      id, 
+      status, 
+      pass_reason,
+      pass_category 
+    }: { 
+      id: string; 
+      status: string; 
+      pass_reason?: string;
+      pass_category?: string;
+    }) => {
       const { error } = await supabase
         .from('remarketing_scores')
-        .update({ status, pass_reason })
+        .update({ status, pass_reason, pass_category })
         .eq('id', id);
       
       if (error) throw error;
@@ -179,6 +173,30 @@ const ReMarketingDealMatching = () => {
     }
   };
 
+  // Handle pass with dialog
+  const handleOpenPassDialog = (scoreId: string, buyerName: string) => {
+    setSelectedBuyerForPass({ id: scoreId, name: buyerName });
+    setPassDialogOpen(true);
+  };
+
+  const handleConfirmPass = (reason: string, category: string) => {
+    if (selectedBuyerForPass) {
+      updateScoreMutation.mutate({ 
+        id: selectedBuyerForPass.id, 
+        status: 'passed',
+        pass_reason: reason,
+        pass_category: category
+      });
+      setPassDialogOpen(false);
+      setSelectedBuyerForPass(null);
+    }
+  };
+
+  // Handle approve
+  const handleApprove = (scoreId: string) => {
+    updateScoreMutation.mutate({ id: scoreId, status: 'approved' });
+  };
+
   if (listingLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -213,6 +231,11 @@ const ReMarketingDealMatching = () => {
     }).format(value);
   };
 
+  // Stats for header
+  const approvedCount = scores?.filter(s => s.status === 'approved').length || 0;
+  const pendingCount = scores?.filter(s => s.status === 'pending').length || 0;
+  const tierACounts = scores?.filter(s => s.tier === 'A').length || 0;
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -228,12 +251,36 @@ const ReMarketingDealMatching = () => {
             Find the best buyers for this listing using AI scoring
           </p>
         </div>
+        {scores && scores.length > 0 && (
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>{approvedCount} approved</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>{pendingCount} pending</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <span>{tierACounts} Tier A</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Listing Summary */}
       <Card>
         <CardHeader>
-          <CardTitle>{listing.title}</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>{listing.title}</span>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={`/admin/listings/${listing.id}`}>
+                <ExternalLink className="h-4 w-4 mr-1" />
+                View Listing
+              </Link>
+            </Button>
+          </CardTitle>
           <CardDescription>{listing.hero_description || 'No description'}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -309,7 +356,7 @@ const ReMarketingDealMatching = () => {
             <div className="mt-4">
               <Progress value={scoringProgress} className="h-2" />
               <p className="text-sm text-muted-foreground mt-1">
-                Scoring in progress... {Math.round(scoringProgress)}%
+                AI is analyzing buyer-deal fit... {Math.round(scoringProgress)}%
               </p>
             </div>
           )}
@@ -319,7 +366,10 @@ const ReMarketingDealMatching = () => {
       {/* Scored Buyers */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Matched Buyers</h2>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Matched Buyers
+          </h2>
           {scores && scores.length > 0 && (
             <p className="text-sm text-muted-foreground">
               {scores.length} buyers scored
@@ -330,7 +380,7 @@ const ReMarketingDealMatching = () => {
         {scoresLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-24" />
+              <Skeleton key={i} className="h-32" />
             ))}
           </div>
         ) : scores?.length === 0 ? (
@@ -344,61 +394,78 @@ const ReMarketingDealMatching = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {scores?.map((score: any) => {
-              const tier = score.tier as ScoreTier;
-              const tierConfig = TIER_CONFIG[tier] || TIER_CONFIG['D'];
-              const isExpanded = expandedBuyer === score.id;
+              const tier = (score.tier || 'D') as ScoreTier;
+              const dataCompleteness = score.data_completeness as DataCompleteness | null;
 
               return (
-                <Card key={score.id} className={cn(
-                  "transition-all",
-                  score.status === 'approved' && "ring-2 ring-emerald-500",
-                  score.status === 'passed' && "opacity-60"
-                )}>
+                <Card 
+                  key={score.id} 
+                  className={cn(
+                    "transition-all",
+                    score.status === 'approved' && "ring-2 ring-emerald-500/50 bg-emerald-50/30",
+                    score.status === 'passed' && "opacity-60"
+                  )}
+                >
                   <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-5">
                       {/* Score Badge */}
-                      <div className={cn(
-                        "flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center",
-                        tierConfig.bgColor
-                      )}>
-                        <span className={cn("text-2xl font-bold", tierConfig.color)}>
-                          {Math.round(score.composite_score)}
-                        </span>
-                      </div>
+                      <ScoreBadge 
+                        score={score.composite_score || 0} 
+                        size="lg" 
+                      />
 
                       {/* Main Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-lg">
+                      <div className="flex-1 min-w-0 space-y-4">
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Link 
+                                to={`/admin/remarketing/buyers/${score.buyer?.id}`}
+                                className="font-semibold text-lg hover:underline"
+                              >
                                 {score.buyer?.company_name || 'Unknown Buyer'}
-                              </h3>
-                              <Badge className={cn(tierConfig.bgColor, tierConfig.color, "border-0")}>
-                                Tier {tier}
-                              </Badge>
+                              </Link>
+                              <ScoreTierBadge tier={tier} size="sm" />
+                              <IntelligenceBadge completeness={dataCompleteness} />
                               {score.status === 'approved' && (
-                                <Badge variant="default" className="bg-emerald-500">Approved</Badge>
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  <Check className="h-3 w-3" />
+                                  Approved
+                                </span>
                               )}
                               {score.status === 'passed' && (
-                                <Badge variant="secondary">Passed</Badge>
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                                  <X className="h-3 w-3" />
+                                  Passed
+                                </span>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {score.buyer?.buyer_type?.replace('_', ' ') || 'Unknown type'}
+                              {score.buyer?.buyer_type?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown type'}
+                              {score.buyer?.company_website && (
+                                <> • <a 
+                                  href={score.buyer.company_website} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  Website
+                                </a></>
+                              )}
                             </p>
                           </div>
 
                           {/* Actions */}
                           {score.status === 'pending' && (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-shrink-0">
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                                onClick={() => updateScoreMutation.mutate({ id: score.id, status: 'approved' })}
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                                onClick={() => handleApprove(score.id)}
+                                disabled={updateScoreMutation.isPending}
                               >
                                 <Check className="mr-1 h-4 w-4" />
                                 Approve
@@ -407,7 +474,8 @@ const ReMarketingDealMatching = () => {
                                 size="sm"
                                 variant="outline"
                                 className="text-red-600 border-red-200 hover:bg-red-50"
-                                onClick={() => updateScoreMutation.mutate({ id: score.id, status: 'passed', pass_reason: 'Not a fit' })}
+                                onClick={() => handleOpenPassDialog(score.id, score.buyer?.company_name || 'Unknown')}
+                                disabled={updateScoreMutation.isPending}
                               >
                                 <X className="mr-1 h-4 w-4" />
                                 Pass
@@ -417,69 +485,21 @@ const ReMarketingDealMatching = () => {
                         </div>
 
                         {/* Score Breakdown */}
-                        <div className="grid grid-cols-4 gap-4 mt-4">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Geography</p>
-                            <p className={cn("font-semibold", getScoreColor(score.geography_score || 0))}>
-                              {Math.round(score.geography_score || 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Size</p>
-                            <p className={cn("font-semibold", getScoreColor(score.size_score || 0))}>
-                              {Math.round(score.size_score || 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Service</p>
-                            <p className={cn("font-semibold", getScoreColor(score.service_score || 0))}>
-                              {Math.round(score.service_score || 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Owner Goals</p>
-                            <p className={cn("font-semibold", getScoreColor(score.owner_goals_score || 0))}>
-                              {Math.round(score.owner_goals_score || 0)}
-                            </p>
-                          </div>
-                        </div>
+                        <ScoreBreakdown
+                          geography={score.geography_score || 0}
+                          size={score.size_score || 0}
+                          service={score.service_score || 0}
+                          ownerGoals={score.owner_goals_score || 0}
+                        />
 
-                        {/* Expandable Reasoning */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="mt-2 -ml-2"
-                          onClick={() => setExpandedBuyer(isExpanded ? null : score.id)}
-                        >
-                          {isExpanded ? (
-                            <>
-                              <ChevronUp className="mr-1 h-4 w-4" />
-                              Hide Details
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="mr-1 h-4 w-4" />
-                              Show Details
-                            </>
-                          )}
-                        </Button>
-
-                        {isExpanded && (
-                          <div className="mt-3 p-4 bg-muted/50 rounded-lg">
-                            <h4 className="font-medium mb-2">AI Reasoning</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {score.fit_reasoning || 'No reasoning available'}
-                            </p>
-                            {score.buyer?.thesis_summary && (
-                              <div className="mt-3">
-                                <h4 className="font-medium mb-1">Investment Thesis</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {score.buyer.thesis_summary}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        {/* AI Reasoning Panel */}
+                        <AIReasoningPanel
+                          reasoning={score.fit_reasoning}
+                          dataCompleteness={dataCompleteness}
+                          thesisSummary={score.buyer?.thesis_summary}
+                          targetGeographies={score.buyer?.target_geographies}
+                          targetServices={score.buyer?.target_services}
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -489,6 +509,15 @@ const ReMarketingDealMatching = () => {
           </div>
         )}
       </div>
+
+      {/* Pass Reason Dialog */}
+      <PassReasonDialog
+        open={passDialogOpen}
+        onOpenChange={setPassDialogOpen}
+        buyerName={selectedBuyerForPass?.name || ''}
+        onConfirm={handleConfirmPass}
+        isLoading={updateScoreMutation.isPending}
+      />
     </div>
   );
 };
