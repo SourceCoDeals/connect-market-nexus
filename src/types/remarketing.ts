@@ -1,0 +1,222 @@
+// Remarketing Tool TypeScript Types
+
+export interface ReMarketingBuyerUniverse {
+  id: string;
+  name: string;
+  description: string | null;
+  fit_criteria: string | null;
+  size_criteria: SizeCriteria;
+  geography_criteria: GeographyCriteria;
+  service_criteria: ServiceCriteria;
+  buyer_types_criteria: BuyerTypesCriteria;
+  geography_weight: number;
+  size_weight: number;
+  service_weight: number;
+  owner_goals_weight: number;
+  scoring_behavior: ScoringBehavior;
+  ma_guide_content: string | null;
+  documents: DocumentReference[];
+  archived: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Computed
+  buyer_count?: number;
+  deal_count?: number;
+}
+
+export interface SizeCriteria {
+  revenue_min?: number;
+  revenue_max?: number;
+  ebitda_min?: number;
+  ebitda_max?: number;
+  employee_min?: number;
+  employee_max?: number;
+}
+
+export interface GeographyCriteria {
+  target_states?: string[];
+  target_regions?: string[];
+  exclude_states?: string[];
+  adjacency_preference?: boolean;
+}
+
+export interface ServiceCriteria {
+  required_services?: string[];
+  preferred_services?: string[];
+  excluded_services?: string[];
+}
+
+export interface BuyerTypesCriteria {
+  include_pe_firms?: boolean;
+  include_platforms?: boolean;
+  include_strategic?: boolean;
+  include_family_office?: boolean;
+}
+
+export interface ScoringBehavior {
+  boost_adjacency?: boolean;
+  penalize_distance?: boolean;
+  require_thesis_match?: boolean;
+  minimum_data_completeness?: 'high' | 'medium' | 'low';
+}
+
+export interface DocumentReference {
+  id: string;
+  name: string;
+  url?: string;
+  uploaded_at: string;
+}
+
+export type BuyerType = 'pe_firm' | 'platform' | 'strategic' | 'family_office' | 'other';
+export type DataCompleteness = 'high' | 'medium' | 'low';
+export type ThesisConfidence = 'high' | 'medium' | 'low';
+export type ScoreTier = 'A' | 'B' | 'C' | 'D';
+export type ScoreStatus = 'pending' | 'approved' | 'passed' | 'hidden';
+
+export interface ReMarketingBuyer {
+  id: string;
+  universe_id: string | null;
+  company_name: string;
+  company_website: string | null;
+  buyer_type: BuyerType | null;
+  thesis_summary: string | null;
+  thesis_confidence: ThesisConfidence | null;
+  target_revenue_min: number | null;
+  target_revenue_max: number | null;
+  target_ebitda_min: number | null;
+  target_ebitda_max: number | null;
+  target_geographies: string[];
+  target_services: string[];
+  target_industries: string[];
+  geographic_footprint: string[];
+  recent_acquisitions: AcquisitionRecord[];
+  portfolio_companies: PortfolioCompany[];
+  extraction_sources: ExtractionSource[];
+  data_completeness: DataCompleteness;
+  data_last_updated: string | null;
+  notes: string | null;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  contacts?: ReMarketingBuyerContact[];
+  universe?: ReMarketingBuyerUniverse;
+}
+
+export interface AcquisitionRecord {
+  company_name: string;
+  date?: string;
+  revenue?: number;
+  location?: string;
+  services?: string[];
+}
+
+export interface PortfolioCompany {
+  name: string;
+  website?: string;
+  revenue?: number;
+  locations?: string[];
+  services?: string[];
+}
+
+export interface ExtractionSource {
+  type: 'website' | 'transcript' | 'csv' | 'manual';
+  url?: string;
+  extracted_at: string;
+  fields_extracted: string[];
+}
+
+export interface ReMarketingBuyerContact {
+  id: string;
+  buyer_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  linkedin_url: string | null;
+  is_primary: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReMarketingScore {
+  id: string;
+  listing_id: string;
+  buyer_id: string;
+  universe_id: string | null;
+  composite_score: number;
+  geography_score: number;
+  size_score: number;
+  service_score: number;
+  owner_goals_score: number;
+  tier: ScoreTier | null;
+  fit_reasoning: string | null;
+  data_completeness: DataCompleteness | null;
+  status: ScoreStatus;
+  pass_reason: string | null;
+  pass_category: string | null;
+  human_override_score: number | null;
+  scored_by: string | null;
+  scored_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  buyer?: ReMarketingBuyer;
+  listing?: {
+    id: string;
+    title: string;
+    revenue?: number;
+    ebitda?: number;
+    location?: string;
+  };
+}
+
+// Score breakdown for UI display
+export interface ScoreBreakdown {
+  geography: number;
+  size: number;
+  service: number;
+  ownerGoals: number;
+  composite: number;
+  tier: ScoreTier;
+}
+
+// For bulk scoring operations
+export interface BulkScoringResult {
+  success: boolean;
+  scores: ReMarketingScore[];
+  errors?: string[];
+  totalProcessed: number;
+  totalBuyers: number;
+}
+
+// For CSV import
+export interface CSVColumnMapping {
+  sourceColumn: string;
+  targetField: keyof ReMarketingBuyer | null;
+  confidence: number;
+}
+
+// Dashboard stats
+export interface ReMarketingStats {
+  totalUniverses: number;
+  totalBuyers: number;
+  totalScores: number;
+  recentActivity: ActivityItem[];
+  tierDistribution: {
+    A: number;
+    B: number;
+    C: number;
+    D: number;
+  };
+}
+
+export interface ActivityItem {
+  id: string;
+  type: 'score' | 'buyer_added' | 'universe_created' | 'match_approved';
+  description: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
