@@ -15,6 +15,8 @@ export { EnrichmentButton } from './EnrichmentButton';
 // Universe Components
 export { StructuredCriteriaPanel } from './StructuredCriteriaPanel';
 export { DocumentUploadSection } from './DocumentUploadSection';
+export { MAGuideEditor } from './MAGuideEditor';
+export { UniverseTemplates } from './UniverseTemplates';
 
 // Import Components
 export { default as BuyerCSVImport } from './BuyerCSVImport';
