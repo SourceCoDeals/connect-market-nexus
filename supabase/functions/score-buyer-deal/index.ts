@@ -22,6 +22,20 @@ interface BulkScoreRequest {
   };
 }
 
+interface ScoringAdjustment {
+  adjustment_type: string;
+  adjustment_value: number;
+  reason?: string;
+}
+
+interface LearningPattern {
+  buyer_id: string;
+  approvalRate: number;
+  avgScoreOnApproved: number;
+  avgScoreOnPassed: number;
+  totalActions: number;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -53,6 +67,120 @@ serve(async (req) => {
     );
   }
 });
+
+// Fetch scoring adjustments for a listing
+async function fetchScoringAdjustments(supabase: any, listingId: string): Promise<ScoringAdjustment[]> {
+  const { data, error } = await supabase
+    .from("deal_scoring_adjustments")
+    .select("adjustment_type, adjustment_value, reason")
+    .eq("listing_id", listingId);
+
+  if (error) {
+    console.warn("Failed to fetch scoring adjustments:", error);
+    return [];
+  }
+  return data || [];
+}
+
+// Fetch learning patterns from buyer history
+async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise<Map<string, LearningPattern>> {
+  const patterns = new Map<string, LearningPattern>();
+  
+  if (buyerIds.length === 0) return patterns;
+
+  const { data: history, error } = await supabase
+    .from("buyer_learning_history")
+    .select("buyer_id, action, composite_score")
+    .in("buyer_id", buyerIds);
+
+  if (error || !history) {
+    console.warn("Failed to fetch learning history:", error);
+    return patterns;
+  }
+
+  // Group by buyer
+  const buyerHistory = new Map<string, any[]>();
+  for (const record of history) {
+    if (!buyerHistory.has(record.buyer_id)) {
+      buyerHistory.set(record.buyer_id, []);
+    }
+    buyerHistory.get(record.buyer_id)!.push(record);
+  }
+
+  // Calculate patterns
+  for (const [buyerId, records] of buyerHistory) {
+    const approved = records.filter(r => r.action === 'approved');
+    const passed = records.filter(r => r.action === 'passed');
+    
+    const avgApprovedScore = approved.length > 0 
+      ? approved.reduce((sum, r) => sum + (r.composite_score || 0), 0) / approved.length 
+      : 0;
+    const avgPassedScore = passed.length > 0
+      ? passed.reduce((sum, r) => sum + (r.composite_score || 0), 0) / passed.length
+      : 0;
+
+    patterns.set(buyerId, {
+      buyer_id: buyerId,
+      approvalRate: records.length > 0 ? approved.length / records.length : 0,
+      avgScoreOnApproved: avgApprovedScore,
+      avgScoreOnPassed: avgPassedScore,
+      totalActions: records.length,
+    });
+  }
+
+  return patterns;
+}
+
+// Apply learning adjustments to score
+function applyLearningAdjustment(
+  baseScore: number, 
+  pattern: LearningPattern | undefined,
+  adjustments: ScoringAdjustment[]
+): { adjustedScore: number; thesisBonus: number; adjustmentReason?: string } {
+  let adjustedScore = baseScore;
+  let thesisBonus = 0;
+  const reasons: string[] = [];
+
+  // Apply deal-level adjustments
+  for (const adj of adjustments) {
+    if (adj.adjustment_type === 'boost') {
+      adjustedScore += adj.adjustment_value;
+      reasons.push(`+${adj.adjustment_value} (${adj.reason || 'boost'})`);
+    } else if (adj.adjustment_type === 'penalize') {
+      adjustedScore -= adj.adjustment_value;
+      reasons.push(`-${adj.adjustment_value} (${adj.reason || 'penalty'})`);
+    } else if (adj.adjustment_type === 'thesis_match') {
+      thesisBonus = adj.adjustment_value;
+      reasons.push(`+${adj.adjustment_value} thesis bonus`);
+    }
+  }
+
+  // Apply buyer-specific learning
+  if (pattern && pattern.totalActions >= 3) {
+    // If buyer has high approval rate, slight boost
+    if (pattern.approvalRate >= 0.7) {
+      const learningBoost = Math.round(pattern.approvalRate * 5);
+      adjustedScore += learningBoost;
+      reasons.push(`+${learningBoost} (high approval history)`);
+    }
+    // If buyer consistently passes at certain scores, slight penalty if close
+    else if (pattern.approvalRate < 0.3 && pattern.avgScoreOnPassed > 0) {
+      if (baseScore < pattern.avgScoreOnPassed + 10) {
+        adjustedScore -= 3;
+        reasons.push(`-3 (low approval pattern)`);
+      }
+    }
+  }
+
+  // Clamp to valid range
+  adjustedScore = Math.max(0, Math.min(100, adjustedScore + thesisBonus));
+
+  return {
+    adjustedScore,
+    thesisBonus,
+    adjustmentReason: reasons.length > 0 ? reasons.join('; ') : undefined,
+  };
+}
 
 async function handleSingleScore(
   supabase: any,
@@ -95,10 +223,30 @@ async function handleSingleScore(
     throw new Error("Universe not found");
   }
 
+  // Fetch adjustments and learning patterns
+  const [adjustments, learningPatterns] = await Promise.all([
+    fetchScoringAdjustments(supabase, listingId),
+    fetchLearningPatterns(supabase, [buyerId]),
+  ]);
+
   // Generate score using AI
   const score = await generateAIScore(listing, buyer, universe, apiKey);
 
-  // Upsert score
+  // Apply learning adjustments
+  const { adjustedScore, thesisBonus, adjustmentReason } = applyLearningAdjustment(
+    score.composite_score,
+    learningPatterns.get(buyerId),
+    adjustments
+  );
+
+  // Recalculate tier based on adjusted score
+  let tier: string;
+  if (adjustedScore >= 85) tier = "A";
+  else if (adjustedScore >= 70) tier = "B";
+  else if (adjustedScore >= 55) tier = "C";
+  else tier = "D";
+
+  // Upsert score with new fields
   const { data: savedScore, error: saveError } = await supabase
     .from("remarketing_scores")
     .upsert({
@@ -106,6 +254,15 @@ async function handleSingleScore(
       buyer_id: buyerId,
       universe_id: universeId,
       ...score,
+      composite_score: adjustedScore,
+      tier,
+      thesis_bonus: thesisBonus,
+      acquisition_score: score.acquisition_score,
+      portfolio_score: score.portfolio_score,
+      business_model_score: score.business_model_score,
+      fit_reasoning: adjustmentReason 
+        ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
+        : score.fit_reasoning,
       scored_at: new Date().toISOString(),
     }, { onConflict: "listing_id,buyer_id" })
     .select()
@@ -172,7 +329,6 @@ async function handleBulkScore(
     } else if (minDataCompleteness === 'medium') {
       buyerQuery = buyerQuery.in('data_completeness', ['high', 'medium']);
     }
-    // 'low' means all, so no filter
   }
 
   const { data: buyers, error: buyersError } = await buyerQuery;
@@ -215,6 +371,13 @@ async function handleBulkScore(
 
   console.log(`Scoring ${buyersToScore.length} buyers for listing ${listingId} (rescore: ${rescoreExisting})`);
 
+  // Fetch adjustments and learning patterns in parallel
+  const allBuyerIds = buyersToScore.map((b: any) => b.id);
+  const [adjustments, learningPatterns] = await Promise.all([
+    fetchScoringAdjustments(supabase, listingId),
+    fetchLearningPatterns(supabase, allBuyerIds),
+  ]);
+
   // Process in batches to avoid rate limits
   const batchSize = 5;
   const scores: any[] = [];
@@ -226,11 +389,35 @@ async function handleBulkScore(
     const batchPromises = batch.map(async (buyer: any) => {
       try {
         const score = await generateAIScore(listing, buyer, universe, apiKey);
+        
+        // Apply learning adjustments
+        const { adjustedScore, thesisBonus, adjustmentReason } = applyLearningAdjustment(
+          score.composite_score,
+          learningPatterns.get(buyer.id),
+          adjustments
+        );
+
+        // Recalculate tier
+        let tier: string;
+        if (adjustedScore >= 85) tier = "A";
+        else if (adjustedScore >= 70) tier = "B";
+        else if (adjustedScore >= 55) tier = "C";
+        else tier = "D";
+
         return {
           listing_id: listingId,
           buyer_id: buyer.id,
           universe_id: universeId,
           ...score,
+          composite_score: adjustedScore,
+          tier,
+          thesis_bonus: thesisBonus,
+          acquisition_score: score.acquisition_score,
+          portfolio_score: score.portfolio_score,
+          business_model_score: score.business_model_score,
+          fit_reasoning: adjustmentReason 
+            ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
+            : score.fit_reasoning,
           scored_at: new Date().toISOString(),
         };
       } catch (err) {
@@ -286,6 +473,9 @@ async function generateAIScore(
   size_score: number;
   service_score: number;
   owner_goals_score: number;
+  acquisition_score: number;
+  portfolio_score: number;
+  business_model_score: number;
   tier: string;
   fit_reasoning: string;
   data_completeness: string;
@@ -298,6 +488,9 @@ Score each category from 0-100 based on fit quality:
 - Size: Does the deal's revenue/EBITDA fit the buyer's investment criteria?
 - Service: How aligned are the deal's services with the buyer's focus areas?
 - Owner Goals: How compatible is the deal based on seller motivation, timeline, and buyer acquisition strategies?
+- Acquisition Fit: How well does this deal fit the buyer's recent acquisition pattern and appetite?
+- Portfolio Synergy: How well does this deal complement the buyer's existing portfolio companies?
+- Business Model: How aligned is the deal's business model (service mix, customer base) with buyer preferences?
 
 Provide scores and a brief reasoning for the overall fit.`;
 
@@ -306,7 +499,6 @@ Provide scores and a brief reasoning for the overall fit.`;
     if (listing.hero_description?.trim()) return listing.hero_description;
     if (listing.description?.trim()) return listing.description;
     if (listing.description_html?.trim()) {
-      // Strip HTML tags for AI processing
       return listing.description_html.replace(/<[^>]*>/g, ' ').trim();
     }
     return "No description available";
@@ -332,9 +524,28 @@ Provide scores and a brief reasoning for the overall fit.`;
   // Normalize location to state/region for better matching
   const getNormalizedLocation = () => {
     const location = listing.location || "";
-    // Extract state from common formats like "City, ST" or "City, State"
     const stateMatch = location.match(/,\s*([A-Z]{2}|\w+)$/i);
     return stateMatch ? `${location} (State: ${stateMatch[1].toUpperCase()})` : location || "Unknown";
+  };
+
+  // Get buyer acquisition history context
+  const getAcquisitionContext = () => {
+    const acquisitions = buyer.recent_acquisitions || [];
+    if (acquisitions.length === 0) return "No recent acquisitions on record";
+    
+    const summary = acquisitions.slice(0, 3).map((a: any) => 
+      `${a.company_name || 'Unknown'}${a.date ? ` (${a.date})` : ''}${a.revenue ? ` - $${a.revenue}` : ''}`
+    ).join("; ");
+    return `Recent: ${summary}`;
+  };
+
+  // Get portfolio context
+  const getPortfolioContext = () => {
+    const portfolio = buyer.portfolio_companies || [];
+    if (portfolio.length === 0) return "No portfolio companies on record";
+    
+    const names = portfolio.slice(0, 5).map((p: any) => p.name || 'Unknown').join(", ");
+    return `Portfolio: ${names}`;
   };
 
   const userPrompt = `DEAL:
@@ -349,6 +560,7 @@ Provide scores and a brief reasoning for the overall fit.`;
 BUYER:
 - Company: ${buyer.company_name}
 - Type: ${buyer.buyer_type || "Unknown"}
+- PE Firm: ${buyer.pe_firm_name || "N/A"}
 - Target Revenue: ${buyer.target_revenue_min ? `$${buyer.target_revenue_min.toLocaleString()}` : "?"} - ${buyer.target_revenue_max ? `$${buyer.target_revenue_max.toLocaleString()}` : "?"}
 - Target EBITDA: ${buyer.target_ebitda_min ? `$${buyer.target_ebitda_min.toLocaleString()}` : "?"} - ${buyer.target_ebitda_max ? `$${buyer.target_ebitda_max.toLocaleString()}` : "?"}
 - Target Geographies: ${buyer.target_geographies?.join(", ") || "Unknown"}
@@ -356,6 +568,10 @@ BUYER:
 - Target Industries: ${buyer.target_industries?.join(", ") || "Unknown"}
 - Current Footprint: ${buyer.geographic_footprint?.join(", ") || "Unknown"}
 - Investment Thesis: ${buyer.thesis_summary || "Unknown"}
+- ${getAcquisitionContext()}
+- ${getPortfolioContext()}
+- Acquisition Appetite: ${buyer.acquisition_appetite || "Unknown"}
+- Total Acquisitions: ${buyer.total_acquisitions || "Unknown"}
 
 UNIVERSE CRITERIA:
 ${universe.fit_criteria || "General buyer-deal matching"}
@@ -366,7 +582,7 @@ WEIGHTS:
 - Service: ${universe.service_weight}%
 - Owner Goals: ${universe.owner_goals_weight}%
 
-Analyze this buyer-deal fit, paying particular attention to seller motivation alignment with buyer strategy.`;
+Analyze this buyer-deal fit, considering acquisition patterns, portfolio synergies, and business model alignment.`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -384,7 +600,7 @@ Analyze this buyer-deal fit, paying particular attention to seller motivation al
         type: "function",
         function: {
           name: "score_buyer_deal",
-          description: "Score the buyer-deal fit across categories",
+          description: "Score the buyer-deal fit across categories including acquisition, portfolio, and business model factors",
           parameters: {
             type: "object",
             properties: {
@@ -404,12 +620,24 @@ Analyze this buyer-deal fit, paying particular attention to seller motivation al
                 type: "number", 
                 description: "Score 0-100 for owner goals compatibility" 
               },
+              acquisition_score: {
+                type: "number",
+                description: "Score 0-100 for fit with buyer's acquisition pattern and appetite"
+              },
+              portfolio_score: {
+                type: "number",
+                description: "Score 0-100 for synergy with buyer's existing portfolio"
+              },
+              business_model_score: {
+                type: "number",
+                description: "Score 0-100 for business model alignment"
+              },
               reasoning: { 
                 type: "string", 
                 description: "2-3 sentence explanation of the overall fit" 
               }
             },
-            required: ["geography_score", "size_score", "service_score", "owner_goals_score", "reasoning"],
+            required: ["geography_score", "size_score", "service_score", "owner_goals_score", "acquisition_score", "portfolio_score", "business_model_score", "reasoning"],
             additionalProperties: false
           }
         }
@@ -447,7 +675,7 @@ Analyze this buyer-deal fit, paying particular attention to seller motivation al
     throw new Error("Failed to parse AI scores");
   }
 
-  // Calculate composite score using universe weights
+  // Calculate composite score using universe weights (core 4 categories)
   const composite = Math.round(
     (scores.geography_score * universe.geography_weight +
      scores.size_score * universe.size_weight +
@@ -455,20 +683,27 @@ Analyze this buyer-deal fit, paying particular attention to seller motivation al
      scores.owner_goals_score * universe.owner_goals_weight) / 100
   );
 
+  // Bonus from secondary scores (up to +10 points)
+  const secondaryAvg = (scores.acquisition_score + scores.portfolio_score + scores.business_model_score) / 3;
+  const secondaryBonus = secondaryAvg >= 80 ? 5 : secondaryAvg >= 60 ? 2 : 0;
+  const finalComposite = Math.min(100, composite + secondaryBonus);
+
   // Determine tier
   let tier: string;
-  if (composite >= 85) tier = "A";
-  else if (composite >= 70) tier = "B";
-  else if (composite >= 55) tier = "C";
+  if (finalComposite >= 85) tier = "A";
+  else if (finalComposite >= 70) tier = "B";
+  else if (finalComposite >= 55) tier = "C";
   else tier = "D";
 
   // Determine data completeness based on buyer data
   const hasThesis = !!buyer.thesis_summary;
   const hasTargets = buyer.target_geographies?.length > 0 || buyer.target_services?.length > 0;
   const hasFinancials = buyer.target_revenue_min || buyer.target_ebitda_min;
+  const hasAcquisitions = buyer.recent_acquisitions?.length > 0;
+  const hasPortfolio = buyer.portfolio_companies?.length > 0;
   
   let dataCompleteness: string;
-  if (hasThesis && hasTargets && hasFinancials) {
+  if (hasThesis && hasTargets && hasFinancials && (hasAcquisitions || hasPortfolio)) {
     dataCompleteness = "high";
   } else if (hasThesis || (hasTargets && hasFinancials)) {
     dataCompleteness = "medium";
@@ -477,11 +712,14 @@ Analyze this buyer-deal fit, paying particular attention to seller motivation al
   }
 
   return {
-    composite_score: composite,
+    composite_score: finalComposite,
     geography_score: scores.geography_score,
     size_score: scores.size_score,
     service_score: scores.service_score,
     owner_goals_score: scores.owner_goals_score,
+    acquisition_score: scores.acquisition_score || 50,
+    portfolio_score: scores.portfolio_score || 50,
+    business_model_score: scores.business_model_score || 50,
     tier,
     fit_reasoning: scores.reasoning,
     data_completeness: dataCompleteness,
