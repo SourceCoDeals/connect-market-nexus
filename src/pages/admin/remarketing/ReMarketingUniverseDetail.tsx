@@ -15,7 +15,10 @@ import {
   StructuredCriteriaPanel, 
   DocumentUploadSection,
   MAGuideEditor,
-  UniverseTemplates
+  UniverseTemplates,
+  ScoringBehaviorPanel,
+  BuyerTableEnhanced,
+  UniverseDealsTable
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -37,7 +40,8 @@ import {
   Loader2,
   SlidersHorizontal,
   BookOpen,
-  LayoutTemplate
+  LayoutTemplate,
+  Briefcase
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -97,13 +101,78 @@ const ReMarketingUniverseDetail = () => {
       
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('*')
+        .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_city, hq_state, thesis_summary, data_completeness, target_geographies, geographic_footprint')
         .eq('universe_id', id)
         .eq('archived', false)
         .order('company_name');
       
       if (error) throw error;
       return data || [];
+    },
+    enabled: !isNew
+  });
+
+  // Fetch deals scored in this universe
+  const { data: deals } = useQuery({
+    queryKey: ['remarketing', 'deals', 'universe', id],
+    queryFn: async () => {
+      if (isNew) return [];
+      
+      // Get scores grouped by listing
+      const { data: scores, error } = await supabase
+        .from('remarketing_scores')
+        .select(`
+          listing_id,
+          composite_score,
+          tier,
+          listing:listings(id, title, location, revenue, ebitda)
+        `)
+        .eq('universe_id', id);
+      
+      if (error) throw error;
+
+      // Group by listing and calculate stats
+      const dealMap = new Map<string, {
+        listing_id: string;
+        listing_title?: string;
+        listing_location?: string;
+        listing_revenue?: number;
+        listing_ebitda?: number;
+        total_buyers_scored: number;
+        tier_a_count: number;
+        tier_b_count: number;
+        total_score: number;
+      }>();
+
+      scores?.forEach((score) => {
+        const listingId = score.listing_id;
+        const listing = score.listing as { id: string; title: string; location: string; revenue: number; ebitda: number } | null;
+        
+        if (!dealMap.has(listingId)) {
+          dealMap.set(listingId, {
+            listing_id: listingId,
+            listing_title: listing?.title,
+            listing_location: listing?.location,
+            listing_revenue: listing?.revenue,
+            listing_ebitda: listing?.ebitda,
+            total_buyers_scored: 0,
+            tier_a_count: 0,
+            tier_b_count: 0,
+            total_score: 0,
+          });
+        }
+        
+        const deal = dealMap.get(listingId)!;
+        deal.total_buyers_scored++;
+        deal.total_score += score.composite_score || 0;
+        if (score.tier === 'A') deal.tier_a_count++;
+        if (score.tier === 'B') deal.tier_b_count++;
+      });
+
+      return Array.from(dealMap.values()).map(deal => ({
+        ...deal,
+        avg_score: deal.total_buyers_scored > 0 ? deal.total_score / deal.total_buyers_scored : 0,
+      }));
     },
     enabled: !isNew
   });
@@ -286,13 +355,40 @@ const ReMarketingUniverseDetail = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue={isNew ? "templates" : "details"} className="space-y-6">
+      {/* Scoring Behavior Panel - shown at top for non-new universes */}
+      {!isNew && (
+        <ScoringBehaviorPanel
+          scoringBehavior={scoringBehavior}
+          weights={{
+            geography: formData.geography_weight,
+            size: formData.size_weight,
+            service: formData.service_weight,
+            ownerGoals: formData.owner_goals_weight,
+          }}
+          onScoringBehaviorChange={setScoringBehavior}
+          readOnly={false}
+        />
+      )}
+
+      <Tabs defaultValue={isNew ? "templates" : "buyers"} className="space-y-6">
         <TabsList className="flex-wrap">
           {isNew && (
             <TabsTrigger value="templates">
               <LayoutTemplate className="mr-2 h-4 w-4" />
               Templates
             </TabsTrigger>
+          )}
+          {!isNew && (
+            <>
+              <TabsTrigger value="buyers">
+                <Users className="mr-2 h-4 w-4" />
+                Buyers ({buyers?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="deals">
+                <Briefcase className="mr-2 h-4 w-4" />
+                Deals ({deals?.length || 0})
+              </TabsTrigger>
+            </>
           )}
           <TabsTrigger value="details">
             <Target className="mr-2 h-4 w-4" />
@@ -310,12 +406,6 @@ const ReMarketingUniverseDetail = () => {
             <BookOpen className="mr-2 h-4 w-4" />
             MA Guide
           </TabsTrigger>
-          {!isNew && (
-            <TabsTrigger value="buyers">
-              <Users className="mr-2 h-4 w-4" />
-              Buyers ({buyers?.length || 0})
-            </TabsTrigger>
-          )}
         </TabsList>
 
         {/* Templates Tab (New Universe Only) */}
@@ -542,36 +632,38 @@ const ReMarketingUniverseDetail = () => {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                {buyers?.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                    <p>No buyers in this universe yet</p>
-                    <Button variant="link" asChild className="mt-2">
-                      <Link to="/admin/remarketing/buyers">Import buyers</Link>
-                    </Button>
+              <CardContent className="p-0">
+                <BuyerTableEnhanced
+                  buyers={buyers || []}
+                  showPEColumn={true}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Deals Tab */}
+        {!isNew && (
+          <TabsContent value="deals">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Deals Scored</CardTitle>
+                    <CardDescription>
+                      {deals?.length || 0} deals scored against buyers in this universe
+                    </CardDescription>
                   </div>
-                ) : (
-                  <div className="divide-y">
-                    {buyers?.map((buyer) => (
-                      <div key={buyer.id} className="py-3 flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{buyer.company_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {buyer.buyer_type?.replace('_', ' ') || 'Unknown type'}
-                          </p>
-                        </div>
-                        <Badge variant={
-                          buyer.data_completeness === 'high' ? 'default' :
-                          buyer.data_completeness === 'medium' ? 'secondary' :
-                          'outline'
-                        }>
-                          {buyer.data_completeness || 'low'} data
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  <Button asChild>
+                    <Link to="/admin/remarketing/deal-matching">
+                      <Target className="mr-2 h-4 w-4" />
+                      Score More Deals
+                    </Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <UniverseDealsTable deals={deals || []} />
               </CardContent>
             </Card>
           </TabsContent>

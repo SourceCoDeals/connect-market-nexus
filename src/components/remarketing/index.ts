@@ -17,6 +17,11 @@ export { StructuredCriteriaPanel } from './StructuredCriteriaPanel';
 export { DocumentUploadSection } from './DocumentUploadSection';
 export { MAGuideEditor } from './MAGuideEditor';
 export { UniverseTemplates } from './UniverseTemplates';
+export { ScoringBehaviorPanel } from './ScoringBehaviorPanel';
+
+// Table Components
+export { BuyerTableEnhanced } from './BuyerTableEnhanced';
+export { UniverseDealsTable } from './UniverseDealsTable';
 
 // Analytics Components
 export { MatchingFunnel } from './MatchingFunnel';

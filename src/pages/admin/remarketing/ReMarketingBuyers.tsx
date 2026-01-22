@@ -48,12 +48,12 @@ import {
   Building,
   Pencil,
   Trash2,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle
+  MapPin,
+  ExternalLink,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
-import { BuyerCSVImport } from "@/components/remarketing";
+import { BuyerCSVImport, IntelligenceBadge } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
@@ -208,18 +208,7 @@ const ReMarketingBuyers = () => {
     );
   }, [buyers, search]);
 
-  const getDataCompletenessIcon = (level: DataCompleteness | null) => {
-    switch (level) {
-      case 'high':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'medium':
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-      case 'low':
-        return <HelpCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
-    }
-  };
+  // Using IntelligenceBadge component instead of icons
 
   const getBuyerTypeLabel = (type: string | null) => {
     const found = BUYER_TYPES.find(t => t.value === type);
@@ -396,11 +385,11 @@ const ReMarketingBuyers = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Company</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Industry / Universe</TableHead>
-                <TableHead>Thesis</TableHead>
-                <TableHead className="text-center">Data</TableHead>
+                <TableHead className="w-[280px]">Platform / Buyer</TableHead>
+                <TableHead className="w-[180px]">PE Firm</TableHead>
+                <TableHead>Universe</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-[130px]">Intel</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -408,100 +397,164 @@ const ReMarketingBuyers = () => {
               {buyersLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-4 mx-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredBuyers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No buyers found</p>
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <Users className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No buyers found</p>
                     <p className="text-sm">Add buyers manually or import from CSV</p>
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredBuyers.map((buyer) => (
-                  <TableRow 
-                    key={buyer.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                          {buyer.buyer_type === 'pe_firm' ? (
-                            <Building className="h-4 w-4 text-primary" />
-                          ) : (
-                            <Users className="h-4 w-4 text-primary" />
-                          )}
+                filteredBuyers.map((buyer) => {
+                  const location = [buyer.hq_city, buyer.hq_state].filter(Boolean).join(', ');
+                  
+                  return (
+                    <TableRow 
+                      key={buyer.id}
+                      className="cursor-pointer hover:bg-muted/50 group"
+                      onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
+                    >
+                      {/* Platform / Buyer Column */}
+                      <TableCell>
+                        <div className="flex items-start gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            {buyer.buyer_type === 'pe_firm' ? (
+                              <Building className="h-5 w-5 text-primary" />
+                            ) : (
+                              <Users className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-foreground truncate">
+                                {buyer.company_name}
+                              </span>
+                              {buyer.data_completeness === 'high' && (
+                                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
+                                  Enriched
+                                </Badge>
+                              )}
+                            </div>
+                            {location && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                                <MapPin className="h-3 w-3" />
+                                {location}
+                              </div>
+                            )}
+                            {buyer.company_website && (
+                              <a
+                                href={buyer.company_website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {buyer.company_website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">{buyer.company_name}</p>
-                          {buyer.company_website && (
-                            <p className="text-xs text-muted-foreground">{buyer.company_website}</p>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {getBuyerTypeLabel(buyer.buyer_type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {buyer.universe?.name ? (
-                        <Badge variant="secondary" className="text-xs">
-                          {buyer.universe.name}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm text-muted-foreground truncate max-w-[250px]">
-                        {buyer.thesis_summary || '-'}
-                      </p>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getDataCompletenessIcon(buyer.data_completeness as DataCompleteness | null)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/admin/remarketing/buyers/${buyer.id}`);
-                          }}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={(e) => {
+                      </TableCell>
+
+                      {/* PE Firm Column */}
+                      <TableCell>
+                        {buyer.pe_firm_name ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                              <Building className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                            <span className="text-sm">{buyer.pe_firm_name}</span>
+                          </div>
+                        ) : buyer.buyer_type === 'pe_firm' ? (
+                          <Badge variant="outline" className="text-xs">
+                            PE Firm
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Universe Column */}
+                      <TableCell>
+                        {buyer.universe?.name ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {buyer.universe.name}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Description Column */}
+                      <TableCell>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {buyer.thesis_summary || '—'}
+                        </p>
+                      </TableCell>
+
+                      {/* Intel Column */}
+                      <TableCell>
+                        <IntelligenceBadge 
+                          completeness={buyer.data_completeness as DataCompleteness | null}
+                          size="sm"
+                        />
+                      </TableCell>
+
+                      {/* Actions Column */}
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm('Are you sure you want to delete this buyer?')) {
-                                deleteMutation.mutate(buyer.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                              navigate(`/admin/remarketing/buyers/${buyer.id}`);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              toast.info('Enrichment coming soon');
+                            }}>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Enrich
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this buyer?')) {
+                                  deleteMutation.mutate(buyer.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
