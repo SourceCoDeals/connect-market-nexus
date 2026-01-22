@@ -124,3 +124,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.enrich-buyer]
 verify_jwt = true
+[functions.parse-fit-criteria]
+verify_jwt = true
