@@ -168,8 +168,31 @@ serve(async (req) => {
         .from('listings')
         .select('id, title, location, revenue');
       
+      // Known mappings from scores/learning_history deal_ids to listing titles
+      const knownDealMappings: Record<string, string> = {
+        '74cbd4bb-d32f-47c8-b4e8-d9f8812384af': 'Missouri', // Auto Body Brothers - Missouri
+        '72557118-7fe3-4b6a-aa5e-e497599669f5': 'Roofing', // Quality Roofing - Florida
+        '919a987d-a16b-4a43-9828-d8ac115bc1a1': 'Collision', // Threefold Collision - OK
+        '28ba3ed0-b463-41b8-924f-48ca2cedab62': 'HVAC', // Dockery's HVAC - GA
+        '894cd67e-a9bf-42b0-96cf-179080f5e702': 'Auto', // Auto repair
+        'd8ea8f3c-ac2e-49ce-a245-08474dbcc9c0': 'Collision', // Another collision
+      };
+      
+      // First, use known mappings
+      if (listings) {
+        for (const [oldDealId, searchTerm] of Object.entries(knownDealMappings)) {
+          const match = listings.find(l => 
+            l.title?.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+          if (match) {
+            dealIdMap[oldDealId] = match.id;
+            console.log(`Mapped deal ${oldDealId} -> ${match.title}`);
+          }
+        }
+      }
+      
+      // Then map companies data
       for (const company of (data.companies || [])) {
-        // Try to find matching listing
         let matchedListingId = null;
         
         if (listings) {
@@ -248,28 +271,33 @@ serve(async (req) => {
         try {
           const mappedBuyerId = buyerIdMap[row.buyer_id];
           if (!mappedBuyerId) {
-            results.transcripts.errors.push(`Transcript ${row.title}: No buyer mapping`);
+            console.log(`Transcript: No buyer mapping for ${row.buyer_id}`);
+            results.transcripts.errors.push(`Transcript ${row.title || row.id}: No buyer mapping for ${row.buyer_id}`);
             continue;
           }
 
+          // The CSV has: title, transcript_type, url, notes, extracted_data
           const transcriptData = {
             buyer_id: mappedBuyerId,
-            transcript_text: row.notes || row.title || '',
-            source: row.url || null,
+            transcript_text: row.notes || row.title || row.transcript_type || 'Imported transcript',
+            source: row.transcript_type || row.url || null,
             extracted_data: parseJson(row.extracted_data),
             processed_at: row.processed_at || null,
           };
 
+          console.log(`Inserting transcript for buyer ${mappedBuyerId}`);
           const { error } = await supabase
             .from('buyer_transcripts')
             .insert(transcriptData);
 
           if (error) {
+            console.log(`Transcript error: ${error.message}`);
             results.transcripts.errors.push(`Transcript ${row.title}: ${error.message}`);
           } else {
             results.transcripts.imported++;
           }
         } catch (e) {
+          console.log(`Transcript exception: ${e.message}`);
           results.transcripts.errors.push(`Transcript ${row.title}: ${e.message}`);
         }
       }
@@ -277,6 +305,12 @@ serve(async (req) => {
 
       // Step 6: Import Scores
       console.log(`Importing ${data.scores?.length || 0} scores...`);
+      console.log(`Available deal mappings: ${JSON.stringify(Object.keys(dealIdMap))}`);
+      
+      // Sample unique deal IDs from scores to understand what we need to map
+      const uniqueDealIds = [...new Set((data.scores || []).map((s: any) => s.deal_id))];
+      console.log(`Unique deal IDs in scores: ${JSON.stringify(uniqueDealIds.slice(0, 10))}...`);
+      
       for (const row of (data.scores || [])) {
         try {
           const mappedBuyerId = buyerIdMap[row.buyer_id];
@@ -287,6 +321,10 @@ serve(async (req) => {
             continue;
           }
           if (!mappedListingId) {
+            // Only log first few to avoid spam
+            if (results.scores.errors.length < 10) {
+              console.log(`Score: No listing mapping for deal ${row.deal_id}`);
+            }
             results.scores.errors.push(`Score: No listing mapping for deal ${row.deal_id}`);
             continue;
           }
