@@ -1157,6 +1157,51 @@ export type Database = {
           },
         ]
       }
+      deal_scoring_adjustments: {
+        Row: {
+          adjustment_type: string
+          adjustment_value: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          listing_id: string
+          reason: string | null
+        }
+        Insert: {
+          adjustment_type: string
+          adjustment_value?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          listing_id: string
+          reason?: string | null
+        }
+        Update: {
+          adjustment_type?: string
+          adjustment_value?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          listing_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_scoring_adjustments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_scoring_adjustments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_sourcing_requests: {
         Row: {
           additional_notes: string | null
@@ -1392,6 +1437,63 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_transcripts: {
+        Row: {
+          applied_at: string | null
+          applied_to_deal: boolean | null
+          created_at: string | null
+          created_by: string | null
+          extracted_data: Json | null
+          id: string
+          listing_id: string
+          processed_at: string | null
+          source: string | null
+          transcript_text: string
+          updated_at: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_to_deal?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          extracted_data?: Json | null
+          id?: string
+          listing_id: string
+          processed_at?: string | null
+          source?: string | null
+          transcript_text: string
+          updated_at?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_to_deal?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          extracted_data?: Json | null
+          id?: string
+          listing_id?: string
+          processed_at?: string | null
+          source?: string | null
+          transcript_text?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_transcripts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_transcripts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
         ]
@@ -2101,6 +2203,53 @@ export type Database = {
             columns: ["mapped_to_listing_id"]
             isOneToOne: false
             referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      industry_trackers: {
+        Row: {
+          buyer_count: number | null
+          color: string | null
+          created_at: string | null
+          deal_count: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          universe_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_count?: number | null
+          color?: string | null
+          created_at?: string | null
+          deal_count?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          universe_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_count?: number | null
+          color?: string | null
+          created_at?: string | null
+          deal_count?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          universe_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "industry_trackers_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
             referencedColumns: ["id"]
           },
         ]
@@ -3424,13 +3573,17 @@ export type Database = {
           buyer_type: string | null
           company_name: string
           company_website: string | null
+          confidence_level: string | null
           created_at: string
           data_completeness: string | null
           data_last_updated: string | null
           extraction_sources: Json | null
+          fee_agreement_status: string | null
           geographic_footprint: string[] | null
           id: string
+          industry_tracker_id: string | null
           notes: string | null
+          pe_firm_id: string | null
           portfolio_companies: Json | null
           recent_acquisitions: Json | null
           target_ebitda_max: number | null
@@ -3450,13 +3603,17 @@ export type Database = {
           buyer_type?: string | null
           company_name: string
           company_website?: string | null
+          confidence_level?: string | null
           created_at?: string
           data_completeness?: string | null
           data_last_updated?: string | null
           extraction_sources?: Json | null
+          fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
           id?: string
+          industry_tracker_id?: string | null
           notes?: string | null
+          pe_firm_id?: string | null
           portfolio_companies?: Json | null
           recent_acquisitions?: Json | null
           target_ebitda_max?: number | null
@@ -3476,13 +3633,17 @@ export type Database = {
           buyer_type?: string | null
           company_name?: string
           company_website?: string | null
+          confidence_level?: string | null
           created_at?: string
           data_completeness?: string | null
           data_last_updated?: string | null
           extraction_sources?: Json | null
+          fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
           id?: string
+          industry_tracker_id?: string | null
           notes?: string | null
+          pe_firm_id?: string | null
           portfolio_companies?: Json | null
           recent_acquisitions?: Json | null
           target_ebitda_max?: number | null
@@ -3498,6 +3659,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "remarketing_buyers_industry_tracker_id_fkey"
+            columns: ["industry_tracker_id"]
+            isOneToOne: false
+            referencedRelation: "industry_trackers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_buyers_pe_firm_id_fkey"
+            columns: ["pe_firm_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "remarketing_buyers_universe_id_fkey"
             columns: ["universe_id"]
