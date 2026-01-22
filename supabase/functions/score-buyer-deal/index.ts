@@ -291,23 +291,60 @@ async function generateAIScore(
   data_completeness: string;
   status: string;
 }> {
-  const systemPrompt = `You are an M&A advisor scoring buyer-deal fits. Analyze the match between a business listing and a potential buyer (PE firm/platform/strategic acquirer).
+const systemPrompt = `You are an M&A advisor scoring buyer-deal fits. Analyze the match between a business listing and a potential buyer (PE firm/platform/strategic acquirer).
 
 Score each category from 0-100 based on fit quality:
 - Geography: How well does the deal's location match the buyer's target geography or existing footprint?
 - Size: Does the deal's revenue/EBITDA fit the buyer's investment criteria?
 - Service: How aligned are the deal's services with the buyer's focus areas?
-- Owner Goals: How compatible is the deal with typical buyer acquisition strategies?
+- Owner Goals: How compatible is the deal based on seller motivation, timeline, and buyer acquisition strategies?
 
 Provide scores and a brief reasoning for the overall fit.`;
 
+  // Get listing description with fallback chain
+  const getDescription = () => {
+    if (listing.hero_description?.trim()) return listing.hero_description;
+    if (listing.description?.trim()) return listing.description;
+    if (listing.description_html?.trim()) {
+      // Strip HTML tags for AI processing
+      return listing.description_html.replace(/<[^>]*>/g, ' ').trim();
+    }
+    return "No description available";
+  };
+
+  // Get service categories from array or fallback to single category
+  const getServices = () => {
+    if (listing.categories && Array.isArray(listing.categories) && listing.categories.length > 0) {
+      return listing.categories.join(", ");
+    }
+    return listing.category || "Unknown";
+  };
+
+  // Get seller goals context
+  const getSellerGoals = () => {
+    const parts: string[] = [];
+    if (listing.seller_motivation?.trim()) parts.push(`Motivation: ${listing.seller_motivation}`);
+    if (listing.timeline_preference?.trim()) parts.push(`Timeline: ${listing.timeline_preference}`);
+    if (listing.ideal_buyer?.trim()) parts.push(`Ideal buyer: ${listing.ideal_buyer}`);
+    return parts.length > 0 ? parts.join("; ") : "Not specified";
+  };
+
+  // Normalize location to state/region for better matching
+  const getNormalizedLocation = () => {
+    const location = listing.location || "";
+    // Extract state from common formats like "City, ST" or "City, State"
+    const stateMatch = location.match(/,\s*([A-Z]{2}|\w+)$/i);
+    return stateMatch ? `${location} (State: ${stateMatch[1].toUpperCase()})` : location || "Unknown";
+  };
+
   const userPrompt = `DEAL:
 - Title: ${listing.title || "Unknown"}
-- Category: ${listing.category || "Unknown"}
-- Location: ${listing.location || "Unknown"}
+- Services/Categories: ${getServices()}
+- Location: ${getNormalizedLocation()}
 - Revenue: ${listing.revenue ? `$${listing.revenue.toLocaleString()}` : "Unknown"}
 - EBITDA: ${listing.ebitda ? `$${listing.ebitda.toLocaleString()}` : "Unknown"}
-- Description: ${listing.hero_description || listing.description || "No description"}
+- Description: ${getDescription()}
+- Seller Goals: ${getSellerGoals()}
 
 BUYER:
 - Company: ${buyer.company_name}
@@ -316,6 +353,7 @@ BUYER:
 - Target EBITDA: ${buyer.target_ebitda_min ? `$${buyer.target_ebitda_min.toLocaleString()}` : "?"} - ${buyer.target_ebitda_max ? `$${buyer.target_ebitda_max.toLocaleString()}` : "?"}
 - Target Geographies: ${buyer.target_geographies?.join(", ") || "Unknown"}
 - Target Services: ${buyer.target_services?.join(", ") || "Unknown"}
+- Target Industries: ${buyer.target_industries?.join(", ") || "Unknown"}
 - Current Footprint: ${buyer.geographic_footprint?.join(", ") || "Unknown"}
 - Investment Thesis: ${buyer.thesis_summary || "Unknown"}
 
@@ -328,7 +366,7 @@ WEIGHTS:
 - Service: ${universe.service_weight}%
 - Owner Goals: ${universe.owner_goals_weight}%
 
-Analyze this buyer-deal fit.`;
+Analyze this buyer-deal fit, paying particular attention to seller motivation alignment with buyer strategy.`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",

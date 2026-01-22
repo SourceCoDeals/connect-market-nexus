@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,9 +7,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { X, MoreVertical, Trash2 } from 'lucide-react';
+import { X, MoreVertical, Trash2, Sparkles } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineDetailOverview } from './tabs/PipelineDetailOverview';
 import { PipelineDetailBuyer } from './tabs/PipelineDetailBuyer';
@@ -26,6 +28,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const { selectedDeal } = pipeline;
   const [activeTab, setActiveTab] = useState('overview');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   console.log('[Pipeline Detail Panel] Rendering with selectedDeal', { 
     hasSelectedDeal: !!selectedDeal,
@@ -149,6 +152,17 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {selectedDeal.listing_id && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => navigate(`/admin/remarketing/matching/${selectedDeal.listing_id}`)}
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Match Buyers
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => setDeleteDialogOpen(true)}
