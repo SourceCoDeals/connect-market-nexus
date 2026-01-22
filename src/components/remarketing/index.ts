@@ -36,3 +36,10 @@ export { TranscriptSection } from './TranscriptSection';
 
 // AI Chat Components
 export { BuyerQueryChat } from './BuyerQueryChat';
+
+// Outreach/Introduction Components
+export { OutreachTimeline } from './OutreachTimeline';
+export { IntroductionStatusCard } from './IntroductionStatusCard';
+
+// Learning Components
+export { LearningInsightsPanel } from './LearningInsightsPanel';
