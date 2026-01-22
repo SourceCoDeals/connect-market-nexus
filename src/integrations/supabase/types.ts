@@ -315,6 +315,50 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_transcripts: {
+        Row: {
+          buyer_id: string
+          created_at: string | null
+          created_by: string | null
+          extracted_data: Json | null
+          id: string
+          processed_at: string | null
+          source: string | null
+          transcript_text: string
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string | null
+          created_by?: string | null
+          extracted_data?: Json | null
+          id?: string
+          processed_at?: string | null
+          source?: string | null
+          transcript_text: string
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          extracted_data?: Json | null
+          id?: string
+          processed_at?: string | null
+          source?: string | null
+          transcript_text?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_transcripts_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string

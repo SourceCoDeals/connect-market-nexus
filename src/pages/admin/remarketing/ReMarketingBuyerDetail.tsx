@@ -45,10 +45,11 @@ import {
   Trash2,
   ExternalLink,
   Mail,
-  Phone
+  Phone,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
-import { EnrichmentButton, IntelligenceBadge } from "@/components/remarketing";
+import { EnrichmentButton, IntelligenceBadge, TranscriptSection } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
@@ -347,6 +348,10 @@ const ReMarketingBuyerDetail = () => {
               <TabsTrigger value="contacts">
                 <Users className="mr-2 h-4 w-4" />
                 Contacts ({contacts?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="transcripts">
+                <FileText className="mr-2 h-4 w-4" />
+                Transcripts
               </TabsTrigger>
               <TabsTrigger value="history">
                 <BarChart3 className="mr-2 h-4 w-4" />
@@ -682,6 +687,16 @@ const ReMarketingBuyerDetail = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+        )}
+
+        {/* Transcripts Tab */}
+        {!isNew && (
+          <TabsContent value="transcripts">
+            <TranscriptSection 
+              buyerId={id!} 
+              buyerName={formData.company_name}
+            />
           </TabsContent>
         )}
 

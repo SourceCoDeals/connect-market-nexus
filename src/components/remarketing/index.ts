@@ -30,3 +30,9 @@ export { ReMarketingBadge } from './ReMarketingBadge';
 
 // Import Components
 export { default as BuyerCSVImport } from './BuyerCSVImport';
+
+// Transcript Components
+export { TranscriptSection } from './TranscriptSection';
+
+// AI Chat Components
+export { BuyerQueryChat } from './BuyerQueryChat';
