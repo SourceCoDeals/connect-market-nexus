@@ -66,6 +66,17 @@ const TARGET_FIELDS = [
   { value: 'notes', label: 'Notes', required: false },
 ];
 
+interface DuplicateWarning {
+  index: number;
+  companyName: string;
+  potentialDuplicates: Array<{
+    id: string;
+    companyName: string;
+    confidence: number;
+    matchType: 'domain' | 'name';
+  }>;
+}
+
 interface BuyerCSVImportProps {
   universeId?: string;
   onComplete?: () => void;
@@ -73,13 +84,16 @@ interface BuyerCSVImportProps {
 
 export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'importing'>('upload');
+  const [step, setStep] = useState<'upload' | 'mapping' | 'dedupe' | 'importing'>('upload');
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState<{ success: number; errors: number }>({ success: 0, errors: 0 });
+  const [duplicates, setDuplicates] = useState<DuplicateWarning[]>([]);
+  const [skipDuplicates, setSkipDuplicates] = useState<Set<number>>(new Set());
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -180,6 +194,95 @@ export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) 
     return mappings.some(m => m.targetField === 'company_name');
   };
 
+  const buildBuyerFromRow = (row: CSVRow) => {
+    const buyer: Record<string, any> = {
+      universe_id: universeId || null,
+    };
+
+    mappings.forEach(mapping => {
+      if (mapping.targetField && row[mapping.csvColumn]) {
+        const value = row[mapping.csvColumn].trim();
+        
+        if (['target_geographies', 'target_services', 'geographic_footprint'].includes(mapping.targetField)) {
+          buyer[mapping.targetField] = value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+        } else if (['target_revenue_min', 'target_revenue_max', 'target_ebitda_min', 'target_ebitda_max'].includes(mapping.targetField)) {
+          const num = parseFloat(value.replace(/[^0-9.-]/g, ''));
+          if (!isNaN(num)) {
+            buyer[mapping.targetField] = num;
+          }
+        } else if (mapping.targetField === 'buyer_type') {
+          const lower = value.toLowerCase();
+          if (lower.includes('pe') || lower.includes('private equity')) buyer.buyer_type = 'pe_firm';
+          else if (lower.includes('platform')) buyer.buyer_type = 'platform';
+          else if (lower.includes('strategic')) buyer.buyer_type = 'strategic';
+          else if (lower.includes('family')) buyer.buyer_type = 'family_office';
+          else buyer.buyer_type = 'other';
+        } else {
+          buyer[mapping.targetField] = value;
+        }
+      }
+    });
+
+    return buyer;
+  };
+
+  const checkForDuplicates = async () => {
+    if (!hasRequiredMapping()) {
+      toast.error('Company Name mapping is required');
+      return;
+    }
+
+    setIsCheckingDuplicates(true);
+    
+    try {
+      const buyersToCheck = csvData.map((row, index) => {
+        const buyer = buildBuyerFromRow(row);
+        return {
+          index,
+          companyName: buyer.company_name || '',
+          website: buyer.company_website || null,
+        };
+      }).filter(b => b.companyName);
+
+      const { data, error } = await supabase.functions.invoke('dedupe-buyers', {
+        body: { buyers: buyersToCheck }
+      });
+
+      if (error) {
+        console.error('Dedupe check error:', error);
+        // Proceed without dedupe if it fails
+        await handleImport();
+        return;
+      }
+
+      const foundDuplicates = (data?.results || []).filter((r: any) => r.isDuplicate);
+      
+      if (foundDuplicates.length > 0) {
+        setDuplicates(foundDuplicates);
+        setStep('dedupe');
+      } else {
+        await handleImport();
+      }
+    } catch (err) {
+      console.error('Dedupe error:', err);
+      await handleImport();
+    } finally {
+      setIsCheckingDuplicates(false);
+    }
+  };
+
+  const toggleSkipDuplicate = (index: number) => {
+    setSkipDuplicates(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
   const handleImport = async () => {
     if (!hasRequiredMapping()) {
       toast.error('Company Name mapping is required');
@@ -194,46 +297,15 @@ export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) 
     let success = 0;
     let errors = 0;
 
-    for (let i = 0; i < csvData.length; i += batchSize) {
-      const batch = csvData.slice(i, i + batchSize);
+    // Filter out skipped duplicates
+    const dataToImport = csvData.filter((_, index) => !skipDuplicates.has(index));
+
+    for (let i = 0; i < dataToImport.length; i += batchSize) {
+      const batch = dataToImport.slice(i, i + batchSize);
       
-      const buyersToInsert = batch.map(row => {
-        const buyer: Record<string, any> = {
-          universe_id: universeId || null,
-        };
-
-        mappings.forEach(mapping => {
-          if (mapping.targetField && row[mapping.csvColumn]) {
-            const value = row[mapping.csvColumn].trim();
-            
-            // Handle array fields
-            if (['target_geographies', 'target_services', 'geographic_footprint'].includes(mapping.targetField)) {
-              buyer[mapping.targetField] = value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
-            }
-            // Handle numeric fields
-            else if (['target_revenue_min', 'target_revenue_max', 'target_ebitda_min', 'target_ebitda_max'].includes(mapping.targetField)) {
-              const num = parseFloat(value.replace(/[^0-9.-]/g, ''));
-              if (!isNaN(num)) {
-                buyer[mapping.targetField] = num;
-              }
-            }
-            // Handle buyer type
-            else if (mapping.targetField === 'buyer_type') {
-              const lower = value.toLowerCase();
-              if (lower.includes('pe') || lower.includes('private equity')) buyer.buyer_type = 'pe_firm';
-              else if (lower.includes('platform')) buyer.buyer_type = 'platform';
-              else if (lower.includes('strategic')) buyer.buyer_type = 'strategic';
-              else if (lower.includes('family')) buyer.buyer_type = 'family_office';
-              else buyer.buyer_type = 'other';
-            }
-            else {
-              buyer[mapping.targetField] = value;
-            }
-          }
-        });
-
-        return buyer;
-      }).filter((b): b is typeof b & { company_name: string } => !!b.company_name);
+      const buyersToInsert = batch
+        .map(row => buildBuyerFromRow(row))
+        .filter((b): b is typeof b & { company_name: string } => !!b.company_name);
 
       if (buyersToInsert.length > 0) {
         const { error } = await supabase
@@ -248,7 +320,7 @@ export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) 
         }
       }
 
-      setImportProgress(((i + batchSize) / csvData.length) * 100);
+      setImportProgress(((i + batchSize) / dataToImport.length) * 100);
     }
 
     setImportResults({ success, errors });
@@ -272,6 +344,8 @@ export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) 
     setMappings([]);
     setImportProgress(0);
     setImportResults({ success: 0, errors: 0 });
+    setDuplicates([]);
+    setSkipDuplicates(new Set());
   };
 
   return (
@@ -389,6 +463,46 @@ export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) 
             </div>
           )}
 
+          {step === 'dedupe' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-3 bg-amber-500/10 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>
+                  Found {duplicates.length} potential duplicate(s). Review and select which to skip.
+                </span>
+              </div>
+              
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {duplicates.map((dup) => (
+                  <div 
+                    key={dup.index}
+                    className={`p-3 border rounded-lg ${skipDuplicates.has(dup.index) ? 'bg-muted/50 opacity-60' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{dup.companyName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Matches: {dup.potentialDuplicates.map(d => d.companyName).join(', ')}
+                        </p>
+                      </div>
+                      <Button 
+                        variant={skipDuplicates.has(dup.index) ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() => toggleSkipDuplicate(dup.index)}
+                      >
+                        {skipDuplicates.has(dup.index) ? 'Skipping' : 'Skip'}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                {csvData.length - skipDuplicates.size} buyers will be imported
+              </p>
+            </div>
+          )}
+
           {step === 'importing' && (
             <div className="py-8 space-y-4">
               <Progress value={importProgress} className="h-2" />
@@ -416,10 +530,27 @@ export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) 
                   Back
                 </Button>
                 <Button 
-                  onClick={handleImport}
-                  disabled={!hasRequiredMapping()}
+                  onClick={checkForDuplicates}
+                  disabled={!hasRequiredMapping() || isCheckingDuplicates}
                 >
-                  Import {csvData.length} Buyers
+                  {isCheckingDuplicates ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Checking...
+                    </>
+                  ) : (
+                    `Import ${csvData.length} Buyers`
+                  )}
+                </Button>
+              </>
+            )}
+            {step === 'dedupe' && (
+              <>
+                <Button variant="outline" onClick={() => setStep('mapping')}>
+                  Back
+                </Button>
+                <Button onClick={handleImport}>
+                  Continue Import ({csvData.length - skipDuplicates.size} buyers)
                 </Button>
               </>
             )}
