@@ -22,6 +22,7 @@ import { formatCurrency } from "@/lib/utils";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { StatusTagEditor } from "./StatusTagEditor";
 import { StatusTagSwitcher } from "./StatusTagSwitcher";
+import { ReMarketingBadge } from "@/components/remarketing";
 import { StatusTagValue } from "@/constants/statusTags";
 import { BUYER_TYPE_OPTIONS } from "@/lib/signup-field-options";
 import {
@@ -157,6 +158,7 @@ export function AdminListingCard({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+                  <ReMarketingBadge listingId={listing.id} />
                 </div>
               </div>
 
@@ -393,16 +395,19 @@ export function AdminListingCard({
           </div>
         </div>
 
-        {/* Meta Information */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {new Date(listing.created_at).toLocaleDateString()}
+        {/* Meta Information and Remarketing Badge */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {new Date(listing.created_at).toLocaleDateString()}
+            </div>
+            <div className="flex items-center gap-1">
+              <Activity className="h-3 w-3" />
+              Last updated {new Date(listing.updated_at).toLocaleDateString()}
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Activity className="h-3 w-3" />
-            Last updated {new Date(listing.updated_at).toLocaleDateString()}
-          </div>
+          <ReMarketingBadge listingId={listing.id} />
         </div>
 
         {/* Primary Actions */}

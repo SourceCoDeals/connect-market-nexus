@@ -25,5 +25,8 @@ export { ScoringTrendsChart } from './ScoringTrendsChart';
 export { CategoryPerformanceChart } from './CategoryPerformanceChart';
 export { UniversePerformanceTable } from './UniversePerformanceTable';
 
+// Integration Components
+export { ReMarketingBadge } from './ReMarketingBadge';
+
 // Import Components
 export { default as BuyerCSVImport } from './BuyerCSVImport';
