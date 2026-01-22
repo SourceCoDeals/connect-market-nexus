@@ -13,7 +13,8 @@ import {
   XCircle,
   Loader2,
   ArrowRight,
-  AlertTriangle
+  AlertTriangle,
+  GitMerge
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DealMergePanel } from '@/components/remarketing';
 
 type DataType = 'universes' | 'buyers' | 'contacts' | 'scores' | 'transcripts';
 
@@ -170,17 +173,30 @@ export default function ReMarketingDataImport() {
       <div>
         <h1 className="text-3xl font-bold">Data Migration</h1>
         <p className="text-muted-foreground mt-1">
-          Import reference data from SourceCo Whispers project
+          Import reference data and merge deals from SourceCo Whispers project
         </p>
       </div>
 
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          Import order matters! Universes must be imported first, then Buyers, then Contacts.
-          Each step creates ID mappings used by the next step.
-        </AlertDescription>
-      </Alert>
+      <Tabs defaultValue="import" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="import">
+            <Upload className="mr-2 h-4 w-4" />
+            Import Reference Data
+          </TabsTrigger>
+          <TabsTrigger value="merge">
+            <GitMerge className="mr-2 h-4 w-4" />
+            Merge Deals
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="import" className="space-y-8">
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Import order matters! Universes must be imported first, then Buyers, then Contacts.
+              Each step creates ID mappings used by the next step.
+            </AlertDescription>
+          </Alert>
 
       {/* Progress Overview */}
       <Card>
@@ -351,6 +367,12 @@ export default function ReMarketingDataImport() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        <TabsContent value="merge">
+          <DealMergePanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

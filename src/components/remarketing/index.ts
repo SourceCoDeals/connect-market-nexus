@@ -22,6 +22,7 @@ export { ScoringBehaviorPanel } from './ScoringBehaviorPanel';
 // Table Components
 export { BuyerTableEnhanced } from './BuyerTableEnhanced';
 export { UniverseDealsTable } from './UniverseDealsTable';
+export { DealMergePanel } from './DealMergePanel';
 
 // Analytics Components
 export { MatchingFunnel } from './MatchingFunnel';
