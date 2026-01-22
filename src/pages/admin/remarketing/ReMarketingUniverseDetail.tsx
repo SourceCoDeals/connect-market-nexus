@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { 
   StructuredCriteriaPanel, 
-  DocumentUploadSection 
+  DocumentUploadSection,
+  MAGuideEditor,
+  UniverseTemplates
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -33,7 +35,9 @@ import {
   Plus,
   Sparkles,
   Loader2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  BookOpen,
+  LayoutTemplate
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,6 +68,7 @@ const ReMarketingUniverseDetail = () => {
   });
   const [scoringBehavior, setScoringBehavior] = useState<ScoringBehavior>({});
   const [documents, setDocuments] = useState<DocumentReference[]>([]);
+  const [maGuideContent, setMaGuideContent] = useState("");
   const [isParsing, setIsParsing] = useState(false);
 
   // Fetch universe if editing
@@ -127,8 +132,40 @@ const ReMarketingUniverseDetail = () => {
       });
       setScoringBehavior((universe.scoring_behavior as unknown as ScoringBehavior) || {});
       setDocuments((universe.documents as unknown as DocumentReference[]) || []);
+      setMaGuideContent(universe.ma_guide_content || '');
     }
   }, [universe]);
+
+  // Handle template application
+  const handleApplyTemplate = (templateConfig: {
+    name: string;
+    description: string;
+    fit_criteria: string;
+    size_criteria: SizeCriteria;
+    geography_criteria: GeographyCriteria;
+    service_criteria: ServiceCriteria;
+    buyer_types_criteria: BuyerTypesCriteria;
+    scoring_behavior: ScoringBehavior;
+    geography_weight: number;
+    size_weight: number;
+    service_weight: number;
+    owner_goals_weight: number;
+  }) => {
+    setFormData({
+      name: templateConfig.name,
+      description: templateConfig.description,
+      fit_criteria: templateConfig.fit_criteria,
+      geography_weight: templateConfig.geography_weight,
+      size_weight: templateConfig.size_weight,
+      service_weight: templateConfig.service_weight,
+      owner_goals_weight: templateConfig.owner_goals_weight,
+    });
+    setSizeCriteria(templateConfig.size_criteria);
+    setGeographyCriteria(templateConfig.geography_criteria);
+    setServiceCriteria(templateConfig.service_criteria);
+    setBuyerTypesCriteria(templateConfig.buyer_types_criteria);
+    setScoringBehavior(templateConfig.scoring_behavior);
+  };
 
   // Parse natural language criteria using AI
   const parseCriteria = async () => {
@@ -175,7 +212,8 @@ const ReMarketingUniverseDetail = () => {
         service_criteria: serviceCriteria,
         buyer_types_criteria: buyerTypesCriteria,
         scoring_behavior: scoringBehavior,
-        documents: documents
+        documents: documents,
+        ma_guide_content: maGuideContent
       };
 
       if (isNew) {
@@ -248,8 +286,14 @@ const ReMarketingUniverseDetail = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="details" className="space-y-6">
-        <TabsList>
+      <Tabs defaultValue={isNew ? "templates" : "details"} className="space-y-6">
+        <TabsList className="flex-wrap">
+          {isNew && (
+            <TabsTrigger value="templates">
+              <LayoutTemplate className="mr-2 h-4 w-4" />
+              Templates
+            </TabsTrigger>
+          )}
           <TabsTrigger value="details">
             <Target className="mr-2 h-4 w-4" />
             Details
@@ -260,7 +304,11 @@ const ReMarketingUniverseDetail = () => {
           </TabsTrigger>
           <TabsTrigger value="weights">
             <Settings className="mr-2 h-4 w-4" />
-            Scoring Weights
+            Scoring
+          </TabsTrigger>
+          <TabsTrigger value="guide">
+            <BookOpen className="mr-2 h-4 w-4" />
+            MA Guide
           </TabsTrigger>
           {!isNew && (
             <TabsTrigger value="buyers">
@@ -269,6 +317,13 @@ const ReMarketingUniverseDetail = () => {
             </TabsTrigger>
           )}
         </TabsList>
+
+        {/* Templates Tab (New Universe Only) */}
+        {isNew && (
+          <TabsContent value="templates">
+            <UniverseTemplates onApplyTemplate={handleApplyTemplate} />
+          </TabsContent>
+        )}
 
         {/* Details Tab */}
         <TabsContent value="details">
@@ -410,6 +465,25 @@ const ReMarketingUniverseDetail = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* MA Guide Tab */}
+        <TabsContent value="guide">
+          <div className="space-y-6">
+            <MAGuideEditor
+              content={maGuideContent}
+              onChange={setMaGuideContent}
+              universeName={formData.name}
+              fitCriteria={formData.fit_criteria}
+            />
+            {!isNew && id && (
+              <DocumentUploadSection
+                universeId={id}
+                documents={documents}
+                onDocumentsChange={setDocuments}
+              />
+            )}
+          </div>
         </TabsContent>
 
         {/* Buyers Tab */}
