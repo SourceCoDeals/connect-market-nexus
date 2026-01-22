@@ -6,8 +6,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Eye, EyeOff, Edit, Trash2, MoreHorizontal, Calendar, 
   DollarSign, TrendingUp, MapPin, Building2, Activity,
-  Users, Heart, ExternalLink, Globe, ShieldCheck
+  Users, Heart, ExternalLink, Globe, ShieldCheck, Sparkles
 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +53,7 @@ export function AdminListingCard({
   onStatusTagChange,
 }: AdminListingCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const navigate = useNavigate();
 
   const displayCategories = listing.categories || (listing.category ? [listing.category] : []);
   const revenue = Number(listing.revenue) || 0;
@@ -193,6 +195,10 @@ export function AdminListingCard({
                     <DropdownMenuItem onClick={onEdit}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/matching/${listing.id}`)}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Match Buyers
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onToggleStatus}>
                       {listing.status === "active" ? (
@@ -426,6 +432,10 @@ export function AdminListingCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/matching/${listing.id}`)}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Match Buyers
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => window.open(`/listing/${listing.id}`, '_blank')}>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 View Public Page
