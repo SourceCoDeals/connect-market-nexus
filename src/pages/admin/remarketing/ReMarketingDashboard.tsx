@@ -13,7 +13,8 @@ import {
   ArrowRight,
   TrendingUp,
   Building2,
-  Sparkles
+  Sparkles,
+  PieChart
 } from "lucide-react";
 
 const ReMarketingDashboard = () => {
@@ -104,6 +105,12 @@ const ReMarketingDashboard = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/admin/remarketing/analytics">
+              <PieChart className="mr-2 h-4 w-4" />
+              Analytics
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link to="/admin/remarketing/buyers">
               <Users className="mr-2 h-4 w-4" />
