@@ -37,6 +37,11 @@ import AdminRequests from "@/pages/admin/AdminRequests";
 import AdminDealSourcing from "@/pages/admin/AdminDealSourcing";
 import AdminPipeline from "@/pages/admin/AdminPipeline";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
+import ReMarketingDashboard from "@/pages/admin/remarketing/ReMarketingDashboard";
+import ReMarketingUniverses from "@/pages/admin/remarketing/ReMarketingUniverses";
+import ReMarketingUniverseDetail from "@/pages/admin/remarketing/ReMarketingUniverseDetail";
+import ReMarketingBuyers from "@/pages/admin/remarketing/ReMarketingBuyers";
+import ReMarketingDealMatching from "@/pages/admin/remarketing/ReMarketingDealMatching";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
 import { SimpleToastProvider } from "@/components/ui/simple-toast";
@@ -115,6 +120,11 @@ function App() {
               <Route path="deal-sourcing" element={<AdminDealSourcing />} />
               <Route path="pipeline" element={<AdminPipeline />} />
               <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="remarketing" element={<ReMarketingDashboard />} />
+              <Route path="remarketing/universes" element={<ReMarketingUniverses />} />
+              <Route path="remarketing/universes/:id" element={<ReMarketingUniverseDetail />} />
+              <Route path="remarketing/buyers" element={<ReMarketingBuyers />} />
+              <Route path="remarketing/matching/:listingId" element={<ReMarketingDealMatching />} />
             </Route>
             
             {/* Catch-all route for 404 Not Found */}

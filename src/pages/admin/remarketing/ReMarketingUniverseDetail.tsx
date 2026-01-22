@@ -1,0 +1,389 @@
+import { useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
+import { 
+  ArrowLeft,
+  Save,
+  Target,
+  Users,
+  FileText,
+  Settings,
+  Plus,
+  Trash2
+} from "lucide-react";
+import { toast } from "sonner";
+
+const ReMarketingUniverseDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const isNew = id === 'new';
+
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    fit_criteria: '',
+    geography_weight: 35,
+    size_weight: 25,
+    service_weight: 25,
+    owner_goals_weight: 15,
+  });
+
+  // Fetch universe if editing
+  const { data: universe, isLoading } = useQuery({
+    queryKey: ['remarketing', 'universe', id],
+    queryFn: async () => {
+      if (isNew) return null;
+      
+      const { data, error } = await supabase
+        .from('remarketing_buyer_universes')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !isNew
+  });
+
+  // Fetch buyers in this universe
+  const { data: buyers } = useQuery({
+    queryKey: ['remarketing', 'buyers', 'universe', id],
+    queryFn: async () => {
+      if (isNew) return [];
+      
+      const { data, error } = await supabase
+        .from('remarketing_buyers')
+        .select('*')
+        .eq('universe_id', id)
+        .eq('archived', false)
+        .order('company_name');
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !isNew
+  });
+
+  // Update form when universe loads
+  useState(() => {
+    if (universe) {
+      setFormData({
+        name: universe.name || '',
+        description: universe.description || '',
+        fit_criteria: universe.fit_criteria || '',
+        geography_weight: universe.geography_weight || 35,
+        size_weight: universe.size_weight || 25,
+        service_weight: universe.service_weight || 25,
+        owner_goals_weight: universe.owner_goals_weight || 15,
+      });
+    }
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (isNew) {
+        const { data, error } = await supabase
+          .from('remarketing_buyer_universes')
+          .insert([formData])
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return data;
+      } else {
+        const { error } = await supabase
+          .from('remarketing_buyer_universes')
+          .update(formData)
+          .eq('id', id);
+        
+        if (error) throw error;
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'universes'] });
+      toast.success(isNew ? 'Universe created' : 'Universe saved');
+      if (isNew && data?.id) {
+        navigate(`/admin/remarketing/universes/${data.id}`);
+      }
+    },
+    onError: () => {
+      toast.error('Failed to save universe');
+    }
+  });
+
+  const totalWeight = formData.geography_weight + formData.size_weight + 
+    formData.service_weight + formData.owner_goals_weight;
+
+  if (!isNew && isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/admin/remarketing/universes">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {isNew ? 'New Universe' : formData.name || 'Universe'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isNew ? 'Create a new buyer universe' : 'Edit universe settings and criteria'}
+            </p>
+          </div>
+        </div>
+        <Button 
+          onClick={() => saveMutation.mutate()}
+          disabled={!formData.name || saveMutation.isPending}
+        >
+          <Save className="mr-2 h-4 w-4" />
+          {saveMutation.isPending ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+
+      <Tabs defaultValue="details" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="details">
+            <Target className="mr-2 h-4 w-4" />
+            Details
+          </TabsTrigger>
+          <TabsTrigger value="criteria">
+            <FileText className="mr-2 h-4 w-4" />
+            Criteria
+          </TabsTrigger>
+          <TabsTrigger value="weights">
+            <Settings className="mr-2 h-4 w-4" />
+            Scoring Weights
+          </TabsTrigger>
+          {!isNew && (
+            <TabsTrigger value="buyers">
+              <Users className="mr-2 h-4 w-4" />
+              Buyers ({buyers?.length || 0})
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        {/* Details Tab */}
+        <TabsContent value="details">
+          <Card>
+            <CardHeader>
+              <CardTitle>Universe Details</CardTitle>
+              <CardDescription>
+                Basic information about this buyer universe
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g., Home Services PE Firms"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Describe this buyer universe..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Criteria Tab */}
+        <TabsContent value="criteria">
+          <Card>
+            <CardHeader>
+              <CardTitle>Fit Criteria</CardTitle>
+              <CardDescription>
+                Define the criteria for matching buyers to listings
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fit_criteria">Natural Language Criteria</Label>
+                <Textarea
+                  id="fit_criteria"
+                  placeholder="Describe your ideal buyer fit criteria in natural language. For example: 'PE firms focused on home services with existing HVAC or plumbing platforms, targeting $5M-$30M revenue businesses in the Southeast...'"
+                  value={formData.fit_criteria}
+                  onChange={(e) => setFormData({ ...formData, fit_criteria: e.target.value })}
+                  rows={6}
+                />
+                <p className="text-sm text-muted-foreground">
+                  The AI will use this to score buyer-deal matches
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Weights Tab */}
+        <TabsContent value="weights">
+          <Card>
+            <CardHeader>
+              <CardTitle>Scoring Weights</CardTitle>
+              <CardDescription>
+                Adjust how much each category contributes to the overall score
+                <Badge variant={totalWeight === 100 ? "default" : "destructive"} className="ml-2">
+                  Total: {totalWeight}%
+                </Badge>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Geography ({formData.geography_weight}%)</Label>
+                </div>
+                <Slider
+                  value={[formData.geography_weight]}
+                  onValueChange={([value]) => setFormData({ ...formData, geography_weight: value })}
+                  max={100}
+                  step={5}
+                />
+                <p className="text-sm text-muted-foreground">
+                  How important is geographic overlap between buyer presence and deal location?
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Size Fit ({formData.size_weight}%)</Label>
+                </div>
+                <Slider
+                  value={[formData.size_weight]}
+                  onValueChange={([value]) => setFormData({ ...formData, size_weight: value })}
+                  max={100}
+                  step={5}
+                />
+                <p className="text-sm text-muted-foreground">
+                  How important is revenue/EBITDA fit with buyer's target range?
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Service Mix ({formData.service_weight}%)</Label>
+                </div>
+                <Slider
+                  value={[formData.service_weight]}
+                  onValueChange={([value]) => setFormData({ ...formData, service_weight: value })}
+                  max={100}
+                  step={5}
+                />
+                <p className="text-sm text-muted-foreground">
+                  How important is service/industry alignment?
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Owner Goals ({formData.owner_goals_weight}%)</Label>
+                </div>
+                <Slider
+                  value={[formData.owner_goals_weight]}
+                  onValueChange={([value]) => setFormData({ ...formData, owner_goals_weight: value })}
+                  max={100}
+                  step={5}
+                />
+                <p className="text-sm text-muted-foreground">
+                  How important is alignment with owner's exit goals?
+                </p>
+              </div>
+
+              {totalWeight !== 100 && (
+                <div className="p-4 bg-destructive/10 rounded-lg text-destructive text-sm">
+                  Weights should total 100%. Currently at {totalWeight}%.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Buyers Tab */}
+        {!isNew && (
+          <TabsContent value="buyers">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Buyers in Universe</CardTitle>
+                    <CardDescription>
+                      {buyers?.length || 0} buyers assigned to this universe
+                    </CardDescription>
+                  </div>
+                  <Button asChild>
+                    <Link to="/admin/remarketing/buyers">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Buyers
+                    </Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {buyers?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                    <p>No buyers in this universe yet</p>
+                    <Button variant="link" asChild className="mt-2">
+                      <Link to="/admin/remarketing/buyers">Import buyers</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {buyers?.map((buyer) => (
+                      <div key={buyer.id} className="py-3 flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{buyer.company_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {buyer.buyer_type?.replace('_', ' ') || 'Unknown type'}
+                          </p>
+                        </div>
+                        <Badge variant={
+                          buyer.data_completeness === 'high' ? 'default' :
+                          buyer.data_completeness === 'medium' ? 'secondary' :
+                          'outline'
+                        }>
+                          {buyer.data_completeness || 'low'} data
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
+    </div>
+  );
+};
+
+export default ReMarketingUniverseDetail;

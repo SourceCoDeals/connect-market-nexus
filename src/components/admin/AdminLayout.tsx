@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   Sparkles,
+  Target,
   Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,13 @@ const AdminLayout = () => {
               icon={<GitBranch className="h-4 w-4" />}
               label="Deals Pipeline"
               isActive={location.pathname.includes('/admin/pipeline')}
+              collapsed={sidebarCollapsed}
+            />
+            <NavLink 
+              to="/admin/remarketing" 
+              icon={<Target className="h-4 w-4" />}
+              label="Remarketing"
+              isActive={location.pathname.includes('/admin/remarketing')}
               collapsed={sidebarCollapsed}
             />
             <NavLink 

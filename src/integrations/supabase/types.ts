@@ -3048,6 +3048,309 @@ export type Database = {
           },
         ]
       }
+      remarketing_buyer_contacts: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          email: string | null
+          id: string
+          is_primary: boolean
+          linkedin_url: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          linkedin_url?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          linkedin_url?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_buyer_contacts_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remarketing_buyer_universes: {
+        Row: {
+          archived: boolean
+          buyer_types_criteria: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          documents: Json | null
+          fit_criteria: string | null
+          geography_criteria: Json | null
+          geography_weight: number
+          id: string
+          ma_guide_content: string | null
+          name: string
+          owner_goals_weight: number
+          scoring_behavior: Json | null
+          service_criteria: Json | null
+          service_weight: number
+          size_criteria: Json | null
+          size_weight: number
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean
+          buyer_types_criteria?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documents?: Json | null
+          fit_criteria?: string | null
+          geography_criteria?: Json | null
+          geography_weight?: number
+          id?: string
+          ma_guide_content?: string | null
+          name: string
+          owner_goals_weight?: number
+          scoring_behavior?: Json | null
+          service_criteria?: Json | null
+          service_weight?: number
+          size_criteria?: Json | null
+          size_weight?: number
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean
+          buyer_types_criteria?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documents?: Json | null
+          fit_criteria?: string | null
+          geography_criteria?: Json | null
+          geography_weight?: number
+          id?: string
+          ma_guide_content?: string | null
+          name?: string
+          owner_goals_weight?: number
+          scoring_behavior?: Json | null
+          service_criteria?: Json | null
+          service_weight?: number
+          size_criteria?: Json | null
+          size_weight?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      remarketing_buyers: {
+        Row: {
+          archived: boolean
+          buyer_type: string | null
+          company_name: string
+          company_website: string | null
+          created_at: string
+          data_completeness: string | null
+          data_last_updated: string | null
+          extraction_sources: Json | null
+          geographic_footprint: string[] | null
+          id: string
+          notes: string | null
+          portfolio_companies: Json | null
+          recent_acquisitions: Json | null
+          target_ebitda_max: number | null
+          target_ebitda_min: number | null
+          target_geographies: string[] | null
+          target_industries: string[] | null
+          target_revenue_max: number | null
+          target_revenue_min: number | null
+          target_services: string[] | null
+          thesis_confidence: string | null
+          thesis_summary: string | null
+          universe_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean
+          buyer_type?: string | null
+          company_name: string
+          company_website?: string | null
+          created_at?: string
+          data_completeness?: string | null
+          data_last_updated?: string | null
+          extraction_sources?: Json | null
+          geographic_footprint?: string[] | null
+          id?: string
+          notes?: string | null
+          portfolio_companies?: Json | null
+          recent_acquisitions?: Json | null
+          target_ebitda_max?: number | null
+          target_ebitda_min?: number | null
+          target_geographies?: string[] | null
+          target_industries?: string[] | null
+          target_revenue_max?: number | null
+          target_revenue_min?: number | null
+          target_services?: string[] | null
+          thesis_confidence?: string | null
+          thesis_summary?: string | null
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean
+          buyer_type?: string | null
+          company_name?: string
+          company_website?: string | null
+          created_at?: string
+          data_completeness?: string | null
+          data_last_updated?: string | null
+          extraction_sources?: Json | null
+          geographic_footprint?: string[] | null
+          id?: string
+          notes?: string | null
+          portfolio_companies?: Json | null
+          recent_acquisitions?: Json | null
+          target_ebitda_max?: number | null
+          target_ebitda_min?: number | null
+          target_geographies?: string[] | null
+          target_industries?: string[] | null
+          target_revenue_max?: number | null
+          target_revenue_min?: number | null
+          target_services?: string[] | null
+          thesis_confidence?: string | null
+          thesis_summary?: string | null
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_buyers_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remarketing_scores: {
+        Row: {
+          buyer_id: string
+          composite_score: number
+          created_at: string
+          data_completeness: string | null
+          fit_reasoning: string | null
+          geography_score: number | null
+          human_override_score: number | null
+          id: string
+          listing_id: string
+          owner_goals_score: number | null
+          pass_category: string | null
+          pass_reason: string | null
+          scored_at: string | null
+          scored_by: string | null
+          service_score: number | null
+          size_score: number | null
+          status: string
+          tier: string | null
+          universe_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          composite_score?: number
+          created_at?: string
+          data_completeness?: string | null
+          fit_reasoning?: string | null
+          geography_score?: number | null
+          human_override_score?: number | null
+          id?: string
+          listing_id: string
+          owner_goals_score?: number | null
+          pass_category?: string | null
+          pass_reason?: string | null
+          scored_at?: string | null
+          scored_by?: string | null
+          service_score?: number | null
+          size_score?: number | null
+          status?: string
+          tier?: string | null
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          composite_score?: number
+          created_at?: string
+          data_completeness?: string | null
+          fit_reasoning?: string | null
+          geography_score?: number | null
+          human_override_score?: number | null
+          id?: string
+          listing_id?: string
+          owner_goals_score?: number | null
+          pass_category?: string | null
+          pass_reason?: string | null
+          scored_at?: string | null
+          scored_by?: string | null
+          service_score?: number | null
+          size_score?: number | null
+          status?: string
+          tier?: string | null
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_scores_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scores_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scores_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scores_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_listings: {
         Row: {
           created_at: string
