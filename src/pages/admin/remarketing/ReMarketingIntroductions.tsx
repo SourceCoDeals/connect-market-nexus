@@ -37,7 +37,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ScoreBadge, ScoreTierBadge } from "@/components/remarketing";
+import { ScoreBadge, ScoreTierBadge, OutreachTimeline } from "@/components/remarketing";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ScoreTier } from "@/types/remarketing";
 import { format } from "date-fns";
 
@@ -348,22 +349,30 @@ const ReMarketingIntroductions = () => {
                   return (
                     <TableRow key={intro.id}>
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div>
-                            <Link 
-                              to={`/admin/remarketing/buyers/${intro.buyer?.id}`}
-                              className="font-medium hover:underline"
-                            >
-                              {intro.buyer?.company_name}
-                            </Link>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <ScoreTierBadge tier={tier} size="sm" showLabel={false} />
-                              <span className="text-xs text-muted-foreground">
-                                {intro.buyer?.buyer_type?.replace('_', ' ')}
-                              </span>
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 -m-1 rounded">
+                              <div>
+                                <Link 
+                                  to={`/admin/remarketing/buyers/${intro.buyer?.id}`}
+                                  className="font-medium hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {intro.buyer?.company_name}
+                                </Link>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <ScoreTierBadge tier={tier} size="sm" showLabel={false} />
+                                  <span className="text-xs text-muted-foreground">
+                                    {intro.buyer?.buyer_type?.replace('_', ' ')}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-2">
+                            <OutreachTimeline outreach={outreach} className="pl-1" />
+                          </CollapsibleContent>
+                        </Collapsible>
                       </TableCell>
                       <TableCell className="text-center">
                         <ScoreBadge score={intro.composite_score || 0} size="sm" />

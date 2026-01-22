@@ -30,6 +30,8 @@ export { TierDistributionChart } from './TierDistributionChart';
 export { ScoringTrendsChart } from './ScoringTrendsChart';
 export { CategoryPerformanceChart } from './CategoryPerformanceChart';
 export { UniversePerformanceTable } from './UniversePerformanceTable';
+export { DecisionHistoryChart } from './DecisionHistoryChart';
+export { ScoreCalibrationChart } from './ScoreCalibrationChart';
 
 // Integration Components
 export { ReMarketingBadge } from './ReMarketingBadge';
