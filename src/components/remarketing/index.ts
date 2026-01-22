@@ -38,6 +38,8 @@ export { ReMarketingBadge } from './ReMarketingBadge';
 
 // Import Components
 export { default as BuyerCSVImport } from './BuyerCSVImport';
+export { ImportValidationPanel } from './ImportValidationPanel';
+export type { DealIdMapping } from './DealMergePanel';
 
 // Transcript Components
 export { TranscriptSection } from './TranscriptSection';
