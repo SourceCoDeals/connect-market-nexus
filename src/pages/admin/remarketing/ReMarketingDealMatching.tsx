@@ -136,7 +136,7 @@ const ReMarketingDealMatching = () => {
     }
   });
 
-  // Simulate bulk scoring (will be replaced with edge function)
+  // Bulk score using edge function
   const handleBulkScore = async () => {
     if (!selectedUniverse) {
       toast.error('Please select a universe first');
@@ -144,83 +144,31 @@ const ReMarketingDealMatching = () => {
     }
 
     setIsScoring(true);
-    setScoringProgress(0);
+    setScoringProgress(10);
 
     try {
-      // Get buyers in the selected universe
-      const { data: buyers, error: buyersError } = await supabase
-        .from('remarketing_buyers')
-        .select('*')
-        .eq('universe_id', selectedUniverse)
-        .eq('archived', false);
+      const { data, error } = await supabase.functions.invoke('score-buyer-deal', {
+        body: {
+          bulk: true,
+          listingId,
+          universeId: selectedUniverse
+        }
+      });
 
-      if (buyersError) throw buyersError;
-
-      if (!buyers || buyers.length === 0) {
-        toast.error('No buyers in this universe');
+      if (error) {
+        console.error('Scoring error:', error);
+        toast.error('Failed to score buyers');
         return;
       }
 
-      // Get universe weights
-      const { data: universe, error: universeError } = await supabase
-        .from('remarketing_buyer_universes')
-        .select('*')
-        .eq('id', selectedUniverse)
-        .single();
-
-      if (universeError) throw universeError;
-
-      // Process buyers in batches
-      const batchSize = 5;
-      const totalBatches = Math.ceil(buyers.length / batchSize);
-
-      for (let i = 0; i < totalBatches; i++) {
-        const batch = buyers.slice(i * batchSize, (i + 1) * batchSize);
-        
-        // Generate mock scores (replace with AI call)
-        const scoresToInsert = batch.map(buyer => {
-          const geoScore = Math.floor(Math.random() * 40) + 60;
-          const sizeScore = Math.floor(Math.random() * 40) + 60;
-          const serviceScore = Math.floor(Math.random() * 40) + 60;
-          const ownerGoalsScore = Math.floor(Math.random() * 40) + 60;
-          
-          const composite = Math.round(
-            (geoScore * universe.geography_weight +
-             sizeScore * universe.size_weight +
-             serviceScore * universe.service_weight +
-             ownerGoalsScore * universe.owner_goals_weight) / 100
-          );
-
-          return {
-            listing_id: listingId,
-            buyer_id: buyer.id,
-            universe_id: selectedUniverse,
-            geography_score: geoScore,
-            size_score: sizeScore,
-            service_score: serviceScore,
-            owner_goals_score: ownerGoalsScore,
-            composite_score: composite,
-            tier: getTier(composite),
-            data_completeness: buyer.data_completeness || 'low',
-            status: 'pending',
-            fit_reasoning: `AI-generated match analysis for ${buyer.company_name} against ${listing?.title || 'listing'}.`,
-          };
-        });
-
-        // Upsert scores
-        const { error: insertError } = await supabase
-          .from('remarketing_scores')
-          .upsert(scoresToInsert, { onConflict: 'listing_id,buyer_id' });
-
-        if (insertError) throw insertError;
-
-        setScoringProgress(((i + 1) / totalBatches) * 100);
-        
-        // Small delay to simulate AI processing
-        await new Promise(r => setTimeout(r, 500));
+      setScoringProgress(100);
+      
+      if (data.errors && data.errors.length > 0) {
+        toast.warning(`Scored ${data.totalProcessed} buyers with ${data.errors.length} errors`);
+      } else {
+        toast.success(`Scored ${data.totalProcessed} buyers`);
       }
-
-      toast.success(`Scored ${buyers.length} buyers`);
+      
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     } catch (error) {
       console.error('Scoring error:', error);
