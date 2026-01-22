@@ -140,3 +140,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.import-reference-data]
 verify_jwt = true
+[functions.bulk-import-remarketing]
+verify_jwt = true
