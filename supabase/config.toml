@@ -136,3 +136,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.dedupe-buyers]
 verify_jwt = true
+[functions.extract-deal-transcript]
+verify_jwt = true

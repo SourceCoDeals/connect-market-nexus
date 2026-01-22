@@ -46,6 +46,7 @@ import ReMarketingDealMatching from "@/pages/admin/remarketing/ReMarketingDealMa
 import ReMarketingIntroductions from "@/pages/admin/remarketing/ReMarketingIntroductions";
 import ReMarketingAnalytics from "@/pages/admin/remarketing/ReMarketingAnalytics";
 import ReMarketingDeals from "@/pages/admin/remarketing/ReMarketingDeals";
+import ReMarketingDealDetail from "@/pages/admin/remarketing/ReMarketingDealDetail";
 import { ReMarketingLayout } from "@/components/remarketing";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
@@ -133,6 +134,7 @@ function App() {
               <Route path="universes" element={<ReMarketingUniverses />} />
               <Route path="universes/:id" element={<ReMarketingUniverseDetail />} />
               <Route path="deals" element={<ReMarketingDeals />} />
+              <Route path="deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route path="buyers" element={<ReMarketingBuyers />} />
               <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
               <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
