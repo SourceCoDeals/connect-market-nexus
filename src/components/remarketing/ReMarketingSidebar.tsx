@@ -9,7 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   BarChart3,
-  Upload
+  Upload,
+  Database
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -53,6 +54,11 @@ const navItems: NavItem[] = [
     label: "Data Import",
     href: "/admin/remarketing/import",
     icon: <Upload className="h-5 w-5" />,
+  },
+  {
+    label: "Bulk Import",
+    href: "/admin/remarketing/bulk-import",
+    icon: <Database className="h-5 w-5" />,
   },
 ];
 
