@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { 
+  StructuredCriteriaPanel, 
+  DocumentUploadSection 
+} from "@/components/remarketing";
+import { 
+  SizeCriteria, 
+  GeographyCriteria, 
+  ServiceCriteria, 
+  BuyerTypesCriteria,
+  ScoringBehavior,
+  DocumentReference
+} from "@/types/remarketing";
+import { 
   ArrowLeft,
   Save,
   Target,
@@ -19,7 +31,9 @@ import {
   FileText,
   Settings,
   Plus,
-  Trash2
+  Sparkles,
+  Loader2,
+  SlidersHorizontal
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,6 +52,19 @@ const ReMarketingUniverseDetail = () => {
     service_weight: 25,
     owner_goals_weight: 15,
   });
+
+  const [sizeCriteria, setSizeCriteria] = useState<SizeCriteria>({});
+  const [geographyCriteria, setGeographyCriteria] = useState<GeographyCriteria>({});
+  const [serviceCriteria, setServiceCriteria] = useState<ServiceCriteria>({});
+  const [buyerTypesCriteria, setBuyerTypesCriteria] = useState<BuyerTypesCriteria>({
+    include_pe_firms: true,
+    include_platforms: true,
+    include_strategic: true,
+    include_family_office: true
+  });
+  const [scoringBehavior, setScoringBehavior] = useState<ScoringBehavior>({});
+  const [documents, setDocuments] = useState<DocumentReference[]>([]);
+  const [isParsing, setIsParsing] = useState(false);
 
   // Fetch universe if editing
   const { data: universe, isLoading } = useQuery({
@@ -77,7 +104,7 @@ const ReMarketingUniverseDetail = () => {
   });
 
   // Update form when universe loads
-  useState(() => {
+  useEffect(() => {
     if (universe) {
       setFormData({
         name: universe.name || '',
@@ -88,15 +115,73 @@ const ReMarketingUniverseDetail = () => {
         service_weight: universe.service_weight || 25,
         owner_goals_weight: universe.owner_goals_weight || 15,
       });
+      // Load structured criteria from JSONB columns
+      setSizeCriteria((universe.size_criteria as unknown as SizeCriteria) || {});
+      setGeographyCriteria((universe.geography_criteria as unknown as GeographyCriteria) || {});
+      setServiceCriteria((universe.service_criteria as unknown as ServiceCriteria) || {});
+      setBuyerTypesCriteria((universe.buyer_types_criteria as unknown as BuyerTypesCriteria) || {
+        include_pe_firms: true,
+        include_platforms: true,
+        include_strategic: true,
+        include_family_office: true
+      });
+      setScoringBehavior((universe.scoring_behavior as unknown as ScoringBehavior) || {});
+      setDocuments((universe.documents as unknown as DocumentReference[]) || []);
     }
-  });
+  }, [universe]);
+
+  // Parse natural language criteria using AI
+  const parseCriteria = async () => {
+    if (!formData.fit_criteria.trim()) {
+      toast.error('Please enter fit criteria text first');
+      return;
+    }
+    
+    setIsParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('parse-fit-criteria', {
+        body: {
+          fit_criteria_text: formData.fit_criteria,
+          universe_name: formData.name
+        }
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        if (data.size_criteria) setSizeCriteria(prev => ({ ...prev, ...data.size_criteria }));
+        if (data.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...data.geography_criteria }));
+        if (data.service_criteria) setServiceCriteria(prev => ({ ...prev, ...data.service_criteria }));
+        if (data.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...data.buyer_types_criteria }));
+        if (data.scoring_behavior) setScoringBehavior(prev => ({ ...prev, ...data.scoring_behavior }));
+        
+        toast.success(`Parsed criteria with ${Math.round((data.confidence || 0.5) * 100)}% confidence`);
+      }
+    } catch (error) {
+      console.error('Failed to parse criteria:', error);
+      toast.error('Failed to parse criteria');
+    } finally {
+      setIsParsing(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const saveData: any = {
+        ...formData,
+        size_criteria: sizeCriteria,
+        geography_criteria: geographyCriteria,
+        service_criteria: serviceCriteria,
+        buyer_types_criteria: buyerTypesCriteria,
+        scoring_behavior: scoringBehavior,
+        documents: documents
+      };
+
       if (isNew) {
         const { data, error } = await supabase
           .from('remarketing_buyer_universes')
-          .insert([formData])
+          .insert([saveData])
           .select()
           .single();
         
@@ -105,7 +190,7 @@ const ReMarketingUniverseDetail = () => {
       } else {
         const { error } = await supabase
           .from('remarketing_buyer_universes')
-          .update(formData)
+          .update(saveData)
           .eq('id', id);
         
         if (error) throw error;
