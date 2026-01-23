@@ -21,7 +21,9 @@ import {
   UniverseDealsTable,
   TargetBuyerTypesPanel,
   IndustryKPIPanel,
-  BuyerTableToolbar
+  BuyerTableToolbar,
+  AddDealToUniverseDialog,
+  DealCSVImport
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -48,7 +50,9 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  Pencil
+  Pencil,
+  TrendingUp,
+  Upload
 } from "lucide-react";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -96,6 +100,11 @@ const ReMarketingUniverseDetail = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [buyerFitOpen, setBuyerFitOpen] = useState(false);
   const [buyerSearch, setBuyerSearch] = useState("");
+  const [addDealDialogOpen, setAddDealDialogOpen] = useState(false);
+  const [addDealDefaultTab, setAddDealDefaultTab] = useState<'existing' | 'new'>('existing');
+  const [importDealsDialogOpen, setImportDealsDialogOpen] = useState(false);
+  const [isScoringAllDeals, setIsScoringAllDeals] = useState(false);
+  const [isEnrichingAllDeals, setIsEnrichingAllDeals] = useState(false);
   const [showCriteriaEdit, setShowCriteriaEdit] = useState(false);
 
   // Fetch universe if editing
@@ -135,67 +144,73 @@ const ReMarketingUniverseDetail = () => {
     enabled: !isNew
   });
 
-  // Fetch deals scored in this universe
-  const { data: deals } = useQuery({
-    queryKey: ['remarketing', 'deals', 'universe', id],
+  // Fetch deals explicitly linked to this universe via junction table
+  const { data: universeDeals, refetch: refetchDeals } = useQuery({
+    queryKey: ['remarketing', 'universe-deals', id],
     queryFn: async () => {
       if (isNew) return [];
       
-      const { data: scores, error } = await supabase
-        .from('remarketing_scores')
+      const result = await (supabase as any)
+        .from('remarketing_universe_deals')
         .select(`
-          listing_id,
-          composite_score,
-          tier,
-          listing:listings(id, title, location, revenue, ebitda)
+          id,
+          added_at,
+          status,
+          listing:listings(
+            id, title, location, revenue, ebitda, 
+            enriched_at, geographic_states
+          )
         `)
-        .eq('universe_id', id);
+        .eq('universe_id', id)
+        .eq('status', 'active')
+        .order('added_at', { ascending: false });
       
-      if (error) throw error;
-
-      const dealMap = new Map<string, {
-        listing_id: string;
-        listing_title?: string;
-        listing_location?: string;
-        listing_revenue?: number;
-        listing_ebitda?: number;
-        total_buyers_scored: number;
-        tier_a_count: number;
-        tier_b_count: number;
-        total_score: number;
-      }>();
-
-      scores?.forEach((score) => {
-        const listingId = score.listing_id;
-        const listing = score.listing as { id: string; title: string; location: string; revenue: number; ebitda: number } | null;
-        
-        if (!dealMap.has(listingId)) {
-          dealMap.set(listingId, {
-            listing_id: listingId,
-            listing_title: listing?.title,
-            listing_location: listing?.location,
-            listing_revenue: listing?.revenue,
-            listing_ebitda: listing?.ebitda,
-            total_buyers_scored: 0,
-            tier_a_count: 0,
-            tier_b_count: 0,
-            total_score: 0,
-          });
-        }
-        
-        const deal = dealMap.get(listingId)!;
-        deal.total_buyers_scored++;
-        deal.total_score += score.composite_score || 0;
-        if (score.tier === 'A') deal.tier_a_count++;
-        if (score.tier === 'B') deal.tier_b_count++;
-      });
-
-      return Array.from(dealMap.values()).map(deal => ({
-        ...deal,
-        avg_score: deal.total_buyers_scored > 0 ? deal.total_score / deal.total_buyers_scored : 0,
-      }));
+      if (result.error) throw result.error;
+      return result.data || [];
     },
     enabled: !isNew
+  });
+
+  // Fetch engagement stats from remarketing_scores for deals in this universe
+  const { data: dealEngagementStats } = useQuery({
+    queryKey: ['remarketing', 'deal-engagement', id],
+    queryFn: async () => {
+      if (isNew || !universeDeals?.length) return {};
+      
+      const listingIds = universeDeals.map((d: any) => d.listing?.id).filter(Boolean);
+      if (listingIds.length === 0) return {};
+      
+      const { data: scores, error } = await supabase
+        .from('remarketing_scores')
+        .select('listing_id, status, composite_score')
+        .eq('universe_id', id)
+        .in('listing_id', listingIds);
+      
+      if (error) throw error;
+      
+      const stats: Record<string, { approved: number; interested: number; passed: number; avgScore: number; totalScore: number; count: number }> = {};
+      
+      scores?.forEach((score) => {
+        if (!stats[score.listing_id]) {
+          stats[score.listing_id] = { approved: 0, interested: 0, passed: 0, avgScore: 0, totalScore: 0, count: 0 };
+        }
+        const s = stats[score.listing_id];
+        s.count++;
+        s.totalScore += score.composite_score || 0;
+        
+        if (score.status === 'approved') s.approved++;
+        else if (score.status === 'pending') s.interested++;
+        else if (score.status === 'passed') s.passed++;
+      });
+      
+      // Calculate averages
+      Object.values(stats).forEach(s => {
+        s.avgScore = s.count > 0 ? s.totalScore / s.count : 0;
+      });
+      
+      return stats;
+    },
+    enabled: !isNew && !!universeDeals?.length
   });
 
   // Update form when universe loads
@@ -371,7 +386,7 @@ const ReMarketingUniverseDetail = () => {
               </h1>
               {!isNew && (
                 <span className="text-muted-foreground text-sm">
-                  · {buyers?.length || 0} buyers · {deals?.length || 0} deals
+                  · {buyers?.length || 0} buyers · {universeDeals?.length || 0} deals
                 </span>
               )}
             </div>
@@ -382,11 +397,15 @@ const ReMarketingUniverseDetail = () => {
         </div>
         <div className="flex items-center gap-2">
           {!isNew && (
-            <Button variant="outline" asChild>
-              <Link to="/admin/remarketing/deals">
-                <Plus className="mr-2 h-4 w-4" />
-                List New Deal
-              </Link>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setAddDealDefaultTab('new');
+                setAddDealDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              List New Deal
             </Button>
           )}
           <Button 
@@ -580,7 +599,7 @@ const ReMarketingUniverseDetail = () => {
             </TabsTrigger>
             <TabsTrigger value="deals">
               <Briefcase className="mr-2 h-4 w-4" />
-              Deals ({deals?.length || 0})
+              Deals ({universeDeals?.length || 0})
             </TabsTrigger>
           </TabsList>
 
@@ -605,39 +624,144 @@ const ReMarketingUniverseDetail = () => {
 
           <TabsContent value="deals">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Deals</CardTitle>
-                    <CardDescription>
-                      {deals?.length || 0} deals in this universe
-                    </CardDescription>
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">
+                      {universeDeals?.length || 0} deals
+                    </span>
                   </div>
+                  
                   <div className="flex items-center gap-2">
-                    <Button asChild>
-                      <Link to="/admin/remarketing/deal-matching">
-                        <Target className="mr-2 h-4 w-4" />
-                        Score Deals
-                      </Link>
+                    <Button 
+                      size="sm"
+                      onClick={async () => {
+                        if (!universeDeals?.length) {
+                          toast.error('No deals to score');
+                          return;
+                        }
+                        setIsScoringAllDeals(true);
+                        try {
+                          for (const deal of universeDeals) {
+                            if (deal.listing?.id) {
+                              await supabase.functions.invoke('score-buyer-deal', {
+                                body: { bulk: true, listingId: deal.listing.id, universeId: id }
+                              });
+                            }
+                          }
+                          toast.success(`Scored ${universeDeals.length} deals`);
+                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
+                        } catch (error) {
+                          toast.error('Failed to score deals');
+                        } finally {
+                          setIsScoringAllDeals(false);
+                        }
+                      }}
+                      disabled={isScoringAllDeals || !universeDeals?.length}
+                    >
+                      {isScoringAllDeals ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <TrendingUp className="h-4 w-4 mr-1" />
+                      )}
+                      Score All Deals
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={async () => {
+                        if (!universeDeals?.length) {
+                          toast.error('No deals to enrich');
+                          return;
+                        }
+                        setIsEnrichingAllDeals(true);
+                        try {
+                          let enriched = 0;
+                          for (const deal of universeDeals) {
+                            if (deal.listing?.id && !deal.listing.enriched_at) {
+                              await supabase.functions.invoke('enrich-deal', {
+                                body: { dealId: deal.listing.id }
+                              });
+                              enriched++;
+                            }
+                          }
+                          toast.success(`Enriched ${enriched} deals`);
+                          refetchDeals();
+                        } catch (error) {
+                          toast.error('Failed to enrich deals');
+                        } finally {
+                          setIsEnrichingAllDeals(false);
+                        }
+                      }}
+                      disabled={isEnrichingAllDeals || !universeDeals?.length}
+                    >
+                      {isEnrichingAllDeals ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-1" />
+                      )}
+                      Enrich All Deals
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setImportDealsDialogOpen(true)}
+                    >
+                      <Upload className="h-4 w-4 mr-1" />
+                      Import Deals
+                    </Button>
+                    <Button 
+                      size="sm"
+                      onClick={() => {
+                        setAddDealDefaultTab('existing');
+                        setAddDealDialogOpen(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Deal
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {/* Legacy deals view - shows scores-based aggregation */}
-                {deals && deals.length > 0 ? (
-                  <div className="p-6 text-center text-muted-foreground">
-                    <Briefcase className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                    <p className="font-medium">{deals.length} deals scored</p>
-                    <p className="text-sm">View scoring results in Deal Matching</p>
-                  </div>
-                ) : (
-                  <div className="p-6 text-center text-muted-foreground">
-                    <Target className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                    <p className="font-medium">No deals scored yet</p>
-                    <p className="text-sm">Go to Deal Matching to score buyers against listings</p>
-                  </div>
-                )}
+                <UniverseDealsTable
+                  deals={universeDeals || []}
+                  engagementStats={dealEngagementStats || {}}
+                  onRemoveDeal={async (dealId, listingId) => {
+                    try {
+                      await supabase
+                        .from('remarketing_universe_deals')
+                        .update({ status: 'archived' })
+                        .eq('id', dealId);
+                      toast.success('Deal removed from universe');
+                      refetchDeals();
+                    } catch (error) {
+                      toast.error('Failed to remove deal');
+                    }
+                  }}
+                  onScoreDeal={async (listingId) => {
+                    try {
+                      await supabase.functions.invoke('score-buyer-deal', {
+                        body: { listingId, universeId: id }
+                      });
+                      toast.success('Deal scored');
+                      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
+                    } catch (error) {
+                      toast.error('Failed to score deal');
+                    }
+                  }}
+                  onEnrichDeal={async (listingId) => {
+                    try {
+                      await supabase.functions.invoke('enrich-deal', {
+                        body: { dealId: listingId }
+                      });
+                      toast.success('Deal enriched');
+                      refetchDeals();
+                    } catch (error) {
+                      toast.error('Failed to enrich deal');
+                    }
+                  }}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -856,6 +980,45 @@ const ReMarketingUniverseDetail = () => {
                 onServiceCriteriaChange={setServiceCriteria}
                 onBuyerTypesCriteriaChange={setBuyerTypesCriteria}
                 onScoringBehaviorChange={setScoringBehavior}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Deal Dialog */}
+      {!isNew && id && (
+        <AddDealToUniverseDialog
+          open={addDealDialogOpen}
+          onOpenChange={setAddDealDialogOpen}
+          universeId={id}
+          defaultTab={addDealDefaultTab}
+          onDealAdded={() => {
+            refetchDeals();
+            setAddDealDialogOpen(false);
+          }}
+        />
+      )}
+
+      {/* Import Deals Dialog */}
+      {!isNew && id && importDealsDialogOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Import Deals from CSV</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setImportDealsDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <DealCSVImport
+                universeId={id}
+                onImportComplete={() => {
+                  refetchDeals();
+                  setImportDealsDialogOpen(false);
+                }}
               />
             </CardContent>
           </Card>

@@ -43,18 +43,20 @@ interface AddDealToUniverseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   universeId: string;
-  universeName: string;
-  existingDealIds: string[];
+  universeName?: string;
+  existingDealIds?: string[];
   defaultTab?: "existing" | "new";
+  onDealAdded?: () => void;
 }
 
 export const AddDealToUniverseDialog = ({
   open,
   onOpenChange,
   universeId,
-  universeName,
-  existingDealIds,
+  universeName = "",
+  existingDealIds = [],
   defaultTab = "existing",
+  onDealAdded,
 }: AddDealToUniverseDialogProps) => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -124,6 +126,7 @@ export const AddDealToUniverseDialog = ({
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals", "universe", universeId] });
       toast.success(`Added ${count} deal${count > 1 ? "s" : ""} to universe`);
       setSelectedListings([]);
+      onDealAdded?.();
       onOpenChange(false);
     },
     onError: (error) => {
@@ -188,6 +191,7 @@ export const AddDealToUniverseDialog = ({
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       toast.success(`Created "${listing.title}" and added to universe`);
       setNewDealForm({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "" });
+      onDealAdded?.();
       onOpenChange(false);
     },
     onError: (error) => {
