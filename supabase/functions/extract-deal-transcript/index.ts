@@ -119,73 +119,92 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    const extractionPrompt = `You are an expert M&A analyst. Extract ALL relevant deal intelligence from this call/meeting transcript or notes.
+    const extractionPrompt = `You are an expert M&A analyst reviewing a call transcript or meeting notes with a business owner. Your job is to extract EVERY piece of valuable deal intelligence.
 
-${dealInfo ? `CURRENT DEAL PROFILE:
-- Company: ${dealInfo.company_name || 'Unknown'}
-- Industry: ${dealInfo.industry || 'Unknown'}
-- Location: ${dealInfo.location || 'Not specified'}
-- Revenue: ${dealInfo.revenue ? '$' + dealInfo.revenue.toLocaleString() : 'Unknown'}
-- EBITDA: ${dealInfo.ebitda ? '$' + dealInfo.ebitda.toLocaleString() : 'Unknown'}
+${dealInfo ? `CURRENT DEAL PROFILE (for context - update if transcript has newer/better info):
+Company: ${dealInfo.company_name || 'Unknown'}
+Industry: ${dealInfo.industry || 'Unknown'}
+Location: ${dealInfo.location || 'Not specified'}
+Revenue: ${dealInfo.revenue ? '$' + dealInfo.revenue.toLocaleString() : 'Unknown'}
+EBITDA: ${dealInfo.ebitda ? '$' + dealInfo.ebitda.toLocaleString() : 'Unknown'}
 ` : ''}
 
-TRANSCRIPT/NOTES:
+TRANSCRIPT/NOTES TO ANALYZE:
+"""
 ${transcriptText}
+"""
 
-Extract ALL the following fields. Only include what you actually find in the transcript. Return a valid JSON object:
+---
+
+EXTRACTION INSTRUCTIONS:
+1. Read the ENTIRE transcript carefully - do not skip any sections
+2. Extract ONLY information that is actually stated or clearly implied
+3. For numbers, ALWAYS convert to raw numeric values:
+   - "2 million" or "2M" or "$2M" = 2000000
+   - "$500K" or "500 thousand" = 500000
+   - "15%" margin = 0.15 (as decimal)
+4. For key quotes, extract the EXACT words - these are extremely valuable for understanding the seller's mindset
+
+Return a valid JSON object with these fields (use null for fields not found):
 
 {
-  "revenue": number or null (in dollars, e.g., 5000000 for $5M),
-  "ebitda": number or null (in dollars),
-  "ebitda_margin": number or null (as decimal, e.g., 0.18 for 18%),
-  "asking_price": number or null (in dollars),
-  "full_time_employees": number or null,
-  "location": "City, State" or null,
-  "headquarters_address": "Full address if mentioned" or null,
-  "founded_year": number or null,
-  "industry": "Primary industry" or null,
-  "website": "URL if mentioned" or null,
+  "revenue": number (annual revenue in dollars, e.g., 7500000 for $7.5M),
+  "ebitda": number (annual EBITDA in dollars),
+  "ebitda_margin": number (as decimal, e.g., 0.18 for 18%),
+  "asking_price": number (if mentioned, in dollars),
   
-  "services": ["Array of services offered"] or null,
-  "service_mix": "Description of service breakdown (e.g., '60% residential, 40% commercial')" or null,
-  "business_model": "B2B, B2C, recurring revenue, project-based, etc." or null,
+  "location": "City, State",
+  "headquarters_address": "Full address if mentioned",
+  "industry": "Primary industry/sector (e.g., HVAC, Plumbing, Electrical, Landscaping)",
+  "founded_year": number,
+  "full_time_employees": number,
+  "website": "URL if mentioned",
   
-  "geographic_states": ["Array of state abbreviations like 'TX', 'FL'"] or null,
-  "number_of_locations": number or null,
+  "services": ["HVAC Repair", "Duct Cleaning", "Commercial Refrigeration"] (list ALL services mentioned),
+  "service_mix": "Revenue breakdown, e.g., '60% residential, 40% commercial' or '70% repair, 30% installation'",
+  "business_model": "Recurring/service contracts, project-based, subscription, etc.",
   
-  "owner_goals": "What does the owner want from this transaction? (exit, retirement, growth partner, etc.)" or null,
-  "transition_preferences": "Transition timeline and involvement preferences" or null,
-  "special_requirements": "Any deal breakers or must-haves" or null,
-  "timeline_notes": "When do they want to close?" or null,
+  "geographic_states": ["TX", "FL", "AZ"] (state abbreviations where they operate),
+  "number_of_locations": number,
   
-  "customer_types": "Description of customer segments" or null,
-  "end_market_description": "Who are the end customers?" or null,
+  "owner_goals": "What the owner wants - be specific (e.g., 'Full exit within 6 months, wants to retire', 'Looking for growth partner, willing to stay 2 years')",
+  "transition_preferences": "How long owner will stay, handoff details",
+  "special_requirements": "Deal breakers or must-haves (e.g., 'Must keep all employees', 'Cash only, no earnouts')",
+  "timeline_notes": "Desired timing (e.g., 'Want to close by Q2', 'No rush, finding right buyer')",
   
-  "executive_summary": "2-3 sentence summary of the business and opportunity" or null,
-  "competitive_position": "Market position and competitive advantages" or null,
-  "growth_trajectory": "Historical and projected growth" or null,
-  "key_risks": "Risk factors mentioned" or null,
-  "technology_systems": "Software and systems used" or null,
-  "real_estate_info": "Owned vs leased, property details" or null,
+  "customer_types": "B2B enterprise, SMB, residential consumers, government, etc.",
+  "end_market_description": "Who are the ultimate customers - be specific",
   
-  "key_quotes": ["3-5 important direct quotes from owner/seller"] or null,
-  "primary_contact_name": "Main contact name" or null,
-  "primary_contact_email": "Email if mentioned" or null,
-  "primary_contact_phone": "Phone if mentioned" or null,
+  "executive_summary": "2-3 sentence summary capturing the essence of this business opportunity",
+  "competitive_position": "Market position, moat, competitive advantages mentioned",
+  "growth_trajectory": "Historical and projected growth, recent trends",
+  "key_risks": "Risk factors, concerns, or challenges mentioned",
+  "technology_systems": "Software, CRM, fleet management, other tech mentioned",
+  "real_estate_info": "Owned vs leased, property details, warehouse/office info",
+  
+  "primary_contact_name": "Main contact's full name",
+  "primary_contact_email": "Email if mentioned",
+  "primary_contact_phone": "Phone if mentioned",
+  
+  "key_quotes": [
+    "Extract 5-8 VERBATIM quotes that reveal important information",
+    "Focus on quotes about: why selling, what they want in a buyer, business strengths/weaknesses, financial details, future concerns",
+    "These should be the owner's exact words, not paraphrased"
+  ],
   
   "confidence": {
     "revenue": "high|medium|low",
-    "ebitda": "high|medium|low",
-    ... (include confidence for each field you extracted)
+    "ebitda": "high|medium|low"
   }
 }
 
-IMPORTANT:
-- Only include fields where you found actual data in the transcript
-- For numbers, convert to raw numbers (not strings with formatting)
-- For revenue/EBITDA, interpret "2 million" as 2000000, "$5M" as 5000000
-- Extract direct quotes that are particularly meaningful
-- Be conservative with confidence ratings`;
+CRITICAL GUIDELINES:
+- Key quotes are EXTREMELY valuable - prioritize extracting 5-8 meaningful verbatim quotes
+- Look for statements about: why selling, ideal buyer profile, deal structure preferences, concerns about sale
+- For services, list EVERY distinct service mentioned, not just categories
+- Geographic states should be 2-letter abbreviations only
+- If revenue is mentioned as a range, use the midpoint
+- Owner goals should be detailed and specific, not generic`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
