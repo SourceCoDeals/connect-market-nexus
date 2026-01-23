@@ -462,6 +462,294 @@ async function handleBulkScore(
   );
 }
 
+// Parse and apply scoring behavior from universe configuration
+interface ScoringBehavior {
+  industry_preset?: 'collision_repair' | 'software' | 'hvac' | 'pest_control' | 'custom';
+  geography_strictness?: 'strict' | 'moderate' | 'flexible';
+  single_location_matching?: 'exact_state' | 'adjacent_states' | 'same_region' | 'national';
+  multi_location_matching?: 'same_region' | 'national' | 'any';
+  allow_national_buyers?: boolean;
+  size_strictness?: 'strict' | 'moderate' | 'flexible';
+  below_minimum_handling?: 'disqualify' | 'penalize' | 'allow';
+  penalize_single_location?: boolean;
+  service_matching_mode?: 'keyword' | 'semantic' | 'hybrid';
+  require_primary_focus?: boolean;
+  excluded_services_dealbreaker?: boolean;
+  can_override_geography?: boolean;
+  can_override_size?: boolean;
+  engagement_weight_multiplier?: number;
+  boost_adjacency?: boolean;
+  penalize_distance?: boolean;
+  require_thesis_match?: boolean;
+  minimum_data_completeness?: 'high' | 'medium' | 'low';
+}
+
+interface SizeCriteria {
+  revenue_min?: number;
+  revenue_max?: number;
+  ebitda_min?: number;
+  ebitda_max?: number;
+  locations_min?: number;
+  locations_max?: number;
+}
+
+interface GeographyCriteria {
+  target_states?: string[];
+  target_regions?: string[];
+  exclude_states?: string[];
+  coverage?: 'local' | 'regional' | 'national';
+}
+
+interface ServiceCriteria {
+  required_services?: string[];
+  preferred_services?: string[];
+  excluded_services?: string[];
+  business_model?: string;
+}
+
+// Build scoring rules text for the AI prompt based on behavior configuration
+function buildScoringRulesPrompt(behavior: ScoringBehavior): string {
+  const rules: string[] = [];
+  
+  // Geography Rules
+  rules.push("GEOGRAPHY SCORING RULES:");
+  switch (behavior.geography_strictness) {
+    case 'strict':
+      rules.push("- Strictness: STRICT - Location is a critical factor. Penalize heavily if outside target geography.");
+      rules.push("- Score 90-100 only if deal is in buyer's exact target states.");
+      rules.push("- Score 50-70 for adjacent states.");
+      rules.push("- Score 20-40 for same region but not adjacent.");
+      rules.push("- Score 0-20 for completely outside target region.");
+      break;
+    case 'flexible':
+      rules.push("- Strictness: FLEXIBLE - Location is a secondary factor.");
+      rules.push("- Geography should not heavily penalize otherwise good matches.");
+      rules.push("- National buyers can match deals anywhere if other factors align.");
+      break;
+    default:
+      rules.push("- Strictness: MODERATE - Location matters but isn't a dealbreaker.");
+      rules.push("- Score based on proximity to target geography with reasonable flexibility.");
+  }
+  
+  if (behavior.allow_national_buyers) {
+    rules.push("- EXCEPTION: National buyers (with national footprint) can score well on geography for attractive deals.");
+  }
+  
+  // Size/Revenue Rules
+  rules.push("\nSIZE/REVENUE SCORING RULES:");
+  switch (behavior.size_strictness) {
+    case 'strict':
+      rules.push("- Strictness: STRICT - Size is a gating factor.");
+      rules.push("- If deal revenue is below buyer's minimum, size_score should be ≤30.");
+      rules.push("- If deal revenue is above buyer's maximum, size_score should be ≤50.");
+      break;
+    case 'flexible':
+      rules.push("- Strictness: FLEXIBLE - Size is informational, not a hard filter.");
+      rules.push("- Slight mismatch in revenue should not heavily penalize.");
+      break;
+    default:
+      rules.push("- Strictness: MODERATE - Size matters and influences score proportionally.");
+  }
+  
+  switch (behavior.below_minimum_handling) {
+    case 'disqualify':
+      rules.push("- CRITICAL: If deal revenue is below buyer's stated minimum, size_score MUST be ≤25 and overall match should be poor.");
+      break;
+    case 'penalize':
+      rules.push("- If deal revenue is below buyer's minimum, apply a significant penalty but don't completely disqualify.");
+      break;
+    case 'allow':
+      rules.push("- Below-minimum deals can still score reasonably if other factors are strong.");
+      break;
+  }
+  
+  if (behavior.penalize_single_location) {
+    rules.push("- PENALTY: Single-location deals should receive lower scores for buyers seeking multi-location platforms.");
+  }
+  
+  // Service Matching Rules
+  rules.push("\nSERVICE MATCHING RULES:");
+  switch (behavior.service_matching_mode) {
+    case 'semantic':
+      rules.push("- Mode: SEMANTIC (AI-powered) - Use conceptual similarity, not just exact keyword matches.");
+      rules.push("- 'Auto body repair' and 'collision repair' should match even without exact wording.");
+      rules.push("- Consider industry synonyms and related services.");
+      break;
+    case 'keyword':
+      rules.push("- Mode: KEYWORD - Match based on explicit service keywords only.");
+      rules.push("- Require clear overlap between deal services and buyer target services.");
+      break;
+    default:
+      rules.push("- Mode: HYBRID - Start with keyword matching, use semantic understanding for gaps.");
+  }
+  
+  if (behavior.require_primary_focus) {
+    rules.push("- IMPORTANT: Deal's primary service must match buyer's primary focus area for high scores.");
+  }
+  
+  if (behavior.excluded_services_dealbreaker) {
+    rules.push("- DEALBREAKER: If deal offers services the buyer explicitly excludes, service_score MUST be ≤20.");
+  }
+  
+  // Thesis Match
+  if (behavior.require_thesis_match) {
+    rules.push("\nTHESIS REQUIREMENT:");
+    rules.push("- Deal must align with buyer's stated investment thesis for scores above 70.");
+  }
+  
+  // Data Completeness
+  if (behavior.minimum_data_completeness) {
+    rules.push("\nDATA QUALITY:");
+    rules.push(`- Minimum data completeness expected: ${behavior.minimum_data_completeness.toUpperCase()}`);
+    rules.push("- Factor data quality into confidence of scores.");
+  }
+  
+  return rules.join("\n");
+}
+
+// Build structured criteria context for the AI prompt
+function buildStructuredCriteriaPrompt(
+  sizeCriteria: SizeCriteria | null,
+  geoCriteria: GeographyCriteria | null,
+  serviceCriteria: ServiceCriteria | null
+): string {
+  const parts: string[] = [];
+  
+  if (sizeCriteria) {
+    parts.push("SIZE CRITERIA:");
+    if (sizeCriteria.revenue_min) parts.push(`- Min Revenue: $${sizeCriteria.revenue_min.toLocaleString()}`);
+    if (sizeCriteria.revenue_max) parts.push(`- Max Revenue: $${sizeCriteria.revenue_max.toLocaleString()}`);
+    if (sizeCriteria.ebitda_min) parts.push(`- Min EBITDA: $${sizeCriteria.ebitda_min.toLocaleString()}`);
+    if (sizeCriteria.ebitda_max) parts.push(`- Max EBITDA: $${sizeCriteria.ebitda_max.toLocaleString()}`);
+    if (sizeCriteria.locations_min) parts.push(`- Min Locations: ${sizeCriteria.locations_min}`);
+    if (sizeCriteria.locations_max) parts.push(`- Max Locations: ${sizeCriteria.locations_max}`);
+  }
+  
+  if (geoCriteria) {
+    parts.push("\nGEOGRAPHY CRITERIA:");
+    if (geoCriteria.target_states?.length) parts.push(`- Target States: ${geoCriteria.target_states.join(", ")}`);
+    if (geoCriteria.target_regions?.length) parts.push(`- Target Regions: ${geoCriteria.target_regions.join(", ")}`);
+    if (geoCriteria.exclude_states?.length) parts.push(`- Excluded States: ${geoCriteria.exclude_states.join(", ")}`);
+    if (geoCriteria.coverage) parts.push(`- Coverage Mode: ${geoCriteria.coverage}`);
+  }
+  
+  if (serviceCriteria) {
+    parts.push("\nSERVICE CRITERIA:");
+    if (serviceCriteria.required_services?.length) parts.push(`- Required Services: ${serviceCriteria.required_services.join(", ")}`);
+    if (serviceCriteria.preferred_services?.length) parts.push(`- Preferred Services: ${serviceCriteria.preferred_services.join(", ")}`);
+    if (serviceCriteria.excluded_services?.length) parts.push(`- EXCLUDED Services: ${serviceCriteria.excluded_services.join(", ")}`);
+    if (serviceCriteria.business_model) parts.push(`- Business Model: ${serviceCriteria.business_model}`);
+  }
+  
+  return parts.length > 0 ? parts.join("\n") : "";
+}
+
+// Post-process scores to enforce hard rules that can't be left to AI interpretation
+function enforceHardRules(
+  scores: {
+    geography_score: number;
+    size_score: number;
+    service_score: number;
+    owner_goals_score: number;
+    acquisition_score: number;
+    portfolio_score: number;
+    business_model_score: number;
+    reasoning: string;
+  },
+  listing: any,
+  buyer: any,
+  behavior: ScoringBehavior,
+  serviceCriteria: ServiceCriteria | null
+): { 
+  scores: typeof scores; 
+  enforcements: string[];
+  forceDisqualify: boolean;
+} {
+  const enforcements: string[] = [];
+  let forceDisqualify = false;
+  const adjustedScores = { ...scores };
+  
+  // 1. Below Minimum Revenue - DISQUALIFY
+  if (behavior.below_minimum_handling === 'disqualify') {
+    const buyerMinRevenue = buyer.target_revenue_min;
+    const dealRevenue = listing.revenue;
+    
+    if (buyerMinRevenue && dealRevenue && dealRevenue < buyerMinRevenue) {
+      adjustedScores.size_score = Math.min(adjustedScores.size_score, 25);
+      enforcements.push(`Disqualified: Deal revenue ($${dealRevenue.toLocaleString()}) below buyer minimum ($${buyerMinRevenue.toLocaleString()})`);
+      forceDisqualify = true;
+    }
+  }
+  
+  // 2. Below Minimum Revenue - PENALIZE
+  if (behavior.below_minimum_handling === 'penalize') {
+    const buyerMinRevenue = buyer.target_revenue_min;
+    const dealRevenue = listing.revenue;
+    
+    if (buyerMinRevenue && dealRevenue && dealRevenue < buyerMinRevenue) {
+      const penaltyFactor = Math.max(0.5, dealRevenue / buyerMinRevenue);
+      adjustedScores.size_score = Math.round(adjustedScores.size_score * penaltyFactor);
+      enforcements.push(`Size penalized: Deal below minimum (${Math.round(penaltyFactor * 100)}% factor applied)`);
+    }
+  }
+  
+  // 3. Excluded Services - DEALBREAKER
+  if (behavior.excluded_services_dealbreaker && serviceCriteria?.excluded_services?.length) {
+    const dealServices = (listing.categories || [listing.category]).map((s: string) => s?.toLowerCase());
+    const excludedServices = serviceCriteria.excluded_services.map(s => s.toLowerCase());
+    
+    const hasExcluded = dealServices.some((ds: string) => 
+      excludedServices.some(es => ds?.includes(es) || es.includes(ds || ''))
+    );
+    
+    if (hasExcluded) {
+      adjustedScores.service_score = Math.min(adjustedScores.service_score, 20);
+      enforcements.push("Dealbreaker: Deal includes excluded services");
+      forceDisqualify = true;
+    }
+  }
+  
+  // 4. Strict Geography - Enforce state matching
+  if (behavior.geography_strictness === 'strict') {
+    const buyerTargetStates = buyer.target_geographies || [];
+    const dealLocation = listing.location || "";
+    const dealState = dealLocation.match(/,\s*([A-Z]{2})\s*$/i)?.[1]?.toUpperCase();
+    
+    if (dealState && buyerTargetStates.length > 0) {
+      const normalizedTargets = buyerTargetStates.map((s: string) => s.toUpperCase());
+      
+      if (!normalizedTargets.includes(dealState)) {
+        // Check if national buyer exception applies
+        const isNationalBuyer = buyer.geographic_footprint?.length >= 5 || 
+                                buyer.geographic_footprint?.some((f: string) => f.toLowerCase().includes('national'));
+        
+        if (!(behavior.allow_national_buyers && isNationalBuyer)) {
+          adjustedScores.geography_score = Math.min(adjustedScores.geography_score, 40);
+          enforcements.push(`Geography strict: Deal state (${dealState}) not in buyer targets`);
+        }
+      }
+    }
+  }
+  
+  // 5. Penalize single-location deals
+  if (behavior.penalize_single_location) {
+    const locationCount = listing.location_count || 1;
+    if (locationCount === 1) {
+      adjustedScores.size_score = Math.round(adjustedScores.size_score * 0.85);
+      enforcements.push("Single-location penalty applied");
+    }
+  }
+  
+  // 6. Apply engagement weight multiplier (for buyer engagement data if available)
+  // This would be applied in the learning adjustment phase
+  
+  return {
+    scores: adjustedScores,
+    enforcements,
+    forceDisqualify
+  };
+}
+
 async function generateAIScore(
   listing: any,
   buyer: any,
@@ -481,7 +769,24 @@ async function generateAIScore(
   data_completeness: string;
   status: string;
 }> {
+  // Parse scoring behavior from universe
+  const scoringBehavior: ScoringBehavior = universe.scoring_behavior || {};
+  const sizeCriteria: SizeCriteria | null = universe.size_criteria || null;
+  const geoCriteria: GeographyCriteria | null = universe.geography_criteria || null;
+  const serviceCriteria: ServiceCriteria | null = universe.service_criteria || null;
+  
+  // Build scoring rules based on configuration
+  const scoringRules = buildScoringRulesPrompt(scoringBehavior);
+  const structuredCriteria = buildStructuredCriteriaPrompt(sizeCriteria, geoCriteria, serviceCriteria);
+  
+  // Industry preset context
+  const industryPresetContext = scoringBehavior.industry_preset && scoringBehavior.industry_preset !== 'custom'
+    ? `\nINDUSTRY CONTEXT: This is a ${scoringBehavior.industry_preset.replace('_', ' ')} deal. Apply industry-specific matching patterns.`
+    : '';
+
 const systemPrompt = `You are an M&A advisor scoring buyer-deal fits. Analyze the match between a business listing and a potential buyer (PE firm/platform/strategic acquirer).
+
+CRITICAL: You MUST follow the SCORING RULES provided below. These are hard constraints that override general matching logic. Apply them strictly.
 
 Score each category from 0-100 based on fit quality:
 - Geography: How well does the deal's location match the buyer's target geography or existing footprint?
@@ -492,7 +797,7 @@ Score each category from 0-100 based on fit quality:
 - Portfolio Synergy: How well does this deal complement the buyer's existing portfolio companies?
 - Business Model: How aligned is the deal's business model (service mix, customer base) with buyer preferences?
 
-Provide scores and a brief reasoning for the overall fit.`;
+Provide scores and a brief reasoning for the overall fit. Be specific about which rules affected your scoring.`;
 
   // Get listing description with fallback chain
   const getDescription = () => {
@@ -554,6 +859,7 @@ Provide scores and a brief reasoning for the overall fit.`;
 - Location: ${getNormalizedLocation()}
 - Revenue: ${listing.revenue ? `$${listing.revenue.toLocaleString()}` : "Unknown"}
 - EBITDA: ${listing.ebitda ? `$${listing.ebitda.toLocaleString()}` : "Unknown"}
+- Location Count: ${listing.location_count || 1}
 - Description: ${getDescription()}
 - Seller Goals: ${getSellerGoals()}
 
@@ -572,8 +878,11 @@ BUYER:
 - ${getPortfolioContext()}
 - Acquisition Appetite: ${buyer.acquisition_appetite || "Unknown"}
 - Total Acquisitions: ${buyer.total_acquisitions || "Unknown"}
+${industryPresetContext}
 
-UNIVERSE CRITERIA:
+${structuredCriteria ? `\nUNIVERSE STRUCTURED CRITERIA:\n${structuredCriteria}` : ''}
+
+UNIVERSE FIT CRITERIA:
 ${universe.fit_criteria || "General buyer-deal matching"}
 
 WEIGHTS:
@@ -582,7 +891,11 @@ WEIGHTS:
 - Service: ${universe.service_weight}%
 - Owner Goals: ${universe.owner_goals_weight}%
 
-Analyze this buyer-deal fit, considering acquisition patterns, portfolio synergies, and business model alignment.`;
+${scoringRules}
+
+Analyze this buyer-deal fit. Apply the scoring rules strictly and explain which rules affected your assessment.`;
+
+  console.log("Scoring with behavior:", JSON.stringify(scoringBehavior));
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -634,7 +947,7 @@ Analyze this buyer-deal fit, considering acquisition patterns, portfolio synergi
               },
               reasoning: { 
                 type: "string", 
-                description: "2-3 sentence explanation of the overall fit" 
+                description: "2-3 sentence explanation of the overall fit, mentioning which scoring rules were applied" 
               }
             },
             required: ["geography_score", "size_score", "service_score", "owner_goals_score", "acquisition_score", "portfolio_score", "business_model_score", "reasoning"],
@@ -675,18 +988,32 @@ Analyze this buyer-deal fit, considering acquisition patterns, portfolio synergi
     throw new Error("Failed to parse AI scores");
   }
 
-  // Calculate composite score using universe weights (core 4 categories)
-  const composite = Math.round(
-    (scores.geography_score * universe.geography_weight +
-     scores.size_score * universe.size_weight +
-     scores.service_score * universe.service_weight +
-     scores.owner_goals_score * universe.owner_goals_weight) / 100
+  // Apply post-processing enforcement of hard rules
+  const { scores: enforcedScores, enforcements, forceDisqualify } = enforceHardRules(
+    scores,
+    listing,
+    buyer,
+    scoringBehavior,
+    serviceCriteria
   );
 
-  // Bonus from secondary scores (up to +10 points)
-  const secondaryAvg = (scores.acquisition_score + scores.portfolio_score + scores.business_model_score) / 3;
-  const secondaryBonus = secondaryAvg >= 80 ? 5 : secondaryAvg >= 60 ? 2 : 0;
-  const finalComposite = Math.min(100, composite + secondaryBonus);
+  // Calculate composite score using universe weights (core 4 categories)
+  const composite = Math.round(
+    (enforcedScores.geography_score * universe.geography_weight +
+     enforcedScores.size_score * universe.size_weight +
+     enforcedScores.service_score * universe.service_weight +
+     enforcedScores.owner_goals_score * universe.owner_goals_weight) / 100
+  );
+
+  // Bonus from secondary scores (up to +10 points) - but not if disqualified
+  const secondaryAvg = (enforcedScores.acquisition_score + enforcedScores.portfolio_score + enforcedScores.business_model_score) / 3;
+  const secondaryBonus = forceDisqualify ? 0 : (secondaryAvg >= 80 ? 5 : secondaryAvg >= 60 ? 2 : 0);
+  let finalComposite = Math.min(100, composite + secondaryBonus);
+  
+  // If force disqualified, cap the composite score
+  if (forceDisqualify) {
+    finalComposite = Math.min(finalComposite, 45);
+  }
 
   // Determine tier
   let tier: string;
@@ -711,17 +1038,23 @@ Analyze this buyer-deal fit, considering acquisition patterns, portfolio synergi
     dataCompleteness = "low";
   }
 
+  // Build final reasoning with enforcement notes
+  let finalReasoning = enforcedScores.reasoning;
+  if (enforcements.length > 0) {
+    finalReasoning += `\n\nRule Enforcements: ${enforcements.join("; ")}`;
+  }
+
   return {
     composite_score: finalComposite,
-    geography_score: scores.geography_score,
-    size_score: scores.size_score,
-    service_score: scores.service_score,
-    owner_goals_score: scores.owner_goals_score,
-    acquisition_score: scores.acquisition_score || 50,
-    portfolio_score: scores.portfolio_score || 50,
-    business_model_score: scores.business_model_score || 50,
+    geography_score: enforcedScores.geography_score,
+    size_score: enforcedScores.size_score,
+    service_score: enforcedScores.service_score,
+    owner_goals_score: enforcedScores.owner_goals_score,
+    acquisition_score: enforcedScores.acquisition_score || 50,
+    portfolio_score: enforcedScores.portfolio_score || 50,
+    business_model_score: enforcedScores.business_model_score || 50,
     tier,
-    fit_reasoning: scores.reasoning,
+    fit_reasoning: finalReasoning,
     data_completeness: dataCompleteness,
     status: "pending"
   };
