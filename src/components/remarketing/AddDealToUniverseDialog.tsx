@@ -25,7 +25,8 @@ import {
   Check, 
   Loader2,
   DollarSign,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,8 +39,32 @@ interface ListingOption {
   ebitda: number | null;
   enriched_at: string | null;
   geographic_states: string[] | null;
+  website: string | null;
+  internal_deal_memo_link: string | null;
   universes?: { id: string; name: string }[];
 }
+
+// Helper to extract website URL from memo link or website field
+const getEffectiveWebsite = (listing: ListingOption): string | null => {
+  // Prioritize the website field
+  if (listing.website) return listing.website;
+  
+  // Fall back to extracting from memo link (exclude SharePoint/OneDrive links)
+  if (listing.internal_deal_memo_link) {
+    const memoLink = listing.internal_deal_memo_link;
+    // Skip SharePoint/OneDrive links
+    if (memoLink.includes('sharepoint.com') || memoLink.includes('onedrive')) {
+      return null;
+    }
+    // Check if it looks like a regular website URL
+    const urlMatch = memoLink.match(/https?:\/\/(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/);
+    if (urlMatch) {
+      return memoLink;
+    }
+  }
+  
+  return null;
+};
 
 interface AddDealToUniverseDialogProps {
   open: boolean;
@@ -79,7 +104,7 @@ export const AddDealToUniverseDialog = ({
       // Fetch listings with internal_company_name
       const result = await (supabase as any)
         .from("listings")
-        .select("id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states")
+        .select("id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states, website, internal_deal_memo_link")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -336,6 +361,21 @@ export const AddDealToUniverseDialog = ({
                           
                           {/* Meta row */}
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {(() => {
+                              const effectiveWebsite = getEffectiveWebsite(listing);
+                              return effectiveWebsite ? (
+                                <a
+                                  href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1 text-primary hover:underline"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Website
+                                </a>
+                              ) : null;
+                            })()}
                             {listing.location && (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
