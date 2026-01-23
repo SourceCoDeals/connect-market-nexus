@@ -25,12 +25,13 @@ export { AdditionalCriteriaDisplay } from './AdditionalCriteriaDisplay';
 export { BuyerFitCriteriaAccordion } from './BuyerFitCriteriaAccordion';
 export { BuyerFitCriteriaDialog } from './BuyerFitCriteriaDialog';
 export { BuyerTableToolbar } from './BuyerTableToolbar';
+// Match Card Components
+export { BuyerMatchCard } from './BuyerMatchCard';
 
 // Table Components
 export { BuyerTableEnhanced } from './BuyerTableEnhanced';
 export { UniverseDealsTable } from './UniverseDealsTable';
 export { DealMergePanel } from './DealMergePanel';
-
 // Deal Management Components
 export { AddDealToUniverseDialog } from './AddDealToUniverseDialog';
 export { DealCSVImport } from './DealCSVImport';
