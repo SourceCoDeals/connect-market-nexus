@@ -229,8 +229,8 @@ export const BuyerMatchCard = ({
                 </Badge>
               )}
               
-              {/* Fee Status Badge */}
-              {buyer?.buyer_type === 'pe_firm' || buyer?.buyer_type === 'platform' ? (
+              {/* Fee Status Badge - based on actual has_fee_agreement field */}
+              {(buyer as any)?.has_fee_agreement ? (
                 <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs">
                   <FileText className="h-3 w-3 mr-1" />
                   Fee Signed
@@ -269,19 +269,28 @@ export const BuyerMatchCard = ({
                   </span>
                 </a>
               )}
-              {buyer?.buyer_type === 'pe_firm' && (
-                <span className="flex items-center gap-1 text-muted-foreground">
+              
+              {/* PE Firm Website (separate link if available) */}
+              {(buyer as any)?.pe_firm_website && (
+                <a 
+                  href={(buyer as any).pe_firm_website.startsWith('http') ? (buyer as any).pe_firm_website : `https://${(buyer as any).pe_firm_website}`}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-muted-foreground hover:underline"
+                >
                   <Building2 className="h-3.5 w-3.5" />
-                  PE Firm
-                </span>
+                  <span className="truncate max-w-[180px]">
+                    {(buyer as any).pe_firm_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                  </span>
+                </a>
               )}
             </div>
             
-            {/* Row 4: PE Firm Name (if applicable) */}
-            {buyer?.buyer_type === 'pe_firm' && (
+            {/* Row 4: PE Firm Name (if available) */}
+            {(buyer as any)?.pe_firm_name && (
               <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
                 <Landmark className="h-3.5 w-3.5" />
-                <span>{buyer.company_name}</span>
+                <span>{(buyer as any).pe_firm_name}</span>
               </div>
             )}
             
