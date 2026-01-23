@@ -274,7 +274,7 @@ export const AddDealToUniverseDialog = ({
             </div>
 
             {/* Listings List */}
-            <ScrollArea className="flex-1 border rounded-lg min-h-[300px]">
+            <ScrollArea className="h-[350px] border rounded-lg">
               <div className="p-2 space-y-2">
                 {loadingListings ? (
                   Array.from({ length: 5 }).map((_, i) => (
