@@ -169,13 +169,15 @@ serve(async (req) => {
         .select('id, title, location, revenue');
       
       // Known mappings from scores/learning_history deal_ids to listing titles
+      // These map legacy deal IDs to search terms that match listings in the DB
       const knownDealMappings: Record<string, string> = {
         '74cbd4bb-d32f-47c8-b4e8-d9f8812384af': 'Missouri', // Auto Body Brothers - Missouri
         '72557118-7fe3-4b6a-aa5e-e497599669f5': 'Roofing', // Quality Roofing - Florida
         '919a987d-a16b-4a43-9828-d8ac115bc1a1': 'Collision', // Threefold Collision - OK
         '28ba3ed0-b463-41b8-924f-48ca2cedab62': 'HVAC', // Dockery's HVAC - GA
         '894cd67e-a9bf-42b0-96cf-179080f5e702': 'Auto', // Auto repair
-        'd8ea8f3c-ac2e-49ce-a245-08474dbcc9c0': 'Collision', // Another collision
+        'd8ea8f3c-ac2e-49ce-a245-08474dbcc9c0': 'Connecticut', // Shoreline CT Collision - map to CT
+        'd7f0c8f3-a46d-4f58-9f12-f28203b4d2d0': 'Mississippi', // MS collision deal - may not have matching listing
       };
       
       // First, use known mappings
@@ -393,10 +395,22 @@ serve(async (req) => {
             continue;
           }
 
+          // Map action_type to allowed values: 'approved', 'passed', 'hidden'
+          // CSV has: not_a_fit, approved, hidden, etc.
+          let mappedAction = 'passed'; // default
+          const actionType = (row.action_type || '').toLowerCase();
+          if (actionType === 'approved' || actionType === 'approve') {
+            mappedAction = 'approved';
+          } else if (actionType === 'hidden' || actionType === 'hide') {
+            mappedAction = 'hidden';
+          } else if (actionType === 'not_a_fit' || actionType === 'passed' || actionType === 'reject') {
+            mappedAction = 'passed';
+          }
+
           const historyData = {
             buyer_id: mappedBuyerId,
             listing_id: mappedListingId,
-            action: row.action_type || 'not_a_fit',
+            action: mappedAction,
             pass_category: row.rejection_categories || null,
             pass_reason: row.rejection_reason || null,
             action_by: row.created_by || null,
