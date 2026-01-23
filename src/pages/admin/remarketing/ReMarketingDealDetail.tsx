@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Building2,
@@ -19,7 +20,8 @@ import {
   Users,
   History,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -34,6 +36,7 @@ import {
   PrimaryContactCard,
   CustomerTypesCard,
   CompanyOverviewCard,
+  AdditionalInfoCard,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -143,9 +146,20 @@ const ReMarketingDealDetail = () => {
     
     setIsEnriching(true);
     try {
-      toast.info("Website enrichment feature coming soon");
-    } catch (error) {
-      toast.error("Failed to enrich from website");
+      const { data, error } = await supabase.functions.invoke('enrich-deal', {
+        body: { dealId }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success(`Enriched ${data.fieldsUpdated?.length || 0} fields from website`);
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      } else {
+        toast.error(data?.error || "Failed to enrich from website");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to enrich from website");
     } finally {
       setIsEnriching(false);
     }
@@ -313,11 +327,10 @@ const ReMarketingDealDetail = () => {
               Financial Overview
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-sm">Revenue</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{formatCurrency(deal.revenue)}</span>
+          <CardContent className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-muted-foreground">Revenue</span>
                 {deal.revenue && (
                   <Badge variant="outline" className="text-xs">
                     <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
@@ -325,10 +338,29 @@ const ReMarketingDealDetail = () => {
                   </Badge>
                 )}
               </div>
+              <span className="text-2xl font-bold">{formatCurrency(deal.revenue)}</span>
+            </div>
+            <Separator />
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-muted-foreground">EBITDA Margin</span>
+                <span className="font-medium">
+                  {deal.revenue && deal.ebitda 
+                    ? `${((deal.ebitda / deal.revenue) * 100).toFixed(1)}%`
+                    : '—'
+                  }
+                </span>
+              </div>
+              {deal.revenue && deal.ebitda && (
+                <Progress 
+                  value={(deal.ebitda / deal.revenue) * 100} 
+                  className="h-2"
+                />
+              )}
             </div>
             <Separator />
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-sm">EBITDA</span>
+              <span className="text-sm text-muted-foreground">EBITDA</span>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{formatCurrency(deal.ebitda)}</span>
                 {deal.ebitda && (
@@ -338,24 +370,6 @@ const ReMarketingDealDetail = () => {
                   </Badge>
                 )}
               </div>
-            </div>
-            <Separator />
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-sm">EBITDA Margin</span>
-              <span className="font-medium">
-                {deal.revenue && deal.ebitda 
-                  ? `${((deal.ebitda / deal.revenue) * 100).toFixed(1)}%`
-                  : 'Not calculable'
-                }
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-sm">Custom Metric</span>
-              <span className="font-medium">
-                {deal.custom_metric_value || 'Not specified'}
-                {deal.custom_metric_label && ` (${deal.custom_metric_label})`}
-              </span>
             </div>
           </CardContent>
         </Card>
@@ -413,6 +427,18 @@ const ReMarketingDealDetail = () => {
             primary_contact_name: data.name,
             primary_contact_email: data.email,
             primary_contact_phone: data.phone,
+          });
+        }}
+      />
+
+      {/* Additional Information */}
+      <AdditionalInfoCard
+        otherNotes={deal.owner_notes}
+        internalNotes={deal.internal_notes}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            owner_notes: data.otherNotes,
+            internal_notes: data.internalNotes,
           });
         }}
       />

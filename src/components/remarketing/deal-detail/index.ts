@@ -6,3 +6,4 @@ export { OwnerGoalsCard } from './OwnerGoalsCard';
 export { PrimaryContactCard } from './PrimaryContactCard';
 export { CustomerTypesCard } from './CustomerTypesCard';
 export { CompanyOverviewCard } from './CompanyOverviewCard';
+export { AdditionalInfoCard } from './AdditionalInfoCard';
