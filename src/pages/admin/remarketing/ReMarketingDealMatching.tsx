@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { 
   PassReasonDialog,
   BuyerMatchCard,
+  ScoringInsightsSidebar,
 } from "@/components/remarketing";
 import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
 
@@ -664,46 +665,77 @@ const ReMarketingDealMatching = () => {
         </div>
       )}
 
-      {/* Matched Buyers */}
-      <div className="space-y-3">
-        {scoresLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-48" />
-            ))}
-          </div>
-        ) : filteredScores.length === 0 && scores?.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Sparkles className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="font-semibold text-lg mb-1">No matches yet</h3>
-              <p className="text-muted-foreground">
-                Select a universe and click "Score All Buyers" to find matches
-              </p>
-            </CardContent>
-          </Card>
-        ) : filteredScores.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                No buyers match the current filters
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredScores.map((score: any) => (
-              <BuyerMatchCard
-                key={score.id}
-                score={score}
-                dealLocation={listing.location}
-                isSelected={selectedIds.has(score.id)}
-                onSelect={handleSelect}
-                onApprove={handleApprove}
-                onPass={handleOpenPassDialog}
-                isPending={updateScoreMutation.isPending}
-              />
-            ))}
+      {/* Two Column Layout: Matches + Sidebar */}
+      <div className="flex gap-6">
+        {/* Main content: Matched Buyers */}
+        <div className="flex-1 space-y-3">
+          {scoresLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-48" />
+              ))}
+            </div>
+          ) : filteredScores.length === 0 && scores?.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Sparkles className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="font-semibold text-lg mb-1">No matches yet</h3>
+                <p className="text-muted-foreground">
+                  Select a universe and click "Score All Buyers" to find matches
+                </p>
+              </CardContent>
+            </Card>
+          ) : filteredScores.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">
+                  No buyers match the current filters
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {filteredScores.map((score: any) => (
+                <BuyerMatchCard
+                  key={score.id}
+                  score={score}
+                  dealLocation={listing.location}
+                  isSelected={selectedIds.has(score.id)}
+                  onSelect={handleSelect}
+                  onApprove={handleApprove}
+                  onPass={handleOpenPassDialog}
+                  isPending={updateScoreMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Right Sidebar: Scoring Insights */}
+        {selectedUniverse && scores && scores.length > 0 && (
+          <div className="w-72 flex-shrink-0 hidden lg:block">
+            <ScoringInsightsSidebar
+              universeId={selectedUniverse}
+              universeName={universes?.find(u => u.id === selectedUniverse)?.name}
+              weights={{
+                geography: universes?.find(u => u.id === selectedUniverse)?.geography_weight || 35,
+                size: universes?.find(u => u.id === selectedUniverse)?.size_weight || 25,
+                service: universes?.find(u => u.id === selectedUniverse)?.service_weight || 25,
+                ownerGoals: universes?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
+              }}
+              outcomeStats={{
+                approved: stats.approved,
+                passed: stats.passed,
+                removed: 0,
+              }}
+              decisionCount={stats.approved + stats.passed}
+              isWeightsAdjusted={false}
+              onRecalculate={handleBulkScore}
+              onReset={() => {
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+              }}
+              isRecalculating={isScoring}
+            />
           </div>
         )}
       </div>

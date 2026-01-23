@@ -39,6 +39,8 @@ interface ExtractionResult {
   // Customers
   customer_types?: string;
   end_market_description?: string;
+  customer_concentration?: string;
+  customer_geography?: string;
   
   // Strategic info
   executive_summary?: string;
@@ -56,6 +58,8 @@ interface ExtractionResult {
   // Metadata
   key_quotes?: string[];
   confidence: Record<string, 'high' | 'medium' | 'low'>;
+  revenue_source_quote?: string;
+  ebitda_source_quote?: string;
 }
 
 serve(async (req) => {
@@ -174,6 +178,8 @@ Return a valid JSON object with these fields (use null for fields not found):
   
   "customer_types": "B2B enterprise, SMB, residential consumers, government, etc.",
   "end_market_description": "Who are the ultimate customers - be specific",
+  "customer_concentration": "e.g., 'No customer >10% revenue' or 'Top 3 customers = 40% revenue'",
+  "customer_geography": "e.g., '80% within 50 miles of HQ' or 'Regional - Midwest only'",
   
   "executive_summary": "2-3 sentence summary capturing the essence of this business opportunity",
   "competitive_position": "Market position, moat, competitive advantages mentioned",
@@ -191,6 +197,9 @@ Return a valid JSON object with these fields (use null for fields not found):
     "Focus on quotes about: why selling, what they want in a buyer, business strengths/weaknesses, financial details, future concerns",
     "These should be the owner's exact words, not paraphrased"
   ],
+  
+  "revenue_source_quote": "The exact quote where revenue was mentioned, e.g., 'We did about 7.5 million last year'",
+  "ebitda_source_quote": "The exact quote where EBITDA/profit was mentioned",
   
   "confidence": {
     "revenue": "high|medium|low",

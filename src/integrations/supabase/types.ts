@@ -2511,6 +2511,7 @@ export type Database = {
           custom_metric_value: string | null
           custom_sections: Json | null
           customer_concentration: number | null
+          customer_geography: string | null
           customer_types: string | null
           deal_identifier: string | null
           deleted_at: string | null
@@ -2518,7 +2519,9 @@ export type Database = {
           description_html: string | null
           description_json: Json | null
           ebitda: number
+          ebitda_confidence: string | null
           ebitda_metric_subtitle: string | null
+          ebitda_source_quote: string | null
           enriched_at: string | null
           executive_summary: string | null
           files: string[] | null
@@ -2565,8 +2568,10 @@ export type Database = {
           primary_owner_id: string | null
           real_estate_info: string | null
           revenue: number
+          revenue_confidence: string | null
           revenue_metric_subtitle: string | null
           revenue_model_breakdown: Json | null
+          revenue_source_quote: string | null
           seller_involvement_preference: string | null
           seller_motivation: string | null
           service_mix: string | null
@@ -2596,6 +2601,7 @@ export type Database = {
           custom_metric_value?: string | null
           custom_sections?: Json | null
           customer_concentration?: number | null
+          customer_geography?: string | null
           customer_types?: string | null
           deal_identifier?: string | null
           deleted_at?: string | null
@@ -2603,7 +2609,9 @@ export type Database = {
           description_html?: string | null
           description_json?: Json | null
           ebitda: number
+          ebitda_confidence?: string | null
           ebitda_metric_subtitle?: string | null
+          ebitda_source_quote?: string | null
           enriched_at?: string | null
           executive_summary?: string | null
           files?: string[] | null
@@ -2650,8 +2658,10 @@ export type Database = {
           primary_owner_id?: string | null
           real_estate_info?: string | null
           revenue: number
+          revenue_confidence?: string | null
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
+          revenue_source_quote?: string | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           service_mix?: string | null
@@ -2681,6 +2691,7 @@ export type Database = {
           custom_metric_value?: string | null
           custom_sections?: Json | null
           customer_concentration?: number | null
+          customer_geography?: string | null
           customer_types?: string | null
           deal_identifier?: string | null
           deleted_at?: string | null
@@ -2688,7 +2699,9 @@ export type Database = {
           description_html?: string | null
           description_json?: Json | null
           ebitda?: number
+          ebitda_confidence?: string | null
           ebitda_metric_subtitle?: string | null
+          ebitda_source_quote?: string | null
           enriched_at?: string | null
           executive_summary?: string | null
           files?: string[] | null
@@ -2735,8 +2748,10 @@ export type Database = {
           primary_owner_id?: string | null
           real_estate_info?: string | null
           revenue?: number
+          revenue_confidence?: string | null
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
+          revenue_source_quote?: string | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           service_mix?: string | null

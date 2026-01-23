@@ -73,21 +73,26 @@ export const IntelligenceBadge = ({
 }: IntelligenceBadgeProps) => {
   if (!completeness) {
     return (
-      <Badge 
-        variant="outline" 
+      <Badge
+        variant="outline"
         className={cn(
-          "bg-muted text-muted-foreground border-muted",
+          "bg-muted/50 text-muted-foreground border-border",
           sizeConfig[size],
           className
         )}
       >
-        <HelpCircle className="h-3 w-3 mr-1" />
+        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground mr-1.5" />
         Unknown
       </Badge>
     );
   }
 
-  const { label, shortLabel, description, dotColor, bgColor, textColor, borderColor } = config[completeness];
+  const { label, shortLabel, description, icon: Icon, dotColor, bgColor, textColor, borderColor } = config[completeness];
+  const displayLabel = size === "sm" ? shortLabel : label;
+  
+  // Limit missing fields shown to first 5 with "+N more" indicator
+  const displayedMissingFields = missingFields.slice(0, 5);
+  const remainingCount = missingFields.length - displayedMissingFields.length;
 
   const badge = (
     <Badge
@@ -96,13 +101,12 @@ export const IntelligenceBadge = ({
         bgColor,
         textColor,
         borderColor,
-        "border flex items-center gap-1.5",
         sizeConfig[size],
         className
       )}
     >
-      <span className={cn("h-2 w-2 rounded-full", dotColor)} />
-      {size === 'sm' ? shortLabel : label}
+      <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", dotColor)} />
+      {displayLabel}
     </Badge>
   );
 
@@ -116,33 +120,29 @@ export const IntelligenceBadge = ({
         <TooltipTrigger asChild>
           {badge}
         </TooltipTrigger>
-        <TooltipContent side="left" className="max-w-xs">
-          <p className="font-medium flex items-center gap-1.5">
-            {completeness === 'medium' && <AlertCircle className="h-3.5 w-3.5 text-amber-500" />}
-            {completeness === 'low' && <AlertCircle className="h-3.5 w-3.5 text-gray-400" />}
-            {completeness === 'high' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
-            {label}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-          
-          {missingFields.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-border">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Missing data:</p>
-              <ul className="text-xs text-muted-foreground space-y-0.5">
-                {missingFields.slice(0, 5).map((field, i) => (
-                  <li key={i} className="flex items-center gap-1">
-                    <span className="text-muted-foreground/60">•</span>
-                    {field}
-                  </li>
-                ))}
-                {missingFields.length > 5 && (
-                  <li className="text-muted-foreground/60 italic">
-                    +{missingFields.length - 5} more...
-                  </li>
-                )}
-              </ul>
+        <TooltipContent side="left" align="start" className="max-w-xs">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Icon className={cn("h-4 w-4", textColor)} />
+              <span className="font-medium">{label}</span>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground">{description}</p>
+            
+            {/* Missing data list - Whispers parity */}
+            {missingFields.length > 0 && (
+              <div className="pt-1 border-t">
+                <p className="text-xs font-medium mb-1">Missing data:</p>
+                <ul className="text-xs text-muted-foreground space-y-0.5">
+                  {displayedMissingFields.map((field, i) => (
+                    <li key={i}>• {field}</li>
+                  ))}
+                  {remainingCount > 0 && (
+                    <li className="text-muted-foreground/70">+{remainingCount} more...</li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

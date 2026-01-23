@@ -21,8 +21,21 @@ import {
   History,
   Loader2,
   CheckCircle2,
-  Pencil
+  Pencil,
+  AlertTriangle,
+  Eye,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
@@ -260,9 +273,22 @@ const ReMarketingDealDetail = () => {
             {deal.category && (
               <Badge variant="secondary">{deal.category}</Badge>
             )}
-            <Badge variant={dataCompleteness >= 80 ? 'default' : 'outline'}>
-              {dataCompleteness}% Data
-            </Badge>
+            {/* Data Quality Badge with Rich Tooltip */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant={dataCompleteness >= 80 ? 'default' : 'outline'}>
+                    {dataCompleteness}% Data
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Deal Data Quality: {dataCompleteness}%</p>
+                  <p className="text-xs text-muted-foreground">
+                    {Math.round((dataCompleteness / 100) * 10)} of 10 fields filled
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Badge variant={deal.status === 'active' ? 'default' : 'secondary'} className="capitalize">
               {deal.status}
             </Badge>
@@ -379,7 +405,7 @@ const ReMarketingDealDetail = () => {
           }}
         />
 
-        {/* Financial Overview */}
+        {/* Financial Overview - Enhanced with Confidence Badges */}
         <Card>
           <CardHeader className="py-3">
             <div className="flex items-center justify-between">
@@ -393,17 +419,84 @@ const ReMarketingDealDetail = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Low Confidence Warning Banner */}
+            {((deal.revenue_confidence === 'low') || (deal.ebitda_confidence === 'low')) && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+                <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Financial Data Needs Clarification</p>
+                  <p className="text-xs text-amber-700">
+                    Some extracted values have low confidence. Review source quotes and schedule a follow-up call to confirm.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Revenue with Confidence */}
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                REVENUE (IN $M)
-              </p>
-              <span className="text-3xl font-bold">{formatCurrency(deal.revenue)}</span>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  REVENUE (IN $M)
+                </p>
+                {deal.revenue && (
+                  <Badge 
+                    variant="outline" 
+                    className={
+                      deal.revenue_confidence === 'high' 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
+                        : deal.revenue_confidence === 'low'
+                        ? "bg-red-50 text-red-600 border-red-200 text-xs"
+                        : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
+                    }
+                  >
+                    {deal.revenue_confidence === 'high' ? '✓ High Confidence' : 
+                     deal.revenue_confidence === 'low' ? '△ Low Confidence' : '○ Medium Confidence'}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl font-bold">{formatCurrency(deal.revenue)}</span>
+                {deal.revenue_source_quote && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto">
+                        View source quote
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
+                        <p className="text-sm italic">"{deal.revenue_source_quote}"</p>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             </div>
+            
+            {/* EBITDA Margin with Confidence */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  EBITDA MARGIN (%)
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    EBITDA MARGIN (%)
+                  </p>
+                  {deal.ebitda && (
+                    <Badge 
+                      variant="outline" 
+                      className={
+                        deal.ebitda_confidence === 'high' 
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
+                          : deal.ebitda_confidence === 'low'
+                          ? "bg-red-50 text-red-600 border-red-200 text-xs"
+                          : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
+                      }
+                    >
+                      {deal.ebitda_confidence === 'high' ? '✓ High' : 
+                       deal.ebitda_confidence === 'low' ? '△ Low' : '○ Med'}
+                    </Badge>
+                  )}
+                </div>
                 <span className="text-lg font-semibold">
                   {deal.revenue && deal.ebitda 
                     ? `${((deal.ebitda / deal.revenue) * 100).toFixed(0)}%`
@@ -417,9 +510,26 @@ const ReMarketingDealDetail = () => {
                   className="h-3"
                 />
               )}
-              <p className="text-sm text-muted-foreground mt-2">
-                EBITDA: {formatCurrency(deal.ebitda)}
-              </p>
+              <div className="flex items-center gap-3 mt-2">
+                <p className="text-sm text-muted-foreground">
+                  EBITDA: {formatCurrency(deal.ebitda)}
+                </p>
+                {deal.ebitda_source_quote && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto">
+                        View source quote
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
+                        <p className="text-sm italic">"{deal.ebitda_source_quote}"</p>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -489,11 +599,17 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-      {/* End Market / Customers */}
+      {/* End Market / Customers - Enhanced with 3 fields */}
       <CustomerTypesCard
         customerTypes={deal.customer_types}
-        onSave={async (types) => {
-          await updateDealMutation.mutateAsync({ customer_types: types });
+        customerConcentration={(deal as any).customer_concentration ?? undefined}
+        customerGeography={(deal as any).customer_geography ?? undefined}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({ 
+            customer_types: data.customerTypes,
+            customer_concentration: data.customerConcentration,
+            customer_geography: data.customerGeography,
+          });
         }}
       />
 
