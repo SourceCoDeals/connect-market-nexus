@@ -70,7 +70,12 @@ const ReMarketingDeals = () => {
           status,
           created_at,
           category,
-          website
+          website,
+          executive_summary,
+          service_mix,
+          internal_company_name,
+          internal_deal_memo_link,
+          geographic_states
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -156,6 +161,22 @@ const ReMarketingDeals = () => {
   // Get universe count
   const universeCount = universes?.length || 0;
 
+  // Extract website from deal memo
+  const extractWebsiteFromMemo = (memoLink: string | null): string | null => {
+    if (!memoLink) return null;
+    if (memoLink.includes('sharepoint.com') || memoLink.includes('onedrive')) return null;
+    const websiteMatch = memoLink.match(/Website:\s*(https?:\/\/[^\s]+)/i);
+    if (websiteMatch) return websiteMatch[1];
+    if (memoLink.match(/^https?:\/\/[a-zA-Z0-9]/) && !memoLink.includes('sharepoint')) return memoLink;
+    if (memoLink.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) return `https://${memoLink}`;
+    return null;
+  };
+
+  const getEffectiveWebsite = (listing: any): string | null => {
+    if (listing.website) return listing.website;
+    return extractWebsiteFromMemo(listing.internal_deal_memo_link);
+  };
+
   // Filter listings
   const filteredListings = useMemo(() => {
     if (!listings) return [];
@@ -166,6 +187,7 @@ const ReMarketingDeals = () => {
         const searchLower = search.toLowerCase();
         const matchesSearch = 
           listing.title?.toLowerCase().includes(searchLower) ||
+          listing.internal_company_name?.toLowerCase().includes(searchLower) ||
           listing.description?.toLowerCase().includes(searchLower) ||
           listing.location?.toLowerCase().includes(searchLower) ||
           listing.website?.toLowerCase().includes(searchLower);
@@ -354,8 +376,13 @@ const ReMarketingDeals = () => {
                   const stats = scoreStats?.[listing.id];
                   const tier = stats ? getTierFromScore(stats.avgScore) : null;
                   const universeName = getFirstUniverseName(listing.id);
-                  const domain = formatWebsiteDomain(listing.website);
-                  const isEnriched = !!(listing as any).executive_summary || !!(listing as any).service_mix;
+                  const effectiveWebsite = getEffectiveWebsite(listing);
+                  const domain = formatWebsiteDomain(effectiveWebsite);
+                  const isEnriched = !!listing.executive_summary || !!listing.service_mix;
+                  const displayName = listing.internal_company_name || listing.title;
+                  const listedName = listing.internal_company_name && listing.title !== listing.internal_company_name 
+                    ? listing.title 
+                    : null;
                   
                   return (
                     <TableRow 
@@ -366,11 +393,14 @@ const ReMarketingDeals = () => {
                       <TableCell>
                         <div>
                           <p className="font-medium text-foreground flex items-center gap-1.5">
-                            {listing.title}
+                            {displayName}
                             {isEnriched && (
                               <Sparkles className="h-3.5 w-3.5 text-primary" />
                             )}
                           </p>
+                          {listedName && (
+                            <p className="text-xs text-muted-foreground">{listedName}</p>
+                          )}
                           {domain && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                               <Globe className="h-3 w-3" />
