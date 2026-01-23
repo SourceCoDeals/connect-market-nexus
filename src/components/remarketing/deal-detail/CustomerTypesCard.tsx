@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -14,23 +16,37 @@ import { toast } from "sonner";
 
 interface CustomerTypesCardProps {
   customerTypes: string | null;
-  onSave: (customerTypes: string) => Promise<void>;
+  customerConcentration?: string | null;
+  customerGeography?: string | null;
+  onSave: (data: { 
+    customerTypes: string; 
+    customerConcentration?: string;
+    customerGeography?: string;
+  }) => Promise<void>;
 }
 
 export const CustomerTypesCard = ({ 
-  customerTypes, 
+  customerTypes,
+  customerConcentration,
+  customerGeography,
   onSave 
 }: CustomerTypesCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editedTypes, setEditedTypes] = useState(customerTypes || "");
+  const [editedConcentration, setEditedConcentration] = useState(customerConcentration || "");
+  const [editedGeography, setEditedGeography] = useState(customerGeography || "");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(editedTypes);
+      await onSave({
+        customerTypes: editedTypes,
+        customerConcentration: editedConcentration,
+        customerGeography: editedGeography,
+      });
       setIsEditOpen(false);
-      toast.success("Customer types updated");
+      toast.success("Customer information updated");
     } catch (error) {
       toast.error("Failed to save");
     } finally {
@@ -40,8 +56,12 @@ export const CustomerTypesCard = ({
 
   const openEdit = () => {
     setEditedTypes(customerTypes || "");
+    setEditedConcentration(customerConcentration || "");
+    setEditedGeography(customerGeography || "");
     setIsEditOpen(true);
   };
+
+  const hasAnyData = customerTypes || customerConcentration || customerGeography;
 
   return (
     <>
@@ -62,7 +82,8 @@ export const CustomerTypesCard = ({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Customer Types / Segments */}
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
               Customer Types / Segments
@@ -73,21 +94,73 @@ export const CustomerTypesCard = ({
               )}
             </p>
           </div>
+          
+          {/* Customer Concentration */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              Customer Concentration
+            </p>
+            <p className="text-sm">
+              {customerConcentration || (
+                <span className="text-muted-foreground italic">Not specified</span>
+              )}
+            </p>
+          </div>
+          
+          {/* Customer Geography */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              Customer Geography
+            </p>
+            <p className="text-sm">
+              {customerGeography || (
+                <span className="text-muted-foreground italic">Not specified</span>
+              )}
+            </p>
+          </div>
         </CardContent>
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit End Market / Customers</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label htmlFor="customer-types" className="text-sm font-medium">
+                Customer Types / Segments
+              </Label>
               <Textarea
+                id="customer-types"
                 placeholder="e.g., B2B commercial clients (60%), residential homeowners (40%), insurance referrals..."
                 value={editedTypes}
                 onChange={(e) => setEditedTypes(e.target.value)}
-                className="min-h-[100px]"
+                className="min-h-[80px] mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer-concentration" className="text-sm font-medium">
+                Customer Concentration
+              </Label>
+              <Input
+                id="customer-concentration"
+                placeholder="e.g., No customer >10% of revenue, diversified base"
+                value={editedConcentration}
+                onChange={(e) => setEditedConcentration(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer-geography" className="text-sm font-medium">
+                Customer Geography
+              </Label>
+              <Input
+                id="customer-geography"
+                placeholder="e.g., 80% within 50 miles of HQ, regional presence"
+                value={editedGeography}
+                onChange={(e) => setEditedGeography(e.target.value)}
+                className="mt-1.5"
               />
             </div>
           </div>

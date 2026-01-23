@@ -70,6 +70,7 @@ export { LearningInsightsPanel } from './LearningInsightsPanel';
 export { ReMarketingSidebar } from './ReMarketingSidebar';
 export { ReMarketingLayout } from './ReMarketingLayout';
 export { IntelligenceCoverageBar } from './IntelligenceCoverageBar';
+export { ScoringInsightsSidebar } from './ScoringInsightsSidebar';
 
 // Transcript Components
 export { DealTranscriptSection } from './DealTranscriptSection';
