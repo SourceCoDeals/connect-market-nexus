@@ -301,30 +301,29 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       const extracted = transcript.extracted_data as Record<string, unknown>;
       const updateData: Record<string, unknown> = {};
 
-      // Financial fields (scalar - replace)
+      // VALID COLUMNS in listings table (verified against schema):
+      // Financial, Business, Geography, Strategic, Contact fields
+      
+      // Financial fields
       if (extracted.revenue) updateData.revenue = extracted.revenue;
       if (extracted.ebitda) updateData.ebitda = extracted.ebitda;
-      if (extracted.ebitda_margin) updateData.ebitda_margin = extracted.ebitda_margin;
-      if (extracted.asking_price) updateData.asking_price = extracted.asking_price;
+      // Note: ebitda_margin, asking_price are NOT in schema - store in general_notes if important
       
-      // Business basics (scalar - replace)
+      // Business basics
       if (extracted.full_time_employees) updateData.full_time_employees = extracted.full_time_employees;
       if (extracted.location) updateData.location = extracted.location;
-      if (extracted.headquarters_address) updateData.headquarters_address = extracted.headquarters_address;
       if (extracted.founded_year) updateData.founded_year = extracted.founded_year;
       if (extracted.industry) updateData.industry = extracted.industry;
       if (extracted.website) updateData.website = extracted.website;
+      // Note: headquarters_address maps to 'address'
+      if (extracted.headquarters_address) updateData.address = extracted.headquarters_address;
       
-      // Services & Business model - MERGE arrays
-      const mergedServices = mergeArrays(
-        currentData?.services as string[] | undefined, 
-        extracted.services as string[] | undefined
-      );
-      if (mergedServices) updateData.services = mergedServices;
+      // Services & Business model
       if (extracted.service_mix) updateData.service_mix = extracted.service_mix;
       if (extracted.business_model) updateData.business_model = extracted.business_model;
+      // Note: 'services' is NOT in listings schema - service info goes in service_mix
       
-      // Geography - MERGE arrays
+      // Geography
       const mergedStates = mergeArrays(
         currentData?.geographic_states as string[] | undefined, 
         extracted.geographic_states as string[] | undefined
@@ -334,13 +333,12 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       
       // Owner & Transaction
       if (extracted.owner_goals) updateData.owner_goals = extracted.owner_goals;
-      if (extracted.transition_preferences) updateData.transition_preferences = extracted.transition_preferences;
       if (extracted.special_requirements) updateData.special_requirements = extracted.special_requirements;
-      if (extracted.timeline_notes) updateData.timeline_notes = extracted.timeline_notes;
+      // Note: transition_preferences, timeline_notes are NOT in schema
       
       // Customers
       if (extracted.customer_types) updateData.customer_types = extracted.customer_types;
-      if (extracted.end_market_description) updateData.end_market_description = extracted.end_market_description;
+      // Note: end_market_description is NOT in schema
       
       // Strategic info
       if (extracted.executive_summary) updateData.executive_summary = extracted.executive_summary;
@@ -354,6 +352,23 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (extracted.primary_contact_name) updateData.primary_contact_name = extracted.primary_contact_name;
       if (extracted.primary_contact_email) updateData.primary_contact_email = extracted.primary_contact_email;
       if (extracted.primary_contact_phone) updateData.primary_contact_phone = extracted.primary_contact_phone;
+      
+      // Build general_notes with extra extracted data that doesn't have a column
+      const extraNotes: string[] = [];
+      if (extracted.ebitda_margin) extraNotes.push(`EBITDA Margin: ${((extracted.ebitda_margin as number) * 100).toFixed(1)}%`);
+      if (extracted.asking_price) extraNotes.push(`Asking Price: $${(extracted.asking_price as number).toLocaleString()}`);
+      if (extracted.transition_preferences) extraNotes.push(`Transition: ${extracted.transition_preferences}`);
+      if (extracted.timeline_notes) extraNotes.push(`Timeline: ${extracted.timeline_notes}`);
+      if (extracted.end_market_description) extraNotes.push(`End Market: ${extracted.end_market_description}`);
+      if ((extracted.services as string[] | undefined)?.length) {
+        extraNotes.push(`Services: ${(extracted.services as string[]).join(', ')}`);
+      }
+      
+      if (extraNotes.length > 0) {
+        const existingNotes = (currentData?.general_notes as string) || '';
+        const newNotesBlock = `\n\n--- Extracted from Transcript (${new Date().toLocaleDateString()}) ---\n${extraNotes.join('\n')}`;
+        updateData.general_notes = existingNotes + newNotesBlock;
+      }
 
       const fieldsCount = Object.keys(updateData).length;
       
