@@ -37,6 +37,7 @@ import {
   CustomerTypesCard,
   CompanyOverviewCard,
   AdditionalInfoCard,
+  KeyQuotesCard,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -463,6 +464,14 @@ const ReMarketingDealDetail = () => {
             owner_goals: data.ownerGoals,
             special_requirements: data.specialRequirements,
           });
+        }}
+      />
+
+      {/* Key Quotes from Seller */}
+      <KeyQuotesCard
+        quotes={deal.key_quotes}
+        onSave={async (quotes) => {
+          await updateDealMutation.mutateAsync({ key_quotes: quotes });
         }}
       />
 

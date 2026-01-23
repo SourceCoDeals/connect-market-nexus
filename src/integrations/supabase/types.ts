@@ -2539,6 +2539,7 @@ export type Database = {
           internal_primary_owner: string | null
           internal_salesforce_link: string | null
           investment_thesis: string | null
+          key_quotes: string[] | null
           key_risks: Json | null
           location: string
           location_radius_requirement: string | null
@@ -2569,6 +2570,7 @@ export type Database = {
           seller_involvement_preference: string | null
           seller_motivation: string | null
           service_mix: string | null
+          services: string[] | null
           special_requirements: string | null
           status: string
           status_tag: string | null
@@ -2622,6 +2624,7 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          key_quotes?: string[] | null
           key_risks?: Json | null
           location: string
           location_radius_requirement?: string | null
@@ -2652,6 +2655,7 @@ export type Database = {
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           service_mix?: string | null
+          services?: string[] | null
           special_requirements?: string | null
           status?: string
           status_tag?: string | null
@@ -2705,6 +2709,7 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          key_quotes?: string[] | null
           key_risks?: Json | null
           location?: string
           location_radius_requirement?: string | null
@@ -2735,6 +2740,7 @@ export type Database = {
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           service_mix?: string | null
+          services?: string[] | null
           special_requirements?: string | null
           status?: string
           status_tag?: string | null
