@@ -562,10 +562,14 @@ const ReMarketingDealDetail = () => {
         </Card>
       )}
 
-      {/* Timestamps */}
-      <div className="text-xs text-muted-foreground text-center space-x-4">
-        <span>Created: {format(new Date(deal.created_at), 'MMM d, yyyy h:mm a')}</span>
-        <span>Updated: {format(new Date(deal.updated_at), 'MMM d, yyyy h:mm a')}</span>
+      {/* Timestamps Footer */}
+      <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">
+        <span className="flex items-center gap-1">
+          Created: {format(new Date(deal.created_at), 'MMM d, yyyy')}
+        </span>
+        <span className="flex items-center gap-1">
+          Updated: {format(new Date(deal.updated_at), 'MMM d, yyyy')}
+        </span>
       </div>
     </div>
   );

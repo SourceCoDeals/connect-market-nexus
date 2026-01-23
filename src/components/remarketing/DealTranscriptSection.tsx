@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -78,6 +78,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [isListExpanded, setIsListExpanded] = useState(false);
 
   const resetForm = () => {
     setNewTranscript("");
@@ -204,140 +205,223 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
+        <CardHeader className="py-3">
+          <Skeleton className="h-5 w-32" />
         </CardHeader>
-        <CardContent>
-          <Skeleton className="h-20" />
+      </Card>
+    );
+  }
+
+  // Compact view when no transcripts or collapsed
+  if (transcripts.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Call Transcripts
+            </CardTitle>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Transcript
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Add Call Transcript</DialogTitle>
+                  <DialogDescription>
+                    Add a transcript from a call. AI will extract key information about the deal.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Input
+                      id="title"
+                      placeholder="e.g., Discovery Call - Jan 15"
+                      value={transcriptTitle}
+                      onChange={(e) => setTranscriptTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transcriptUrl" className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      Transcript Link URL
+                    </Label>
+                    <Input
+                      id="transcriptUrl"
+                      placeholder="e.g., https://app.fireflies.ai/view/..."
+                      value={transcriptUrl}
+                      onChange={(e) => setTranscriptUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="callDate" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Call Date
+                    </Label>
+                    <Input
+                      id="callDate"
+                      type="date"
+                      value={callDate}
+                      onChange={(e) => setCallDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transcript">Notes / Transcript Content</Label>
+                    <Textarea
+                      id="transcript"
+                      placeholder="Paste the call transcript or notes here..."
+                      value={newTranscript}
+                      onChange={(e) => setNewTranscript(e.target.value)}
+                      rows={8}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                    <Upload className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">
+                      Or upload a file (.txt, .docx) - coming soon
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => addMutation.mutate()}
+                    disabled={!newTranscript.trim() || addMutation.isPending}
+                  >
+                    {addMutation.isPending ? "Adding..." : "Add Transcript"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent className="py-2 pt-0">
+          <p className="text-sm text-muted-foreground">No transcripts linked yet.</p>
         </CardContent>
       </Card>
     );
   }
 
+  // Has transcripts - show compact expandable list
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Call Transcripts
-            </CardTitle>
-            <CardDescription>
-              Upload call transcripts to extract deal intelligence
-            </CardDescription>
-          </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-            setIsAddDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Transcript
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add Call Transcript</DialogTitle>
-                <DialogDescription>
-                  Add a transcript from a call. AI will extract key information about the deal.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {/* Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    placeholder="e.g., Discovery Call - Jan 15"
-                    value={transcriptTitle}
-                    onChange={(e) => setTranscriptTitle(e.target.value)}
-                  />
-                </div>
-
-                {/* Transcript Link URL */}
-                <div className="space-y-2">
-                  <Label htmlFor="transcriptUrl" className="flex items-center gap-2">
-                    <LinkIcon className="h-4 w-4" />
-                    Transcript Link URL
-                  </Label>
-                  <Input
-                    id="transcriptUrl"
-                    placeholder="e.g., https://app.fireflies.ai/view/..."
-                    value={transcriptUrl}
-                    onChange={(e) => setTranscriptUrl(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Optional: Link to Fireflies, Otter, or other transcript source
-                  </p>
-                </div>
-
-                {/* Call Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="callDate" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Call Date
-                  </Label>
-                  <Input
-                    id="callDate"
-                    type="date"
-                    value={callDate}
-                    onChange={(e) => setCallDate(e.target.value)}
-                  />
-                </div>
-
-                {/* Transcript Text */}
-                <div className="space-y-2">
-                  <Label htmlFor="transcript">Notes / Transcript Content</Label>
-                  <Textarea
-                    id="transcript"
-                    placeholder="Paste the call transcript or notes here..."
-                    value={newTranscript}
-                    onChange={(e) => setNewTranscript(e.target.value)}
-                    rows={10}
-                    className="font-mono text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Tip: Include key details like revenue, EBITDA, owner goals, timeline, and special requirements
-                  </p>
-                </div>
-
-                {/* File Upload Placeholder */}
-                <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Or upload a file instead
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Coming soon: .txt, .docx file upload
-                  </p>
-                </div>
+      <Collapsible open={isListExpanded} onOpenChange={setIsListExpanded}>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center gap-2 cursor-pointer">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Call Transcripts
+                </CardTitle>
+                <Badge variant="secondary" className="text-xs">
+                  {transcripts.length}
+                </Badge>
+                {isListExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
+            </CollapsibleTrigger>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Transcript
                 </Button>
-                <Button 
-                  onClick={() => addMutation.mutate()}
-                  disabled={!newTranscript.trim() || addMutation.isPending}
-                >
-                  {addMutation.isPending ? "Adding..." : "Add Transcript"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {transcripts.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No transcripts uploaded yet</p>
-            <p className="text-sm">Add a call transcript to extract deal intelligence</p>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Add Call Transcript</DialogTitle>
+                  <DialogDescription>
+                    Add a transcript from a call. AI will extract key information about the deal.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title2">Title</Label>
+                    <Input
+                      id="title2"
+                      placeholder="e.g., Discovery Call - Jan 15"
+                      value={transcriptTitle}
+                      onChange={(e) => setTranscriptTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transcriptUrl2" className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      Transcript Link URL
+                    </Label>
+                    <Input
+                      id="transcriptUrl2"
+                      placeholder="e.g., https://app.fireflies.ai/view/..."
+                      value={transcriptUrl}
+                      onChange={(e) => setTranscriptUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="callDate2" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Call Date
+                    </Label>
+                    <Input
+                      id="callDate2"
+                      type="date"
+                      value={callDate}
+                      onChange={(e) => setCallDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transcript2">Notes / Transcript Content</Label>
+                    <Textarea
+                      id="transcript2"
+                      placeholder="Paste the call transcript or notes here..."
+                      value={newTranscript}
+                      onChange={(e) => setNewTranscript(e.target.value)}
+                      rows={8}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                    <Upload className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">
+                      Or upload a file (.txt, .docx) - coming soon
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => addMutation.mutate()}
+                    disabled={!newTranscript.trim() || addMutation.isPending}
+                  >
+                    {addMutation.isPending ? "Adding..." : "Add Transcript"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-        ) : (
-          <div className="space-y-3">
+        </CardHeader>
+
+        <CollapsibleContent>
+          <CardContent className="pt-0 space-y-3">
             {transcripts.map((transcript) => {
               const isExpanded = expandedId === transcript.id;
               const hasExtracted = !!transcript.processed_at;
@@ -345,7 +429,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
               const isProcessing = processingId === transcript.id;
               const isApplying = applyingId === transcript.id;
 
-              // Display title or fallback
               const displayTitle = transcript.title || 
                 `Transcript from ${format(new Date(transcript.created_at), 'MMM d, yyyy')}`;
 
@@ -357,19 +440,16 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
                 >
                   <div className="border rounded-lg">
                     <CollapsibleTrigger className="w-full">
-                      <div className="flex items-center justify-between p-4 hover:bg-muted/50">
+                      <div className="flex items-center justify-between p-3 hover:bg-muted/50">
                         <div className="flex items-center gap-3">
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           <div className="text-left">
-                            <p className="font-medium">{displayTitle}</p>
+                            <p className="font-medium text-sm">{displayTitle}</p>
                             {transcript.call_date && (
                               <p className="text-xs text-muted-foreground">
-                                Call date: {format(new Date(transcript.call_date), 'MMM d, yyyy')}
+                                {format(new Date(transcript.call_date), 'MMM d, yyyy')}
                               </p>
                             )}
-                            <p className="text-sm text-muted-foreground">
-                              {transcript.transcript_text.substring(0, 80)}...
-                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -385,13 +465,13 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
                             </a>
                           )}
                           {hasExtracted && (
-                            <Badge variant="secondary" className="gap-1">
+                            <Badge variant="secondary" className="gap-1 text-xs">
                               <Sparkles className="h-3 w-3" />
                               Extracted
                             </Badge>
                           )}
                           {isApplied && (
-                            <Badge variant="default" className="gap-1">
+                            <Badge variant="default" className="gap-1 text-xs">
                               <Check className="h-3 w-3" />
                               Applied
                             </Badge>
@@ -406,21 +486,19 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <div className="border-t p-4 space-y-4">
-                        {/* Transcript text */}
-                        <div className="bg-muted/50 rounded-lg p-4 max-h-64 overflow-auto">
-                          <pre className="text-sm whitespace-pre-wrap font-mono">
+                        <div className="bg-muted/50 rounded-lg p-3 max-h-48 overflow-auto">
+                          <pre className="text-xs whitespace-pre-wrap font-mono">
                             {transcript.transcript_text}
                           </pre>
                         </div>
 
-                        {/* Extracted data preview */}
                         {hasExtracted && transcript.extracted_data && (
-                          <div className="bg-primary/5 rounded-lg p-4">
-                            <h4 className="font-medium mb-2 flex items-center gap-2">
+                          <div className="bg-primary/5 rounded-lg p-3">
+                            <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
                               <Sparkles className="h-4 w-4 text-primary" />
                               Extracted Intelligence
                             </h4>
-                            <div className="grid gap-2 text-sm">
+                            <div className="grid gap-1 text-xs">
                               {Object.entries(transcript.extracted_data as Record<string, unknown>).map(([key, value]) => (
                                 <div key={key} className="flex justify-between">
                                   <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
@@ -431,7 +509,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
                           </div>
                         )}
 
-                        {/* Actions */}
                         <div className="flex items-center gap-2">
                           {!hasExtracted && (
                             <Button 
@@ -445,7 +522,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
                               ) : (
                                 <Sparkles className="h-4 w-4 mr-2" />
                               )}
-                              Extract Intelligence
+                              Extract
                             </Button>
                           )}
                           {hasExtracted && !isApplied && (
@@ -489,9 +566,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
                 </Collapsible>
               );
             })}
-          </div>
-        )}
-      </CardContent>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
