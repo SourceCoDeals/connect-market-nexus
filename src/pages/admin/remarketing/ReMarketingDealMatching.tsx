@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -25,19 +28,22 @@ import {
   ExternalLink,
   Loader2,
   Users,
-  Lightbulb
+  Settings2,
+  Target,
+  AlertCircle,
+  CheckCircle2,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { 
-  ScoreBadge, 
-  ScoreTierBadge, 
-  ScoreBreakdown, 
-  AIReasoningPanel,
   PassReasonDialog,
-  IntelligenceBadge 
+  BuyerMatchCard,
 } from "@/components/remarketing";
 import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
+
+type SortOption = 'score' | 'geography' | 'score_geo';
+type FilterTab = 'all' | 'approved' | 'passed';
 
 const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
@@ -51,6 +57,14 @@ const ReMarketingDealMatching = () => {
     name: string;
     scoreData?: any;
   } | null>(null);
+  
+  // New state for enhanced features
+  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('score');
+  const [sortDesc, setSortDesc] = useState(true);
+  const [hideDisqualified, setHideDisqualified] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
   const queryClient = useQueryClient();
 
   // Fetch the listing
@@ -90,10 +104,8 @@ const ReMarketingDealMatching = () => {
       const listingCategory = listing.category?.toLowerCase() || '';
       const listingCategories = (listing.categories || []).map((c: string) => c.toLowerCase());
       
-      // Try to find a matching universe
       const matchedUniverse = universes.find(u => {
         const universeName = u.name.toLowerCase();
-        // Check if universe name contains any of the categories
         return listingCategories.some((cat: string) => 
           universeName.includes(cat) || cat.includes(universeName.split(' ')[0])
         ) || universeName.includes(listingCategory);
@@ -105,7 +117,7 @@ const ReMarketingDealMatching = () => {
     }
   }, [listing, universes, selectedUniverse]);
 
-  // Fetch existing scores for this listing
+  // Fetch existing scores for this listing with buyer contacts count
   const { data: scores, isLoading: scoresLoading } = useQuery({
     queryKey: ['remarketing', 'scores', listingId, selectedUniverse],
     queryFn: async () => {
@@ -113,7 +125,10 @@ const ReMarketingDealMatching = () => {
         .from('remarketing_scores')
         .select(`
           *,
-          buyer:remarketing_buyers(*)
+          buyer:remarketing_buyers(
+            *,
+            contacts:remarketing_buyer_contacts(id)
+          )
         `)
         .eq('listing_id', listingId)
         .order('composite_score', { ascending: false });
@@ -128,6 +143,63 @@ const ReMarketingDealMatching = () => {
     },
     enabled: !!listingId
   });
+
+  // Compute stats
+  const stats = useMemo(() => {
+    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, passed: 0, total: 0 };
+    
+    const qualified = scores.filter(s => s.composite_score >= 55 && s.status !== 'passed').length;
+    const disqualified = scores.filter(s => s.composite_score < 55 || s.fit_reasoning?.toLowerCase().includes('disqualified')).length;
+    const strong = scores.filter(s => s.composite_score >= 70).length;
+    const approved = scores.filter(s => s.status === 'approved').length;
+    const passed = scores.filter(s => s.status === 'passed').length;
+    
+    return { qualified, disqualified, strong, approved, passed, total: scores.length };
+  }, [scores]);
+
+  // Filter and sort scores
+  const filteredScores = useMemo(() => {
+    if (!scores) return [];
+    
+    let filtered = [...scores];
+    
+    // Apply tab filter
+    if (activeTab === 'approved') {
+      filtered = filtered.filter(s => s.status === 'approved');
+    } else if (activeTab === 'passed') {
+      filtered = filtered.filter(s => s.status === 'passed');
+    }
+    
+    // Hide disqualified
+    if (hideDisqualified) {
+      filtered = filtered.filter(s => 
+        s.composite_score >= 55 && !s.fit_reasoning?.toLowerCase().includes('disqualified')
+      );
+    }
+    
+    // Sort
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'score':
+          comparison = (a.composite_score || 0) - (b.composite_score || 0);
+          break;
+        case 'geography':
+          comparison = (a.geography_score || 0) - (b.geography_score || 0);
+          break;
+        case 'score_geo':
+          const aWeighted = (a.composite_score || 0) * 0.6 + (a.geography_score || 0) * 0.4;
+          const bWeighted = (b.composite_score || 0) * 0.6 + (b.geography_score || 0) * 0.4;
+          comparison = aWeighted - bWeighted;
+          break;
+      }
+      
+      return sortDesc ? -comparison : comparison;
+    });
+    
+    return filtered;
+  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc]);
 
   // Log learning history helper
   const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
@@ -174,7 +246,6 @@ const ReMarketingDealMatching = () => {
       
       if (error) throw error;
 
-      // Log to learning history
       if (scoreData) {
         await logLearningHistory(
           scoreData, 
@@ -191,6 +262,34 @@ const ReMarketingDealMatching = () => {
     },
     onError: () => {
       toast.error('Failed to update match');
+    }
+  });
+
+  // Bulk approve mutation
+  const bulkApproveMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('remarketing_scores')
+        .update({ status: 'approved' })
+        .in('id', ids);
+      
+      if (error) throw error;
+      
+      // Log learning history for each
+      for (const id of ids) {
+        const scoreData = scores?.find(s => s.id === id);
+        if (scoreData) {
+          await logLearningHistory(scoreData, 'approved');
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+      setSelectedIds(new Set());
+      toast.success(`Approved ${selectedIds.size} buyers`);
+    },
+    onError: () => {
+      toast.error('Failed to bulk approve');
     }
   });
 
@@ -262,6 +361,23 @@ const ReMarketingDealMatching = () => {
     updateScoreMutation.mutate({ id: scoreId, status: 'approved', scoreData });
   };
 
+  // Handle bulk approve
+  const handleBulkApprove = () => {
+    if (selectedIds.size === 0) return;
+    bulkApproveMutation.mutate(Array.from(selectedIds));
+  };
+
+  // Handle selection toggle
+  const handleSelect = (id: string, selected: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (selected) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
   if (listingLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -296,11 +412,6 @@ const ReMarketingDealMatching = () => {
     }).format(value);
   };
 
-  // Stats for header
-  const approvedCount = scores?.filter(s => s.status === 'approved').length || 0;
-  const pendingCount = scores?.filter(s => s.status === 'pending').length || 0;
-  const tierACounts = scores?.filter(s => s.tier === 'A').length || 0;
-
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -311,33 +422,77 @@ const ReMarketingDealMatching = () => {
           </Link>
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">Match Buyers</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Buyer Matches</h1>
           <p className="text-muted-foreground">
-            Find the best buyers for this listing using AI scoring
+            {listing.title} · {stats.total} buyers scored
           </p>
         </div>
-        {scores && scores.length > 0 && (
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>{approvedCount} approved</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span>{pendingCount} pending</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span>{tierACounts} Tier A</span>
-            </div>
-          </div>
+        
+        {/* Bulk Approve Button */}
+        {selectedIds.size > 0 && (
+          <Button
+            onClick={handleBulkApprove}
+            disabled={bulkApproveMutation.isPending}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            {bulkApproveMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="mr-2 h-4 w-4" />
+            )}
+            Approve Buyers as Fit ({selectedIds.size})
+          </Button>
         )}
       </div>
 
-      {/* Listing Summary */}
+      {/* Summary Stats Bar */}
+      {scores && scores.length > 0 && (
+        <div className="flex items-center gap-4 flex-wrap p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <span className="font-medium">{stats.qualified} qualified buyers</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <AlertCircle className="h-4 w-4 text-red-400" />
+            <span>{stats.disqualified} disqualified</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Target className="h-4 w-4 text-blue-500" />
+            <span className="font-medium">{stats.strong} strong matches (&gt;70%)</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-emerald-600">
+            <Check className="h-4 w-4" />
+            <span>{stats.approved} approved</span>
+          </div>
+          
+          <div className="flex-1" />
+          
+          {/* Hide Disqualified Toggle */}
+          <div className="flex items-center gap-2">
+            <Switch
+              id="hide-disqualified"
+              checked={hideDisqualified}
+              onCheckedChange={setHideDisqualified}
+            />
+            <Label htmlFor="hide-disqualified" className="text-sm">
+              Hide disqualified
+            </Label>
+          </div>
+          
+          {/* Optimize Scoring Button */}
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/admin/remarketing/universes/${selectedUniverse}/settings`}>
+              <Settings2 className="h-4 w-4 mr-1" />
+              Optimize Scoring
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {/* Listing Summary Card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between text-lg">
             <span>{listing.title}</span>
             <Button variant="ghost" size="sm" asChild>
               <Link to={`/admin/listings/${listing.id}`}>
@@ -348,33 +503,33 @@ const ReMarketingDealMatching = () => {
           </CardTitle>
           <CardDescription>{listing.hero_description || 'No description'}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Revenue</p>
+                <p className="text-muted-foreground">Revenue</p>
                 <p className="font-medium">{formatCurrency(listing.revenue)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">EBITDA</p>
+                <p className="text-muted-foreground">EBITDA</p>
                 <p className="font-medium">{formatCurrency(listing.ebitda)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Location</p>
+                <p className="text-muted-foreground">Location</p>
                 <p className="font-medium">{listing.location || '—'}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Category</p>
+                <p className="text-muted-foreground">Category</p>
                 <p className="font-medium">{listing.category || '—'}</p>
               </div>
             </div>
@@ -428,27 +583,74 @@ const ReMarketingDealMatching = () => {
         </CardContent>
       </Card>
 
-      {/* Scored Buyers */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Matched Buyers
-          </h2>
-          {scores && scores.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {scores.length} buyers scored
-            </p>
-          )}
+      {/* Tabs & Sort Controls */}
+      {scores && scores.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
+            <TabsList>
+              <TabsTrigger value="all">
+                All Buyers ({stats.total})
+              </TabsTrigger>
+              <TabsTrigger value="approved">
+                Approved ({stats.approved})
+              </TabsTrigger>
+              <TabsTrigger value="passed">
+                Passed ({stats.passed})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          {/* Sort Controls */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Sort by:</span>
+            <div className="flex gap-1">
+              <Button
+                variant={sortBy === 'score' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setSortBy('score')}
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                Score
+              </Button>
+              <Button
+                variant={sortBy === 'geography' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setSortBy('geography')}
+              >
+                <MapPin className="h-3.5 w-3.5 mr-1" />
+                Geography
+              </Button>
+              <Button
+                variant={sortBy === 'score_geo' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setSortBy('score_geo')}
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                Score + Geo
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setSortDesc(!sortDesc)}
+              >
+                <ArrowUpDown className={cn("h-4 w-4", !sortDesc && "rotate-180")} />
+              </Button>
+            </div>
+          </div>
         </div>
+      )}
 
+      {/* Matched Buyers */}
+      <div className="space-y-3">
         {scoresLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32" />
+              <Skeleton key={i} className="h-48" />
             ))}
           </div>
-        ) : scores?.length === 0 ? (
+        ) : filteredScores.length === 0 && scores?.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Sparkles className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -458,119 +660,28 @@ const ReMarketingDealMatching = () => {
               </p>
             </CardContent>
           </Card>
+        ) : filteredScores.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">
+                No buyers match the current filters
+              </p>
+            </CardContent>
+          </Card>
         ) : (
-          <div className="space-y-4">
-            {scores?.map((score: any) => {
-              const tier = (score.tier || 'D') as ScoreTier;
-              const dataCompleteness = score.data_completeness as DataCompleteness | null;
-
-              return (
-                <Card 
-                  key={score.id} 
-                  className={cn(
-                    "transition-all",
-                    score.status === 'approved' && "ring-2 ring-emerald-500/50 bg-emerald-50/30",
-                    score.status === 'passed' && "opacity-60"
-                  )}
-                >
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-5">
-                      {/* Score Badge */}
-                      <ScoreBadge 
-                        score={score.composite_score || 0} 
-                        size="lg" 
-                      />
-
-                      {/* Main Content */}
-                      <div className="flex-1 min-w-0 space-y-4">
-                        {/* Header Row */}
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Link 
-                                to={`/admin/remarketing/buyers/${score.buyer?.id}`}
-                                className="font-semibold text-lg hover:underline"
-                              >
-                                {score.buyer?.company_name || 'Unknown Buyer'}
-                              </Link>
-                              <ScoreTierBadge tier={tier} size="sm" />
-                              <IntelligenceBadge completeness={dataCompleteness} />
-                              {score.status === 'approved' && (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                  <Check className="h-3 w-3" />
-                                  Approved
-                                </span>
-                              )}
-                              {score.status === 'passed' && (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                                  <X className="h-3 w-3" />
-                                  Passed
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {score.buyer?.buyer_type?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown type'}
-                              {score.buyer?.company_website && (
-                                <> • <a 
-                                  href={score.buyer.company_website} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline"
-                                >
-                                  Website
-                                </a></>
-                              )}
-                            </p>
-                          </div>
-
-                          {/* Actions */}
-                          {score.status === 'pending' && (
-                            <div className="flex gap-2 flex-shrink-0">
-                              <Button
-                                size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700"
-                                onClick={() => handleApprove(score.id)}
-                                disabled={updateScoreMutation.isPending}
-                              >
-                                <Check className="mr-1 h-4 w-4" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50"
-                                onClick={() => handleOpenPassDialog(score.id, score.buyer?.company_name || 'Unknown')}
-                                disabled={updateScoreMutation.isPending}
-                              >
-                                <X className="mr-1 h-4 w-4" />
-                                Pass
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Score Breakdown */}
-                        <ScoreBreakdown
-                          geography={score.geography_score || 0}
-                          size={score.size_score || 0}
-                          service={score.service_score || 0}
-                          ownerGoals={score.owner_goals_score || 0}
-                        />
-
-                        {/* AI Reasoning Panel */}
-                        <AIReasoningPanel
-                          reasoning={score.fit_reasoning}
-                          dataCompleteness={dataCompleteness}
-                          thesisSummary={score.buyer?.thesis_summary}
-                          targetGeographies={score.buyer?.target_geographies}
-                          targetServices={score.buyer?.target_services}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="space-y-3">
+            {filteredScores.map((score: any) => (
+              <BuyerMatchCard
+                key={score.id}
+                score={score}
+                dealLocation={listing.location}
+                isSelected={selectedIds.has(score.id)}
+                onSelect={handleSelect}
+                onApprove={handleApprove}
+                onPass={handleOpenPassDialog}
+                isPending={updateScoreMutation.isPending}
+              />
+            ))}
           </div>
         )}
       </div>
