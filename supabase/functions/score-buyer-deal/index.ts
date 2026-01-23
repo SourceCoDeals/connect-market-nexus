@@ -131,15 +131,79 @@ async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise
   return patterns;
 }
 
+// Calculate service overlap percentage for context
+function calculateServiceOverlap(
+  listing: any,
+  buyer: any
+): { percentage: number; matchingServices: string[]; allDealServices: string[] } {
+  const dealServices = (listing.categories || [listing.category])
+    .filter(Boolean)
+    .map((s: string) => s?.toLowerCase().trim());
+  
+  const buyerServices = (buyer.target_services || [])
+    .filter(Boolean)
+    .map((s: string) => s?.toLowerCase().trim());
+  
+  if (buyerServices.length === 0 || dealServices.length === 0) {
+    return { percentage: 0, matchingServices: [], allDealServices: dealServices };
+  }
+  
+  const matching = dealServices.filter((ds: string) =>
+    buyerServices.some((bs: string) => 
+      ds?.includes(bs) || bs?.includes(ds) || 
+      // Semantic matches for common industry terms
+      (ds?.includes('collision') && bs?.includes('body')) ||
+      (ds?.includes('body') && bs?.includes('collision')) ||
+      (ds?.includes('repair') && bs?.includes('service')) ||
+      (ds?.includes('auto') && bs?.includes('automotive'))
+    )
+  );
+  
+  const percentage = Math.round((matching.length / Math.max(dealServices.length, buyerServices.length)) * 100);
+  return { percentage, matchingServices: matching, allDealServices: dealServices };
+}
+
+// Apply primary focus bonus when deal's primary service matches buyer's primary focus
+function applyPrimaryFocusBonus(
+  listing: any,
+  buyer: any,
+  behavior: ScoringBehavior,
+  currentScore: number
+): { score: number; bonusApplied: boolean } {
+  if (!behavior.require_primary_focus) {
+    return { score: currentScore, bonusApplied: false };
+  }
+  
+  const dealPrimaryService = (listing.category || listing.categories?.[0])?.toLowerCase().trim();
+  const buyerPrimaryFocus = buyer.target_services?.[0]?.toLowerCase().trim();
+  
+  if (!dealPrimaryService || !buyerPrimaryFocus) {
+    return { score: currentScore, bonusApplied: false };
+  }
+  
+  // Semantic matching for primary focus
+  const isPrimaryMatch = dealPrimaryService.includes(buyerPrimaryFocus) || 
+                         buyerPrimaryFocus.includes(dealPrimaryService) ||
+                         (dealPrimaryService.includes('collision') && buyerPrimaryFocus.includes('body')) ||
+                         (dealPrimaryService.includes('body') && buyerPrimaryFocus.includes('collision'));
+  
+  if (isPrimaryMatch) {
+    return { score: Math.min(100, currentScore + 10), bonusApplied: true };
+  }
+  
+  return { score: currentScore, bonusApplied: false };
+}
+
 // Apply learning adjustments to score
 function applyLearningAdjustment(
   baseScore: number, 
   pattern: LearningPattern | undefined,
   adjustments: ScoringAdjustment[]
-): { adjustedScore: number; thesisBonus: number; adjustmentReason?: string } {
+): { adjustedScore: number; thesisBonus: number; adjustmentReason?: string; learningNote?: string } {
   let adjustedScore = baseScore;
   let thesisBonus = 0;
   const reasons: string[] = [];
+  let learningNote: string | undefined;
 
   // Apply deal-level adjustments
   for (const adj of adjustments) {
@@ -155,20 +219,23 @@ function applyLearningAdjustment(
     }
   }
 
-  // Apply buyer-specific learning
+  // Apply buyer-specific learning with detailed notes
   if (pattern && pattern.totalActions >= 3) {
     // If buyer has high approval rate, slight boost
     if (pattern.approvalRate >= 0.7) {
       const learningBoost = Math.round(pattern.approvalRate * 5);
       adjustedScore += learningBoost;
       reasons.push(`+${learningBoost} (high approval history)`);
+      learningNote = `📈 Learning: High approval rate (${Math.round(pattern.approvalRate * 100)}%) on ${pattern.totalActions} deals.`;
     }
     // If buyer consistently passes at certain scores, slight penalty if close
     else if (pattern.approvalRate < 0.3 && pattern.avgScoreOnPassed > 0) {
+      const passedCount = Math.round(pattern.totalActions * (1 - pattern.approvalRate));
       if (baseScore < pattern.avgScoreOnPassed + 10) {
         adjustedScore -= 3;
         reasons.push(`-3 (low approval pattern)`);
       }
+      learningNote = `📉 Learning: Previously rejected ${passedCount} similar deals.`;
     }
   }
 
@@ -179,6 +246,7 @@ function applyLearningAdjustment(
     adjustedScore,
     thesisBonus,
     adjustmentReason: reasons.length > 0 ? reasons.join('; ') : undefined,
+    learningNote,
   };
 }
 
@@ -797,7 +865,20 @@ Score each category from 0-100 based on fit quality:
 - Portfolio Synergy: How well does this deal complement the buyer's existing portfolio companies?
 - Business Model: How aligned is the deal's business model (service mix, customer base) with buyer preferences?
 
-Provide scores and a brief reasoning for the overall fit. Be specific about which rules affected your scoring.`;
+REASONING FORMAT REQUIREMENTS:
+1. Start with a fit label based on composite score:
+   - Score ≥70: "Strong fit:"
+   - Score 55-69: "Moderate fit:"
+   - Score <55: "Poor fit:" or if disqualified: "DISQUALIFIED:"
+2. Include geographic context: "Buyer operates in [STATE] (adjacent)" or "(direct overlap)" or "(no nearby presence)"
+3. Calculate and report service overlap as percentage: "Strong service alignment (67% overlap): [services]" or "Weak service alignment (20% overlap)"
+4. Mention bonus points when applicable: "+10pt primary focus bonus" when deal's primary service matches buyer's primary focus
+5. End reasoning with footprint context: "Buyer footprint: [BUYER_STATES] → Deal: [DEAL_STATE]"
+
+Example reasoning:
+"Strong fit: Buyer operates in TX (adjacent). Strong service alignment (67% overlap): collision, repair, service +10pt primary focus bonus. Buyer footprint: TX, OK, AR → Deal: MO"
+
+Provide scores and reasoning following the format above. Be specific about which rules affected your scoring.`;
 
   // Get listing description with fallback chain
   const getDescription = () => {
@@ -853,6 +934,9 @@ Provide scores and a brief reasoning for the overall fit. Be specific about whic
     return `Portfolio: ${names}`;
   };
 
+  // Calculate service overlap for prompt context
+  const serviceOverlap = calculateServiceOverlap(listing, buyer);
+
   const userPrompt = `DEAL:
 - Title: ${listing.title || "Unknown"}
 - Services/Categories: ${getServices()}
@@ -880,6 +964,11 @@ BUYER:
 - Total Acquisitions: ${buyer.total_acquisitions || "Unknown"}
 ${industryPresetContext}
 
+SERVICE OVERLAP CONTEXT:
+- Calculated overlap: ${serviceOverlap.percentage}%
+- Matching services: ${serviceOverlap.matchingServices.length > 0 ? serviceOverlap.matchingServices.join(', ') : 'None identified'}
+- Deal services: ${serviceOverlap.allDealServices.join(', ') || 'Unknown'}
+
 ${structuredCriteria ? `\nUNIVERSE STRUCTURED CRITERIA:\n${structuredCriteria}` : ''}
 
 UNIVERSE FIT CRITERIA:
@@ -893,7 +982,7 @@ WEIGHTS:
 
 ${scoringRules}
 
-Analyze this buyer-deal fit. Apply the scoring rules strictly and explain which rules affected your assessment.`;
+Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. Apply the scoring rules strictly and explain which rules affected your assessment.`;
 
   console.log("Scoring with behavior:", JSON.stringify(scoringBehavior));
 
@@ -947,7 +1036,7 @@ Analyze this buyer-deal fit. Apply the scoring rules strictly and explain which 
               },
               reasoning: { 
                 type: "string", 
-                description: "2-3 sentence explanation of the overall fit, mentioning which scoring rules were applied" 
+                description: "2-3 sentence explanation following this format: [FIT_LABEL]: [Geographic context]. [Service overlap %]. [Any bonuses]. Must end with 'Buyer footprint: [STATES] → Deal: [STATE]'. Example: 'Strong fit: Buyer operates in TX (adjacent). Strong service alignment (67% overlap): collision, repair. Buyer footprint: TX, OK → Deal: MO'" 
               }
             },
             required: ["geography_score", "size_score", "service_score", "owner_goals_score", "acquisition_score", "portfolio_score", "business_model_score", "reasoning"],
@@ -1010,6 +1099,18 @@ Analyze this buyer-deal fit. Apply the scoring rules strictly and explain which 
   const secondaryBonus = forceDisqualify ? 0 : (secondaryAvg >= 80 ? 5 : secondaryAvg >= 60 ? 2 : 0);
   let finalComposite = Math.min(100, composite + secondaryBonus);
   
+  // Apply primary focus bonus (+10pt when deal's primary service matches buyer's primary focus)
+  const { score: primaryFocusScore, bonusApplied: primaryBonusApplied } = applyPrimaryFocusBonus(
+    listing,
+    buyer,
+    scoringBehavior,
+    finalComposite
+  );
+  
+  if (primaryBonusApplied && !forceDisqualify) {
+    finalComposite = primaryFocusScore;
+  }
+  
   // If force disqualified, cap the composite score
   if (forceDisqualify) {
     finalComposite = Math.min(finalComposite, 45);
@@ -1038,8 +1139,14 @@ Analyze this buyer-deal fit. Apply the scoring rules strictly and explain which 
     dataCompleteness = "low";
   }
 
-  // Build final reasoning with enforcement notes
+  // Build final reasoning with enforcement notes and bonuses
   let finalReasoning = enforcedScores.reasoning;
+  
+  // Add primary focus bonus note if applied
+  if (primaryBonusApplied && !forceDisqualify) {
+    finalReasoning += " +10pt primary focus bonus.";
+  }
+  
   if (enforcements.length > 0) {
     finalReasoning += `\n\nRule Enforcements: ${enforcements.join("; ")}`;
   }
