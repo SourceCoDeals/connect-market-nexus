@@ -40,7 +40,8 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Globe
+  Globe,
+  Sparkles
 } from "lucide-react";
 import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
@@ -268,10 +269,10 @@ const ReMarketingDeals = () => {
             
             <Select value={universeFilter} onValueChange={setUniverseFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Universes" />
+                <SelectValue placeholder="All Trackers" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Universes</SelectItem>
+                <SelectItem value="all">All Trackers</SelectItem>
                 {universes?.map(u => (
                   <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                 ))}
@@ -313,14 +314,14 @@ const ReMarketingDeals = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[280px]">Deal Name</TableHead>
-                <TableHead>Buyer Universe</TableHead>
+                <TableHead className="w-[200px]">Description</TableHead>
+                <TableHead>Tracker</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
                 <TableHead className="text-right">EBITDA</TableHead>
                 <TableHead className="text-center">Score</TableHead>
                 <TableHead className="text-center">Engagement</TableHead>
                 <TableHead>Added</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -329,6 +330,7 @@ const ReMarketingDeals = () => {
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -336,7 +338,6 @@ const ReMarketingDeals = () => {
                     <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-14" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
@@ -354,6 +355,7 @@ const ReMarketingDeals = () => {
                   const tier = stats ? getTierFromScore(stats.avgScore) : null;
                   const universeName = getFirstUniverseName(listing.id);
                   const domain = formatWebsiteDomain(listing.website);
+                  const isEnriched = !!(listing as any).executive_summary || !!(listing as any).service_mix;
                   
                   return (
                     <TableRow 
@@ -363,7 +365,12 @@ const ReMarketingDeals = () => {
                     >
                       <TableCell>
                         <div>
-                          <p className="font-medium text-foreground">{listing.title}</p>
+                          <p className="font-medium text-foreground flex items-center gap-1.5">
+                            {listing.title}
+                            {isEnriched && (
+                              <Sparkles className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </p>
                           {domain && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                               <Globe className="h-3 w-3" />
@@ -371,6 +378,12 @@ const ReMarketingDeals = () => {
                             </p>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm text-muted-foreground line-clamp-2 max-w-[200px]">
+                          {listing.description?.substring(0, 80) || '—'}
+                          {listing.description && listing.description.length > 80 ? '...' : ''}
+                        </p>
                       </TableCell>
                       <TableCell>
                         {universeName ? (
@@ -426,14 +439,6 @@ const ReMarketingDeals = () => {
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(listing.created_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={listing.status === 'active' ? 'default' : 'secondary'}
-                          className="capitalize"
-                        >
-                          {listing.status}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
