@@ -1,13 +1,6 @@
 import { useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,11 +34,12 @@ import {
 import { toast } from "sonner";
 import Papa from "papaparse";
 
-interface DealCSVImportProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export interface DealCSVImportProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   universeId: string;
-  universeName: string;
+  universeName?: string;
+  onImportComplete?: () => void;
 }
 
 interface ColumnMapping {
@@ -70,10 +64,9 @@ const DEAL_FIELDS = [
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
 
 export const DealCSVImport = ({
-  open,
-  onOpenChange,
   universeId,
   universeName,
+  onImportComplete,
 }: DealCSVImportProps) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<ImportStep>("upload");
@@ -247,6 +240,7 @@ export const DealCSVImport = ({
       setStep("complete");
       queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
+      onImportComplete?.();
     },
     onError: (error) => {
       toast.error(`Import failed: ${(error as Error).message}`);
@@ -269,23 +263,11 @@ export const DealCSVImport = ({
     setImportResults(null);
   };
 
-  const handleClose = () => {
-    reset();
-    onOpenChange(false);
-  };
-
   const getMappedFieldCount = () =>
     columnMappings.filter((m) => m.targetField).length;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Import Deals to {universeName}</DialogTitle>
-          <DialogDescription>
-            Upload a CSV file to bulk import deals into this universe
-          </DialogDescription>
-        </DialogHeader>
+    <div className="space-y-4">
 
         {/* Step: Upload */}
         {step === "upload" && (
@@ -503,13 +485,12 @@ export const DealCSVImport = ({
               </ScrollArea>
             )}
 
-            <Button onClick={handleClose} className="mt-6">
-              Done
+            <Button onClick={reset} className="mt-6">
+              Import More
             </Button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 };
 
