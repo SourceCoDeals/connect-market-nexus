@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,9 +76,9 @@ serve(async (req) => {
     else if (fileName.endsWith('.pdf')) {
       // For PDF files, use Lovable AI to extract text
       const arrayBuffer = await file.arrayBuffer();
-      const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const base64Content = base64Encode(new Uint8Array(arrayBuffer));
       
-      console.log(`PDF file, size: ${arrayBuffer.byteLength} bytes`);
+      console.log(`PDF file, size: ${arrayBuffer.byteLength} bytes, base64 length: ${base64Content.length}`);
       
       // Use Lovable AI to extract text from PDF
       const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -133,13 +134,13 @@ serve(async (req) => {
     else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
       // For DOC/DOCX files, use Lovable AI
       const arrayBuffer = await file.arrayBuffer();
-      const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const base64Content = base64Encode(new Uint8Array(arrayBuffer));
       
       const mimeType = fileName.endsWith('.docx') 
         ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         : 'application/msword';
       
-      console.log(`Word file, size: ${arrayBuffer.byteLength} bytes`);
+      console.log(`Word file, size: ${arrayBuffer.byteLength} bytes, base64 length: ${base64Content.length}`);
       
       const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
       if (!lovableApiKey) {
