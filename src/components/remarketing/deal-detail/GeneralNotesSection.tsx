@@ -23,7 +23,7 @@ export const GeneralNotesSection = ({
   onAnalyze,
   isAnalyzing = false 
 }: GeneralNotesSectionProps) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [editedNotes, setEditedNotes] = useState(notes || "");
   const [isSaving, setIsSaving] = useState(false);
   const hasChanges = editedNotes !== (notes || "");
