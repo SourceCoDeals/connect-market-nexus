@@ -480,6 +480,14 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
+      {/* End Market / Customers */}
+      <CustomerTypesCard
+        customerTypes={deal.customer_types}
+        onSave={async (types) => {
+          await updateDealMutation.mutateAsync({ customer_types: types });
+        }}
+      />
+
       {/* Additional Information */}
       <AdditionalInfoCard
         otherNotes={deal.owner_notes}
@@ -499,14 +507,6 @@ const ReMarketingDealDetail = () => {
             real_estate_info: data.realEstateInfo,
             growth_trajectory: data.growthTrajectory,
           });
-        }}
-      />
-
-      {/* End Market / Customers */}
-      <CustomerTypesCard
-        customerTypes={deal.customer_types}
-        onSave={async (types) => {
-          await updateDealMutation.mutateAsync({ customer_types: types });
         }}
       />
 
