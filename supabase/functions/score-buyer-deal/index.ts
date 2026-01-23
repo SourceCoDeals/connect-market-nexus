@@ -194,6 +194,48 @@ function applyPrimaryFocusBonus(
   return { score: currentScore, bonusApplied: false };
 }
 
+// Apply sweet spot bonus when deal revenue/EBITDA matches buyer's ideal target
+function applySweetSpotBonus(
+  listing: any,
+  buyer: any,
+  sizeScore: number
+): { score: number; bonusApplied: boolean; bonusReason?: string } {
+  const dealRevenue = listing.revenue;
+  const revenueSweetSpot = buyer.revenue_sweet_spot;
+  const ebitdaSweetSpot = buyer.ebitda_sweet_spot;
+  const dealEbitda = listing.ebitda;
+  
+  if (!dealRevenue && !dealEbitda) {
+    return { score: sizeScore, bonusApplied: false };
+  }
+  
+  let bonusApplied = false;
+  let bonusReason: string | undefined;
+  let adjustedScore = sizeScore;
+  
+  // Check revenue sweet spot (within 20% variance)
+  if (revenueSweetSpot && dealRevenue) {
+    const variance = Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot;
+    if (variance <= 0.2) {
+      adjustedScore = Math.min(100, adjustedScore + 5);
+      bonusApplied = true;
+      bonusReason = `+5pt revenue sweet spot match`;
+    }
+  }
+  
+  // Check EBITDA sweet spot (within 20% variance) - only if revenue didn't match
+  if (!bonusApplied && ebitdaSweetSpot && dealEbitda) {
+    const variance = Math.abs(dealEbitda - ebitdaSweetSpot) / ebitdaSweetSpot;
+    if (variance <= 0.2) {
+      adjustedScore = Math.min(100, adjustedScore + 5);
+      bonusApplied = true;
+      bonusReason = `+5pt EBITDA sweet spot match`;
+    }
+  }
+  
+  return { score: adjustedScore, bonusApplied, bonusReason };
+}
+
 // Apply learning adjustments to score
 function applyLearningAdjustment(
   baseScore: number, 
@@ -1134,6 +1176,28 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
     finalComposite = primaryFocusScore;
   }
   
+  // Apply sweet spot bonus (+5pt when deal revenue/EBITDA matches buyer's sweet spot)
+  const { score: sweetSpotSizeScore, bonusApplied: sweetSpotApplied, bonusReason: sweetSpotReason } = 
+    applySweetSpotBonus(listing, buyer, enforcedScores.size_score);
+  
+  if (sweetSpotApplied && !forceDisqualify) {
+    // Update the size score and recalculate composite with the bonus
+    const sizeDiff = sweetSpotSizeScore - enforcedScores.size_score;
+    const compositeBoost = Math.round((sizeDiff * universe.size_weight) / 100);
+    finalComposite = Math.min(100, finalComposite + compositeBoost);
+  }
+  
+  // Apply engagement weight multiplier for priority buyers (0.5x to 2.0x)
+  let engagementMultiplierApplied = false;
+  if (scoringBehavior.engagement_weight_multiplier && 
+      scoringBehavior.engagement_weight_multiplier !== 1.0 &&
+      !forceDisqualify) {
+    const multiplier = Math.max(0.5, Math.min(2.0, scoringBehavior.engagement_weight_multiplier));
+    finalComposite = Math.round(finalComposite * multiplier);
+    finalComposite = Math.min(100, Math.max(0, finalComposite));
+    engagementMultiplierApplied = multiplier !== 1.0;
+  }
+  
   // If force disqualified, cap the composite score
   if (forceDisqualify) {
     finalComposite = Math.min(finalComposite, 45);
@@ -1165,9 +1229,15 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
   // Build final reasoning with enforcement notes and bonuses
   let finalReasoning = enforcedScores.reasoning;
   
-  // Add primary focus bonus note if applied
+  // Add bonus notes if applied
   if (primaryBonusApplied && !forceDisqualify) {
     finalReasoning += " +10pt primary focus bonus.";
+  }
+  if (sweetSpotApplied && !forceDisqualify) {
+    finalReasoning += ` ${sweetSpotReason}.`;
+  }
+  if (engagementMultiplierApplied) {
+    finalReasoning += ` (${scoringBehavior.engagement_weight_multiplier}x priority multiplier)`;
   }
   
   if (enforcements.length > 0) {
