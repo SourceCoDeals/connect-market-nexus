@@ -43,6 +43,14 @@ import {
   Upload,
   X,
   File,
+  RefreshCw,
+  DollarSign,
+  MapPin,
+  Users,
+  Building,
+  Target,
+  Quote,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -258,7 +266,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
   };
 
-  // Apply extracted data to deal - expanded field mapping
+  // Helper to format currency
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+    return `$${value.toLocaleString()}`;
+  };
+
+  // Helper to merge arrays (deduped)
+  const mergeArrays = (existing: string[] | null | undefined, newItems: string[] | null | undefined): string[] | undefined => {
+    if (!newItems || newItems.length === 0) return undefined;
+    const combined = [...(existing || []), ...newItems];
+    return [...new Set(combined)];
+  };
+
+  // Apply extracted data to deal - with smart merge for arrays
   const handleApply = async (transcript: DealTranscript) => {
     if (!transcript.extracted_data) {
       toast.error("No extracted data to apply");
@@ -267,16 +289,25 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
     setApplyingId(transcript.id);
     try {
+      // Fetch current deal data first for merging arrays
+      const { data: currentDeal } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', dealId)
+        .single();
+      
+      const currentData = currentDeal as Record<string, unknown> | null;
+
       const extracted = transcript.extracted_data as Record<string, unknown>;
       const updateData: Record<string, unknown> = {};
 
-      // Financial fields
+      // Financial fields (scalar - replace)
       if (extracted.revenue) updateData.revenue = extracted.revenue;
       if (extracted.ebitda) updateData.ebitda = extracted.ebitda;
       if (extracted.ebitda_margin) updateData.ebitda_margin = extracted.ebitda_margin;
       if (extracted.asking_price) updateData.asking_price = extracted.asking_price;
       
-      // Business basics
+      // Business basics (scalar - replace)
       if (extracted.full_time_employees) updateData.full_time_employees = extracted.full_time_employees;
       if (extracted.location) updateData.location = extracted.location;
       if (extracted.headquarters_address) updateData.headquarters_address = extracted.headquarters_address;
@@ -284,13 +315,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (extracted.industry) updateData.industry = extracted.industry;
       if (extracted.website) updateData.website = extracted.website;
       
-      // Services & Business model
-      if (extracted.services) updateData.services = extracted.services;
+      // Services & Business model - MERGE arrays
+      const mergedServices = mergeArrays(
+        currentData?.services as string[] | undefined, 
+        extracted.services as string[] | undefined
+      );
+      if (mergedServices) updateData.services = mergedServices;
       if (extracted.service_mix) updateData.service_mix = extracted.service_mix;
       if (extracted.business_model) updateData.business_model = extracted.business_model;
       
-      // Geography
-      if (extracted.geographic_states) updateData.geographic_states = extracted.geographic_states;
+      // Geography - MERGE arrays
+      const mergedStates = mergeArrays(
+        currentData?.geographic_states as string[] | undefined, 
+        extracted.geographic_states as string[] | undefined
+      );
+      if (mergedStates) updateData.geographic_states = mergedStates;
       if (extracted.number_of_locations) updateData.number_of_locations = extracted.number_of_locations;
       
       // Owner & Transaction
@@ -341,6 +380,220 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     } finally {
       setApplyingId(null);
     }
+  };
+
+  // Render extracted intelligence in a structured, readable format
+  const renderExtractedIntelligence = (extractedData: Record<string, unknown>) => {
+    const extracted = extractedData;
+    const hasFinancial = extracted.revenue || extracted.ebitda || extracted.ebitda_margin || extracted.asking_price;
+    const hasBusiness = extracted.industry || extracted.location || extracted.full_time_employees || extracted.founded_year;
+    const hasServices = (extracted.services as string[] | undefined)?.length || extracted.service_mix || extracted.business_model;
+    const hasGeography = (extracted.geographic_states as string[] | undefined)?.length || extracted.number_of_locations;
+    const hasOwner = extracted.owner_goals || extracted.transition_preferences || extracted.timeline_notes;
+    const hasStrategic = extracted.executive_summary || extracted.competitive_position || extracted.growth_trajectory || extracted.key_risks;
+    const hasQuotes = (extracted.key_quotes as string[] | undefined)?.length;
+    
+    const fieldCount = Object.entries(extracted)
+      .filter(([key, value]) => key !== 'confidence' && value != null && 
+        (Array.isArray(value) ? value.length > 0 : true))
+      .length;
+
+    return (
+      <div className="bg-primary/5 rounded-lg p-4">
+        <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          Extracted Intelligence
+          <Badge variant="secondary" className="text-xs">
+            {fieldCount} fields
+          </Badge>
+        </h4>
+        
+        <div className="space-y-4 text-sm">
+          {/* Financial Section */}
+          {hasFinancial && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <DollarSign className="h-3 w-3" />
+                Financial
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {extracted.revenue && (
+                  <div className="bg-background rounded p-2">
+                    <p className="text-xs text-muted-foreground">Revenue</p>
+                    <p className="font-semibold">{formatCurrency(extracted.revenue as number)}</p>
+                  </div>
+                )}
+                {extracted.ebitda && (
+                  <div className="bg-background rounded p-2">
+                    <p className="text-xs text-muted-foreground">EBITDA</p>
+                    <p className="font-semibold">{formatCurrency(extracted.ebitda as number)}</p>
+                  </div>
+                )}
+                {extracted.ebitda_margin && (
+                  <div className="bg-background rounded p-2">
+                    <p className="text-xs text-muted-foreground">Margin</p>
+                    <p className="font-semibold">{((extracted.ebitda_margin as number) * 100).toFixed(1)}%</p>
+                  </div>
+                )}
+                {extracted.asking_price && (
+                  <div className="bg-background rounded p-2">
+                    <p className="text-xs text-muted-foreground">Asking Price</p>
+                    <p className="font-semibold">{formatCurrency(extracted.asking_price as number)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Business Basics Section */}
+          {hasBusiness && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Building className="h-3 w-3" />
+                Business
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {extracted.industry && (
+                  <div>
+                    <span className="text-muted-foreground">Industry:</span>{' '}
+                    <span className="font-medium">{extracted.industry as string}</span>
+                  </div>
+                )}
+                {extracted.location && (
+                  <div>
+                    <span className="text-muted-foreground">Location:</span>{' '}
+                    <span className="font-medium">{extracted.location as string}</span>
+                  </div>
+                )}
+                {extracted.full_time_employees && (
+                  <div>
+                    <span className="text-muted-foreground">Employees:</span>{' '}
+                    <span className="font-medium">{extracted.full_time_employees as number}</span>
+                  </div>
+                )}
+                {extracted.founded_year && (
+                  <div>
+                    <span className="text-muted-foreground">Founded:</span>{' '}
+                    <span className="font-medium">{extracted.founded_year as number}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Services Section */}
+          {hasServices && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Users className="h-3 w-3" />
+                Services & Model
+              </div>
+              {(extracted.services as string[] | undefined)?.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {(extracted.services as string[]).map((service, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">
+                      {service}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+              {extracted.service_mix && (
+                <p><span className="text-muted-foreground">Mix:</span> {extracted.service_mix as string}</p>
+              )}
+              {extracted.business_model && (
+                <p><span className="text-muted-foreground">Model:</span> {extracted.business_model as string}</p>
+              )}
+            </div>
+          )}
+
+          {/* Geography Section */}
+          {hasGeography && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <MapPin className="h-3 w-3" />
+                Geography
+              </div>
+              <div className="flex flex-wrap gap-1 items-center">
+                {(extracted.geographic_states as string[] | undefined)?.map((state, i) => (
+                  <Badge key={i} variant="secondary" className="text-xs">
+                    {state}
+                  </Badge>
+                ))}
+                {extracted.number_of_locations && (
+                  <span className="text-sm ml-2">
+                    ({extracted.number_of_locations as number} locations)
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Owner Goals Section */}
+          {hasOwner && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Target className="h-3 w-3" />
+                Owner & Transaction
+              </div>
+              {extracted.owner_goals && (
+                <p><span className="text-muted-foreground">Goals:</span> {extracted.owner_goals as string}</p>
+              )}
+              {extracted.transition_preferences && (
+                <p><span className="text-muted-foreground">Transition:</span> {extracted.transition_preferences as string}</p>
+              )}
+              {extracted.timeline_notes && (
+                <p><span className="text-muted-foreground">Timeline:</span> {extracted.timeline_notes as string}</p>
+              )}
+            </div>
+          )}
+
+          {/* Strategic Summary */}
+          {hasStrategic && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Sparkles className="h-3 w-3" />
+                Strategic
+              </div>
+              {extracted.executive_summary && (
+                <p className="bg-background rounded p-2 text-sm">{extracted.executive_summary as string}</p>
+              )}
+              {extracted.competitive_position && (
+                <p><span className="text-muted-foreground">Competitive Position:</span> {extracted.competitive_position as string}</p>
+              )}
+              {extracted.growth_trajectory && (
+                <p><span className="text-muted-foreground">Growth:</span> {extracted.growth_trajectory as string}</p>
+              )}
+              {extracted.key_risks && (
+                <p className="flex items-start gap-1">
+                  <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
+                  <span><span className="text-muted-foreground">Risks:</span> {extracted.key_risks as string}</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Key Quotes */}
+          {hasQuotes && (
+            <div className="space-y-1.5 border-t pt-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Quote className="h-3 w-3" />
+                Key Quotes
+              </div>
+              <div className="space-y-2">
+                {(extracted.key_quotes as string[]).map((quote, i) => (
+                  <blockquote 
+                    key={i} 
+                    className="text-sm italic border-l-2 border-primary/30 pl-3 text-muted-foreground"
+                  >
+                    "{quote}"
+                  </blockquote>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Render the Add Transcript Dialog content
@@ -621,30 +874,11 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                         </div>
 
                         {hasExtracted && transcript.extracted_data && (
-                          <div className="bg-primary/5 rounded-lg p-3">
-                            <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
-                              <Sparkles className="h-4 w-4 text-primary" />
-                              Extracted Intelligence
-                            </h4>
-                            <div className="grid gap-1 text-xs max-h-40 overflow-auto">
-                              {Object.entries(transcript.extracted_data as Record<string, unknown>)
-                                .filter(([key, value]) => key !== 'confidence' && value != null)
-                                .map(([key, value]) => (
-                                  <div key={key} className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground capitalize shrink-0">
-                                      {key.replace(/_/g, ' ')}
-                                    </span>
-                                    <span className="font-medium truncate text-right">
-                                      {Array.isArray(value) ? value.join(', ') : String(value)}
-                                    </span>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
+                          renderExtractedIntelligence(transcript.extracted_data as Record<string, unknown>)
                         )}
 
                         <div className="flex items-center gap-2">
-                          {!hasExtracted && (
+                          {!hasExtracted ? (
                             <Button 
                               size="sm" 
                               variant="outline"
@@ -656,7 +890,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                               ) : (
                                 <Sparkles className="h-4 w-4 mr-2" />
                               )}
-                              Extract
+                              Extract Intelligence
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleExtract(transcript)}
+                              disabled={isProcessing}
+                            >
+                              {isProcessing ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                              )}
+                              Re-extract
                             </Button>
                           )}
                           {hasExtracted && !isApplied && (
