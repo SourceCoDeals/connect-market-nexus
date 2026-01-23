@@ -304,65 +304,104 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       // VALID COLUMNS in listings table (verified against schema):
       // Financial, Business, Geography, Strategic, Contact fields
       
+      // Track what we're applying for detailed feedback
+      const appliedFields: string[] = [];
+      const skippedFields: string[] = [];
+      
       // Financial fields
-      if (extracted.revenue) updateData.revenue = extracted.revenue;
-      if (extracted.ebitda) updateData.ebitda = extracted.ebitda;
+      if (extracted.revenue) { updateData.revenue = extracted.revenue; appliedFields.push('Revenue'); }
+      if (extracted.ebitda) { updateData.ebitda = extracted.ebitda; appliedFields.push('EBITDA'); }
       // Note: ebitda_margin, asking_price are NOT in schema - store in general_notes if important
       
       // Business basics
-      if (extracted.full_time_employees) updateData.full_time_employees = extracted.full_time_employees;
-      if (extracted.location) updateData.location = extracted.location;
-      if (extracted.founded_year) updateData.founded_year = extracted.founded_year;
-      if (extracted.industry) updateData.industry = extracted.industry;
-      if (extracted.website) updateData.website = extracted.website;
+      if (extracted.full_time_employees) { updateData.full_time_employees = extracted.full_time_employees; appliedFields.push('Employees'); }
+      if (extracted.location) { updateData.location = extracted.location; appliedFields.push('Location'); }
+      if (extracted.founded_year) { updateData.founded_year = extracted.founded_year; appliedFields.push('Founded Year'); }
+      if (extracted.industry) { updateData.industry = extracted.industry; appliedFields.push('Industry'); }
+      if (extracted.website) { updateData.website = extracted.website; appliedFields.push('Website'); }
       // Note: headquarters_address maps to 'address'
-      if (extracted.headquarters_address) updateData.address = extracted.headquarters_address;
+      if (extracted.headquarters_address) { updateData.address = extracted.headquarters_address; appliedFields.push('Address'); }
       
       // Services & Business model
-      if (extracted.service_mix) updateData.service_mix = extracted.service_mix;
-      if (extracted.business_model) updateData.business_model = extracted.business_model;
-      // Note: 'services' is NOT in listings schema - service info goes in service_mix
+      if (extracted.service_mix) { updateData.service_mix = extracted.service_mix; appliedFields.push('Service Mix'); }
+      if (extracted.business_model) { updateData.business_model = extracted.business_model; appliedFields.push('Business Model'); }
       
-      // Geography
+      // Services array (now has column!)
+      const mergedServices = mergeArrays(
+        currentData?.services as string[] | undefined, 
+        extracted.services as string[] | undefined
+      );
+      if (mergedServices) { updateData.services = mergedServices; appliedFields.push('Services'); }
+      
+      // Geography - normalize state codes to uppercase 2-letter format
+      let extractedStates = extracted.geographic_states as string[] | undefined;
+      if (extractedStates) {
+        // Map full state names to abbreviations if needed
+        const stateNameToCode: Record<string, string> = {
+          'minnesota': 'MN', 'texas': 'TX', 'california': 'CA', 'florida': 'FL',
+          'arizona': 'AZ', 'new york': 'NY', 'illinois': 'IL', 'ohio': 'OH',
+          'georgia': 'GA', 'pennsylvania': 'PA', 'michigan': 'MI', 'washington': 'WA',
+          'colorado': 'CO', 'north carolina': 'NC', 'virginia': 'VA', 'tennessee': 'TN',
+          'indiana': 'IN', 'missouri': 'MO', 'wisconsin': 'WI', 'maryland': 'MD',
+          'massachusetts': 'MA', 'oregon': 'OR', 'oklahoma': 'OK', 'utah': 'UT',
+          'nevada': 'NV', 'new jersey': 'NJ', 'kentucky': 'KY', 'louisiana': 'LA',
+          'alabama': 'AL', 'south carolina': 'SC', 'iowa': 'IA', 'connecticut': 'CT',
+          'arkansas': 'AR', 'kansas': 'KS', 'mississippi': 'MS', 'nebraska': 'NE',
+          'new mexico': 'NM', 'idaho': 'ID', 'west virginia': 'WV', 'maine': 'ME',
+          'new hampshire': 'NH', 'hawaii': 'HI', 'rhode island': 'RI', 'montana': 'MT',
+          'delaware': 'DE', 'south dakota': 'SD', 'north dakota': 'ND', 'alaska': 'AK',
+          'vermont': 'VT', 'wyoming': 'WY'
+        };
+        extractedStates = extractedStates.map(s => {
+          const lower = s.toLowerCase().trim();
+          if (stateNameToCode[lower]) return stateNameToCode[lower];
+          if (s.length === 2) return s.toUpperCase();
+          return s;
+        }).filter(s => s.length === 2);
+      }
       const mergedStates = mergeArrays(
         currentData?.geographic_states as string[] | undefined, 
-        extracted.geographic_states as string[] | undefined
+        extractedStates
       );
-      if (mergedStates) updateData.geographic_states = mergedStates;
-      if (extracted.number_of_locations) updateData.number_of_locations = extracted.number_of_locations;
+      if (mergedStates) { updateData.geographic_states = mergedStates; appliedFields.push('Geographic States'); }
+      if (extracted.number_of_locations) { updateData.number_of_locations = extracted.number_of_locations; appliedFields.push('# of Locations'); }
       
       // Owner & Transaction
-      if (extracted.owner_goals) updateData.owner_goals = extracted.owner_goals;
-      if (extracted.special_requirements) updateData.special_requirements = extracted.special_requirements;
+      if (extracted.owner_goals) { updateData.owner_goals = extracted.owner_goals; appliedFields.push('Owner Goals'); }
+      if (extracted.special_requirements) { updateData.special_requirements = extracted.special_requirements; appliedFields.push('Special Requirements'); }
       // Note: transition_preferences, timeline_notes are NOT in schema
       
       // Customers
-      if (extracted.customer_types) updateData.customer_types = extracted.customer_types;
+      if (extracted.customer_types) { updateData.customer_types = extracted.customer_types; appliedFields.push('Customer Types'); }
       // Note: end_market_description is NOT in schema
       
       // Strategic info
-      if (extracted.executive_summary) updateData.executive_summary = extracted.executive_summary;
-      if (extracted.competitive_position) updateData.competitive_position = extracted.competitive_position;
-      if (extracted.growth_trajectory) updateData.growth_trajectory = extracted.growth_trajectory;
-      if (extracted.key_risks) updateData.key_risks = extracted.key_risks;
-      if (extracted.technology_systems) updateData.technology_systems = extracted.technology_systems;
-      if (extracted.real_estate_info) updateData.real_estate_info = extracted.real_estate_info;
+      if (extracted.executive_summary) { updateData.executive_summary = extracted.executive_summary; appliedFields.push('Executive Summary'); }
+      if (extracted.competitive_position) { updateData.competitive_position = extracted.competitive_position; appliedFields.push('Competitive Position'); }
+      if (extracted.growth_trajectory) { updateData.growth_trajectory = extracted.growth_trajectory; appliedFields.push('Growth Trajectory'); }
+      if (extracted.key_risks) { updateData.key_risks = extracted.key_risks; appliedFields.push('Key Risks'); }
+      if (extracted.technology_systems) { updateData.technology_systems = extracted.technology_systems; appliedFields.push('Technology'); }
+      if (extracted.real_estate_info) { updateData.real_estate_info = extracted.real_estate_info; appliedFields.push('Real Estate'); }
       
       // Contact info
-      if (extracted.primary_contact_name) updateData.primary_contact_name = extracted.primary_contact_name;
-      if (extracted.primary_contact_email) updateData.primary_contact_email = extracted.primary_contact_email;
-      if (extracted.primary_contact_phone) updateData.primary_contact_phone = extracted.primary_contact_phone;
+      if (extracted.primary_contact_name) { updateData.primary_contact_name = extracted.primary_contact_name; appliedFields.push('Contact Name'); }
+      if (extracted.primary_contact_email) { updateData.primary_contact_email = extracted.primary_contact_email; appliedFields.push('Contact Email'); }
+      if (extracted.primary_contact_phone) { updateData.primary_contact_phone = extracted.primary_contact_phone; appliedFields.push('Contact Phone'); }
+      
+      // Key Quotes (now has column!)
+      const mergedQuotes = mergeArrays(
+        currentData?.key_quotes as string[] | undefined, 
+        extracted.key_quotes as string[] | undefined
+      );
+      if (mergedQuotes) { updateData.key_quotes = mergedQuotes; appliedFields.push('Key Quotes'); }
       
       // Build general_notes with extra extracted data that doesn't have a column
       const extraNotes: string[] = [];
-      if (extracted.ebitda_margin) extraNotes.push(`EBITDA Margin: ${((extracted.ebitda_margin as number) * 100).toFixed(1)}%`);
-      if (extracted.asking_price) extraNotes.push(`Asking Price: $${(extracted.asking_price as number).toLocaleString()}`);
-      if (extracted.transition_preferences) extraNotes.push(`Transition: ${extracted.transition_preferences}`);
-      if (extracted.timeline_notes) extraNotes.push(`Timeline: ${extracted.timeline_notes}`);
-      if (extracted.end_market_description) extraNotes.push(`End Market: ${extracted.end_market_description}`);
-      if ((extracted.services as string[] | undefined)?.length) {
-        extraNotes.push(`Services: ${(extracted.services as string[]).join(', ')}`);
-      }
+      if (extracted.ebitda_margin) { extraNotes.push(`EBITDA Margin: ${((extracted.ebitda_margin as number) * 100).toFixed(1)}%`); skippedFields.push('EBITDA Margin'); }
+      if (extracted.asking_price) { extraNotes.push(`Asking Price: $${(extracted.asking_price as number).toLocaleString()}`); skippedFields.push('Asking Price'); }
+      if (extracted.transition_preferences) { extraNotes.push(`Transition: ${extracted.transition_preferences}`); skippedFields.push('Transition'); }
+      if (extracted.timeline_notes) { extraNotes.push(`Timeline: ${extracted.timeline_notes}`); skippedFields.push('Timeline'); }
+      if (extracted.end_market_description) { extraNotes.push(`End Market: ${extracted.end_market_description}`); skippedFields.push('End Market'); }
       
       if (extraNotes.length > 0) {
         const existingNotes = (currentData?.general_notes as string) || '';
@@ -389,7 +428,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-      toast.success(`Applied ${fieldsCount} fields to deal`);
+      
+      // Show detailed feedback
+      toast.success(
+        <div className="space-y-1">
+          <p className="font-medium">Applied {appliedFields.length} fields to deal</p>
+          <p className="text-xs text-muted-foreground">
+            {appliedFields.slice(0, 4).join(', ')}
+            {appliedFields.length > 4 && ` +${appliedFields.length - 4} more`}
+          </p>
+        </div>
+      );
+      
+      if (skippedFields.length > 0) {
+        toast.info(`${skippedFields.length} fields added to notes: ${skippedFields.join(', ')}`);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to apply data");
     } finally {

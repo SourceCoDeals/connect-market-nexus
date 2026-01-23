@@ -164,7 +164,7 @@ Return a valid JSON object with these fields (use null for fields not found):
   "service_mix": "Revenue breakdown, e.g., '60% residential, 40% commercial' or '70% repair, 30% installation'",
   "business_model": "Recurring/service contracts, project-based, subscription, etc.",
   
-  "geographic_states": ["TX", "FL", "AZ"] (state abbreviations where they operate),
+  "geographic_states": ["MN", "TX", "FL"] (MUST be 2-letter US state codes ONLY - convert full names: Minnesota→MN, Texas→TX, California→CA, Florida→FL, Arizona→AZ, etc. If city mentioned, infer state: Minneapolis→MN, Dallas→TX, Miami→FL),
   "number_of_locations": number,
   
   "owner_goals": "What the owner wants - be specific (e.g., 'Full exit within 6 months, wants to retire', 'Looking for growth partner, willing to stay 2 years')",
@@ -202,7 +202,8 @@ CRITICAL GUIDELINES:
 - Key quotes are EXTREMELY valuable - prioritize extracting 5-8 meaningful verbatim quotes
 - Look for statements about: why selling, ideal buyer profile, deal structure preferences, concerns about sale
 - For services, list EVERY distinct service mentioned, not just categories
-- Geographic states should be 2-letter abbreviations only
+- GEOGRAPHIC STATES MUST BE 2-LETTER ABBREVIATIONS ONLY (MN, TX, FL, CA, etc.) - NEVER full state names
+- If a city is mentioned, map to state code: Minneapolis=MN, Dallas=TX, Phoenix=AZ, etc.
 - If revenue is mentioned as a range, use the midpoint
 - Owner goals should be detailed and specific, not generic`;
 
