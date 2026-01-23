@@ -484,11 +484,11 @@ const ReMarketingDealDetail = () => {
       <AdditionalInfoCard
         otherNotes={deal.owner_notes}
         internalNotes={deal.internal_notes}
-        keyRisks={deal.key_risks}
-        competitivePosition={deal.competitive_position}
-        technologySystems={deal.technology_systems}
-        realEstateInfo={deal.real_estate_info}
-        growthTrajectory={deal.growth_trajectory}
+        keyRisks={deal.key_risks as string | null}
+        competitivePosition={deal.competitive_position as string | null}
+        technologySystems={deal.technology_systems as string | null}
+        realEstateInfo={deal.real_estate_info as string | null}
+        growthTrajectory={deal.growth_trajectory as string | null}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
             owner_notes: data.otherNotes,
