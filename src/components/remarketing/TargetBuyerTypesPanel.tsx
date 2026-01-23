@@ -184,7 +184,7 @@ export const TargetBuyerTypesPanel = ({
 
         <CollapsibleContent>
           <CardContent className="pt-0">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {buyerTypes.sort((a, b) => a.rank - b.rank).map((buyerType) => {
                 const Icon = BUYER_TYPE_ICONS[buyerType.id] || Building2;
                 
@@ -193,7 +193,9 @@ export const TargetBuyerTypesPanel = ({
                     key={buyerType.id} 
                     className={cn(
                       "relative transition-all",
-                      !buyerType.enabled && "opacity-50"
+                      !buyerType.enabled && "opacity-50",
+                      buyerType.rank === 1 && buyerType.enabled && "bg-amber-50/50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800",
+                      buyerType.rank === 2 && buyerType.enabled && "bg-gray-50/50 border-gray-200 dark:bg-gray-950/20 dark:border-gray-700"
                     )}
                   >
                     <CardHeader className="pb-2">
