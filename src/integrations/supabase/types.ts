@@ -411,6 +411,9 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           extracted_data: Json | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
           id: string
           processed_at: string | null
           source: string | null
@@ -422,6 +425,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           extracted_data?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
           id?: string
           processed_at?: string | null
           source?: string | null
@@ -433,6 +439,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           extracted_data?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
           id?: string
           processed_at?: string | null
           source?: string | null
@@ -3655,6 +3664,7 @@ export type Database = {
         Row: {
           acquisition_appetite: string | null
           acquisition_frequency: string | null
+          acquisition_timeline: string | null
           archived: boolean
           business_summary: string | null
           buyer_linkedin: string | null
@@ -3663,8 +3673,13 @@ export type Database = {
           company_website: string | null
           confidence_level: string | null
           created_at: string
+          customer_geographic_reach: string | null
+          customer_industries: string[] | null
           data_completeness: string | null
           data_last_updated: string | null
+          deal_breakers: string[] | null
+          deal_preferences: string | null
+          ebitda_sweet_spot: number | null
           extraction_sources: Json | null
           fee_agreement_status: string | null
           geographic_footprint: string[] | null
@@ -3676,6 +3691,7 @@ export type Database = {
           id: string
           industry_tracker_id: string | null
           industry_vertical: string | null
+          key_quotes: string[] | null
           notes: string | null
           num_platforms: number | null
           operating_locations: string[] | null
@@ -3685,10 +3701,13 @@ export type Database = {
           pe_firm_website: string | null
           platform_website: string | null
           portfolio_companies: Json | null
+          primary_customer_size: string | null
           recent_acquisitions: Json | null
+          revenue_sweet_spot: number | null
           service_regions: string[] | null
           specialized_focus: string | null
           strategic_priorities: string[] | null
+          target_customer_profile: string | null
           target_ebitda_max: number | null
           target_ebitda_min: number | null
           target_geographies: string[] | null
@@ -3705,6 +3724,7 @@ export type Database = {
         Insert: {
           acquisition_appetite?: string | null
           acquisition_frequency?: string | null
+          acquisition_timeline?: string | null
           archived?: boolean
           business_summary?: string | null
           buyer_linkedin?: string | null
@@ -3713,8 +3733,13 @@ export type Database = {
           company_website?: string | null
           confidence_level?: string | null
           created_at?: string
+          customer_geographic_reach?: string | null
+          customer_industries?: string[] | null
           data_completeness?: string | null
           data_last_updated?: string | null
+          deal_breakers?: string[] | null
+          deal_preferences?: string | null
+          ebitda_sweet_spot?: number | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
@@ -3726,6 +3751,7 @@ export type Database = {
           id?: string
           industry_tracker_id?: string | null
           industry_vertical?: string | null
+          key_quotes?: string[] | null
           notes?: string | null
           num_platforms?: number | null
           operating_locations?: string[] | null
@@ -3735,10 +3761,13 @@ export type Database = {
           pe_firm_website?: string | null
           platform_website?: string | null
           portfolio_companies?: Json | null
+          primary_customer_size?: string | null
           recent_acquisitions?: Json | null
+          revenue_sweet_spot?: number | null
           service_regions?: string[] | null
           specialized_focus?: string | null
           strategic_priorities?: string[] | null
+          target_customer_profile?: string | null
           target_ebitda_max?: number | null
           target_ebitda_min?: number | null
           target_geographies?: string[] | null
@@ -3755,6 +3784,7 @@ export type Database = {
         Update: {
           acquisition_appetite?: string | null
           acquisition_frequency?: string | null
+          acquisition_timeline?: string | null
           archived?: boolean
           business_summary?: string | null
           buyer_linkedin?: string | null
@@ -3763,8 +3793,13 @@ export type Database = {
           company_website?: string | null
           confidence_level?: string | null
           created_at?: string
+          customer_geographic_reach?: string | null
+          customer_industries?: string[] | null
           data_completeness?: string | null
           data_last_updated?: string | null
+          deal_breakers?: string[] | null
+          deal_preferences?: string | null
+          ebitda_sweet_spot?: number | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
@@ -3776,6 +3811,7 @@ export type Database = {
           id?: string
           industry_tracker_id?: string | null
           industry_vertical?: string | null
+          key_quotes?: string[] | null
           notes?: string | null
           num_platforms?: number | null
           operating_locations?: string[] | null
@@ -3785,10 +3821,13 @@ export type Database = {
           pe_firm_website?: string | null
           platform_website?: string | null
           portfolio_companies?: Json | null
+          primary_customer_size?: string | null
           recent_acquisitions?: Json | null
+          revenue_sweet_spot?: number | null
           service_regions?: string[] | null
           specialized_focus?: string | null
           strategic_priorities?: string[] | null
+          target_customer_profile?: string | null
           target_ebitda_max?: number | null
           target_ebitda_min?: number | null
           target_geographies?: string[] | null

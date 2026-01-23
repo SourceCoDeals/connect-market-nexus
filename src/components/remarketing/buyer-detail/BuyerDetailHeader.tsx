@@ -1,0 +1,111 @@
+import { Link } from "react-router-dom";
+import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+interface BuyerDetailHeaderProps {
+  companyName: string;
+  peFirmName?: string | null;
+  platformWebsite?: string | null;
+  hqCity?: string | null;
+  hqState?: string | null;
+  hqCountry?: string | null;
+  dataCompleteness: number;
+  onEdit: () => void;
+  onEnrich: () => void;
+  isEnriching?: boolean;
+}
+
+export const BuyerDetailHeader = ({
+  companyName,
+  peFirmName,
+  platformWebsite,
+  hqCity,
+  hqState,
+  hqCountry,
+  dataCompleteness,
+  onEdit,
+  onEnrich,
+  isEnriching = false,
+}: BuyerDetailHeaderProps) => {
+  const hqLocation = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
+  
+  const getCompletenessColor = (value: number) => {
+    if (value >= 70) return "bg-green-100 text-green-800 border-green-200";
+    if (value >= 40) return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    return "bg-muted text-muted-foreground";
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Navigation and Actions Row */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <Button variant="ghost" size="icon" asChild className="mt-1">
+            <Link to="/admin/remarketing/buyers">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          
+          <div className="space-y-1">
+            {/* Company Name + Completeness Badge */}
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight">{companyName}</h1>
+              <Badge 
+                variant="outline" 
+                className={`text-sm font-medium ${getCompletenessColor(dataCompleteness)}`}
+              >
+                {dataCompleteness}%
+              </Badge>
+            </div>
+            
+            {/* PE Firm Name */}
+            {peFirmName && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Building2 className="h-4 w-4" />
+                <span>{peFirmName}</span>
+              </div>
+            )}
+            
+            {/* Platform Website + HQ Location */}
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              {platformWebsite && (
+                <a 
+                  href={platformWebsite.startsWith('http') ? platformWebsite : `https://${platformWebsite}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>Platform Website</span>
+                </a>
+              )}
+              {hqLocation && (
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>HQ: {hqLocation}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={onEdit}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={onEnrich}
+            disabled={isEnriching}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            {isEnriching ? "Enriching..." : "Enrich"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};

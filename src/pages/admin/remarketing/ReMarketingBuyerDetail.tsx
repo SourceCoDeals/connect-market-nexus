@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,25 +32,36 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { 
   ArrowLeft,
   Save,
-  Building2,
-  Users,
   BarChart3,
-  Sparkles,
   Plus,
   Trash2,
-  ExternalLink,
+  Users,
   Mail,
   Phone,
-  FileText
+  Linkedin,
+  BarChart2,
+  Clock
 } from "lucide-react";
 import { toast } from "sonner";
-import { EnrichmentButton, IntelligenceBadge, TranscriptSection } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";
+import {
+  BuyerDetailHeader,
+  CriteriaCompletenessBanner,
+  MainContactCard,
+  FeeAgreementToggle,
+  BusinessDescriptionCard,
+  InvestmentCriteriaCard,
+  GeographicFootprintCard,
+  DealStructureCard,
+  CustomerEndMarketCard,
+  AcquisitionHistoryCard,
+  KeyQuotesCard,
+  TranscriptsListCard,
+} from "@/components/remarketing/buyer-detail";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'pe_firm', label: 'PE Firm' },
@@ -60,38 +71,89 @@ const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+interface BuyerData {
+  id: string;
+  company_name: string;
+  company_website: string | null;
+  buyer_type: string | null;
+  universe_id: string | null;
+  thesis_summary: string | null;
+  thesis_confidence: string | null;
+  target_revenue_min: number | null;
+  target_revenue_max: number | null;
+  target_ebitda_min: number | null;
+  target_ebitda_max: number | null;
+  revenue_sweet_spot: number | null;
+  ebitda_sweet_spot: number | null;
+  target_geographies: string[] | null;
+  target_services: string[] | null;
+  geographic_footprint: string[] | null;
+  notes: string | null;
+  data_completeness: string | null;
+  data_last_updated: string | null;
+  pe_firm_name: string | null;
+  platform_website: string | null;
+  hq_city: string | null;
+  hq_state: string | null;
+  hq_country: string | null;
+  has_fee_agreement: boolean | null;
+  industry_vertical: string | null;
+  business_summary: string | null;
+  specialized_focus: string | null;
+  strategic_priorities: string[] | null;
+  deal_breakers: string[] | null;
+  deal_preferences: string | null;
+  acquisition_appetite: string | null;
+  acquisition_timeline: string | null;
+  total_acquisitions: number | null;
+  acquisition_frequency: string | null;
+  primary_customer_size: string | null;
+  customer_geographic_reach: string | null;
+  customer_industries: string[] | null;
+  target_customer_profile: string | null;
+  key_quotes: string[] | null;
+}
+
+interface Contact {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  linkedin_url: string | null;
+  company_type: string | null;
+  is_primary: boolean | null;
+}
+
+interface Transcript {
+  id: string;
+  transcript_text: string;
+  source: string | null;
+  file_name: string | null;
+  file_url: string | null;
+  processed_at: string | null;
+  extracted_data: Record<string, unknown> | null;
+  created_at: string;
+}
+
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNew = id === 'new';
 
-  const [formData, setFormData] = useState({
-    company_name: '',
-    company_website: '',
-    buyer_type: 'pe_firm' as BuyerType,
-    universe_id: '',
-    thesis_summary: '',
-    target_revenue_min: '',
-    target_revenue_max: '',
-    target_ebitda_min: '',
-    target_ebitda_max: '',
-    target_geographies: [] as string[],
-    target_services: [] as string[],
-    geographic_footprint: [] as string[],
-    notes: '',
-  });
-
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [newContact, setNewContact] = useState({
     name: '',
     email: '',
     phone: '',
     role: '',
+    linkedin_url: '',
     is_primary: false,
   });
-  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
 
-  // Fetch buyer if editing
+  // Fetch buyer data
   const { data: buyer, isLoading } = useQuery({
     queryKey: ['remarketing', 'buyer', id],
     queryFn: async () => {
@@ -104,13 +166,13 @@ const ReMarketingBuyerDetail = () => {
         .single();
       
       if (error) throw error;
-      return data;
+      return data as BuyerData;
     },
     enabled: !isNew
   });
 
   // Fetch contacts
-  const { data: contacts } = useQuery({
+  const { data: contacts = [] } = useQuery({
     queryKey: ['remarketing', 'contacts', id],
     queryFn: async () => {
       if (isNew) return [];
@@ -122,28 +184,31 @@ const ReMarketingBuyerDetail = () => {
         .order('is_primary', { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as Contact[];
     },
     enabled: !isNew
   });
 
-  // Fetch universes for dropdown
-  const { data: universes } = useQuery({
-    queryKey: ['remarketing', 'universes'],
+  // Fetch transcripts
+  const { data: transcripts = [] } = useQuery({
+    queryKey: ['remarketing', 'transcripts', id],
     queryFn: async () => {
+      if (isNew) return [];
+      
       const { data, error } = await supabase
-        .from('remarketing_buyer_universes')
-        .select('id, name')
-        .eq('archived', false)
-        .order('name');
+        .from('buyer_transcripts')
+        .select('*')
+        .eq('buyer_id', id)
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data || [];
-    }
+      return (data || []) as Transcript[];
+    },
+    enabled: !isNew
   });
 
   // Fetch recent scores for this buyer
-  const { data: recentScores } = useQuery({
+  const { data: recentScores = [] } = useQuery({
     queryKey: ['remarketing', 'buyer-scores', id],
     queryFn: async () => {
       if (isNew) return [];
@@ -168,73 +233,76 @@ const ReMarketingBuyerDetail = () => {
     enabled: !isNew
   });
 
-  // Update form when buyer loads
-  useEffect(() => {
-    if (buyer) {
-      setFormData({
-        company_name: buyer.company_name || '',
-        company_website: buyer.company_website || '',
-        buyer_type: (buyer.buyer_type as BuyerType) || 'pe_firm',
-        universe_id: buyer.universe_id || '',
-        thesis_summary: buyer.thesis_summary || '',
-        target_revenue_min: buyer.target_revenue_min?.toString() || '',
-        target_revenue_max: buyer.target_revenue_max?.toString() || '',
-        target_ebitda_min: buyer.target_ebitda_min?.toString() || '',
-        target_ebitda_max: buyer.target_ebitda_max?.toString() || '',
-        target_geographies: buyer.target_geographies || [],
-        target_services: buyer.target_services || [],
-        geographic_footprint: buyer.geographic_footprint || [],
-        notes: buyer.notes || '',
-      });
-    }
+  // Calculate data completeness percentage
+  const dataCompleteness = useMemo(() => {
+    if (!buyer) return 0;
+    
+    const fields = [
+      buyer.company_name,
+      buyer.company_website,
+      buyer.pe_firm_name,
+      buyer.thesis_summary,
+      buyer.target_revenue_min,
+      buyer.target_revenue_max,
+      buyer.target_geographies?.length,
+      buyer.target_services?.length,
+      buyer.business_summary,
+      buyer.industry_vertical,
+      buyer.strategic_priorities?.length,
+      buyer.acquisition_appetite,
+    ];
+    
+    const filledCount = fields.filter(Boolean).length;
+    return Math.round((filledCount / fields.length) * 100);
   }, [buyer]);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        company_name: formData.company_name,
-        company_website: formData.company_website || null,
-        buyer_type: formData.buyer_type,
-        universe_id: formData.universe_id || null,
-        thesis_summary: formData.thesis_summary || null,
-        target_revenue_min: formData.target_revenue_min ? parseFloat(formData.target_revenue_min) : null,
-        target_revenue_max: formData.target_revenue_max ? parseFloat(formData.target_revenue_max) : null,
-        target_ebitda_min: formData.target_ebitda_min ? parseFloat(formData.target_ebitda_min) : null,
-        target_ebitda_max: formData.target_ebitda_max ? parseFloat(formData.target_ebitda_max) : null,
-        target_geographies: formData.target_geographies,
-        target_services: formData.target_services,
-        geographic_footprint: formData.geographic_footprint,
-        notes: formData.notes || null,
-      };
+  // Calculate missing fields
+  const missingFields = useMemo(() => {
+    if (!buyer) return [];
+    const missing: string[] = [];
+    
+    if (!buyer.target_geographies?.length) missing.push("geography preferences");
+    if (!buyer.target_revenue_min && !buyer.target_revenue_max) missing.push("size criteria");
+    if (!buyer.target_services?.length) missing.push("target services");
+    if (!buyer.thesis_summary) missing.push("investment thesis");
+    if (!buyer.strategic_priorities?.length) missing.push("strategic priorities");
+    if (!buyer.business_summary) missing.push("business summary");
+    
+    return missing;
+  }, [buyer]);
 
-      if (isNew) {
-        const { data, error } = await supabase
-          .from('remarketing_buyers')
-          .insert([payload])
-          .select()
-          .single();
-        
-        if (error) throw error;
-        return data;
-      } else {
-        const { error } = await supabase
-          .from('remarketing_buyers')
-          .update(payload)
-          .eq('id', id);
-        
-        if (error) throw error;
-      }
+  // Mutations
+  const enrichMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('enrich-buyer', {
+        body: { buyerId: id }
+      });
+      if (error) throw error;
+      return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', id] });
-      toast.success(isNew ? 'Buyer created' : 'Buyer saved');
-      if (isNew && data?.id) {
-        navigate(`/admin/remarketing/buyers/${data.id}`);
-      }
+      toast.success('Buyer enriched successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Enrichment failed: ${error.message}`);
+    }
+  });
+
+  const updateFeeAgreementMutation = useMutation({
+    mutationFn: async (hasFeeAgreement: boolean) => {
+      const { error } = await supabase
+        .from('remarketing_buyers')
+        .update({ has_fee_agreement: hasFeeAgreement })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', id] });
+      toast.success('Fee agreement updated');
     },
     onError: () => {
-      toast.error('Failed to save buyer');
+      toast.error('Failed to update fee agreement');
     }
   });
 
@@ -243,14 +311,13 @@ const ReMarketingBuyerDetail = () => {
       const { error } = await supabase
         .from('remarketing_buyer_contacts')
         .insert([{ ...newContact, buyer_id: id }]);
-      
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact added');
       setIsContactDialogOpen(false);
-      setNewContact({ name: '', email: '', phone: '', role: '', is_primary: false });
+      setNewContact({ name: '', email: '', phone: '', role: '', linkedin_url: '', is_primary: false });
     },
     onError: () => {
       toast.error('Failed to add contact');
@@ -263,7 +330,6 @@ const ReMarketingBuyerDetail = () => {
         .from('remarketing_buyer_contacts')
         .delete()
         .eq('id', contactId);
-      
       if (error) throw error;
     },
     onSuccess: () => {
@@ -275,16 +341,106 @@ const ReMarketingBuyerDetail = () => {
     }
   });
 
-  const handleArrayInput = (field: 'target_geographies' | 'target_services' | 'geographic_footprint', value: string) => {
-    const items = value.split(',').map(s => s.trim()).filter(Boolean);
-    setFormData({ ...formData, [field]: items });
+  const addTranscriptMutation = useMutation({
+    mutationFn: async ({ text, source, fileName }: { text: string; source: string; fileName?: string }) => {
+      const { error } = await supabase
+        .from('buyer_transcripts')
+        .insert([{
+          buyer_id: id,
+          transcript_text: text,
+          source,
+          file_name: fileName || null
+        }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
+      toast.success('Transcript added');
+    },
+    onError: () => {
+      toast.error('Failed to add transcript');
+    }
+  });
+
+  const extractTranscriptMutation = useMutation({
+    mutationFn: async (transcriptId: string) => {
+      const transcript = transcripts.find(t => t.id === transcriptId);
+      if (!transcript) throw new Error('Transcript not found');
+      
+      const { data, error } = await supabase.functions.invoke('extract-transcript', {
+        body: { buyerId: id, transcriptText: transcript.transcript_text, source: transcript.source || 'call' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', id] });
+      toast.success('Intelligence extracted');
+    },
+    onError: (error: Error) => {
+      toast.error(`Extraction failed: ${error.message}`);
+    }
+  });
+
+  const deleteTranscriptMutation = useMutation({
+    mutationFn: async (transcriptId: string) => {
+      const { error } = await supabase
+        .from('buyer_transcripts')
+        .delete()
+        .eq('id', transcriptId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
+      toast.success('Transcript deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete transcript');
+    }
+  });
+
+  const handleExtractAll = async () => {
+    const pendingTranscripts = transcripts.filter(t => !t.processed_at);
+    for (const transcript of pendingTranscripts) {
+      await extractTranscriptMutation.mutateAsync(transcript.id);
+    }
   };
 
   if (!isNew && isLoading) {
     return (
       <div className="p-6 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <div className="grid grid-cols-2 gap-6">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isNew) {
+    // For new buyers, show the creation form (simplified)
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/admin/remarketing/buyers">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-bold">New Buyer</h1>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Create New Buyer</CardTitle>
+            <CardDescription>Add a new external buyer to the database</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">New buyer creation form - use the existing flow</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -292,484 +448,384 @@ const ReMarketingBuyerDetail = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/admin/remarketing/buyers">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {isNew ? 'New Buyer' : formData.company_name || 'Buyer'}
-            </h1>
-            <p className="text-muted-foreground">
-              {isNew ? 'Add a new external buyer' : 'Edit buyer details and contacts'}
-            </p>
-          </div>
-          {!isNew && buyer && (
-            <IntelligenceBadge 
-              completeness={(buyer.data_completeness as DataCompleteness) || null} 
-              size="md"
-            />
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {!isNew && (
-            <EnrichmentButton
-              buyerId={id!}
-              buyerName={formData.company_name}
-              hasWebsite={!!formData.company_website}
-              lastEnriched={buyer?.data_last_updated}
-            />
-          )}
-          <Button 
-            onClick={() => saveMutation.mutate()}
-            disabled={!formData.company_name || saveMutation.isPending}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {saveMutation.isPending ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      </div>
+      <BuyerDetailHeader
+        companyName={buyer?.company_name || ""}
+        peFirmName={buyer?.pe_firm_name}
+        platformWebsite={buyer?.platform_website || buyer?.company_website}
+        hqCity={buyer?.hq_city}
+        hqState={buyer?.hq_state}
+        hqCountry={buyer?.hq_country}
+        dataCompleteness={dataCompleteness}
+        onEdit={() => setIsEditDialogOpen(true)}
+        onEnrich={() => enrichMutation.mutate()}
+        isEnriching={enrichMutation.isPending}
+      />
 
-      <Tabs defaultValue="details" className="space-y-6">
+      {/* Criteria Completeness Banner */}
+      <CriteriaCompletenessBanner
+        completenessPercent={dataCompleteness}
+        missingFields={missingFields}
+        onAutoEnrich={() => enrichMutation.mutate()}
+        isEnriching={enrichMutation.isPending}
+      />
+
+      {/* Main Contact Card */}
+      <MainContactCard
+        contacts={contacts}
+        onAddContact={() => setIsContactDialogOpen(true)}
+      />
+
+      {/* Fee Agreement Toggle */}
+      <FeeAgreementToggle
+        hasFeeAgreement={buyer?.has_fee_agreement || false}
+        onChange={(value) => updateFeeAgreementMutation.mutate(value)}
+        disabled={updateFeeAgreementMutation.isPending}
+      />
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="intelligence" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="details">
-            <Building2 className="mr-2 h-4 w-4" />
-            Details
+          <TabsTrigger value="intelligence">
+            <BarChart2 className="mr-2 h-4 w-4" />
+            Intelligence
           </TabsTrigger>
-          <TabsTrigger value="criteria">
-            <Sparkles className="mr-2 h-4 w-4" />
-            Investment Criteria
+          <TabsTrigger value="history">
+            <Clock className="mr-2 h-4 w-4" />
+            Deal History ({recentScores?.length || 0})
           </TabsTrigger>
-          {!isNew && (
-            <>
-              <TabsTrigger value="contacts">
-                <Users className="mr-2 h-4 w-4" />
-                Contacts ({contacts?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="transcripts">
-                <FileText className="mr-2 h-4 w-4" />
-                Transcripts
-              </TabsTrigger>
-              <TabsTrigger value="history">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Match History
-              </TabsTrigger>
-            </>
-          )}
+          <TabsTrigger value="contacts">
+            <Users className="mr-2 h-4 w-4" />
+            Contacts ({contacts?.length || 0})
+          </TabsTrigger>
         </TabsList>
 
-        {/* Details Tab */}
-        <TabsContent value="details">
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Details</CardTitle>
-              <CardDescription>Basic information about this buyer</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="company_name">Company Name *</Label>
-                  <Input
-                    id="company_name"
-                    placeholder="e.g., Blackstone"
-                    value={formData.company_name}
-                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company_website">Website</Label>
-                  <Input
-                    id="company_website"
-                    placeholder="https://example.com"
-                    value={formData.company_website}
-                    onChange={(e) => setFormData({ ...formData, company_website: e.target.value })}
-                  />
-                </div>
-              </div>
+        {/* Intelligence Tab */}
+        <TabsContent value="intelligence" className="space-y-6">
+          {/* Two Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-6">
+              <BusinessDescriptionCard
+                industryVertical={buyer?.industry_vertical}
+                businessSummary={buyer?.business_summary}
+                servicesOffered={buyer?.target_services}
+                specializedFocus={buyer?.specialized_focus}
+                onEdit={() => setIsEditDialogOpen(true)}
+              />
+              
+              <GeographicFootprintCard
+                targetGeographies={buyer?.target_geographies}
+                onEdit={() => setIsEditDialogOpen(true)}
+              />
+              
+              <CustomerEndMarketCard
+                primaryCustomerSize={buyer?.primary_customer_size}
+                customerGeographicReach={buyer?.customer_geographic_reach}
+                customerIndustries={buyer?.customer_industries}
+                targetCustomerProfile={buyer?.target_customer_profile}
+                onEdit={() => setIsEditDialogOpen(true)}
+              />
+            </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Buyer Type</Label>
-                  <Select
-                    value={formData.buyer_type}
-                    onValueChange={(value) => setFormData({ ...formData, buyer_type: value as BuyerType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BUYER_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Universe</Label>
-                  <Select
-                    value={formData.universe_id}
-                    onValueChange={(value) => setFormData({ ...formData, universe_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select universe (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {universes?.map((universe) => (
-                        <SelectItem key={universe.id} value={universe.id}>
-                          {universe.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            {/* Right Column */}
+            <div className="space-y-6">
+              <InvestmentCriteriaCard
+                investmentThesis={buyer?.thesis_summary}
+                thesisConfidence={buyer?.thesis_confidence}
+                strategicPriorities={buyer?.strategic_priorities}
+                dealBreakers={buyer?.deal_breakers}
+                onEdit={() => setIsEditDialogOpen(true)}
+              />
+              
+              <DealStructureCard
+                minRevenue={buyer?.target_revenue_min}
+                maxRevenue={buyer?.target_revenue_max}
+                revenueSweetSpot={buyer?.revenue_sweet_spot}
+                minEbitda={buyer?.target_ebitda_min}
+                maxEbitda={buyer?.target_ebitda_max}
+                ebitdaSweetSpot={buyer?.ebitda_sweet_spot}
+                dealPreferences={buyer?.deal_preferences}
+                acquisitionAppetite={buyer?.acquisition_appetite}
+                acquisitionTimeline={buyer?.acquisition_timeline}
+                onEdit={() => setIsEditDialogOpen(true)}
+              />
+              
+              <AcquisitionHistoryCard
+                totalAcquisitions={buyer?.total_acquisitions}
+                acquisitionFrequency={buyer?.acquisition_frequency}
+                onEdit={() => setIsEditDialogOpen(true)}
+              />
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="thesis_summary">Investment Thesis</Label>
-                <Textarea
-                  id="thesis_summary"
-                  placeholder="Describe this buyer's investment thesis and focus areas..."
-                  value={formData.thesis_summary}
-                  onChange={(e) => setFormData({ ...formData, thesis_summary: e.target.value })}
-                  rows={4}
-                />
-              </div>
+          {/* Full Width: Key Quotes */}
+          <KeyQuotesCard quotes={buyer?.key_quotes} />
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Additional notes about this buyer..."
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Full Width: Transcripts */}
+          <TranscriptsListCard
+            transcripts={transcripts}
+            onAddTranscript={(text, source, fileName) => 
+              addTranscriptMutation.mutate({ text, source, fileName })
+            }
+            onExtract={(transcriptId) => extractTranscriptMutation.mutate(transcriptId)}
+            onExtractAll={handleExtractAll}
+            onDelete={(transcriptId) => {
+              if (confirm('Delete this transcript?')) {
+                deleteTranscriptMutation.mutate(transcriptId);
+              }
+            }}
+            isAdding={addTranscriptMutation.isPending}
+            isExtracting={extractTranscriptMutation.isPending}
+          />
         </TabsContent>
 
-        {/* Investment Criteria Tab */}
-        <TabsContent value="criteria">
+        {/* Deal History Tab */}
+        <TabsContent value="history">
           <Card>
             <CardHeader>
-              <CardTitle>Investment Criteria</CardTitle>
-              <CardDescription>Target deal size and characteristics</CardDescription>
+              <CardTitle>Match History</CardTitle>
+              <CardDescription>Recent scoring activity for this buyer</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h4 className="font-medium mb-3">Target Revenue Range</h4>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="target_revenue_min">Minimum ($)</Label>
-                    <Input
-                      id="target_revenue_min"
-                      type="number"
-                      placeholder="e.g., 5000000"
-                      value={formData.target_revenue_min}
-                      onChange={(e) => setFormData({ ...formData, target_revenue_min: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="target_revenue_max">Maximum ($)</Label>
-                    <Input
-                      id="target_revenue_max"
-                      type="number"
-                      placeholder="e.g., 50000000"
-                      value={formData.target_revenue_max}
-                      onChange={(e) => setFormData({ ...formData, target_revenue_max: e.target.value })}
-                    />
-                  </div>
+            <CardContent>
+              {recentScores?.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <BarChart3 className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                  <p>No matches scored yet</p>
                 </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-3">Target EBITDA Range</h4>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="target_ebitda_min">Minimum ($)</Label>
-                    <Input
-                      id="target_ebitda_min"
-                      type="number"
-                      placeholder="e.g., 1000000"
-                      value={formData.target_ebitda_min}
-                      onChange={(e) => setFormData({ ...formData, target_ebitda_min: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="target_ebitda_max">Maximum ($)</Label>
-                    <Input
-                      id="target_ebitda_max"
-                      type="number"
-                      placeholder="e.g., 10000000"
-                      value={formData.target_ebitda_max}
-                      onChange={(e) => setFormData({ ...formData, target_ebitda_max: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="target_geographies">Target Geographies</Label>
-                <Input
-                  id="target_geographies"
-                  placeholder="e.g., Texas, Florida, Southeast (comma-separated)"
-                  value={formData.target_geographies.join(', ')}
-                  onChange={(e) => handleArrayInput('target_geographies', e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">States or regions the buyer is targeting</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="target_services">Target Services/Industries</Label>
-                <Input
-                  id="target_services"
-                  placeholder="e.g., HVAC, Plumbing, Electrical (comma-separated)"
-                  value={formData.target_services.join(', ')}
-                  onChange={(e) => handleArrayInput('target_services', e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">Service types or industries the buyer focuses on</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="geographic_footprint">Current Footprint</Label>
-                <Input
-                  id="geographic_footprint"
-                  placeholder="e.g., California, Arizona (comma-separated)"
-                  value={formData.geographic_footprint.join(', ')}
-                  onChange={(e) => handleArrayInput('geographic_footprint', e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">Where the buyer currently operates</p>
-              </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Listing</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Tier</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recentScores?.map((score: any) => (
+                      <TableRow key={score.id}>
+                        <TableCell>
+                          <Link 
+                            to={`/admin/remarketing/matching/${score.listing?.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {score.listing?.title || 'Unknown'}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {Math.round(score.composite_score)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            score.tier === 'A' ? 'default' :
+                            score.tier === 'B' ? 'secondary' :
+                            'outline'
+                          }>
+                            Tier {score.tier}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            score.status === 'approved' ? 'default' :
+                            score.status === 'passed' ? 'secondary' :
+                            'outline'
+                          }>
+                            {score.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(score.created_at).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Contacts Tab */}
-        {!isNew && (
-          <TabsContent value="contacts">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Contacts</CardTitle>
-                    <CardDescription>Key contacts at this organization</CardDescription>
-                  </div>
-                  <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Contact
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Contact</DialogTitle>
-                        <DialogDescription>Add a new contact for this buyer</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="contact_name">Name *</Label>
-                          <Input
-                            id="contact_name"
-                            value={newContact.name}
-                            onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="contact_email">Email</Label>
-                          <Input
-                            id="contact_email"
-                            type="email"
-                            value={newContact.email}
-                            onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="contact_phone">Phone</Label>
-                          <Input
-                            id="contact_phone"
-                            value={newContact.phone}
-                            onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="contact_role">Role</Label>
-                          <Input
-                            id="contact_role"
-                            placeholder="e.g., Managing Partner"
-                            value={newContact.role}
-                            onChange={(e) => setNewContact({ ...newContact, role: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsContactDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={() => addContactMutation.mutate()}
-                          disabled={!newContact.name || addContactMutation.isPending}
-                        >
-                          Add Contact
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+        <TabsContent value="contacts">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Contacts</CardTitle>
+                  <CardDescription>Key contacts at this organization</CardDescription>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {contacts?.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                    <p>No contacts added yet</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contacts?.map((contact: any) => (
-                        <TableRow key={contact.id}>
-                          <TableCell className="font-medium">
-                            {contact.name}
-                            {contact.is_primary && (
-                              <Badge variant="secondary" className="ml-2">Primary</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{contact.role || '—'}</TableCell>
-                          <TableCell>
-                            {contact.email ? (
-                              <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-primary hover:underline">
-                                <Mail className="h-3 w-3" />
-                                {contact.email}
-                              </a>
-                            ) : '—'}
-                          </TableCell>
-                          <TableCell>
-                            {contact.phone ? (
-                              <a href={`tel:${contact.phone}`} className="flex items-center gap-1 hover:underline">
-                                <Phone className="h-3 w-3" />
-                                {contact.phone}
-                              </a>
-                            ) : '—'}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => {
-                                if (confirm('Delete this contact?')) {
-                                  deleteContactMutation.mutate(contact.id);
-                                }
-                              }}
+                <Button size="sm" onClick={() => setIsContactDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Contact
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {contacts?.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                  <p>No contacts added yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>LinkedIn</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contacts?.map((contact) => (
+                      <TableRow key={contact.id}>
+                        <TableCell className="font-medium">
+                          {contact.name}
+                          {contact.is_primary && (
+                            <Badge variant="secondary" className="ml-2">Primary</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{contact.role || '—'}</TableCell>
+                        <TableCell>
+                          {contact.email ? (
+                            <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-primary hover:underline">
+                              <Mail className="h-3 w-3" />
+                              {contact.email}
+                            </a>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {contact.phone ? (
+                            <a href={`tel:${contact.phone}`} className="flex items-center gap-1 hover:underline">
+                              <Phone className="h-3 w-3" />
+                              {contact.phone}
+                            </a>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {contact.linkedin_url ? (
+                            <a 
+                              href={contact.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-primary hover:underline"
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
-
-        {/* Transcripts Tab */}
-        {!isNew && (
-          <TabsContent value="transcripts">
-            <TranscriptSection 
-              buyerId={id!} 
-              buyerName={formData.company_name}
-            />
-          </TabsContent>
-        )}
-
-        {/* Match History Tab */}
-        {!isNew && (
-          <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <CardTitle>Match History</CardTitle>
-                <CardDescription>Recent scoring activity for this buyer</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {recentScores?.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <BarChart3 className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                    <p>No matches scored yet</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Listing</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead>Tier</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
+                              <Linkedin className="h-3 w-3" />
+                              Profile
+                            </a>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => {
+                              if (confirm('Delete this contact?')) {
+                                deleteContactMutation.mutate(contact.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {recentScores?.map((score: any) => (
-                        <TableRow key={score.id}>
-                          <TableCell>
-                            <Link 
-                              to={`/admin/remarketing/matching/${score.listing?.id}`}
-                              className="font-medium hover:underline"
-                            >
-                              {score.listing?.title || 'Unknown'}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            {Math.round(score.composite_score)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              score.tier === 'A' ? 'default' :
-                              score.tier === 'B' ? 'secondary' :
-                              'outline'
-                            }>
-                              Tier {score.tier}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              score.status === 'approved' ? 'default' :
-                              score.status === 'passed' ? 'secondary' :
-                              'outline'
-                            }>
-                              {score.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(score.created_at).toLocaleDateString()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Add Contact Dialog */}
+      <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Contact</DialogTitle>
+            <DialogDescription>Add a new contact for this buyer</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="contact_name">Name *</Label>
+              <Input
+                id="contact_name"
+                value={newContact.name}
+                onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact_email">Email</Label>
+              <Input
+                id="contact_email"
+                type="email"
+                value={newContact.email}
+                onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact_phone">Phone</Label>
+              <Input
+                id="contact_phone"
+                value={newContact.phone}
+                onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact_role">Role</Label>
+              <Input
+                id="contact_role"
+                placeholder="e.g., Managing Partner"
+                value={newContact.role}
+                onChange={(e) => setNewContact({ ...newContact, role: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact_linkedin">LinkedIn URL</Label>
+              <Input
+                id="contact_linkedin"
+                placeholder="https://linkedin.com/in/..."
+                value={newContact.linkedin_url}
+                onChange={(e) => setNewContact({ ...newContact, linkedin_url: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsContactDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => addContactMutation.mutate()}
+              disabled={!newContact.name || addContactMutation.isPending}
+            >
+              Add Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog - Placeholder for now */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Buyer</DialogTitle>
+            <DialogDescription>Update buyer information</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-center text-muted-foreground">
+            <p>Full edit form coming soon. For now, use the enrichment features.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
