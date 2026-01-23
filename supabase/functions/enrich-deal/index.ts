@@ -202,7 +202,12 @@ Focus on extracting:
 7. Address/headquarters - Company headquarters location
 8. Founded year - When the company was established
 9. Customer types - Who they serve (commercial, residential, government, etc.)
-10. Key differentiators - What makes them unique`;
+10. Key differentiators - What makes them unique
+11. Key risks - Any potential risk factors visible (single customer, aging tech, etc.)
+12. Competitive position - Market positioning information
+13. Technology/systems - Software, tools, or technology mentioned
+14. Real estate - Information about facilities (owned vs leased)
+15. Growth trajectory - Any growth indicators or history`;
 
     const userPrompt = `Analyze this website content from "${deal.title}" and extract business information.
 
@@ -272,6 +277,26 @@ Extract all available business information using the provided tool.`;
                   key_differentiators: {
                     type: 'string',
                     description: 'What makes this company unique or competitive advantages'
+                  },
+                  key_risks: {
+                    type: 'string',
+                    description: 'Potential risk factors identified (one per line)'
+                  },
+                  competitive_position: {
+                    type: 'string',
+                    description: 'Market positioning, competitive advantages, market share information'
+                  },
+                  technology_systems: {
+                    type: 'string',
+                    description: 'Software, tools, or technology systems mentioned'
+                  },
+                  real_estate_info: {
+                    type: 'string',
+                    description: 'Information about facilities, whether owned or leased, square footage'
+                  },
+                  growth_trajectory: {
+                    type: 'string',
+                    description: 'Growth indicators, expansion history, or trajectory information'
                   }
                 }
               }
@@ -339,6 +364,22 @@ Extract all available business information using the provided tool.`;
     }
     if (extracted.customer_types && !deal.customer_types) {
       updates.customer_types = extracted.customer_types;
+    }
+    // New fields from expanded extraction
+    if (extracted.key_risks && !deal.key_risks) {
+      updates.key_risks = extracted.key_risks;
+    }
+    if (extracted.competitive_position && !deal.competitive_position) {
+      updates.competitive_position = extracted.competitive_position;
+    }
+    if (extracted.technology_systems && !deal.technology_systems) {
+      updates.technology_systems = extracted.technology_systems;
+    }
+    if (extracted.real_estate_info && !deal.real_estate_info) {
+      updates.real_estate_info = extracted.real_estate_info;
+    }
+    if (extracted.growth_trajectory && !deal.growth_trajectory) {
+      updates.growth_trajectory = extracted.growth_trajectory;
     }
 
     // Update the listing
