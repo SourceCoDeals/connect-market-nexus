@@ -144,17 +144,30 @@ const ReMarketingDealMatching = () => {
     enabled: !!listingId
   });
 
-  // Compute stats
+  // Compute stats including primary disqualification reason
   const stats = useMemo(() => {
-    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, passed: 0, total: 0 };
+    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, passed: 0, total: 0, disqualificationReason: '' };
     
     const qualified = scores.filter(s => s.composite_score >= 55 && s.status !== 'passed').length;
-    const disqualified = scores.filter(s => s.composite_score < 55 || s.fit_reasoning?.toLowerCase().includes('disqualified')).length;
+    const disqualifiedScores = scores.filter(s => s.composite_score < 55 || s.fit_reasoning?.toLowerCase().includes('disqualified'));
+    const disqualified = disqualifiedScores.length;
     const strong = scores.filter(s => s.composite_score >= 70).length;
     const approved = scores.filter(s => s.status === 'approved').length;
     const passed = scores.filter(s => s.status === 'passed').length;
     
-    return { qualified, disqualified, strong, approved, passed, total: scores.length };
+    // Compute most common disqualification reason
+    const reasons = disqualifiedScores.map(s => {
+      const r = s.fit_reasoning?.toLowerCase() || '';
+      if (r.includes('geography') || r.includes('location') || r.includes('state')) return 'no nearby presence';
+      if (r.includes('size') || r.includes('revenue')) return 'size mismatch';
+      if (r.includes('service')) return 'service mismatch';
+      return 'criteria mismatch';
+    });
+    
+    const reasonCounts = reasons.reduce((acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }), {} as Record<string, number>);
+    const topReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+    
+    return { qualified, disqualified, strong, approved, passed, total: scores.length, disqualificationReason: topReason };
   }, [scores]);
 
   // Filter and sort scores
@@ -454,7 +467,7 @@ const ReMarketingDealMatching = () => {
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <AlertCircle className="h-4 w-4 text-red-400" />
-            <span>{stats.disqualified} disqualified</span>
+            <span>{stats.disqualified} disqualified{stats.disqualificationReason && ` (${stats.disqualificationReason})`}</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Target className="h-4 w-4 text-blue-500" />

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -14,13 +15,17 @@ import {
   Check,
   X,
   ExternalLink,
+  Eye,
   MapPin,
   ChevronDown,
   FileText,
   Users,
   Globe,
   Building2,
+  Landmark,
   AlertCircle,
+  AlertTriangle,
+  DollarSign,
 } from "lucide-react";
 import { ScoreTierBadge, getTierFromScore } from "./ScoreTierBadge";
 import { IntelligenceBadge } from "./IntelligenceBadge";
@@ -52,8 +57,7 @@ interface BuyerMatchCardProps {
 
 const getScoreColorClass = (score: number) => {
   if (score >= 80) return "text-emerald-600";
-  if (score >= 60) return "text-amber-600";
-  if (score >= 40) return "text-orange-500";
+  if (score >= 50) return "text-amber-600";
   return "text-red-500";
 };
 
@@ -70,10 +74,22 @@ const isDisqualified = (score: number, reasoning: string | null) => {
 };
 
 // Get disqualification reason from reasoning text
-const getDisqualificationReason = (reasoning: string | null) => {
-  if (!reasoning) return null;
-  const match = reasoning.match(/disqualified[:\s]+(.+?)(?:\.|$)/i);
-  return match ? match[1].trim() : null;
+const getDisqualificationReason = (reasoning: string | null): string => {
+  if (!reasoning) return 'criteria mismatch';
+  const lower = reasoning.toLowerCase();
+  if (lower.includes('geography') || lower.includes('location') || lower.includes('state')) {
+    return 'no nearby presence';
+  }
+  if (lower.includes('size') || lower.includes('revenue')) {
+    return 'size mismatch';
+  }
+  if (lower.includes('service')) {
+    return 'service mismatch';
+  }
+  if (lower.includes('excluded')) {
+    return 'excluded criteria';
+  }
+  return 'criteria mismatch';
 };
 
 // Calculate missing data fields
@@ -111,6 +127,14 @@ const formatCurrency = (value: number | null | undefined) => {
   return `$${value}`;
 };
 
+// Get fit label based on score
+const getFitLabel = (score: number, disqualified: boolean): string => {
+  if (disqualified) return '❌ DISQUALIFIED:';
+  if (score >= 70) return '✅ Strong fit:';
+  if (score >= 55) return '✓ Moderate fit:';
+  return '⚠ Poor fit:';
+};
+
 export const BuyerMatchCard = ({
   score,
   dealLocation,
@@ -125,7 +149,6 @@ export const BuyerMatchCard = ({
   const buyer = score.buyer;
   const tier = score.tier || getTierFromScore(score.composite_score);
   const disqualified = isDisqualified(score.composite_score, score.fit_reasoning);
-  const disqualificationReason = getDisqualificationReason(score.fit_reasoning);
   const missingData = getMissingDataFields(buyer);
   
   // Format financial range
@@ -136,17 +159,7 @@ export const BuyerMatchCard = ({
   // Buyer footprint summary
   const buyerFootprint = buyer?.geographic_footprint?.slice(0, 3).join(', ') || 'Unknown';
   
-  // Determine background color based on status/tier
-  const getCardBackground = () => {
-    if (score.status === 'passed') return 'bg-muted/30';
-    if (score.status === 'approved') return 'bg-emerald-50/50 border-emerald-200';
-    if (disqualified) return 'bg-red-50/50 border-red-200';
-    if (score.composite_score >= 70) return 'bg-emerald-50/30 border-emerald-100';
-    if (score.composite_score >= 55) return 'bg-amber-50/30 border-amber-100';
-    return 'bg-background';
-  };
-  
-  // Determine reasoning panel background
+  // Determine reasoning panel background - only this panel gets colored
   const getReasoningBackground = () => {
     if (disqualified) return 'bg-red-50 border-red-200';
     if (score.composite_score >= 70) return 'bg-emerald-50 border-emerald-200';
@@ -156,11 +169,10 @@ export const BuyerMatchCard = ({
 
   return (
     <div className={cn(
-      "border rounded-lg transition-all",
-      getCardBackground(),
+      "border rounded-lg transition-all bg-background",
       score.status === 'passed' && "opacity-60"
     )}>
-      {/* Main Header Row */}
+      {/* Main Header Row - White background */}
       <div className="p-4 pb-3">
         <div className="flex items-start gap-3">
           {/* Checkbox */}
@@ -183,9 +195,24 @@ export const BuyerMatchCard = ({
                 {buyer?.company_name || 'Unknown Buyer'}
               </Link>
               
+              {/* Eye icon for preview */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link 
+                      to={`/admin/remarketing/buyers/${buyer?.id}`}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>View buyer profile</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
               {buyer?.company_website && (
                 <a 
-                  href={buyer.company_website} 
+                  href={buyer.company_website.startsWith('http') ? buyer.company_website : `https://${buyer.company_website}`}
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-foreground"
@@ -194,10 +221,26 @@ export const BuyerMatchCard = ({
                 </a>
               )}
               
-              {/* Fee Status Badge - placeholder for now */}
-              {/* <span className="inline-flex items-center text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                Fee Signed
-              </span> */}
+              {/* Disqualified Badge - inline with name */}
+              {disqualified && (
+                <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 text-xs">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  Disqualified
+                </Badge>
+              )}
+              
+              {/* Fee Status Badge */}
+              {buyer?.buyer_type === 'pe_firm' || buyer?.buyer_type === 'platform' ? (
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs">
+                  <FileText className="h-3 w-3 mr-1" />
+                  Fee Signed
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 text-xs">
+                  <FileText className="h-3 w-3 mr-1" />
+                  No Fee
+                </Badge>
+              )}
             </div>
             
             {/* Row 2: Location */}
@@ -211,26 +254,34 @@ export const BuyerMatchCard = ({
               </div>
             )}
             
-            {/* Row 3: Website links */}
-            <div className="flex items-center gap-3 text-sm mb-1">
+            {/* Row 3: Website links (Company + PE Firm) */}
+            <div className="flex items-center gap-4 text-sm mb-1">
               {buyer?.company_website && (
                 <a 
-                  href={buyer.company_website} 
+                  href={buyer.company_website.startsWith('http') ? buyer.company_website : `https://${buyer.company_website}`}
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-primary hover:underline"
                 >
                   <Globe className="h-3.5 w-3.5" />
-                  Website
+                  <span className="truncate max-w-[180px]">
+                    {buyer.company_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                  </span>
                 </a>
+              )}
+              {buyer?.buyer_type === 'pe_firm' && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Building2 className="h-3.5 w-3.5" />
+                  PE Firm
+                </span>
               )}
             </div>
             
-            {/* Row 4: Buyer Type / PE Firm */}
-            {buyer?.buyer_type && (
+            {/* Row 4: PE Firm Name (if applicable) */}
+            {buyer?.buyer_type === 'pe_firm' && (
               <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                <Building2 className="h-3.5 w-3.5" />
-                <span className="capitalize">{buyer.buyer_type.replace('_', ' ')}</span>
+                <Landmark className="h-3.5 w-3.5" />
+                <span>{buyer.company_name}</span>
               </div>
             )}
             
@@ -244,7 +295,10 @@ export const BuyerMatchCard = ({
             {/* Row 6: Financial Range + Contacts */}
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               {financialRange && (
-                <span className="font-medium">{financialRange}</span>
+                <span className="flex items-center gap-1">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  {financialRange}
+                </span>
               )}
               {buyer?.contacts && buyer.contacts.length > 0 && (
                 <span className="flex items-center gap-1">
@@ -271,15 +325,15 @@ export const BuyerMatchCard = ({
                 </TooltipTrigger>
                 <TooltipContent side="left" className="max-w-xs">
                   <p className="font-medium mb-1">
-                    {score.data_completeness === 'high' ? '✓ Complete Data' :
-                     score.data_completeness === 'medium' ? '⚠ Partial Data' : '✗ Incomplete Data'}
+                    {score.data_completeness === 'high' ? '✅ Complete Data' :
+                     score.data_completeness === 'medium' ? '⚠ Partial Data' : '❌ Needs Research'}
                   </p>
                   <p className="text-xs text-muted-foreground mb-2">
                     {score.data_completeness === 'high' 
                       ? 'Buyer profile has sufficient data for confident scoring'
                       : 'Some data points are missing which may affect score accuracy'}
                   </p>
-                  {missingData.length > 0 && score.data_completeness !== 'high' && (
+                  {missingData.length > 0 && (
                     <div>
                       <p className="text-xs font-medium mb-1">Missing data:</p>
                       <ul className="text-xs text-muted-foreground space-y-0.5">
@@ -296,13 +350,18 @@ export const BuyerMatchCard = ({
             {/* Intelligence Badge */}
             <IntelligenceBadge completeness={score.data_completeness} size="sm" />
             
-            {/* Score Badge */}
+            {/* Score Badge - "→Strong 77" format or "Not Eligible" */}
             {disqualified ? (
-              <span className="inline-flex items-center text-xs font-medium text-red-700 bg-red-100 px-2.5 py-1 rounded">
+              <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-xs">
                 Not Eligible
-              </span>
+              </Badge>
             ) : (
-              <ScoreTierBadge tier={tier} size="md" />
+              <ScoreTierBadge 
+                tier={tier} 
+                score={score.composite_score}
+                variant="full"
+                size="sm"
+              />
             )}
             
             {/* Expand Chevron */}
@@ -330,55 +389,45 @@ export const BuyerMatchCard = ({
                 onClick={() => onPass(score.id, buyer?.company_name || 'Unknown', score)}
                 disabled={isPending}
               >
+                <X className="mr-1 h-3.5 w-3.5" />
                 Not A Fit
               </Button>
               <Button
                 size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => onApprove(score.id, score)}
                 disabled={isPending}
               >
-                <Check className="mr-1 h-4 w-4" />
+                <Check className="mr-1 h-3.5 w-3.5" />
                 Approve
               </Button>
             </>
           ) : score.status === 'approved' ? (
-            <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700">
-              <Check className="h-4 w-4" />
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+              <Check className="h-3 w-3 mr-1" />
               Approved
-            </span>
+            </Badge>
           ) : (
-            <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-              <X className="h-4 w-4" />
+            <Badge variant="outline" className="text-muted-foreground">
+              <X className="h-3 w-3 mr-1" />
               Passed
               {score.pass_reason && ` - ${score.pass_category}`}
-            </span>
+            </Badge>
           )}
         </div>
       </div>
       
-      {/* Score Breakdown Panel */}
+      {/* Score Breakdown Panel - Colored background based on tier */}
       <div className={cn(
         "border-t p-4",
         getReasoningBackground()
       )}>
-        {/* Disqualification Warning */}
-        {disqualified && disqualificationReason && (
-          <div className="flex items-start gap-2 text-red-700 mb-3">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <p className="text-sm font-medium">
-              DISQUALIFIED: {disqualificationReason}
-            </p>
-          </div>
-        )}
-        
-        {/* AI Reasoning */}
+        {/* AI Reasoning with Fit Label */}
         <p className={cn(
           "text-sm mb-4",
           disqualified ? "text-red-700" : "text-foreground"
         )}>
-          {disqualified ? '❌ ' : score.composite_score >= 70 ? '✅ ' : '✓ '}
-          {score.fit_reasoning || 'No reasoning available'}
+          {getFitLabel(score.composite_score, disqualified)} {score.fit_reasoning || 'No reasoning available'}
         </p>
         
         {/* Inline Score Breakdown */}
@@ -413,6 +462,14 @@ export const BuyerMatchCard = ({
         <p className="text-xs text-muted-foreground">
           Buyer footprint: {buyerFootprint} → Deal: {dealLocation || 'Unknown'}
         </p>
+        
+        {/* Disqualification Warning (repeated at bottom) */}
+        {disqualified && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-red-600">
+            <AlertCircle className="h-4 w-4" />
+            <span>Reason: {getDisqualificationReason(score.fit_reasoning)}</span>
+          </div>
+        )}
         
         {/* Expandable Thesis */}
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
