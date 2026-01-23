@@ -29,6 +29,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface ListingOption {
+  id: string;
+  title: string | null;
+  location: string | null;
+  revenue: number | null;
+  ebitda: number | null;
+  enriched_at: string | null;
+  geographic_states: string[] | null;
+}
+
 interface AddDealToUniverseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,15 +71,18 @@ export const AddDealToUniverseDialog = ({
   // Fetch available listings (not already in universe)
   const { data: availableListings, isLoading: loadingListings } = useQuery({
     queryKey: ["listings", "available-for-universe", universeId, search],
-    queryFn: async () => {
-      const { data, error } = await supabase
+    queryFn: async (): Promise<ListingOption[]> => {
+      // Use explicit any cast to avoid TS2589 deep instantiation error with Supabase types
+      const result = await (supabase as any)
         .from("listings")
         .select("id, title, location, revenue, ebitda, enriched_at, geographic_states")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(50);
 
-      if (error) throw error;
+      if (result.error) throw result.error;
+
+      const data = result.data as ListingOption[];
 
       // Filter by search and exclude existing deals
       let filtered = (data || []).filter((listing) => !existingDealIds.includes(listing.id));
