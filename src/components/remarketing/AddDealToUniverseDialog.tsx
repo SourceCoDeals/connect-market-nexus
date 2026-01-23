@@ -75,12 +75,13 @@ export const AddDealToUniverseDialog = ({
     queryKey: ["listings", "available-for-universe", universeId, search],
     queryFn: async (): Promise<ListingOption[]> => {
       // Use explicit any cast to avoid TS2589 deep instantiation error with Supabase types
+      // Note: listings use deleted_at IS NULL for active status, not is_active
       const result = await (supabase as any)
         .from("listings")
         .select("id, title, location, revenue, ebitda, enriched_at, geographic_states")
-        .eq("is_active", true)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (result.error) throw result.error;
 
