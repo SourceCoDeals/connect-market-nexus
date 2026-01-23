@@ -852,7 +852,7 @@ async function generateAIScore(
     ? `\nINDUSTRY CONTEXT: This is a ${scoringBehavior.industry_preset.replace('_', ' ')} deal. Apply industry-specific matching patterns.`
     : '';
 
-const systemPrompt = `You are an M&A advisor scoring buyer-deal fits. Analyze the match between a business listing and a potential buyer (PE firm/platform/strategic acquirer).
+const systemPrompt = `You are an M&A advisor scoring buyer-deal fits for automotive aftermarket businesses. Analyze the match between a business listing and a potential buyer (PE firm/platform/strategic acquirer).
 
 CRITICAL: You MUST follow the SCORING RULES provided below. These are hard constraints that override general matching logic. Apply them strictly.
 
@@ -865,18 +865,33 @@ Score each category from 0-100 based on fit quality:
 - Portfolio Synergy: How well does this deal complement the buyer's existing portfolio companies?
 - Business Model: How aligned is the deal's business model (service mix, customer base) with buyer preferences?
 
+DEAL BREAKER EVALUATION (CRITICAL):
+- If buyer has deal_breakers listed (e.g., "Avoids DRP", "No shops under $1M"), check if deal violates ANY of them
+- If deal VIOLATES a deal breaker, heavily penalize owner_goals_score (-30 to -50 points) and note it explicitly
+- If deal ALIGNS with buyer preferences (e.g., "owner avoids DRP" matches buyer who "avoids DRP"), this is positive
+- Always mention deal breaker context in reasoning when relevant
+
+REVENUE/EBITDA SWEET SPOT:
+- If buyer has revenue_sweet_spot or ebitda_sweet_spot, deals matching within 20% should get +5 size_score bonus
+- Mention "sweet spot match" in reasoning when applicable
+
+STRATEGIC PRIORITIES:
+- Consider buyer's strategic_priorities when evaluating service and acquisition fit
+- Deals aligning with strategic priorities should get service_score boost
+
 REASONING FORMAT REQUIREMENTS:
 1. Start with a fit label based on composite score:
-   - Score ≥70: "Strong fit:"
-   - Score 55-69: "Moderate fit:"
-   - Score <55: "Poor fit:" or if disqualified: "DISQUALIFIED:"
+   - Score ≥70: "✅ Strong fit:"
+   - Score 55-69: "⚠️ Moderate fit:"
+   - Score <55: "❌ Poor fit:" or if disqualified: "🚫 DISQUALIFIED:"
 2. Include geographic context: "Buyer operates in [STATE] (adjacent)" or "(direct overlap)" or "(no nearby presence)"
 3. Calculate and report service overlap as percentage: "Strong service alignment (67% overlap): [services]" or "Weak service alignment (20% overlap)"
-4. Mention bonus points when applicable: "+10pt primary focus bonus" when deal's primary service matches buyer's primary focus
-5. End reasoning with footprint context: "Buyer footprint: [BUYER_STATES] → Deal: [DEAL_STATE]"
+4. Mention deal breaker context: "Owner avoids DRP - deal aligns." or "⚠️ Violates: [deal breaker]"
+5. Mention bonus points when applicable: "+10pt primary focus bonus" or "+5pt sweet spot bonus"
+6. End reasoning with footprint context: "Buyer footprint: [BUYER_STATES] → Deal: [DEAL_STATE]"
 
 Example reasoning:
-"Strong fit: Buyer operates in TX (adjacent). Strong service alignment (67% overlap): collision, repair, service +10pt primary focus bonus. Buyer footprint: TX, OK, AR → Deal: MO"
+"✅ Strong fit: Buyer operates in TX (adjacent). Strong service alignment (67% overlap): collision, repair. Owner avoids DRP - deal aligns. +10pt primary focus bonus. Buyer footprint: TX, OK, AR → Deal: MO"
 
 Provide scores and reasoning following the format above. Be specific about which rules affected your scoring.`;
 
@@ -951,13 +966,21 @@ BUYER:
 - Company: ${buyer.company_name}
 - Type: ${buyer.buyer_type || "Unknown"}
 - PE Firm: ${buyer.pe_firm_name || "N/A"}
+- HQ Location: ${buyer.hq_city && buyer.hq_state ? `${buyer.hq_city}, ${buyer.hq_state}` : "Unknown"}
 - Target Revenue: ${buyer.target_revenue_min ? `$${buyer.target_revenue_min.toLocaleString()}` : "?"} - ${buyer.target_revenue_max ? `$${buyer.target_revenue_max.toLocaleString()}` : "?"}
 - Target EBITDA: ${buyer.target_ebitda_min ? `$${buyer.target_ebitda_min.toLocaleString()}` : "?"} - ${buyer.target_ebitda_max ? `$${buyer.target_ebitda_max.toLocaleString()}` : "?"}
+- Revenue Sweet Spot: ${buyer.revenue_sweet_spot ? `$${buyer.revenue_sweet_spot.toLocaleString()}` : "Not specified"}
+- EBITDA Sweet Spot: ${buyer.ebitda_sweet_spot ? `$${buyer.ebitda_sweet_spot.toLocaleString()}` : "Not specified"}
 - Target Geographies: ${buyer.target_geographies?.join(", ") || "Unknown"}
 - Target Services: ${buyer.target_services?.join(", ") || "Unknown"}
 - Target Industries: ${buyer.target_industries?.join(", ") || "Unknown"}
 - Current Footprint: ${buyer.geographic_footprint?.join(", ") || "Unknown"}
 - Investment Thesis: ${buyer.thesis_summary || "Unknown"}
+- Deal Breakers: ${buyer.deal_breakers?.join(", ") || "None specified"}
+- Strategic Priorities: ${buyer.strategic_priorities?.join(", ") || "Not defined"}
+- Deal Preferences: ${buyer.deal_preferences || "Unknown"}
+- Specialized Focus: ${buyer.specialized_focus || "Unknown"}
+- Acquisition Timeline: ${buyer.acquisition_timeline || "Unknown"}
 - ${getAcquisitionContext()}
 - ${getPortfolioContext()}
 - Acquisition Appetite: ${buyer.acquisition_appetite || "Unknown"}
