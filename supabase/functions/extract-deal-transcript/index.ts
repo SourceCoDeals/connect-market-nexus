@@ -7,247 +7,55 @@ const corsHeaders = {
 };
 
 interface ExtractionResult {
+  // Financial
   revenue?: number;
   ebitda?: number;
-  employees?: number;
+  ebitda_margin?: number;
+  asking_price?: number;
+  
+  // Business basics
+  full_time_employees?: number;
   location?: string;
-  founded?: string;
+  headquarters_address?: string;
+  founded_year?: number;
   industry?: string;
+  website?: string;
+  
+  // Services & Business model
   services?: string[];
-  owner_goals?: string;
-  special_requirements?: string;
-  customer_types?: string;
   service_mix?: string;
+  business_model?: string;
+  
+  // Geography
   geographic_states?: string[];
+  number_of_locations?: number;
+  
+  // Owner & Transaction
+  owner_goals?: string;
+  transition_preferences?: string;
+  special_requirements?: string;
+  timeline_notes?: string;
+  
+  // Customers
+  customer_types?: string;
+  end_market_description?: string;
+  
+  // Strategic info
+  executive_summary?: string;
+  competitive_position?: string;
+  growth_trajectory?: string;
+  key_risks?: string;
+  technology_systems?: string;
+  real_estate_info?: string;
+  
+  // Contact info
+  primary_contact_name?: string;
+  primary_contact_email?: string;
+  primary_contact_phone?: string;
+  
+  // Metadata
   key_quotes?: string[];
   confidence: Record<string, 'high' | 'medium' | 'low'>;
-}
-
-// Enhanced extraction patterns
-function extractIntelligence(text: string): ExtractionResult {
-  const result: ExtractionResult = {
-    confidence: {}
-  };
-
-  // Revenue patterns
-  const revenuePatterns = [
-    /revenue\s*(?:of|is|:)?\s*\$?([\d,.]+)\s*(million|m|k|thousand)?/i,
-    /\$?([\d,.]+)\s*(million|m|k|thousand)?\s*(?:in\s+)?revenue/i,
-    /top\s*line\s*(?:of|is|:)?\s*\$?([\d,.]+)\s*(million|m|k|thousand)?/i,
-    /doing\s*(?:about|around)?\s*\$?([\d,.]+)\s*(million|m|k|thousand)?/i,
-  ];
-
-  for (const pattern of revenuePatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      let value = parseFloat(match[1].replace(/,/g, ''));
-      const unit = match[2]?.toLowerCase();
-      if (unit === 'million' || unit === 'm') value *= 1000000;
-      if (unit === 'k' || unit === 'thousand') value *= 1000;
-      result.revenue = value;
-      result.confidence.revenue = 'medium';
-      break;
-    }
-  }
-
-  // EBITDA patterns
-  const ebitdaPatterns = [
-    /ebitda\s*(?:of|is|:)?\s*\$?([\d,.]+)\s*(million|m|k|thousand)?/i,
-    /\$?([\d,.]+)\s*(million|m|k|thousand)?\s*(?:in\s+)?ebitda/i,
-    /margin\s*(?:of|is|:)?\s*([\d.]+)%/i,
-    /cash\s*flow\s*(?:of|is|:)?\s*\$?([\d,.]+)\s*(million|m|k|thousand)?/i,
-  ];
-
-  for (const pattern of ebitdaPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      if (pattern.source.includes('margin') && result.revenue) {
-        const margin = parseFloat(match[1]) / 100;
-        result.ebitda = Math.round(result.revenue * margin);
-        result.confidence.ebitda = 'low';
-      } else {
-        let value = parseFloat(match[1].replace(/,/g, ''));
-        const unit = match[2]?.toLowerCase();
-        if (unit === 'million' || unit === 'm') value *= 1000000;
-        if (unit === 'k' || unit === 'thousand') value *= 1000;
-        result.ebitda = value;
-        result.confidence.ebitda = 'medium';
-      }
-      break;
-    }
-  }
-
-  // Employee patterns
-  const employeePatterns = [
-    /(\d+)\s*(?:full[- ]time\s+)?employees?/i,
-    /team\s*(?:of|is|:)?\s*(\d+)/i,
-    /(\d+)\s*(?:team\s+)?members?/i,
-    /headcount\s*(?:of|is|:)?\s*(\d+)/i,
-    /staff\s*(?:of|is|:)?\s*(\d+)/i,
-  ];
-
-  for (const pattern of employeePatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      result.employees = parseInt(match[1]);
-      result.confidence.employees = 'medium';
-      break;
-    }
-  }
-
-  // Location patterns
-  const locationPatterns = [
-    /(?:headquartered|based|located)\s+in\s+([A-Za-z\s,]+(?:,\s*[A-Z]{2})?)/i,
-    /(?:headquarters?|hq)\s*(?:is|:)?\s*(?:in\s+)?([A-Za-z\s,]+(?:,\s*[A-Z]{2})?)/i,
-    /(?:out\s+of|from)\s+([A-Za-z\s,]+(?:,\s*[A-Z]{2})?)/i,
-  ];
-
-  for (const pattern of locationPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      result.location = match[1].trim();
-      result.confidence.location = 'medium';
-      break;
-    }
-  }
-
-  // Founded year patterns
-  const foundedPatterns = [
-    /founded\s*(?:in)?\s*(19|20)\d{2}/i,
-    /established\s*(?:in)?\s*(19|20)\d{2}/i,
-    /since\s*(19|20)\d{2}/i,
-    /started\s*(?:in)?\s*(19|20)\d{2}/i,
-    /been\s+(?:in\s+)?business\s+(?:for\s+)?(\d+)\s+years?/i,
-  ];
-
-  for (const pattern of foundedPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      if (pattern.source.includes('years')) {
-        const years = parseInt(match[1]);
-        result.founded = String(new Date().getFullYear() - years);
-        result.confidence.founded = 'low';
-      } else {
-        result.founded = match[0].match(/(19|20)\d{2}/)?.[0];
-        result.confidence.founded = 'high';
-      }
-      break;
-    }
-  }
-
-  // Industry/services patterns
-  const industryKeywords = [
-    'HVAC', 'plumbing', 'roofing', 'electrical', 'landscaping',
-    'construction', 'manufacturing', 'healthcare', 'technology',
-    'retail', 'distribution', 'logistics', 'restaurant', 'hospitality',
-    'auto body', 'collision repair', 'automotive', 'insurance',
-    'home services', 'property management', 'cleaning', 'pest control'
-  ];
-
-  const foundIndustries = industryKeywords.filter(keyword => 
-    text.toLowerCase().includes(keyword.toLowerCase())
-  );
-
-  if (foundIndustries.length > 0) {
-    result.industry = foundIndustries[0];
-    result.services = foundIndustries;
-    result.service_mix = foundIndustries.join(', ');
-    result.confidence.industry = 'medium';
-  }
-
-  // Owner goals patterns
-  const ownerGoalPatterns = [
-    /(?:owner|seller)\s+(?:wants?|looking|hoping)\s+(?:to\s+)?([^.]+)/i,
-    /(?:goal|objective)\s+(?:is\s+)?(?:to\s+)?([^.]+)/i,
-    /looking\s+(?:for|to)\s+(?:a\s+)?(?:buyer|partner|exit|retire)/i,
-    /want(?:s)?\s+to\s+(?:retire|exit|step\s+back|transition)/i,
-  ];
-
-  for (const pattern of ownerGoalPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      result.owner_goals = match[0].trim();
-      result.confidence.owner_goals = 'medium';
-      break;
-    }
-  }
-
-  // Special requirements patterns
-  const requirementPatterns = [
-    /(?:require|need|must\s+have|important\s+that)\s+([^.]+)/i,
-    /(?:deal\s+breaker|non[- ]negotiable)\s*(?:is|:)?\s*([^.]+)/i,
-    /(?:employees?|team)\s+(?:must|need\s+to)\s+([^.]+)/i,
-  ];
-
-  for (const pattern of requirementPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      result.special_requirements = match[0].trim();
-      result.confidence.special_requirements = 'medium';
-      break;
-    }
-  }
-
-  // Customer types patterns
-  const customerPatterns = [
-    /(?:serve|service|work\s+with)\s+(?:primarily\s+)?([^.]+(?:commercial|residential|government|industrial|business))/i,
-    /(?:customers?|clients?)\s+(?:are\s+)?(?:primarily\s+)?([^.]+)/i,
-    /(?:b2b|b2c|business[- ]to[- ]business|business[- ]to[- ]consumer)/i,
-  ];
-
-  for (const pattern of customerPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      result.customer_types = match[0].trim();
-      result.confidence.customer_types = 'medium';
-      break;
-    }
-  }
-
-  // Geographic states patterns
-  const stateAbbreviations = [
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
-  ];
-
-  const foundStates: string[] = [];
-  for (const state of stateAbbreviations) {
-    const pattern = new RegExp(`\\b${state}\\b`, 'g');
-    if (pattern.test(text)) {
-      foundStates.push(state);
-    }
-  }
-
-  if (foundStates.length > 0) {
-    result.geographic_states = [...new Set(foundStates)];
-    result.confidence.geographic_states = 'medium';
-  }
-
-  // Extract key quotes (statements in quotes or significant statements)
-  const quotePatterns = [
-    /"([^"]{20,200})"/g,
-    /'([^']{20,200})'/g,
-  ];
-
-  const quotes: string[] = [];
-  for (const pattern of quotePatterns) {
-    let match;
-    while ((match = pattern.exec(text)) !== null) {
-      if (match[1] && match[1].length > 20) {
-        quotes.push(match[1].trim());
-      }
-    }
-  }
-
-  if (quotes.length > 0) {
-    result.key_quotes = quotes.slice(0, 5);
-    result.confidence.key_quotes = 'high';
-  }
-
-  return result;
 }
 
 serve(async (req) => {
@@ -294,7 +102,7 @@ serve(async (req) => {
       );
     }
 
-    const { transcriptId, transcriptText } = await req.json();
+    const { transcriptId, transcriptText, dealInfo } = await req.json();
 
     if (!transcriptId || !transcriptText) {
       return new Response(
@@ -303,12 +111,128 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Extracting intelligence from transcript ${transcriptId}`);
+    console.log(`Extracting intelligence from transcript ${transcriptId}, text length: ${transcriptText.length}`);
 
-    // Extract intelligence
-    const extracted = extractIntelligence(transcriptText);
+    // Use AI to extract intelligence
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
 
-    console.log('Extracted data:', extracted);
+    const extractionPrompt = `You are an expert M&A analyst. Extract ALL relevant deal intelligence from this call/meeting transcript or notes.
+
+${dealInfo ? `CURRENT DEAL PROFILE:
+- Company: ${dealInfo.company_name || 'Unknown'}
+- Industry: ${dealInfo.industry || 'Unknown'}
+- Location: ${dealInfo.location || 'Not specified'}
+- Revenue: ${dealInfo.revenue ? '$' + dealInfo.revenue.toLocaleString() : 'Unknown'}
+- EBITDA: ${dealInfo.ebitda ? '$' + dealInfo.ebitda.toLocaleString() : 'Unknown'}
+` : ''}
+
+TRANSCRIPT/NOTES:
+${transcriptText}
+
+Extract ALL the following fields. Only include what you actually find in the transcript. Return a valid JSON object:
+
+{
+  "revenue": number or null (in dollars, e.g., 5000000 for $5M),
+  "ebitda": number or null (in dollars),
+  "ebitda_margin": number or null (as decimal, e.g., 0.18 for 18%),
+  "asking_price": number or null (in dollars),
+  "full_time_employees": number or null,
+  "location": "City, State" or null,
+  "headquarters_address": "Full address if mentioned" or null,
+  "founded_year": number or null,
+  "industry": "Primary industry" or null,
+  "website": "URL if mentioned" or null,
+  
+  "services": ["Array of services offered"] or null,
+  "service_mix": "Description of service breakdown (e.g., '60% residential, 40% commercial')" or null,
+  "business_model": "B2B, B2C, recurring revenue, project-based, etc." or null,
+  
+  "geographic_states": ["Array of state abbreviations like 'TX', 'FL'"] or null,
+  "number_of_locations": number or null,
+  
+  "owner_goals": "What does the owner want from this transaction? (exit, retirement, growth partner, etc.)" or null,
+  "transition_preferences": "Transition timeline and involvement preferences" or null,
+  "special_requirements": "Any deal breakers or must-haves" or null,
+  "timeline_notes": "When do they want to close?" or null,
+  
+  "customer_types": "Description of customer segments" or null,
+  "end_market_description": "Who are the end customers?" or null,
+  
+  "executive_summary": "2-3 sentence summary of the business and opportunity" or null,
+  "competitive_position": "Market position and competitive advantages" or null,
+  "growth_trajectory": "Historical and projected growth" or null,
+  "key_risks": "Risk factors mentioned" or null,
+  "technology_systems": "Software and systems used" or null,
+  "real_estate_info": "Owned vs leased, property details" or null,
+  
+  "key_quotes": ["3-5 important direct quotes from owner/seller"] or null,
+  "primary_contact_name": "Main contact name" or null,
+  "primary_contact_email": "Email if mentioned" or null,
+  "primary_contact_phone": "Phone if mentioned" or null,
+  
+  "confidence": {
+    "revenue": "high|medium|low",
+    "ebitda": "high|medium|low",
+    ... (include confidence for each field you extracted)
+  }
+}
+
+IMPORTANT:
+- Only include fields where you found actual data in the transcript
+- For numbers, convert to raw numbers (not strings with formatting)
+- For revenue/EBITDA, interpret "2 million" as 2000000, "$5M" as 5000000
+- Extract direct quotes that are particularly meaningful
+- Be conservative with confidence ratings`;
+
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-preview',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are an expert M&A analyst. Extract structured data from transcripts. Always respond with valid JSON only, no markdown formatting or code blocks.' 
+          },
+          { role: 'user', content: extractionPrompt }
+        ],
+        temperature: 0.2,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('AI API error:', errorText);
+      throw new Error(`AI extraction failed: ${aiResponse.status}`);
+    }
+
+    const aiData = await aiResponse.json();
+    let extractedText = aiData.choices?.[0]?.message?.content || '{}';
+    
+    // Clean up any markdown formatting
+    extractedText = extractedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    console.log('AI response:', extractedText.substring(0, 500));
+
+    let extracted: ExtractionResult;
+    try {
+      extracted = JSON.parse(extractedText);
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      // Return empty extraction with error note
+      extracted = { 
+        confidence: {},
+        key_quotes: [`Parse error - raw response: ${extractedText.substring(0, 200)}`]
+      };
+    }
+
+    console.log('Extracted fields:', Object.keys(extracted).filter(k => k !== 'confidence' && extracted[k as keyof ExtractionResult] != null));
 
     // Update the transcript with extracted data
     const { error: updateError } = await supabase
@@ -328,6 +252,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         extracted,
+        fieldsExtracted: Object.keys(extracted).filter(k => k !== 'confidence' && extracted[k as keyof ExtractionResult] != null).length,
         message: 'Intelligence extracted successfully'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
