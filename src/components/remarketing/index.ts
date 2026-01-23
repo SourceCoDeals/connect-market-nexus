@@ -18,6 +18,9 @@ export { DocumentUploadSection } from './DocumentUploadSection';
 export { MAGuideEditor } from './MAGuideEditor';
 export { UniverseTemplates } from './UniverseTemplates';
 export { ScoringBehaviorPanel } from './ScoringBehaviorPanel';
+export { ScoringBehaviorPanelEnhanced } from './ScoringBehaviorPanelEnhanced';
+export { TargetBuyerTypesPanel } from './TargetBuyerTypesPanel';
+export { IndustryKPIPanel } from './IndustryKPIPanel';
 
 // Table Components
 export { BuyerTableEnhanced } from './BuyerTableEnhanced';

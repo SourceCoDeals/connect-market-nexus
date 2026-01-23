@@ -18,35 +18,43 @@ interface IntelligenceBadgeProps {
 
 const config: Record<DataCompleteness, {
   label: string;
+  shortLabel: string;
   description: string;
   icon: typeof CheckCircle2;
+  dotColor: string;
   bgColor: string;
   textColor: string;
   borderColor: string;
 }> = {
   'high': {
-    label: 'High Intelligence',
+    label: 'Strong Thesis Data',
+    shortLabel: 'Strong',
     description: 'Comprehensive buyer data: thesis, targets, recent activity',
     icon: CheckCircle2,
+    dotColor: 'bg-emerald-500',
     bgColor: 'bg-emerald-50',
     textColor: 'text-emerald-700',
     borderColor: 'border-emerald-200',
   },
   'medium': {
-    label: 'Medium Intelligence',
+    label: 'Partial Thesis Data',
+    shortLabel: 'Partial',
     description: 'Partial buyer data available - consider enrichment',
     icon: Info,
+    dotColor: 'bg-amber-500',
     bgColor: 'bg-amber-50',
     textColor: 'text-amber-700',
     borderColor: 'border-amber-200',
   },
   'low': {
-    label: 'Low Intelligence',
+    label: 'Needs Research',
+    shortLabel: 'Needs Research',
     description: 'Limited buyer data - enrichment recommended',
     icon: AlertCircle,
-    bgColor: 'bg-red-50',
-    textColor: 'text-red-700',
-    borderColor: 'border-red-200',
+    dotColor: 'bg-gray-400',
+    bgColor: 'bg-gray-50',
+    textColor: 'text-gray-600',
+    borderColor: 'border-gray-200',
   },
 };
 
@@ -77,7 +85,7 @@ export const IntelligenceBadge = ({
     );
   }
 
-  const { label, description, icon: Icon, bgColor, textColor, borderColor } = config[completeness];
+  const { label, shortLabel, description, dotColor, bgColor, textColor, borderColor } = config[completeness];
 
   const badge = (
     <Badge
@@ -86,13 +94,13 @@ export const IntelligenceBadge = ({
         bgColor,
         textColor,
         borderColor,
-        "border",
+        "border flex items-center gap-1.5",
         sizeConfig[size],
         className
       )}
     >
-      <Icon className="h-3 w-3 mr-1" />
-      {size === 'sm' ? completeness.charAt(0).toUpperCase() + completeness.slice(1) : label}
+      <span className={cn("h-2 w-2 rounded-full", dotColor)} />
+      {size === 'sm' ? shortLabel : label}
     </Badge>
   );
 

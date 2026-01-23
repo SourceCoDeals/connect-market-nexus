@@ -114,11 +114,11 @@ export const StructuredCriteriaPanel = ({
   };
 
   const removeService = (type: 'required' | 'preferred' | 'excluded', service: string) => {
-    const key = `${type}_services` as keyof ServiceCriteria;
+    const key = `${type}_services` as 'required_services' | 'preferred_services' | 'excluded_services';
     const currentServices = serviceCriteria[key] || [];
     onServiceCriteriaChange({
       ...serviceCriteria,
-      [key]: currentServices.filter(s => s !== service)
+      [key]: (currentServices as string[]).filter(s => s !== service)
     });
   };
 

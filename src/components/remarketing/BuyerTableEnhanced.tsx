@@ -29,7 +29,8 @@ import {
   MapPin,
   Building,
   ExternalLink,
-  Search as SearchIcon
+  Search as SearchIcon,
+  DollarSign
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import type { DataCompleteness } from "@/types/remarketing";
@@ -40,12 +41,14 @@ interface BuyerRow {
   company_website?: string | null;
   buyer_type?: string | null;
   pe_firm_name?: string | null;
+  pe_firm_website?: string | null;
   hq_city?: string | null;
   hq_state?: string | null;
   thesis_summary?: string | null;
   data_completeness?: string | null;
   target_geographies?: string[];
   geographic_footprint?: string[];
+  has_fee_agreement?: boolean | null;
 }
 
 interface BuyerTableEnhancedProps {
@@ -123,13 +126,19 @@ export const BuyerTableEnhanced = ({
                         <Building className="h-5 w-5 text-primary" />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-foreground truncate">
                             {buyer.company_name}
                           </span>
                           {buyer.data_completeness === 'high' && (
                             <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
                               Enriched
+                            </Badge>
+                          )}
+                          {buyer.has_fee_agreement && (
+                            <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-xs px-1.5 py-0 flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              Fee Agreed
                             </Badge>
                           )}
                         </div>
@@ -163,7 +172,20 @@ export const BuyerTableEnhanced = ({
                           <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
                             <Building className="h-3 w-3 text-muted-foreground" />
                           </div>
-                          <span className="text-sm">{buyer.pe_firm_name}</span>
+                          {buyer.pe_firm_website ? (
+                            <a
+                              href={buyer.pe_firm_website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {buyer.pe_firm_name}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-sm">{buyer.pe_firm_name}</span>
+                          )}
                         </div>
                       ) : buyer.buyer_type === 'pe_firm' ? (
                         <Badge variant="outline" className="text-xs">

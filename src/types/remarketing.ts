@@ -32,6 +32,12 @@ export interface SizeCriteria {
   ebitda_max?: number;
   employee_min?: number;
   employee_max?: number;
+  // New fields from Whispers
+  locations_min?: number;
+  locations_max?: number;
+  total_sqft_min?: number;
+  total_sqft_max?: number;
+  other_notes?: string;
 }
 
 export interface GeographyCriteria {
@@ -39,12 +45,19 @@ export interface GeographyCriteria {
   target_regions?: string[];
   exclude_states?: string[];
   adjacency_preference?: boolean;
+  // New fields from Whispers
+  coverage?: 'local' | 'regional' | 'national';
+  hq_requirements?: string;
+  other_notes?: string;
 }
 
 export interface ServiceCriteria {
   required_services?: string[];
   preferred_services?: string[];
   excluded_services?: string[];
+  // New fields from Whispers
+  business_model?: string;
+  customer_profile?: string;
 }
 
 export interface BuyerTypesCriteria {
@@ -54,11 +67,61 @@ export interface BuyerTypesCriteria {
   include_family_office?: boolean;
 }
 
+// Extended scoring behavior with all Whispers features
 export interface ScoringBehavior {
+  // Original basic toggles
   boost_adjacency?: boolean;
   penalize_distance?: boolean;
   require_thesis_match?: boolean;
   minimum_data_completeness?: 'high' | 'medium' | 'low';
+  
+  // Industry preset
+  industry_preset?: 'collision_repair' | 'software' | 'hvac' | 'pest_control' | 'custom';
+  
+  // Geography Scoring
+  geography_strictness?: 'strict' | 'moderate' | 'flexible';
+  single_location_matching?: 'exact_state' | 'adjacent_states' | 'same_region';
+  multi_location_matching?: 'same_region' | 'national' | 'any';
+  allow_national_buyers?: boolean;
+  
+  // Size/Revenue Scoring
+  size_strictness?: 'strict' | 'moderate' | 'flexible';
+  below_minimum_handling?: 'disqualify' | 'penalize' | 'allow';
+  penalize_single_location?: boolean;
+  
+  // Service Matching
+  service_matching_mode?: 'keyword' | 'semantic';
+  require_primary_focus?: boolean;
+  excluded_services_dealbreaker?: boolean;
+  
+  // Engagement Overrides
+  can_override_geography?: boolean;
+  can_override_size?: boolean;
+  engagement_weight_multiplier?: number;
+}
+
+// Target buyer type for ranked cards
+export interface TargetBuyerTypeConfig {
+  id: string;
+  rank: number;
+  name: string;
+  description: string;
+  locations_min?: number;
+  locations_max?: number;
+  revenue_per_location?: number;
+  deal_requirements?: string;
+  enabled: boolean;
+}
+
+// Industry KPI for scoring bonuses
+export interface IndustryKPI {
+  id: string;
+  name: string;
+  description?: string;
+  weight: number;
+  threshold_min?: number;
+  threshold_max?: number;
+  unit?: string;
 }
 
 export interface DocumentReference {
