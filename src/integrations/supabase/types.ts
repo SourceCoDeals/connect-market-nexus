@@ -4020,6 +4020,58 @@ export type Database = {
           },
         ]
       }
+      remarketing_universe_deals: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          id: string
+          listing_id: string
+          notes: string | null
+          status: string | null
+          universe_id: string
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          id?: string
+          listing_id: string
+          notes?: string | null
+          status?: string | null
+          universe_id: string
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          id?: string
+          listing_id?: string
+          notes?: string | null
+          status?: string | null
+          universe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_universe_deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_universe_deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_universe_deals_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_listings: {
         Row: {
           created_at: string

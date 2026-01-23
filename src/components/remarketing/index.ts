@@ -30,6 +30,10 @@ export { BuyerTableEnhanced } from './BuyerTableEnhanced';
 export { UniverseDealsTable } from './UniverseDealsTable';
 export { DealMergePanel } from './DealMergePanel';
 
+// Deal Management Components
+export { AddDealToUniverseDialog } from './AddDealToUniverseDialog';
+export { DealCSVImport } from './DealCSVImport';
+
 // Analytics Components
 export { MatchingFunnel } from './MatchingFunnel';
 export { TierDistributionChart } from './TierDistributionChart';
