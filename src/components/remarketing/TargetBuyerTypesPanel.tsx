@@ -13,21 +13,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { 
-  ChevronDown, 
   Users, 
   Building2, 
   TrendingUp,
   Briefcase,
   Home,
   Store,
-  Edit,
-  GripVertical
+  Edit
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TargetBuyerTypeConfig } from "@/types/remarketing";
@@ -121,7 +114,6 @@ export const TargetBuyerTypesPanel = ({
   onBuyerTypesChange,
   readOnly = false,
 }: TargetBuyerTypesPanelProps) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [editingType, setEditingType] = useState<TargetBuyerTypeConfig | null>(null);
 
   const handleToggle = (id: string, enabled: boolean) => {
@@ -144,160 +136,132 @@ export const TargetBuyerTypesPanel = ({
   const enabledCount = buyerTypes.filter(t => t.enabled).length;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Target Buyer Types</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {enabledCount} of {buyerTypes.length} buyer types enabled
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1">
-                  {buyerTypes.filter(t => t.enabled).slice(0, 4).map(t => (
-                    <Badge key={t.id} variant="outline" className="text-xs">
-                      #{t.rank}
-                    </Badge>
-                  ))}
-                  {enabledCount > 4 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{enabledCount - 4}
-                    </Badge>
-                  )}
-                </div>
-                <ChevronDown className={cn(
-                  "h-5 w-5 text-muted-foreground transition-transform",
-                  isOpen && "rotate-180"
-                )} />
-              </div>
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
+    <div className="space-y-3">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-purple-500" />
+          <h4 className="font-medium text-sm">Target Buyer Types</h4>
+          <Badge variant="secondary" className="text-xs">
+            {enabledCount} types
+          </Badge>
+        </div>
+      </div>
 
-        <CollapsibleContent>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {buyerTypes.sort((a, b) => a.rank - b.rank).map((buyerType) => {
-                const Icon = BUYER_TYPE_ICONS[buyerType.id] || Building2;
-                
-                return (
-                  <Card 
-                    key={buyerType.id} 
-                    className={cn(
-                      "relative transition-all",
-                      !buyerType.enabled && "opacity-50",
-                      buyerType.rank === 1 && buyerType.enabled && "bg-amber-50/50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800",
-                      buyerType.rank === 2 && buyerType.enabled && "bg-gray-50/50 border-gray-200 dark:bg-gray-950/20 dark:border-gray-700"
-                    )}
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "h-8 w-8 rounded-lg flex items-center justify-center",
-                            buyerType.enabled ? "bg-primary/10" : "bg-muted"
-                          )}>
-                            <Icon className={cn(
-                              "h-4 w-4",
-                              buyerType.enabled ? "text-primary" : "text-muted-foreground"
-                            )} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <CardTitle className="text-sm">{buyerType.name}</CardTitle>
-                              <Badge 
-                                variant="default" 
-                                className={cn(
-                                  "text-xs px-1.5 py-0",
-                                  buyerType.rank === 1 && "bg-amber-500",
-                                  buyerType.rank === 2 && "bg-gray-400",
-                                  buyerType.rank === 3 && "bg-amber-700",
-                                  buyerType.rank > 3 && "bg-muted-foreground"
-                                )}
-                              >
-                                #{buyerType.rank}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {!readOnly && (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7"
-                                  onClick={() => setEditingType(buyerType)}
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Edit {buyerType.name}</DialogTitle>
-                                </DialogHeader>
-                                <BuyerTypeEditForm 
-                                  buyerType={buyerType} 
-                                  onSave={handleUpdate}
-                                  onCancel={() => setEditingType(null)}
-                                />
-                              </DialogContent>
-                            </Dialog>
+      {/* 2-Column Grid of Buyer Type Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {buyerTypes.sort((a, b) => a.rank - b.rank).map((buyerType) => {
+          const Icon = BUYER_TYPE_ICONS[buyerType.id] || Building2;
+          
+          return (
+            <Card 
+              key={buyerType.id} 
+              className={cn(
+                "relative transition-all",
+                !buyerType.enabled && "opacity-50",
+                buyerType.rank === 1 && buyerType.enabled && "bg-amber-50/50 border-amber-200/50 dark:bg-amber-950/20 dark:border-amber-800/50",
+                buyerType.rank === 2 && buyerType.enabled && "bg-slate-50/50 border-slate-200/50 dark:bg-slate-950/20 dark:border-slate-700/50"
+              )}
+            >
+              <CardHeader className="py-3 px-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={cn(
+                      "h-7 w-7 rounded-md flex items-center justify-center shrink-0",
+                      buyerType.enabled ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Icon className={cn(
+                        "h-3.5 w-3.5",
+                        buyerType.enabled ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <CardTitle className="text-sm truncate">{buyerType.name}</CardTitle>
+                        <Badge 
+                          variant="default" 
+                          className={cn(
+                            "text-[10px] px-1 py-0 h-4 shrink-0",
+                            buyerType.rank === 1 && "bg-amber-500",
+                            buyerType.rank === 2 && "bg-slate-400",
+                            buyerType.rank === 3 && "bg-amber-700",
+                            buyerType.rank > 3 && "bg-muted-foreground"
                           )}
-                          <Switch
-                            checked={buyerType.enabled}
-                            onCheckedChange={(checked) => handleToggle(buyerType.id, checked)}
-                            disabled={readOnly}
+                        >
+                          #{buyerType.rank}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!readOnly && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6"
+                            onClick={() => setEditingType(buyerType)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit {buyerType.name}</DialogTitle>
+                          </DialogHeader>
+                          <BuyerTypeEditForm 
+                            buyerType={buyerType} 
+                            onSave={handleUpdate}
+                            onCancel={() => setEditingType(null)}
                           />
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {buyerType.description}
-                      </p>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-muted/50 rounded px-2 py-1">
-                          <span className="text-muted-foreground">Locations:</span>
-                          <span className="ml-1 font-medium">
-                            {buyerType.locations_min} - {buyerType.locations_max}
-                          </span>
-                        </div>
-                        <div className="bg-muted/50 rounded px-2 py-1">
-                          <span className="text-muted-foreground">Rev/Loc:</span>
-                          <span className="ml-1 font-medium">
-                            ${((buyerType.revenue_per_location || 0) / 1000000).toFixed(1)}M
-                          </span>
-                        </div>
-                      </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                    <Switch
+                      checked={buyerType.enabled}
+                      onCheckedChange={(checked) => handleToggle(buyerType.id, checked)}
+                      disabled={readOnly}
+                      className="scale-90"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="py-0 px-4 pb-3 space-y-2">
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {buyerType.description}
+                </p>
+                
+                {/* Metric pills */}
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="inline-flex items-center text-[11px] bg-muted/60 rounded px-1.5 py-0.5">
+                    <span className="text-muted-foreground">Locations:</span>
+                    <span className="ml-1 font-medium">
+                      {buyerType.locations_min} - {buyerType.locations_max}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center text-[11px] bg-muted/60 rounded px-1.5 py-0.5">
+                    <span className="text-muted-foreground">Rev/Loc:</span>
+                    <span className="ml-1 font-medium">
+                      ${((buyerType.revenue_per_location || 0) / 1000000).toFixed(1)}M
+                    </span>
+                  </span>
+                </div>
 
-                      {buyerType.deal_requirements && (
-                        <div className="text-xs">
-                          <span className="text-muted-foreground">Requirements:</span>
-                          <p className="mt-0.5 text-foreground line-clamp-2">
-                            {buyerType.deal_requirements}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+                {buyerType.deal_requirements && (
+                  <div className="text-xs pt-1 border-t border-dashed">
+                    <span className="text-muted-foreground">Deal Requirements</span>
+                    <p className="mt-0.5 text-foreground line-clamp-2">
+                      {buyerType.deal_requirements}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
