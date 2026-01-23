@@ -75,10 +75,31 @@ serve(async (req) => {
       );
     }
 
+    // Get website URL - prefer website field, fallback to extracting from internal_deal_memo_link
     let websiteUrl = deal.website;
+    
+    if (!websiteUrl && deal.internal_deal_memo_link) {
+      const memoLink = deal.internal_deal_memo_link;
+      
+      // Skip SharePoint/OneDrive links
+      if (!memoLink.includes('sharepoint.com') && !memoLink.includes('onedrive')) {
+        // Handle "Website: https://..." format
+        const websiteMatch = memoLink.match(/Website:\s*(https?:\/\/[^\s]+)/i);
+        if (websiteMatch) {
+          websiteUrl = websiteMatch[1];
+        } else if (memoLink.match(/^https?:\/\/[a-zA-Z0-9]/)) {
+          // Direct URL
+          websiteUrl = memoLink;
+        } else if (memoLink.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) {
+          // Domain-only format
+          websiteUrl = `https://${memoLink}`;
+        }
+      }
+    }
+    
     if (!websiteUrl) {
       return new Response(
-        JSON.stringify({ error: 'No website URL configured for this deal' }),
+        JSON.stringify({ error: 'No website URL found for this deal. Add a website in the company overview or deal memo.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

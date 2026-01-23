@@ -117,6 +117,40 @@ const ReMarketingDealDetail = () => {
     }
   });
 
+  // Extract website URL from internal_deal_memo_link
+  const extractWebsiteFromMemo = (memoLink: string | null): string | null => {
+    if (!memoLink) return null;
+    
+    // Skip SharePoint/OneDrive links
+    if (memoLink.includes('sharepoint.com') || memoLink.includes('onedrive')) {
+      return null;
+    }
+    
+    // Handle "Website: https://..." format
+    const websiteMatch = memoLink.match(/Website:\s*(https?:\/\/[^\s]+)/i);
+    if (websiteMatch) return websiteMatch[1];
+    
+    // Handle direct URL (not SharePoint)
+    if (memoLink.match(/^https?:\/\/[a-zA-Z0-9]/) && !memoLink.includes('sharepoint')) {
+      return memoLink;
+    }
+    
+    // Handle domain-only format (e.g., "pragra.io")
+    if (memoLink.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) {
+      return `https://${memoLink}`;
+    }
+    
+    return null;
+  };
+
+  // Get effective website - prefer website field, fallback to extracted from memo
+  const getEffectiveWebsite = (): string | null => {
+    if (deal?.website) return deal.website;
+    return extractWebsiteFromMemo(deal?.internal_deal_memo_link);
+  };
+
+  const effectiveWebsite = deal ? getEffectiveWebsite() : null;
+
   // Calculate data completeness
   const calculateDataCompleteness = () => {
     if (!deal) return 0;
@@ -128,7 +162,7 @@ const ReMarketingDealDetail = () => {
       deal.revenue,
       deal.ebitda,
       deal.category,
-      deal.website,
+      effectiveWebsite,
       deal.executive_summary,
       deal.service_mix,
       deal.geographic_states,
@@ -203,6 +237,12 @@ const ReMarketingDealDetail = () => {
 
   const tier = scoreStats?.avgScore ? getTierFromScore(scoreStats.avgScore) : null;
 
+  // Get display name - prefer internal_company_name, fallback to title
+  const displayName = deal.internal_company_name || deal.title;
+  const listedName = deal.internal_company_name && deal.title !== deal.internal_company_name 
+    ? deal.title 
+    : null;
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -214,8 +254,8 @@ const ReMarketingDealDetail = () => {
               Back
             </Button>
           </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">{deal.title}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
             {deal.category && (
               <Badge variant="secondary">{deal.category}</Badge>
             )}
@@ -226,6 +266,9 @@ const ReMarketingDealDetail = () => {
               {deal.status}
             </Badge>
           </div>
+          {listedName && (
+            <p className="text-sm text-muted-foreground mt-0.5">Listed as: {listedName}</p>
+          )}
           {deal.location && (
             <p className="text-muted-foreground flex items-center gap-1 mt-1">
               <MapPin className="h-4 w-4" />
@@ -252,14 +295,30 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-      {/* Actions Bar */}
+      {/* Website & Actions */}
       <Card>
-        <CardContent className="py-4">
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Website & Actions
+            </CardTitle>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </div>
+          {effectiveWebsite && (
+            <p className="text-sm text-muted-foreground truncate">
+              {effectiveWebsite.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+            </p>
+          )}
+        </CardHeader>
+        <CardContent className="pt-0">
           <div className="flex flex-wrap gap-3">
-            {deal.website && (
+            {effectiveWebsite && (
               <Button variant="outline" className="gap-2" asChild>
-                <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer">
-                  <Globe className="h-4 w-4" />
+                <a href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
                   View Website
                 </a>
               </Button>
@@ -268,7 +327,7 @@ const ReMarketingDealDetail = () => {
               variant="outline" 
               className="gap-2"
               onClick={handleEnrichFromWebsite}
-              disabled={isEnriching}
+              disabled={isEnriching || !effectiveWebsite}
             >
               {isEnriching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -277,7 +336,7 @@ const ReMarketingDealDetail = () => {
               )}
               Enrich from Website
             </Button>
-            <Button variant="outline" className="gap-2" asChild>
+            <Button className="gap-2" asChild>
               <Link to={`/admin/remarketing/matching/${dealId}`}>
                 <Target className="h-4 w-4" />
                 View Buyer Matches ({scoreStats?.count || 0})
@@ -294,7 +353,7 @@ const ReMarketingDealDetail = () => {
       {/* Two Column Layout - Company & Financial */}
       <div className="grid gap-6 lg:grid-cols-2">
         <CompanyOverviewCard
-          website={deal.website}
+          website={effectiveWebsite}
           location={deal.location}
           address={deal.address}
           foundedYear={deal.founded_year}
