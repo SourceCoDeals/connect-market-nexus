@@ -36,7 +36,11 @@ import {
   ThumbsDown, 
   Users,
   ExternalLink,
-  Target
+  Target,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Globe
 } from "lucide-react";
 import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
@@ -47,6 +51,7 @@ const ReMarketingDeals = () => {
   const [universeFilter, setUniverseFilter] = useState<string>("all");
   const [scoreFilter, setScoreFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   // Fetch all listings (deals) with their score stats
   const { data: listings, isLoading: listingsLoading } = useQuery({
@@ -63,7 +68,8 @@ const ReMarketingDeals = () => {
           ebitda,
           status,
           created_at,
-          category
+          category,
+          website
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -105,6 +111,7 @@ const ReMarketingDeals = () => {
         passed: number;
         avgScore: number;
         universeIds: Set<string>;
+        universeName: string | null;
       }> = {};
 
       data?.forEach(score => {
@@ -114,7 +121,8 @@ const ReMarketingDeals = () => {
             approved: 0,
             passed: 0,
             avgScore: 0,
-            universeIds: new Set()
+            universeIds: new Set(),
+            universeName: null
           };
         }
         stats[score.listing_id].totalMatches++;
@@ -135,6 +143,15 @@ const ReMarketingDeals = () => {
     }
   });
 
+  // Create universe lookup map
+  const universeLookup = useMemo(() => {
+    const map: Record<string, string> = {};
+    universes?.forEach(u => {
+      map[u.id] = u.name;
+    });
+    return map;
+  }, [universes]);
+
   // Get universe count
   const universeCount = universes?.length || 0;
 
@@ -149,7 +166,8 @@ const ReMarketingDeals = () => {
         const matchesSearch = 
           listing.title?.toLowerCase().includes(searchLower) ||
           listing.description?.toLowerCase().includes(searchLower) ||
-          listing.location?.toLowerCase().includes(searchLower);
+          listing.location?.toLowerCase().includes(searchLower) ||
+          listing.website?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
 
@@ -171,9 +189,20 @@ const ReMarketingDeals = () => {
         return false;
       }
 
+      // Date filter
+      if (dateFilter !== "all") {
+        const createdAt = new Date(listing.created_at);
+        const now = new Date();
+        const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (dateFilter === "7d" && daysDiff > 7) return false;
+        if (dateFilter === "30d" && daysDiff > 30) return false;
+        if (dateFilter === "90d" && daysDiff > 90) return false;
+      }
+
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, statusFilter, scoreStats]);
+  }, [listings, search, universeFilter, scoreFilter, statusFilter, dateFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "-";
@@ -182,14 +211,45 @@ const ReMarketingDeals = () => {
     return `$${value}`;
   };
 
+  const formatWebsiteDomain = (website: string | null) => {
+    if (!website) return null;
+    return website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+  };
+
+  const getScoreTrendIcon = (score: number) => {
+    if (score >= 75) return <TrendingUp className="h-3.5 w-3.5 text-green-500" />;
+    if (score >= 55) return <Minus className="h-3.5 w-3.5 text-yellow-500" />;
+    return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
+  };
+
+  const getFirstUniverseName = (listingId: string) => {
+    const stats = scoreStats?.[listingId];
+    if (!stats || stats.universeIds.size === 0) return null;
+    const firstId = Array.from(stats.universeIds)[0];
+    return universeLookup[firstId] || null;
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">All Deals</h1>
-        <p className="text-muted-foreground">
-          {listings?.length || 0} deals across {universeCount} buyer universes
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">All Deals</h1>
+          <p className="text-muted-foreground">
+            {listings?.length || 0} deals across {universeCount} buyer universes
+          </p>
+        </div>
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All Time" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="7d">Last 7 Days</SelectItem>
+            <SelectItem value="30d">Last 30 Days</SelectItem>
+            <SelectItem value="90d">Last 90 Days</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Filters */}
@@ -252,12 +312,12 @@ const ReMarketingDeals = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Deal Name</TableHead>
-                <TableHead>Category</TableHead>
+                <TableHead className="w-[280px]">Deal Name</TableHead>
+                <TableHead>Buyer Universe</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
                 <TableHead className="text-right">EBITDA</TableHead>
-                <TableHead className="text-center">Tier</TableHead>
+                <TableHead className="text-center">Score</TableHead>
                 <TableHead className="text-center">Engagement</TableHead>
                 <TableHead>Added</TableHead>
                 <TableHead>Status</TableHead>
@@ -268,12 +328,12 @@ const ReMarketingDeals = () => {
               {listingsLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-10 mx-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-14" /></TableCell>
@@ -292,33 +352,38 @@ const ReMarketingDeals = () => {
                 filteredListings.map((listing) => {
                   const stats = scoreStats?.[listing.id];
                   const tier = stats ? getTierFromScore(stats.avgScore) : null;
+                  const universeName = getFirstUniverseName(listing.id);
+                  const domain = formatWebsiteDomain(listing.website);
                   
                   return (
                     <TableRow 
                       key={listing.id}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/admin/remarketing/matching/${listing.id}`)}
+                      onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
                     >
                       <TableCell>
                         <div>
                           <p className="font-medium text-foreground">{listing.title}</p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[250px]">
-                            {listing.description}
-                          </p>
+                          {domain && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Globe className="h-3 w-3" />
+                              {domain}
+                            </p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {listing.category ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {listing.category}
+                        {universeName ? (
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {universeName}
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground text-sm">—</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {listing.location ? (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="secondary" className="text-xs">
                             {listing.location}
                           </Badge>
                         ) : (
@@ -332,8 +397,13 @@ const ReMarketingDeals = () => {
                         {formatCurrency(listing.ebitda)}
                       </TableCell>
                       <TableCell className="text-center">
-                        {tier ? (
-                          <ScoreTierBadge tier={tier} showLabel={false} size="sm" />
+                        {stats && stats.avgScore > 0 ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="font-semibold text-sm">
+                              {Math.round(stats.avgScore)}
+                            </span>
+                            {getScoreTrendIcon(stats.avgScore)}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
@@ -373,6 +443,15 @@ const ReMarketingDeals = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/remarketing/deals/${listing.id}`);
+                              }}
+                            >
+                              <Building2 className="h-4 w-4 mr-2" />
+                              View Deal
+                            </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={(e) => {
                                 e.stopPropagation();
