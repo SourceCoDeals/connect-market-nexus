@@ -7,17 +7,38 @@ const corsHeaders = {
 
 interface EnrichmentResult {
   thesis_summary?: string;
+  thesis_confidence?: 'high' | 'medium' | 'low';
   target_geographies?: string[];
   target_services?: string[];
   target_industries?: string[];
   target_revenue_min?: number;
   target_revenue_max?: number;
+  revenue_sweet_spot?: number;
   target_ebitda_min?: number;
   target_ebitda_max?: number;
+  ebitda_sweet_spot?: number;
   geographic_footprint?: string[];
   recent_acquisitions?: any[];
   portfolio_companies?: any[];
   data_completeness?: 'high' | 'medium' | 'low';
+  // New fields for Whispers parity
+  pe_firm_name?: string;
+  hq_city?: string;
+  hq_state?: string;
+  industry_vertical?: string;
+  business_summary?: string;
+  specialized_focus?: string;
+  strategic_priorities?: string[];
+  deal_breakers?: string[];
+  deal_preferences?: string;
+  acquisition_appetite?: string;
+  acquisition_timeline?: string;
+  acquisition_frequency?: string;
+  total_acquisitions?: number;
+  primary_customer_size?: string;
+  customer_geographic_reach?: string;
+  customer_industries?: string[];
+  target_customer_profile?: string;
 }
 
 Deno.serve(async (req) => {
@@ -129,23 +150,29 @@ Deno.serve(async (req) => {
     // Step 2: Use AI to extract structured buyer intelligence
     console.log('Extracting buyer intelligence with AI...');
     
-    const systemPrompt = `You are an M&A intelligence analyst. Extract investment thesis and acquisition criteria from PE firm/platform company websites.
+    const systemPrompt = `You are an M&A intelligence analyst. Extract comprehensive investment thesis and acquisition criteria from PE firm/platform company websites.
 
-Focus on extracting:
-1. Investment thesis - what types of companies they acquire and why
-2. Target size criteria - revenue and EBITDA ranges
+Focus on extracting ALL available information including:
+1. Investment thesis - what types of companies they acquire and why (with confidence level)
+2. Target size criteria - revenue and EBITDA ranges, including sweet spots
 3. Target geographies - states, regions, or countries they focus on
 4. Target services/industries - specific sectors they invest in
-5. Recent acquisitions - companies they've acquired
-6. Portfolio companies - current holdings
-7. Geographic footprint - where they operate`;
+5. Business description - company summary, industry vertical, specialized focus
+6. Strategic priorities - key growth initiatives
+7. Deal breakers - what they avoid or won't consider
+8. Deal preferences - preferred deal structures or terms
+9. Acquisition appetite - current interest level and timeline
+10. Customer profile - target customer types, sizes, industries
+11. Acquisition history - recent deals, frequency, total count
+12. Portfolio companies - current holdings
+13. HQ location and PE firm parent name`;
 
-    const userPrompt = `Analyze this website content from "${buyer.company_name}" and extract their investment/acquisition criteria.
+    const userPrompt = `Analyze this website content from "${buyer.company_name}" and extract their comprehensive investment/acquisition criteria.
 
 Website Content:
 ${websiteContent.substring(0, 15000)}
 
-Extract the buyer intelligence using the provided tool.`;
+Extract ALL buyer intelligence using the provided tool. Be thorough - extract every piece of relevant information.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -164,7 +191,7 @@ Extract the buyer intelligence using the provided tool.`;
             type: 'function',
             function: {
               name: 'extract_buyer_intelligence',
-              description: 'Extract structured buyer/investor intelligence from website content',
+              description: 'Extract comprehensive buyer/investor intelligence from website content',
               parameters: {
                 type: 'object',
                 properties: {
@@ -172,41 +199,125 @@ Extract the buyer intelligence using the provided tool.`;
                     type: 'string',
                     description: 'A 2-3 sentence summary of their investment thesis and acquisition strategy'
                   },
+                  thesis_confidence: {
+                    type: 'string',
+                    enum: ['high', 'medium', 'low'],
+                    description: 'How confident we are in the extracted thesis based on website clarity'
+                  },
+                  pe_firm_name: {
+                    type: 'string',
+                    description: 'Name of the parent PE firm (if this is a platform company)'
+                  },
+                  hq_city: {
+                    type: 'string',
+                    description: 'Headquarters city'
+                  },
+                  hq_state: {
+                    type: 'string',
+                    description: 'Headquarters state (2-letter code preferred)'
+                  },
+                  industry_vertical: {
+                    type: 'string',
+                    description: 'Primary industry vertical (e.g., "Collision Repair / Auto Body")'
+                  },
+                  business_summary: {
+                    type: 'string',
+                    description: 'Brief company description and business model'
+                  },
+                  specialized_focus: {
+                    type: 'string',
+                    description: 'Any specialized focus areas or unique capabilities'
+                  },
+                  strategic_priorities: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Key strategic priorities or growth initiatives'
+                  },
+                  deal_breakers: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Things they explicitly avoid (e.g., "No shops under $1M revenue")'
+                  },
+                  deal_preferences: {
+                    type: 'string',
+                    description: 'Preferred deal structures, terms, or transaction types'
+                  },
+                  acquisition_appetite: {
+                    type: 'string',
+                    description: 'Current acquisition appetite description (e.g., "Very active - looking to acquire add-ons")'
+                  },
+                  acquisition_timeline: {
+                    type: 'string',
+                    description: 'Timeline for acquisitions (e.g., "Looking to push forward immediately")'
+                  },
+                  acquisition_frequency: {
+                    type: 'string',
+                    description: 'How often they acquire (e.g., "1-2 per year", "As needed")'
+                  },
+                  total_acquisitions: {
+                    type: 'number',
+                    description: 'Total number of acquisitions/add-ons to date'
+                  },
                   target_geographies: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'US states or regions they target (e.g., "Texas", "Southeast", "Midwest")'
+                    description: 'US states or regions they target (e.g., "TX", "CA", "Southeast")'
                   },
                   target_services: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Service types or sectors they invest in (e.g., "HVAC", "Plumbing", "Electrical")'
+                    description: 'Service types or sectors they invest in'
                   },
                   target_industries: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Industry categories (e.g., "Home Services", "Healthcare", "Manufacturing")'
+                    description: 'Industry categories'
                   },
                   target_revenue_min: {
                     type: 'number',
-                    description: 'Minimum target company revenue in USD (if mentioned)'
+                    description: 'Minimum target company revenue in USD'
                   },
                   target_revenue_max: {
                     type: 'number',
-                    description: 'Maximum target company revenue in USD (if mentioned)'
+                    description: 'Maximum target company revenue in USD'
+                  },
+                  revenue_sweet_spot: {
+                    type: 'number',
+                    description: 'Ideal/preferred target revenue in USD'
                   },
                   target_ebitda_min: {
                     type: 'number',
-                    description: 'Minimum target company EBITDA in USD (if mentioned)'
+                    description: 'Minimum target company EBITDA in USD'
                   },
                   target_ebitda_max: {
                     type: 'number',
-                    description: 'Maximum target company EBITDA in USD (if mentioned)'
+                    description: 'Maximum target company EBITDA in USD'
+                  },
+                  ebitda_sweet_spot: {
+                    type: 'number',
+                    description: 'Ideal/preferred target EBITDA in USD'
                   },
                   geographic_footprint: {
                     type: 'array',
                     items: { type: 'string' },
                     description: 'Where the firm/portfolio currently operates'
+                  },
+                  primary_customer_size: {
+                    type: 'string',
+                    description: 'Target customer size segment (e.g., "SMB", "Enterprise", "Consumer")'
+                  },
+                  customer_geographic_reach: {
+                    type: 'string',
+                    description: 'Customer geographic reach (e.g., "Local", "Regional", "National")'
+                  },
+                  customer_industries: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Industries their customers are in'
+                  },
+                  target_customer_profile: {
+                    type: 'string',
+                    description: 'Description of ideal end customer'
                   },
                   recent_acquisitions: {
                     type: 'array',
@@ -287,16 +398,36 @@ Extract the buyer intelligence using the provided tool.`;
       ]
     };
 
-    // Only update fields that were extracted
+    // Update all extracted fields
     if (extractedData.thesis_summary) updateData.thesis_summary = extractedData.thesis_summary;
+    if (extractedData.thesis_confidence) updateData.thesis_confidence = extractedData.thesis_confidence;
+    if (extractedData.pe_firm_name) updateData.pe_firm_name = extractedData.pe_firm_name;
+    if (extractedData.hq_city) updateData.hq_city = extractedData.hq_city;
+    if (extractedData.hq_state) updateData.hq_state = extractedData.hq_state;
+    if (extractedData.industry_vertical) updateData.industry_vertical = extractedData.industry_vertical;
+    if (extractedData.business_summary) updateData.business_summary = extractedData.business_summary;
+    if (extractedData.specialized_focus) updateData.specialized_focus = extractedData.specialized_focus;
+    if (extractedData.strategic_priorities?.length) updateData.strategic_priorities = extractedData.strategic_priorities;
+    if (extractedData.deal_breakers?.length) updateData.deal_breakers = extractedData.deal_breakers;
+    if (extractedData.deal_preferences) updateData.deal_preferences = extractedData.deal_preferences;
+    if (extractedData.acquisition_appetite) updateData.acquisition_appetite = extractedData.acquisition_appetite;
+    if (extractedData.acquisition_timeline) updateData.acquisition_timeline = extractedData.acquisition_timeline;
+    if (extractedData.acquisition_frequency) updateData.acquisition_frequency = extractedData.acquisition_frequency;
+    if (extractedData.total_acquisitions) updateData.total_acquisitions = extractedData.total_acquisitions;
     if (extractedData.target_geographies?.length) updateData.target_geographies = extractedData.target_geographies;
     if (extractedData.target_services?.length) updateData.target_services = extractedData.target_services;
     if (extractedData.target_industries?.length) updateData.target_industries = extractedData.target_industries;
     if (extractedData.target_revenue_min) updateData.target_revenue_min = extractedData.target_revenue_min;
     if (extractedData.target_revenue_max) updateData.target_revenue_max = extractedData.target_revenue_max;
+    if (extractedData.revenue_sweet_spot) updateData.revenue_sweet_spot = extractedData.revenue_sweet_spot;
     if (extractedData.target_ebitda_min) updateData.target_ebitda_min = extractedData.target_ebitda_min;
     if (extractedData.target_ebitda_max) updateData.target_ebitda_max = extractedData.target_ebitda_max;
+    if (extractedData.ebitda_sweet_spot) updateData.ebitda_sweet_spot = extractedData.ebitda_sweet_spot;
     if (extractedData.geographic_footprint?.length) updateData.geographic_footprint = extractedData.geographic_footprint;
+    if (extractedData.primary_customer_size) updateData.primary_customer_size = extractedData.primary_customer_size;
+    if (extractedData.customer_geographic_reach) updateData.customer_geographic_reach = extractedData.customer_geographic_reach;
+    if (extractedData.customer_industries?.length) updateData.customer_industries = extractedData.customer_industries;
+    if (extractedData.target_customer_profile) updateData.target_customer_profile = extractedData.target_customer_profile;
     if (extractedData.recent_acquisitions?.length) updateData.recent_acquisitions = extractedData.recent_acquisitions;
     if (extractedData.portfolio_companies?.length) updateData.portfolio_companies = extractedData.portfolio_companies;
 

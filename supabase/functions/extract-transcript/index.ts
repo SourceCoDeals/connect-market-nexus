@@ -100,17 +100,28 @@ Extract the following information. Only include fields where you found NEW or UP
   "target_services": ["Array of services/industries they mentioned"],
   "target_revenue_min": number or null (in dollars, e.g., 5000000 for $5M),
   "target_revenue_max": number or null,
+  "revenue_sweet_spot": number or null (ideal target revenue),
   "target_ebitda_min": number or null,
   "target_ebitda_max": number or null,
+  "ebitda_sweet_spot": number or null (ideal target EBITDA),
   "geographic_footprint": ["Array of locations where they currently operate"],
   "recent_interests": "Any specific deal types or characteristics they expressed interest in",
   "concerns": "Any concerns or deal-breakers they mentioned",
   "timeline": "Any timeline or urgency mentioned for acquisitions",
   "key_contacts_mentioned": ["Names and roles of people mentioned"],
-  "summary": "2-3 sentence summary of the key takeaways from this conversation"
+  "summary": "2-3 sentence summary of the key takeaways from this conversation",
+  "strategic_priorities": ["Key priorities or initiatives mentioned"],
+  "deal_breakers": ["Things they explicitly said they avoid or won't consider"],
+  "acquisition_appetite": "Their current appetite for acquisitions",
+  "acquisition_timeline": "When they want to close deals",
+  "primary_customer_size": "Customer segment mentioned (SMB, Enterprise, etc.)",
+  "customer_industries": ["Industries their customers are in"],
+  "target_customer_profile": "Description of ideal end customer",
+  "key_quotes": ["Direct quotes that reveal important buyer preferences - extract 3-5 most insightful quotes verbatim"]
 }
 
-Only include fields with actual extracted data. Use null for fields with no relevant information found.`;
+Only include fields with actual extracted data. Use null for fields with no relevant information found.
+IMPORTANT: Extract key_quotes as direct verbatim quotes from the transcript that reveal buyer preferences, concerns, or strategy.`;
 
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -201,11 +212,59 @@ Only include fields with actual extracted data. Use null for fields with no rele
     if (extractedData.target_revenue_max) {
       buyerUpdate.target_revenue_max = extractedData.target_revenue_max;
     }
+    if (extractedData.revenue_sweet_spot) {
+      buyerUpdate.revenue_sweet_spot = extractedData.revenue_sweet_spot;
+    }
     if (extractedData.target_ebitda_min) {
       buyerUpdate.target_ebitda_min = extractedData.target_ebitda_min;
     }
     if (extractedData.target_ebitda_max) {
       buyerUpdate.target_ebitda_max = extractedData.target_ebitda_max;
+    }
+    if (extractedData.ebitda_sweet_spot) {
+      buyerUpdate.ebitda_sweet_spot = extractedData.ebitda_sweet_spot;
+    }
+
+    // Update strategic priorities
+    if (extractedData.strategic_priorities?.length > 0) {
+      const existing = buyer.strategic_priorities || [];
+      const merged = [...new Set([...existing, ...extractedData.strategic_priorities])];
+      buyerUpdate.strategic_priorities = merged;
+    }
+
+    // Update deal breakers
+    if (extractedData.deal_breakers?.length > 0) {
+      const existing = buyer.deal_breakers || [];
+      const merged = [...new Set([...existing, ...extractedData.deal_breakers])];
+      buyerUpdate.deal_breakers = merged;
+    }
+
+    // Update acquisition appetite and timeline
+    if (extractedData.acquisition_appetite) {
+      buyerUpdate.acquisition_appetite = extractedData.acquisition_appetite;
+    }
+    if (extractedData.acquisition_timeline) {
+      buyerUpdate.acquisition_timeline = extractedData.acquisition_timeline;
+    }
+
+    // Update customer info
+    if (extractedData.primary_customer_size) {
+      buyerUpdate.primary_customer_size = extractedData.primary_customer_size;
+    }
+    if (extractedData.customer_industries?.length > 0) {
+      const existing = buyer.customer_industries || [];
+      const merged = [...new Set([...existing, ...extractedData.customer_industries])];
+      buyerUpdate.customer_industries = merged;
+    }
+    if (extractedData.target_customer_profile) {
+      buyerUpdate.target_customer_profile = extractedData.target_customer_profile;
+    }
+
+    // Append key quotes
+    if (extractedData.key_quotes?.length > 0) {
+      const existing = buyer.key_quotes || [];
+      const merged = [...new Set([...existing, ...extractedData.key_quotes])];
+      buyerUpdate.key_quotes = merged;
     }
 
     // Update notes with concerns/interests

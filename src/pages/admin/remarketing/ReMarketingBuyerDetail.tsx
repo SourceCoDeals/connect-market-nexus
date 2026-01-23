@@ -1,22 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -35,7 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import { 
   ArrowLeft,
-  Save,
   BarChart3,
   Plus,
   Trash2,
@@ -47,7 +38,7 @@ import {
   Clock
 } from "lucide-react";
 import { toast } from "sonner";
-import type { BuyerType, DataCompleteness } from "@/types/remarketing";
+import type { BuyerType } from "@/types/remarketing";
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -61,15 +52,13 @@ import {
   AcquisitionHistoryCard,
   KeyQuotesCard,
   TranscriptsListCard,
+  EditBusinessDescriptionDialog,
+  EditInvestmentCriteriaDialog,
+  EditDealStructureDialog,
+  EditGeographicFootprintDialog,
+  EditCustomerInfoDialog,
+  EditAcquisitionHistoryDialog,
 } from "@/components/remarketing/buyer-detail";
-
-const BUYER_TYPES: { value: BuyerType; label: string }[] = [
-  { value: 'pe_firm', label: 'PE Firm' },
-  { value: 'platform', label: 'Platform' },
-  { value: 'strategic', label: 'Strategic' },
-  { value: 'family_office', label: 'Family Office' },
-  { value: 'other', label: 'Other' },
-];
 
 interface BuyerData {
   id: string;
@@ -136,14 +125,16 @@ interface Transcript {
   created_at: string;
 }
 
+type EditDialogType = 'business' | 'investment' | 'dealStructure' | 'geographic' | 'customer' | 'acquisition' | null;
+
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNew = id === 'new';
 
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [activeEditDialog, setActiveEditDialog] = useState<EditDialogType>(null);
   const [newContact, setNewContact] = useState({
     name: '',
     email: '',
@@ -289,6 +280,24 @@ const ReMarketingBuyerDetail = () => {
     }
   });
 
+  const updateBuyerMutation = useMutation({
+    mutationFn: async (data: Record<string, any>) => {
+      const { error } = await supabase
+        .from('remarketing_buyers')
+        .update(data)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', id] });
+      toast.success('Buyer updated');
+      setActiveEditDialog(null);
+    },
+    onError: () => {
+      toast.error('Failed to update buyer');
+    }
+  });
+
   const updateFeeAgreementMutation = useMutation({
     mutationFn: async (hasFeeAgreement: boolean) => {
       const { error } = await supabase
@@ -421,7 +430,6 @@ const ReMarketingBuyerDetail = () => {
   }
 
   if (isNew) {
-    // For new buyers, show the creation form (simplified)
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-4">
@@ -456,7 +464,7 @@ const ReMarketingBuyerDetail = () => {
         hqState={buyer?.hq_state}
         hqCountry={buyer?.hq_country}
         dataCompleteness={dataCompleteness}
-        onEdit={() => setIsEditDialogOpen(true)}
+        onEdit={() => setActiveEditDialog('business')}
         onEnrich={() => enrichMutation.mutate()}
         isEnriching={enrichMutation.isPending}
       />
@@ -510,12 +518,12 @@ const ReMarketingBuyerDetail = () => {
                 businessSummary={buyer?.business_summary}
                 servicesOffered={buyer?.target_services}
                 specializedFocus={buyer?.specialized_focus}
-                onEdit={() => setIsEditDialogOpen(true)}
+                onEdit={() => setActiveEditDialog('business')}
               />
               
               <GeographicFootprintCard
                 targetGeographies={buyer?.target_geographies}
-                onEdit={() => setIsEditDialogOpen(true)}
+                onEdit={() => setActiveEditDialog('geographic')}
               />
               
               <CustomerEndMarketCard
@@ -523,7 +531,7 @@ const ReMarketingBuyerDetail = () => {
                 customerGeographicReach={buyer?.customer_geographic_reach}
                 customerIndustries={buyer?.customer_industries}
                 targetCustomerProfile={buyer?.target_customer_profile}
-                onEdit={() => setIsEditDialogOpen(true)}
+                onEdit={() => setActiveEditDialog('customer')}
               />
             </div>
 
@@ -534,7 +542,7 @@ const ReMarketingBuyerDetail = () => {
                 thesisConfidence={buyer?.thesis_confidence}
                 strategicPriorities={buyer?.strategic_priorities}
                 dealBreakers={buyer?.deal_breakers}
-                onEdit={() => setIsEditDialogOpen(true)}
+                onEdit={() => setActiveEditDialog('investment')}
               />
               
               <DealStructureCard
@@ -547,13 +555,13 @@ const ReMarketingBuyerDetail = () => {
                 dealPreferences={buyer?.deal_preferences}
                 acquisitionAppetite={buyer?.acquisition_appetite}
                 acquisitionTimeline={buyer?.acquisition_timeline}
-                onEdit={() => setIsEditDialogOpen(true)}
+                onEdit={() => setActiveEditDialog('dealStructure')}
               />
               
               <AcquisitionHistoryCard
                 totalAcquisitions={buyer?.total_acquisitions}
                 acquisitionFrequency={buyer?.acquisition_frequency}
-                onEdit={() => setIsEditDialogOpen(true)}
+                onEdit={() => setActiveEditDialog('acquisition')}
               />
             </div>
           </div>
@@ -809,23 +817,84 @@ const ReMarketingBuyerDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog - Placeholder for now */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Buyer</DialogTitle>
-            <DialogDescription>Update buyer information</DialogDescription>
-          </DialogHeader>
-          <div className="py-4 text-center text-muted-foreground">
-            <p>Full edit form coming soon. For now, use the enrichment features.</p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Edit Dialogs */}
+      <EditBusinessDescriptionDialog
+        open={activeEditDialog === 'business'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        data={{
+          industryVertical: buyer?.industry_vertical,
+          businessSummary: buyer?.business_summary,
+          servicesOffered: buyer?.target_services,
+          specializedFocus: buyer?.specialized_focus,
+        }}
+        onSave={(data) => updateBuyerMutation.mutate(data)}
+        isSaving={updateBuyerMutation.isPending}
+      />
+
+      <EditInvestmentCriteriaDialog
+        open={activeEditDialog === 'investment'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        data={{
+          investmentThesis: buyer?.thesis_summary,
+          thesisConfidence: buyer?.thesis_confidence,
+          strategicPriorities: buyer?.strategic_priorities,
+          dealBreakers: buyer?.deal_breakers,
+        }}
+        onSave={(data) => updateBuyerMutation.mutate(data)}
+        isSaving={updateBuyerMutation.isPending}
+      />
+
+      <EditDealStructureDialog
+        open={activeEditDialog === 'dealStructure'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        data={{
+          minRevenue: buyer?.target_revenue_min,
+          maxRevenue: buyer?.target_revenue_max,
+          revenueSweetSpot: buyer?.revenue_sweet_spot,
+          minEbitda: buyer?.target_ebitda_min,
+          maxEbitda: buyer?.target_ebitda_max,
+          ebitdaSweetSpot: buyer?.ebitda_sweet_spot,
+          dealPreferences: buyer?.deal_preferences,
+          acquisitionAppetite: buyer?.acquisition_appetite,
+          acquisitionTimeline: buyer?.acquisition_timeline,
+        }}
+        onSave={(data) => updateBuyerMutation.mutate(data)}
+        isSaving={updateBuyerMutation.isPending}
+      />
+
+      <EditGeographicFootprintDialog
+        open={activeEditDialog === 'geographic'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        data={{
+          targetGeographies: buyer?.target_geographies,
+        }}
+        onSave={(data) => updateBuyerMutation.mutate(data)}
+        isSaving={updateBuyerMutation.isPending}
+      />
+
+      <EditCustomerInfoDialog
+        open={activeEditDialog === 'customer'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        data={{
+          primaryCustomerSize: buyer?.primary_customer_size,
+          customerGeographicReach: buyer?.customer_geographic_reach,
+          customerIndustries: buyer?.customer_industries,
+          targetCustomerProfile: buyer?.target_customer_profile,
+        }}
+        onSave={(data) => updateBuyerMutation.mutate(data)}
+        isSaving={updateBuyerMutation.isPending}
+      />
+
+      <EditAcquisitionHistoryDialog
+        open={activeEditDialog === 'acquisition'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        data={{
+          totalAcquisitions: buyer?.total_acquisitions,
+          acquisitionFrequency: buyer?.acquisition_frequency,
+        }}
+        onSave={(data) => updateBuyerMutation.mutate(data)}
+        isSaving={updateBuyerMutation.isPending}
+      />
     </div>
   );
 };
