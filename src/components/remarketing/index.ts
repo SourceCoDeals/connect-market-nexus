@@ -19,6 +19,7 @@ export { MAGuideEditor } from './MAGuideEditor';
 export { UniverseTemplates } from './UniverseTemplates';
 export { ScoringBehaviorPanel } from './ScoringBehaviorPanel';
 export { ScoringBehaviorPanelEnhanced } from './ScoringBehaviorPanelEnhanced';
+export { ScoringInsightsPanel } from './ScoringInsightsPanel';
 export { TargetBuyerTypesPanel } from './TargetBuyerTypesPanel';
 export { IndustryKPIPanel } from './IndustryKPIPanel';
 export { AdditionalCriteriaDisplay } from './AdditionalCriteriaDisplay';

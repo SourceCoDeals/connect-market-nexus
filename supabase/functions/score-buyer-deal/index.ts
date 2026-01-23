@@ -16,6 +16,7 @@ interface BulkScoreRequest {
   listingId: string;
   universeId: string;
   buyerIds?: string[];
+  customInstructions?: string; // Admin custom scoring instructions
   options?: {
     rescoreExisting?: boolean;
     minDataCompleteness?: 'high' | 'medium' | 'low';
@@ -339,8 +340,8 @@ async function handleSingleScore(
     fetchLearningPatterns(supabase, [buyerId]),
   ]);
 
-  // Generate score using AI
-  const score = await generateAIScore(listing, buyer, universe, apiKey);
+  // Generate score using AI (no custom instructions for single score)
+  const score = await generateAIScore(listing, buyer, universe, apiKey, undefined);
 
   // Apply learning adjustments
   const { adjustedScore, thesisBonus, adjustmentReason } = applyLearningAdjustment(
@@ -395,9 +396,11 @@ async function handleBulkScore(
   apiKey: string,
   corsHeaders: Record<string, string>
 ) {
-  const { listingId, universeId, buyerIds, options } = request;
+  const { listingId, universeId, buyerIds, customInstructions, options } = request;
   const rescoreExisting = options?.rescoreExisting ?? false;
   const minDataCompleteness = options?.minDataCompleteness;
+
+  console.log("Custom instructions received:", customInstructions ? "Yes" : "No");
 
   // Fetch listing
   const { data: listing, error: listingError } = await supabase
@@ -498,7 +501,7 @@ async function handleBulkScore(
     
     const batchPromises = batch.map(async (buyer: any) => {
       try {
-        const score = await generateAIScore(listing, buyer, universe, apiKey);
+        const score = await generateAIScore(listing, buyer, universe, apiKey, customInstructions);
         
         // Apply learning adjustments
         const { adjustedScore, thesisBonus, adjustmentReason } = applyLearningAdjustment(
@@ -864,7 +867,8 @@ async function generateAIScore(
   listing: any,
   buyer: any,
   universe: any,
-  apiKey: string
+  apiKey: string,
+  customInstructions?: string
 ): Promise<{
   composite_score: number;
   geography_score: number;
@@ -892,6 +896,22 @@ async function generateAIScore(
   // Industry preset context
   const industryPresetContext = scoringBehavior.industry_preset && scoringBehavior.industry_preset !== 'custom'
     ? `\nINDUSTRY CONTEXT: This is a ${scoringBehavior.industry_preset.replace('_', ' ')} deal. Apply industry-specific matching patterns.`
+    : '';
+  
+  // Custom instructions from admin
+  const customInstructionsContext = customInstructions
+    ? `\n\nCUSTOM SCORING INSTRUCTIONS (FROM ADMIN - HIGH PRIORITY):
+The admin has provided these specific instructions for scoring this deal. Apply them with HIGH priority and adjust scores accordingly:
+"${customInstructions}"
+
+Examples of how to interpret these instructions:
+- "Owner wants to stay and retain equity rollover" → Boost owner_goals_score for buyers who support equity rollovers and owner transitions
+- "Quick close needed (60 days or less)" → Prioritize buyers with fast close track records, penalize slow-moving buyers
+- "Key employees must be retained" → Favor buyers known to retain management teams
+- "Single location is acceptable" → Do not apply single-location penalties in size_score
+- "No DRP relationships" → Prioritize buyers comfortable with non-DRP shops
+
+Always mention how you applied these instructions in your reasoning.`
     : '';
 
 const systemPrompt = `You are an M&A advisor scoring buyer-deal fits for automotive aftermarket businesses. Analyze the match between a business listing and a potential buyer (PE firm/platform/strategic acquirer).
@@ -935,7 +955,7 @@ REASONING FORMAT REQUIREMENTS:
 Example reasoning:
 "✅ Strong fit: Buyer operates in TX (adjacent). Strong service alignment (67% overlap): collision, repair. Owner avoids DRP - deal aligns. +10pt primary focus bonus. Buyer footprint: TX, OK, AR → Deal: MO"
 
-Provide scores and reasoning following the format above. Be specific about which rules affected your scoring.`;
+Provide scores and reasoning following the format above. Be specific about which rules affected your scoring.${customInstructionsContext}`;
 
   // Get listing description with fallback chain
   const getDescription = () => {
