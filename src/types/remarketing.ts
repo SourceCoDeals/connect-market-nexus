@@ -90,7 +90,7 @@ export interface ScoringBehavior {
   penalize_single_location?: boolean;
   
   // Service Matching
-  service_matching_mode?: 'keyword' | 'semantic';
+  service_matching_mode?: 'keyword' | 'semantic' | 'hybrid';
   require_primary_focus?: boolean;
   excluded_services_dealbreaker?: boolean;
   

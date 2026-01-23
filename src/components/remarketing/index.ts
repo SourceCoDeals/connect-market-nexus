@@ -23,6 +23,7 @@ export { TargetBuyerTypesPanel } from './TargetBuyerTypesPanel';
 export { IndustryKPIPanel } from './IndustryKPIPanel';
 export { AdditionalCriteriaDisplay } from './AdditionalCriteriaDisplay';
 export { BuyerFitCriteriaAccordion } from './BuyerFitCriteriaAccordion';
+export { BuyerFitCriteriaDialog } from './BuyerFitCriteriaDialog';
 export { BuyerTableToolbar } from './BuyerTableToolbar';
 
 // Table Components

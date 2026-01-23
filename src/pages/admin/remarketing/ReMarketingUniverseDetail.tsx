@@ -23,7 +23,8 @@ import {
   IndustryKPIPanel,
   BuyerTableToolbar,
   AddDealToUniverseDialog,
-  DealCSVImport
+  DealCSVImport,
+  BuyerFitCriteriaDialog
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -956,35 +957,20 @@ const ReMarketingUniverseDetail = () => {
         </Tabs>
       )}
 
-      {/* Criteria Edit Dialog */}
-      {showCriteriaEdit && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Edit Criteria</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setShowCriteriaEdit(false)}>
-                  Close
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <StructuredCriteriaPanel
-                sizeCriteria={sizeCriteria}
-                geographyCriteria={geographyCriteria}
-                serviceCriteria={serviceCriteria}
-                buyerTypesCriteria={buyerTypesCriteria}
-                scoringBehavior={scoringBehavior}
-                onSizeCriteriaChange={setSizeCriteria}
-                onGeographyCriteriaChange={setGeographyCriteria}
-                onServiceCriteriaChange={setServiceCriteria}
-                onBuyerTypesCriteriaChange={setBuyerTypesCriteria}
-                onScoringBehaviorChange={setScoringBehavior}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Buyer Fit Criteria Edit Dialog */}
+      <BuyerFitCriteriaDialog
+        open={showCriteriaEdit}
+        onOpenChange={setShowCriteriaEdit}
+        sizeCriteria={sizeCriteria}
+        geographyCriteria={geographyCriteria}
+        serviceCriteria={serviceCriteria}
+        targetBuyerTypes={targetBuyerTypes}
+        onSizeCriteriaChange={setSizeCriteria}
+        onGeographyCriteriaChange={setGeographyCriteria}
+        onServiceCriteriaChange={setServiceCriteria}
+        onTargetBuyerTypesChange={setTargetBuyerTypes}
+        universeName={formData.name}
+      />
 
       {/* Add Deal Dialog */}
       {!isNew && id && (
