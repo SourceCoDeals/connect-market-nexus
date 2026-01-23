@@ -32,11 +32,13 @@ import { toast } from "sonner";
 interface ListingOption {
   id: string;
   title: string | null;
+  internal_company_name: string | null;
   location: string | null;
   revenue: number | null;
   ebitda: number | null;
   enriched_at: string | null;
   geographic_states: string[] | null;
+  universes?: { id: string; name: string }[];
 }
 
 interface AddDealToUniverseDialogProps {
@@ -74,31 +76,55 @@ export const AddDealToUniverseDialog = ({
   const { data: availableListings, isLoading: loadingListings } = useQuery({
     queryKey: ["listings", "available-for-universe", universeId, search],
     queryFn: async (): Promise<ListingOption[]> => {
-      // Use explicit any cast to avoid TS2589 deep instantiation error with Supabase types
-      // Note: listings use deleted_at IS NULL for active status, not is_active
+      // Fetch listings with internal_company_name
       const result = await (supabase as any)
         .from("listings")
-        .select("id, title, location, revenue, ebitda, enriched_at, geographic_states")
+        .select("id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (result.error) throw result.error;
 
-      const data = result.data as ListingOption[];
+      // Fetch universe associations for all listings
+      const universeResult = await (supabase as any)
+        .from("remarketing_universe_deals")
+        .select(`
+          listing_id,
+          universe:remarketing_buyer_universes(id, name)
+        `)
+        .eq("status", "active");
 
-      // Filter by search and exclude existing deals
-      let filtered = (data || []).filter((listing) => !existingDealIds.includes(listing.id));
+      const universeMap: Record<string, { id: string; name: string }[]> = {};
+      if (universeResult.data) {
+        for (const link of universeResult.data) {
+          if (!universeMap[link.listing_id]) {
+            universeMap[link.listing_id] = [];
+          }
+          if (link.universe) {
+            universeMap[link.listing_id].push(link.universe);
+          }
+        }
+      }
+
+      let data = (result.data as ListingOption[] || []).map((listing) => ({
+        ...listing,
+        universes: universeMap[listing.id] || [],
+      }));
+
+      // Filter by search (title, internal_company_name, location) and exclude existing deals in THIS universe
+      data = data.filter((listing) => !existingDealIds.includes(listing.id));
       
       if (search) {
         const searchLower = search.toLowerCase();
-        filtered = filtered.filter((listing) => 
+        data = data.filter((listing) => 
           listing.title?.toLowerCase().includes(searchLower) ||
+          listing.internal_company_name?.toLowerCase().includes(searchLower) ||
           listing.location?.toLowerCase().includes(searchLower)
         );
       }
       
-      return filtered;
+      return data;
     },
     enabled: open,
   });
@@ -235,19 +261,24 @@ export const AddDealToUniverseDialog = ({
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search marketplace listings..."
+                placeholder="Search by company name, marketplace title, or location..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
 
+            {/* Results count */}
+            <div className="text-xs text-muted-foreground mb-2">
+              {availableListings?.length || 0} listings available
+            </div>
+
             {/* Listings List */}
-            <ScrollArea className="flex-1 border rounded-lg">
-              <div className="p-2 space-y-1">
+            <ScrollArea className="flex-1 border rounded-lg min-h-[300px]">
+              <div className="p-2 space-y-2">
                 {loadingListings ? (
                   Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
+                    <Skeleton key={i} className="h-20 w-full" />
                   ))
                 ) : availableListings?.length === 0 ? (
                   <div className="py-8 text-center text-muted-foreground">
@@ -258,37 +289,53 @@ export const AddDealToUniverseDialog = ({
                 ) : (
                   availableListings?.map((listing) => {
                     const isSelected = selectedListings.includes(listing.id);
+                    const displayName = listing.internal_company_name || listing.title;
+                    const hasRealName = !!listing.internal_company_name;
+                    
                     return (
                       <div
                         key={listing.id}
                         onClick={() => toggleListing(listing.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
                           isSelected
-                            ? "bg-primary/10 border border-primary"
-                            : "hover:bg-muted/50 border border-transparent"
+                            ? "bg-primary/10 border-primary shadow-sm"
+                            : "hover:bg-muted/50 border-border hover:border-muted-foreground/30"
                         }`}
                       >
+                        {/* Checkbox */}
                         <div
-                          className={`h-5 w-5 rounded border flex items-center justify-center ${
+                          className={`h-5 w-5 rounded border flex items-center justify-center shrink-0 mt-0.5 ${
                             isSelected
                               ? "bg-primary border-primary text-primary-foreground"
-                              : "border-muted-foreground"
+                              : "border-muted-foreground/50"
                           }`}
                         >
                           {isSelected && <Check className="h-3 w-3" />}
                         </div>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">{listing.title}</span>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          {/* Primary name row */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-foreground truncate max-w-[280px]">
+                              {displayName}
+                            </span>
                             {listing.enriched_at && (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge variant="secondary" className="text-xs shrink-0 bg-emerald-500/10 text-emerald-600 border-emerald-200">
                                 <Sparkles className="h-3 w-3 mr-1" />
                                 Enriched
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          
+                          {/* Secondary title (if different from display name) */}
+                          {hasRealName && listing.title && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              Marketplace: {listing.title}
+                            </p>
+                          )}
+                          
+                          {/* Meta row */}
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
                             {listing.location && (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
@@ -296,12 +343,33 @@ export const AddDealToUniverseDialog = ({
                               </span>
                             )}
                             {listing.revenue && (
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 font-medium text-foreground/70">
                                 <DollarSign className="h-3 w-3" />
                                 {formatCurrency(listing.revenue)}
                               </span>
                             )}
                           </div>
+                          
+                          {/* Universe badges */}
+                          {listing.universes && listing.universes.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap pt-1">
+                              <span className="text-xs text-muted-foreground">In:</span>
+                              {listing.universes.slice(0, 3).map((u) => (
+                                <Badge 
+                                  key={u.id} 
+                                  variant="outline" 
+                                  className="text-[10px] px-1.5 py-0 h-5 bg-muted/50"
+                                >
+                                  {u.name}
+                                </Badge>
+                              ))}
+                              {listing.universes.length > 3 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{listing.universes.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
