@@ -381,54 +381,44 @@ const ReMarketingDealDetail = () => {
         {/* Financial Overview */}
         <Card>
           <CardHeader className="py-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Financial Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm text-muted-foreground">Revenue</span>
-                {deal.revenue && (
-                  <Badge variant="outline" className="text-xs">
-                    <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
-                    Verified
-                  </Badge>
-                )}
-              </div>
-              <span className="text-2xl font-bold">{formatCurrency(deal.revenue)}</span>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Financial Overview
+              </CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Pencil className="h-4 w-4" />
+              </Button>
             </div>
-            <Separator />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                REVENUE (IN $M)
+              </p>
+              <span className="text-3xl font-bold">{formatCurrency(deal.revenue)}</span>
+            </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">EBITDA Margin</span>
-                <span className="font-medium">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  EBITDA MARGIN (%)
+                </p>
+                <span className="text-lg font-semibold">
                   {deal.revenue && deal.ebitda 
-                    ? `${((deal.ebitda / deal.revenue) * 100).toFixed(1)}%`
+                    ? `${((deal.ebitda / deal.revenue) * 100).toFixed(0)}%`
                     : '—'
                   }
                 </span>
               </div>
               {deal.revenue && deal.ebitda && (
                 <Progress 
-                  value={(deal.ebitda / deal.revenue) * 100} 
-                  className="h-2"
+                  value={Math.min((deal.ebitda / deal.revenue) * 100, 100)} 
+                  className="h-3"
                 />
               )}
-            </div>
-            <Separator />
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">EBITDA</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{formatCurrency(deal.ebitda)}</span>
-                {deal.ebitda && (
-                  <Badge variant="outline" className="text-xs">
-                    <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
-                    Verified
-                  </Badge>
-                )}
-              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                EBITDA: {formatCurrency(deal.ebitda)}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -494,10 +484,20 @@ const ReMarketingDealDetail = () => {
       <AdditionalInfoCard
         otherNotes={deal.owner_notes}
         internalNotes={deal.internal_notes}
+        keyRisks={deal.key_risks}
+        competitivePosition={deal.competitive_position}
+        technologySystems={deal.technology_systems}
+        realEstateInfo={deal.real_estate_info}
+        growthTrajectory={deal.growth_trajectory}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
             owner_notes: data.otherNotes,
             internal_notes: data.internalNotes,
+            key_risks: data.keyRisks,
+            competitive_position: data.competitivePosition,
+            technology_systems: data.technologySystems,
+            real_estate_info: data.realEstateInfo,
+            growth_trajectory: data.growthTrajectory,
           });
         }}
       />

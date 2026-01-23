@@ -8,6 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Table,
   TableBody,
   TableCell,
@@ -75,7 +81,8 @@ const ReMarketingDeals = () => {
           service_mix,
           internal_company_name,
           internal_deal_memo_link,
-          geographic_states
+          geographic_states,
+          enriched_at
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -252,6 +259,17 @@ const ReMarketingDeals = () => {
     return universeLookup[firstId] || null;
   };
 
+  // Format geography as badges from geographic_states array
+  const formatGeographyBadges = (states: string[] | null) => {
+    if (!states || states.length === 0) return null;
+    
+    if (states.length <= 2) {
+      return states.join(", ");
+    }
+    
+    return `${states.slice(0, 2).join(", ")} +${states.length - 2}`;
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -332,188 +350,213 @@ const ReMarketingDeals = () => {
       {/* Deals Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[280px]">Deal Name</TableHead>
-                <TableHead className="w-[200px]">Description</TableHead>
-                <TableHead>Tracker</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
-                <TableHead className="text-right">EBITDA</TableHead>
-                <TableHead className="text-center">Score</TableHead>
-                <TableHead className="text-center">Engagement</TableHead>
-                <TableHead>Added</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {listingsLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
-                  </TableRow>
-                ))
-              ) : filteredListings.length === 0 ? (
+          <TooltipProvider>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                    <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No deals found</p>
-                    <p className="text-sm">Try adjusting your search or filters</p>
-                  </TableCell>
+                  <TableHead className="w-[250px]">Deal Name</TableHead>
+                  <TableHead className="w-[150px]">Buyer Universe</TableHead>
+                  <TableHead className="w-[180px]">Description</TableHead>
+                  <TableHead>Geography</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">EBITDA</TableHead>
+                  <TableHead className="text-center">Score</TableHead>
+                  <TableHead className="text-center">Engagement</TableHead>
+                  <TableHead>Added</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              ) : (
-                filteredListings.map((listing) => {
-                  const stats = scoreStats?.[listing.id];
-                  const tier = stats ? getTierFromScore(stats.avgScore) : null;
-                  const universeName = getFirstUniverseName(listing.id);
-                  const effectiveWebsite = getEffectiveWebsite(listing);
-                  const domain = formatWebsiteDomain(effectiveWebsite);
-                  const isEnriched = !!listing.executive_summary || !!listing.service_mix;
-                  const displayName = listing.internal_company_name || listing.title;
-                  const listedName = listing.internal_company_name && listing.title !== listing.internal_company_name 
-                    ? listing.title 
-                    : null;
-                  
-                  return (
-                    <TableRow 
-                      key={listing.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
-                    >
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-foreground flex items-center gap-1.5">
-                            {displayName}
-                            {isEnriched && (
-                              <Sparkles className="h-3.5 w-3.5 text-primary" />
-                            )}
-                          </p>
-                          {listedName && (
-                            <p className="text-xs text-muted-foreground">{listedName}</p>
-                          )}
-                          {domain && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Globe className="h-3 w-3" />
-                              {domain}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-sm text-muted-foreground line-clamp-2 max-w-[200px]">
-                          {listing.description?.substring(0, 80) || '—'}
-                          {listing.description && listing.description.length > 80 ? '...' : ''}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        {universeName ? (
-                          <Badge variant="outline" className="text-xs font-normal">
-                            {universeName}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {listing.location ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {listing.location}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(listing.revenue)}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(listing.ebitda)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {stats && stats.avgScore > 0 ? (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span className="font-semibold text-sm">
-                              {Math.round(stats.avgScore)}
-                            </span>
-                            {getScoreTrendIcon(stats.avgScore)}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-3 text-sm">
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Users className="h-3.5 w-3.5" />
-                            <span>{stats?.totalMatches || 0}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-green-600">
-                            <ThumbsUp className="h-3.5 w-3.5" />
-                            <span>{stats?.approved || 0}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-red-500">
-                            <ThumbsDown className="h-3.5 w-3.5" />
-                            <span>{stats?.passed || 0}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(listing.created_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/remarketing/deals/${listing.id}`);
-                              }}
-                            >
-                              <Building2 className="h-4 w-4 mr-2" />
-                              View Deal
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/remarketing/matching/${listing.id}`);
-                              }}
-                            >
-                              <Target className="h-4 w-4 mr-2" />
-                              Match Buyers
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/listing/${listing.id}`);
-                              }}
-                            >
-                              <ExternalLink className="h-4 w-4 mr-2" />
-                              View Listing
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+              </TableHeader>
+              <TableBody>
+                {listingsLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-14" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                     </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+                  ))
+                ) : filteredListings.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No deals found</p>
+                      <p className="text-sm">Try adjusting your search or filters</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredListings.map((listing) => {
+                    const stats = scoreStats?.[listing.id];
+                    const universeName = getFirstUniverseName(listing.id);
+                    const effectiveWebsite = getEffectiveWebsite(listing);
+                    const domain = formatWebsiteDomain(effectiveWebsite);
+                    const isEnriched = !!listing.enriched_at;
+                    const displayName = listing.internal_company_name || listing.title;
+                    const listedName = listing.internal_company_name && listing.title !== listing.internal_company_name 
+                      ? listing.title 
+                      : null;
+                    const geographyDisplay = formatGeographyBadges(listing.geographic_states);
+                    
+                    return (
+                      <TableRow 
+                        key={listing.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
+                      >
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-foreground flex items-center gap-1.5">
+                              {displayName}
+                              {isEnriched && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>
+                                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Enriched on {format(new Date(listing.enriched_at), 'dd/MM/yyyy')}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </p>
+                            {listedName && (
+                              <p className="text-xs text-muted-foreground">{listedName}</p>
+                            )}
+                            {domain && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Globe className="h-3 w-3" />
+                                {domain}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {universeName ? (
+                            <Badge variant="outline" className="text-xs font-normal">
+                              {universeName}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm text-muted-foreground line-clamp-2 max-w-[180px]">
+                            {listing.description?.substring(0, 60) || '—'}
+                            {listing.description && listing.description.length > 60 ? '...' : ''}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          {geographyDisplay ? (
+                            <Badge variant="secondary" className="text-xs font-normal">
+                              {geographyDisplay}
+                            </Badge>
+                          ) : listing.location ? (
+                            <Badge variant="secondary" className="text-xs font-normal">
+                              {listing.location.substring(0, 15)}{listing.location.length > 15 ? '...' : ''}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(listing.revenue)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(listing.ebitda)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {stats && stats.avgScore > 0 ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="font-semibold text-sm">
+                                {Math.round(stats.avgScore)}
+                              </span>
+                              {getScoreTrendIcon(stats.avgScore)}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-3 text-sm">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Users className="h-3.5 w-3.5" />
+                              <span>{stats?.totalMatches || 0}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-green-600">
+                              <ThumbsUp className="h-3.5 w-3.5" />
+                              <span>{stats?.approved || 0}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-red-500">
+                              <ThumbsDown className="h-3.5 w-3.5" />
+                              <span>{stats?.passed || 0}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {format(new Date(listing.created_at), 'dd/MM/yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={listing.status === 'active' ? 'default' : 'secondary'} 
+                            className="text-xs capitalize"
+                          >
+                            {listing.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/admin/remarketing/deals/${listing.id}`);
+                                }}
+                              >
+                                <Building2 className="h-4 w-4 mr-2" />
+                                View Deal
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/admin/remarketing/matching/${listing.id}`);
+                                }}
+                              >
+                                <Target className="h-4 w-4 mr-2" />
+                                Match Buyers
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/listing/${listing.id}`);
+                                }}
+                              >
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                View Listing
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TooltipProvider>
         </CardContent>
       </Card>
     </div>

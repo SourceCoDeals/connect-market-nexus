@@ -2495,6 +2495,7 @@ export type Database = {
           business_model: string | null
           categories: string[] | null
           category: string
+          competitive_position: string | null
           created_at: string
           custom_metric_label: string | null
           custom_metric_subtitle: string | null
@@ -2509,6 +2510,7 @@ export type Database = {
           description_json: Json | null
           ebitda: number
           ebitda_metric_subtitle: string | null
+          enriched_at: string | null
           executive_summary: string | null
           files: string[] | null
           founded_year: number | null
@@ -2516,6 +2518,7 @@ export type Database = {
           general_notes: string | null
           geographic_states: string[] | null
           growth_drivers: Json | null
+          growth_trajectory: string | null
           hero_description: string | null
           id: string
           image_url: string | null
@@ -2550,6 +2553,7 @@ export type Database = {
           primary_contact_name: string | null
           primary_contact_phone: string | null
           primary_owner_id: string | null
+          real_estate_info: string | null
           revenue: number
           revenue_metric_subtitle: string | null
           revenue_model_breakdown: Json | null
@@ -2560,6 +2564,7 @@ export type Database = {
           status: string
           status_tag: string | null
           tags: string[] | null
+          technology_systems: string | null
           timeline_preference: string | null
           title: string
           transaction_preferences: Json | null
@@ -2573,6 +2578,7 @@ export type Database = {
           business_model?: string | null
           categories?: string[] | null
           category: string
+          competitive_position?: string | null
           created_at?: string
           custom_metric_label?: string | null
           custom_metric_subtitle?: string | null
@@ -2587,6 +2593,7 @@ export type Database = {
           description_json?: Json | null
           ebitda: number
           ebitda_metric_subtitle?: string | null
+          enriched_at?: string | null
           executive_summary?: string | null
           files?: string[] | null
           founded_year?: number | null
@@ -2594,6 +2601,7 @@ export type Database = {
           general_notes?: string | null
           geographic_states?: string[] | null
           growth_drivers?: Json | null
+          growth_trajectory?: string | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
@@ -2628,6 +2636,7 @@ export type Database = {
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
           primary_owner_id?: string | null
+          real_estate_info?: string | null
           revenue: number
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
@@ -2638,6 +2647,7 @@ export type Database = {
           status?: string
           status_tag?: string | null
           tags?: string[] | null
+          technology_systems?: string | null
           timeline_preference?: string | null
           title: string
           transaction_preferences?: Json | null
@@ -2651,6 +2661,7 @@ export type Database = {
           business_model?: string | null
           categories?: string[] | null
           category?: string
+          competitive_position?: string | null
           created_at?: string
           custom_metric_label?: string | null
           custom_metric_subtitle?: string | null
@@ -2665,6 +2676,7 @@ export type Database = {
           description_json?: Json | null
           ebitda?: number
           ebitda_metric_subtitle?: string | null
+          enriched_at?: string | null
           executive_summary?: string | null
           files?: string[] | null
           founded_year?: number | null
@@ -2672,6 +2684,7 @@ export type Database = {
           general_notes?: string | null
           geographic_states?: string[] | null
           growth_drivers?: Json | null
+          growth_trajectory?: string | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
@@ -2706,6 +2719,7 @@ export type Database = {
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
           primary_owner_id?: string | null
+          real_estate_info?: string | null
           revenue?: number
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
@@ -2716,6 +2730,7 @@ export type Database = {
           status?: string
           status_tag?: string | null
           tags?: string[] | null
+          technology_systems?: string | null
           timeline_preference?: string | null
           title?: string
           transaction_preferences?: Json | null
