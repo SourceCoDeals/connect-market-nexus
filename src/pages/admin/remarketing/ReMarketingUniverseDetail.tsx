@@ -92,6 +92,7 @@ const ReMarketingUniverseDetail = () => {
   const [documents, setDocuments] = useState<DocumentReference[]>([]);
   const [maGuideContent, setMaGuideContent] = useState("");
   const [targetBuyerTypes, setTargetBuyerTypes] = useState<TargetBuyerTypeConfig[]>(DEFAULT_BUYER_TYPES);
+  const [industryKPIs, setIndustryKPIs] = useState<{ id: string; name: string; weight: number; threshold_min?: number; threshold_max?: number; unit?: string; description?: string }[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [buyerFitOpen, setBuyerFitOpen] = useState(false);
   const [buyerSearch, setBuyerSearch] = useState("");
@@ -563,7 +564,10 @@ const ReMarketingUniverseDetail = () => {
 
       {/* Industry KPI */}
       {!isNew && id && (
-        <IndustryKPIPanel />
+        <IndustryKPIPanel 
+          kpis={industryKPIs}
+          onKPIsChange={setIndustryKPIs}
+        />
       )}
 
       {/* Buyers/Deals Tabs */}
