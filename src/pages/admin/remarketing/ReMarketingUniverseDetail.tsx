@@ -16,9 +16,12 @@ import {
   DocumentUploadSection,
   MAGuideEditor,
   UniverseTemplates,
-  ScoringBehaviorPanel,
+  ScoringBehaviorPanelEnhanced,
   BuyerTableEnhanced,
-  UniverseDealsTable
+  UniverseDealsTable,
+  TargetBuyerTypesPanel,
+  IndustryKPIPanel,
+  BuyerTableToolbar
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -26,7 +29,8 @@ import {
   ServiceCriteria, 
   BuyerTypesCriteria,
   ScoringBehavior,
-  DocumentReference
+  DocumentReference,
+  TargetBuyerTypeConfig
 } from "@/types/remarketing";
 import { 
   ArrowLeft,
@@ -38,12 +42,26 @@ import {
   Plus,
   Sparkles,
   Loader2,
-  SlidersHorizontal,
   BookOpen,
   LayoutTemplate,
-  Briefcase
+  Briefcase,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Pencil
 } from "lucide-react";
 import { toast } from "sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+// Default buyer types configuration
+const DEFAULT_BUYER_TYPES: TargetBuyerTypeConfig[] = [
+  { id: 'large_mso', rank: 1, name: 'Large MSOs', description: 'Multi-state operators with 50+ locations seeking add-on acquisitions.', locations_min: 50, locations_max: 500, revenue_per_location: 2500000, deal_requirements: 'Prefer deals with $2M+ revenue', enabled: true },
+  { id: 'regional_mso', rank: 2, name: 'Regional MSOs', description: 'Regional operators with 10-50 locations expanding within their footprint.', locations_min: 10, locations_max: 50, revenue_per_location: 2000000, deal_requirements: 'Looking for tuck-in acquisitions', enabled: true },
+  { id: 'pe_backed', rank: 3, name: 'PE-Backed Platforms', description: 'Private equity portfolio companies actively deploying capital.', locations_min: 5, locations_max: 100, revenue_per_location: 1500000, deal_requirements: 'Need clean financials', enabled: true },
+  { id: 'independent_sponsor', rank: 4, name: 'Independent Sponsors', description: 'Dealmakers with committed capital seeking platform investments.', locations_min: 1, locations_max: 10, revenue_per_location: 1000000, deal_requirements: 'Flexible on structure', enabled: true },
+  { id: 'small_local', rank: 5, name: 'Small Local Buyers', description: 'Owner-operators looking to expand from 1-5 locations.', locations_min: 1, locations_max: 5, revenue_per_location: 800000, deal_requirements: 'Often need SBA financing', enabled: true },
+  { id: 'local_strategic', rank: 6, name: 'Local Strategics', description: 'Established local businesses seeking adjacent market expansion.', locations_min: 2, locations_max: 15, revenue_per_location: 1200000, deal_requirements: 'Looking for synergies', enabled: true },
+];
 
 const ReMarketingUniverseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -73,7 +91,11 @@ const ReMarketingUniverseDetail = () => {
   const [scoringBehavior, setScoringBehavior] = useState<ScoringBehavior>({});
   const [documents, setDocuments] = useState<DocumentReference[]>([]);
   const [maGuideContent, setMaGuideContent] = useState("");
+  const [targetBuyerTypes, setTargetBuyerTypes] = useState<TargetBuyerTypeConfig[]>(DEFAULT_BUYER_TYPES);
   const [isParsing, setIsParsing] = useState(false);
+  const [buyerFitOpen, setBuyerFitOpen] = useState(false);
+  const [buyerSearch, setBuyerSearch] = useState("");
+  const [showCriteriaEdit, setShowCriteriaEdit] = useState(false);
 
   // Fetch universe if editing
   const { data: universe, isLoading } = useQuery({
@@ -118,7 +140,6 @@ const ReMarketingUniverseDetail = () => {
     queryFn: async () => {
       if (isNew) return [];
       
-      // Get scores grouped by listing
       const { data: scores, error } = await supabase
         .from('remarketing_scores')
         .select(`
@@ -131,7 +152,6 @@ const ReMarketingUniverseDetail = () => {
       
       if (error) throw error;
 
-      // Group by listing and calculate stats
       const dealMap = new Map<string, {
         listing_id: string;
         listing_title?: string;
@@ -189,7 +209,6 @@ const ReMarketingUniverseDetail = () => {
         service_weight: universe.service_weight || 25,
         owner_goals_weight: universe.owner_goals_weight || 15,
       });
-      // Load structured criteria from JSONB columns
       setSizeCriteria((universe.size_criteria as unknown as SizeCriteria) || {});
       setGeographyCriteria((universe.geography_criteria as unknown as GeographyCriteria) || {});
       setServiceCriteria((universe.service_criteria as unknown as ServiceCriteria) || {});
@@ -318,6 +337,13 @@ const ReMarketingUniverseDetail = () => {
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
 
+  // Filter buyers by search
+  const filteredBuyers = buyers?.filter(buyer => 
+    !buyerSearch || 
+    buyer.company_name.toLowerCase().includes(buyerSearch.toLowerCase()) ||
+    buyer.pe_firm_name?.toLowerCase().includes(buyerSearch.toLowerCase())
+  ) || [];
+
   if (!isNew && isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -338,26 +364,48 @@ const ReMarketingUniverseDetail = () => {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {isNew ? 'New Universe' : formData.name || 'Universe'}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight">
+                {isNew ? 'New Universe' : formData.name || 'Universe'}
+              </h1>
+              {!isNew && (
+                <span className="text-muted-foreground text-sm">
+                  · {buyers?.length || 0} buyers · {deals?.length || 0} deals
+                </span>
+              )}
+            </div>
             <p className="text-muted-foreground">
               {isNew ? 'Create a new buyer universe' : 'Edit universe settings and criteria'}
             </p>
           </div>
         </div>
-        <Button 
-          onClick={() => saveMutation.mutate()}
-          disabled={!formData.name || saveMutation.isPending}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {saveMutation.isPending ? 'Saving...' : 'Save'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {!isNew && (
+            <Button variant="outline" asChild>
+              <Link to="/admin/remarketing/deals">
+                <Plus className="mr-2 h-4 w-4" />
+                List New Deal
+              </Link>
+            </Button>
+          )}
+          <Button 
+            onClick={() => saveMutation.mutate()}
+            disabled={!formData.name || saveMutation.isPending}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            {saveMutation.isPending ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
       </div>
 
-      {/* Scoring Behavior Panel - shown at top for non-new universes */}
+      {/* New Universe: Templates */}
+      {isNew && (
+        <UniverseTemplates onApplyTemplate={handleApplyTemplate} />
+      )}
+
+      {/* Scoring Behavior Accordion */}
       {!isNew && (
-        <ScoringBehaviorPanel
+        <ScoringBehaviorPanelEnhanced
           scoringBehavior={scoringBehavior}
           weights={{
             geography: formData.geography_weight,
@@ -366,284 +414,191 @@ const ReMarketingUniverseDetail = () => {
             ownerGoals: formData.owner_goals_weight,
           }}
           onScoringBehaviorChange={setScoringBehavior}
+          onWeightsChange={(weights) => setFormData(prev => ({
+            ...prev,
+            geography_weight: weights.geography,
+            size_weight: weights.size,
+            service_weight: weights.service,
+            owner_goals_weight: weights.ownerGoals,
+          }))}
+          onSave={() => saveMutation.mutate()}
           readOnly={false}
         />
       )}
 
-      <Tabs defaultValue={isNew ? "templates" : "buyers"} className="space-y-6">
-        <TabsList className="flex-wrap">
-          {isNew && (
-            <TabsTrigger value="templates">
-              <LayoutTemplate className="mr-2 h-4 w-4" />
-              Templates
-            </TabsTrigger>
-          )}
-          {!isNew && (
-            <>
-              <TabsTrigger value="buyers">
-                <Users className="mr-2 h-4 w-4" />
-                Buyers ({buyers?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="deals">
-                <Briefcase className="mr-2 h-4 w-4" />
-                Deals ({deals?.length || 0})
-              </TabsTrigger>
-            </>
-          )}
-          <TabsTrigger value="details">
-            <Target className="mr-2 h-4 w-4" />
-            Details
-          </TabsTrigger>
-          <TabsTrigger value="criteria">
-            <FileText className="mr-2 h-4 w-4" />
-            Criteria
-          </TabsTrigger>
-          <TabsTrigger value="weights">
-            <Settings className="mr-2 h-4 w-4" />
-            Scoring
-          </TabsTrigger>
-          <TabsTrigger value="guide">
-            <BookOpen className="mr-2 h-4 w-4" />
-            MA Guide
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Templates Tab (New Universe Only) */}
-        {isNew && (
-          <TabsContent value="templates">
-            <UniverseTemplates onApplyTemplate={handleApplyTemplate} />
-          </TabsContent>
-        )}
-
-        {/* Details Tab */}
-        <TabsContent value="details">
+      {/* Buyer Fit Criteria Accordion */}
+      {!isNew && (
+        <Collapsible open={buyerFitOpen} onOpenChange={setBuyerFitOpen}>
           <Card>
-            <CardHeader>
-              <CardTitle>Universe Details</CardTitle>
-              <CardDescription>
-                Basic information about this buyer universe
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Home Services PE Firms"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe this buyer universe..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Criteria Tab */}
-        <TabsContent value="criteria">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Fit Criteria</CardTitle>
-                <CardDescription>
-                  Define the criteria for matching buyers to listings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="fit_criteria">Natural Language Criteria</Label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={parseCriteria}
-                      disabled={isParsing || !formData.fit_criteria.trim()}
-                    >
-                      {isParsing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Parsing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          AI Parse
-                        </>
-                      )}
-                    </Button>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-base font-semibold">Buyer Fit Criteria</CardTitle>
+                    <Badge variant="secondary" className="ml-2">
+                      {targetBuyerTypes.filter(t => t.enabled).length} types
+                    </Badge>
                   </div>
-                  <Textarea
-                    id="fit_criteria"
-                    placeholder="Describe your ideal buyer fit criteria in natural language. For example: 'PE firms focused on home services with existing HVAC or plumbing platforms, targeting $5M-$30M revenue businesses in the Southeast...'"
-                    value={formData.fit_criteria}
-                    onChange={(e) => setFormData({ ...formData, fit_criteria: e.target.value })}
-                    rows={6}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Enter criteria above then click "AI Parse" to auto-fill structured fields below
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCriteriaEdit(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    {buyerFitOpen ? (
+                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-6">
+                {/* Target Buyer Types */}
+                <TargetBuyerTypesPanel
+                  buyerTypes={targetBuyerTypes}
+                  onBuyerTypesChange={setTargetBuyerTypes}
+                />
+
+                {/* Additional Criteria Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Size Criteria Card */}
+                  <Card className="bg-muted/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Size Criteria</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Revenue:</span>
+                        <span>{sizeCriteria.revenue_min ? `$${(sizeCriteria.revenue_min/1000000).toFixed(1)}M` : '-'} - {sizeCriteria.revenue_max ? `$${(sizeCriteria.revenue_max/1000000).toFixed(1)}M` : '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">EBITDA:</span>
+                        <span>{sizeCriteria.ebitda_min ? `$${(sizeCriteria.ebitda_min/1000000).toFixed(1)}M` : '-'} - {sizeCriteria.ebitda_max ? `$${(sizeCriteria.ebitda_max/1000000).toFixed(1)}M` : '-'}</span>
+                      </div>
+                      {sizeCriteria.locations_min !== undefined && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Locations:</span>
+                          <span>{sizeCriteria.locations_min} - {sizeCriteria.locations_max || '∞'}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Service Criteria Card */}
+                  <Card className="bg-muted/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Service / Product Mix</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2">
+                      {serviceCriteria.required_services && serviceCriteria.required_services.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {serviceCriteria.required_services.slice(0, 3).map((s, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{s}</Badge>
+                          ))}
+                          {serviceCriteria.required_services.length > 3 && (
+                            <Badge variant="outline" className="text-xs">+{serviceCriteria.required_services.length - 3}</Badge>
+                          )}
+                        </div>
+                      )}
+                      {serviceCriteria.excluded_services && serviceCriteria.excluded_services.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {serviceCriteria.excluded_services.slice(0, 2).map((s, i) => (
+                            <Badge key={i} variant="destructive" className="text-xs">{s}</Badge>
+                          ))}
+                        </div>
+                      )}
+                      {serviceCriteria.business_model && (
+                        <div className="text-xs text-muted-foreground">Model: {serviceCriteria.business_model}</div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Geography Criteria Card */}
+                  <Card className="bg-muted/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Geography</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2">
+                      {geographyCriteria.target_regions && geographyCriteria.target_regions.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {geographyCriteria.target_regions.map((r, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{r}</Badge>
+                          ))}
+                        </div>
+                      )}
+                      {geographyCriteria.coverage && (
+                        <div className="text-xs text-muted-foreground capitalize">Coverage: {geographyCriteria.coverage}</div>
+                      )}
+                      {geographyCriteria.hq_requirements && (
+                        <div className="text-xs text-muted-foreground line-clamp-2">{geographyCriteria.hq_requirements}</div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               </CardContent>
-            </Card>
-
-            {/* Structured Criteria */}
-            <StructuredCriteriaPanel
-              sizeCriteria={sizeCriteria}
-              geographyCriteria={geographyCriteria}
-              serviceCriteria={serviceCriteria}
-              buyerTypesCriteria={buyerTypesCriteria}
-              scoringBehavior={scoringBehavior}
-              onSizeCriteriaChange={setSizeCriteria}
-              onGeographyCriteriaChange={setGeographyCriteria}
-              onServiceCriteriaChange={setServiceCriteria}
-              onBuyerTypesCriteriaChange={setBuyerTypesCriteria}
-              onScoringBehaviorChange={setScoringBehavior}
-            />
-          </div>
-        </TabsContent>
-
-        {/* Weights Tab */}
-        <TabsContent value="weights">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scoring Weights</CardTitle>
-              <CardDescription>
-                Adjust how much each category contributes to the overall score
-                <Badge variant={totalWeight === 100 ? "default" : "destructive"} className="ml-2">
-                  Total: {totalWeight}%
-                </Badge>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Geography ({formData.geography_weight}%)</Label>
-                </div>
-                <Slider
-                  value={[formData.geography_weight]}
-                  onValueChange={([value]) => setFormData({ ...formData, geography_weight: value })}
-                  max={100}
-                  step={5}
-                />
-                <p className="text-sm text-muted-foreground">
-                  How important is geographic overlap between buyer presence and deal location?
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Size Fit ({formData.size_weight}%)</Label>
-                </div>
-                <Slider
-                  value={[formData.size_weight]}
-                  onValueChange={([value]) => setFormData({ ...formData, size_weight: value })}
-                  max={100}
-                  step={5}
-                />
-                <p className="text-sm text-muted-foreground">
-                  How important is revenue/EBITDA fit with buyer's target range?
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Service Mix ({formData.service_weight}%)</Label>
-                </div>
-                <Slider
-                  value={[formData.service_weight]}
-                  onValueChange={([value]) => setFormData({ ...formData, service_weight: value })}
-                  max={100}
-                  step={5}
-                />
-                <p className="text-sm text-muted-foreground">
-                  How important is service/industry alignment?
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Owner Goals ({formData.owner_goals_weight}%)</Label>
-                </div>
-                <Slider
-                  value={[formData.owner_goals_weight]}
-                  onValueChange={([value]) => setFormData({ ...formData, owner_goals_weight: value })}
-                  max={100}
-                  step={5}
-                />
-                <p className="text-sm text-muted-foreground">
-                  How important is alignment with owner's exit goals?
-                </p>
-              </div>
-
-              {totalWeight !== 100 && (
-                <div className="p-4 bg-destructive/10 rounded-lg text-destructive text-sm">
-                  Weights should total 100%. Currently at {totalWeight}%.
-                </div>
-              )}
-            </CardContent>
+            </CollapsibleContent>
           </Card>
-        </TabsContent>
+        </Collapsible>
+      )}
 
-        {/* MA Guide Tab */}
-        <TabsContent value="guide">
-          <div className="space-y-6">
-            <MAGuideEditor
-              content={maGuideContent}
-              onChange={setMaGuideContent}
-              universeName={formData.name}
-              fitCriteria={formData.fit_criteria}
-            />
-            {!isNew && id && (
-              <DocumentUploadSection
-                universeId={id}
-                documents={documents}
-                onDocumentsChange={setDocuments}
-              />
-            )}
-          </div>
-        </TabsContent>
+      {/* Supporting Documents */}
+      {!isNew && id && (
+        <DocumentUploadSection
+          universeId={id}
+          documents={documents}
+          onDocumentsChange={setDocuments}
+        />
+      )}
 
-        {/* Buyers Tab */}
-        {!isNew && (
+      {/* Industry KPI */}
+      {!isNew && id && (
+        <IndustryKPIPanel />
+      )}
+
+      {/* Buyers/Deals Tabs */}
+      {!isNew && (
+        <Tabs defaultValue="buyers" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="buyers">
+              <Users className="mr-2 h-4 w-4" />
+              Buyers ({buyers?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="deals">
+              <Briefcase className="mr-2 h-4 w-4" />
+              Deals ({deals?.length || 0})
+            </TabsTrigger>
+          </TabsList>
+
           <TabsContent value="buyers">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Buyers in Universe</CardTitle>
-                    <CardDescription>
-                      {buyers?.length || 0} buyers assigned to this universe
-                    </CardDescription>
-                  </div>
-                  <Button asChild>
-                    <Link to="/admin/remarketing/buyers">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Buyers
-                    </Link>
-                  </Button>
-                </div>
+              <CardHeader className="pb-4">
+                <BuyerTableToolbar
+                  buyerCount={filteredBuyers.length}
+                  searchValue={buyerSearch}
+                  onSearchChange={setBuyerSearch}
+                  onAddBuyer={() => navigate('/admin/remarketing/buyers')}
+                />
               </CardHeader>
               <CardContent className="p-0">
                 <BuyerTableEnhanced
-                  buyers={buyers || []}
+                  buyers={filteredBuyers}
                   showPEColumn={true}
                 />
               </CardContent>
             </Card>
           </TabsContent>
-        )}
 
-        {/* Deals Tab */}
-        {!isNew && (
           <TabsContent value="deals">
             <Card>
               <CardHeader>
@@ -667,8 +622,226 @@ const ReMarketingUniverseDetail = () => {
               </CardContent>
             </Card>
           </TabsContent>
-        )}
-      </Tabs>
+        </Tabs>
+      )}
+
+      {/* New Universe: Details & Settings Tabs */}
+      {isNew && (
+        <Tabs defaultValue="details" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="details">
+              <Target className="mr-2 h-4 w-4" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="criteria">
+              <FileText className="mr-2 h-4 w-4" />
+              Criteria
+            </TabsTrigger>
+            <TabsTrigger value="weights">
+              <Settings className="mr-2 h-4 w-4" />
+              Scoring
+            </TabsTrigger>
+            <TabsTrigger value="guide">
+              <BookOpen className="mr-2 h-4 w-4" />
+              MA Guide
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Details Tab */}
+          <TabsContent value="details">
+            <Card>
+              <CardHeader>
+                <CardTitle>Universe Details</CardTitle>
+                <CardDescription>
+                  Basic information about this buyer universe
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., Home Services PE Firms"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe this buyer universe..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Criteria Tab */}
+          <TabsContent value="criteria">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Fit Criteria</CardTitle>
+                  <CardDescription>
+                    Define the criteria for matching buyers to listings
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="fit_criteria">Natural Language Criteria</Label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={parseCriteria}
+                        disabled={isParsing || !formData.fit_criteria.trim()}
+                      >
+                        {isParsing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Parsing...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            AI Parse
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <Textarea
+                      id="fit_criteria"
+                      placeholder="Describe your ideal buyer fit criteria in natural language..."
+                      value={formData.fit_criteria}
+                      onChange={(e) => setFormData({ ...formData, fit_criteria: e.target.value })}
+                      rows={6}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <StructuredCriteriaPanel
+                sizeCriteria={sizeCriteria}
+                geographyCriteria={geographyCriteria}
+                serviceCriteria={serviceCriteria}
+                buyerTypesCriteria={buyerTypesCriteria}
+                scoringBehavior={scoringBehavior}
+                onSizeCriteriaChange={setSizeCriteria}
+                onGeographyCriteriaChange={setGeographyCriteria}
+                onServiceCriteriaChange={setServiceCriteria}
+                onBuyerTypesCriteriaChange={setBuyerTypesCriteria}
+                onScoringBehaviorChange={setScoringBehavior}
+              />
+            </div>
+          </TabsContent>
+
+          {/* Weights Tab */}
+          <TabsContent value="weights">
+            <Card>
+              <CardHeader>
+                <CardTitle>Scoring Weights</CardTitle>
+                <CardDescription>
+                  Adjust how much each category contributes to the overall score
+                  <Badge variant={totalWeight === 100 ? "default" : "destructive"} className="ml-2">
+                    Total: {totalWeight}%
+                  </Badge>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  <Label>Geography ({formData.geography_weight}%)</Label>
+                  <Slider
+                    value={[formData.geography_weight]}
+                    onValueChange={([value]) => setFormData({ ...formData, geography_weight: value })}
+                    max={100}
+                    step={5}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Size Fit ({formData.size_weight}%)</Label>
+                  <Slider
+                    value={[formData.size_weight]}
+                    onValueChange={([value]) => setFormData({ ...formData, size_weight: value })}
+                    max={100}
+                    step={5}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Service Mix ({formData.service_weight}%)</Label>
+                  <Slider
+                    value={[formData.service_weight]}
+                    onValueChange={([value]) => setFormData({ ...formData, service_weight: value })}
+                    max={100}
+                    step={5}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Owner Goals ({formData.owner_goals_weight}%)</Label>
+                  <Slider
+                    value={[formData.owner_goals_weight]}
+                    onValueChange={([value]) => setFormData({ ...formData, owner_goals_weight: value })}
+                    max={100}
+                    step={5}
+                  />
+                </div>
+
+                {totalWeight !== 100 && (
+                  <div className="p-4 bg-destructive/10 rounded-lg text-destructive text-sm">
+                    Weights should total 100%. Currently at {totalWeight}%.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* MA Guide Tab */}
+          <TabsContent value="guide">
+            <MAGuideEditor
+              content={maGuideContent}
+              onChange={setMaGuideContent}
+              universeName={formData.name}
+              fitCriteria={formData.fit_criteria}
+            />
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Criteria Edit Dialog */}
+      {showCriteriaEdit && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Edit Criteria</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowCriteriaEdit(false)}>
+                  Close
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <StructuredCriteriaPanel
+                sizeCriteria={sizeCriteria}
+                geographyCriteria={geographyCriteria}
+                serviceCriteria={serviceCriteria}
+                buyerTypesCriteria={buyerTypesCriteria}
+                scoringBehavior={scoringBehavior}
+                onSizeCriteriaChange={setSizeCriteria}
+                onGeographyCriteriaChange={setGeographyCriteria}
+                onServiceCriteriaChange={setServiceCriteria}
+                onBuyerTypesCriteriaChange={setBuyerTypesCriteria}
+                onScoringBehaviorChange={setScoringBehavior}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

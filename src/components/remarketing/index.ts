@@ -21,6 +21,9 @@ export { ScoringBehaviorPanel } from './ScoringBehaviorPanel';
 export { ScoringBehaviorPanelEnhanced } from './ScoringBehaviorPanelEnhanced';
 export { TargetBuyerTypesPanel } from './TargetBuyerTypesPanel';
 export { IndustryKPIPanel } from './IndustryKPIPanel';
+export { AdditionalCriteriaDisplay } from './AdditionalCriteriaDisplay';
+export { BuyerFitCriteriaAccordion } from './BuyerFitCriteriaAccordion';
+export { BuyerTableToolbar } from './BuyerTableToolbar';
 
 // Table Components
 export { BuyerTableEnhanced } from './BuyerTableEnhanced';
