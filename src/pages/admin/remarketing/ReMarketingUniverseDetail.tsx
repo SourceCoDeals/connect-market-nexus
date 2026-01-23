@@ -608,21 +608,36 @@ const ReMarketingUniverseDetail = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Deals Scored</CardTitle>
+                    <CardTitle>Deals</CardTitle>
                     <CardDescription>
-                      {deals?.length || 0} deals scored against buyers in this universe
+                      {deals?.length || 0} deals in this universe
                     </CardDescription>
                   </div>
-                  <Button asChild>
-                    <Link to="/admin/remarketing/deal-matching">
-                      <Target className="mr-2 h-4 w-4" />
-                      Score More Deals
-                    </Link>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button asChild>
+                      <Link to="/admin/remarketing/deal-matching">
+                        <Target className="mr-2 h-4 w-4" />
+                        Score Deals
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <UniverseDealsTable deals={deals || []} />
+                {/* Legacy deals view - shows scores-based aggregation */}
+                {deals && deals.length > 0 ? (
+                  <div className="p-6 text-center text-muted-foreground">
+                    <Briefcase className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">{deals.length} deals scored</p>
+                    <p className="text-sm">View scoring results in Deal Matching</p>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-muted-foreground">
+                    <Target className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No deals scored yet</p>
+                    <p className="text-sm">Go to Deal Matching to score buyers against listings</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
