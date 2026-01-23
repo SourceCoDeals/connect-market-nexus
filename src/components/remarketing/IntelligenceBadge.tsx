@@ -11,6 +11,7 @@ import type { DataCompleteness } from "@/types/remarketing";
 
 interface IntelligenceBadgeProps {
   completeness: DataCompleteness | null;
+  missingFields?: string[];
   showTooltip?: boolean;
   size?: "sm" | "md";
   className?: string;
@@ -39,7 +40,7 @@ const config: Record<DataCompleteness, {
   'medium': {
     label: 'Partial Thesis Data',
     shortLabel: 'Partial',
-    description: 'Partial buyer data available - consider enrichment',
+    description: 'Some buyer data is missing; score may be less reliable',
     icon: Info,
     dotColor: 'bg-amber-500',
     bgColor: 'bg-amber-50',
@@ -65,6 +66,7 @@ const sizeConfig = {
 
 export const IntelligenceBadge = ({
   completeness,
+  missingFields = [],
   showTooltip = true,
   size = "sm",
   className,
@@ -114,9 +116,33 @@ export const IntelligenceBadge = ({
         <TooltipTrigger asChild>
           {badge}
         </TooltipTrigger>
-        <TooltipContent>
-          <p className="font-medium">{label}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
+        <TooltipContent side="left" className="max-w-xs">
+          <p className="font-medium flex items-center gap-1.5">
+            {completeness === 'medium' && <AlertCircle className="h-3.5 w-3.5 text-amber-500" />}
+            {completeness === 'low' && <AlertCircle className="h-3.5 w-3.5 text-gray-400" />}
+            {completeness === 'high' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
+            {label}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          
+          {missingFields.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Missing data:</p>
+              <ul className="text-xs text-muted-foreground space-y-0.5">
+                {missingFields.slice(0, 5).map((field, i) => (
+                  <li key={i} className="flex items-center gap-1">
+                    <span className="text-muted-foreground/60">•</span>
+                    {field}
+                  </li>
+                ))}
+                {missingFields.length > 5 && (
+                  <li className="text-muted-foreground/60 italic">
+                    +{missingFields.length - 5} more...
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

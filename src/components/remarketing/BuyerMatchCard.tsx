@@ -92,28 +92,73 @@ const getDisqualificationReason = (reasoning: string | null): string => {
   return 'criteria mismatch';
 };
 
-// Calculate missing data fields
+// Calculate missing data fields (Whispers parity)
 const getMissingDataFields = (buyer?: ReMarketingBuyer): string[] => {
   const missing: string[] = [];
   if (!buyer) return ['All buyer data'];
   
-  if (!buyer.geographic_footprint || buyer.geographic_footprint.length === 0) {
-    missing.push('HQ/Footprint location');
+  // Location data
+  if ((!buyer.geographic_footprint || buyer.geographic_footprint.length === 0) && !buyer.hq_state) {
+    missing.push('HQ location');
   }
+  if (!buyer.target_geographies || buyer.target_geographies.length === 0) {
+    missing.push('Target geographies');
+  }
+  
+  // Financial data
   if (!buyer.target_revenue_min && !buyer.target_revenue_max) {
     missing.push('Target revenue range');
   }
+  
+  // Thesis data
   if (!buyer.thesis_summary) {
     missing.push('Investment thesis');
   }
   if (!buyer.target_services || buyer.target_services.length === 0) {
     missing.push('Target services');
   }
+  
+  // Owner goals / preferences
+  if (!buyer.deal_breakers?.length && !buyer.deal_preferences) {
+    missing.push('Owner transition goals');
+  }
+  
+  // Activity data
   if (!buyer.recent_acquisitions || buyer.recent_acquisitions.length === 0) {
     missing.push('Recent acquisitions');
   }
   
+  // Transcript/call data
+  if (!buyer.extraction_sources?.some(s => s.type === 'transcript')) {
+    missing.push('Call quotes');
+  }
+  
   return missing;
+};
+
+// Get buyer location display (prefer HQ city/state)
+const getBuyerLocationDisplay = (buyer?: ReMarketingBuyer): string => {
+  if (!buyer) return 'Unknown';
+  
+  // Prefer HQ location if available (Whispers format: "City, ST")
+  if (buyer.hq_city && buyer.hq_state) {
+    return `${buyer.hq_city}, ${buyer.hq_state}`;
+  }
+  
+  // Fall back to footprint
+  if (buyer.geographic_footprint && buyer.geographic_footprint.length > 0) {
+    return buyer.geographic_footprint.slice(0, 2).join(', ');
+  }
+  
+  return 'Unknown';
+};
+
+// Get score description for tooltip
+const getScoreDescription = (score: number, disqualified: boolean): string => {
+  if (disqualified) return 'Does not meet minimum criteria - not recommended';
+  if (score >= 70) return 'Good alignment on key criteria - strong candidate';
+  if (score >= 55) return 'Partial alignment - worth considering for outreach';
+  return 'Limited alignment - review carefully before proceeding';
 };
 
 const formatCurrency = (value: number | null | undefined) => {
@@ -243,16 +288,11 @@ export const BuyerMatchCard = ({
               )}
             </div>
             
-            {/* Row 2: Location */}
-            {buyer?.geographic_footprint && buyer.geographic_footprint.length > 0 && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
-                <MapPin className="h-3.5 w-3.5" />
-                <span>{buyer.geographic_footprint.slice(0, 3).join(', ')}</span>
-                {buyer.geographic_footprint.length > 3 && (
-                  <span className="text-xs">+{buyer.geographic_footprint.length - 3} more</span>
-                )}
-              </div>
-            )}
+            {/* Row 2: Location (HQ preferred, then footprint) */}
+            <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
+              <MapPin className="h-3.5 w-3.5" />
+              <span>{getBuyerLocationDisplay(buyer)}</span>
+            </div>
             
             {/* Row 3: Website links (Company + PE Firm) */}
             <div className="flex items-center gap-4 text-sm mb-1">
@@ -356,27 +396,43 @@ export const BuyerMatchCard = ({
               </Tooltip>
             </TooltipProvider>
             
-            {/* Intelligence Badge */}
-            <IntelligenceBadge completeness={score.data_completeness} size="sm" />
+            {/* Intelligence Badge with missing fields */}
+            <IntelligenceBadge 
+              completeness={score.data_completeness} 
+              missingFields={missingData}
+              size="sm" 
+            />
             
-            {/* Score Badge - "→Strong 77" format or "Not Eligible" */}
-            {disqualified ? (
-              <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-xs">
-                Not Eligible
-              </Badge>
-            ) : (
-              <ScoreTierBadge 
-                tier={tier} 
-                score={score.composite_score}
-                variant="full"
-                size="sm"
-              />
-            )}
+            {/* Score Badge with Rich Tooltip - "→Strong 77" format or "Not Eligible" */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    {disqualified ? (
+                      <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-xs">
+                        Not Eligible
+                      </Badge>
+                    ) : (
+                      <ScoreTierBadge 
+                        tier={tier} 
+                        score={score.composite_score}
+                        variant="full"
+                        size="sm"
+                      />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs">
+                  <p className="font-medium">{getScoreDescription(score.composite_score, disqualified)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Score: {score.composite_score}/100</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
-            {/* Expand Chevron */}
+            {/* Expand Chevron - Circular Button Style */}
             <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
                   <ChevronDown className={cn(
                     "h-4 w-4 transition-transform",
                     isExpanded && "rotate-180"

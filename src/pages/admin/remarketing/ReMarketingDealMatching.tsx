@@ -458,21 +458,28 @@ const ReMarketingDealMatching = () => {
         )}
       </div>
 
-      {/* Summary Stats Bar */}
+      {/* Summary Stats Bar - Whispers-style colored badges */}
       {scores && scores.length > 0 && (
-        <div className="flex items-center gap-4 flex-wrap p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        <div className="flex items-center gap-3 flex-wrap p-3 bg-muted/30 rounded-lg border">
+          {/* Qualified - Green badge */}
+          <div className="flex items-center gap-2 text-sm bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-md border border-emerald-200">
+            <CheckCircle2 className="h-4 w-4" />
             <span className="font-medium">{stats.qualified} qualified buyers</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <AlertCircle className="h-4 w-4 text-red-400" />
+          
+          {/* Disqualified - Red text */}
+          <div className="flex items-center gap-2 text-sm text-red-600">
+            <AlertCircle className="h-4 w-4" />
             <span>{stats.disqualified} disqualified{stats.disqualificationReason && ` (${stats.disqualificationReason})`}</span>
           </div>
+          
+          {/* Strong Matches - Target icon blue */}
           <div className="flex items-center gap-2 text-sm">
             <Target className="h-4 w-4 text-blue-500" />
             <span className="font-medium">{stats.strong} strong matches (&gt;70%)</span>
           </div>
+          
+          {/* Approved - Green text */}
           <div className="flex items-center gap-2 text-sm text-emerald-600">
             <Check className="h-4 w-4" />
             <span>{stats.approved} approved</span>
@@ -493,12 +500,14 @@ const ReMarketingDealMatching = () => {
           </div>
           
           {/* Optimize Scoring Button */}
-          <Button variant="outline" size="sm" asChild>
-            <Link to={`/admin/remarketing/universes/${selectedUniverse}/settings`}>
-              <Settings2 className="h-4 w-4 mr-1" />
-              Optimize Scoring
-            </Link>
-          </Button>
+          {selectedUniverse && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/admin/remarketing/universes/${selectedUniverse}/settings`}>
+                <Settings2 className="h-4 w-4 mr-1" />
+                Optimize Scoring
+              </Link>
+            </Button>
+          )}
         </div>
       )}
 

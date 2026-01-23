@@ -162,6 +162,21 @@ export interface ReMarketingBuyer {
   archived: boolean;
   created_at: string;
   updated_at: string;
+  // Whispers parity fields
+  pe_firm_name?: string | null;
+  pe_firm_website?: string | null;
+  has_fee_agreement?: boolean;
+  hq_city?: string | null;
+  hq_state?: string | null;
+  deal_breakers?: string[];
+  strategic_priorities?: string[];
+  deal_preferences?: string | null;
+  specialized_focus?: string | null;
+  acquisition_timeline?: string | null;
+  revenue_sweet_spot?: number | null;
+  ebitda_sweet_spot?: number | null;
+  acquisition_appetite?: string | null;
+  total_acquisitions?: number;
   // Relations
   contacts?: ReMarketingBuyerContact[];
   universe?: ReMarketingBuyerUniverse;
