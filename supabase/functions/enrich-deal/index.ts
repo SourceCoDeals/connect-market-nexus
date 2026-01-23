@@ -278,6 +278,10 @@ Extract all available business information using the provided tool.`;
                     type: 'string',
                     description: 'What makes this company unique or competitive advantages'
                   },
+                  owner_goals: {
+                    type: 'string',
+                    description: 'Owner/seller goals for the transaction (exit, retirement, growth capital, partnership, etc.)'
+                  },
                   key_risks: {
                     type: 'string',
                     description: 'Potential risk factors identified (one per line)'
@@ -380,6 +384,9 @@ Extract all available business information using the provided tool.`;
     }
     if (extracted.growth_trajectory && !deal.growth_trajectory) {
       updates.growth_trajectory = extracted.growth_trajectory;
+    }
+    if (extracted.owner_goals && !deal.owner_goals) {
+      updates.owner_goals = extracted.owner_goals;
     }
 
     // Update the listing

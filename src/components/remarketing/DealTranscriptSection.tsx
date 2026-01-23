@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -37,7 +38,9 @@ import {
   MoreHorizontal,
   Trash2,
   Loader2,
-  AlertCircle
+  Link as LinkIcon,
+  Calendar,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -54,6 +57,9 @@ interface DealTranscript {
   created_at: string;
   created_by?: string | null;
   updated_at?: string;
+  title?: string | null;
+  transcript_url?: string | null;
+  call_date?: string | null;
 }
 
 interface DealTranscriptSectionProps {
@@ -66,9 +72,19 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newTranscript, setNewTranscript] = useState("");
+  const [transcriptTitle, setTranscriptTitle] = useState("");
+  const [transcriptUrl, setTranscriptUrl] = useState("");
+  const [callDate, setCallDate] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setNewTranscript("");
+    setTranscriptTitle("");
+    setTranscriptUrl("");
+    setCallDate("");
+  };
 
   // Add transcript mutation
   const addMutation = useMutation({
@@ -78,7 +94,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
         .insert({
           listing_id: dealId,
           transcript_text: newTranscript,
-          source: 'manual',
+          source: transcriptUrl || 'manual',
+          title: transcriptTitle || null,
+          transcript_url: transcriptUrl || null,
+          call_date: callDate ? new Date(callDate).toISOString() : null,
         });
 
       if (error) throw error;
@@ -86,7 +105,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       toast.success("Transcript added");
-      setNewTranscript("");
+      resetForm();
       setIsAddDialogOpen(false);
     },
     onError: (error: Error) => {
@@ -146,6 +165,16 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
       if (extracted.ebitda) updateData.ebitda = extracted.ebitda;
       if (extracted.employees) updateData.full_time_employees = extracted.employees;
       if (extracted.location) updateData.location = extracted.location;
+      
+      // Additional fields from transcript extraction
+      if (extracted.owner_goals) updateData.owner_goals = extracted.owner_goals;
+      if (extracted.special_requirements) updateData.special_requirements = extracted.special_requirements;
+      if (extracted.customer_types) updateData.customer_types = extracted.customer_types;
+      if (extracted.service_mix) updateData.service_mix = extracted.service_mix;
+      if (extracted.geographic_states) updateData.geographic_states = extracted.geographic_states;
+      if (extracted.founded) updateData.founded_year = parseInt(extracted.founded);
+      if (extracted.industry) updateData.industry = extracted.industry;
+      if (extracted.timeline) updateData.timeline_notes = extracted.timeline;
 
       if (Object.keys(updateData).length > 0) {
         const { error } = await supabase
@@ -198,7 +227,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
               Upload call transcripts to extract deal intelligence
             </CardDescription>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
                 <Plus className="h-4 w-4" />
@@ -209,20 +241,77 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
               <DialogHeader>
                 <DialogTitle>Add Call Transcript</DialogTitle>
                 <DialogDescription>
-                  Paste the transcript from a call. AI will extract key information about the deal.
+                  Add a transcript from a call. AI will extract key information about the deal.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
+                {/* Title */}
                 <div className="space-y-2">
-                  <Label htmlFor="transcript">Transcript Text</Label>
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g., Discovery Call - Jan 15"
+                    value={transcriptTitle}
+                    onChange={(e) => setTranscriptTitle(e.target.value)}
+                  />
+                </div>
+
+                {/* Transcript Link URL */}
+                <div className="space-y-2">
+                  <Label htmlFor="transcriptUrl" className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4" />
+                    Transcript Link URL
+                  </Label>
+                  <Input
+                    id="transcriptUrl"
+                    placeholder="e.g., https://app.fireflies.ai/view/..."
+                    value={transcriptUrl}
+                    onChange={(e) => setTranscriptUrl(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional: Link to Fireflies, Otter, or other transcript source
+                  </p>
+                </div>
+
+                {/* Call Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="callDate" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Call Date
+                  </Label>
+                  <Input
+                    id="callDate"
+                    type="date"
+                    value={callDate}
+                    onChange={(e) => setCallDate(e.target.value)}
+                  />
+                </div>
+
+                {/* Transcript Text */}
+                <div className="space-y-2">
+                  <Label htmlFor="transcript">Notes / Transcript Content</Label>
                   <Textarea
                     id="transcript"
-                    placeholder="Paste the call transcript here..."
+                    placeholder="Paste the call transcript or notes here..."
                     value={newTranscript}
                     onChange={(e) => setNewTranscript(e.target.value)}
-                    rows={12}
+                    rows={10}
                     className="font-mono text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Tip: Include key details like revenue, EBITDA, owner goals, timeline, and special requirements
+                  </p>
+                </div>
+
+                {/* File Upload Placeholder */}
+                <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Or upload a file instead
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Coming soon: .txt, .docx file upload
+                  </p>
                 </div>
               </div>
               <DialogFooter>
@@ -256,6 +345,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
               const isProcessing = processingId === transcript.id;
               const isApplying = applyingId === transcript.id;
 
+              // Display title or fallback
+              const displayTitle = transcript.title || 
+                `Transcript from ${format(new Date(transcript.created_at), 'MMM d, yyyy')}`;
+
               return (
                 <Collapsible
                   key={transcript.id}
@@ -268,15 +361,29 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading }: DealTr
                         <div className="flex items-center gap-3">
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           <div className="text-left">
-                            <p className="font-medium">
-                              Transcript from {format(new Date(transcript.created_at), 'MMM d, yyyy')}
-                            </p>
+                            <p className="font-medium">{displayTitle}</p>
+                            {transcript.call_date && (
+                              <p className="text-xs text-muted-foreground">
+                                Call date: {format(new Date(transcript.call_date), 'MMM d, yyyy')}
+                              </p>
+                            )}
                             <p className="text-sm text-muted-foreground">
                               {transcript.transcript_text.substring(0, 80)}...
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {transcript.transcript_url && (
+                            <a
+                              href={transcript.transcript_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-primary hover:underline"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                            </a>
+                          )}
                           {hasExtracted && (
                             <Badge variant="secondary" className="gap-1">
                               <Sparkles className="h-3 w-3" />

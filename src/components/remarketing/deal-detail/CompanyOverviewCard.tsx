@@ -12,7 +12,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Pencil, Loader2, Building2, ExternalLink } from "lucide-react";
+import { 
+  Pencil, 
+  Loader2, 
+  Building2, 
+  ExternalLink,
+  Globe,
+  MapPin,
+  Home,
+  Calendar,
+  Users,
+  Building,
+  MapPinned,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface CompanyOverviewCardProps {
@@ -106,6 +118,33 @@ export const CompanyOverviewCard = ({
     return `https://${url}`;
   };
 
+  const InfoRow = ({ 
+    icon: Icon, 
+    label, 
+    value, 
+    isLink = false 
+  }: { 
+    icon: React.ElementType; 
+    label: string; 
+    value: React.ReactNode; 
+    isLink?: boolean;
+  }) => (
+    <>
+      <div className="flex items-start gap-3">
+        <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+        <div className="flex-1 flex justify-between items-start gap-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {label}
+          </span>
+          <span className="font-medium text-sm text-right">
+            {value}
+          </span>
+        </div>
+      </div>
+      <Separator />
+    </>
+  );
+
   return (
     <>
       <Card>
@@ -121,69 +160,89 @@ export const CompanyOverviewCard = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground text-sm">Website</span>
-            {website ? (
-              <a
-                href={getWebsiteHref(website)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-sm flex items-center gap-1 text-primary hover:underline"
-              >
-                {formatWebsiteDisplay(website)}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            ) : (
-              <span className="text-sm text-muted-foreground italic">Not specified</span>
-            )}
+          {/* Website */}
+          <div className="flex items-start gap-3">
+            <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="flex-1 flex justify-between items-start gap-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                WEBSITE
+              </span>
+              {website ? (
+                <a
+                  href={getWebsiteHref(website)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-sm flex items-center gap-1 text-primary hover:underline"
+                >
+                  {formatWebsiteDisplay(website)}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <span className="text-sm text-muted-foreground italic">Not specified</span>
+              )}
+            </div>
           </div>
           <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-sm">Headquarters</span>
-            <span className="font-medium text-sm">{location || "Not specified"}</span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-sm">Address</span>
-            <span className="font-medium text-sm text-right max-w-[200px]">
-              {address || "Not specified"}
-            </span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-sm">Founded</span>
-            <span className="font-medium text-sm">{foundedYear || "Not specified"}</span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-sm">Employees</span>
-            <span className="font-medium text-sm">
-              {employees.fullTime ? `${employees.fullTime} FT` : ""}
-              {employees.fullTime && employees.partTime ? " + " : ""}
-              {employees.partTime ? `${employees.partTime} PT` : ""}
-              {!employees.fullTime && !employees.partTime && "Not specified"}
-            </span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-sm">Industry</span>
-            <span className="font-medium text-sm">{industry || category || "Not specified"}</span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-sm">Locations</span>
-            <span className="font-medium text-sm">
-              {numberOfLocations 
+
+          <InfoRow 
+            icon={MapPin} 
+            label="HEADQUARTERS" 
+            value={location || "Not specified"} 
+          />
+
+          <InfoRow 
+            icon={Home} 
+            label="ADDRESS" 
+            value={
+              <span className="max-w-[200px] text-right">
+                {address || "Not specified"}
+              </span>
+            } 
+          />
+
+          <InfoRow 
+            icon={Calendar} 
+            label="FOUNDED" 
+            value={foundedYear || "Not specified"} 
+          />
+
+          <InfoRow 
+            icon={Users} 
+            label="EMPLOYEES" 
+            value={
+              employees.fullTime || employees.partTime
+                ? `${employees.fullTime ? `${employees.fullTime} FT` : ""}${employees.fullTime && employees.partTime ? " + " : ""}${employees.partTime ? `${employees.partTime} PT` : ""}`
+                : "Not specified"
+            } 
+          />
+
+          <InfoRow 
+            icon={Building} 
+            label="INDUSTRY" 
+            value={industry || category || "Not specified"} 
+          />
+
+          <InfoRow 
+            icon={Building2} 
+            label="NUMBER OF LOCATIONS" 
+            value={
+              numberOfLocations 
                 ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
-                : "Not specified"}
-            </span>
-          </div>
-          <Separator />
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground text-sm">Status</span>
-            <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize">
-              {status}
-            </Badge>
+                : "Not specified"
+            } 
+          />
+
+          {/* Status - without separator after */}
+          <div className="flex items-start gap-3">
+            <MapPinned className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="flex-1 flex justify-between items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                STATUS
+              </span>
+              <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize">
+                {status}
+              </Badge>
+            </div>
           </div>
         </CardContent>
       </Card>

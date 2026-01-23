@@ -1454,6 +1454,7 @@ export type Database = {
         Row: {
           applied_at: string | null
           applied_to_deal: boolean | null
+          call_date: string | null
           created_at: string | null
           created_by: string | null
           extracted_data: Json | null
@@ -1461,12 +1462,15 @@ export type Database = {
           listing_id: string
           processed_at: string | null
           source: string | null
+          title: string | null
           transcript_text: string
+          transcript_url: string | null
           updated_at: string | null
         }
         Insert: {
           applied_at?: string | null
           applied_to_deal?: boolean | null
+          call_date?: string | null
           created_at?: string | null
           created_by?: string | null
           extracted_data?: Json | null
@@ -1474,12 +1478,15 @@ export type Database = {
           listing_id: string
           processed_at?: string | null
           source?: string | null
+          title?: string | null
           transcript_text: string
+          transcript_url?: string | null
           updated_at?: string | null
         }
         Update: {
           applied_at?: string | null
           applied_to_deal?: boolean | null
+          call_date?: string | null
           created_at?: string | null
           created_by?: string | null
           extracted_data?: Json | null
@@ -1487,7 +1494,9 @@ export type Database = {
           listing_id?: string
           processed_at?: string | null
           source?: string | null
+          title?: string | null
           transcript_text?: string
+          transcript_url?: string | null
           updated_at?: string | null
         }
         Relationships: [
