@@ -2,34 +2,39 @@ import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
-  AlertTriangle,
   ArrowLeft,
   Building2,
-  Calendar,
-  CheckCircle2,
   DollarSign,
   ExternalLink,
-  FileText,
   Globe,
   MapPin,
   Sparkles,
   Target,
   Users,
   History,
-  Plus,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ScoreTierBadge, getTierFromScore, IntelligenceCoverageBar } from "@/components/remarketing";
+import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
 import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
+import {
+  GeneralNotesSection,
+  ExecutiveSummaryCard,
+  ServicesBusinessModelCard,
+  GeographicCoverageCard,
+  OwnerGoalsCard,
+  PrimaryContactCard,
+  CustomerTypesCard,
+  CompanyOverviewCard,
+} from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
   const { dealId } = useParams<{ dealId: string }>();
@@ -94,6 +99,21 @@ const ReMarketingDealDetail = () => {
     enabled: !!dealId
   });
 
+  // Mutation to update deal fields
+  const updateDealMutation = useMutation({
+    mutationFn: async (updates: Record<string, any>) => {
+      const { error } = await supabase
+        .from('listings')
+        .update(updates)
+        .eq('id', dealId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+    }
+  });
+
   // Calculate data completeness
   const calculateDataCompleteness = () => {
     if (!deal) return 0;
@@ -105,6 +125,10 @@ const ReMarketingDealDetail = () => {
       deal.revenue,
       deal.ebitda,
       deal.category,
+      deal.website,
+      deal.executive_summary,
+      deal.service_mix,
+      deal.geographic_states,
     ];
     
     const filledFields = fields.filter(f => f !== null && f !== undefined && f !== '').length;
@@ -119,7 +143,6 @@ const ReMarketingDealDetail = () => {
     
     setIsEnriching(true);
     try {
-      // This would call an enrichment edge function
       toast.info("Website enrichment feature coming soon");
     } catch (error) {
       toast.error("Failed to enrich from website");
@@ -139,7 +162,10 @@ const ReMarketingDealDetail = () => {
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64" />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
       </div>
     );
   }
@@ -198,36 +224,32 @@ const ReMarketingDealDetail = () => {
         </div>
       </div>
 
-      {/* Data Warning Banner */}
-      {dataCompleteness < 60 && (
-        <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
-          <CardContent className="py-3 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600" />
-            <div>
-              <p className="font-medium text-yellow-800 dark:text-yellow-200">
-                Financial Data Needs Clarification
-              </p>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                This deal is missing key information. Add transcripts or enrich from website to improve match quality.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Transcripts Section */}
       <DealTranscriptSection dealId={dealId!} transcripts={transcripts || []} isLoading={transcriptsLoading} />
+
+      {/* General Notes Section */}
+      <GeneralNotesSection
+        notes={deal.general_notes}
+        onSave={async (notes) => {
+          await updateDealMutation.mutateAsync({ general_notes: notes });
+        }}
+        onAnalyze={async () => {
+          toast.info("AI notes analysis coming soon");
+        }}
+      />
 
       {/* Actions Bar */}
       <Card>
         <CardContent className="py-4">
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="gap-2" asChild>
-              <a href={`https://${deal.title?.toLowerCase().replace(/\s+/g, '')}.com`} target="_blank" rel="noopener noreferrer">
-                <Globe className="h-4 w-4" />
-                View Website
-              </a>
-            </Button>
+            {deal.website && (
+              <Button variant="outline" className="gap-2" asChild>
+                <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer">
+                  <Globe className="h-4 w-4" />
+                  View Website
+                </a>
+              </Button>
+            )}
             <Button 
               variant="outline" 
               className="gap-2"
@@ -255,110 +277,153 @@ const ReMarketingDealDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Two Column Layout */}
+      {/* Two Column Layout - Company & Financial */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Company Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Company Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Website</span>
-                <span className="font-medium">
-                  {deal.title?.toLowerCase().replace(/\s+/g, '') + '.com' || 'Not specified'}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Headquarters</span>
-                <span className="font-medium">{deal.location || 'Not specified'}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Employees</span>
-                <span className="font-medium">
-                  {deal.full_time_employees ? `${deal.full_time_employees} FT` : 'Not specified'}
-                  {deal.part_time_employees ? ` + ${deal.part_time_employees} PT` : ''}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Category</span>
-                <span className="font-medium">{deal.category || 'Not specified'}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Status</span>
-                <Badge variant={deal.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                  {deal.status}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CompanyOverviewCard
+          website={deal.website}
+          location={deal.location}
+          address={deal.address}
+          foundedYear={deal.founded_year}
+          employees={{
+            fullTime: deal.full_time_employees,
+            partTime: deal.part_time_employees,
+          }}
+          industry={deal.industry}
+          numberOfLocations={deal.number_of_locations}
+          locationRadiusRequirement={deal.location_radius_requirement}
+          category={deal.category}
+          status={deal.status}
+          onSave={async (data) => {
+            await updateDealMutation.mutateAsync({
+              website: data.website,
+              address: data.address,
+              founded_year: data.foundedYear,
+              industry: data.industry,
+              number_of_locations: data.numberOfLocations,
+              location_radius_requirement: data.locationRadiusRequirement,
+            });
+          }}
+        />
 
         {/* Financial Overview */}
         <Card>
-          <CardHeader>
+          <CardHeader className="py-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
               Financial Overview
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Revenue</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-lg">{formatCurrency(deal.revenue)}</span>
-                  {deal.revenue && (
-                    <Badge variant="outline" className="text-xs">
-                      <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
-                      Verified
-                    </Badge>
-                  )}
-                </div>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-sm">Revenue</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{formatCurrency(deal.revenue)}</span>
+                {deal.revenue && (
+                  <Badge variant="outline" className="text-xs">
+                    <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+                    Verified
+                  </Badge>
+                )}
               </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">EBITDA</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-lg">{formatCurrency(deal.ebitda)}</span>
-                  {deal.ebitda && (
-                    <Badge variant="outline" className="text-xs">
-                      <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
-                      Verified
-                    </Badge>
-                  )}
-                </div>
+            </div>
+            <Separator />
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-sm">EBITDA</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{formatCurrency(deal.ebitda)}</span>
+                {deal.ebitda && (
+                  <Badge variant="outline" className="text-xs">
+                    <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+                    Verified
+                  </Badge>
+                )}
               </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">EBITDA Margin</span>
-                <span className="font-medium">
-                  {deal.revenue && deal.ebitda 
-                    ? `${((deal.ebitda / deal.revenue) * 100).toFixed(1)}%`
-                    : 'Not calculable'
-                  }
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Custom Metric</span>
-                <span className="font-medium">
-                  {deal.custom_metric_value || 'Not specified'}
-                  {deal.custom_metric_label && ` (${deal.custom_metric_label})`}
-                </span>
-              </div>
+            </div>
+            <Separator />
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-sm">EBITDA Margin</span>
+              <span className="font-medium">
+                {deal.revenue && deal.ebitda 
+                  ? `${((deal.ebitda / deal.revenue) * 100).toFixed(1)}%`
+                  : 'Not calculable'
+                }
+              </span>
+            </div>
+            <Separator />
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-sm">Custom Metric</span>
+              <span className="font-medium">
+                {deal.custom_metric_value || 'Not specified'}
+                {deal.custom_metric_label && ` (${deal.custom_metric_label})`}
+              </span>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Executive Summary */}
+      <ExecutiveSummaryCard
+        summary={deal.executive_summary}
+        onSave={async (summary) => {
+          await updateDealMutation.mutateAsync({ executive_summary: summary });
+        }}
+      />
+
+      {/* Two Column Layout - Services & Geographic */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ServicesBusinessModelCard
+          serviceMix={deal.service_mix}
+          businessModel={deal.business_model}
+          onSave={async (data) => {
+            await updateDealMutation.mutateAsync({
+              service_mix: data.serviceMix,
+              business_model: data.businessModel,
+            });
+          }}
+        />
+
+        <GeographicCoverageCard
+          states={deal.geographic_states}
+          onSave={async (states) => {
+            await updateDealMutation.mutateAsync({ geographic_states: states });
+          }}
+        />
+      </div>
+
+      {/* Owner Goals */}
+      <OwnerGoalsCard
+        ownerGoals={deal.owner_goals}
+        ownershipStructure={deal.ownership_structure}
+        specialRequirements={deal.special_requirements}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            owner_goals: data.ownerGoals,
+            special_requirements: data.specialRequirements,
+          });
+        }}
+      />
+
+      {/* Primary Contact */}
+      <PrimaryContactCard
+        name={deal.primary_contact_name}
+        email={deal.primary_contact_email}
+        phone={deal.primary_contact_phone}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            primary_contact_name: data.name,
+            primary_contact_email: data.email,
+            primary_contact_phone: data.phone,
+          });
+        }}
+      />
+
+      {/* End Market / Customers */}
+      <CustomerTypesCard
+        customerTypes={deal.customer_types}
+        onSave={async (types) => {
+          await updateDealMutation.mutateAsync({ customer_types: types });
+        }}
+      />
 
       {/* Match Stats */}
       <Card>
@@ -404,16 +469,19 @@ const ReMarketingDealDetail = () => {
       {deal.description && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Description
-            </CardTitle>
+            <CardTitle className="text-lg">Description</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground whitespace-pre-wrap">{deal.description}</p>
           </CardContent>
         </Card>
       )}
+
+      {/* Timestamps */}
+      <div className="text-xs text-muted-foreground text-center space-x-4">
+        <span>Created: {format(new Date(deal.created_at), 'MMM d, yyyy h:mm a')}</span>
+        <span>Updated: {format(new Date(deal.updated_at), 'MMM d, yyyy h:mm a')}</span>
+      </div>
     </div>
   );
 };

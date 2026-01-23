@@ -2482,6 +2482,8 @@ export type Database = {
       listings: {
         Row: {
           acquisition_type: string | null
+          address: string | null
+          business_model: string | null
           categories: string[] | null
           category: string
           created_at: string
@@ -2490,6 +2492,7 @@ export type Database = {
           custom_metric_value: string | null
           custom_sections: Json | null
           customer_concentration: number | null
+          customer_types: string | null
           deal_identifier: string | null
           deleted_at: string | null
           description: string
@@ -2497,12 +2500,17 @@ export type Database = {
           description_json: Json | null
           ebitda: number
           ebitda_metric_subtitle: string | null
+          executive_summary: string | null
           files: string[] | null
+          founded_year: number | null
           full_time_employees: number | null
+          general_notes: string | null
+          geographic_states: string[] | null
           growth_drivers: Json | null
           hero_description: string | null
           id: string
           image_url: string | null
+          industry: string | null
           internal_company_name: string | null
           internal_contact_info: string | null
           internal_deal_memo_link: string | null
@@ -2512,6 +2520,7 @@ export type Database = {
           investment_thesis: string | null
           key_risks: Json | null
           location: string
+          location_radius_requirement: string | null
           management_depth: string | null
           market_position: Json | null
           metric_3_custom_label: string | null
@@ -2522,16 +2531,23 @@ export type Database = {
           metric_4_custom_subtitle: string | null
           metric_4_custom_value: string | null
           metric_4_type: string | null
+          number_of_locations: number | null
+          owner_goals: string | null
           owner_notes: string | null
           ownership_structure: string | null
           part_time_employees: number | null
           presented_by_admin_id: string | null
+          primary_contact_email: string | null
+          primary_contact_name: string | null
+          primary_contact_phone: string | null
           primary_owner_id: string | null
           revenue: number
           revenue_metric_subtitle: string | null
           revenue_model_breakdown: Json | null
           seller_involvement_preference: string | null
           seller_motivation: string | null
+          service_mix: string | null
+          special_requirements: string | null
           status: string
           status_tag: string | null
           tags: string[] | null
@@ -2540,9 +2556,12 @@ export type Database = {
           transaction_preferences: Json | null
           updated_at: string
           visible_to_buyer_types: string[] | null
+          website: string | null
         }
         Insert: {
           acquisition_type?: string | null
+          address?: string | null
+          business_model?: string | null
           categories?: string[] | null
           category: string
           created_at?: string
@@ -2551,6 +2570,7 @@ export type Database = {
           custom_metric_value?: string | null
           custom_sections?: Json | null
           customer_concentration?: number | null
+          customer_types?: string | null
           deal_identifier?: string | null
           deleted_at?: string | null
           description: string
@@ -2558,12 +2578,17 @@ export type Database = {
           description_json?: Json | null
           ebitda: number
           ebitda_metric_subtitle?: string | null
+          executive_summary?: string | null
           files?: string[] | null
+          founded_year?: number | null
           full_time_employees?: number | null
+          general_notes?: string | null
+          geographic_states?: string[] | null
           growth_drivers?: Json | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
+          industry?: string | null
           internal_company_name?: string | null
           internal_contact_info?: string | null
           internal_deal_memo_link?: string | null
@@ -2573,6 +2598,7 @@ export type Database = {
           investment_thesis?: string | null
           key_risks?: Json | null
           location: string
+          location_radius_requirement?: string | null
           management_depth?: string | null
           market_position?: Json | null
           metric_3_custom_label?: string | null
@@ -2583,16 +2609,23 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          number_of_locations?: number | null
+          owner_goals?: string | null
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
           presented_by_admin_id?: string | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          primary_contact_phone?: string | null
           primary_owner_id?: string | null
           revenue: number
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
+          service_mix?: string | null
+          special_requirements?: string | null
           status?: string
           status_tag?: string | null
           tags?: string[] | null
@@ -2601,9 +2634,12 @@ export type Database = {
           transaction_preferences?: Json | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
+          website?: string | null
         }
         Update: {
           acquisition_type?: string | null
+          address?: string | null
+          business_model?: string | null
           categories?: string[] | null
           category?: string
           created_at?: string
@@ -2612,6 +2648,7 @@ export type Database = {
           custom_metric_value?: string | null
           custom_sections?: Json | null
           customer_concentration?: number | null
+          customer_types?: string | null
           deal_identifier?: string | null
           deleted_at?: string | null
           description?: string
@@ -2619,12 +2656,17 @@ export type Database = {
           description_json?: Json | null
           ebitda?: number
           ebitda_metric_subtitle?: string | null
+          executive_summary?: string | null
           files?: string[] | null
+          founded_year?: number | null
           full_time_employees?: number | null
+          general_notes?: string | null
+          geographic_states?: string[] | null
           growth_drivers?: Json | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
+          industry?: string | null
           internal_company_name?: string | null
           internal_contact_info?: string | null
           internal_deal_memo_link?: string | null
@@ -2634,6 +2676,7 @@ export type Database = {
           investment_thesis?: string | null
           key_risks?: Json | null
           location?: string
+          location_radius_requirement?: string | null
           management_depth?: string | null
           market_position?: Json | null
           metric_3_custom_label?: string | null
@@ -2644,16 +2687,23 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          number_of_locations?: number | null
+          owner_goals?: string | null
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
           presented_by_admin_id?: string | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          primary_contact_phone?: string | null
           primary_owner_id?: string | null
           revenue?: number
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
+          service_mix?: string | null
+          special_requirements?: string | null
           status?: string
           status_tag?: string | null
           tags?: string[] | null
@@ -2662,6 +2712,7 @@ export type Database = {
           transaction_preferences?: Json | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
+          website?: string | null
         }
         Relationships: [
           {
