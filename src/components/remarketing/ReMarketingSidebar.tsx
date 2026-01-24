@@ -10,7 +10,8 @@ import {
   ChevronRight,
   BarChart3,
   Upload,
-  Database
+  Database,
+  Kanban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -44,6 +45,11 @@ const navItems: NavItem[] = [
     label: "All Buyers",
     href: "/admin/remarketing/buyers",
     icon: <Users className="h-5 w-5" />,
+  },
+  {
+    label: "Pipeline",
+    href: "/admin/remarketing/pipeline",
+    icon: <Kanban className="h-5 w-5" />,
   },
   {
     label: "Analytics",

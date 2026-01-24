@@ -146,3 +146,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.generate-buyer-intro]
 verify_jwt = true
+[functions.analyze-scoring-patterns]
+verify_jwt = true

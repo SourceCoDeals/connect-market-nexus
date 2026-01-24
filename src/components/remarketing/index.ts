@@ -13,6 +13,7 @@ export type { ScoreFiltersState } from './ScoreFilters';
 export { EngagementIndicator, getEngagementLevel } from './EngagementIndicator';
 export { StaleScoreWarning } from './StaleScoreWarning';
 export { EngagementHeatmapInsight } from './EngagementHeatmapInsight';
+export { WeightSuggestionsPanel } from './WeightSuggestionsPanel';
 
 // Enrichment Components
 export { EnrichmentButton } from './EnrichmentButton';
