@@ -3998,11 +3998,13 @@ export type Database = {
           composite_score: number
           created_at: string
           data_completeness: string | null
+          deal_snapshot: Json | null
           fit_reasoning: string | null
           geography_score: number | null
           hidden_from_deal: boolean | null
           human_override_score: number | null
           id: string
+          last_viewed_at: string | null
           listing_id: string
           owner_goals_score: number | null
           pass_category: string | null
@@ -4029,11 +4031,13 @@ export type Database = {
           composite_score?: number
           created_at?: string
           data_completeness?: string | null
+          deal_snapshot?: Json | null
           fit_reasoning?: string | null
           geography_score?: number | null
           hidden_from_deal?: boolean | null
           human_override_score?: number | null
           id?: string
+          last_viewed_at?: string | null
           listing_id: string
           owner_goals_score?: number | null
           pass_category?: string | null
@@ -4060,11 +4064,13 @@ export type Database = {
           composite_score?: number
           created_at?: string
           data_completeness?: string | null
+          deal_snapshot?: Json | null
           fit_reasoning?: string | null
           geography_score?: number | null
           hidden_from_deal?: boolean | null
           human_override_score?: number | null
           id?: string
+          last_viewed_at?: string | null
           listing_id?: string
           owner_goals_score?: number | null
           pass_category?: string | null
