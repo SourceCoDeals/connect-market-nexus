@@ -27,10 +27,20 @@ import {
   AlertTriangle,
   DollarSign,
   Target,
+  Mail,
+  Calendar,
+  Phone,
 } from "lucide-react";
 import { ScoreTierBadge, getTierFromScore } from "./ScoreTierBadge";
 import { IntelligenceBadge } from "./IntelligenceBadge";
+import { OutreachStatusDialog, type OutreachStatus } from "./OutreachStatusDialog";
 import type { ScoreTier, DataCompleteness, ReMarketingBuyer } from "@/types/remarketing";
+
+interface OutreachData {
+  status: OutreachStatus;
+  contacted_at?: string;
+  notes?: string;
+}
 
 interface BuyerMatchCardProps {
   score: {
@@ -54,6 +64,8 @@ interface BuyerMatchCardProps {
   onSelect?: (id: string, selected: boolean) => void;
   onApprove: (scoreId: string, scoreData: any) => void;
   onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
+  onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
+  outreach?: OutreachData | null;
   isPending?: boolean;
   universeName?: string; // Show universe badge when viewing "All Universes"
 }
@@ -183,6 +195,20 @@ const getFitLabel = (score: number, disqualified: boolean): string => {
   return '⚠ Poor fit:';
 };
 
+// Outreach status colors and labels
+const getOutreachBadge = (status: OutreachStatus) => {
+  const config: Record<OutreachStatus, { label: string; className: string; icon: React.ElementType }> = {
+    pending: { label: 'Pending', className: 'bg-slate-100 text-slate-700', icon: Mail },
+    contacted: { label: 'Contacted', className: 'bg-blue-100 text-blue-700', icon: Mail },
+    responded: { label: 'Responded', className: 'bg-cyan-100 text-cyan-700', icon: Mail },
+    meeting_scheduled: { label: 'Meeting', className: 'bg-purple-100 text-purple-700', icon: Calendar },
+    loi_sent: { label: 'LOI Sent', className: 'bg-indigo-100 text-indigo-700', icon: FileText },
+    closed_won: { label: 'Won', className: 'bg-emerald-100 text-emerald-700', icon: Check },
+    closed_lost: { label: 'Lost', className: 'bg-red-100 text-red-700', icon: X },
+  };
+  return config[status] || config.pending;
+};
+
 export const BuyerMatchCard = ({
   score,
   dealLocation,
@@ -190,10 +216,13 @@ export const BuyerMatchCard = ({
   onSelect,
   onApprove,
   onPass,
+  onOutreachUpdate,
+  outreach,
   isPending = false,
   universeName,
 }: BuyerMatchCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [outreachDialogOpen, setOutreachDialogOpen] = useState(false);
   
   const buyer = score.buyer;
   const tier = score.tier || getTierFromScore(score.composite_score);
@@ -207,6 +236,16 @@ export const BuyerMatchCard = ({
   
   // Buyer footprint summary
   const buyerFootprint = buyer?.geographic_footprint?.slice(0, 3).join(', ') || 'Unknown';
+  
+  // Handle outreach save
+  const handleOutreachSave = async (status: OutreachStatus, notes: string) => {
+    if (onOutreachUpdate) {
+      await onOutreachUpdate(score.id, status, notes);
+    }
+  };
+  
+  // Get outreach badge info
+  const outreachBadge = outreach ? getOutreachBadge(outreach.status) : null;
   
   // Determine reasoning panel background - only this panel gets colored
   const getReasoningBackground = () => {
@@ -480,10 +519,31 @@ export const BuyerMatchCard = ({
               </Button>
             </>
           ) : score.status === 'approved' ? (
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-              <Check className="h-3 w-3 mr-1" />
-              Approved
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                <Check className="h-3 w-3 mr-1" />
+                Approved
+              </Badge>
+              {/* Outreach Status Badge */}
+              {outreachBadge && outreach?.status !== 'pending' && (
+                <Badge className={cn("border", outreachBadge.className)}>
+                  <outreachBadge.icon className="h-3 w-3 mr-1" />
+                  {outreachBadge.label}
+                </Badge>
+              )}
+              {/* Track Outreach Button */}
+              {onOutreachUpdate && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setOutreachDialogOpen(true)}
+                >
+                  <Mail className="h-3 w-3 mr-1" />
+                  {outreach ? 'Update' : 'Track'}
+                </Button>
+              )}
+            </div>
           ) : (
             <Badge variant="outline" className="text-muted-foreground">
               <X className="h-3 w-3 mr-1" />
@@ -493,6 +553,15 @@ export const BuyerMatchCard = ({
           )}
         </div>
       </div>
+      
+      {/* Outreach Status Dialog */}
+      <OutreachStatusDialog
+        open={outreachDialogOpen}
+        onOpenChange={setOutreachDialogOpen}
+        buyerName={buyer?.company_name || 'Unknown Buyer'}
+        currentStatus={outreach?.status}
+        onSave={handleOutreachSave}
+      />
       
       {/* Score Breakdown Panel - Colored background based on tier */}
       <div className={cn(

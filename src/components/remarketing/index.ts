@@ -69,6 +69,7 @@ export type { OutreachStatus } from './OutreachStatusDialog';
 
 // Learning Components
 export { LearningInsightsPanel } from './LearningInsightsPanel';
+export { QuickInsightsWidget } from './QuickInsightsWidget';
 
 // Layout Components
 export { ReMarketingSidebar } from './ReMarketingSidebar';
@@ -79,6 +80,12 @@ export { ScoringInsightsSidebar } from './ScoringInsightsSidebar';
 // Bulk Actions & Progress
 export { BulkActionsToolbar } from './BulkActionsToolbar';
 export { ScoringProgressIndicator } from './ScoringProgressIndicator';
+
+// Email Generation
+export { EmailPreviewDialog } from './EmailPreviewDialog';
+
+// Pipeline Components
+export { PipelineSummaryCard } from './PipelineSummaryCard';
 
 // Transcript Components
 export { DealTranscriptSection } from './DealTranscriptSection';

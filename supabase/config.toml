@@ -144,3 +144,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.parse-transcript-file]
 verify_jwt = true
+[functions.generate-buyer-intro]
+verify_jwt = true

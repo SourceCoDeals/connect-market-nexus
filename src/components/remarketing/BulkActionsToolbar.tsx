@@ -25,6 +25,7 @@ interface BulkActionsToolbarProps {
   onBulkApprove: () => Promise<void>;
   onBulkPass: (reason: string, category: string) => Promise<void>;
   onExportCSV: () => void;
+  onGenerateEmails?: () => void;
   isProcessing?: boolean;
 }
 
@@ -42,6 +43,7 @@ export const BulkActionsToolbar = ({
   onBulkApprove,
   onBulkPass,
   onExportCSV,
+  onGenerateEmails,
   isProcessing = false,
 }: BulkActionsToolbarProps) => {
   const [isApproving, setIsApproving] = useState(false);
@@ -153,13 +155,12 @@ export const BulkActionsToolbar = ({
           Export CSV
         </Button>
 
-        {/* Generate Emails (future feature) */}
+        {/* Generate Emails */}
         <Button
           size="sm"
           variant="outline"
-          disabled
-          className="opacity-50"
-          title="Coming soon"
+          disabled={isProcessing || !onGenerateEmails}
+          onClick={onGenerateEmails}
         >
           <Mail className="h-4 w-4 mr-1" />
           Generate Emails
