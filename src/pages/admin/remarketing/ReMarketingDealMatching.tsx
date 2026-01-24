@@ -910,12 +910,14 @@ const ReMarketingDealMatching = () => {
             </div>
           )}
           
-          {isScoring && (
+          {(isScoring || backgroundScoring.isScoring) && (
             <div className="mt-4">
-              <Progress value={scoringProgress} className="h-2" />
-              <p className="text-sm text-muted-foreground mt-1">
-                AI is analyzing buyer-deal fit... {Math.round(scoringProgress)}%
-              </p>
+              <ScoringProgressIndicator
+                currentCount={backgroundScoring.currentCount || Math.round(scoringProgress / 10)}
+                expectedCount={backgroundScoring.expectedCount || 10}
+                progress={backgroundScoring.progress || scoringProgress}
+                universeName={linkedUniverses?.find(u => u.id === selectedUniverse)?.name}
+              />
             </div>
           )}
         </CardContent>
