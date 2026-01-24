@@ -39,6 +39,7 @@ import {
   BuyerMatchCard,
   ScoringInsightsPanel,
 } from "@/components/remarketing";
+import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
 
 type SortOption = 'score' | 'geography' | 'score_geo';
@@ -86,8 +87,34 @@ const ReMarketingDealMatching = () => {
     enabled: !!listingId
   });
 
-  // Fetch universes
-  const { data: universes } = useQuery({
+  // Fetch universes linked to this deal
+  const { data: linkedUniverses, refetch: refetchLinkedUniverses } = useQuery({
+    queryKey: ['remarketing', 'linked-universes', listingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_universe_deals')
+        .select(`
+          universe_id,
+          universe:remarketing_buyer_universes(id, name, geography_weight, size_weight, service_weight, owner_goals_weight)
+        `)
+        .eq('listing_id', listingId)
+        .eq('status', 'active');
+      
+      if (error) throw error;
+      return (data || []).map(d => d.universe).filter(Boolean) as Array<{
+        id: string;
+        name: string;
+        geography_weight: number;
+        size_weight: number;
+        service_weight: number;
+        owner_goals_weight: number;
+      }>;
+    },
+    enabled: !!listingId
+  });
+
+  // Fetch all universes for scoring new
+  const { data: allUniverses } = useQuery({
     queryKey: ['remarketing', 'universes'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -125,51 +152,54 @@ const ReMarketingDealMatching = () => {
     }
   }, [savedAdjustments]);
 
-  // Auto-suggest universe based on listing category
+  // Default to "all" if linked universes exist
   useEffect(() => {
-    if (listing && universes && universes.length > 0 && !selectedUniverse) {
-      const listingCategory = listing.category?.toLowerCase() || '';
-      const listingCategories = (listing.categories || []).map((c: string) => c.toLowerCase());
-      
-      const matchedUniverse = universes.find(u => {
-        const universeName = u.name.toLowerCase();
-        return listingCategories.some((cat: string) => 
-          universeName.includes(cat) || cat.includes(universeName.split(' ')[0])
-        ) || universeName.includes(listingCategory);
-      });
-
-      if (matchedUniverse) {
-        setSelectedUniverse(matchedUniverse.id);
-      }
+    if (linkedUniverses && linkedUniverses.length > 0 && !selectedUniverse) {
+      setSelectedUniverse('all');
     }
-  }, [listing, universes, selectedUniverse]);
+  }, [linkedUniverses, selectedUniverse]);
 
-  // Fetch existing scores for this listing with buyer contacts count
-  const { data: scores, isLoading: scoresLoading } = useQuery({
-    queryKey: ['remarketing', 'scores', listingId, selectedUniverse],
+  // Fetch ALL existing scores for this listing (from all universes)
+  const { data: allScores, isLoading: scoresLoading } = useQuery({
+    queryKey: ['remarketing', 'scores', listingId],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('remarketing_scores')
         .select(`
           *,
           buyer:remarketing_buyers(
             *,
             contacts:remarketing_buyer_contacts(id)
-          )
+          ),
+          universe:remarketing_buyer_universes(id, name)
         `)
         .eq('listing_id', listingId)
         .order('composite_score', { ascending: false });
-      
-      if (selectedUniverse) {
-        query = query.eq('universe_id', selectedUniverse);
-      }
 
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
     enabled: !!listingId
   });
+
+  // Filter scores based on selected universe
+  const scores = useMemo(() => {
+    if (!allScores) return [];
+    if (selectedUniverse === 'all' || !selectedUniverse) {
+      return allScores;
+    }
+    return allScores.filter(s => s.universe_id === selectedUniverse);
+  }, [allScores, selectedUniverse]);
+
+  // Compute match counts per universe
+  const universeMatchCounts = useMemo(() => {
+    if (!allScores || !linkedUniverses) return {};
+    const counts: Record<string, number> = {};
+    for (const u of linkedUniverses) {
+      counts[u.id] = allScores.filter(s => s.universe_id === u.id).length;
+    }
+    return counts;
+  }, [allScores, linkedUniverses]);
 
   // Compute stats including primary disqualification reason
   const stats = useMemo(() => {
@@ -564,16 +594,16 @@ const ReMarketingDealMatching = () => {
           </Card>
           
           {/* Right: Collapsible Scoring Insights Panel */}
-          {selectedUniverse && (
+          {selectedUniverse && selectedUniverse !== 'all' && (
             <div className="lg:col-span-2">
               <ScoringInsightsPanel
                 universeId={selectedUniverse}
-                universeName={universes?.find(u => u.id === selectedUniverse)?.name}
+                universeName={linkedUniverses?.find(u => u.id === selectedUniverse)?.name}
                 weights={{
-                  geography: universes?.find(u => u.id === selectedUniverse)?.geography_weight || 35,
-                  size: universes?.find(u => u.id === selectedUniverse)?.size_weight || 25,
-                  service: universes?.find(u => u.id === selectedUniverse)?.service_weight || 25,
-                  ownerGoals: universes?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
+                  geography: linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight || 35,
+                  size: linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight || 25,
+                  service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 25,
+                  ownerGoals: linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
                 }}
                 outcomeStats={{
                   approved: stats.approved,
@@ -642,41 +672,84 @@ const ReMarketingDealMatching = () => {
         </CardContent>
       </Card>
 
-      {/* Scoring Controls */}
+      {/* Universe Filter & Scoring Controls */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex-1 min-w-[200px]">
+            {/* Universe Filter Dropdown */}
+            <div className="flex-1 min-w-[250px]">
               <Select value={selectedUniverse} onValueChange={setSelectedUniverse}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select buyer universe" />
+                  <SelectValue placeholder="Filter by universe" />
                 </SelectTrigger>
                 <SelectContent>
-                  {universes?.map((universe) => (
+                  {linkedUniverses && linkedUniverses.length > 0 && (
+                    <SelectItem value="all">
+                      All Universes ({allScores?.length || 0} matches)
+                    </SelectItem>
+                  )}
+                  {linkedUniverses?.map((universe) => (
+                    <SelectItem key={universe.id} value={universe.id}>
+                      {universe.name} ({universeMatchCounts[universe.id] || 0} matches)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Score with New Universe */}
+            <div className="flex items-center gap-2">
+              <Select 
+                value="" 
+                onValueChange={(id) => {
+                  setSelectedUniverse(id);
+                  // Will trigger scoring in next step
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Score new universe" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allUniverses?.filter(u => !linkedUniverses?.some(l => l.id === u.id)).map((universe) => (
                     <SelectItem key={universe.id} value={universe.id}>
                       {universe.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              
+              <Button 
+                onClick={() => handleBulkScore()}
+                disabled={!selectedUniverse || selectedUniverse === 'all' || isScoring}
+              >
+                {isScoring ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Scoring...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Score Buyers
+                  </>
+                )}
+              </Button>
             </div>
-            <Button 
-              onClick={() => handleBulkScore()}
-              disabled={!selectedUniverse || isScoring}
-            >
-              {isScoring ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Scoring...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Score All Buyers
-                </>
-              )}
-            </Button>
           </div>
+          
+          {/* Universe Summary Row */}
+          {linkedUniverses && linkedUniverses.length > 1 && selectedUniverse === 'all' && (
+            <div className="mt-4 pt-4 border-t flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+              {linkedUniverses.map((u, i) => (
+                <span key={u.id} className="flex items-center gap-1">
+                  {i > 0 && <span className="mx-1">•</span>}
+                  <span className="font-medium text-foreground">{u.name}:</span>
+                  <span>{universeMatchCounts[u.id] || 0} matches</span>
+                </span>
+              ))}
+            </div>
+          )}
+          
           {isScoring && (
             <div className="mt-4">
               <Progress value={scoringProgress} className="h-2" />
@@ -755,13 +828,23 @@ const ReMarketingDealMatching = () => {
               <Skeleton key={i} className="h-48" />
             ))}
           </div>
-        ) : filteredScores.length === 0 && scores?.length === 0 ? (
+        ) : (!linkedUniverses || linkedUniverses.length === 0) && (!allScores || allScores.length === 0) ? (
+          // No universes linked - show quick action to add
+          <AddToUniverseQuickAction
+            listingId={listingId!}
+            listingCategory={listing.category}
+            onUniverseAdded={() => {
+              refetchLinkedUniverses();
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+            }}
+          />
+        ) : filteredScores.length === 0 && allScores && allScores.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Sparkles className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
               <h3 className="font-semibold text-lg mb-1">No matches yet</h3>
               <p className="text-muted-foreground">
-                Select a universe and click "Score All Buyers" to find matches
+                Select a universe and click "Score Buyers" to find matches
               </p>
             </CardContent>
           </Card>
@@ -785,6 +868,7 @@ const ReMarketingDealMatching = () => {
                 onApprove={handleApprove}
                 onPass={handleOpenPassDialog}
                 isPending={updateScoreMutation.isPending}
+                universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
               />
             ))}
           </div>
