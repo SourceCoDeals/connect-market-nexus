@@ -31,6 +31,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowUpDown,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -45,10 +46,11 @@ import {
   type OutreachStatus,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
+import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
 import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
 
 type SortOption = 'score' | 'geography' | 'score_geo';
-type FilterTab = 'all' | 'approved' | 'passed';
+type FilterTab = 'all' | 'approved' | 'passed' | 'outreach';
 
 const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
@@ -74,6 +76,12 @@ const ReMarketingDealMatching = () => {
   
   // Custom scoring instructions state
   const [customInstructions, setCustomInstructions] = useState("");
+  
+  // Background scoring progress hook
+  const backgroundScoring = useBackgroundScoringProgress(
+    listingId!,
+    selectedUniverse !== 'all' ? selectedUniverse : undefined
+  );
   
   const queryClient = useQueryClient();
 
@@ -166,7 +174,7 @@ const ReMarketingDealMatching = () => {
   }, [linkedUniverses, selectedUniverse]);
 
   // Fetch ALL existing scores for this listing (from all universes)
-  const { data: allScores, isLoading: scoresLoading } = useQuery({
+  const { data: allScores, isLoading: scoresLoading, refetch: refetchScores } = useQuery({
     queryKey: ['remarketing', 'scores', listingId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -182,6 +190,21 @@ const ReMarketingDealMatching = () => {
         .eq('listing_id', listingId)
         .order('composite_score', { ascending: false });
 
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!listingId
+  });
+
+  // Fetch outreach records for this listing
+  const { data: outreachRecords, refetch: refetchOutreach } = useQuery({
+    queryKey: ['remarketing', 'outreach', listingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_outreach')
+        .select('*')
+        .eq('listing_id', listingId);
+      
       if (error) throw error;
       return data || [];
     },
@@ -233,6 +256,34 @@ const ReMarketingDealMatching = () => {
     return { qualified, disqualified, strong, approved, passed, total: scores.length, disqualificationReason: topReason };
   }, [scores]);
 
+  // Get active outreach score IDs
+  const activeOutreachScoreIds = useMemo(() => {
+    return outreachRecords
+      ?.filter(o => !['pending', 'closed_won', 'closed_lost'].includes(o.status))
+      .map(o => o.score_id) || [];
+  }, [outreachRecords]);
+
+  // Count outreach
+  const outreachCount = activeOutreachScoreIds.length;
+
+  // Compute pass reasons for insights
+  const passReasons = useMemo(() => {
+    const passed = scores?.filter(s => s.status === 'passed' && s.pass_category) || [];
+    const counts: Record<string, number> = {};
+    for (const s of passed) {
+      counts[s.pass_category!] = (counts[s.pass_category!] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [scores]);
+
+  // Calculate average score for insights
+  const averageScore = useMemo(() => {
+    if (!scores || scores.length === 0) return 0;
+    return Math.round(scores.reduce((sum, s) => sum + (s.composite_score || 0), 0) / scores.length);
+  }, [scores]);
+
   // Filter and sort scores
   const filteredScores = useMemo(() => {
     if (!scores) return [];
@@ -244,6 +295,8 @@ const ReMarketingDealMatching = () => {
       filtered = filtered.filter(s => s.status === 'approved');
     } else if (activeTab === 'passed') {
       filtered = filtered.filter(s => s.status === 'passed');
+    } else if (activeTab === 'outreach') {
+      filtered = filtered.filter(s => activeOutreachScoreIds.includes(s.id));
     }
     
     // Hide disqualified
@@ -275,7 +328,7 @@ const ReMarketingDealMatching = () => {
     });
     
     return filtered;
-  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc]);
+  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc, activeOutreachScoreIds]);
 
   // Log learning history helper
   const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
@@ -557,6 +610,31 @@ const ReMarketingDealMatching = () => {
     setSelectedIds(newSelected);
   };
 
+  // Handle outreach update
+  const handleOutreachUpdate = async (scoreId: string, status: OutreachStatus, notes: string) => {
+    const score = scores?.find(s => s.id === scoreId);
+    if (!score) return;
+    
+    const { error } = await supabase.from('remarketing_outreach').upsert({
+      score_id: scoreId,
+      listing_id: listingId,
+      buyer_id: score.buyer_id,
+      status,
+      notes,
+      contacted_at: status !== 'pending' ? new Date().toISOString() : null,
+      created_by: user?.id,
+    }, { onConflict: 'score_id' });
+    
+    if (error) {
+      console.error('Failed to update outreach:', error);
+      toast.error('Failed to update outreach status');
+      return;
+    }
+    
+    toast.success('Outreach status updated');
+    refetchOutreach();
+  };
+
   if (listingLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -694,6 +772,16 @@ const ReMarketingDealMatching = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Quick Insights Widget - Shows when there are enough decisions */}
+      {(stats.approved + stats.passed) >= 3 && (
+        <QuickInsightsWidget
+          passReasons={passReasons}
+          approvalRate={stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}
+          totalDecisions={stats.approved + stats.passed}
+          averageScore={averageScore}
+        />
       )}
 
       {/* Listing Summary Card */}
@@ -848,6 +936,10 @@ const ReMarketingDealMatching = () => {
               <TabsTrigger value="passed">
                 Passed ({stats.passed})
               </TabsTrigger>
+              <TabsTrigger value="outreach">
+                <Mail className="h-3.5 w-3.5 mr-1" />
+                In Outreach ({outreachCount})
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           
@@ -930,19 +1022,24 @@ const ReMarketingDealMatching = () => {
           </Card>
         ) : (
           <div className="space-y-3">
-            {filteredScores.map((score: any) => (
-              <BuyerMatchCard
-                key={score.id}
-                score={score}
-                dealLocation={listing.location}
-                isSelected={selectedIds.has(score.id)}
-                onSelect={handleSelect}
-                onApprove={handleApprove}
-                onPass={handleOpenPassDialog}
-                isPending={updateScoreMutation.isPending}
-                universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
-              />
-            ))}
+            {filteredScores.map((score: any) => {
+              const outreach = outreachRecords?.find(o => o.score_id === score.id);
+              return (
+                <BuyerMatchCard
+                  key={score.id}
+                  score={score}
+                  dealLocation={listing.location}
+                  isSelected={selectedIds.has(score.id)}
+                  onSelect={handleSelect}
+                  onApprove={handleApprove}
+                  onPass={handleOpenPassDialog}
+                  onOutreachUpdate={handleOutreachUpdate}
+                  outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at, notes: outreach.notes } : undefined}
+                  isPending={updateScoreMutation.isPending}
+                  universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
+                />
+              );
+            })}
           </div>
         )}
       </div>

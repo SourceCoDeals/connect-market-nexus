@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
+import { ScoreTierBadge, getTierFromScore, PipelineSummaryCard } from "@/components/remarketing";
 import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
 import {
   GeneralNotesSection,
@@ -96,6 +96,29 @@ const ReMarketingDealDetail = () => {
       const avgScore = data.reduce((sum, s) => sum + (s.composite_score || 0), 0) / data.length;
 
       return { count: data.length, approved, passed, avgScore };
+    },
+    enabled: !!dealId
+  });
+
+  // Fetch pipeline/outreach stats for this deal
+  const { data: pipelineStats } = useQuery({
+    queryKey: ['remarketing', 'pipeline', dealId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_outreach')
+        .select('status')
+        .eq('listing_id', dealId);
+
+      if (error) throw error;
+
+      return {
+        contacted: data?.filter(o => o.status === 'contacted').length || 0,
+        responded: data?.filter(o => o.status === 'responded').length || 0,
+        meetingScheduled: data?.filter(o => o.status === 'meeting_scheduled').length || 0,
+        loiSent: data?.filter(o => o.status === 'loi_sent').length || 0,
+        closedWon: data?.filter(o => o.status === 'closed_won').length || 0,
+        closedLost: data?.filter(o => o.status === 'closed_lost').length || 0,
+      };
     },
     enabled: !!dealId
   });
@@ -321,6 +344,17 @@ const ReMarketingDealDetail = () => {
           toast.info("AI notes analysis coming soon");
         }}
       />
+
+      {/* Pipeline Summary Card - Shows conversion funnel */}
+      {scoreStats && scoreStats.count > 0 && (
+        <PipelineSummaryCard
+          scored={scoreStats.count}
+          approved={scoreStats.approved}
+          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
+          meetingScheduled={pipelineStats?.meetingScheduled || 0}
+          closedWon={pipelineStats?.closedWon || 0}
+        />
+      )}
 
       {/* Website & Actions */}
       <Card>
