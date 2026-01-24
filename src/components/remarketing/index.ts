@@ -95,3 +95,11 @@ export { PipelineSummaryCard } from './PipelineSummaryCard';
 
 // Transcript Components
 export { DealTranscriptSection } from './DealTranscriptSection';
+
+// Phase 4: CRM & Enterprise
+export { CRMExportPanel } from './CRMExportPanel';
+export { OutreachSequenceTracker } from './OutreachSequenceTracker';
+
+// Phase 5: Advanced Analytics
+export { WinRateAnalysis } from './WinRateAnalysis';
+export { OutreachVelocityDashboard } from './OutreachVelocityDashboard';
