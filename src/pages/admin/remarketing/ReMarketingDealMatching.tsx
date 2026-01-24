@@ -45,6 +45,7 @@ import {
   QuickInsightsWidget,
   EngagementHeatmapInsight,
   StaleScoreWarning,
+  WeightSuggestionsPanel,
   type OutreachStatus,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
@@ -815,6 +816,38 @@ const ReMarketingDealMatching = () => {
             score_id: o.score_id,
             status: o.status,
           }))}
+        />
+      )}
+
+      {/* AI Weight Suggestions Panel */}
+      {selectedUniverse && selectedUniverse !== 'all' && (stats.approved + stats.passed) >= 5 && (
+        <WeightSuggestionsPanel
+          universeId={selectedUniverse}
+          currentWeights={{
+            geography: linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight || 25,
+            size: linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight || 25,
+            service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 25,
+            owner_goals: linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
+          }}
+          onApplySuggestions={async (newWeights) => {
+            // Update universe weights
+            const { error } = await supabase
+              .from('remarketing_buyer_universes')
+              .update({
+                geography_weight: newWeights.geography,
+                size_weight: newWeights.size,
+                service_weight: newWeights.service,
+                owner_goals_weight: newWeights.owner_goals,
+              })
+              .eq('id', selectedUniverse);
+            
+            if (error) {
+              toast.error('Failed to update weights');
+            } else {
+              toast.success('Weights updated - rescore to apply changes');
+              refetchLinkedUniverses();
+            }
+          }}
         />
       )}
 
