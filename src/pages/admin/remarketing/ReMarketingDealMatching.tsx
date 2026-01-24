@@ -43,6 +43,8 @@ import {
   ScoringProgressIndicator,
   EmailPreviewDialog,
   QuickInsightsWidget,
+  EngagementHeatmapInsight,
+  StaleScoreWarning,
   type OutreachStatus,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
@@ -635,6 +637,23 @@ const ReMarketingDealMatching = () => {
     refetchOutreach();
   };
 
+  // Handle view tracking for engagement heatmap
+  const handleScoreViewed = async (scoreId: string) => {
+    try {
+      await supabase
+        .from('remarketing_scores')
+        .update({ last_viewed_at: new Date().toISOString() })
+        .eq('id', scoreId);
+    } catch (err) {
+      console.error('Failed to track view:', err);
+    }
+  };
+
+  // Handle rescore trigger (for stale score warning)
+  const handleRescore = () => {
+    handleBulkScore();
+  };
+
   if (listingLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -781,6 +800,21 @@ const ReMarketingDealMatching = () => {
           approvalRate={stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}
           totalDecisions={stats.approved + stats.passed}
           averageScore={averageScore}
+        />
+      )}
+
+      {/* Engagement Heatmap Insight - Shows buyer engagement levels */}
+      {scores && scores.length > 0 && (
+        <EngagementHeatmapInsight
+          scores={scores.map(s => ({
+            id: s.id,
+            last_viewed_at: s.last_viewed_at,
+            status: s.status,
+          }))}
+          outreachRecords={outreachRecords?.map(o => ({
+            score_id: o.score_id,
+            status: o.status,
+          }))}
         />
       )}
 
@@ -1036,6 +1070,7 @@ const ReMarketingDealMatching = () => {
                   onApprove={handleApprove}
                   onPass={handleOpenPassDialog}
                   onOutreachUpdate={handleOutreachUpdate}
+                  onViewed={handleScoreViewed}
                   outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at, notes: outreach.notes } : undefined}
                   isPending={updateScoreMutation.isPending}
                   universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}

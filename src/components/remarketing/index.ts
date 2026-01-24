@@ -9,6 +9,11 @@ export { BulkScoringPanel } from './BulkScoringPanel';
 export { ScoreFilters, filterScores } from './ScoreFilters';
 export type { ScoreFiltersState } from './ScoreFilters';
 
+// Engagement Components
+export { EngagementIndicator, getEngagementLevel } from './EngagementIndicator';
+export { StaleScoreWarning } from './StaleScoreWarning';
+export { EngagementHeatmapInsight } from './EngagementHeatmapInsight';
+
 // Enrichment Components
 export { EnrichmentButton } from './EnrichmentButton';
 

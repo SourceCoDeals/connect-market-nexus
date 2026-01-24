@@ -56,6 +56,7 @@ interface BuyerMatchCardProps {
     status: string;
     pass_reason?: string | null;
     pass_category?: string | null;
+    last_viewed_at?: string | null;
     buyer?: ReMarketingBuyer;
     universe?: { id: string; name: string } | null;
   };
@@ -65,6 +66,7 @@ interface BuyerMatchCardProps {
   onApprove: (scoreId: string, scoreData: any) => void;
   onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
+  onViewed?: (scoreId: string) => void;
   outreach?: OutreachData | null;
   isPending?: boolean;
   universeName?: string; // Show universe badge when viewing "All Universes"
@@ -217,12 +219,21 @@ export const BuyerMatchCard = ({
   onApprove,
   onPass,
   onOutreachUpdate,
+  onViewed,
   outreach,
   isPending = false,
   universeName,
 }: BuyerMatchCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [outreachDialogOpen, setOutreachDialogOpen] = useState(false);
+  
+  // Track when card is expanded for the first time
+  const handleExpand = (expanded: boolean) => {
+    if (expanded && !isExpanded && onViewed) {
+      onViewed(score.id);
+    }
+    setIsExpanded(expanded);
+  };
   
   const buyer = score.buyer;
   const tier = score.tier || getTierFromScore(score.composite_score);
@@ -481,7 +492,7 @@ export const BuyerMatchCard = ({
             </TooltipProvider>
             
             {/* Expand Chevron - Circular Button Style */}
-            <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+            <Collapsible open={isExpanded} onOpenChange={handleExpand}>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
                   <ChevronDown className={cn(
@@ -618,7 +629,7 @@ export const BuyerMatchCard = ({
         )}
         
         {/* Expandable Thesis */}
-        <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <Collapsible open={isExpanded} onOpenChange={handleExpand}>
           <CollapsibleContent className="pt-4">
             {buyer?.thesis_summary && (
               <div className="border-t pt-4">

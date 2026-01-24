@@ -357,6 +357,15 @@ async function handleSingleScore(
   else if (adjustedScore >= 55) tier = "C";
   else tier = "D";
 
+  // Create deal snapshot for stale detection
+  const dealSnapshot = {
+    revenue: listing.revenue,
+    ebitda: listing.ebitda,
+    location: listing.location,
+    category: listing.category,
+    snapshot_at: new Date().toISOString(),
+  };
+
   // Upsert score with new fields
   const { data: savedScore, error: saveError } = await supabase
     .from("remarketing_scores")
@@ -375,6 +384,7 @@ async function handleSingleScore(
         ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
         : score.fit_reasoning,
       scored_at: new Date().toISOString(),
+      deal_snapshot: dealSnapshot,
     }, { onConflict: "listing_id,buyer_id" })
     .select()
     .single();
@@ -517,6 +527,15 @@ async function handleBulkScore(
         else if (adjustedScore >= 55) tier = "C";
         else tier = "D";
 
+        // Create deal snapshot for stale detection
+        const dealSnapshot = {
+          revenue: listing.revenue,
+          ebitda: listing.ebitda,
+          location: listing.location,
+          category: listing.category,
+          snapshot_at: new Date().toISOString(),
+        };
+
         return {
           listing_id: listingId,
           buyer_id: buyer.id,
@@ -532,6 +551,7 @@ async function handleBulkScore(
             ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
             : score.fit_reasoning,
           scored_at: new Date().toISOString(),
+          deal_snapshot: dealSnapshot,
         };
       } catch (err) {
         console.error(`Failed to score buyer ${buyer.id}:`, err);
