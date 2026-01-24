@@ -35,6 +35,7 @@ export { UniverseDealsTable } from './UniverseDealsTable';
 export { DealMergePanel } from './DealMergePanel';
 // Deal Management Components
 export { AddDealToUniverseDialog } from './AddDealToUniverseDialog';
+export { AddToUniverseQuickAction } from './AddToUniverseQuickAction';
 export { DealCSVImport } from './DealCSVImport';
 
 // Analytics Components

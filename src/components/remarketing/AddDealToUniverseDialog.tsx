@@ -154,7 +154,7 @@ export const AddDealToUniverseDialog = ({
     enabled: open,
   });
 
-  // Add existing deals to universe
+  // Add existing deals to universe with auto-scoring
   const addDealsMutation = useMutation({
     mutationFn: async (listingIds: string[]) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -171,12 +171,31 @@ export const AddDealToUniverseDialog = ({
         .insert(inserts);
 
       if (error) throw error;
-      return listingIds.length;
+      return listingIds;
     },
-    onSuccess: (count) => {
+    onSuccess: async (listingIds) => {
       queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals", "universe", universeId] });
-      toast.success(`Added ${count} deal${count > 1 ? "s" : ""} to universe`);
+      toast.success(`Added ${listingIds.length} deal${listingIds.length > 1 ? "s" : ""} to universe`);
+      
+      // Trigger background scoring for each deal
+      toast.info("Scoring buyers in the background...");
+      for (const listingId of listingIds) {
+        supabase.functions.invoke("score-buyer-deal", {
+          body: {
+            bulk: true,
+            listingId,
+            universeId,
+          },
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error("Background scoring error:", error);
+          } else {
+            queryClient.invalidateQueries({ queryKey: ["remarketing", "scores", listingId] });
+          }
+        });
+      }
+      
       setSelectedListings([]);
       onDealAdded?.();
       onOpenChange(false);
@@ -237,11 +256,29 @@ export const AddDealToUniverseDialog = ({
 
       return listing;
     },
-    onSuccess: (listing) => {
+    onSuccess: async (listing) => {
       queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals", "universe", universeId] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       toast.success(`Created "${listing.title}" and added to universe`);
+      
+      // Trigger background scoring
+      toast.info("Scoring buyers in the background...");
+      supabase.functions.invoke("score-buyer-deal", {
+        body: {
+          bulk: true,
+          listingId: listing.id,
+          universeId,
+        },
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error("Background scoring error:", error);
+        } else {
+          toast.success(`Scored ${data.totalProcessed} buyers`);
+          queryClient.invalidateQueries({ queryKey: ["remarketing", "scores", listing.id] });
+        }
+      });
+      
       setNewDealForm({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "" });
       onDealAdded?.();
       onOpenChange(false);

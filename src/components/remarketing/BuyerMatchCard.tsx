@@ -26,6 +26,7 @@ import {
   AlertCircle,
   AlertTriangle,
   DollarSign,
+  Target,
 } from "lucide-react";
 import { ScoreTierBadge, getTierFromScore } from "./ScoreTierBadge";
 import { IntelligenceBadge } from "./IntelligenceBadge";
@@ -46,6 +47,7 @@ interface BuyerMatchCardProps {
     pass_reason?: string | null;
     pass_category?: string | null;
     buyer?: ReMarketingBuyer;
+    universe?: { id: string; name: string } | null;
   };
   dealLocation?: string;
   isSelected?: boolean;
@@ -53,6 +55,7 @@ interface BuyerMatchCardProps {
   onApprove: (scoreId: string, scoreData: any) => void;
   onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
   isPending?: boolean;
+  universeName?: string; // Show universe badge when viewing "All Universes"
 }
 
 const getScoreColorClass = (score: number) => {
@@ -188,6 +191,7 @@ export const BuyerMatchCard = ({
   onApprove,
   onPass,
   isPending = false,
+  universeName,
 }: BuyerMatchCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -271,6 +275,14 @@ export const BuyerMatchCard = ({
                 <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 text-xs">
                   <AlertTriangle className="h-3 w-3 mr-1" />
                   Disqualified
+                </Badge>
+              )}
+              
+              {/* Universe Badge - when viewing all universes */}
+              {(universeName || score.universe?.name) && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                  <Target className="h-3 w-3 mr-1" />
+                  {universeName || score.universe?.name}
                 </Badge>
               )}
               
