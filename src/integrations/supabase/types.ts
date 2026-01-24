@@ -3910,6 +3910,86 @@ export type Database = {
           },
         ]
       }
+      remarketing_outreach: {
+        Row: {
+          buyer_id: string
+          contact_method: string | null
+          contacted_at: string | null
+          contacted_by: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          listing_id: string
+          meeting_at: string | null
+          notes: string | null
+          response_at: string | null
+          score_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_id: string
+          contact_method?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          listing_id: string
+          meeting_at?: string | null
+          notes?: string | null
+          response_at?: string | null
+          score_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          contact_method?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          listing_id?: string
+          meeting_at?: string | null
+          notes?: string | null
+          response_at?: string | null
+          score_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_outreach_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_score_id_fkey"
+            columns: ["score_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_scores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remarketing_scores: {
         Row: {
           acquisition_score: number | null

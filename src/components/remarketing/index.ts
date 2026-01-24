@@ -64,6 +64,8 @@ export { BuyerQueryChat } from './BuyerQueryChat';
 // Outreach/Introduction Components
 export { OutreachTimeline } from './OutreachTimeline';
 export { IntroductionStatusCard } from './IntroductionStatusCard';
+export { OutreachStatusDialog } from './OutreachStatusDialog';
+export type { OutreachStatus } from './OutreachStatusDialog';
 
 // Learning Components
 export { LearningInsightsPanel } from './LearningInsightsPanel';
@@ -73,6 +75,10 @@ export { ReMarketingSidebar } from './ReMarketingSidebar';
 export { ReMarketingLayout } from './ReMarketingLayout';
 export { IntelligenceCoverageBar } from './IntelligenceCoverageBar';
 export { ScoringInsightsSidebar } from './ScoringInsightsSidebar';
+
+// Bulk Actions & Progress
+export { BulkActionsToolbar } from './BulkActionsToolbar';
+export { ScoringProgressIndicator } from './ScoringProgressIndicator';
 
 // Transcript Components
 export { DealTranscriptSection } from './DealTranscriptSection';
