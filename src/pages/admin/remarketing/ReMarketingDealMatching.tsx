@@ -533,9 +533,30 @@ const ReMarketingDealMatching = () => {
     }
   };
 
-  // Handle approve
-  const handleApprove = (scoreId: string, scoreData?: any) => {
-    updateScoreMutation.mutate({ id: scoreId, status: 'approved', scoreData });
+  // Handle approve - now auto-creates outreach record
+  const handleApprove = async (scoreId: string, scoreData?: any) => {
+    // First update the score status
+    await updateScoreMutation.mutateAsync({ id: scoreId, status: 'approved', scoreData });
+    
+    // Auto-create outreach record for approved buyer
+    try {
+      const { error } = await supabase.from('remarketing_outreach').upsert({
+        score_id: scoreId,
+        listing_id: listingId,
+        buyer_id: scoreData?.buyer_id,
+        status: 'pending',
+        created_by: user?.id,
+      }, { onConflict: 'score_id' });
+      
+      if (error) {
+        console.error('Failed to auto-create outreach:', error);
+      } else {
+        refetchOutreach();
+        toast.success('Buyer approved - outreach tracking started');
+      }
+    } catch (error) {
+      console.error('Failed to auto-create outreach:', error);
+    }
   };
 
   // Handle bulk approve

@@ -14,8 +14,11 @@ import {
   TrendingUp,
   Building2,
   Sparkles,
-  PieChart
+  PieChart,
+  CheckCircle2,
+  Mail,
 } from "lucide-react";
+import { UnlinkedListingsWidget } from "@/components/remarketing/UnlinkedListingsWidget";
 
 const ReMarketingDashboard = () => {
   // Fetch universes with counts
@@ -70,6 +73,44 @@ const ReMarketingDashboard = () => {
     }
   });
 
+  // Fetch outreach stats
+  const { data: outreachStats } = useQuery({
+    queryKey: ['remarketing', 'outreach', 'stats'],
+    queryFn: async () => {
+      // Approved scores without outreach
+      const { count: approvedCount } = await supabase
+        .from('remarketing_scores')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'approved');
+
+      // Outreach records that are active
+      const { count: activeOutreach } = await supabase
+        .from('remarketing_outreach')
+        .select('*', { count: 'exact', head: true })
+        .not('status', 'in', '("pending","closed_won","closed_lost")');
+
+      // Outreach pending (approved but not started)
+      const { data: outreachRecords } = await supabase
+        .from('remarketing_outreach')
+        .select('score_id');
+      
+      const outreachScoreIds = new Set((outreachRecords || []).map(r => r.score_id));
+      
+      const { data: approvedScores } = await supabase
+        .from('remarketing_scores')
+        .select('id')
+        .eq('status', 'approved');
+      
+      const pendingOutreach = (approvedScores || []).filter(s => !outreachScoreIds.has(s.id)).length;
+
+      return {
+        approved: approvedCount || 0,
+        activeOutreach: activeOutreach || 0,
+        pendingOutreach,
+      };
+    }
+  });
+
   const stats = [
     {
       title: "Buyer Universes",
@@ -91,6 +132,20 @@ const ReMarketingDashboard = () => {
       icon: BarChart3,
       description: "Scores generated",
       color: "text-purple-500"
+    },
+    {
+      title: "Approved",
+      value: outreachStats?.approved || 0,
+      icon: CheckCircle2,
+      description: "Ready for outreach",
+      color: "text-green-500"
+    },
+    {
+      title: "Pending Outreach",
+      value: outreachStats?.pendingOutreach || 0,
+      icon: Mail,
+      description: "Approved but not contacted",
+      color: outreachStats?.pendingOutreach ? "text-amber-500" : "text-muted-foreground"
     }
   ];
 
@@ -127,7 +182,7 @@ const ReMarketingDashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -143,6 +198,9 @@ const ReMarketingDashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Unlinked Listings Warning Widget */}
+      <UnlinkedListingsWidget />
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">

@@ -15,10 +15,34 @@ export function AdminNotificationBell() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
+  const handleMarkAllAsRead = () => {
+    markAllAsRead.mutate();
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'task_assigned':
+        return <ListTodo className="w-4 h-4 text-primary" />;
+      case 'task_completed':
+        return <CheckCheck className="w-4 h-4 text-green-600" />;
+      case 'remarketing_a_tier_match':
+        return <Bell className="w-4 h-4 text-emerald-600" />;
+      default:
+        return <Bell className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
   const handleNotificationClick = (notification: GroupedNotification) => {
     // Mark as read (including grouped notifications)
     const idsToMark = notification.groupedIds || [notification.id];
     markAsRead.mutate(idsToMark);
+
+    // Handle remarketing notifications - check as string to avoid type issues
+    if ((notification.notification_type as string) === 'remarketing_a_tier_match' && notification.action_url) {
+      navigate(notification.action_url.split('?')[0]);
+      setOpen(false);
+      return;
+    }
 
     // Navigate based on action URL or type
     if (notification.action_url) {
@@ -45,21 +69,6 @@ export function AdminNotificationBell() {
       }, 100);
       
       setOpen(false);
-    }
-  };
-
-  const handleMarkAllAsRead = () => {
-    markAllAsRead.mutate();
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'task_assigned':
-        return <ListTodo className="w-4 h-4 text-primary" />;
-      case 'task_completed':
-        return <CheckCheck className="w-4 h-4 text-green-600" />;
-      default:
-        return <Bell className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
