@@ -38,6 +38,8 @@ import {
   PassReasonDialog,
   BuyerMatchCard,
   ScoringInsightsPanel,
+  BulkActionsToolbar,
+  ScoringProgressIndicator,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
@@ -477,9 +479,67 @@ const ReMarketingDealMatching = () => {
   };
 
   // Handle bulk approve
-  const handleBulkApprove = () => {
+  const handleBulkApprove = async () => {
     if (selectedIds.size === 0) return;
-    bulkApproveMutation.mutate(Array.from(selectedIds));
+    await bulkApproveMutation.mutateAsync(Array.from(selectedIds));
+  };
+
+  // Handle bulk pass
+  const handleBulkPass = async (reason: string, category: string) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from('remarketing_scores')
+      .update({ status: 'passed', pass_reason: reason, pass_category: category })
+      .in('id', ids);
+    
+    if (error) throw error;
+    
+    // Log learning history for each
+    for (const id of ids) {
+      const scoreData = scores?.find(s => s.id === id);
+      if (scoreData) {
+        await logLearningHistory(scoreData, 'passed', reason, category);
+      }
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+    setSelectedIds(new Set());
+  };
+
+  // Handle export CSV
+  const handleExportCSV = () => {
+    const selectedScores = scores?.filter(s => selectedIds.has(s.id)) || [];
+    if (selectedScores.length === 0) return;
+    
+    const csvData = selectedScores.map(s => ({
+      buyer_name: s.buyer?.company_name || '',
+      website: s.buyer?.company_website || '',
+      hq_location: s.buyer?.hq_city && s.buyer?.hq_state ? `${s.buyer.hq_city}, ${s.buyer.hq_state}` : '',
+      pe_firm: (s.buyer as any)?.pe_firm_name || '',
+      score: s.composite_score,
+      tier: s.tier,
+      geography_score: s.geography_score,
+      size_score: s.size_score,
+      service_score: s.service_score,
+      status: s.status,
+      fit_reasoning: s.fit_reasoning || '',
+    }));
+    
+    const headers = Object.keys(csvData[0]);
+    const csv = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(h => `"${(row as any)[h] || ''}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `buyer-matches-${listing?.title?.replace(/\s+/g, '-').toLowerCase() || 'export'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exported to CSV');
   };
 
   // Handle selection toggle
@@ -541,22 +601,17 @@ const ReMarketingDealMatching = () => {
           </p>
         </div>
         
-        {/* Bulk Approve Button */}
-        {selectedIds.size > 0 && (
-          <Button
-            onClick={handleBulkApprove}
-            disabled={bulkApproveMutation.isPending}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            {bulkApproveMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Check className="mr-2 h-4 w-4" />
-            )}
-            Approve Buyers as Fit ({selectedIds.size})
-          </Button>
-        )}
       </div>
+
+      {/* Bulk Actions Toolbar - replaces old floating button */}
+      <BulkActionsToolbar
+        selectedCount={selectedIds.size}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onBulkApprove={handleBulkApprove}
+        onBulkPass={handleBulkPass}
+        onExportCSV={handleExportCSV}
+        isProcessing={bulkApproveMutation.isPending}
+      />
 
       {/* Two-Column Stats Row */}
       {scores && scores.length > 0 && (
@@ -593,17 +648,29 @@ const ReMarketingDealMatching = () => {
             </CardContent>
           </Card>
           
-          {/* Right: Collapsible Scoring Insights Panel */}
-          {selectedUniverse && selectedUniverse !== 'all' && (
+          {/* Right: Collapsible Scoring Insights Panel - now shows for all views */}
+          {linkedUniverses && linkedUniverses.length > 0 && (
             <div className="lg:col-span-2">
               <ScoringInsightsPanel
-                universeId={selectedUniverse}
-                universeName={linkedUniverses?.find(u => u.id === selectedUniverse)?.name}
+                universeId={selectedUniverse !== 'all' ? selectedUniverse : linkedUniverses[0]?.id}
+                universeName={
+                  selectedUniverse === 'all' 
+                    ? `${linkedUniverses.length} universes` 
+                    : linkedUniverses?.find(u => u.id === selectedUniverse)?.name
+                }
                 weights={{
-                  geography: linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight || 35,
-                  size: linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight || 25,
-                  service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 25,
-                  ownerGoals: linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
+                  geography: (selectedUniverse !== 'all' 
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight 
+                    : linkedUniverses[0]?.geography_weight) || 35,
+                  size: (selectedUniverse !== 'all' 
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight 
+                    : linkedUniverses[0]?.size_weight) || 25,
+                  service: (selectedUniverse !== 'all' 
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight 
+                    : linkedUniverses[0]?.service_weight) || 25,
+                  ownerGoals: (selectedUniverse !== 'all' 
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight 
+                    : linkedUniverses[0]?.owner_goals_weight) || 15,
                 }}
                 outcomeStats={{
                   approved: stats.approved,
