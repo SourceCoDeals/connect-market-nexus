@@ -12,6 +12,7 @@ import {
   Upload,
   Database,
   Kanban,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -55,6 +56,11 @@ const navItems: NavItem[] = [
     label: "Analytics",
     href: "/admin/remarketing/analytics",
     icon: <BarChart3 className="h-5 w-5" />,
+  },
+  {
+    label: "Advanced Analytics",
+    href: "/admin/remarketing/analytics/advanced",
+    icon: <Trophy className="h-5 w-5" />,
   },
   {
     label: "Data Import",

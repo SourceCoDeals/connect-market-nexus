@@ -50,6 +50,7 @@ import ReMarketingDealDetail from "@/pages/admin/remarketing/ReMarketingDealDeta
 import ReMarketingDataImport from "@/pages/admin/remarketing/ReMarketingDataImport";
 import ReMarketingBulkImport from "@/pages/admin/remarketing/ReMarketingBulkImport";
 import ReMarketingPipeline from "@/pages/admin/remarketing/ReMarketingPipeline";
+import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
 import { ReMarketingLayout } from "@/components/remarketing";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
@@ -143,6 +144,7 @@ function App() {
               <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
               <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
               <Route path="analytics" element={<ReMarketingAnalytics />} />
+              <Route path="analytics/advanced" element={<ReMarketingAdvancedAnalytics />} />
               <Route path="import" element={<ReMarketingDataImport />} />
               <Route path="bulk-import" element={<ReMarketingBulkImport />} />
               <Route path="pipeline" element={<ReMarketingPipeline />} />
