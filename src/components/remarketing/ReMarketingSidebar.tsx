@@ -11,7 +11,6 @@ import {
   BarChart3,
   Upload,
   Database,
-  Kanban,
   Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,11 +45,6 @@ const navItems: NavItem[] = [
     label: "All Buyers",
     href: "/admin/remarketing/buyers",
     icon: <Users className="h-5 w-5" />,
-  },
-  {
-    label: "Pipeline",
-    href: "/admin/remarketing/pipeline",
-    icon: <Kanban className="h-5 w-5" />,
   },
   {
     label: "Analytics",
