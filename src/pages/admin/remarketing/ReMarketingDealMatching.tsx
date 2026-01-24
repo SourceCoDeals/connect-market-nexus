@@ -40,6 +40,9 @@ import {
   ScoringInsightsPanel,
   BulkActionsToolbar,
   ScoringProgressIndicator,
+  EmailPreviewDialog,
+  QuickInsightsWidget,
+  type OutreachStatus,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
@@ -67,6 +70,7 @@ const ReMarketingDealMatching = () => {
   const [sortDesc, setSortDesc] = useState(true);
   const [hideDisqualified, setHideDisqualified] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   
   // Custom scoring instructions state
   const [customInstructions, setCustomInstructions] = useState("");
@@ -610,6 +614,7 @@ const ReMarketingDealMatching = () => {
         onBulkApprove={handleBulkApprove}
         onBulkPass={handleBulkPass}
         onExportCSV={handleExportCSV}
+        onGenerateEmails={() => setEmailDialogOpen(true)}
         isProcessing={bulkApproveMutation.isPending}
       />
 
@@ -949,6 +954,30 @@ const ReMarketingDealMatching = () => {
         buyerName={selectedBuyerForPass?.name || ''}
         onConfirm={handleConfirmPass}
         isLoading={updateScoreMutation.isPending}
+      />
+
+      {/* Email Preview Dialog */}
+      <EmailPreviewDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        buyers={(scores?.filter(s => selectedIds.has(s.id)) || []).map(s => ({
+          buyerId: s.buyer?.id || '',
+          buyerName: s.buyer?.company_name || 'Unknown',
+          companyWebsite: s.buyer?.company_website || undefined,
+          peFirmName: (s.buyer as any)?.pe_firm_name,
+          contacts: s.buyer?.contacts?.map((c: any) => ({ name: c.name || '', email: c.email })) || [],
+          fitReasoning: s.fit_reasoning || undefined,
+          compositeScore: s.composite_score,
+        }))}
+        deal={{
+          id: listing?.id || '',
+          title: listing?.title || '',
+          location: listing?.location || undefined,
+          revenue: listing?.revenue || undefined,
+          ebitda: listing?.ebitda || undefined,
+          category: listing?.category || undefined,
+          description: listing?.hero_description || undefined,
+        }}
       />
     </div>
   );
