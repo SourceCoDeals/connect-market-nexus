@@ -103,3 +103,6 @@ export { OutreachSequenceTracker } from './OutreachSequenceTracker';
 // Phase 5: Advanced Analytics
 export { WinRateAnalysis } from './WinRateAnalysis';
 export { OutreachVelocityDashboard } from './OutreachVelocityDashboard';
+
+// Dashboard Widgets
+export { UnlinkedListingsWidget } from './UnlinkedListingsWidget';
