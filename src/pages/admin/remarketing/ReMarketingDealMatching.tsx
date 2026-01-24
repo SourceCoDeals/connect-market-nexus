@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -46,6 +46,7 @@ type FilterTab = 'all' | 'approved' | 'passed';
 
 const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedUniverse, setSelectedUniverse] = useState<string>("");
   const [isScoring, setIsScoring] = useState(false);
@@ -500,10 +501,8 @@ const ReMarketingDealMatching = () => {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link to="/admin/listings">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Buyer Matches</h1>
