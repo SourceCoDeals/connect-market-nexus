@@ -5,12 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Phase definitions for the 12-phase SSE streaming generator
+// Phase definitions for the 13-phase SSE streaming generator
 const GENERATION_PHASES = [
   { id: '1a', name: 'Industry Definition', focus: 'NAICS codes, market size, industry segmentation' },
   { id: '1b', name: 'Terminology & Business Models', focus: 'Glossary, revenue models, operational structures' },
   { id: '1c', name: 'Industry Economics', focus: 'P&L benchmarks, unit economics, margin drivers' },
   { id: '1d', name: 'Ecosystem & Competitive Landscape', focus: 'Customers, suppliers, active acquirers, consolidation trends' },
+  { id: '1e', name: 'Target Buyer Profiles', focus: 'Industry-specific buyer types with buy boxes - CRITICAL' },
   { id: '2a', name: 'Financial Attractiveness', focus: 'EBITDA categories, margin quality, revenue mix' },
   { id: '2b', name: 'Operational Attractiveness', focus: 'KPIs, management quality, technology systems' },
   { id: '2c', name: 'Strategic & Geographic', focus: 'Market tiers, geographic preferences, deal killers' },
@@ -31,6 +32,18 @@ interface QualityResult {
   hasBuyerTypes: boolean;
   hasPrimaryFocus: boolean;
   missingElements: string[];
+}
+
+interface BuyerProfile {
+  id: string;
+  rank: number;
+  name: string;
+  description: string;
+  locations_min?: number;
+  locations_max?: number;
+  revenue_per_location?: number;
+  deal_requirements?: string;
+  enabled: boolean;
 }
 
 interface ExtractedCriteria {
@@ -60,6 +73,7 @@ interface ExtractedCriteria {
     include_strategic?: boolean;
     include_family_office?: boolean;
   };
+  target_buyer_types?: BuyerProfile[];
 }
 
 // Quality validation function
@@ -209,6 +223,49 @@ For "${industryName}", cover:
 
 Include a table of recent transactions if applicable.`,
 
+    '1e': `## PHASE 1E: TARGET BUYER PROFILES & BUY BOXES (CRITICAL)
+
+Research and define the specific types of BUYERS active in the "${industryName}" industry. This is NOT about the businesses being sold - it's about who is BUYING them.
+
+For EACH buyer type, define:
+1. **Buyer Profile Name** - Industry-specific name (e.g., "Large MSOs" for collision, "Regional Consolidators" for HVAC)
+2. **Description** - Who they are and their acquisition strategy
+3. **Buy Box Criteria**:
+   - Location count range they target (min-max)
+   - Revenue per location sweet spot
+   - Deal size preferences
+   - Deal structure requirements (SBA, seller financing, cash, etc.)
+4. **Deal Requirements** - What they specifically look for
+5. **Rank/Priority** - Their typical deal volume and market presence (1=most active)
+
+Research the ACTUAL buyer landscape for "${industryName}". Consider:
+- National consolidators / Large platforms (PE-backed or strategic)
+- Regional operators looking to expand
+- PE-backed add-on acquirers
+- Independent sponsors seeking platforms
+- Owner-operators looking to grow
+- Local strategic buyers (adjacent businesses)
+
+For each buyer category that EXISTS in this industry, provide:
+- Specific examples of real companies in this category
+- Their typical acquisition criteria
+- Their preferred deal structures
+
+OUTPUT FORMAT (Create 4-6 buyer profiles):
+
+### BUYER TYPE 1: [Name]
+**Rank:** 1
+**Description:** [2-3 sentences about who they are]
+**Locations Target:** [X - Y locations]
+**Revenue/Location:** $[X]M
+**Deal Requirements:** [Key requirements]
+**Examples:** [Real company names if known, or "Companies like X"]
+
+### BUYER TYPE 2: [Name]
+...
+
+Be specific to "${industryName}" - don't use generic buyer types. Research what types of acquirers are actually active in this specific industry.`,
+
     '2a': `## PHASE 2A: FINANCIAL ATTRACTIVENESS CRITERIA
 
 For "${industryName}", define:
@@ -332,7 +389,23 @@ BUYER_TYPES:
 - include_family_office: [true|false]
 ---END CRITERIA---
 
-Use actual values based on the industry analysis.`,
+---BEGIN BUYER_PROFILES---
+BUYER_1:
+- id: [snake_case_id]
+- rank: [1-6]
+- name: [Display Name]
+- description: [2-3 sentence description]
+- locations_min: [number]
+- locations_max: [number]
+- revenue_per_location: [number in dollars]
+- deal_requirements: [key requirements text]
+- enabled: true
+
+BUYER_2:
+...repeat for each buyer type (4-6 total)
+---END BUYER_PROFILES---
+
+Use actual values based on the industry analysis from Phase 1E.`,
 
     '4b': `## PHASE 4B: QUALITY VALIDATION
 
@@ -376,10 +449,26 @@ Provide a validation summary.`
 
 // Extract criteria from generated content using AI
 async function extractCriteria(content: string, apiKey: string): Promise<ExtractedCriteria> {
-  // First try regex extraction
+  // First try regex extraction for criteria
   const criteriaMatch = content.match(/---BEGIN CRITERIA---([\s\S]*?)---END CRITERIA---/);
+  const buyerProfilesMatch = content.match(/---BEGIN BUYER_PROFILES---([\s\S]*?)---END BUYER_PROFILES---/);
+  
+  let criteria: ExtractedCriteria;
+  
   if (criteriaMatch) {
-    return parseCriteriaBlock(criteriaMatch[1]);
+    criteria = parseCriteriaBlock(criteriaMatch[1]);
+    
+    // Parse buyer profiles if found
+    if (buyerProfilesMatch) {
+      criteria.target_buyer_types = parseBuyerProfilesBlock(buyerProfilesMatch[1]);
+    }
+    
+    // If we have criteria, try AI extraction for buyer profiles if not found
+    if (!criteria.target_buyer_types || criteria.target_buyer_types.length === 0) {
+      criteria.target_buyer_types = await extractBuyerProfilesWithAI(content, apiKey);
+    }
+    
+    return criteria;
   }
 
   // Fallback to AI extraction with tool calling
@@ -470,12 +559,232 @@ async function extractCriteria(content: string, apiKey: string): Promise<Extract
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (toolCall?.function?.arguments) {
     try {
-      return JSON.parse(toolCall.function.arguments);
+      criteria = JSON.parse(toolCall.function.arguments);
+      // Also try to extract buyer profiles
+      criteria.target_buyer_types = await extractBuyerProfilesWithAI(content, apiKey);
+      return criteria;
     } catch {
       return getDefaultCriteria();
     }
   }
   return getDefaultCriteria();
+}
+
+// Parse buyer profiles from structured block
+function parseBuyerProfilesBlock(block: string): BuyerProfile[] {
+  const profiles: BuyerProfile[] = [];
+  const buyerBlocks = block.split(/BUYER_\d+:/);
+  
+  for (const buyerBlock of buyerBlocks) {
+    if (!buyerBlock.trim()) continue;
+    
+    const profile: BuyerProfile = {
+      id: '',
+      rank: 99,
+      name: '',
+      description: '',
+      enabled: true
+    };
+    
+    const lines = buyerBlock.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('-')) continue;
+      
+      const colonIndex = trimmed.indexOf(':');
+      if (colonIndex === -1) continue;
+      
+      const key = trimmed.slice(1, colonIndex).trim();
+      const value = trimmed.slice(colonIndex + 1).trim().replace(/[\[\]]/g, '');
+      
+      switch (key) {
+        case 'id':
+          profile.id = value;
+          break;
+        case 'rank':
+          profile.rank = parseInt(value) || 99;
+          break;
+        case 'name':
+          profile.name = value;
+          break;
+        case 'description':
+          profile.description = value;
+          break;
+        case 'locations_min':
+          profile.locations_min = parseInt(value.replace(/[,$]/g, '')) || undefined;
+          break;
+        case 'locations_max':
+          profile.locations_max = parseInt(value.replace(/[,$]/g, '')) || undefined;
+          break;
+        case 'revenue_per_location':
+          profile.revenue_per_location = parseInt(value.replace(/[,$]/g, '')) || undefined;
+          break;
+        case 'deal_requirements':
+          profile.deal_requirements = value;
+          break;
+        case 'enabled':
+          profile.enabled = value.toLowerCase() === 'true';
+          break;
+      }
+    }
+    
+    if (profile.name && profile.id) {
+      profiles.push(profile);
+    }
+  }
+  
+  return profiles.sort((a, b) => a.rank - b.rank);
+}
+
+// Extract buyer profiles using AI
+async function extractBuyerProfilesWithAI(content: string, apiKey: string): Promise<BuyerProfile[]> {
+  // Look for buyer profile content in the guide
+  const relevantContent = content.match(/PHASE 1E[\s\S]*?(?=##\s*PHASE|$)/i)?.[0] || 
+                          content.match(/BUYER TYPE[\s\S]*?(?=##\s*PHASE|$)/i)?.[0] ||
+                          content.slice(-20000);
+  
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { 
+          role: "system", 
+          content: "Extract industry-specific buyer profiles from the M&A guide content. These are the types of BUYERS active in the industry." 
+        },
+        { 
+          role: "user", 
+          content: `Extract buyer profiles from this M&A guide section:\n\n${relevantContent}` 
+        }
+      ],
+      tools: [{
+        type: "function",
+        function: {
+          name: "extract_buyer_profiles",
+          description: "Extract industry-specific buyer type profiles",
+          parameters: {
+            type: "object",
+            properties: {
+              buyer_profiles: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", description: "snake_case id (e.g., large_mso, pe_platform)" },
+                    rank: { type: "number", description: "Priority rank 1-6" },
+                    name: { type: "string", description: "Display name" },
+                    description: { type: "string", description: "2-3 sentence description" },
+                    locations_min: { type: "number" },
+                    locations_max: { type: "number" },
+                    revenue_per_location: { type: "number", description: "Revenue per location in dollars" },
+                    deal_requirements: { type: "string", description: "Key deal requirements" },
+                    enabled: { type: "boolean", default: true }
+                  },
+                  required: ["id", "rank", "name", "description"]
+                },
+                description: "4-6 buyer profiles specific to this industry"
+              }
+            },
+            required: ["buyer_profiles"]
+          }
+        }
+      }],
+      tool_choice: { type: "function", function: { name: "extract_buyer_profiles" } }
+    }),
+  });
+
+  if (!response.ok) {
+    console.error("Buyer profiles extraction failed");
+    return getDefaultBuyerProfiles();
+  }
+
+  const result = await response.json();
+  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+  if (toolCall?.function?.arguments) {
+    try {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      return parsed.buyer_profiles || getDefaultBuyerProfiles();
+    } catch {
+      return getDefaultBuyerProfiles();
+    }
+  }
+  return getDefaultBuyerProfiles();
+}
+
+// Default buyer profiles (fallback)
+function getDefaultBuyerProfiles(): BuyerProfile[] {
+  return [
+    {
+      id: 'national_consolidator',
+      rank: 1,
+      name: 'National Consolidators',
+      description: 'Large operators with national presence seeking add-on acquisitions.',
+      locations_min: 50,
+      locations_max: 500,
+      revenue_per_location: 2500000,
+      deal_requirements: 'Prefer deals with $2M+ revenue, strong management team willing to stay',
+      enabled: true
+    },
+    {
+      id: 'regional_platform',
+      rank: 2,
+      name: 'Regional Platforms',
+      description: 'Regional operators expanding within their geographic footprint.',
+      locations_min: 10,
+      locations_max: 50,
+      revenue_per_location: 2000000,
+      deal_requirements: 'Looking for tuck-in acquisitions, prefer seller financing available',
+      enabled: true
+    },
+    {
+      id: 'pe_backed_platform',
+      rank: 3,
+      name: 'PE-Backed Platforms',
+      description: 'Private equity portfolio companies actively deploying capital for roll-up strategies.',
+      locations_min: 5,
+      locations_max: 100,
+      revenue_per_location: 1500000,
+      deal_requirements: 'Need clean financials, will pay premium for EBITDA margin above 15%',
+      enabled: true
+    },
+    {
+      id: 'independent_sponsor',
+      rank: 4,
+      name: 'Independent Sponsors',
+      description: 'Dealmakers with committed capital seeking platform investments.',
+      locations_min: 1,
+      locations_max: 10,
+      revenue_per_location: 1000000,
+      deal_requirements: 'Flexible on structure, open to earnouts and seller notes',
+      enabled: true
+    },
+    {
+      id: 'owner_operator',
+      rank: 5,
+      name: 'Owner-Operators',
+      description: 'Existing operators looking to expand from 1-5 locations in their local market.',
+      locations_min: 1,
+      locations_max: 5,
+      revenue_per_location: 800000,
+      deal_requirements: 'Often need SBA financing, prefer deals under $1M',
+      enabled: true
+    },
+    {
+      id: 'strategic_buyer',
+      rank: 6,
+      name: 'Strategic Buyers',
+      description: 'Established local businesses seeking adjacent market expansion.',
+      locations_min: 2,
+      locations_max: 15,
+      revenue_per_location: 1200000,
+      deal_requirements: 'Looking for synergies, willing to pay for customer relationships',
+      enabled: true
+    }
+  ];
 }
 
 function parseCriteriaBlock(block: string): ExtractedCriteria {
@@ -538,7 +847,8 @@ function getDefaultCriteria(): ExtractedCriteria {
       include_platforms: true,
       include_strategic: true,
       include_family_office: true
-    }
+    },
+    target_buyer_types: getDefaultBuyerProfiles()
   };
 }
 
