@@ -35,14 +35,16 @@ serve(async (req) => {
 
     const systemPrompt = `You are an M&A industry expert helping clarify the scope of an industry research guide.
 
-Given an industry name, generate 4-5 targeted clarifying questions to ensure the guide covers exactly the right segment and scope.
+Given an industry name, generate 3-4 targeted clarifying questions to ensure the guide covers exactly the right segment and scope.
 
 Questions should:
 1. Disambiguate sub-segments if the industry has multiple (e.g., "residential vs commercial", "water damage vs mold")
-2. Ask for 1-2 example companies to calibrate the scope
+2. Ask for 1-2 example companies or websites to calibrate the scope
 3. Confirm primary geographic focus
-4. Confirm typical target company size/revenue range
-5. Any industry-specific considerations
+4. Ask an open-ended question: "Is there anything else about this industry that would be helpful for our research?" (text input)
+
+DO NOT ask about revenue ranges or company sizes - we cover all sizes.
+DO NOT ask about regulatory or licensing considerations - keep it general.
 
 Return questions as JSON matching this schema exactly.`;
 
@@ -184,7 +186,7 @@ function getDefaultQuestions(industryName: string): ClarifyQuestion[] {
       id: 'examples',
       question: `Name 1-2 example companies you would consider "good targets"`,
       type: 'text',
-      placeholder: 'e.g., Company A, Company B'
+      placeholder: 'e.g., Company A, Company B, or website URLs'
     },
     {
       id: 'geography',
@@ -201,16 +203,10 @@ function getDefaultQuestions(industryName: string): ClarifyQuestion[] {
       ]
     },
     {
-      id: 'size',
-      question: 'What is the typical revenue range for target companies?',
-      type: 'select',
-      options: [
-        '$1M - $5M',
-        '$5M - $15M',
-        '$15M - $50M',
-        '$50M - $100M',
-        '$100M+'
-      ]
+      id: 'additional_context',
+      question: 'Is there anything else about this industry that would be helpful for our research?',
+      type: 'text',
+      placeholder: 'e.g., key trends, important distinctions, specific focus areas...'
     }
   ];
 }
