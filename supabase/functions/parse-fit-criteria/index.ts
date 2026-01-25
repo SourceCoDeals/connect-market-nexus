@@ -5,44 +5,61 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ParsedCriteria {
-  size_criteria: {
-    revenue_min?: number;
-    revenue_max?: number;
-    ebitda_min?: number;
-    ebitda_max?: number;
-    employee_min?: number;
-    employee_max?: number;
-  };
-  geography_criteria: {
-    target_states?: string[];
-    target_regions?: string[];
-    exclude_states?: string[];
-    adjacency_preference?: boolean;
-  };
-  service_criteria: {
-    required_services?: string[];
-    preferred_services?: string[];
-    excluded_services?: string[];
-  };
-  buyer_types_criteria: {
-    include_pe_firms?: boolean;
-    include_platforms?: boolean;
-    include_strategic?: boolean;
-    include_family_office?: boolean;
-  };
-  scoring_behavior: {
-    boost_adjacency?: boolean;
-    penalize_distance?: boolean;
-    require_thesis_match?: boolean;
-    minimum_data_completeness?: 'high' | 'medium' | 'low';
-  };
-  extracted_keywords: string[];
-  confidence: number;
+// Placeholder patterns to detect and clean
+const PLACEHOLDER_PATTERNS = [
+  /\[X\]/gi,
+  /\$\[X\]/gi,
+  /\[VALUE\]/gi,
+  /\[INSERT\]/gi,
+  /TBD/gi,
+  /X\.X/g,
+  /\$X+M?/gi,
+];
+
+function cleanPlaceholders(value: any): any {
+  if (typeof value === 'string') {
+    let cleaned = value;
+    for (const pattern of PLACEHOLDER_PATTERNS) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+    return cleaned.trim() || null;
+  }
+  if (Array.isArray(value)) {
+    return value.map(cleanPlaceholders).filter(Boolean);
+  }
+  if (typeof value === 'object' && value !== null) {
+    const result: Record<string, any> = {};
+    for (const [key, val] of Object.entries(value)) {
+      const cleaned = cleanPlaceholders(val);
+      if (cleaned !== null && cleaned !== undefined && cleaned !== '') {
+        result[key] = cleaned;
+      }
+    }
+    return result;
+  }
+  return value;
+}
+
+// Separate EBITDA multiples from dollar values
+function fixMisplacedMultiples(criteria: any): any {
+  if (!criteria?.size_criteria) return criteria;
+  
+  const size = criteria.size_criteria;
+  
+  // If EBITDA min looks like a multiple (< 20), move it
+  if (size.ebitda_min && size.ebitda_min < 20) {
+    size.ebitda_multiple_min = size.ebitda_min;
+    delete size.ebitda_min;
+  }
+  if (size.ebitda_max && size.ebitda_max < 20) {
+    size.ebitda_multiple_max = size.ebitda_max;
+    delete size.ebitda_max;
+  }
+  
+  return criteria;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -57,66 +74,179 @@ serve(async (req) => {
       );
     }
 
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      // Fallback to local parsing
+      console.log("LOVABLE_API_KEY not configured, using local parsing");
+      const localParsed = parseLocally(fit_criteria_text);
+      return new Response(
+        JSON.stringify(localParsed),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`Parsing fit criteria for universe: ${universe_name || 'unnamed'}`);
     console.log(`Input text length: ${fit_criteria_text.length} chars`);
 
-    // Call AI to parse the natural language criteria
-    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    const systemPrompt = `You are an M&A criteria extraction expert. Parse buyer universe fit criteria from natural language into structured data.
+
+CRITICAL REQUIREMENTS:
+1. Extract PRIMARY_FOCUS - the core service lines the buyer universe targets. This is REQUIRED.
+2. Separate EBITDA dollar values from EBITDA multiples (e.g., "5x EBITDA" is a multiple, "$5M EBITDA" is a dollar value)
+3. Convert all currency to raw numbers (e.g., "$5M" = 5000000, "$500K" = 500000)
+4. Use full state names (e.g., "Texas" not "TX")
+5. Do NOT include placeholder values like [X], TBD, or $XM`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') || '',
-        'anthropic-version': '2023-06-01'
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2000,
-        messages: [{
-          role: 'user',
-          content: `Parse the following buyer universe fit criteria into structured data. Extract:
-
-1. SIZE CRITERIA: revenue ranges, EBITDA ranges, employee counts
-   - Convert values like "$5M-$30M revenue" to revenue_min: 5000000, revenue_max: 30000000
-   - Handle "minimum $X", "at least $X", "up to $X" patterns
-
-2. GEOGRAPHY CRITERIA: target states, regions, exclusions
-   - Map regions like "Southeast" to actual states
-   - Note any adjacency preferences mentioned
-
-3. SERVICE/INDUSTRY CRITERIA: required vs preferred vs excluded services
-   - Required: "must have", "need", "require"
-   - Preferred: "ideally", "bonus", "nice to have"
-   - Excluded: "no", "avoid", "not interested in"
-
-4. BUYER TYPE PREFERENCES: PE firms, platforms, strategics, family offices
-   - Default all to true unless explicitly excluded
-
-5. SCORING BEHAVIOR hints:
-   - "geographic focus" -> penalize_distance: true
-   - "thesis alignment critical" -> require_thesis_match: true
-   - "data quality important" -> minimum_data_completeness: 'high'
-
-Return a JSON object matching this structure:
-{
-  "size_criteria": { "revenue_min": number, "revenue_max": number, "ebitda_min": number, "ebitda_max": number, "employee_min": number, "employee_max": number },
-  "geography_criteria": { "target_states": string[], "target_regions": string[], "exclude_states": string[], "adjacency_preference": boolean },
-  "service_criteria": { "required_services": string[], "preferred_services": string[], "excluded_services": string[] },
-  "buyer_types_criteria": { "include_pe_firms": boolean, "include_platforms": boolean, "include_strategic": boolean, "include_family_office": boolean },
-  "scoring_behavior": { "boost_adjacency": boolean, "penalize_distance": boolean, "require_thesis_match": boolean, "minimum_data_completeness": "high"|"medium"|"low" },
-  "extracted_keywords": string[],
-  "confidence": number (0-1)
-}
-
-FIT CRITERIA TEXT:
-${fit_criteria_text}
-
-Return ONLY valid JSON, no markdown or explanation.`
-        }]
-      })
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Parse this fit criteria text:\n\n${fit_criteria_text}` }
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "extract_fit_criteria",
+            description: "Extract structured buyer universe criteria from text",
+            parameters: {
+              type: "object",
+              properties: {
+                size_criteria: {
+                  type: "object",
+                  description: "Financial and size requirements",
+                  properties: {
+                    revenue_min: { type: "number", description: "Minimum revenue in dollars" },
+                    revenue_max: { type: "number", description: "Maximum revenue in dollars" },
+                    ebitda_min: { type: "number", description: "Minimum EBITDA in dollars (NOT multiples)" },
+                    ebitda_max: { type: "number", description: "Maximum EBITDA in dollars (NOT multiples)" },
+                    ebitda_multiple_min: { type: "number", description: "Minimum EBITDA multiple (e.g., 4 for 4x)" },
+                    ebitda_multiple_max: { type: "number", description: "Maximum EBITDA multiple (e.g., 8 for 8x)" },
+                    employee_min: { type: "number" },
+                    employee_max: { type: "number" },
+                    locations_min: { type: "number" },
+                    locations_max: { type: "number" },
+                    total_sqft_min: { type: "number" },
+                    total_sqft_max: { type: "number" }
+                  }
+                },
+                geography_criteria: {
+                  type: "object",
+                  description: "Geographic targeting",
+                  properties: {
+                    target_states: { 
+                      type: "array", 
+                      items: { type: "string" },
+                      description: "Full state names to target"
+                    },
+                    target_regions: { 
+                      type: "array", 
+                      items: { type: "string" },
+                      description: "Region names like Southeast, Midwest"
+                    },
+                    exclude_states: { 
+                      type: "array", 
+                      items: { type: "string" },
+                      description: "States to exclude"
+                    },
+                    coverage: { 
+                      type: "string", 
+                      enum: ["local", "regional", "national"],
+                      description: "Geographic coverage type"
+                    },
+                    hq_requirements: { type: "string" },
+                    adjacency_preference: { type: "boolean" }
+                  }
+                },
+                service_criteria: {
+                  type: "object",
+                  description: "Service and industry requirements",
+                  properties: {
+                    primary_focus: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "REQUIRED: Core service lines the buyer universe targets. This is critical for scoring."
+                    },
+                    required_services: { 
+                      type: "array", 
+                      items: { type: "string" },
+                      description: "Services that are required/must-have"
+                    },
+                    preferred_services: { 
+                      type: "array", 
+                      items: { type: "string" },
+                      description: "Nice-to-have services"
+                    },
+                    excluded_services: { 
+                      type: "array", 
+                      items: { type: "string" },
+                      description: "Services to avoid/exclude"
+                    },
+                    business_model: { type: "string" },
+                    customer_profile: { type: "string" }
+                  },
+                  required: ["primary_focus"]
+                },
+                buyer_types_criteria: {
+                  type: "object",
+                  description: "Types of buyers to include",
+                  properties: {
+                    include_pe_firms: { type: "boolean", default: true },
+                    include_platforms: { type: "boolean", default: true },
+                    include_strategic: { type: "boolean", default: true },
+                    include_family_office: { type: "boolean", default: true }
+                  }
+                },
+                scoring_behavior: {
+                  type: "object",
+                  description: "Scoring algorithm hints",
+                  properties: {
+                    boost_adjacency: { type: "boolean" },
+                    penalize_distance: { type: "boolean" },
+                    require_thesis_match: { type: "boolean" },
+                    geography_strictness: { type: "string", enum: ["strict", "moderate", "flexible"] },
+                    size_strictness: { type: "string", enum: ["strict", "moderate", "flexible"] },
+                    minimum_data_completeness: { type: "string", enum: ["high", "medium", "low"] }
+                  }
+                },
+                extracted_keywords: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Key terms extracted from the text"
+                },
+                confidence: {
+                  type: "number",
+                  description: "Confidence score 0-1"
+                }
+              },
+              required: ["size_criteria", "geography_criteria", "service_criteria", "buyer_types_criteria"]
+            }
+          }
+        }],
+        tool_choice: { type: "function", function: { name: "extract_fit_criteria" } }
+      }),
     });
 
-    if (!aiResponse.ok) {
-      // Fallback to local parsing if AI unavailable
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded" }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Payment required" }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Fallback to local parsing
       console.log('AI unavailable, using local parsing fallback');
       const localParsed = parseLocally(fit_criteria_text);
       return new Response(
@@ -125,16 +255,30 @@ Return ONLY valid JSON, no markdown or explanation.`
       );
     }
 
-    const aiData = await aiResponse.json();
-    const content = aiData.content?.[0]?.text || '{}';
+    const aiData = await response.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     
-    // Parse the AI response
-    let parsed: ParsedCriteria;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      console.log('Failed to parse AI response, using local fallback');
-      parsed = parseLocally(fit_criteria_text);
+    if (!toolCall?.function?.arguments) {
+      console.log('No tool call response, using local fallback');
+      const localParsed = parseLocally(fit_criteria_text);
+      return new Response(
+        JSON.stringify(localParsed),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let parsed = JSON.parse(toolCall.function.arguments);
+    
+    // Post-processing
+    parsed = cleanPlaceholders(parsed);
+    parsed = fixMisplacedMultiples(parsed);
+    
+    // Ensure primary_focus exists
+    if (!parsed.service_criteria?.primary_focus || parsed.service_criteria.primary_focus.length === 0) {
+      // Try to infer from required_services
+      if (parsed.service_criteria?.required_services?.length > 0) {
+        parsed.service_criteria.primary_focus = parsed.service_criteria.required_services.slice(0, 3);
+      }
     }
 
     console.log('Parsed criteria:', JSON.stringify(parsed, null, 2));
@@ -154,33 +298,38 @@ Return ONLY valid JSON, no markdown or explanation.`
 });
 
 // Local fallback parser using regex patterns
-function parseLocally(text: string): ParsedCriteria {
+function parseLocally(text: string) {
   const lowerText = text.toLowerCase();
   
-  const result: ParsedCriteria = {
-    size_criteria: {},
-    geography_criteria: {},
-    service_criteria: {},
+  const result = {
+    size_criteria: {} as Record<string, any>,
+    geography_criteria: {} as Record<string, any>,
+    service_criteria: {
+      primary_focus: [] as string[],
+      required_services: [] as string[],
+      preferred_services: [] as string[],
+      excluded_services: [] as string[]
+    },
     buyer_types_criteria: {
       include_pe_firms: true,
       include_platforms: true,
       include_strategic: true,
       include_family_office: true
     },
-    scoring_behavior: {},
-    extracted_keywords: [],
+    scoring_behavior: {} as Record<string, any>,
+    extracted_keywords: [] as string[],
     confidence: 0.5
   };
 
   // Parse revenue ranges
-  const revenueMatch = text.match(/\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion)?\s*[-–to]+\s*\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion)?\s*(?:revenue|rev)/i);
+  const revenueMatch = text.match(/\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion|M)?\s*[-–to]+\s*\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion|M)?\s*(?:revenue|rev)/i);
   if (revenueMatch) {
     result.size_criteria.revenue_min = parseFloat(revenueMatch[1]) * 1000000;
     result.size_criteria.revenue_max = parseFloat(revenueMatch[2]) * 1000000;
   }
 
   // Parse EBITDA ranges
-  const ebitdaMatch = text.match(/\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion)?\s*[-–to]+\s*\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion)?\s*EBITDA/i);
+  const ebitdaMatch = text.match(/\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion|M)?\s*[-–to]+\s*\$?(\d+(?:\.\d+)?)\s*[Mm](?:illion|M)?\s*EBITDA/i);
   if (ebitdaMatch) {
     result.size_criteria.ebitda_min = parseFloat(ebitdaMatch[1]) * 1000000;
     result.size_criteria.ebitda_max = parseFloat(ebitdaMatch[2]) * 1000000;
@@ -199,7 +348,7 @@ function parseLocally(text: string): ParsedCriteria {
   for (const [region, states] of Object.entries(regionMap)) {
     if (lowerText.includes(region)) {
       result.geography_criteria.target_regions = result.geography_criteria.target_regions || [];
-      result.geography_criteria.target_regions.push(region);
+      result.geography_criteria.target_regions.push(region.charAt(0).toUpperCase() + region.slice(1));
       result.geography_criteria.target_states = [
         ...(result.geography_criteria.target_states || []),
         ...states
@@ -209,15 +358,18 @@ function parseLocally(text: string): ParsedCriteria {
 
   // Parse services - look for industry keywords
   const serviceKeywords = [
-    'hvac', 'plumbing', 'electrical', 'roofing', 'landscaping', 'cleaning',
-    'pest control', 'restoration', 'flooring', 'painting', 'insulation',
-    'solar', 'security', 'fire protection', 'garage door', 'pool service'
+    'HVAC', 'Plumbing', 'Electrical', 'Roofing', 'Landscaping', 'Cleaning',
+    'Pest Control', 'Restoration', 'Flooring', 'Painting', 'Insulation',
+    'Solar', 'Security', 'Fire Protection', 'Garage Door', 'Pool Service',
+    'Auto Body', 'Collision Repair', 'Mechanical', 'Glass'
   ];
   
   for (const service of serviceKeywords) {
-    if (lowerText.includes(service)) {
-      result.service_criteria.preferred_services = result.service_criteria.preferred_services || [];
-      result.service_criteria.preferred_services.push(service.charAt(0).toUpperCase() + service.slice(1));
+    if (lowerText.includes(service.toLowerCase())) {
+      result.service_criteria.required_services.push(service);
+      if (result.service_criteria.primary_focus.length < 3) {
+        result.service_criteria.primary_focus.push(service);
+      }
     }
   }
 
