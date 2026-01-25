@@ -582,6 +582,9 @@ Be comprehensive and specific.`;
   return result.choices?.[0]?.message?.content || '';
 }
 
+// Batch configuration: 4 phases per batch for reliability
+const BATCH_SIZE = 4;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -595,7 +598,9 @@ serve(async (req) => {
       universe_id, 
       existing_content, 
       clarification_context,
-      stream = true 
+      stream = true,
+      batch_index = 0, // Which batch to generate (0, 1, 2)
+      previous_content = '' // Content from previous batches
     } = await req.json();
 
     if (!industry_name) {
@@ -610,50 +615,91 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log(`Generating M&A Guide for: ${industry_name}`, clarification_context ? 'with context' : 'without context');
+    // Calculate which phases to generate for this batch
+    const startPhase = batch_index * BATCH_SIZE;
+    const endPhase = Math.min(startPhase + BATCH_SIZE, GENERATION_PHASES.length);
+    const batchPhases = GENERATION_PHASES.slice(startPhase, endPhase);
+    const isLastBatch = endPhase >= GENERATION_PHASES.length;
+    const totalBatches = Math.ceil(GENERATION_PHASES.length / BATCH_SIZE);
 
-    // If not streaming, generate all at once
+    console.log(`Generating M&A Guide batch ${batch_index + 1}/${totalBatches} for: ${industry_name}`, 
+      clarification_context ? 'with context' : 'without context',
+      `phases ${startPhase + 1}-${endPhase}`);
+
+    // If not streaming, generate batch at once
     if (!stream) {
-      let fullContent = '';
-      for (const phase of GENERATION_PHASES) {
+      let fullContent = previous_content;
+      for (const phase of batchPhases) {
         const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, LOVABLE_API_KEY, clarification_context);
         fullContent += phaseContent + '\n\n';
       }
       
-      const quality = validateQuality(fullContent);
-      const criteria = await extractCriteria(fullContent, LOVABLE_API_KEY);
+      // Only validate and extract on last batch
+      if (isLastBatch) {
+        const quality = validateQuality(fullContent);
+        const criteria = await extractCriteria(fullContent, LOVABLE_API_KEY);
+        
+        return new Response(
+          JSON.stringify({ 
+            content: fullContent, 
+            quality,
+            criteria,
+            batch_complete: true,
+            is_final: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       
       return new Response(
         JSON.stringify({ 
-          content: fullContent, 
-          quality,
-          criteria 
+          content: fullContent,
+          batch_complete: true,
+          is_final: false,
+          next_batch_index: batch_index + 1
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // SSE Streaming response
+    // SSE Streaming response for batch
     const readable = new ReadableStream({
       async start(controller) {
         const send = (data: any) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         };
 
-        let fullContent = '';
+        // Send heartbeat to keep connection alive
+        const heartbeatInterval = setInterval(() => {
+          send({ type: 'heartbeat', timestamp: Date.now() });
+        }, 10000); // Every 10 seconds
+
+        let fullContent = previous_content;
 
         try {
-          // Generate each phase
-          for (let i = 0; i < GENERATION_PHASES.length; i++) {
-            const phase = GENERATION_PHASES[i];
+          // Send batch start
+          send({
+            type: 'batch_start',
+            batch_index,
+            total_batches: totalBatches,
+            start_phase: startPhase + 1,
+            end_phase: endPhase
+          });
+
+          // Generate each phase in this batch
+          for (let i = 0; i < batchPhases.length; i++) {
+            const phase = batchPhases[i];
+            const globalPhaseIndex = startPhase + i;
             
             // Send phase start
             send({ 
               type: 'phase_start', 
-              phase: i + 1, 
+              phase: globalPhaseIndex + 1, 
               total: GENERATION_PHASES.length,
               id: phase.id,
-              name: phase.name 
+              name: phase.name,
+              batch: batch_index + 1,
+              total_batches: totalBatches
             });
 
             // Generate phase content with clarification context
@@ -665,58 +711,72 @@ serve(async (req) => {
             for (const chunk of chunks) {
               send({ type: 'content', content: chunk });
               // Small delay for smoother streaming
-              await new Promise(r => setTimeout(r, 50));
+              await new Promise(r => setTimeout(r, 30));
             }
 
             // Send phase complete
             send({ 
               type: 'phase_complete', 
-              phase: i + 1,
+              phase: globalPhaseIndex + 1,
               wordCount: fullContent.split(/\s+/).length
             });
           }
 
-          // Quality check
-          send({ type: 'quality_check_start' });
-          const quality = validateQuality(fullContent);
-          send({ type: 'quality_check_result', result: quality });
+          // Send batch complete
+          send({
+            type: 'batch_complete',
+            batch_index,
+            content: fullContent,
+            wordCount: fullContent.split(/\s+/).length,
+            is_final: isLastBatch,
+            next_batch_index: isLastBatch ? null : batch_index + 1
+          });
 
-          // Gap fill if needed
-          if (!quality.passed && quality.missingElements.length > 0) {
-            send({ type: 'gap_fill_start', missingElements: quality.missingElements });
-            
-            const gapContent = await generateGapFill(quality.missingElements, industry_name, LOVABLE_API_KEY);
-            fullContent += '\n\n## GAP FILL CONTENT\n\n' + gapContent;
-            
-            // Stream gap fill content
-            const chunks = gapContent.match(/.{1,500}/g) || [];
-            for (const chunk of chunks) {
-              send({ type: 'content', content: chunk });
-              await new Promise(r => setTimeout(r, 50));
+          // Only do quality check and criteria extraction on last batch
+          if (isLastBatch) {
+            // Quality check
+            send({ type: 'quality_check_start' });
+            const quality = validateQuality(fullContent);
+            send({ type: 'quality_check_result', result: quality });
+
+            // Gap fill if needed
+            if (!quality.passed && quality.missingElements.length > 0) {
+              send({ type: 'gap_fill_start', missingElements: quality.missingElements });
+              
+              const gapContent = await generateGapFill(quality.missingElements, industry_name, LOVABLE_API_KEY);
+              fullContent += '\n\n## GAP FILL CONTENT\n\n' + gapContent;
+              
+              // Stream gap fill content
+              const chunks = gapContent.match(/.{1,500}/g) || [];
+              for (const chunk of chunks) {
+                send({ type: 'content', content: chunk });
+                await new Promise(r => setTimeout(r, 30));
+              }
+
+              send({ type: 'gap_fill_complete' });
+
+              // Re-validate
+              const finalQuality = validateQuality(fullContent);
+              send({ type: 'final_quality', result: finalQuality });
             }
 
-            send({ type: 'gap_fill_complete' });
+            // Extract criteria
+            send({ type: 'criteria_extraction_start' });
+            const criteria = await extractCriteria(fullContent, LOVABLE_API_KEY);
+            send({ type: 'criteria', criteria });
 
-            // Re-validate
-            const finalQuality = validateQuality(fullContent);
-            send({ type: 'final_quality', result: finalQuality });
+            // Complete
+            send({ 
+              type: 'complete', 
+              totalWords: fullContent.split(/\s+/).length,
+              content: fullContent
+            });
           }
-
-          // Extract criteria
-          send({ type: 'criteria_extraction_start' });
-          const criteria = await extractCriteria(fullContent, LOVABLE_API_KEY);
-          send({ type: 'criteria', criteria });
-
-          // Complete
-          send({ 
-            type: 'complete', 
-            totalWords: fullContent.split(/\s+/).length,
-            content: fullContent
-          });
 
         } catch (error) {
           send({ type: 'error', message: error.message });
         } finally {
+          clearInterval(heartbeatInterval);
           controller.close();
         }
       }
