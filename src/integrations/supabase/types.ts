@@ -3641,13 +3641,20 @@ export type Database = {
           created_by: string | null
           description: string | null
           documents: Json | null
+          documents_analyzed_at: string | null
           fit_criteria: string | null
+          fit_criteria_buyer_types: string | null
+          fit_criteria_geography: string | null
+          fit_criteria_service: string | null
+          fit_criteria_size: string | null
           geography_criteria: Json | null
           geography_weight: number
           id: string
           industry_template: string | null
           kpi_scoring_config: Json | null
           ma_guide_content: string | null
+          ma_guide_generated_at: string | null
+          ma_guide_qa_context: Json | null
           name: string
           owner_goals_weight: number
           scoring_behavior: Json | null
@@ -3664,13 +3671,20 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           documents?: Json | null
+          documents_analyzed_at?: string | null
           fit_criteria?: string | null
+          fit_criteria_buyer_types?: string | null
+          fit_criteria_geography?: string | null
+          fit_criteria_service?: string | null
+          fit_criteria_size?: string | null
           geography_criteria?: Json | null
           geography_weight?: number
           id?: string
           industry_template?: string | null
           kpi_scoring_config?: Json | null
           ma_guide_content?: string | null
+          ma_guide_generated_at?: string | null
+          ma_guide_qa_context?: Json | null
           name: string
           owner_goals_weight?: number
           scoring_behavior?: Json | null
@@ -3687,13 +3701,20 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           documents?: Json | null
+          documents_analyzed_at?: string | null
           fit_criteria?: string | null
+          fit_criteria_buyer_types?: string | null
+          fit_criteria_geography?: string | null
+          fit_criteria_service?: string | null
+          fit_criteria_size?: string | null
           geography_criteria?: Json | null
           geography_weight?: number
           id?: string
           industry_template?: string | null
           kpi_scoring_config?: Json | null
           ma_guide_content?: string | null
+          ma_guide_generated_at?: string | null
+          ma_guide_qa_context?: Json | null
           name?: string
           owner_goals_weight?: number
           scoring_behavior?: Json | null
