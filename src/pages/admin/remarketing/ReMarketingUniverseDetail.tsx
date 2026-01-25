@@ -24,7 +24,10 @@ import {
   BuyerTableToolbar,
   AddDealToUniverseDialog,
   DealCSVImport,
-  BuyerFitCriteriaDialog
+  BuyerFitCriteriaDialog,
+  TrackerNotesSection,
+  AIResearchSection,
+  CriteriaValidationAlert
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -571,6 +574,50 @@ const ReMarketingUniverseDetail = () => {
             </CollapsibleContent>
           </Card>
         </Collapsible>
+      )}
+
+      {/* Criteria Validation Alert */}
+      {!isNew && (
+        <CriteriaValidationAlert
+          sizeCriteria={sizeCriteria}
+          geographyCriteria={geographyCriteria}
+          serviceCriteria={serviceCriteria}
+          buyerTypesCriteria={buyerTypesCriteria}
+          scoringBehavior={scoringBehavior}
+        />
+      )}
+
+      {/* Quick Import from Notes */}
+      {!isNew && id && (
+        <TrackerNotesSection
+          universeName={formData.name}
+          onApplyCriteria={(criteria) => {
+            if (criteria.size_criteria) setSizeCriteria(prev => ({ ...prev, ...criteria.size_criteria }));
+            if (criteria.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...criteria.geography_criteria }));
+            if (criteria.service_criteria) setServiceCriteria(prev => ({ ...prev, ...criteria.service_criteria }));
+            if (criteria.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...criteria.buyer_types_criteria }));
+            if (criteria.scoring_behavior) setScoringBehavior(prev => ({ ...prev, ...criteria.scoring_behavior }));
+            toast.success('Criteria extracted and applied');
+          }}
+        />
+      )}
+
+      {/* AI Research M&A Guide Generation */}
+      {!isNew && id && (
+        <AIResearchSection
+          universeName={formData.name}
+          existingContent={maGuideContent}
+          onGuideGenerated={(guide, extractedCriteria) => {
+            setMaGuideContent(guide);
+            if (extractedCriteria) {
+              if (extractedCriteria.size_criteria) setSizeCriteria(prev => ({ ...prev, ...extractedCriteria.size_criteria }));
+              if (extractedCriteria.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...extractedCriteria.geography_criteria }));
+              if (extractedCriteria.service_criteria) setServiceCriteria(prev => ({ ...prev, ...extractedCriteria.service_criteria }));
+              if (extractedCriteria.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...extractedCriteria.buyer_types_criteria }));
+            }
+            toast.success('M&A Guide generated and criteria extracted');
+          }}
+        />
       )}
 
       {/* Supporting Documents */}

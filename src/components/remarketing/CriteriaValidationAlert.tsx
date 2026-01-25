@@ -1,7 +1,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
-import { validateCriteria, ValidationResult } from "@/lib/criteriaValidation";
+import { validateCriteria, CriteriaValidationResult } from "@/lib/criteriaValidation";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, ScoringBehavior } from "@/types/remarketing";
 
 interface CriteriaValidationAlertProps {
@@ -35,13 +35,13 @@ export const CriteriaValidationAlert = ({
   }
 
   // If everything is completely valid, show success
-  if (validation.isComplete && validation.blockers.length === 0 && validation.warnings.length === 0) {
+  if (validation.isValid && validation.blockers.length === 0 && validation.warnings.length === 0) {
     return (
-      <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
-        <CheckCircle className="h-4 w-4 text-green-600" />
-        <AlertTitle className="text-green-800 dark:text-green-200">Criteria Ready</AlertTitle>
-        <AlertDescription className="text-green-700 dark:text-green-300">
-          All required fields are populated. Completeness: {validation.completenessScore}%
+      <Alert className="border-border bg-muted/50">
+        <CheckCircle className="h-4 w-4 text-primary" />
+        <AlertTitle>Criteria Ready</AlertTitle>
+        <AlertDescription>
+          All required fields are populated. Completeness: {validation.overallCompleteness}%
         </AlertDescription>
       </Alert>
     );
@@ -56,7 +56,7 @@ export const CriteriaValidationAlert = ({
         <AlertDescription>
           <ul className="list-disc list-inside mt-2 space-y-1">
             {validation.blockers.map((blocker, i) => (
-              <li key={i}>{blocker}</li>
+              <li key={i}>{blocker.message}</li>
             ))}
           </ul>
         </AlertDescription>
@@ -67,26 +67,26 @@ export const CriteriaValidationAlert = ({
   // If there are warnings
   if (validation.warnings.length > 0 && !showOnlyBlockers) {
     return (
-      <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <AlertTitle className="text-amber-800 dark:text-amber-200 flex items-center gap-2">
+      <Alert className="border-border bg-muted/30">
+        <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+        <AlertTitle className="flex items-center gap-2">
           Criteria Incomplete
           <Badge variant="secondary" className="text-xs">
-            {validation.completenessScore}% complete
+            {validation.overallCompleteness}% complete
           </Badge>
         </AlertTitle>
-        <AlertDescription className="text-amber-700 dark:text-amber-300">
+        <AlertDescription>
           <ul className="list-disc list-inside mt-2 space-y-1">
             {validation.warnings.map((warning, i) => (
-              <li key={i}>{warning}</li>
+              <li key={i}>{warning.message}</li>
             ))}
           </ul>
           {validation.suggestions.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-amber-300 dark:border-amber-700">
+            <div className="mt-3 pt-3 border-t border-border">
               <span className="font-medium">Suggestions:</span>
               <ul className="list-disc list-inside mt-1 space-y-1 text-sm">
                 {validation.suggestions.slice(0, 3).map((suggestion, i) => (
-                  <li key={i}>{suggestion}</li>
+                  <li key={i}>{suggestion.message}</li>
                 ))}
               </ul>
             </div>
@@ -97,13 +97,13 @@ export const CriteriaValidationAlert = ({
   }
 
   // Just show info if low completeness
-  if (validation.completenessScore < 50 && !showOnlyBlockers) {
+  if (validation.overallCompleteness < 50 && !showOnlyBlockers) {
     return (
       <Alert>
         <Info className="h-4 w-4" />
         <AlertTitle className="flex items-center gap-2">
           Low Criteria Completeness
-          <Badge variant="outline">{validation.completenessScore}%</Badge>
+          <Badge variant="outline">{validation.overallCompleteness}%</Badge>
         </AlertTitle>
         <AlertDescription>
           Consider using AI Research or Quick Import to populate criteria for better scoring accuracy.
@@ -138,26 +138,26 @@ export const CriteriaValidationBadge = ({
     );
   }
 
-  if (validation.completenessScore >= 80) {
+  if (validation.overallCompleteness >= 80) {
     return (
-      <Badge variant="default" className="bg-green-600 text-xs">
+      <Badge variant="default" className="text-xs">
         <CheckCircle className="h-3 w-3 mr-1" />
-        {validation.completenessScore}% Complete
+        {validation.overallCompleteness}% Complete
       </Badge>
     );
   }
 
-  if (validation.completenessScore >= 50) {
+  if (validation.overallCompleteness >= 50) {
     return (
       <Badge variant="secondary" className="text-xs">
-        {validation.completenessScore}% Complete
+        {validation.overallCompleteness}% Complete
       </Badge>
     );
   }
 
   return (
     <Badge variant="outline" className="text-xs text-muted-foreground">
-      {validation.completenessScore}% Complete
+      {validation.overallCompleteness}% Complete
     </Badge>
   );
 };

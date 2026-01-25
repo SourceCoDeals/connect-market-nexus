@@ -156,3 +156,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.parse-tracker-documents]
 verify_jwt = true
+[functions.update-fit-criteria-chat]
+verify_jwt = true
