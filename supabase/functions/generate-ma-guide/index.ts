@@ -80,8 +80,8 @@ function validateQuality(content: string): QualityResult {
                           content.toLowerCase().includes('primary service');
   
   const missingElements: string[] = [];
-  if (wordCount < 25000) missingElements.push('Word count below 25,000 target');
-  if (tableCount < 15) missingElements.push('Need more data tables');
+  if (wordCount < 17500) missingElements.push('Word count below 17,500 target');
+  if (tableCount < 10) missingElements.push('Need more data tables');
   if (placeholderCount > 10) missingElements.push('Too many placeholders remaining');
   if (!hasCriteria) missingElements.push('Missing size/financial criteria section');
   if (!hasBuyerTypes) missingElements.push('Missing buyer types section');
@@ -89,8 +89,8 @@ function validateQuality(content: string): QualityResult {
   
   // Calculate weighted score
   let score = 0;
-  score += Math.min(40, (wordCount / 30000) * 40); // Up to 40 points for word count
-  score += Math.min(20, (tableCount / 20) * 20); // Up to 20 points for tables
+  score += Math.min(40, (wordCount / 21000) * 40); // Up to 40 points for word count
+  score += Math.min(20, (tableCount / 14) * 20); // Up to 20 points for tables
   score += Math.max(0, 15 - (placeholderCount * 2)); // 15 points minus penalties for placeholders
   score += hasCriteria ? 10 : 0;
   score += hasBuyerTypes ? 8 : 0;
@@ -159,7 +159,7 @@ async function generatePhaseContent(
 Generate detailed, actionable content for the specified phase of an M&A guide.
 Use proper HTML formatting with h2, h3, h4 headings, tables, and bullet points.
 Include specific numbers, ranges, and concrete examples wherever possible.
-Target 3,000-4,500 words per phase.
+Target 2,000-3,000 words per phase.
 Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
 
   const phasePrompts: Record<string, string> = {
@@ -360,7 +360,7 @@ Provide a validation summary.`
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      max_tokens: 8000
+      max_tokens: 5500
     }),
   });
 
