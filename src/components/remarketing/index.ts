@@ -106,3 +106,8 @@ export { OutreachVelocityDashboard } from './OutreachVelocityDashboard';
 
 // Dashboard Widgets
 export { UnlinkedListingsWidget } from './UnlinkedListingsWidget';
+
+// Guide & Criteria Input Components
+export { TrackerNotesSection } from './TrackerNotesSection';
+export { AIResearchSection } from './AIResearchSection';
+export { CriteriaValidationAlert, CriteriaValidationBadge } from './CriteriaValidationAlert';
