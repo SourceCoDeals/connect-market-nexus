@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   BookOpen, 
   Sparkles, 
@@ -17,12 +18,22 @@ import {
   X,
   AlertCircle,
   Download,
-  RefreshCw
+  RefreshCw,
+  MessageSquare,
+  ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria } from "@/types/remarketing";
 
-type GenerationState = 'idle' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
+type GenerationState = 'idle' | 'clarifying' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
+
+interface ClarifyQuestion {
+  id: string;
+  question: string;
+  type: 'select' | 'multiSelect' | 'text';
+  options?: string[];
+  placeholder?: string;
+}
 
 interface QualityResult {
   passed: boolean;
@@ -41,6 +52,14 @@ interface ExtractedCriteria {
   geography_criteria?: GeographyCriteria;
   service_criteria?: ServiceCriteria;
   buyer_types_criteria?: BuyerTypesCriteria;
+}
+
+interface ClarificationContext {
+  segments?: string[];
+  example_companies?: string;
+  geography_focus?: string;
+  revenue_range?: string;
+  [key: string]: string | string[] | undefined;
 }
 
 interface AIResearchSectionProps {
@@ -68,6 +87,10 @@ export const AIResearchSection = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Clarification state
+  const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyQuestion[]>([]);
+  const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string | string[]>>({});
+
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
@@ -81,12 +104,96 @@ export const AIResearchSection = ({
     }
   }, [existingContent]);
 
-  const handleGenerate = async () => {
+  const handleStartClarification = async () => {
     if (!industryName.trim()) {
       toast.error("Please enter an industry name");
       return;
     }
 
+    setState('clarifying');
+    setClarifyingQuestions([]);
+    setClarifyAnswers({});
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/clarify-industry`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ industry_name: industryName }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setClarifyingQuestions(data.questions || []);
+      
+      // Initialize answers
+      const initialAnswers: Record<string, string | string[]> = {};
+      (data.questions || []).forEach((q: ClarifyQuestion) => {
+        initialAnswers[q.id] = q.type === 'multiSelect' ? [] : '';
+      });
+      setClarifyAnswers(initialAnswers);
+
+    } catch (error) {
+      console.error('Clarification error:', error);
+      toast.error(`Failed to get clarifying questions: ${(error as Error).message}`);
+      // Fall back to direct generation
+      handleGenerate({});
+    }
+  };
+
+  const handleSelectOption = (questionId: string, option: string, isMulti: boolean) => {
+    setClarifyAnswers(prev => {
+      if (isMulti) {
+        const current = (prev[questionId] as string[]) || [];
+        if (current.includes(option)) {
+          return { ...prev, [questionId]: current.filter(o => o !== option) };
+        }
+        return { ...prev, [questionId]: [...current, option] };
+      }
+      return { ...prev, [questionId]: option };
+    });
+  };
+
+  const handleTextAnswer = (questionId: string, value: string) => {
+    setClarifyAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleConfirmAndGenerate = () => {
+    // Build clarification context
+    const context: ClarificationContext = {};
+    
+    clarifyingQuestions.forEach(q => {
+      const answer = clarifyAnswers[q.id];
+      if (q.id === 'segment') {
+        context.segments = Array.isArray(answer) ? answer : [answer].filter(Boolean);
+      } else if (q.id === 'examples') {
+        context.example_companies = answer as string;
+      } else if (q.id === 'geography') {
+        context.geography_focus = answer as string;
+      } else if (q.id === 'size') {
+        context.revenue_range = answer as string;
+      } else {
+        context[q.id] = answer;
+      }
+    });
+
+    handleGenerate(context);
+  };
+
+  const handleSkipClarification = () => {
+    handleGenerate({});
+  };
+
+  const handleGenerate = async (clarificationContext: ClarificationContext) => {
     setState('generating');
     setCurrentPhase(0);
     setContent("");
@@ -109,6 +216,7 @@ export const AIResearchSection = ({
           body: JSON.stringify({
             industry_name: industryName,
             existing_content: existingContent,
+            clarification_context: clarificationContext,
             stream: true
           }),
           signal: abortControllerRef.current.signal
@@ -229,6 +337,8 @@ export const AIResearchSection = ({
       abortControllerRef.current.abort();
     }
     setState('idle');
+    setClarifyingQuestions([]);
+    setClarifyAnswers({});
   };
 
   const handleApply = () => {
@@ -289,33 +399,97 @@ export const AIResearchSection = ({
 
         <CollapsibleContent>
           <CardContent className="space-y-4">
-            {/* Industry Input */}
-            <div className="flex gap-4 items-end">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="industry-name">Industry Name</Label>
-                <Input
-                  id="industry-name"
-                  placeholder="e.g., Collision Repair, HVAC, Pest Control"
-                  value={industryName}
-                  onChange={(e) => setIndustryName(e.target.value)}
-                  disabled={state === 'generating' || state === 'gap_filling'}
-                />
-              </div>
-              
-              {state === 'idle' || state === 'complete' || state === 'error' ? (
-                <Button onClick={handleGenerate} disabled={!industryName.trim()}>
+            {/* Industry Input - shown in idle state */}
+            {(state === 'idle' || state === 'complete' || state === 'error') && (
+              <div className="flex gap-4 items-end">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="industry-name">Industry Name</Label>
+                  <Input
+                    id="industry-name"
+                    placeholder="e.g., Collision Repair, HVAC, Pest Control, Restoration"
+                    value={industryName}
+                    onChange={(e) => setIndustryName(e.target.value)}
+                  />
+                </div>
+                
+                <Button onClick={handleStartClarification} disabled={!industryName.trim()}>
                   <Sparkles className="h-4 w-4 mr-2" />
                   {state === 'complete' ? 'Regenerate' : 'Generate Guide'}
                 </Button>
-              ) : (
-                <Button variant="outline" onClick={handleCancel}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Progress */}
+            {/* Clarification Questions UI */}
+            {state === 'clarifying' && clarifyingQuestions.length > 0 && (
+              <div className="border rounded-lg p-4 bg-muted/20 space-y-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <MessageSquare className="h-5 w-5" />
+                  <h3 className="font-semibold">Let's confirm the details before generating</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  {clarifyingQuestions.map((q) => (
+                    <div key={q.id} className="space-y-2">
+                      <Label className="text-sm font-medium">{q.question}</Label>
+                      
+                      {q.type === 'text' ? (
+                        <Textarea
+                          placeholder={q.placeholder || 'Enter your answer...'}
+                          value={(clarifyAnswers[q.id] as string) || ''}
+                          onChange={(e) => handleTextAnswer(q.id, e.target.value)}
+                          className="h-20"
+                        />
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {q.options?.map((option) => {
+                            const isSelected = q.type === 'multiSelect'
+                              ? ((clarifyAnswers[q.id] as string[]) || []).includes(option)
+                              : clarifyAnswers[q.id] === option;
+                            
+                            return (
+                              <Button
+                                key={option}
+                                variant={isSelected ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleSelectOption(q.id, option, q.type === 'multiSelect')}
+                                className="transition-all"
+                              >
+                                {isSelected && <Check className="h-3 w-3 mr-1" />}
+                                {option}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="ghost" onClick={handleCancel}>
+                    Cancel
+                  </Button>
+                  <Button variant="outline" onClick={handleSkipClarification}>
+                    Skip & Generate
+                  </Button>
+                  <Button onClick={handleConfirmAndGenerate}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Confirm & Generate
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Loading state for clarification */}
+            {state === 'clarifying' && clarifyingQuestions.length === 0 && (
+              <div className="flex items-center justify-center p-8 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Analyzing industry...
+              </div>
+            )}
+
+            {/* Progress - shown during generation */}
             {(state === 'generating' || state === 'quality_check' || state === 'gap_filling') && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -325,7 +499,12 @@ export const AIResearchSection = ({
                     {state === 'quality_check' && 'Running quality check...'}
                     {state === 'gap_filling' && 'Filling content gaps...'}
                   </span>
-                  <span className="text-muted-foreground">{wordCount.toLocaleString()} words</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">{wordCount.toLocaleString()} words</span>
+                    <Button variant="ghost" size="sm" onClick={handleCancel}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <Progress value={progressPercent} className="h-2" />
               </div>
