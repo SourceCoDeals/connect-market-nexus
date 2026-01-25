@@ -111,19 +111,56 @@ function validateQuality(content: string): QualityResult {
   };
 }
 
+// Build context string from clarification answers
+function buildClarificationContext(context: any): string {
+  if (!context || Object.keys(context).length === 0) {
+    return '';
+  }
+
+  const parts: string[] = [];
+  
+  if (context.segments?.length > 0) {
+    parts.push(`FOCUS SEGMENTS: ${context.segments.join(', ')}`);
+  }
+  if (context.example_companies) {
+    parts.push(`EXAMPLE COMPANIES (for calibration): ${context.example_companies}`);
+  }
+  if (context.geography_focus) {
+    parts.push(`GEOGRAPHIC FOCUS: ${context.geography_focus}`);
+  }
+  if (context.revenue_range) {
+    parts.push(`TARGET SIZE: ${context.revenue_range} revenue`);
+  }
+
+  // Include any other custom answers
+  Object.entries(context).forEach(([key, value]) => {
+    if (!['segments', 'example_companies', 'geography_focus', 'revenue_range'].includes(key) && value) {
+      const label = key.replace(/_/g, ' ').toUpperCase();
+      parts.push(`${label}: ${Array.isArray(value) ? value.join(', ') : value}`);
+    }
+  });
+
+  if (parts.length === 0) return '';
+
+  return `\n\nIMPORTANT CONTEXT FROM USER:\n${parts.join('\n')}\n\nUse these details to calibrate your understanding of the industry scale, service offerings, and market positioning. The example companies help establish the target profile - research what makes companies like these attractive acquisition targets.`;
+}
+
 // Generate phase content using AI
 async function generatePhaseContent(
   phase: typeof GENERATION_PHASES[0],
   industryName: string,
   existingContent: string,
-  apiKey: string
+  apiKey: string,
+  clarificationContext?: any
 ): Promise<string> {
+  const contextStr = buildClarificationContext(clarificationContext);
+  
   const systemPrompt = `You are an expert M&A advisor creating comprehensive industry research guides.
 Generate detailed, actionable content for the specified phase of an M&A guide.
 Use proper HTML formatting with h2, h3, h4 headings, tables, and bullet points.
 Include specific numbers, ranges, and concrete examples wherever possible.
 Target 3,000-4,500 words per phase.
-Do NOT use placeholders like [X] or TBD - use realistic example values.`;
+Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
 
   const phasePrompts: Record<string, string> = {
     '1a': `## PHASE 1A: INDUSTRY DEFINITION
@@ -553,7 +590,13 @@ serve(async (req) => {
   const encoder = new TextEncoder();
 
   try {
-    const { industry_name, universe_id, existing_content, stream = true } = await req.json();
+    const { 
+      industry_name, 
+      universe_id, 
+      existing_content, 
+      clarification_context,
+      stream = true 
+    } = await req.json();
 
     if (!industry_name) {
       return new Response(
@@ -567,13 +610,13 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log(`Generating M&A Guide for: ${industry_name}`);
+    console.log(`Generating M&A Guide for: ${industry_name}`, clarification_context ? 'with context' : 'without context');
 
     // If not streaming, generate all at once
     if (!stream) {
       let fullContent = '';
       for (const phase of GENERATION_PHASES) {
-        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, LOVABLE_API_KEY);
+        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, LOVABLE_API_KEY, clarification_context);
         fullContent += phaseContent + '\n\n';
       }
       
@@ -613,8 +656,8 @@ serve(async (req) => {
               name: phase.name 
             });
 
-            // Generate phase content
-            const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, LOVABLE_API_KEY);
+            // Generate phase content with clarification context
+            const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, LOVABLE_API_KEY, clarification_context);
             fullContent += phaseContent + '\n\n';
 
             // Send content chunks
