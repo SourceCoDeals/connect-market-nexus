@@ -52,6 +52,7 @@ export interface GeographyCriteria {
 }
 
 export interface ServiceCriteria {
+  primary_focus?: string[];
   required_services?: string[];
   preferred_services?: string[];
   excluded_services?: string[];
