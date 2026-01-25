@@ -193,9 +193,13 @@ export const AIResearchSection = ({
     handleGenerate({});
   };
 
+  const [currentBatch, setCurrentBatch] = useState(0);
+  const [totalBatches, setTotalBatches] = useState(3);
+
   const handleGenerate = async (clarificationContext: ClarificationContext) => {
     setState('generating');
     setCurrentPhase(0);
+    setCurrentBatch(0);
     setContent("");
     setWordCount(0);
     setQualityResult(null);
@@ -204,7 +208,18 @@ export const AIResearchSection = ({
 
     abortControllerRef.current = new AbortController();
 
+    // Start batch generation
+    await generateBatch(0, "", clarificationContext);
+  };
+
+  const generateBatch = async (
+    batchIndex: number, 
+    previousContent: string, 
+    clarificationContext: ClarificationContext
+  ) => {
     try {
+      setCurrentBatch(batchIndex);
+      
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide`,
         {
@@ -217,9 +232,11 @@ export const AIResearchSection = ({
             industry_name: industryName,
             existing_content: existingContent,
             clarification_context: clarificationContext,
-            stream: true
+            stream: true,
+            batch_index: batchIndex,
+            previous_content: previousContent
           }),
-          signal: abortControllerRef.current.signal
+          signal: abortControllerRef.current?.signal
         }
       );
 
@@ -234,7 +251,7 @@ export const AIResearchSection = ({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let fullContent = "";
+      let fullContent = previousContent;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -256,6 +273,15 @@ export const AIResearchSection = ({
             const event = JSON.parse(jsonStr);
 
             switch (event.type) {
+              case 'heartbeat':
+                // Keep-alive, ignore
+                break;
+
+              case 'batch_start':
+                setTotalBatches(event.total_batches);
+                setCurrentBatch(event.batch_index);
+                break;
+
               case 'phase_start':
                 setCurrentPhase(event.phase);
                 setTotalPhases(event.total);
@@ -274,6 +300,18 @@ export const AIResearchSection = ({
 
               case 'phase_complete':
                 setWordCount(event.wordCount || fullContent.split(/\s+/).length);
+                break;
+
+              case 'batch_complete':
+                // If not final, automatically start next batch
+                if (!event.is_final && event.next_batch_index !== null) {
+                  // Small delay before starting next batch
+                  await new Promise(r => setTimeout(r, 500));
+                  toast.info(`Batch ${event.batch_index + 1} complete, starting batch ${event.next_batch_index + 1}...`);
+                  // Recursively call for next batch
+                  await generateBatch(event.next_batch_index, event.content, clarificationContext);
+                  return; // Exit this batch's processing
+                }
                 break;
 
               case 'quality_check_start':
@@ -495,7 +533,11 @@ export const AIResearchSection = ({
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {state === 'generating' && `Phase ${currentPhase}/${totalPhases}: ${phaseName}`}
+                    {state === 'generating' && (
+                      <span>
+                        Batch {currentBatch + 1}/{totalBatches} • Phase {currentPhase}/{totalPhases}: {phaseName}
+                      </span>
+                    )}
                     {state === 'quality_check' && 'Running quality check...'}
                     {state === 'gap_filling' && 'Filling content gaps...'}
                   </span>
@@ -507,6 +549,9 @@ export const AIResearchSection = ({
                   </div>
                 </div>
                 <Progress value={progressPercent} className="h-2" />
+                <div className="text-xs text-muted-foreground text-center">
+                  Auto-batching: {totalBatches} batches of 4 phases each for reliability
+                </div>
               </div>
             )}
 
