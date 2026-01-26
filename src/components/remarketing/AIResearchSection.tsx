@@ -195,7 +195,7 @@ export const AIResearchSection = ({
   };
 
   const [currentBatch, setCurrentBatch] = useState(0);
-  const [totalBatches, setTotalBatches] = useState(7); // 13 phases / 2 per batch = ~7 batches
+  const [totalBatches, setTotalBatches] = useState(13); // 13 phases / 1 per batch = 13 batches
   const [savedProgress, setSavedProgress] = useState<{
     industryName: string;
     batchIndex: number;
@@ -263,13 +263,8 @@ export const AIResearchSection = ({
     try {
       setCurrentBatch(batchIndex);
       
-      // Save progress before each batch call
-      localStorage.setItem('ma_guide_progress', JSON.stringify({
-        industryName,
-        batchIndex,
-        content: previousContent,
-        clarificationContext
-      }));
+      // Note: Progress is now saved AFTER each phase completion (in phase_complete handler)
+      // This prevents race conditions where saved content is stale
       
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide`,
@@ -351,6 +346,18 @@ export const AIResearchSection = ({
 
               case 'phase_complete':
                 setWordCount(event.wordCount || fullContent.split(/\s+/).length);
+                // Save progress AFTER each phase completes (fixes race condition)
+                if (event.content) {
+                  fullContent = event.content;
+                  localStorage.setItem('ma_guide_progress', JSON.stringify({
+                    industryName,
+                    batchIndex: currentBatch,
+                    content: event.content,
+                    clarificationContext,
+                    lastPhaseId: event.phaseId,
+                    lastPhase: event.phase
+                  }));
+                }
                 break;
 
               case 'batch_complete':
@@ -627,7 +634,7 @@ export const AIResearchSection = ({
                 </div>
                 <Progress value={progressPercent} className="h-2" />
                 <div className="text-xs text-muted-foreground text-center">
-                  Auto-batching: {totalBatches} batches of 4 phases each for reliability
+                  Auto-batching: 1 phase per batch for maximum reliability ({totalBatches} total batches)
                 </div>
               </div>
             )}

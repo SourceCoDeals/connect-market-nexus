@@ -159,7 +159,7 @@ function buildClarificationContext(context: any): string {
   return `\n\nIMPORTANT CONTEXT FROM USER:\n${parts.join('\n')}\n\nUse these details to calibrate your understanding of the industry scale, service offerings, and market positioning. The example companies help establish the target profile - research what makes companies like these attractive acquisition targets.`;
 }
 
-// Generate phase content using AI
+// Legacy generatePhaseContent - delegates to timeout-protected version
 async function generatePhaseContent(
   phase: typeof GENERATION_PHASES[0],
   industryName: string,
@@ -167,284 +167,8 @@ async function generatePhaseContent(
   apiKey: string,
   clarificationContext?: any
 ): Promise<string> {
-  const contextStr = buildClarificationContext(clarificationContext);
-  
-  const systemPrompt = `You are an expert M&A advisor creating comprehensive industry research guides.
-Generate detailed, actionable content for the specified phase of an M&A guide.
-Use proper HTML formatting with h2, h3, h4 headings, tables, and bullet points.
-Include specific numbers, ranges, and concrete examples wherever possible.
-Target 2,000-3,000 words per phase.
-Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
-
-  const phasePrompts: Record<string, string> = {
-    '1a': `## PHASE 1A: INDUSTRY DEFINITION
-
-Generate comprehensive content for "${industryName}" covering:
-1. NAICS codes and industry classification
-2. Total addressable market size with breakdowns
-3. Industry segmentation (by service, geography, customer type)
-4. Key industry associations and trade groups
-5. Regulatory environment overview
-
-Include at least 2 data tables.`,
-
-    '1b': `## PHASE 1B: TERMINOLOGY & BUSINESS MODELS
-
-For "${industryName}", create:
-1. Comprehensive glossary of industry-specific terms (30+ terms)
-2. Common business model variants
-3. Revenue model breakdowns (recurring vs. project vs. service)
-4. Operational structure patterns
-5. Key differentiators between business types
-
-Format the glossary as a definition list.`,
-
-    '1c': `## PHASE 1C: INDUSTRY ECONOMICS
-
-For "${industryName}", detail:
-1. Typical P&L structure with benchmarks
-2. Unit economics by business size
-3. Margin drivers and detractors
-4. Working capital requirements
-5. CapEx patterns and equipment needs
-6. Labor economics and wage trends
-
-Include a benchmark P&L table.`,
-
-    '1d': `## PHASE 1D: ECOSYSTEM & COMPETITIVE LANDSCAPE
-
-For "${industryName}", cover:
-1. Customer segments and buying patterns
-2. Supplier landscape and key vendors
-3. Active acquirers (PE firms, platforms, strategics)
-4. Recent transaction activity and multiples
-5. Consolidation trends and drivers
-6. Market concentration analysis
-
-Include a table of recent transactions if applicable.`,
-
-    '1e': `## PHASE 1E: TARGET BUYER PROFILES & BUY BOXES (CRITICAL)
-
-Research and define the specific types of BUYERS active in the "${industryName}" industry. This is NOT about the businesses being sold - it's about who is BUYING them.
-
-For EACH buyer type, define:
-1. **Buyer Profile Name** - Industry-specific name (e.g., "Large MSOs" for collision, "Regional Consolidators" for HVAC)
-2. **Description** - Who they are and their acquisition strategy
-3. **Buy Box Criteria**:
-   - Location count range they target (min-max)
-   - Revenue per location sweet spot
-   - Deal size preferences
-   - Deal structure requirements (SBA, seller financing, cash, etc.)
-4. **Deal Requirements** - What they specifically look for
-5. **Rank/Priority** - Their typical deal volume and market presence (1=most active)
-
-Research the ACTUAL buyer landscape for "${industryName}". Consider:
-- National consolidators / Large platforms (PE-backed or strategic)
-- Regional operators looking to expand
-- PE-backed add-on acquirers
-- Independent sponsors seeking platforms
-- Owner-operators looking to grow
-- Local strategic buyers (adjacent businesses)
-
-For each buyer category that EXISTS in this industry, provide:
-- Specific examples of real companies in this category
-- Their typical acquisition criteria
-- Their preferred deal structures
-
-OUTPUT FORMAT (Create 4-6 buyer profiles):
-
-### BUYER TYPE 1: [Name]
-**Rank:** 1
-**Description:** [2-3 sentences about who they are]
-**Locations Target:** [X - Y locations]
-**Revenue/Location:** $[X]M
-**Deal Requirements:** [Key requirements]
-**Examples:** [Real company names if known, or "Companies like X"]
-
-### BUYER TYPE 2: [Name]
-...
-
-Be specific to "${industryName}" - don't use generic buyer types. Research what types of acquirers are actually active in this specific industry.`,
-
-    '2a': `## PHASE 2A: FINANCIAL ATTRACTIVENESS CRITERIA
-
-For "${industryName}", define:
-1. EBITDA attractiveness tiers (A/B/C/D)
-2. Revenue quality indicators
-3. Margin quality assessment framework
-4. Revenue mix optimization targets
-5. Financial red flags and deal killers
-6. Valuation multiple drivers
-
-Create a scoring rubric table.`,
-
-    '2b': `## PHASE 2B: OPERATIONAL ATTRACTIVENESS CRITERIA
-
-For "${industryName}", specify:
-1. Key operational KPIs and benchmarks
-2. Management team evaluation criteria
-3. Technology and systems requirements
-4. Customer concentration thresholds
-5. Employee metrics and retention
-6. Quality and safety indicators
-
-Include KPI benchmark tables.`,
-
-    '2c': `## PHASE 2C: STRATEGIC & GEOGRAPHIC CRITERIA
-
-For "${industryName}", outline:
-1. Geographic market tier definitions (Tier 1/2/3)
-2. Regional preference frameworks
-3. Market density requirements
-4. Strategic fit factors
-5. Absolute deal killers checklist
-6. Growth market identification
-
-Create a geographic scoring matrix.`,
-
-    '3a': `## PHASE 3A: SELLER EVALUATION SCORECARDS
-
-For "${industryName}", create:
-1. Comprehensive scoring matrix (0-100 scale)
-2. Category weights and rationale
-3. Individual factor rubrics
-4. Scoring examples and edge cases
-5. Threshold definitions (pass/fail)
-6. Adjustment factors
-
-Include complete scorecard template.`,
-
-    '3b': `## PHASE 3B: BUYER FIT CRITERIA SUMMARY (CRITICAL)
-
-For "${industryName}", define the complete buyer universe criteria:
-
-### SIZE CRITERIA
-- Revenue ranges: minimum, maximum, sweet spot
-- EBITDA ranges: minimum, maximum, with rationale
-- Location count requirements by buyer type
-- Employee count considerations
-
-### SERVICE CRITERIA
-- **PRIMARY FOCUS**: The core service lines that buyers MUST target (this is critical for scoring)
-- Required services for consideration
-- Preferred services that add value
-- Excluded services (deal breakers)
-- Business model requirements
-
-### GEOGRAPHY CRITERIA
-- Target regions and states with priority rankings
-- Coverage type preferences (local/regional/national)
-- HQ location requirements
-- Expansion adjacency preferences
-
-### BUYER TYPES
-- PE Firm fit characteristics
-- Platform company requirements
-- Strategic acquirer profiles
-- Family office considerations
-
-Be SPECIFIC with numbers and ranges, not vague.`,
-
-    '3c': `## PHASE 3C: EXAMPLE EVALUATION
-
-For "${industryName}", create a worked example:
-1. Sample target company profile
-2. Complete scoring walkthrough
-3. Category-by-category analysis
-4. Final recommendation with rationale
-5. Key discussion points
-6. Risk assessment summary
-
-Show the math and reasoning.`,
-
-    '4a': `## PHASE 4A: STRUCTURED CRITERIA OUTPUT
-
-Generate machine-parseable criteria in this exact format:
-
----BEGIN CRITERIA---
-SIZE_CRITERIA:
-- revenue_min: [number in dollars]
-- revenue_max: [number in dollars]
-- ebitda_min: [number in dollars]
-- ebitda_max: [number in dollars]
-- locations_min: [number]
-- locations_max: [number]
-
-SERVICE_CRITERIA:
-- primary_focus: [comma-separated list of core services - REQUIRED]
-- required_services: [comma-separated list]
-- preferred_services: [comma-separated list]
-- excluded_services: [comma-separated list]
-- business_model: [description]
-
-GEOGRAPHY_CRITERIA:
-- target_states: [comma-separated list]
-- target_regions: [comma-separated list]
-- coverage: [local|regional|national]
-
-BUYER_TYPES:
-- include_pe_firms: [true|false]
-- include_platforms: [true|false]
-- include_strategic: [true|false]
-- include_family_office: [true|false]
----END CRITERIA---
-
----BEGIN BUYER_PROFILES---
-BUYER_1:
-- id: [snake_case_id]
-- rank: [1-6]
-- name: [Display Name]
-- description: [2-3 sentence description]
-- locations_min: [number]
-- locations_max: [number]
-- revenue_per_location: [number in dollars]
-- deal_requirements: [key requirements text]
-- enabled: true
-
-BUYER_2:
-...repeat for each buyer type (4-6 total)
----END BUYER_PROFILES---
-
-Use actual values based on the industry analysis from Phase 1E.`,
-
-    '4b': `## PHASE 4B: QUALITY VALIDATION
-
-Perform a final quality check:
-1. Verify all criteria sections are populated
-2. Check for any remaining placeholders
-3. Confirm primary_focus is defined
-4. Validate number ranges are realistic
-5. Ensure buyer types are configured
-
-Provide a validation summary.`
-  };
-
-  const userPrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
-
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      max_tokens: 5500
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`Phase ${phase.id} generation failed:`, response.status, text);
-    throw new Error(`Failed to generate phase ${phase.id}`);
-  }
-
-  const result = await response.json();
-  return result.choices?.[0]?.message?.content || '';
+  // Delegate to the new timeout-protected version
+  return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext);
 }
 
 // Extract criteria from generated content using AI
@@ -892,8 +616,358 @@ Be comprehensive and specific.`;
   return result.choices?.[0]?.message?.content || '';
 }
 
-// Batch configuration: 2 phases per batch to prevent timeouts
-const BATCH_SIZE = 2;
+// Batch configuration: 1 phase per batch to prevent timeouts
+// Each phase can take 20-60s, so 1 phase ensures we stay under timeout limits
+const BATCH_SIZE = 1;
+
+// Phase timeout configuration
+const PHASE_TIMEOUT_MS = 50000; // 50 seconds per phase
+const MAX_RETRIES = 1; // Retry once on timeout
+
+// Model selection: Use faster model for non-critical phases
+const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
+const getModelForPhase = (phaseId: string) => 
+  CRITICAL_PHASES.includes(phaseId) ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
+
+// Timeout wrapper for phase generation
+async function generatePhaseWithTimeout(
+  phase: typeof GENERATION_PHASES[0],
+  industryName: string,
+  existingContent: string,
+  apiKey: string,
+  clarificationContext?: any,
+  retryCount = 0
+): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PHASE_TIMEOUT_MS);
+  
+  try {
+    const result = await generatePhaseContentWithModel(
+      phase, 
+      industryName, 
+      existingContent, 
+      apiKey, 
+      clarificationContext,
+      getModelForPhase(phase.id)
+    );
+    clearTimeout(timeoutId);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+      console.error(`Phase ${phase.id} timed out (attempt ${retryCount + 1})`);
+      
+      if (retryCount < MAX_RETRIES) {
+        console.log(`Retrying phase ${phase.id}...`);
+        // Use faster model on retry
+        return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1);
+      }
+      throw new Error(`Phase ${phase.id} timed out after ${MAX_RETRIES + 1} attempts`);
+    }
+    throw error;
+  }
+}
+
+// Phase generation with model parameter
+async function generatePhaseContentWithModel(
+  phase: typeof GENERATION_PHASES[0],
+  industryName: string,
+  existingContent: string,
+  apiKey: string,
+  clarificationContext: any,
+  model: string
+): Promise<string> {
+  const contextStr = buildClarificationContext(clarificationContext);
+  
+  const systemPrompt = `You are an expert M&A advisor creating comprehensive industry research guides.
+Generate detailed, actionable content for the specified phase of an M&A guide.
+Use proper HTML formatting with h2, h3, h4 headings, tables, and bullet points.
+Include specific numbers, ranges, and concrete examples wherever possible.
+Target 2,000-3,000 words per phase.
+Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
+
+  const phasePrompts: Record<string, string> = getPhasePrompts(industryName);
+  const userPrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      max_tokens: 5500
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`Phase ${phase.id} generation failed:`, response.status, text);
+    
+    if (response.status === 429) {
+      throw new Error(`Rate limit exceeded for phase ${phase.id}`);
+    }
+    if (response.status === 402) {
+      throw new Error(`Usage limit reached for phase ${phase.id}`);
+    }
+    throw new Error(`Failed to generate phase ${phase.id}`);
+  }
+
+  const result = await response.json();
+  return result.choices?.[0]?.message?.content || '';
+}
+
+// Extract phase prompts to separate function for cleaner code
+function getPhasePrompts(industryName: string): Record<string, string> {
+  return {
+    '1a': `## PHASE 1A: INDUSTRY DEFINITION
+
+Generate comprehensive content for "${industryName}" covering:
+1. NAICS codes and industry classification
+2. Total addressable market size with breakdowns
+3. Industry segmentation (by service, geography, customer type)
+4. Key industry associations and trade groups
+5. Regulatory environment overview
+
+Include at least 2 data tables.`,
+
+    '1b': `## PHASE 1B: TERMINOLOGY & BUSINESS MODELS
+
+For "${industryName}", create:
+1. Comprehensive glossary of industry-specific terms (30+ terms)
+2. Common business model variants
+3. Revenue model breakdowns (recurring vs. project vs. service)
+4. Operational structure patterns
+5. Key differentiators between business types
+
+Format the glossary as a definition list.`,
+
+    '1c': `## PHASE 1C: INDUSTRY ECONOMICS
+
+For "${industryName}", detail:
+1. Typical P&L structure with benchmarks
+2. Unit economics by business size
+3. Margin drivers and detractors
+4. Working capital requirements
+5. CapEx patterns and equipment needs
+6. Labor economics and wage trends
+
+Include a benchmark P&L table.`,
+
+    '1d': `## PHASE 1D: ECOSYSTEM & COMPETITIVE LANDSCAPE
+
+For "${industryName}", cover:
+1. Customer segments and buying patterns
+2. Supplier landscape and key vendors
+3. Active acquirers (PE firms, platforms, strategics)
+4. Recent transaction activity and multiples
+5. Consolidation trends and drivers
+6. Market concentration analysis
+
+Include a table of recent transactions if applicable.`,
+
+    '1e': `## PHASE 1E: TARGET BUYER PROFILES & BUY BOXES (CRITICAL)
+
+Research and define the specific types of BUYERS active in the "${industryName}" industry. This is NOT about the businesses being sold - it's about who is BUYING them.
+
+For EACH buyer type, define:
+1. **Buyer Profile Name** - Industry-specific name (e.g., "Large MSOs" for collision, "Regional Consolidators" for HVAC)
+2. **Description** - Who they are and their acquisition strategy
+3. **Buy Box Criteria**:
+   - Location count range they target (min-max)
+   - Revenue per location sweet spot
+   - Deal size preferences
+   - Deal structure requirements (SBA, seller financing, cash, etc.)
+4. **Deal Requirements** - What they specifically look for
+5. **Rank/Priority** - Their typical deal volume and market presence (1=most active)
+
+Research the ACTUAL buyer landscape for "${industryName}". Consider:
+- National consolidators / Large platforms (PE-backed or strategic)
+- Regional operators looking to expand
+- PE-backed add-on acquirers
+- Independent sponsors seeking platforms
+- Owner-operators looking to grow
+- Local strategic buyers (adjacent businesses)
+
+For each buyer category that EXISTS in this industry, provide:
+- Specific examples of real companies in this category
+- Their typical acquisition criteria
+- Their preferred deal structures
+
+OUTPUT FORMAT (Create 4-6 buyer profiles):
+
+### BUYER TYPE 1: [Name]
+**Rank:** 1
+**Description:** [2-3 sentences about who they are]
+**Locations Target:** [X - Y locations]
+**Revenue/Location:** $[X]M
+**Deal Requirements:** [Key requirements]
+**Examples:** [Real company names if known, or "Companies like X"]
+
+### BUYER TYPE 2: [Name]
+...
+
+Be specific to "${industryName}" - don't use generic buyer types. Research what types of acquirers are actually active in this specific industry.`,
+
+    '2a': `## PHASE 2A: FINANCIAL ATTRACTIVENESS CRITERIA
+
+For "${industryName}", define:
+1. EBITDA attractiveness tiers (A/B/C/D)
+2. Revenue quality indicators
+3. Margin quality assessment framework
+4. Revenue mix optimization targets
+5. Financial red flags and deal killers
+6. Valuation multiple drivers
+
+Create a scoring rubric table.`,
+
+    '2b': `## PHASE 2B: OPERATIONAL ATTRACTIVENESS CRITERIA
+
+For "${industryName}", specify:
+1. Key operational KPIs and benchmarks
+2. Management team evaluation criteria
+3. Technology and systems requirements
+4. Customer concentration thresholds
+5. Employee metrics and retention
+6. Quality and safety indicators
+
+Include KPI benchmark tables.`,
+
+    '2c': `## PHASE 2C: STRATEGIC & GEOGRAPHIC CRITERIA
+
+For "${industryName}", outline:
+1. Geographic market tier definitions (Tier 1/2/3)
+2. Regional preference frameworks
+3. Market density requirements
+4. Strategic fit factors
+5. Absolute deal killers checklist
+6. Growth market identification
+
+Create a geographic scoring matrix.`,
+
+    '3a': `## PHASE 3A: SELLER EVALUATION SCORECARDS
+
+For "${industryName}", create:
+1. Comprehensive scoring matrix (0-100 scale)
+2. Category weights and rationale
+3. Individual factor rubrics
+4. Scoring examples and edge cases
+5. Threshold definitions (pass/fail)
+6. Adjustment factors
+
+Include complete scorecard template.`,
+
+    '3b': `## PHASE 3B: BUYER FIT CRITERIA SUMMARY (CRITICAL)
+
+For "${industryName}", define the complete buyer universe criteria:
+
+### SIZE CRITERIA
+- Revenue ranges: minimum, maximum, sweet spot
+- EBITDA ranges: minimum, maximum, with rationale
+- Location count requirements by buyer type
+- Employee count considerations
+
+### SERVICE CRITERIA
+- **PRIMARY FOCUS**: The core service lines that buyers MUST target (this is critical for scoring)
+- Required services for consideration
+- Preferred services that add value
+- Excluded services (deal breakers)
+- Business model requirements
+
+### GEOGRAPHY CRITERIA
+- Target regions and states with priority rankings
+- Coverage type preferences (local/regional/national)
+- HQ location requirements
+- Expansion adjacency preferences
+
+### BUYER TYPES
+- PE Firm fit characteristics
+- Platform company requirements
+- Strategic acquirer profiles
+- Family office considerations
+
+Be SPECIFIC with numbers and ranges, not vague.`,
+
+    '3c': `## PHASE 3C: EXAMPLE EVALUATION
+
+For "${industryName}", create a worked example:
+1. Sample target company profile
+2. Complete scoring walkthrough
+3. Category-by-category analysis
+4. Final recommendation with rationale
+5. Key discussion points
+6. Risk assessment summary
+
+Show the math and reasoning.`,
+
+    '4a': `## PHASE 4A: STRUCTURED CRITERIA OUTPUT
+
+Generate machine-parseable criteria in this exact format:
+
+---BEGIN CRITERIA---
+SIZE_CRITERIA:
+- revenue_min: [number in dollars]
+- revenue_max: [number in dollars]
+- ebitda_min: [number in dollars]
+- ebitda_max: [number in dollars]
+- locations_min: [number]
+- locations_max: [number]
+
+SERVICE_CRITERIA:
+- primary_focus: [comma-separated list of core services - REQUIRED]
+- required_services: [comma-separated list]
+- preferred_services: [comma-separated list]
+- excluded_services: [comma-separated list]
+- business_model: [description]
+
+GEOGRAPHY_CRITERIA:
+- target_states: [comma-separated list]
+- target_regions: [comma-separated list]
+- coverage: [local|regional|national]
+
+BUYER_TYPES:
+- include_pe_firms: [true|false]
+- include_platforms: [true|false]
+- include_strategic: [true|false]
+- include_family_office: [true|false]
+---END CRITERIA---
+
+---BEGIN BUYER_PROFILES---
+BUYER_1:
+- id: [snake_case_id]
+- rank: [1-6]
+- name: [Display Name]
+- description: [2-3 sentence description]
+- locations_min: [number]
+- locations_max: [number]
+- revenue_per_location: [number in dollars]
+- deal_requirements: [key requirements text]
+- enabled: true
+
+BUYER_2:
+...repeat for each buyer type (4-6 total)
+---END BUYER_PROFILES---
+
+Use actual values based on the industry analysis from Phase 1E.`,
+
+    '4b': `## PHASE 4B: QUALITY VALIDATION
+
+Perform a final quality check:
+1. Verify all criteria sections are populated
+2. Check for any remaining placeholders
+3. Confirm primary_focus is defined
+4. Validate number ranges are realistic
+5. Ensure buyer types are configured
+
+Provide a validation summary.`
+  };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -1024,11 +1098,14 @@ serve(async (req) => {
               await new Promise(r => setTimeout(r, 30));
             }
 
-            // Send phase complete
+            // Send phase complete with content for frontend progress saving
             send({ 
               type: 'phase_complete', 
               phase: globalPhaseIndex + 1,
-              wordCount: fullContent.split(/\s+/).length
+              wordCount: fullContent.split(/\s+/).length,
+              // Include full content so frontend can save progress after each phase
+              content: fullContent,
+              phaseId: phase.id
             });
           }
 
