@@ -621,8 +621,11 @@ Be comprehensive and specific.`;
 const BATCH_SIZE = 1;
 
 // Phase timeout configuration
-const PHASE_TIMEOUT_MS = 50000; // 50 seconds per phase
-const MAX_RETRIES = 1; // Retry once on timeout
+// Keep this below the platform/edge hard timeout so we can still send a structured SSE error event.
+const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase
+// Retrying inside the same request can push the function over the hard timeout and kill the stream mid-flight.
+// Prefer failing fast and letting the client retry the batch.
+const MAX_RETRIES = 0;
 
 // Model selection: Use faster model for non-critical phases
 const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
@@ -702,7 +705,8 @@ Do NOT use placeholders like [X] or TBD - use realistic example values.${context
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      max_tokens: 5500
+      // Keep tokens conservative to reduce long-tail latency and avoid edge hard timeouts.
+      max_tokens: CRITICAL_PHASES.includes(phase.id) ? 5200 : 4200
     }),
   });
 

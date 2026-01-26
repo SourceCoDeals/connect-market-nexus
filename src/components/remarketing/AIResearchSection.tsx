@@ -298,21 +298,26 @@ export const AIResearchSection = ({
       const decoder = new TextDecoder();
       let buffer = "";
       let fullContent = previousContent;
+      let sawBatchComplete = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        
-        // Process complete SSE messages
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          
-          const jsonStr = line.slice(6).trim();
+        // Process complete SSE event blocks (separated by a blank line)
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop() || "";
+
+        for (const block of blocks) {
+          const dataLines = block
+            .split("\n")
+            .filter((l) => l.startsWith("data: "))
+            .map((l) => l.slice(6));
+          if (dataLines.length === 0) continue;
+
+          const jsonStr = dataLines.join("\n").trim();
           if (!jsonStr || jsonStr === "[DONE]") continue;
 
           try {
@@ -361,6 +366,7 @@ export const AIResearchSection = ({
                 break;
 
               case 'batch_complete':
+                sawBatchComplete = true;
                 // If not final, automatically start next batch
                 if (!event.is_final && event.next_batch_index !== null) {
                   // Small delay before starting next batch
@@ -414,9 +420,21 @@ export const AIResearchSection = ({
                 throw new Error(event.message);
             }
           } catch (e) {
-            // Skip malformed JSON
+            // Don't silently swallow parse issues; they often indicate a truncated SSE stream.
+            console.warn('[AIResearchSection] Failed to parse SSE event', {
+              batchIndex,
+              snippet: jsonStr.slice(0, 200),
+              error: e
+            });
           }
         }
+      }
+
+      // If the stream ends without a batch_complete, treat as failure (edge hard timeout / proxy cut-off).
+      if (!sawBatchComplete) {
+        throw new Error(
+          `Stream ended unexpectedly during batch ${batchIndex + 1}. This usually means the edge function hit a hard timeout or the connection was closed.`
+        );
       }
 
     } catch (error) {
