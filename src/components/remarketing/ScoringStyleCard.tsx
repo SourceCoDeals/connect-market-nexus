@@ -17,73 +17,6 @@ interface ScoringStyleCardProps {
   isSaving?: boolean;
 }
 
-const INDUSTRY_PRESETS: Record<string, Partial<ScoringBehavior>> = {
-  collision_repair: {
-    geography_strictness: 'moderate',
-    single_location_matching: 'adjacent_states',
-    multi_location_matching: 'same_region',
-    allow_national_buyers: true,
-    size_strictness: 'moderate',
-    below_minimum_handling: 'penalize',
-    service_matching_mode: 'keyword',
-    require_primary_focus: true,
-    excluded_services_dealbreaker: true,
-  },
-  restoration: {
-    geography_strictness: 'moderate',
-    single_location_matching: 'same_region',
-    multi_location_matching: 'national',
-    allow_national_buyers: true,
-    size_strictness: 'moderate',
-    below_minimum_handling: 'penalize',
-    service_matching_mode: 'keyword',
-    require_primary_focus: true,
-    excluded_services_dealbreaker: true,
-  },
-  hvac: {
-    geography_strictness: 'strict',
-    single_location_matching: 'exact_state',
-    multi_location_matching: 'same_region',
-    allow_national_buyers: false,
-    size_strictness: 'moderate',
-    below_minimum_handling: 'penalize',
-    service_matching_mode: 'keyword',
-    require_primary_focus: true,
-    excluded_services_dealbreaker: true,
-  },
-  pest_control: {
-    geography_strictness: 'moderate',
-    single_location_matching: 'adjacent_states',
-    multi_location_matching: 'same_region',
-    allow_national_buyers: true,
-    size_strictness: 'flexible',
-    below_minimum_handling: 'allow',
-    service_matching_mode: 'keyword',
-    require_primary_focus: false,
-    excluded_services_dealbreaker: true,
-  },
-  software: {
-    geography_strictness: 'flexible',
-    single_location_matching: 'same_region',
-    multi_location_matching: 'national',
-    allow_national_buyers: true,
-    size_strictness: 'strict',
-    below_minimum_handling: 'disqualify',
-    service_matching_mode: 'semantic',
-    require_primary_focus: true,
-    excluded_services_dealbreaker: false,
-  },
-};
-
-const PRESETS = [
-  { id: 'collision_repair', label: 'Collision Repair' },
-  { id: 'restoration', label: 'Restoration' },
-  { id: 'hvac', label: 'HVAC' },
-  { id: 'pest_control', label: 'Pest Control' },
-  { id: 'software', label: 'Software' },
-  { id: 'custom', label: 'Custom' },
-];
-
 export const ScoringStyleCard = ({
   scoringBehavior,
   onScoringBehaviorChange,
@@ -93,8 +26,6 @@ export const ScoringStyleCard = ({
 }: ScoringStyleCardProps) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const currentPreset = scoringBehavior.industry_preset || 'custom';
-  
   // Derive overall strictness from individual settings
   const getOverallStrictness = (): 'flexible' | 'moderate' | 'strict' => {
     const geoStrict = scoringBehavior.geography_strictness || 'moderate';
@@ -102,18 +33,6 @@ export const ScoringStyleCard = ({
     if (geoStrict === 'strict' || sizeStrict === 'strict') return 'strict';
     if (geoStrict === 'flexible' && sizeStrict === 'flexible') return 'flexible';
     return 'moderate';
-  };
-
-  const handlePresetSelect = (preset: string) => {
-    if (preset === 'custom') {
-      onScoringBehaviorChange({ ...scoringBehavior, industry_preset: 'custom' });
-    } else if (preset in INDUSTRY_PRESETS) {
-      onScoringBehaviorChange({
-        ...scoringBehavior,
-        ...INDUSTRY_PRESETS[preset],
-        industry_preset: preset as ScoringBehavior['industry_preset'],
-      });
-    }
   };
 
   const handleStrictnessChange = (value: 'flexible' | 'moderate' | 'strict') => {
@@ -152,28 +71,6 @@ export const ScoringStyleCard = ({
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Industry Preset Pills */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Industry Preset</Label>
-          <div className="flex flex-wrap gap-2">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => handlePresetSelect(preset.id)}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-sm font-medium transition-all",
-                  "border focus:outline-none focus:ring-2 focus:ring-primary/50",
-                  currentPreset === preset.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted border-border text-foreground"
-                )}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Strictness Selection */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">Match Strictness</Label>

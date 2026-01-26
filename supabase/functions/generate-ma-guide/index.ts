@@ -892,8 +892,8 @@ Be comprehensive and specific.`;
   return result.choices?.[0]?.message?.content || '';
 }
 
-// Batch configuration: 4 phases per batch for reliability
-const BATCH_SIZE = 4;
+// Batch configuration: 2 phases per batch to prevent timeouts
+const BATCH_SIZE = 2;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
