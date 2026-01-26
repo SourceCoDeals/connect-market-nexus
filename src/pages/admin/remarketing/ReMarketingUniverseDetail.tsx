@@ -61,14 +61,14 @@ import {
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-// Default buyer types configuration
+// Default buyer types configuration (industry-agnostic, will be replaced by AI Research)
 const DEFAULT_BUYER_TYPES: TargetBuyerTypeConfig[] = [
-  { id: 'large_mso', rank: 1, name: 'Large MSOs', description: 'Multi-state operators with 50+ locations seeking add-on acquisitions.', locations_min: 50, locations_max: 500, revenue_per_location: 2500000, deal_requirements: 'Prefer deals with $2M+ revenue', enabled: true },
-  { id: 'regional_mso', rank: 2, name: 'Regional MSOs', description: 'Regional operators with 10-50 locations expanding within their footprint.', locations_min: 10, locations_max: 50, revenue_per_location: 2000000, deal_requirements: 'Looking for tuck-in acquisitions', enabled: true },
-  { id: 'pe_backed', rank: 3, name: 'PE-Backed Platforms', description: 'Private equity portfolio companies actively deploying capital.', locations_min: 5, locations_max: 100, revenue_per_location: 1500000, deal_requirements: 'Need clean financials', enabled: true },
-  { id: 'independent_sponsor', rank: 4, name: 'Independent Sponsors', description: 'Dealmakers with committed capital seeking platform investments.', locations_min: 1, locations_max: 10, revenue_per_location: 1000000, deal_requirements: 'Flexible on structure', enabled: true },
-  { id: 'small_local', rank: 5, name: 'Small Local Buyers', description: 'Owner-operators looking to expand from 1-5 locations.', locations_min: 1, locations_max: 5, revenue_per_location: 800000, deal_requirements: 'Often need SBA financing', enabled: true },
-  { id: 'local_strategic', rank: 6, name: 'Local Strategics', description: 'Established local businesses seeking adjacent market expansion.', locations_min: 2, locations_max: 15, revenue_per_location: 1200000, deal_requirements: 'Looking for synergies', enabled: true },
+  { id: 'national_consolidator', rank: 1, name: 'National Consolidators', description: 'Large operators actively acquiring across multiple regions.', locations_min: 20, locations_max: 500, revenue_per_location: 2000000, deal_requirements: 'Run AI Research to populate', enabled: true },
+  { id: 'regional_platform', rank: 2, name: 'Regional Platforms', description: 'Regional operators expanding within their footprint.', locations_min: 5, locations_max: 50, revenue_per_location: 1500000, deal_requirements: 'Run AI Research to populate', enabled: true },
+  { id: 'pe_backed', rank: 3, name: 'PE-Backed Platforms', description: 'Private equity portfolio companies deploying capital.', locations_min: 3, locations_max: 100, revenue_per_location: 1500000, deal_requirements: 'Run AI Research to populate', enabled: true },
+  { id: 'independent_sponsor', rank: 4, name: 'Independent Sponsors', description: 'Dealmakers seeking platform investments.', locations_min: 1, locations_max: 10, revenue_per_location: 1000000, deal_requirements: 'Run AI Research to populate', enabled: true },
+  { id: 'strategic_buyer', rank: 5, name: 'Strategic Buyers', description: 'Industry operators seeking synergistic acquisitions.', locations_min: 1, locations_max: 20, revenue_per_location: 1000000, deal_requirements: 'Run AI Research to populate', enabled: true },
+  { id: 'owner_operator', rank: 6, name: 'Owner-Operators', description: 'Individuals looking to acquire and operate a business.', locations_min: 1, locations_max: 5, revenue_per_location: 800000, deal_requirements: 'Run AI Research to populate', enabled: true },
 ];
 
 const ReMarketingUniverseDetail = () => {
@@ -241,6 +241,12 @@ const ReMarketingUniverseDetail = () => {
       setScoringBehavior((universe.scoring_behavior as unknown as ScoringBehavior) || {});
       setDocuments((universe.documents as unknown as DocumentReference[]) || []);
       setMaGuideContent(universe.ma_guide_content || '');
+      
+      // Load saved target buyer types from DB, fall back to defaults if empty
+      const savedBuyerTypes = (universe as any).target_buyer_types as TargetBuyerTypeConfig[];
+      if (savedBuyerTypes && savedBuyerTypes.length > 0) {
+        setTargetBuyerTypes(savedBuyerTypes);
+      }
     }
   }, [universe]);
 
@@ -321,7 +327,8 @@ const ReMarketingUniverseDetail = () => {
         buyer_types_criteria: buyerTypesCriteria,
         scoring_behavior: scoringBehavior,
         documents: documents,
-        ma_guide_content: maGuideContent
+        ma_guide_content: maGuideContent,
+        target_buyer_types: targetBuyerTypes
       };
 
       if (isNew) {
@@ -607,13 +614,17 @@ const ReMarketingUniverseDetail = () => {
         <AIResearchSection
           universeName={formData.name}
           existingContent={maGuideContent}
-          onGuideGenerated={(guide, extractedCriteria) => {
+          onGuideGenerated={(guide, extractedCriteria, buyerProfiles) => {
             setMaGuideContent(guide);
             if (extractedCriteria) {
               if (extractedCriteria.size_criteria) setSizeCriteria(prev => ({ ...prev, ...extractedCriteria.size_criteria }));
               if (extractedCriteria.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...extractedCriteria.geography_criteria }));
               if (extractedCriteria.service_criteria) setServiceCriteria(prev => ({ ...prev, ...extractedCriteria.service_criteria }));
               if (extractedCriteria.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...extractedCriteria.buyer_types_criteria }));
+            }
+            // Update target buyer types with AI-generated profiles
+            if (buyerProfiles && buyerProfiles.length > 0) {
+              setTargetBuyerTypes(buyerProfiles);
             }
             toast.success('M&A Guide generated and criteria extracted');
           }}
