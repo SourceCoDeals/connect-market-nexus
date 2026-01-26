@@ -124,6 +124,7 @@ const AdminLayout = () => {
               isActive={location.pathname.includes('/admin/pipeline')}
               collapsed={sidebarCollapsed}
             />
+            {/* TEMPORARILY HIDDEN - Remarketing not ready for production
             <NavLink 
               to="/admin/remarketing" 
               icon={<Target className="h-4 w-4" />}
@@ -131,6 +132,7 @@ const AdminLayout = () => {
               isActive={location.pathname.includes('/admin/remarketing')}
               collapsed={sidebarCollapsed}
             />
+            */}
             <NavLink 
               to="/" 
               icon={<ShoppingBag className="h-4 w-4" />}
