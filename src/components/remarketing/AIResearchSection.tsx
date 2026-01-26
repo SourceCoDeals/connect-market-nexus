@@ -92,6 +92,10 @@ export const AIResearchSection = ({
   const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyQuestion[]>([]);
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string | string[]>>({});
 
+  // Auto-retry configuration (prevents manual Resume for transient stream cut-offs)
+  const MAX_BATCH_RETRIES = 2;
+  const batchRetryCountRef = useRef<Record<number, number>>({});
+
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
@@ -235,6 +239,8 @@ export const AIResearchSection = ({
     setMissingElements([]);
     clearProgress();
 
+    batchRetryCountRef.current = {};
+
     abortControllerRef.current = new AbortController();
 
     // Start batch generation
@@ -356,7 +362,8 @@ export const AIResearchSection = ({
                   fullContent = event.content;
                   localStorage.setItem('ma_guide_progress', JSON.stringify({
                     industryName,
-                    batchIndex: currentBatch,
+                    // Use the batchIndex argument to avoid state timing issues.
+                    batchIndex,
                     content: event.content,
                     clarificationContext,
                     lastPhaseId: event.phaseId,
@@ -367,6 +374,12 @@ export const AIResearchSection = ({
 
               case 'batch_complete':
                 sawBatchComplete = true;
+
+                // Batch succeeded; reset retry counter for this batch.
+                if (batchRetryCountRef.current[batchIndex]) {
+                  delete batchRetryCountRef.current[batchIndex];
+                }
+
                 // If not final, automatically start next batch
                 if (!event.is_final && event.next_batch_index !== null) {
                   // Small delay before starting next batch
@@ -442,8 +455,27 @@ export const AIResearchSection = ({
         toast.info("Generation cancelled");
         setState('idle');
       } else {
+        const message = (error as Error).message || 'Unknown error';
+
+        // Auto-retry on likely transient stream cut-offs so the user doesn't need to manually resume.
+        const isStreamCutoff = message.includes('Stream ended unexpectedly during batch');
+        const currentRetries = batchRetryCountRef.current[batchIndex] ?? 0;
+        if (state === 'generating' && isStreamCutoff && currentRetries < MAX_BATCH_RETRIES) {
+          batchRetryCountRef.current[batchIndex] = currentRetries + 1;
+          const backoffMs = 1000 * (currentRetries + 1);
+          toast.info(
+            `Connection dropped during batch ${batchIndex + 1}. Retrying (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+          );
+          await new Promise((r) => setTimeout(r, backoffMs));
+
+          // New controller for the retry to ensure the previous stream is fully abandoned.
+          abortControllerRef.current = new AbortController();
+          await generateBatch(batchIndex, previousContent, clarificationContext);
+          return;
+        }
+
         console.error('Generation error:', error);
-        toast.error(`Generation failed: ${(error as Error).message}`);
+        toast.error(`Generation failed: ${message}`);
         setState('error');
       }
     }
