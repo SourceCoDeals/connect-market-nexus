@@ -195,7 +195,34 @@ export const AIResearchSection = ({
   };
 
   const [currentBatch, setCurrentBatch] = useState(0);
-  const [totalBatches, setTotalBatches] = useState(3);
+  const [totalBatches, setTotalBatches] = useState(7); // 13 phases / 2 per batch = ~7 batches
+  const [savedProgress, setSavedProgress] = useState<{
+    industryName: string;
+    batchIndex: number;
+    content: string;
+    clarificationContext: ClarificationContext;
+  } | null>(null);
+
+  // Check for saved progress on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('ma_guide_progress');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Only restore if it matches current universe
+        if (parsed.industryName === industryName || parsed.industryName === universeName) {
+          setSavedProgress(parsed);
+        }
+      } catch (e) {
+        localStorage.removeItem('ma_guide_progress');
+      }
+    }
+  }, [industryName, universeName]);
+
+  const clearProgress = () => {
+    localStorage.removeItem('ma_guide_progress');
+    setSavedProgress(null);
+  };
 
   const handleGenerate = async (clarificationContext: ClarificationContext) => {
     setState('generating');
@@ -206,11 +233,26 @@ export const AIResearchSection = ({
     setQualityResult(null);
     setExtractedCriteria(null);
     setMissingElements([]);
+    clearProgress();
 
     abortControllerRef.current = new AbortController();
 
     // Start batch generation
     await generateBatch(0, "", clarificationContext);
+  };
+
+  const resumeGeneration = (progress: typeof savedProgress) => {
+    if (!progress) return;
+    
+    setState('generating');
+    setCurrentBatch(progress.batchIndex);
+    setContent(progress.content);
+    setWordCount(progress.content.split(/\s+/).length);
+    
+    abortControllerRef.current = new AbortController();
+    
+    toast.info(`Resuming from batch ${progress.batchIndex + 1}...`);
+    generateBatch(progress.batchIndex, progress.content, progress.clarificationContext);
   };
 
   const generateBatch = async (
@@ -220,6 +262,14 @@ export const AIResearchSection = ({
   ) => {
     try {
       setCurrentBatch(batchIndex);
+      
+      // Save progress before each batch call
+      localStorage.setItem('ma_guide_progress', JSON.stringify({
+        industryName,
+        batchIndex,
+        content: previousContent,
+        clarificationContext
+      }));
       
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide`,
@@ -347,6 +397,9 @@ export const AIResearchSection = ({
                 setState('complete');
                 setContent(event.content || fullContent);
                 setWordCount(event.totalWords || fullContent.split(/\s+/).length);
+                // Clear saved progress on successful completion
+                localStorage.removeItem('ma_guide_progress');
+                setSavedProgress(null);
                 toast.success("M&A Guide generated successfully!");
                 break;
 
@@ -438,6 +491,29 @@ export const AIResearchSection = ({
 
         <CollapsibleContent>
           <CardContent className="space-y-4">
+            {/* Resume interrupted generation */}
+            {savedProgress && state === 'idle' && (
+              <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    Previous generation was interrupted at batch {savedProgress.batchIndex + 1}
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    {savedProgress.content.split(/\s+/).length.toLocaleString()} words generated
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => resumeGeneration(savedProgress)}>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Resume
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={clearProgress}>
+                    Start Over
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Industry Input - shown in idle state */}
             {(state === 'idle' || state === 'complete' || state === 'error') && (
               <div className="flex gap-4 items-end">
