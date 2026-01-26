@@ -7,8 +7,20 @@ interface EnhancedInvestorDashboardProps {
   formatCurrency: (value: number) => string;
 }
 
+// Normalize JSONB fields that may be stored as string or array
+const normalizeToArray = (value: string[] | string | undefined | null): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) return [value];
+  return [];
+};
+
 export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedInvestorDashboardProps) {
   const ebitdaMargin = listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100) : 0;
+  
+  // Normalize arrays to handle both string and array formats from DB
+  const keyRisks = normalizeToArray(listing.key_risks);
+  const growthDrivers = normalizeToArray(listing.growth_drivers);
   
   // Check if employees data exists
   const hasEmployees = (listing.full_time_employees && listing.full_time_employees > 0) || 
@@ -90,11 +102,11 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
       )}
 
       {/* Growth Drivers */}
-      {listing.growth_drivers && listing.growth_drivers.length > 0 && (
+      {growthDrivers.length > 0 && (
         <div className="space-y-4 pt-8 border-t border-slate-100">
           <h2 className="text-sm font-medium leading-5">Growth Catalysts</h2>
           <div className="space-y-2">
-            {listing.growth_drivers.map((driver, index) => (
+            {growthDrivers.map((driver, index) => (
               <div key={index} className="document-subtitle">
                 • {driver}
               </div>
@@ -104,11 +116,11 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
       )}
 
       {/* Risk Factors */}
-      {listing.key_risks && listing.key_risks.length > 0 && (
+      {keyRisks.length > 0 && (
         <div className="space-y-4 pt-8 border-t border-slate-100">
           <h2 className="text-sm font-medium leading-5">Risk Factors</h2>
           <div className="space-y-2">
-            {listing.key_risks.map((risk, index) => (
+            {keyRisks.map((risk, index) => (
               <div key={index} className="document-subtitle">
                 • {risk}
               </div>
