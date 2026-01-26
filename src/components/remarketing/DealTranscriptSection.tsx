@@ -143,6 +143,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         formData.append('file', file);
 
         const { data: { session } } = await supabase.auth.getSession();
+        
+        console.log('[DealTranscript] Sending file to parse-transcript-file:', file.name, file.size);
+        
         const response = await fetch(
           `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/parse-transcript-file`,
           {
@@ -154,12 +157,28 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           }
         );
 
+        console.log('[DealTranscript] Response status:', response.status);
+
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to parse file');
+          const errorText = await response.text();
+          console.error('[DealTranscript] Error response:', errorText);
+          let errorMessage = 'Failed to parse file';
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
+        console.log('[DealTranscript] Parse result:', { textLength: result.text?.length, fileName: result.fileName });
+        
+        if (!result.text) {
+          throw new Error('No text extracted from file');
+        }
+        
         setNewTranscript(result.text);
         toast.success(`Extracted ${result.text.length.toLocaleString()} characters from ${file.name}`);
       }
@@ -170,11 +189,15 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         setTranscriptTitle(nameWithoutExt);
       }
     } catch (error: any) {
-      console.error('File upload error:', error);
+      console.error('[DealTranscript] File upload error:', error);
       toast.error(error.message || 'Failed to process file');
       setSelectedFile(null);
     } finally {
       setIsUploadingFile(false);
+      // Reset file input to allow re-uploading the same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
