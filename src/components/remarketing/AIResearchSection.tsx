@@ -23,7 +23,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
-import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria } from "@/types/remarketing";
+import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
 
 type GenerationState = 'idle' | 'clarifying' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
 
@@ -52,6 +52,7 @@ interface ExtractedCriteria {
   geography_criteria?: GeographyCriteria;
   service_criteria?: ServiceCriteria;
   buyer_types_criteria?: BuyerTypesCriteria;
+  target_buyer_types?: TargetBuyerTypeConfig[];
 }
 
 interface ClarificationContext {
@@ -63,7 +64,7 @@ interface ClarificationContext {
 }
 
 interface AIResearchSectionProps {
-  onGuideGenerated: (content: string, criteria: ExtractedCriteria) => void;
+  onGuideGenerated: (content: string, criteria: ExtractedCriteria, targetBuyerTypes?: TargetBuyerTypeConfig[]) => void;
   universeName?: string;
   existingContent?: string;
 }
@@ -381,7 +382,7 @@ export const AIResearchSection = ({
 
   const handleApply = () => {
     if (content && extractedCriteria) {
-      onGuideGenerated(content, extractedCriteria);
+      onGuideGenerated(content, extractedCriteria, extractedCriteria.target_buyer_types);
       toast.success("Guide and criteria applied");
     }
   };

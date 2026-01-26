@@ -3662,6 +3662,7 @@ export type Database = {
           service_weight: number
           size_criteria: Json | null
           size_weight: number
+          target_buyer_types: Json | null
           updated_at: string
         }
         Insert: {
@@ -3692,6 +3693,7 @@ export type Database = {
           service_weight?: number
           size_criteria?: Json | null
           size_weight?: number
+          target_buyer_types?: Json | null
           updated_at?: string
         }
         Update: {
@@ -3722,6 +3724,7 @@ export type Database = {
           service_weight?: number
           size_criteria?: Json | null
           size_weight?: number
+          target_buyer_types?: Json | null
           updated_at?: string
         }
         Relationships: []
