@@ -158,7 +158,7 @@ const ReMarketingUniverseDetail = () => {
           added_at,
           status,
           listing:listings(
-            id, title, location, revenue, ebitda, 
+            id, title, internal_company_name, location, revenue, ebitda, 
             enriched_at, geographic_states
           )
         `)
