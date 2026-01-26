@@ -5,41 +5,43 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface EnrichmentResult {
-  thesis_summary?: string;
-  thesis_confidence?: 'high' | 'medium' | 'low';
-  target_geographies?: string[];
-  target_services?: string[];
-  target_industries?: string[];
-  target_revenue_min?: number;
-  target_revenue_max?: number;
-  revenue_sweet_spot?: number;
-  target_ebitda_min?: number;
-  target_ebitda_max?: number;
-  ebitda_sweet_spot?: number;
-  geographic_footprint?: string[];
-  recent_acquisitions?: any[];
-  portfolio_companies?: any[];
-  data_completeness?: 'high' | 'medium' | 'low';
-  // New fields for Whispers parity
-  pe_firm_name?: string;
-  hq_city?: string;
-  hq_state?: string;
-  industry_vertical?: string;
-  business_summary?: string;
-  specialized_focus?: string;
-  strategic_priorities?: string[];
-  deal_breakers?: string[];
-  deal_preferences?: string;
-  acquisition_appetite?: string;
-  acquisition_timeline?: string;
-  acquisition_frequency?: string;
-  total_acquisitions?: number;
-  primary_customer_size?: string;
-  customer_geographic_reach?: string;
-  customer_industries?: string[];
-  target_customer_profile?: string;
-}
+// Fields that should NEVER be overwritten by website enrichment if they came from a transcript
+const TRANSCRIPT_PROTECTED_FIELDS = [
+  'thesis_summary',
+  'strategic_priorities',
+  'thesis_confidence',
+  'target_geographies',
+  'geographic_exclusions',
+  'target_revenue_min',
+  'target_revenue_max',
+  'revenue_sweet_spot',
+  'target_ebitda_min',
+  'target_ebitda_max',
+  'ebitda_sweet_spot',
+  'deal_breakers',
+  'deal_preferences',
+  'owner_roll_requirement',
+  'owner_transition_goals',
+  'acquisition_timeline',
+  'acquisition_appetite',
+  'target_services',
+  'target_industries',
+  'key_quotes',
+];
+
+// Fields that should NEVER be updated from website (only from transcripts)
+const NEVER_UPDATE_FROM_WEBSITE = [
+  'target_geographies',
+  'geographic_exclusions',
+  'deal_breakers',
+  'owner_roll_requirement',
+  'owner_transition_goals',
+  'key_quotes',
+];
+
+const PLACEHOLDER_STRINGS = new Set([
+  'not specified', 'n/a', 'na', 'unknown', 'none', 'tbd', 'not available', ''
+]);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -94,343 +96,152 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!buyer.company_website) {
+    // Get primary website - prefer platform_website, fall back to company_website
+    const platformWebsite = buyer.platform_website || buyer.company_website;
+    const peFirmWebsite = buyer.pe_firm_website;
+
+    if (!platformWebsite && !peFirmWebsite) {
       return new Response(
         JSON.stringify({ success: false, error: 'Buyer has no website URL to scrape' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Enriching buyer: ${buyer.company_name} (${buyer.company_website})`);
+    console.log(`Enriching buyer: ${buyer.company_name}`);
+    console.log(`Platform website: ${platformWebsite || 'none'}`);
+    console.log(`PE Firm website: ${peFirmWebsite || 'none'}`);
 
-    // Format URL
-    let websiteUrl = buyer.company_website.trim();
-    if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
-      websiteUrl = `https://${websiteUrl}`;
+    // Check for transcript data protection
+    const existingSources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
+    const hasTranscriptSource = existingSources.some(
+      (src: any) => src.type === 'transcript' || src.type === 'buyer_transcript'
+    );
+    console.log(`Has transcript data: ${hasTranscriptSource}`);
+
+    const warnings: string[] = [];
+    let platformContent: string | null = null;
+    let peFirmContent: string | null = null;
+
+    // Step 1: Scrape Platform Website
+    if (platformWebsite) {
+      const platformResult = await scrapeWebsite(platformWebsite, firecrawlApiKey);
+      if (platformResult.success) {
+        platformContent = platformResult.content;
+        console.log(`Scraped platform website: ${platformContent.length} chars`);
+      } else {
+        warnings.push(`Platform website could not be scraped: ${platformResult.error}`);
+        console.warn(`Platform scrape failed: ${platformResult.error}`);
+      }
     }
 
-    // Step 1: Scrape the website using Firecrawl
-    console.log('Scraping website with Firecrawl...');
-    const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: websiteUrl,
-        formats: ['markdown'],
-        onlyMainContent: true,
-        waitFor: 3000,
-      }),
-    });
-
-    if (!scrapeResponse.ok) {
-      const errorText = await scrapeResponse.text();
-      console.error('Firecrawl scrape error:', errorText);
-      return new Response(
-        JSON.stringify({ success: false, error: `Failed to scrape website: ${scrapeResponse.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Step 2: Scrape PE Firm Website (if different from platform)
+    if (peFirmWebsite && peFirmWebsite !== platformWebsite) {
+      const peFirmResult = await scrapeWebsite(peFirmWebsite, firecrawlApiKey);
+      if (peFirmResult.success) {
+        peFirmContent = peFirmResult.content;
+        console.log(`Scraped PE firm website: ${peFirmContent.length} chars`);
+      } else {
+        warnings.push(`PE firm website could not be scraped: ${peFirmResult.error}`);
+        console.warn(`PE firm scrape failed: ${peFirmResult.error}`);
+      }
     }
 
-    const scrapeData = await scrapeResponse.json();
-    const websiteContent = scrapeData.data?.markdown || scrapeData.markdown || '';
-
-    if (!websiteContent || websiteContent.length < 100) {
-      console.log('Insufficient website content scraped');
+    if (!platformContent && !peFirmContent) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Could not extract sufficient content from website' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Could not scrape any website content',
+          warning: warnings.join('; ')
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Scraped ${websiteContent.length} characters from website`);
+    // Step 3: Run 6-prompt extraction strategy
+    const extractedData: Record<string, any> = {};
+    const evidenceRecords: Array<{ type: string; url: string; extracted_at: string; fields_extracted: string[] }> = [];
 
-    // Step 2: Use AI to extract structured buyer intelligence
-    console.log('Extracting buyer intelligence with AI...');
-    
-    const systemPrompt = `You are an M&A intelligence analyst. Extract comprehensive investment thesis and acquisition criteria from PE firm/platform company websites.
+    // Prompts 1-3b: Platform website extractions
+    if (platformContent) {
+      console.log('Extracting from platform website...');
+      
+      // Prompt 1: Business Overview
+      const overview = await extractBusinessOverview(platformContent, buyer.company_name, lovableApiKey);
+      if (overview) {
+        Object.assign(extractedData, overview);
+        console.log('Extracted business overview:', Object.keys(overview));
+      }
 
-Focus on extracting ALL available information including:
-1. Investment thesis - what types of companies they acquire and why (with confidence level)
-2. Target size criteria - revenue and EBITDA ranges, including sweet spots
-3. Target geographies - states, regions, or countries they focus on
-4. Target services/industries - specific sectors they invest in
-5. Business description - company summary, industry vertical, specialized focus
-6. Strategic priorities - key growth initiatives
-7. Deal breakers - what they avoid or won't consider
-8. Deal preferences - preferred deal structures or terms
-9. Acquisition appetite - current interest level and timeline
-10. Customer profile - target customer types, sizes, industries
-11. Acquisition history - recent deals, frequency, total count
-12. Portfolio companies - current holdings
-13. HQ location and PE firm parent name`;
+      // Prompt 2: Customers/End Market
+      const customers = await extractCustomersEndMarket(platformContent, lovableApiKey);
+      if (customers) {
+        Object.assign(extractedData, customers);
+        console.log('Extracted customers:', Object.keys(customers));
+      }
 
-    const userPrompt = `Analyze this website content from "${buyer.company_name}" and extract their comprehensive investment/acquisition criteria.
+      // Prompt 3: Geography/Footprint
+      const geography = await extractGeographyFootprint(platformContent, lovableApiKey);
+      if (geography) {
+        Object.assign(extractedData, geography);
+        console.log('Extracted geography:', Object.keys(geography));
+      }
 
-Website Content:
-${websiteContent.substring(0, 15000)}
+      // Prompt 3b: Platform Acquisitions
+      const acquisitions = await extractPlatformAcquisitions(platformContent, lovableApiKey);
+      if (acquisitions) {
+        Object.assign(extractedData, acquisitions);
+        console.log('Extracted acquisitions:', Object.keys(acquisitions));
+      }
 
-Extract ALL buyer intelligence using the provided tool. Be thorough - extract every piece of relevant information.`;
-
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'extract_buyer_intelligence',
-              description: 'Extract comprehensive buyer/investor intelligence from website content',
-              parameters: {
-                type: 'object',
-                properties: {
-                  thesis_summary: {
-                    type: 'string',
-                    description: 'A 2-3 sentence summary of their investment thesis and acquisition strategy'
-                  },
-                  thesis_confidence: {
-                    type: 'string',
-                    enum: ['high', 'medium', 'low'],
-                    description: 'How confident we are in the extracted thesis based on website clarity'
-                  },
-                  pe_firm_name: {
-                    type: 'string',
-                    description: 'Name of the parent PE firm (if this is a platform company)'
-                  },
-                  hq_city: {
-                    type: 'string',
-                    description: 'Headquarters city'
-                  },
-                  hq_state: {
-                    type: 'string',
-                    description: 'Headquarters state (2-letter code preferred)'
-                  },
-                  industry_vertical: {
-                    type: 'string',
-                    description: 'Primary industry vertical (e.g., "Collision Repair / Auto Body")'
-                  },
-                  business_summary: {
-                    type: 'string',
-                    description: 'Brief company description and business model'
-                  },
-                  specialized_focus: {
-                    type: 'string',
-                    description: 'Any specialized focus areas or unique capabilities'
-                  },
-                  strategic_priorities: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Key strategic priorities or growth initiatives'
-                  },
-                  deal_breakers: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Things they explicitly avoid (e.g., "No shops under $1M revenue")'
-                  },
-                  deal_preferences: {
-                    type: 'string',
-                    description: 'Preferred deal structures, terms, or transaction types'
-                  },
-                  acquisition_appetite: {
-                    type: 'string',
-                    description: 'Current acquisition appetite description (e.g., "Very active - looking to acquire add-ons")'
-                  },
-                  acquisition_timeline: {
-                    type: 'string',
-                    description: 'Timeline for acquisitions (e.g., "Looking to push forward immediately")'
-                  },
-                  acquisition_frequency: {
-                    type: 'string',
-                    description: 'How often they acquire (e.g., "1-2 per year", "As needed")'
-                  },
-                  total_acquisitions: {
-                    type: 'number',
-                    description: 'Total number of acquisitions/add-ons to date'
-                  },
-                  target_geographies: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'US states or regions they target (e.g., "TX", "CA", "Southeast")'
-                  },
-                  target_services: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Service types or sectors they invest in'
-                  },
-                  target_industries: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Industry categories'
-                  },
-                  target_revenue_min: {
-                    type: 'number',
-                    description: 'Minimum target company revenue in USD'
-                  },
-                  target_revenue_max: {
-                    type: 'number',
-                    description: 'Maximum target company revenue in USD'
-                  },
-                  revenue_sweet_spot: {
-                    type: 'number',
-                    description: 'Ideal/preferred target revenue in USD'
-                  },
-                  target_ebitda_min: {
-                    type: 'number',
-                    description: 'Minimum target company EBITDA in USD'
-                  },
-                  target_ebitda_max: {
-                    type: 'number',
-                    description: 'Maximum target company EBITDA in USD'
-                  },
-                  ebitda_sweet_spot: {
-                    type: 'number',
-                    description: 'Ideal/preferred target EBITDA in USD'
-                  },
-                  geographic_footprint: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Where the firm/portfolio currently operates'
-                  },
-                  primary_customer_size: {
-                    type: 'string',
-                    description: 'Target customer size segment (e.g., "SMB", "Enterprise", "Consumer")'
-                  },
-                  customer_geographic_reach: {
-                    type: 'string',
-                    description: 'Customer geographic reach (e.g., "Local", "Regional", "National")'
-                  },
-                  customer_industries: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Industries their customers are in'
-                  },
-                  target_customer_profile: {
-                    type: 'string',
-                    description: 'Description of ideal end customer'
-                  },
-                  recent_acquisitions: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        company_name: { type: 'string' },
-                        date: { type: 'string' },
-                        location: { type: 'string' },
-                        services: { type: 'array', items: { type: 'string' } }
-                      }
-                    },
-                    description: 'Recent acquisitions mentioned on the website'
-                  },
-                  portfolio_companies: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        name: { type: 'string' },
-                        website: { type: 'string' },
-                        services: { type: 'array', items: { type: 'string' } },
-                        locations: { type: 'array', items: { type: 'string' } }
-                      }
-                    },
-                    description: 'Current portfolio companies'
-                  },
-                  data_quality: {
-                    type: 'string',
-                    enum: ['high', 'medium', 'low'],
-                    description: 'Assessment of how much useful data was extractable'
-                  }
-                },
-                required: ['thesis_summary', 'data_quality']
-              }
-            }
-          }
-        ],
-        tool_choice: { type: 'function', function: { name: 'extract_buyer_intelligence' } }
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI extraction error:', errorText);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to extract buyer intelligence' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      evidenceRecords.push({
+        type: 'website',
+        url: platformWebsite!,
+        extracted_at: new Date().toISOString(),
+        fields_extracted: Object.keys(extractedData)
+      });
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall) {
-      console.error('No tool call in AI response');
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI did not return structured data' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Prompts 4-6: PE Firm website extractions
+    if (peFirmContent) {
+      console.log('Extracting from PE firm website...');
+      const peFirmFields: string[] = [];
+
+      // Prompt 4: PE Investment Thesis
+      const thesis = await extractPEInvestmentThesis(peFirmContent, lovableApiKey);
+      if (thesis) {
+        Object.assign(extractedData, thesis);
+        peFirmFields.push(...Object.keys(thesis));
+        console.log('Extracted PE thesis:', Object.keys(thesis));
+      }
+
+      // Prompt 5: PE Deal Structure
+      const dealStructure = await extractPEDealStructure(peFirmContent, lovableApiKey);
+      if (dealStructure) {
+        Object.assign(extractedData, dealStructure);
+        peFirmFields.push(...Object.keys(dealStructure));
+        console.log('Extracted deal structure:', Object.keys(dealStructure));
+      }
+
+      // Prompt 6: PE Portfolio
+      const portfolio = await extractPEPortfolio(peFirmContent, lovableApiKey);
+      if (portfolio) {
+        Object.assign(extractedData, portfolio);
+        peFirmFields.push(...Object.keys(portfolio));
+        console.log('Extracted portfolio:', Object.keys(portfolio));
+      }
+
+      evidenceRecords.push({
+        type: 'website',
+        url: peFirmWebsite!,
+        extracted_at: new Date().toISOString(),
+        fields_extracted: peFirmFields
+      });
     }
 
-    const extractedData = JSON.parse(toolCall.function.arguments) as EnrichmentResult & { data_quality?: string };
-    console.log('Extracted buyer intelligence:', JSON.stringify(extractedData, null, 2));
+    // Step 4: Apply intelligent merge logic
+    const updateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
 
-    // Step 3: Update buyer record with extracted data
-    const updateData: any = {
-      data_last_updated: new Date().toISOString(),
-      data_completeness: extractedData.data_quality || 'medium',
-      extraction_sources: [
-        ...(buyer.extraction_sources || []),
-        {
-          type: 'website',
-          url: websiteUrl,
-          extracted_at: new Date().toISOString(),
-          fields_extracted: Object.keys(extractedData).filter(k => extractedData[k as keyof typeof extractedData])
-        }
-      ]
-    };
-
-    // Update all extracted fields
-    if (extractedData.thesis_summary) updateData.thesis_summary = extractedData.thesis_summary;
-    if (extractedData.thesis_confidence) updateData.thesis_confidence = extractedData.thesis_confidence;
-    if (extractedData.pe_firm_name) updateData.pe_firm_name = extractedData.pe_firm_name;
-    if (extractedData.hq_city) updateData.hq_city = extractedData.hq_city;
-    if (extractedData.hq_state) updateData.hq_state = extractedData.hq_state;
-    if (extractedData.industry_vertical) updateData.industry_vertical = extractedData.industry_vertical;
-    if (extractedData.business_summary) updateData.business_summary = extractedData.business_summary;
-    if (extractedData.specialized_focus) updateData.specialized_focus = extractedData.specialized_focus;
-    if (extractedData.strategic_priorities?.length) updateData.strategic_priorities = extractedData.strategic_priorities;
-    if (extractedData.deal_breakers?.length) updateData.deal_breakers = extractedData.deal_breakers;
-    if (extractedData.deal_preferences) updateData.deal_preferences = extractedData.deal_preferences;
-    if (extractedData.acquisition_appetite) updateData.acquisition_appetite = extractedData.acquisition_appetite;
-    if (extractedData.acquisition_timeline) updateData.acquisition_timeline = extractedData.acquisition_timeline;
-    if (extractedData.acquisition_frequency) updateData.acquisition_frequency = extractedData.acquisition_frequency;
-    if (extractedData.total_acquisitions) updateData.total_acquisitions = extractedData.total_acquisitions;
-    if (extractedData.target_geographies?.length) updateData.target_geographies = extractedData.target_geographies;
-    if (extractedData.target_services?.length) updateData.target_services = extractedData.target_services;
-    if (extractedData.target_industries?.length) updateData.target_industries = extractedData.target_industries;
-    if (extractedData.target_revenue_min) updateData.target_revenue_min = extractedData.target_revenue_min;
-    if (extractedData.target_revenue_max) updateData.target_revenue_max = extractedData.target_revenue_max;
-    if (extractedData.revenue_sweet_spot) updateData.revenue_sweet_spot = extractedData.revenue_sweet_spot;
-    if (extractedData.target_ebitda_min) updateData.target_ebitda_min = extractedData.target_ebitda_min;
-    if (extractedData.target_ebitda_max) updateData.target_ebitda_max = extractedData.target_ebitda_max;
-    if (extractedData.ebitda_sweet_spot) updateData.ebitda_sweet_spot = extractedData.ebitda_sweet_spot;
-    if (extractedData.geographic_footprint?.length) updateData.geographic_footprint = extractedData.geographic_footprint;
-    if (extractedData.primary_customer_size) updateData.primary_customer_size = extractedData.primary_customer_size;
-    if (extractedData.customer_geographic_reach) updateData.customer_geographic_reach = extractedData.customer_geographic_reach;
-    if (extractedData.customer_industries?.length) updateData.customer_industries = extractedData.customer_industries;
-    if (extractedData.target_customer_profile) updateData.target_customer_profile = extractedData.target_customer_profile;
-    if (extractedData.recent_acquisitions?.length) updateData.recent_acquisitions = extractedData.recent_acquisitions;
-    if (extractedData.portfolio_companies?.length) updateData.portfolio_companies = extractedData.portfolio_companies;
-
+    // Update buyer record
     const { error: updateError } = await supabase
       .from('remarketing_buyers')
       .update(updateData)
@@ -444,17 +255,23 @@ Extract ALL buyer intelligence using the provided tool. Be thorough - extract ev
       );
     }
 
-    console.log(`Successfully enriched buyer ${buyer.company_name}`);
+    const fieldsUpdated = Object.keys(updateData).length;
+    console.log(`Successfully enriched buyer ${buyer.company_name} with ${fieldsUpdated} fields`);
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
           buyerId,
-          fieldsUpdated: Object.keys(updateData).length,
-          dataCompleteness: updateData.data_completeness,
-          extractedData
-        }
+          fieldsUpdated,
+          dataCompleteness: updateData.data_completeness || 'medium',
+          extractedData,
+          scraped: {
+            platform: !!platformContent,
+            peFirm: !!peFirmContent
+          }
+        },
+        warning: warnings.length > 0 ? warnings.join('; ') : undefined
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -467,3 +284,410 @@ Extract ALL buyer intelligence using the provided tool. Be thorough - extract ev
     );
   }
 });
+
+// ============= Helper Functions =============
+
+async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
+  try {
+    let formattedUrl = url.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: formattedUrl,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        waitFor: 3000,
+      }),
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}` };
+    }
+
+    const data = await response.json();
+    const content = data.data?.markdown || data.markdown || '';
+    
+    if (!content || content.length < 100) {
+      return { success: false, error: 'Insufficient content' };
+    }
+
+    return { success: true, content };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+async function callAI(
+  systemPrompt: string, 
+  userPrompt: string, 
+  tool: any, 
+  apiKey: string
+): Promise<any | null> {
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        tools: [tool],
+        tool_choice: { type: 'function', function: { name: tool.function.name } }
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`AI call failed: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (!toolCall) {
+      console.error('No tool call in AI response');
+      return null;
+    }
+
+    return JSON.parse(toolCall.function.arguments);
+  } catch (error) {
+    console.error('AI extraction error:', error);
+    return null;
+  }
+}
+
+// Prompt 1: Business Overview (Platform)
+async function extractBusinessOverview(content: string, companyName: string, apiKey: string) {
+  const tool = {
+    type: 'function',
+    function: {
+      name: 'extract_business_overview',
+      description: 'Extract business overview from platform company website',
+      parameters: {
+        type: 'object',
+        properties: {
+          services_offered: { type: 'string', description: 'Primary services or products offered' },
+          business_summary: { type: 'string', description: 'Brief summary of what the company does' },
+          business_type: { type: 'string', description: 'Type of business (e.g., Service Provider, Manufacturer)' },
+          revenue_model: { type: 'string', description: 'How the company generates revenue' },
+          industry_vertical: { type: 'string', description: 'Primary industry vertical' },
+          specialized_focus: { type: 'string', description: 'Any specialized focus areas or niches' },
+          pe_firm_name: { type: 'string', description: 'Name of the parent PE firm if mentioned' }
+        }
+      }
+    }
+  };
+
+  const systemPrompt = `You are a business analyst extracting structured data from company websites.
+Extract business overview information from the provided website content.
+Focus on: core services, business model, industry classification, and specialized niches.
+Be concise and factual. If information is not available, omit that field.`;
+
+  const userPrompt = `Website Content for "${companyName}":\n\n${content.substring(0, 12000)}\n\nExtract business overview.`;
+
+  return callAI(systemPrompt, userPrompt, tool, apiKey);
+}
+
+// Prompt 2: Customers/End Market (Platform)
+async function extractCustomersEndMarket(content: string, apiKey: string) {
+  const tool = {
+    type: 'function',
+    function: {
+      name: 'extract_customers_end_market',
+      description: 'Extract customer and end market information',
+      parameters: {
+        type: 'object',
+        properties: {
+          primary_customer_size: { type: 'string', description: 'Primary customer size segment (SMB, Mid-market, Enterprise)' },
+          customer_industries: { type: 'array', items: { type: 'string' }, description: 'Industries served by the company' },
+          customer_geographic_reach: { type: 'string', description: 'Geographic reach of customer base' },
+          target_customer_profile: { type: 'string', description: 'Description of ideal customer profile' }
+        }
+      }
+    }
+  };
+
+  const systemPrompt = `Extract customer and market information from the company website.
+Focus on: types and sizes of customers, industries served, geographic reach.
+Be specific. Use actual industry names, not generic terms.`;
+
+  return callAI(systemPrompt, `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract customer information.`, tool, apiKey);
+}
+
+// Prompt 3: Geography/Footprint (Platform)
+async function extractGeographyFootprint(content: string, apiKey: string) {
+  const tool = {
+    type: 'function',
+    function: {
+      name: 'extract_geography_footprint',
+      description: 'Extract CURRENT geographic locations where company has physical presence',
+      parameters: {
+        type: 'object',
+        properties: {
+          hq_city: { type: 'string', description: 'Headquarters city' },
+          hq_state: { type: 'string', description: 'Headquarters state as 2-letter abbreviation (TX, CA, etc.)' },
+          geographic_footprint: { 
+            type: 'array', 
+            items: { type: 'string' }, 
+            description: 'US 2-letter state codes ONLY where they have physical locations. MUST be valid 2-letter codes.'
+          },
+          service_regions: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'US states where company actively serves customers. Use 2-letter codes ONLY.'
+          }
+        }
+      }
+    }
+  };
+
+  const systemPrompt = `Extract geographic information about where the company CURRENTLY operates.
+
+CRITICAL RULES:
+1. geographic_footprint: ONLY 2-letter state codes where they have physical offices/locations
+2. service_regions: ONLY states they serve FROM their physical locations
+3. DO NOT include aspirational or marketing language about "serving nationwide"
+4. Be conservative - regional companies are NOT national
+5. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`;
+
+  return callAI(systemPrompt, `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence.`, tool, apiKey);
+}
+
+// Prompt 3b: Platform Acquisitions
+async function extractPlatformAcquisitions(content: string, apiKey: string) {
+  const tool = {
+    type: 'function',
+    function: {
+      name: 'extract_platform_acquisitions',
+      description: 'Extract acquisition history for the platform company itself',
+      parameters: {
+        type: 'object',
+        properties: {
+          recent_acquisitions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                company_name: { type: 'string' },
+                date: { type: 'string' },
+                location: { type: 'string' }
+              }
+            },
+            description: 'List of companies acquired by this platform'
+          },
+          total_acquisitions: { type: 'number', description: 'Total number of acquisitions made' },
+          acquisition_frequency: { type: 'string', description: 'How often they acquire' }
+        }
+      }
+    }
+  };
+
+  const systemPrompt = `Extract acquisition history for THIS company (not their PE firm owner).
+Look for press releases, news, or lists of acquired brands. Be specific with dates and locations.`;
+
+  return callAI(systemPrompt, `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract acquisition history.`, tool, apiKey);
+}
+
+// Prompt 4: PE Investment Thesis
+async function extractPEInvestmentThesis(content: string, apiKey: string) {
+  const tool = {
+    type: 'function',
+    function: {
+      name: 'extract_pe_investment_thesis',
+      description: "Extract PE firm's investment thesis and strategy",
+      parameters: {
+        type: 'object',
+        properties: {
+          thesis_summary: { type: 'string', description: 'Summary of investment thesis and focus' },
+          strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities' },
+          thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity' },
+          target_services: { type: 'array', items: { type: 'string' }, description: 'Services/products they seek in targets' },
+          target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries they invest in' },
+          acquisition_appetite: { type: 'string', description: 'How active they are in acquiring' }
+        }
+      }
+    }
+  };
+
+  const systemPrompt = `Extract the PE firm's investment thesis and target criteria.
+Look for: investment focus statements, target sectors, strategic priorities.
+Rate thesis_confidence: High (specific criteria), Medium (general focus), Low (vague info).`;
+
+  return callAI(systemPrompt, `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract investment thesis.`, tool, apiKey);
+}
+
+// Prompt 5: PE Deal Structure
+async function extractPEDealStructure(content: string, apiKey: string) {
+  const tool = {
+    type: 'function',
+    function: {
+      name: 'extract_pe_deal_structure',
+      description: 'Extract deal structure preferences and financial criteria',
+      parameters: {
+        type: 'object',
+        properties: {
+          target_revenue_min: { type: 'number', description: 'Minimum revenue in dollars' },
+          target_revenue_max: { type: 'number', description: 'Maximum revenue in dollars' },
+          revenue_sweet_spot: { type: 'number', description: 'Preferred revenue level in dollars' },
+          target_ebitda_min: { type: 'number', description: 'Minimum EBITDA in dollars' },
+          target_ebitda_max: { type: 'number', description: 'Maximum EBITDA in dollars' },
+          ebitda_sweet_spot: { type: 'number', description: 'Preferred EBITDA level in dollars' },
+          acquisition_timeline: { type: 'string', description: 'Typical timeline from LOI to close' },
+          deal_preferences: { type: 'string', description: 'Preferred deal structures or terms' }
+        }
+      }
+    }
+  };
+
+  const systemPrompt = `Extract deal structure preferences and financial criteria from PE firm website.
+Look for: revenue and EBITDA ranges, deal timelines, structure preferences.
+Convert financial figures to actual numbers (e.g., "$5M" -> 5000000).`;
+
+  return callAI(systemPrompt, `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract deal structure preferences.`, tool, apiKey);
+}
+
+// Prompt 6: PE Portfolio
+async function extractPEPortfolio(content: string, apiKey: string) {
+  const tool = {
+    type: 'function',
+    function: {
+      name: 'extract_pe_portfolio',
+      description: 'Extract PE firm portfolio information',
+      parameters: {
+        type: 'object',
+        properties: {
+          portfolio_companies: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                website: { type: 'string' },
+                locations: { type: 'array', items: { type: 'string' } }
+              }
+            },
+            description: 'Portfolio companies'
+          },
+          num_platforms: { type: 'number', description: 'Number of platform companies' }
+        }
+      }
+    }
+  };
+
+  const systemPrompt = `Extract portfolio information about the PE firm's current investments.
+Look for: lists of portfolio companies, number of platforms. Only include confirmed companies.`;
+
+  return callAI(systemPrompt, `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract portfolio.`, tool, apiKey);
+}
+
+// Intelligent merge logic
+function buildUpdateObject(
+  buyer: any,
+  extractedData: Record<string, any>,
+  hasTranscriptSource: boolean,
+  existingSources: any[],
+  evidenceRecords: any[]
+): Record<string, any> {
+  const updateData: Record<string, any> = {
+    data_last_updated: new Date().toISOString(),
+    extraction_sources: [...existingSources, ...evidenceRecords]
+  };
+
+  // Calculate data completeness
+  const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state'];
+  const filledFields = keyFields.filter(f => extractedData[f] || buyer[f]);
+  updateData.data_completeness = filledFields.length >= 4 ? 'high' : filledFields.length >= 2 ? 'medium' : 'low';
+
+  for (const field of Object.keys(extractedData)) {
+    const newValue = extractedData[field];
+    const existingValue = buyer[field];
+
+    // Skip null/undefined values
+    if (newValue === undefined || newValue === null) continue;
+
+    // Skip fields that should NEVER come from website
+    if (NEVER_UPDATE_FROM_WEBSITE.includes(field)) {
+      console.log(`Skipping ${field}: never update from website`);
+      continue;
+    }
+
+    // Check transcript protection
+    if (hasTranscriptSource && TRANSCRIPT_PROTECTED_FIELDS.includes(field)) {
+      const hasExistingData = existingValue !== null && 
+                              existingValue !== undefined &&
+                              (typeof existingValue !== 'string' || existingValue.trim() !== '') &&
+                              (!Array.isArray(existingValue) || existingValue.length > 0);
+      
+      if (hasExistingData) {
+        console.log(`Skipping ${field}: protected by transcript data`);
+        continue;
+      }
+    }
+
+    // Handle strings
+    if (typeof newValue === 'string') {
+      const normalized = newValue.trim();
+      
+      // Skip placeholders
+      if (!normalized || PLACEHOLDER_STRINGS.has(normalized.toLowerCase())) continue;
+      
+      // Only update if empty OR new is longer/better
+      if (!existingValue || normalized.length > (existingValue?.length || 0)) {
+        updateData[field] = normalized;
+      }
+      continue;
+    }
+
+    // Handle arrays
+    if (Array.isArray(newValue)) {
+      const normalized = newValue
+        .filter(v => v && typeof v === 'string')
+        .map(v => v.trim())
+        .filter(v => v && !PLACEHOLDER_STRINGS.has(v.toLowerCase()));
+      
+      // De-duplicate
+      const unique = [...new Set(normalized.map(v => v.toLowerCase()))].map(
+        lower => normalized.find(v => v.toLowerCase() === lower)
+      ).filter(Boolean);
+      
+      if (unique.length === 0) continue;
+      
+      // Only update if empty OR new has more items
+      if (!existingValue || !Array.isArray(existingValue) || unique.length > existingValue.length) {
+        updateData[field] = unique;
+      }
+      continue;
+    }
+
+    // Handle numbers
+    if (typeof newValue === 'number') {
+      if (existingValue === null || existingValue === undefined) {
+        updateData[field] = newValue;
+      }
+      continue;
+    }
+
+    // Handle objects (like recent_acquisitions, portfolio_companies)
+    if (typeof newValue === 'object' && !Array.isArray(newValue)) {
+      if (!existingValue) {
+        updateData[field] = newValue;
+      }
+      continue;
+    }
+  }
+
+  return updateData;
+}
