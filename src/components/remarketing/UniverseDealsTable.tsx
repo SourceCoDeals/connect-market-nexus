@@ -44,6 +44,7 @@ interface UniverseDeal {
   listing: {
     id: string;
     title: string;
+    internal_company_name?: string;
     location?: string;
     revenue?: number;
     ebitda?: number;
@@ -158,7 +159,7 @@ export const UniverseDealsTable = ({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-foreground truncate">
-                            {deal.listing.title || 'Untitled Deal'}
+                            {deal.listing.internal_company_name || deal.listing.title || 'Untitled Deal'}
                           </span>
                           {deal.listing.enriched_at && (
                             <Badge variant="secondary" className="text-xs px-1.5">
