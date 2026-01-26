@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,22 +12,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { 
-  StructuredCriteriaPanel, 
   DocumentUploadSection,
   MAGuideEditor,
   UniverseTemplates,
-  ScoringBehaviorPanelEnhanced,
   BuyerTableEnhanced,
   UniverseDealsTable,
   TargetBuyerTypesPanel,
-  IndustryKPIPanel,
   BuyerTableToolbar,
   AddDealToUniverseDialog,
   DealCSVImport,
   BuyerFitCriteriaDialog,
-  TrackerNotesSection,
   AIResearchSection,
-  CriteriaValidationAlert
+  ScoringStyleCard,
+  MatchCriteriaCard,
+  StructuredCriteriaPanel
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -49,12 +47,9 @@ import {
   Sparkles,
   Loader2,
   BookOpen,
-  LayoutTemplate,
   Briefcase,
   ChevronDown,
   ChevronUp,
-  Clock,
-  Pencil,
   TrendingUp,
   Upload
 } from "lucide-react";
@@ -76,6 +71,7 @@ const ReMarketingUniverseDetail = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNew = id === 'new';
+  const aiResearchRef = useRef<{ scrollIntoView: () => void }>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -100,9 +96,6 @@ const ReMarketingUniverseDetail = () => {
   const [documents, setDocuments] = useState<DocumentReference[]>([]);
   const [maGuideContent, setMaGuideContent] = useState("");
   const [targetBuyerTypes, setTargetBuyerTypes] = useState<TargetBuyerTypeConfig[]>(DEFAULT_BUYER_TYPES);
-  const [industryKPIs, setIndustryKPIs] = useState<{ id: string; name: string; weight: number; threshold_min?: number; threshold_max?: number; unit?: string; description?: string }[]>([]);
-  const [isParsing, setIsParsing] = useState(false);
-  const [buyerFitOpen, setBuyerFitOpen] = useState(false);
   const [buyerSearch, setBuyerSearch] = useState("");
   const [addDealDialogOpen, setAddDealDialogOpen] = useState(false);
   const [addDealDefaultTab, setAddDealDefaultTab] = useState<'existing' | 'new'>('existing');
@@ -110,6 +103,10 @@ const ReMarketingUniverseDetail = () => {
   const [isScoringAllDeals, setIsScoringAllDeals] = useState(false);
   const [isEnrichingAllDeals, setIsEnrichingAllDeals] = useState(false);
   const [showCriteriaEdit, setShowCriteriaEdit] = useState(false);
+  const [buyerProfilesOpen, setBuyerProfilesOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [showAIResearch, setShowAIResearch] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
 
   // Fetch universe if editing
   const { data: universe, isLoading } = useQuery({
@@ -434,183 +431,29 @@ const ReMarketingUniverseDetail = () => {
         <UniverseTemplates onApplyTemplate={handleApplyTemplate} />
       )}
 
-      {/* Scoring Behavior Accordion */}
+      {/* SECTION 1: Industry & Scoring Style */}
       {!isNew && (
-        <ScoringBehaviorPanelEnhanced
+        <ScoringStyleCard
           scoringBehavior={scoringBehavior}
-          weights={{
-            geography: formData.geography_weight,
-            size: formData.size_weight,
-            service: formData.service_weight,
-            ownerGoals: formData.owner_goals_weight,
-          }}
           onScoringBehaviorChange={setScoringBehavior}
-          onWeightsChange={(weights) => setFormData(prev => ({
-            ...prev,
-            geography_weight: weights.geography,
-            size_weight: weights.size,
-            service_weight: weights.service,
-            owner_goals_weight: weights.ownerGoals,
-          }))}
+          onStartAIResearch={() => setShowAIResearch(true)}
           onSave={() => saveMutation.mutate()}
-          readOnly={false}
+          isSaving={saveMutation.isPending}
         />
       )}
 
-      {/* Buyer Fit Criteria Accordion */}
+      {/* SECTION 2: Match Criteria */}
       {!isNew && (
-        <Collapsible open={buyerFitOpen} onOpenChange={setBuyerFitOpen}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base font-semibold">Buyer Fit Criteria</CardTitle>
-                    <Badge variant="secondary" className="ml-2">
-                      {targetBuyerTypes.filter(t => t.enabled).length} types
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowCriteriaEdit(true);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    {buyerFitOpen ? (
-                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            
-            <CollapsibleContent>
-              <CardContent className="pt-0 space-y-6">
-                {/* Target Buyer Types */}
-                <TargetBuyerTypesPanel
-                  buyerTypes={targetBuyerTypes}
-                  onBuyerTypesChange={setTargetBuyerTypes}
-                />
-
-                {/* Additional Criteria Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Size Criteria Card */}
-                  <Card className="bg-muted/30">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Size Criteria</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Revenue:</span>
-                        <span>{sizeCriteria.revenue_min ? `$${(sizeCriteria.revenue_min/1000000).toFixed(1)}M` : '-'} - {sizeCriteria.revenue_max ? `$${(sizeCriteria.revenue_max/1000000).toFixed(1)}M` : '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">EBITDA:</span>
-                        <span>{sizeCriteria.ebitda_min ? `$${(sizeCriteria.ebitda_min/1000000).toFixed(1)}M` : '-'} - {sizeCriteria.ebitda_max ? `$${(sizeCriteria.ebitda_max/1000000).toFixed(1)}M` : '-'}</span>
-                      </div>
-                      {sizeCriteria.locations_min !== undefined && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Locations:</span>
-                          <span>{sizeCriteria.locations_min} - {sizeCriteria.locations_max || '∞'}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Service Criteria Card */}
-                  <Card className="bg-muted/30">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Service / Product Mix</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-2">
-                      {serviceCriteria.required_services && serviceCriteria.required_services.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {serviceCriteria.required_services.slice(0, 3).map((s, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">{s}</Badge>
-                          ))}
-                          {serviceCriteria.required_services.length > 3 && (
-                            <Badge variant="outline" className="text-xs">+{serviceCriteria.required_services.length - 3}</Badge>
-                          )}
-                        </div>
-                      )}
-                      {serviceCriteria.excluded_services && serviceCriteria.excluded_services.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {serviceCriteria.excluded_services.slice(0, 2).map((s, i) => (
-                            <Badge key={i} variant="destructive" className="text-xs">{s}</Badge>
-                          ))}
-                        </div>
-                      )}
-                      {serviceCriteria.business_model && (
-                        <div className="text-xs text-muted-foreground">Model: {serviceCriteria.business_model}</div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Geography Criteria Card */}
-                  <Card className="bg-muted/30">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Geography</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-2">
-                      {geographyCriteria.target_regions && geographyCriteria.target_regions.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {geographyCriteria.target_regions.map((r, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">{r}</Badge>
-                          ))}
-                        </div>
-                      )}
-                      {geographyCriteria.coverage && (
-                        <div className="text-xs text-muted-foreground capitalize">Coverage: {geographyCriteria.coverage}</div>
-                      )}
-                      {geographyCriteria.hq_requirements && (
-                        <div className="text-xs text-muted-foreground line-clamp-2">{geographyCriteria.hq_requirements}</div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-      )}
-
-      {/* Criteria Validation Alert */}
-      {!isNew && (
-        <CriteriaValidationAlert
+        <MatchCriteriaCard
           sizeCriteria={sizeCriteria}
           geographyCriteria={geographyCriteria}
           serviceCriteria={serviceCriteria}
-          buyerTypesCriteria={buyerTypesCriteria}
-          scoringBehavior={scoringBehavior}
+          onEdit={() => setShowCriteriaEdit(true)}
         />
       )}
 
-      {/* Quick Import from Notes */}
-      {!isNew && id && (
-        <TrackerNotesSection
-          universeName={formData.name}
-          onApplyCriteria={(criteria) => {
-            if (criteria.size_criteria) setSizeCriteria(prev => ({ ...prev, ...criteria.size_criteria }));
-            if (criteria.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...criteria.geography_criteria }));
-            if (criteria.service_criteria) setServiceCriteria(prev => ({ ...prev, ...criteria.service_criteria }));
-            if (criteria.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...criteria.buyer_types_criteria }));
-            if (criteria.scoring_behavior) setScoringBehavior(prev => ({ ...prev, ...criteria.scoring_behavior }));
-            toast.success('Criteria extracted and applied');
-          }}
-        />
-      )}
-
-      {/* AI Research M&A Guide Generation */}
-      {!isNew && id && (
+      {/* SECTION 3: AI Research (shown when triggered) */}
+      {!isNew && id && showAIResearch && (
         <AIResearchSection
           universeName={formData.name}
           existingContent={maGuideContent}
@@ -631,21 +474,71 @@ const ReMarketingUniverseDetail = () => {
         />
       )}
 
-      {/* Supporting Documents */}
-      {!isNew && id && (
-        <DocumentUploadSection
-          universeId={id}
-          documents={documents}
-          onDocumentsChange={setDocuments}
-        />
+      {/* COLLAPSIBLE: Target Buyer Profiles */}
+      {!isNew && (
+        <Collapsible open={buyerProfilesOpen} onOpenChange={setBuyerProfilesOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-sm font-medium">Target Buyer Profiles</CardTitle>
+                    <Badge variant="secondary" className="text-xs">
+                      {targetBuyerTypes.filter(t => t.enabled).length} types
+                    </Badge>
+                  </div>
+                  {buyerProfilesOpen ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <TargetBuyerTypesPanel
+                  buyerTypes={targetBuyerTypes}
+                  onBuyerTypesChange={setTargetBuyerTypes}
+                />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
 
-      {/* Industry KPI */}
+      {/* COLLAPSIBLE: Supporting Documents */}
       {!isNew && id && (
-        <IndustryKPIPanel 
-          kpis={industryKPIs}
-          onKPIsChange={setIndustryKPIs}
-        />
+        <Collapsible open={documentsOpen} onOpenChange={setDocumentsOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-sm font-medium">Supporting Documents</CardTitle>
+                    <Badge variant="secondary" className="text-xs">
+                      {documents.length} files
+                    </Badge>
+                  </div>
+                  {documentsOpen ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <DocumentUploadSection
+                  universeId={id}
+                  documents={documents}
+                  onDocumentsChange={setDocuments}
+                />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
 
       {/* Buyers/Deals Tabs */}
