@@ -474,38 +474,7 @@ const ReMarketingUniverseDetail = () => {
         />
       )}
 
-      {/* COLLAPSIBLE: Target Buyer Profiles */}
-      {!isNew && (
-        <Collapsible open={buyerProfilesOpen} onOpenChange={setBuyerProfilesOpen}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-sm font-medium">Target Buyer Profiles</CardTitle>
-                    <Badge variant="secondary" className="text-xs">
-                      {targetBuyerTypes.filter(t => t.enabled).length} types
-                    </Badge>
-                  </div>
-                  {buyerProfilesOpen ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0">
-                <TargetBuyerTypesPanel
-                  buyerTypes={targetBuyerTypes}
-                  onBuyerTypesChange={setTargetBuyerTypes}
-                />
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-      )}
+      {/* Target Buyer Profiles - Hidden until wired into scoring engine */}
 
       {/* COLLAPSIBLE: Supporting Documents */}
       {!isNew && id && (
