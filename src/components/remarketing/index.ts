@@ -27,11 +27,12 @@ export { ScoringBehaviorPanel } from './ScoringBehaviorPanel';
 export { ScoringBehaviorPanelEnhanced } from './ScoringBehaviorPanelEnhanced';
 export { ScoringInsightsPanel } from './ScoringInsightsPanel';
 export { TargetBuyerTypesPanel } from './TargetBuyerTypesPanel';
-export { IndustryKPIPanel } from './IndustryKPIPanel';
 export { AdditionalCriteriaDisplay } from './AdditionalCriteriaDisplay';
 export { BuyerFitCriteriaAccordion } from './BuyerFitCriteriaAccordion';
 export { BuyerFitCriteriaDialog } from './BuyerFitCriteriaDialog';
 export { BuyerTableToolbar } from './BuyerTableToolbar';
+export { ScoringStyleCard } from './ScoringStyleCard';
+export { MatchCriteriaCard } from './MatchCriteriaCard';
 // Match Card Components
 export { BuyerMatchCard } from './BuyerMatchCard';
 
