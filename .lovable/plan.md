@@ -228,3 +228,93 @@ Added size multiplier percentage to fit_reasoning when <100%
 ## Files Modified
 1. `supabase/functions/score-buyer-deal/index.ts`
 2. `src/components/remarketing/ScoreTierBadge.tsx`
+
+---
+
+# CTO Audit: Contact Management System
+
+## Audit Date: 2026-01-27
+## Reference: `2_CONTACT_MANAGEMENT.md`
+
+## Summary
+Audited contact management system against spec. Schema foundation created; contact discovery edge function deferred per user request.
+
+## Gap Analysis
+
+| Spec Requirement | Status | Notes |
+|-----------------|--------|-------|
+| 3-tier hierarchy (PE Firm → Platform → Contacts) | ✅ IMPLEMENTED | Created `pe_firm_contacts` + `platform_contacts` tables |
+| `find-buyer-contacts` edge function | 🔜 DEFERRED | Spec documented for future implementation |
+| URL Scoring Algorithm | 🔜 DEFERRED | Detects team pages vs individual profiles |
+| Email Pattern Detection | ✅ SCHEMA READY | `detected_email_pattern` column added |
+| Email Inference (first.last, flast) | 🔜 DEFERRED | Schema supports confidence levels |
+| Priority Assignment (1-5) | ✅ IMPLEMENTED | CHECK constraints on both tables |
+| Role Categories | ✅ IMPLEMENTED | Separate enums per table type |
+| Deduplication Logic | 🔜 DEFERRED | Will use email/LinkedIn/fuzzy name matching |
+| Firecrawl Integration | ✅ READY | Exists in `enrich-buyer`, reusable |
+
+## Database Schema Created
+
+### `pe_firm_contacts` table
+```sql
+role_category IN ('partner', 'principal', 'director', 'vp', 'associate', 'analyst', 'operating_partner', 'other')
+priority_level 1-5 (Partner=1, Analyst=4)
+email_confidence IN ('Verified', 'Likely', 'Guessed')
+```
+
+### `platform_contacts` table
+```sql
+role_category IN ('ceo', 'cfo', 'coo', 'president', 'vp', 'director', 'manager', 'corp_dev', 'business_dev', 'other')
+priority_level 1-5 (C-suite=1, Manager=4)
+```
+
+### `remarketing_buyers` enhancements
+```sql
+detected_email_pattern TEXT  -- 'firstlast', 'first.last', 'first_last', 'flast'
+email_domain TEXT
+last_contact_discovery_at TIMESTAMPTZ
+contact_discovery_status TEXT  -- 'pending', 'in_progress', 'completed', 'failed', 'no_contacts'
+```
+
+## Future Implementation Reference
+
+### URL Scoring Algorithm (from spec)
+```typescript
+const POSITIVE_KEYWORDS = ['team', 'leadership', 'executive', 'management', 'people', 'board'];
+const NEGATIVE_KEYWORDS = ['careers', 'jobs', 'hiring', 'news', 'blog', 'contact'];
+const PROFILE_PARENT_KEYWORDS = ['team', 'team-members', 'people', 'leadership'];
+
+// /team = +45 points
+// /team/john-doe = -30 points (INDIVIDUAL PROFILE PENALTY)
+// /careers = -20 points
+```
+
+### Email Pattern Inference (from spec)
+```typescript
+function detectEmailPattern(contacts, domain): Pattern {
+  // Analyze known emails to detect: firstlast, first.last, first_last, flast
+  // Confidence: 2+ matches = 'Verified', 1 match = 'Likely', 0 = 'Guessed'
+}
+
+function inferEmail(contact, pattern): { email, confidence } {
+  // Apply detected pattern to contacts without emails
+}
+```
+
+### Priority Assignment (from spec)
+```typescript
+// PE Firm: Partner=1, Principal/VP=2, Associate=3, Analyst=4, Other=5
+// Platform: C-suite=1, CorpDev/BizDev=2, VP=3, Director/Manager=4, Other=5
+```
+
+## Files Modified
+1. Database migration created:
+   - `pe_firm_contacts` table with indexes and RLS
+   - `platform_contacts` table with indexes and RLS
+   - `remarketing_buyers` enhanced with discovery metadata
+
+## Testing Checklist
+- [x] Verify new tables created in Supabase
+- [ ] Update UI to use new contact tables (when ready)
+- [ ] Create `find-buyer-contacts` edge function (when ready)
+- [ ] Implement email pattern detection (when ready)
