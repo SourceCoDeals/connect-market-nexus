@@ -99,6 +99,9 @@ interface DuplicateWarning {
 interface BuyerCSVImportProps {
   universeId?: string;
   onComplete?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 // Normalize domain for comparison
@@ -112,8 +115,19 @@ function normalizeDomain(url: string): string {
   return normalized;
 }
 
-export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, onOpenChange, hideTrigger = false }: BuyerCSVImportProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use controlled or uncontrolled mode
+  const isControlled = controlledOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalOpen;
+  const setIsOpen = (value: boolean) => {
+    if (isControlled && onOpenChange) {
+      onOpenChange(value);
+    } else {
+      setInternalOpen(value);
+    }
+  };
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'dedupe' | 'importing' | 'enriching'>('upload');
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -556,10 +570,12 @@ export const BuyerCSVImport = ({ universeId, onComplete }: BuyerCSVImportProps) 
 
   return (
     <>
-      <Button variant="outline" onClick={() => setIsOpen(true)}>
-        <Upload className="mr-2 h-4 w-4" />
-        Import CSV
-      </Button>
+      {!hideTrigger && (
+        <Button variant="outline" onClick={() => setIsOpen(true)}>
+          <Upload className="mr-2 h-4 w-4" />
+          Import CSV
+        </Button>
+      )}
 
       <Dialog open={isOpen} onOpenChange={(open) => {
         setIsOpen(open);
