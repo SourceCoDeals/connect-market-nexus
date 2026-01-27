@@ -607,98 +607,226 @@ serve(async (req) => {
       });
     }
 
-    const { buyerId, transcriptText, source = 'call' } = await req.json();
+    const { buyerId, listingId, transcriptText, source = 'call' } = await req.json();
 
-    if (!buyerId || !transcriptText) {
-      return new Response(JSON.stringify({ error: 'buyerId and transcriptText are required' }), {
+    // Validate: must have exactly one of buyerId or listingId
+    if ((!buyerId && !listingId) || (buyerId && listingId)) {
+      return new Response(JSON.stringify({ 
+        error: 'Exactly one of buyerId or listingId is required' 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Extracting intelligence from transcript for buyer ${buyerId}`);
-    console.log(`Transcript length: ${transcriptText.length} chars`);
-
-    // Fetch current buyer data
-    const { data: buyer, error: buyerError } = await supabase
-      .from('remarketing_buyers')
-      .select('*')
-      .eq('id', buyerId)
-      .single();
-
-    if (buyerError || !buyer) {
-      return new Response(JSON.stringify({ error: 'Buyer not found' }), {
-        status: 404,
+    if (!transcriptText) {
+      return new Response(JSON.stringify({ error: 'transcriptText is required' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Run 4-prompt buyer extraction
-    const { data: extractedData, billingError } = await extractBuyerData(
-      transcriptText, 
-      buyer, 
-      lovableApiKey
-    );
+    // ========== BUYER TRANSCRIPT EXTRACTION ==========
+    if (buyerId) {
+      console.log(`Extracting intelligence from transcript for buyer ${buyerId}`);
+      console.log(`Transcript length: ${transcriptText.length} chars`);
 
-    console.log('Extracted data:', JSON.stringify(extractedData, null, 2));
-
-    // Handle billing errors
-    if (billingError) {
-      const statusCode = billingError.code === 'payment_required' ? 402 : 429;
-      return new Response(JSON.stringify({
-        success: false,
-        error: billingError.message,
-        error_code: billingError.code,
-        partial_data: extractedData,
-        recoverable: billingError.code === 'rate_limited'
-      }), {
-        status: statusCode,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Store the transcript with extracted data
-    const { data: transcript, error: insertError } = await supabase
-      .from('buyer_transcripts')
-      .insert({
-        buyer_id: buyerId,
-        transcript_text: transcriptText,
-        source,
-        extracted_data: extractedData,
-        processed_at: new Date().toISOString(),
-        created_by: user.id,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('Error storing transcript:', insertError);
-      throw insertError;
-    }
-
-    // Build and apply buyer update
-    const buyerUpdate = buildBuyerUpdate(buyer, extractedData);
-
-    if (Object.keys(buyerUpdate).length > 1) {
-      const { error: updateError } = await supabase
+      // Fetch current buyer data
+      const { data: buyer, error: buyerError } = await supabase
         .from('remarketing_buyers')
-        .update(buyerUpdate)
-        .eq('id', buyerId);
+        .select('*')
+        .eq('id', buyerId)
+        .single();
 
-      if (updateError) {
-        console.error('Error updating buyer:', updateError);
+      if (buyerError || !buyer) {
+        return new Response(JSON.stringify({ error: 'Buyer not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
+
+      // Run 4-prompt buyer extraction
+      const { data: extractedData, billingError } = await extractBuyerData(
+        transcriptText, 
+        buyer, 
+        lovableApiKey
+      );
+
+      console.log('Extracted buyer data:', JSON.stringify(extractedData, null, 2));
+
+      // Handle billing errors
+      if (billingError) {
+        const statusCode = billingError.code === 'payment_required' ? 402 : 429;
+        return new Response(JSON.stringify({
+          success: false,
+          error: billingError.message,
+          error_code: billingError.code,
+          partial_data: extractedData,
+          recoverable: billingError.code === 'rate_limited'
+        }), {
+          status: statusCode,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Store the transcript with extracted data
+      const { data: transcript, error: insertError } = await supabase
+        .from('buyer_transcripts')
+        .insert({
+          buyer_id: buyerId,
+          transcript_text: transcriptText,
+          source,
+          extracted_data: extractedData,
+          processed_at: new Date().toISOString(),
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error storing transcript:', insertError);
+        throw insertError;
+      }
+
+      // Build and apply buyer update
+      const buyerUpdate = buildBuyerUpdate(buyer, extractedData);
+
+      if (Object.keys(buyerUpdate).length > 1) {
+        const { error: updateError } = await supabase
+          .from('remarketing_buyers')
+          .update(buyerUpdate)
+          .eq('id', buyerId);
+
+        if (updateError) {
+          console.error('Error updating buyer:', updateError);
+        }
+      }
+
+      const fieldsUpdated = Object.keys(buyerUpdate).filter(k => k !== 'data_last_updated' && k !== 'extraction_sources');
+      console.log(`Successfully processed transcript for buyer ${buyerId}. Fields updated: ${fieldsUpdated.length}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        entityType: 'buyer',
+        transcriptId: transcript.id,
+        extractedData,
+        fieldsUpdated,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const fieldsUpdated = Object.keys(buyerUpdate).filter(k => k !== 'data_last_updated' && k !== 'extraction_sources');
-    console.log(`Successfully processed transcript for buyer ${buyerId}. Fields updated: ${fieldsUpdated.length}`);
+    // ========== DEAL TRANSCRIPT EXTRACTION ==========
+    if (listingId) {
+      console.log(`Extracting intelligence from transcript for deal ${listingId}`);
+      console.log(`Transcript length: ${transcriptText.length} chars`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      transcriptId: transcript.id,
-      extractedData,
-      fieldsUpdated,
-    }), {
+      // Fetch current listing data
+      const { data: listing, error: listingError } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', listingId)
+        .single();
+
+      if (listingError || !listing) {
+        return new Response(JSON.stringify({ error: 'Listing not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Run 4-prompt deal extraction
+      const { data: extractedData, billingError } = await extractDealData(
+        transcriptText, 
+        listing, 
+        lovableApiKey
+      );
+
+      console.log('Extracted deal data:', JSON.stringify(extractedData, null, 2));
+
+      // Handle billing errors
+      if (billingError) {
+        const statusCode = billingError.code === 'payment_required' ? 402 : 429;
+        return new Response(JSON.stringify({
+          success: false,
+          error: billingError.message,
+          error_code: billingError.code,
+          partial_data: extractedData,
+          recoverable: billingError.code === 'rate_limited'
+        }), {
+          status: statusCode,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Store the transcript with extracted data
+      const { data: transcript, error: insertError } = await supabase
+        .from('deal_transcripts')
+        .insert({
+          listing_id: listingId,
+          transcript_text: transcriptText,
+          source,
+          extracted_data: extractedData,
+          processed_at: new Date().toISOString(),
+          created_by: user.id,
+          applied_to_deal: true,
+          applied_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error storing deal transcript:', insertError);
+        throw insertError;
+      }
+
+      // Build and apply listing update
+      const dealUpdate = buildDealUpdate(listing, extractedData);
+      
+      // Add extraction source tracking
+      const existingSources = listing.extraction_sources || [];
+      dealUpdate.extraction_sources = [
+        ...(Array.isArray(existingSources) ? existingSources : []),
+        {
+          type: 'transcript',
+          extracted_at: new Date().toISOString(),
+          fields_extracted: Object.keys(dealUpdate).filter(k => 
+            k !== 'data_last_updated' && k !== 'extraction_sources'
+          ),
+          transcript_id: transcript.id
+        }
+      ];
+
+      if (Object.keys(dealUpdate).length > 1) {
+        const { error: updateError } = await supabase
+          .from('listings')
+          .update(dealUpdate)
+          .eq('id', listingId);
+
+        if (updateError) {
+          console.error('Error updating listing:', updateError);
+        }
+      }
+
+      const fieldsUpdated = Object.keys(dealUpdate).filter(k => 
+        k !== 'data_last_updated' && k !== 'extraction_sources'
+      );
+      console.log(`Successfully processed transcript for deal ${listingId}. Fields updated: ${fieldsUpdated.length}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        entityType: 'deal',
+        transcriptId: transcript.id,
+        extractedData,
+        fieldsUpdated,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Fallback (shouldn't reach here)
+    return new Response(JSON.stringify({ error: 'Invalid request' }), {
+      status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
