@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
 
 // Default buyer types configuration (industry-agnostic, will be replaced by AI Research)
 const DEFAULT_BUYER_TYPES: TargetBuyerTypeConfig[] = [
@@ -109,8 +110,15 @@ const ReMarketingUniverseDetail = () => {
   const [showAIResearch, setShowAIResearch] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
-  const [isEnrichingAllBuyers, setIsEnrichingAllBuyers] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
+
+  // Use the enrichment hook for proper batch processing with progress tracking
+  const { 
+    progress: enrichmentProgress, 
+    enrichBuyers, 
+    cancel: cancelEnrichment, 
+    reset: resetEnrichment 
+  } = useBuyerEnrichment(id);
 
   // Fetch universe if editing
   const { data: universe, isLoading } = useQuery({
@@ -543,77 +551,16 @@ const ReMarketingUniverseDetail = () => {
                       return;
                     }
                     
-                    const buyersWithWebsites = buyers.filter(b => b.company_website);
-                    if (buyersWithWebsites.length === 0) {
-                      toast.error('No buyers have websites to enrich');
-                      return;
-                    }
+                    // Reset any previous enrichment state
+                    resetEnrichment();
                     
-                    setIsEnrichingAllBuyers(true);
-                    let enriched = 0;
-                    let creditsDepleted = false;
-                    const BATCH_SIZE = 5;
-                    
-                    try {
-                      for (let i = 0; i < buyersWithWebsites.length; i += BATCH_SIZE) {
-                        if (creditsDepleted) break;
-                        
-                        const batch = buyersWithWebsites.slice(i, i + BATCH_SIZE);
-                        
-                        const results = await Promise.allSettled(
-                          batch.map(async (buyer) => {
-                            const { data, error } = await supabase.functions.invoke('enrich-buyer', {
-                              body: { buyerId: buyer.id }
-                            });
-                            if (error) throw error;
-                            if (data && !data.success) {
-                              const errorObj = new Error(data.error || 'Enrichment failed');
-                              (errorObj as any).errorCode = data.error_code;
-                              throw errorObj;
-                            }
-                            return data;
-                          })
-                        );
-                        
-                        for (const result of results) {
-                          if (result.status === 'fulfilled') {
-                            enriched++;
-                          } else {
-                            const errorCode = (result.reason as any)?.errorCode;
-                            const errorMessage = result.reason?.message || '';
-                            if (
-                              errorCode === 'payment_required' ||
-                              errorMessage.includes('402') ||
-                              errorMessage.includes('credits')
-                            ) {
-                              creditsDepleted = true;
-                              toast.error(
-                                'AI credits depleted. Add credits in Settings → Workspace → Usage.',
-                                { duration: 10000 }
-                              );
-                              break;
-                            }
-                          }
-                        }
-                        
-                        // Delay between batches
-                        if (i + BATCH_SIZE < buyersWithWebsites.length && !creditsDepleted) {
-                          await new Promise(r => setTimeout(r, 1000));
-                        }
-                      }
-                      
-                      if (creditsDepleted) {
-                        toast.warning(`Enrichment stopped. ${enriched} buyers enriched.`);
-                      } else {
-                        toast.success(`Enriched ${enriched} buyers`);
-                      }
-                      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
-                    } catch (error) {
-                      toast.error('Failed to enrich buyers');
-                    } finally {
-                      setIsEnrichingAllBuyers(false);
-                    }
+                    // Use the hook which handles batching, 402 errors, and progress
+                    await enrichBuyers(buyers.map(b => ({
+                      id: b.id,
+                      company_website: b.company_website
+                    })));
                   }}
+                  onCancelEnrichment={cancelEnrichment}
                   onDedupe={async () => {
                     if (!buyers?.length || buyers.length < 2) {
                       toast.error('Need at least 2 buyers to dedupe');
@@ -633,8 +580,15 @@ const ReMarketingUniverseDetail = () => {
                       setIsDeduping(false);
                     }
                   }}
-                  isEnriching={isEnrichingAllBuyers}
+                  isEnriching={enrichmentProgress.isRunning}
                   isDeduping={isDeduping}
+                  enrichmentProgress={{
+                    current: enrichmentProgress.current,
+                    total: enrichmentProgress.total,
+                    successful: enrichmentProgress.successful,
+                    failed: enrichmentProgress.failed,
+                    creditsDepleted: enrichmentProgress.creditsDepleted
+                  }}
                 />
               </CardHeader>
               <CardContent className="p-0">
