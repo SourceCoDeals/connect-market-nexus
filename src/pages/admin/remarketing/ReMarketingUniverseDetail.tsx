@@ -542,18 +542,71 @@ const ReMarketingUniverseDetail = () => {
                       toast.error('No buyers to enrich');
                       return;
                     }
+                    
+                    const buyersWithWebsites = buyers.filter(b => b.company_website);
+                    if (buyersWithWebsites.length === 0) {
+                      toast.error('No buyers have websites to enrich');
+                      return;
+                    }
+                    
                     setIsEnrichingAllBuyers(true);
+                    let enriched = 0;
+                    let creditsDepleted = false;
+                    const BATCH_SIZE = 5;
+                    
                     try {
-                      let enriched = 0;
-                      for (const buyer of buyers) {
-                        if (buyer.company_website) {
-                          await supabase.functions.invoke('enrich-buyer', {
-                            body: { buyerId: buyer.id }
-                          });
-                          enriched++;
+                      for (let i = 0; i < buyersWithWebsites.length; i += BATCH_SIZE) {
+                        if (creditsDepleted) break;
+                        
+                        const batch = buyersWithWebsites.slice(i, i + BATCH_SIZE);
+                        
+                        const results = await Promise.allSettled(
+                          batch.map(async (buyer) => {
+                            const { data, error } = await supabase.functions.invoke('enrich-buyer', {
+                              body: { buyerId: buyer.id }
+                            });
+                            if (error) throw error;
+                            if (data && !data.success) {
+                              const errorObj = new Error(data.error || 'Enrichment failed');
+                              (errorObj as any).errorCode = data.error_code;
+                              throw errorObj;
+                            }
+                            return data;
+                          })
+                        );
+                        
+                        for (const result of results) {
+                          if (result.status === 'fulfilled') {
+                            enriched++;
+                          } else {
+                            const errorCode = (result.reason as any)?.errorCode;
+                            const errorMessage = result.reason?.message || '';
+                            if (
+                              errorCode === 'payment_required' ||
+                              errorMessage.includes('402') ||
+                              errorMessage.includes('credits')
+                            ) {
+                              creditsDepleted = true;
+                              toast.error(
+                                'AI credits depleted. Add credits in Settings → Workspace → Usage.',
+                                { duration: 10000 }
+                              );
+                              break;
+                            }
+                          }
+                        }
+                        
+                        // Delay between batches
+                        if (i + BATCH_SIZE < buyersWithWebsites.length && !creditsDepleted) {
+                          await new Promise(r => setTimeout(r, 1000));
                         }
                       }
-                      toast.success(`Enriched ${enriched} buyers`);
+                      
+                      if (creditsDepleted) {
+                        toast.warning(`Enrichment stopped. ${enriched} buyers enriched.`);
+                      } else {
+                        toast.success(`Enriched ${enriched} buyers`);
+                      }
                       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
                     } catch (error) {
                       toast.error('Failed to enrich buyers');

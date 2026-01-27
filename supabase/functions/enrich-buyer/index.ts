@@ -157,85 +157,148 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 3: Run 6-prompt extraction strategy
+    // Step 3: Run 6-prompt extraction strategy with fail-fast on billing errors
     const extractedData: Record<string, any> = {};
     const evidenceRecords: Array<{ type: string; url: string; extracted_at: string; fields_extracted: string[] }> = [];
+    let billingError: { code: string; message: string } | null = null;
+
+    // Helper to check for billing errors and stop if found
+    const checkBillingError = (result: { data: any; error?: { code: string; message: string } }) => {
+      if (result.error && (result.error.code === 'payment_required' || result.error.code === 'rate_limited')) {
+        billingError = result.error;
+        return true;
+      }
+      return false;
+    };
 
     // Prompts 1-3b: Platform website extractions
-    if (platformContent) {
+    if (platformContent && !billingError) {
       console.log('Extracting from platform website...');
       
       // Prompt 1: Business Overview
-      const overview = await extractBusinessOverview(platformContent, buyer.company_name, lovableApiKey);
-      if (overview) {
-        Object.assign(extractedData, overview);
-        console.log('Extracted business overview:', Object.keys(overview));
+      const overviewResult = await extractBusinessOverview(platformContent, buyer.company_name, lovableApiKey);
+      if (checkBillingError(overviewResult)) {
+        console.error('Billing error during business overview extraction');
+      } else if (overviewResult.data) {
+        Object.assign(extractedData, overviewResult.data);
+        console.log('Extracted business overview:', Object.keys(overviewResult.data));
       }
 
       // Prompt 2: Customers/End Market
-      const customers = await extractCustomersEndMarket(platformContent, lovableApiKey);
-      if (customers) {
-        Object.assign(extractedData, customers);
-        console.log('Extracted customers:', Object.keys(customers));
+      if (!billingError) {
+        const customersResult = await extractCustomersEndMarket(platformContent, lovableApiKey);
+        if (checkBillingError(customersResult)) {
+          console.error('Billing error during customers extraction');
+        } else if (customersResult.data) {
+          Object.assign(extractedData, customersResult.data);
+          console.log('Extracted customers:', Object.keys(customersResult.data));
+        }
       }
 
       // Prompt 3: Geography/Footprint
-      const geography = await extractGeographyFootprint(platformContent, lovableApiKey);
-      if (geography) {
-        Object.assign(extractedData, geography);
-        console.log('Extracted geography:', Object.keys(geography));
+      if (!billingError) {
+        const geographyResult = await extractGeographyFootprint(platformContent, lovableApiKey);
+        if (checkBillingError(geographyResult)) {
+          console.error('Billing error during geography extraction');
+        } else if (geographyResult.data) {
+          Object.assign(extractedData, geographyResult.data);
+          console.log('Extracted geography:', Object.keys(geographyResult.data));
+        }
       }
 
       // Prompt 3b: Platform Acquisitions
-      const acquisitions = await extractPlatformAcquisitions(platformContent, lovableApiKey);
-      if (acquisitions) {
-        Object.assign(extractedData, acquisitions);
-        console.log('Extracted acquisitions:', Object.keys(acquisitions));
+      if (!billingError) {
+        const acquisitionsResult = await extractPlatformAcquisitions(platformContent, lovableApiKey);
+        if (checkBillingError(acquisitionsResult)) {
+          console.error('Billing error during acquisitions extraction');
+        } else if (acquisitionsResult.data) {
+          Object.assign(extractedData, acquisitionsResult.data);
+          console.log('Extracted acquisitions:', Object.keys(acquisitionsResult.data));
+        }
       }
 
-      evidenceRecords.push({
-        type: 'website',
-        url: platformWebsite!,
-        extracted_at: new Date().toISOString(),
-        fields_extracted: Object.keys(extractedData)
-      });
+      if (Object.keys(extractedData).length > 0) {
+        evidenceRecords.push({
+          type: 'website',
+          url: platformWebsite!,
+          extracted_at: new Date().toISOString(),
+          fields_extracted: Object.keys(extractedData)
+        });
+      }
     }
 
     // Prompts 4-6: PE Firm website extractions
-    if (peFirmContent) {
+    if (peFirmContent && !billingError) {
       console.log('Extracting from PE firm website...');
       const peFirmFields: string[] = [];
 
       // Prompt 4: PE Investment Thesis
-      const thesis = await extractPEInvestmentThesis(peFirmContent, lovableApiKey);
-      if (thesis) {
-        Object.assign(extractedData, thesis);
-        peFirmFields.push(...Object.keys(thesis));
-        console.log('Extracted PE thesis:', Object.keys(thesis));
+      const thesisResult = await extractPEInvestmentThesis(peFirmContent, lovableApiKey);
+      if (checkBillingError(thesisResult)) {
+        console.error('Billing error during PE thesis extraction');
+      } else if (thesisResult.data) {
+        Object.assign(extractedData, thesisResult.data);
+        peFirmFields.push(...Object.keys(thesisResult.data));
+        console.log('Extracted PE thesis:', Object.keys(thesisResult.data));
       }
 
       // Prompt 5: PE Deal Structure
-      const dealStructure = await extractPEDealStructure(peFirmContent, lovableApiKey);
-      if (dealStructure) {
-        Object.assign(extractedData, dealStructure);
-        peFirmFields.push(...Object.keys(dealStructure));
-        console.log('Extracted deal structure:', Object.keys(dealStructure));
+      if (!billingError) {
+        const dealStructureResult = await extractPEDealStructure(peFirmContent, lovableApiKey);
+        if (checkBillingError(dealStructureResult)) {
+          console.error('Billing error during deal structure extraction');
+        } else if (dealStructureResult.data) {
+          Object.assign(extractedData, dealStructureResult.data);
+          peFirmFields.push(...Object.keys(dealStructureResult.data));
+          console.log('Extracted deal structure:', Object.keys(dealStructureResult.data));
+        }
       }
 
       // Prompt 6: PE Portfolio
-      const portfolio = await extractPEPortfolio(peFirmContent, lovableApiKey);
-      if (portfolio) {
-        Object.assign(extractedData, portfolio);
-        peFirmFields.push(...Object.keys(portfolio));
-        console.log('Extracted portfolio:', Object.keys(portfolio));
+      if (!billingError) {
+        const portfolioResult = await extractPEPortfolio(peFirmContent, lovableApiKey);
+        if (checkBillingError(portfolioResult)) {
+          console.error('Billing error during portfolio extraction');
+        } else if (portfolioResult.data) {
+          Object.assign(extractedData, portfolioResult.data);
+          peFirmFields.push(...Object.keys(portfolioResult.data));
+          console.log('Extracted portfolio:', Object.keys(portfolioResult.data));
+        }
       }
 
-      evidenceRecords.push({
-        type: 'website',
-        url: peFirmWebsite!,
-        extracted_at: new Date().toISOString(),
-        fields_extracted: peFirmFields
-      });
+      if (peFirmFields.length > 0) {
+        evidenceRecords.push({
+          type: 'website',
+          url: peFirmWebsite!,
+          extracted_at: new Date().toISOString(),
+          fields_extracted: peFirmFields
+        });
+      }
+    }
+
+    // If billing error occurred, return partial data with error code
+    if (billingError) {
+      // Still save any partial data we extracted
+      if (Object.keys(extractedData).length > 0) {
+        const partialUpdateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
+        await supabase
+          .from('remarketing_buyers')
+          .update(partialUpdateData)
+          .eq('id', buyerId);
+      }
+
+      const statusCode = billingError.code === 'payment_required' ? 402 : 429;
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: billingError.message,
+          error_code: billingError.code,
+          partial_data: extractedData,
+          fields_extracted: Object.keys(extractedData).length,
+          recoverable: billingError.code === 'rate_limited'
+        }),
+        { status: statusCode, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Step 4: Apply intelligent merge logic
@@ -330,7 +393,7 @@ async function callAI(
   userPrompt: string, 
   tool: any, 
   apiKey: string
-): Promise<any | null> {
+): Promise<{ data: any | null; error?: { code: string; message: string } }> {
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -349,9 +412,26 @@ async function callAI(
       }),
     });
 
+    // Handle billing/rate limit errors
+    if (response.status === 402) {
+      console.error('AI credits depleted (402)');
+      return { 
+        data: null, 
+        error: { code: 'payment_required', message: 'AI credits depleted' } 
+      };
+    }
+    
+    if (response.status === 429) {
+      console.error('Rate limited (429)');
+      return { 
+        data: null, 
+        error: { code: 'rate_limited', message: 'Rate limit exceeded' } 
+      };
+    }
+
     if (!response.ok) {
       console.error(`AI call failed: ${response.status}`);
-      return null;
+      return { data: null };
     }
 
     const data = await response.json();
@@ -359,13 +439,13 @@ async function callAI(
     
     if (!toolCall) {
       console.error('No tool call in AI response');
-      return null;
+      return { data: null };
     }
 
-    return JSON.parse(toolCall.function.arguments);
+    return { data: JSON.parse(toolCall.function.arguments) };
   } catch (error) {
     console.error('AI extraction error:', error);
-    return null;
+    return { data: null };
   }
 }
 
