@@ -186,3 +186,45 @@ All critical fixes from the original plan have been implemented and verified. Th
 5. Preserves partial data on failure
 
 The implementation aligns with the SourceCo reference architecture patterns.
+
+---
+
+# CTO Audit: Scoring Engine Alignment
+
+## Audit Date: 2026-01-27
+
+## Summary
+Completed comprehensive audit of `supabase/functions/score-buyer-deal/index.ts` against the specification document `1_SCORING_ENGINE.md`.
+
+## Critical Fixes Implemented
+
+### 1. SIZE MULTIPLIER (KEY INNOVATION) ✅ FIXED
+**Spec Requirement:** Size acts as a gate on final score (0-1.0 multiplier applied to composite)
+**Previous State:** Size was only used in weighted average
+**Fix:** Added `calculateSizeMultiplier()` function that:
+- Returns 0 for disqualified scenarios (revenue >50% above max, >30% below min with disqualify mode)
+- Returns 0.3 for heavy penalties (size_score ≤25, revenue 30%+ below min)
+- Returns 0.35-0.70 sliding scale for soft mismatches
+- Returns 1.0 for perfect/sweet spot matches
+- Applied to final composite AFTER bonuses
+
+### 2. TIER THRESHOLDS ✅ FIXED
+**Spec Requirement:** Tier1=80+, Tier2=60-79, Tier3=40-59, Pass<40
+**Previous State:** A=85+, B=70+, C=55+, D=<55
+**Fix:** Updated thresholds in:
+- `generateAIScore()` function
+- `handleSingleScore()` function
+- `handleBulkScore()` batch processing
+- `ScoreTierBadge.tsx` - `getTierFromScore()` function
+
+### 3. DISQUALIFICATION BEHAVIOR ✅ FIXED
+**Spec Requirement:** Disqualified scores = 0
+**Previous State:** Capped at 45
+**Fix:** Changed to `finalComposite = 0`
+
+### 4. REASONING FORMAT ✅ ENHANCED
+Added size multiplier percentage to fit_reasoning when <100%
+
+## Files Modified
+1. `supabase/functions/score-buyer-deal/index.ts`
+2. `src/components/remarketing/ScoreTierBadge.tsx`
