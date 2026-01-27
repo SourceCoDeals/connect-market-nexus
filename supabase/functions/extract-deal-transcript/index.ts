@@ -8,12 +8,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface FinancialExtraction {
+  value?: number;
+  confidence: 'high' | 'medium' | 'low';
+  is_inferred?: boolean;
+  source_quote?: string;
+  inference_method?: string;
+}
+
 interface ExtractionResult {
-  // Financial
-  revenue?: number;
-  ebitda?: number;
-  ebitda_margin?: number;
-  asking_price?: number;
+  // Financial (structured per spec)
+  revenue?: FinancialExtraction;
+  ebitda?: {
+    amount?: number;
+    margin_percentage?: number;
+    confidence: 'high' | 'medium' | 'low';
+    is_inferred?: boolean;
+    source_quote?: string;
+  };
+  financial_followup_questions?: string[];
+  financial_notes?: string;
   
   // Business basics
   full_time_employees?: number;
@@ -48,7 +62,7 @@ interface ExtractionResult {
   executive_summary?: string;
   competitive_position?: string;
   growth_trajectory?: string;
-  key_risks?: string;
+  key_risks?: string[];
   technology_systems?: string;
   real_estate_info?: string;
   
@@ -59,13 +73,9 @@ interface ExtractionResult {
   
   // Metadata
   key_quotes?: string[];
-  confidence: Record<string, 'high' | 'medium' | 'low'>;
-  revenue_source_quote?: string;
-  ebitda_source_quote?: string;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -108,7 +118,7 @@ serve(async (req) => {
       );
     }
 
-    const { transcriptId, transcriptText, dealInfo } = await req.json();
+    const { transcriptId, transcriptText, dealInfo, applyToDeal = true } = await req.json();
 
     if (!transcriptId || !transcriptText) {
       return new Response(
@@ -148,19 +158,25 @@ EXTRACTION INSTRUCTIONS:
 3. For numbers, ALWAYS convert to raw numeric values:
    - "2 million" or "2M" or "$2M" = 2000000
    - "$500K" or "500 thousand" = 500000
-   - "15%" margin = 0.15 (as decimal)
-4. For key quotes, extract the EXACT words - these are extremely valuable for understanding the seller's mindset
+   - "15%" margin = 15 (as percentage number)
+4. For key quotes, extract the EXACT words - these are extremely valuable
 
-Use the extract_transcript_intelligence tool to return structured data.
+CRITICAL - FINANCIAL EXTRACTION:
+- For revenue/EBITDA, use the structured format with confidence levels
+- If inferred (calculated from other data), set is_inferred=true and explain method
+- Include the exact quote supporting the figure
+- Add follow-up questions if data is unclear
 
-CRITICAL GUIDELINES:
-- Key quotes are EXTREMELY valuable - prioritize extracting 5-8 meaningful verbatim quotes
-- Look for statements about: why selling, ideal buyer profile, deal structure preferences, concerns about sale
-- For services, list EVERY distinct service mentioned, not just categories
-- GEOGRAPHIC STATES MUST BE 2-LETTER ABBREVIATIONS ONLY (MN, TX, FL, CA, etc.) - NEVER full state names
-- If a city is mentioned, map to state code: Minneapolis=MN, Dallas=TX, Phoenix=AZ, etc.
-- If revenue is mentioned as a range, use the midpoint
-- Owner goals should be detailed and specific, not generic`;
+CRITICAL - LOCATION COUNT:
+- Count ALL physical locations, shops, branches, offices
+- Look for: "X locations", "X shops", "operate out of X"
+- Single location business = 1
+
+CRITICAL - GEOGRAPHY:
+- Use 2-letter state codes ONLY (MN, TX, FL, CA)
+- Map cities to states: Minneapolis=MN, Dallas=TX, Phoenix=AZ
+
+Use the extract_deal_info tool to return structured data.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -173,27 +189,49 @@ CRITICAL GUIDELINES:
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool.' 
+            content: 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool. Be thorough but conservative - only include data that is explicitly stated or clearly inferrable.' 
           },
           { role: 'user', content: extractionPrompt }
         ],
         tools: [{
           type: 'function',
           function: {
-            name: 'extract_transcript_intelligence',
+            name: 'extract_deal_info',
             description: 'Extract comprehensive deal intelligence from transcript',
             parameters: {
               type: 'object',
               properties: {
-                revenue: { type: 'number', description: 'Annual revenue in dollars (e.g., 7500000 for $7.5M)' },
-                ebitda: { type: 'number', description: 'Annual EBITDA in dollars' },
-                ebitda_margin: { type: 'number', description: 'EBITDA margin as decimal (e.g., 0.18 for 18%)' },
-                asking_price: { type: 'number', description: 'Asking price in dollars if mentioned' },
-                revenue_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence in revenue figure' },
-                ebitda_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence in EBITDA figure' },
-                revenue_source_quote: { type: 'string', description: 'Exact quote where revenue was mentioned' },
-                ebitda_source_quote: { type: 'string', description: 'Exact quote where EBITDA was mentioned' },
+                // Financial with structured metadata (per spec)
+                revenue: {
+                  type: 'object',
+                  properties: {
+                    value: { type: 'number', description: 'Annual revenue in dollars (e.g., 7500000 for $7.5M)' },
+                    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                    is_inferred: { type: 'boolean', description: 'True if calculated from other data' },
+                    source_quote: { type: 'string', description: 'Exact quote where revenue was mentioned' },
+                    inference_method: { type: 'string', description: 'How value was inferred if applicable' }
+                  },
+                  required: ['confidence']
+                },
+                ebitda: {
+                  type: 'object',
+                  properties: {
+                    amount: { type: 'number', description: 'EBITDA in dollars' },
+                    margin_percentage: { type: 'number', description: 'EBITDA margin as percentage (e.g., 18 for 18%)' },
+                    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                    is_inferred: { type: 'boolean' },
+                    source_quote: { type: 'string' }
+                  },
+                  required: ['confidence']
+                },
+                financial_followup_questions: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Questions to clarify financials in follow-up call'
+                },
+                financial_notes: { type: 'string', description: 'Notes and flags for deal team' },
                 
+                // Business basics
                 location: { type: 'string', description: 'City, State format' },
                 headquarters_address: { type: 'string', description: 'Full address if mentioned' },
                 industry: { type: 'string', description: 'Primary industry (e.g., HVAC, Plumbing, Electrical)' },
@@ -201,6 +239,7 @@ CRITICAL GUIDELINES:
                 full_time_employees: { type: 'number', description: 'Number of full-time employees' },
                 website: { type: 'string', description: 'Website URL if mentioned' },
                 
+                // Services
                 services: { 
                   type: 'array', 
                   items: { type: 'string' },
@@ -209,34 +248,44 @@ CRITICAL GUIDELINES:
                 service_mix: { type: 'string', description: 'Revenue breakdown (e.g., 60% residential, 40% commercial)' },
                 business_model: { type: 'string', description: 'Recurring/service contracts, project-based, etc.' },
                 
+                // Geography
                 geographic_states: {
                   type: 'array',
                   items: { type: 'string' },
                   description: '2-letter US state codes ONLY (MN, TX, FL, etc.)'
                 },
-                number_of_locations: { type: 'number', description: 'Number of physical locations' },
+                number_of_locations: { type: 'number', description: 'Number of physical locations/shops/branches' },
                 
+                // Owner & Transaction
                 owner_goals: { type: 'string', description: 'What the owner wants - be specific' },
                 transition_preferences: { type: 'string', description: 'How long owner will stay, handoff details' },
                 special_requirements: { type: 'string', description: 'Deal breakers or must-haves' },
                 timeline_notes: { type: 'string', description: 'Desired timing' },
                 
+                // Customers
                 customer_types: { type: 'string', description: 'B2B, SMB, residential, government, etc.' },
                 end_market_description: { type: 'string', description: 'Who are the ultimate customers' },
                 customer_concentration: { type: 'string', description: 'Customer concentration info' },
                 customer_geography: { type: 'string', description: 'Customer geographic distribution' },
                 
+                // Strategic
                 executive_summary: { type: 'string', description: '2-3 sentence summary of business opportunity' },
                 competitive_position: { type: 'string', description: 'Market position, moat, competitive advantages' },
                 growth_trajectory: { type: 'string', description: 'Historical and projected growth' },
-                key_risks: { type: 'string', description: 'Risk factors or concerns mentioned' },
+                key_risks: { 
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Risk factors mentioned'
+                },
                 technology_systems: { type: 'string', description: 'Software, CRM, tech mentioned' },
                 real_estate_info: { type: 'string', description: 'Owned vs leased, property details' },
                 
+                // Contact
                 primary_contact_name: { type: 'string', description: 'Main contact full name' },
                 primary_contact_email: { type: 'string', description: 'Email if mentioned' },
                 primary_contact_phone: { type: 'string', description: 'Phone if mentioned' },
                 
+                // Quotes
                 key_quotes: {
                   type: 'array',
                   items: { type: 'string' },
@@ -246,7 +295,7 @@ CRITICAL GUIDELINES:
             }
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'extract_transcript_intelligence' } },
+        tool_choice: { type: 'function', function: { name: 'extract_deal_info' } },
         temperature: 0.2,
       }),
     });
@@ -260,19 +309,12 @@ CRITICAL GUIDELINES:
     const aiData = await aiResponse.json();
     
     // Extract from tool call
-    let extracted: ExtractionResult = { confidence: {} };
+    let extracted: ExtractionResult = {};
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     
     if (toolCall?.function?.arguments) {
       try {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        extracted = {
-          ...parsed,
-          confidence: {
-            revenue: parsed.revenue_confidence || 'medium',
-            ebitda: parsed.ebitda_confidence || 'medium',
-          }
-        };
+        extracted = JSON.parse(toolCall.function.arguments);
       } catch (parseError) {
         console.error('Failed to parse tool arguments:', parseError);
       }
@@ -282,11 +324,9 @@ CRITICAL GUIDELINES:
       const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       try {
         extracted = JSON.parse(cleanedContent);
-        if (!extracted.confidence) extracted.confidence = {};
       } catch (parseError) {
         console.error('Failed to parse AI content:', parseError);
         extracted = { 
-          confidence: {},
           key_quotes: [`Parse error - raw response: ${cleanedContent.substring(0, 200)}`]
         };
       }
@@ -297,10 +337,16 @@ CRITICAL GUIDELINES:
       extracted.geographic_states = normalizeStates(extracted.geographic_states);
     }
 
-    console.log('Extracted fields:', Object.keys(extracted).filter(k => k !== 'confidence' && extracted[k as keyof ExtractionResult] != null));
+    console.log('Extracted fields:', Object.keys(extracted).filter(k => extracted[k as keyof ExtractionResult] != null));
 
     // Update the transcript with extracted data
-    const { error: updateError } = await supabase
+    const { data: transcriptRecord, error: fetchError } = await supabase
+      .from('deal_transcripts')
+      .select('listing_id')
+      .eq('id', transcriptId)
+      .single();
+
+    const { error: updateTranscriptError } = await supabase
       .from('deal_transcripts')
       .update({
         extracted_data: extracted,
@@ -308,17 +354,135 @@ CRITICAL GUIDELINES:
       })
       .eq('id', transcriptId);
 
-    if (updateError) {
-      console.error('Error updating transcript:', updateError);
-      throw updateError;
+    if (updateTranscriptError) {
+      console.error('Error updating transcript:', updateTranscriptError);
+      throw updateTranscriptError;
+    }
+
+    // ========== KEY SPEC REQUIREMENT: Apply to listings table ==========
+    let dealUpdated = false;
+    let fieldsUpdated: string[] = [];
+    
+    if (applyToDeal && transcriptRecord?.listing_id) {
+      const listingId = transcriptRecord.listing_id;
+      
+      // Fetch current listing with extraction_sources
+      const { data: listing, error: listingError } = await supabase
+        .from('listings')
+        .select('*, extraction_sources')
+        .eq('id', listingId)
+        .single();
+
+      if (listing && !listingError) {
+        // Flatten extracted data for priority updates
+        const flatExtracted: Record<string, unknown> = {};
+        
+        // Handle structured revenue
+        if (extracted.revenue?.value) {
+          flatExtracted.revenue = extracted.revenue.value;
+          flatExtracted.revenue_confidence = extracted.revenue.confidence;
+          flatExtracted.revenue_is_inferred = extracted.revenue.is_inferred || false;
+          flatExtracted.revenue_source_quote = extracted.revenue.source_quote;
+        }
+        
+        // Handle structured EBITDA
+        if (extracted.ebitda) {
+          if (extracted.ebitda.amount) {
+            flatExtracted.ebitda = extracted.ebitda.amount;
+          }
+          if (extracted.ebitda.margin_percentage) {
+            flatExtracted.ebitda_margin = extracted.ebitda.margin_percentage / 100; // Store as decimal
+          }
+          flatExtracted.ebitda_confidence = extracted.ebitda.confidence;
+          flatExtracted.ebitda_is_inferred = extracted.ebitda.is_inferred || false;
+          flatExtracted.ebitda_source_quote = extracted.ebitda.source_quote;
+        }
+        
+        // Map other fields
+        if (extracted.geographic_states?.length) flatExtracted.geographic_states = extracted.geographic_states;
+        if (extracted.number_of_locations) flatExtracted.number_of_locations = extracted.number_of_locations;
+        if (extracted.full_time_employees) flatExtracted.full_time_employees = extracted.full_time_employees;
+        if (extracted.founded_year) flatExtracted.founded_year = extracted.founded_year;
+        if (extracted.service_mix) flatExtracted.service_mix = extracted.service_mix;
+        if (extracted.business_model) flatExtracted.business_model = extracted.business_model;
+        if (extracted.owner_goals) flatExtracted.owner_goals = extracted.owner_goals;
+        if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
+        if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
+        if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
+        if (extracted.customer_concentration) flatExtracted.customer_concentration = extracted.customer_concentration;
+        if (extracted.executive_summary) flatExtracted.executive_summary = extracted.executive_summary;
+        if (extracted.competitive_position) flatExtracted.competitive_position = extracted.competitive_position;
+        if (extracted.growth_trajectory) flatExtracted.growth_trajectory = extracted.growth_trajectory;
+        if (extracted.key_risks?.length) flatExtracted.key_risks = extracted.key_risks.join('\n');
+        if (extracted.technology_systems) flatExtracted.technology_systems = extracted.technology_systems;
+        if (extracted.real_estate_info) flatExtracted.real_estate_info = extracted.real_estate_info;
+        if (extracted.key_quotes?.length) flatExtracted.key_quotes = extracted.key_quotes;
+        if (extracted.financial_notes) flatExtracted.financial_notes = extracted.financial_notes;
+        if (extracted.primary_contact_name) flatExtracted.primary_contact_name = extracted.primary_contact_name;
+        if (extracted.primary_contact_email) flatExtracted.primary_contact_email = extracted.primary_contact_email;
+        if (extracted.primary_contact_phone) flatExtracted.primary_contact_phone = extracted.primary_contact_phone;
+        if (extracted.industry) flatExtracted.industry = extracted.industry;
+        if (extracted.website) flatExtracted.website = extracted.website;
+        
+        // Build priority-aware updates using shared module (transcript has highest priority)
+        const { updates, sourceUpdates } = buildPriorityUpdates(
+          listing,
+          listing.extraction_sources,
+          flatExtracted,
+          'transcript',
+          transcriptId
+        );
+
+        // Merge geographic_states instead of replacing
+        if (updates.geographic_states && listing.geographic_states?.length > 0) {
+          updates.geographic_states = mergeStates(
+            listing.geographic_states,
+            updates.geographic_states as string[]
+          );
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const finalUpdates = {
+            ...updates,
+            enriched_at: new Date().toISOString(),
+            extraction_sources: updateExtractionSources(listing.extraction_sources, sourceUpdates),
+          };
+
+          const { error: listingUpdateError } = await supabase
+            .from('listings')
+            .update(finalUpdates)
+            .eq('id', listingId);
+
+          if (listingUpdateError) {
+            console.error('Error updating listing:', listingUpdateError);
+          } else {
+            dealUpdated = true;
+            fieldsUpdated = Object.keys(updates);
+            console.log(`Updated ${fieldsUpdated.length} fields on listing:`, fieldsUpdated);
+          }
+        }
+
+        // Mark transcript as applied
+        await supabase
+          .from('deal_transcripts')
+          .update({
+            applied_to_deal: true,
+            applied_at: new Date().toISOString(),
+          })
+          .eq('id', transcriptId);
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         extracted,
-        fieldsExtracted: Object.keys(extracted).filter(k => k !== 'confidence' && extracted[k as keyof ExtractionResult] != null).length,
-        message: 'Intelligence extracted successfully'
+        fieldsExtracted: Object.keys(extracted).filter(k => extracted[k as keyof ExtractionResult] != null).length,
+        dealUpdated,
+        fieldsUpdated,
+        message: dealUpdated 
+          ? `Intelligence extracted and ${fieldsUpdated.length} fields applied to deal`
+          : 'Intelligence extracted successfully'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
