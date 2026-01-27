@@ -161,6 +161,8 @@ Deno.serve(async (req) => {
     const extractedData: Record<string, any> = {};
     const evidenceRecords: Array<{ type: string; url: string; extracted_at: string; fields_extracted: string[] }> = [];
     let billingError: { code: string; message: string } | null = null;
+    let promptsRun = 0;
+    let promptsSuccessful = 0;
 
     // Helper to check for billing errors and stop if found
     const checkBillingError = (result: { data: any; error?: { code: string; message: string } }) => {
@@ -176,96 +178,149 @@ Deno.serve(async (req) => {
       console.log('Extracting from platform website...');
       
       // Prompt 1: Business Overview
-      const overviewResult = await extractBusinessOverview(platformContent, buyer.company_name, lovableApiKey);
+      promptsRun++;
+      const overviewResult = await callAIWithRetry(
+        getBusinessOverviewPrompt().system,
+        getBusinessOverviewPrompt().user(platformContent, buyer.company_name),
+        getBusinessOverviewPrompt().tool,
+        lovableApiKey
+      );
       if (checkBillingError(overviewResult)) {
         console.error('Billing error during business overview extraction');
       } else if (overviewResult.data) {
         Object.assign(extractedData, overviewResult.data);
+        promptsSuccessful++;
         console.log('Extracted business overview:', Object.keys(overviewResult.data));
       }
 
       // Prompt 2: Customers/End Market
       if (!billingError) {
-        const customersResult = await extractCustomersEndMarket(platformContent, lovableApiKey);
+        promptsRun++;
+        const customersResult = await callAIWithRetry(
+          getCustomersEndMarketPrompt().system,
+          getCustomersEndMarketPrompt().user(platformContent),
+          getCustomersEndMarketPrompt().tool,
+          lovableApiKey
+        );
         if (checkBillingError(customersResult)) {
           console.error('Billing error during customers extraction');
         } else if (customersResult.data) {
           Object.assign(extractedData, customersResult.data);
+          promptsSuccessful++;
           console.log('Extracted customers:', Object.keys(customersResult.data));
         }
       }
 
       // Prompt 3: Geography/Footprint
       if (!billingError) {
-        const geographyResult = await extractGeographyFootprint(platformContent, lovableApiKey);
+        promptsRun++;
+        const geographyResult = await callAIWithRetry(
+          getGeographyFootprintPrompt().system,
+          getGeographyFootprintPrompt().user(platformContent),
+          getGeographyFootprintPrompt().tool,
+          lovableApiKey
+        );
         if (checkBillingError(geographyResult)) {
           console.error('Billing error during geography extraction');
         } else if (geographyResult.data) {
           Object.assign(extractedData, geographyResult.data);
+          promptsSuccessful++;
           console.log('Extracted geography:', Object.keys(geographyResult.data));
         }
       }
 
       // Prompt 3b: Platform Acquisitions
       if (!billingError) {
-        const acquisitionsResult = await extractPlatformAcquisitions(platformContent, lovableApiKey);
+        promptsRun++;
+        const acquisitionsResult = await callAIWithRetry(
+          getPlatformAcquisitionsPrompt().system,
+          getPlatformAcquisitionsPrompt().user(platformContent),
+          getPlatformAcquisitionsPrompt().tool,
+          lovableApiKey
+        );
         if (checkBillingError(acquisitionsResult)) {
           console.error('Billing error during acquisitions extraction');
         } else if (acquisitionsResult.data) {
           Object.assign(extractedData, acquisitionsResult.data);
+          promptsSuccessful++;
           console.log('Extracted acquisitions:', Object.keys(acquisitionsResult.data));
         }
       }
 
-      if (Object.keys(extractedData).length > 0) {
+      // Only add evidence if we extracted at least one field from platform
+      const platformExtractedFields = Object.keys(extractedData);
+      if (platformExtractedFields.length > 0) {
         evidenceRecords.push({
           type: 'website',
           url: platformWebsite!,
           extracted_at: new Date().toISOString(),
-          fields_extracted: Object.keys(extractedData)
+          fields_extracted: platformExtractedFields
         });
       }
     }
 
     // Prompts 4-6: PE Firm website extractions
+    const preExtractionFieldCount = Object.keys(extractedData).length;
     if (peFirmContent && !billingError) {
       console.log('Extracting from PE firm website...');
       const peFirmFields: string[] = [];
 
       // Prompt 4: PE Investment Thesis
-      const thesisResult = await extractPEInvestmentThesis(peFirmContent, lovableApiKey);
+      promptsRun++;
+      const thesisResult = await callAIWithRetry(
+        getPEInvestmentThesisPrompt().system,
+        getPEInvestmentThesisPrompt().user(peFirmContent),
+        getPEInvestmentThesisPrompt().tool,
+        lovableApiKey
+      );
       if (checkBillingError(thesisResult)) {
         console.error('Billing error during PE thesis extraction');
       } else if (thesisResult.data) {
         Object.assign(extractedData, thesisResult.data);
         peFirmFields.push(...Object.keys(thesisResult.data));
+        promptsSuccessful++;
         console.log('Extracted PE thesis:', Object.keys(thesisResult.data));
       }
 
       // Prompt 5: PE Deal Structure
       if (!billingError) {
-        const dealStructureResult = await extractPEDealStructure(peFirmContent, lovableApiKey);
+        promptsRun++;
+        const dealStructureResult = await callAIWithRetry(
+          getPEDealStructurePrompt().system,
+          getPEDealStructurePrompt().user(peFirmContent),
+          getPEDealStructurePrompt().tool,
+          lovableApiKey
+        );
         if (checkBillingError(dealStructureResult)) {
           console.error('Billing error during deal structure extraction');
         } else if (dealStructureResult.data) {
           Object.assign(extractedData, dealStructureResult.data);
           peFirmFields.push(...Object.keys(dealStructureResult.data));
+          promptsSuccessful++;
           console.log('Extracted deal structure:', Object.keys(dealStructureResult.data));
         }
       }
 
       // Prompt 6: PE Portfolio
       if (!billingError) {
-        const portfolioResult = await extractPEPortfolio(peFirmContent, lovableApiKey);
+        promptsRun++;
+        const portfolioResult = await callAIWithRetry(
+          getPEPortfolioPrompt().system,
+          getPEPortfolioPrompt().user(peFirmContent),
+          getPEPortfolioPrompt().tool,
+          lovableApiKey
+        );
         if (checkBillingError(portfolioResult)) {
           console.error('Billing error during portfolio extraction');
         } else if (portfolioResult.data) {
           Object.assign(extractedData, portfolioResult.data);
           peFirmFields.push(...Object.keys(portfolioResult.data));
+          promptsSuccessful++;
           console.log('Extracted portfolio:', Object.keys(portfolioResult.data));
         }
       }
 
+      // Only add PE firm evidence if we extracted at least one field from PE firm
       if (peFirmFields.length > 0) {
         evidenceRecords.push({
           type: 'website',
@@ -275,6 +330,8 @@ Deno.serve(async (req) => {
         });
       }
     }
+
+    console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(extractedData).length} fields extracted`);
 
     // If billing error occurred, return partial data with error code
     if (billingError) {
@@ -319,7 +376,8 @@ Deno.serve(async (req) => {
     }
 
     const fieldsUpdated = Object.keys(updateData).length;
-    console.log(`Successfully enriched buyer ${buyer.company_name} with ${fieldsUpdated} fields`);
+    const fieldsExtracted = Object.keys(extractedData);
+    console.log(`Successfully enriched buyer ${buyer.company_name} with ${fieldsUpdated} fields updated, ${fieldsExtracted.length} fields extracted`);
 
     return new Response(
       JSON.stringify({
@@ -327,11 +385,20 @@ Deno.serve(async (req) => {
         data: {
           buyerId,
           fieldsUpdated,
-          dataCompleteness: updateData.data_completeness || 'medium',
+          fieldsExtracted,
+          dataCompleteness: updateData.data_completeness || buyer.data_completeness || 'low',
           extractedData,
           scraped: {
             platform: !!platformContent,
             peFirm: !!peFirmContent
+          },
+          extractionDetails: {
+            platformScraped: !!platformContent,
+            platformContentLength: platformContent?.length || 0,
+            peFirmScraped: !!peFirmContent,
+            peFirmContentLength: peFirmContent?.length || 0,
+            promptsRun,
+            promptsSuccessful
           }
         },
         warning: warnings.length > 0 ? warnings.join('; ') : undefined
@@ -388,6 +455,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
   }
 }
 
+// Enhanced AI call with comprehensive logging
 async function callAI(
   systemPrompt: string, 
   userPrompt: string, 
@@ -395,6 +463,8 @@ async function callAI(
   apiKey: string
 ): Promise<{ data: any | null; error?: { code: string; message: string } }> {
   try {
+    console.log(`Calling AI with tool: ${tool.function.name}`);
+    
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -430,250 +500,301 @@ async function callAI(
     }
 
     if (!response.ok) {
-      console.error(`AI call failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`AI call failed: ${response.status}`, errorText.substring(0, 500));
       return { data: null };
     }
 
-    const data = await response.json();
+    // Parse response with detailed logging
+    const responseText = await response.text();
+    console.log(`AI response status: ${response.status}, length: ${responseText.length}`);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse AI response JSON:', responseText.substring(0, 500));
+      return { data: null };
+    }
+
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall) {
-      console.error('No tool call in AI response');
+      // Log what we actually received for debugging
+      const messageContent = data.choices?.[0]?.message?.content || 'no content';
+      const finishReason = data.choices?.[0]?.finish_reason || 'unknown';
+      console.warn(`No tool call in AI response. Finish reason: ${finishReason}. Message content: ${JSON.stringify(messageContent).substring(0, 200)}`);
       return { data: null };
     }
 
-    return { data: JSON.parse(toolCall.function.arguments) };
+    // Parse tool arguments
+    try {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      console.log(`Successfully parsed tool call for ${tool.function.name}: ${Object.keys(parsed).length} fields`);
+      return { data: parsed };
+    } catch (argParseError) {
+      console.error(`Failed to parse tool arguments for ${tool.function.name}:`, toolCall.function.arguments?.substring(0, 500));
+      return { data: null };
+    }
   } catch (error) {
     console.error('AI extraction error:', error);
     return { data: null };
   }
 }
 
-// Prompt 1: Business Overview (Platform)
-async function extractBusinessOverview(content: string, companyName: string, apiKey: string) {
-  const tool = {
-    type: 'function',
-    function: {
-      name: 'extract_business_overview',
-      description: 'Extract business overview from platform company website',
-      parameters: {
-        type: 'object',
-        properties: {
-          services_offered: { type: 'string', description: 'Primary services or products offered' },
-          business_summary: { type: 'string', description: 'Brief summary of what the company does' },
-          business_type: { type: 'string', description: 'Type of business (e.g., Service Provider, Manufacturer)' },
-          revenue_model: { type: 'string', description: 'How the company generates revenue' },
-          industry_vertical: { type: 'string', description: 'Primary industry vertical' },
-          specialized_focus: { type: 'string', description: 'Any specialized focus areas or niches' },
-          pe_firm_name: { type: 'string', description: 'Name of the parent PE firm if mentioned' }
-        }
-      }
+// Retry wrapper with exponential backoff
+async function callAIWithRetry(
+  systemPrompt: string, 
+  userPrompt: string, 
+  tool: any, 
+  apiKey: string,
+  maxRetries = 2
+): Promise<{ data: any | null; error?: { code: string; message: string } }> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const result = await callAI(systemPrompt, userPrompt, tool, apiKey);
+    
+    // Success or billing error - don't retry
+    if (result.data !== null || result.error) {
+      return result;
     }
-  };
-
-  const systemPrompt = `You are a business analyst extracting structured data from company websites.
-Extract business overview information from the provided website content.
-Focus on: core services, business model, industry classification, and specialized niches.
-Be concise and factual. If information is not available, omit that field.`;
-
-  const userPrompt = `Website Content for "${companyName}":\n\n${content.substring(0, 12000)}\n\nExtract business overview.`;
-
-  return callAI(systemPrompt, userPrompt, tool, apiKey);
+    
+    if (attempt < maxRetries) {
+      const delay = attempt * 1000;
+      console.log(`Attempt ${attempt} for ${tool.function.name} failed, retrying in ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    } else {
+      console.warn(`All ${maxRetries} attempts failed for ${tool.function.name}`);
+    }
+  }
+  
+  return { data: null };
 }
 
-// Prompt 2: Customers/End Market (Platform)
-async function extractCustomersEndMarket(content: string, apiKey: string) {
-  const tool = {
-    type: 'function',
-    function: {
-      name: 'extract_customers_end_market',
-      description: 'Extract customer and end market information',
-      parameters: {
-        type: 'object',
-        properties: {
-          primary_customer_size: { type: 'string', description: 'Primary customer size segment (SMB, Mid-market, Enterprise)' },
-          customer_industries: { type: 'array', items: { type: 'string' }, description: 'Industries served by the company' },
-          customer_geographic_reach: { type: 'string', description: 'Geographic reach of customer base' },
-          target_customer_profile: { type: 'string', description: 'Description of ideal customer profile' }
-        }
-      }
-    }
-  };
+// ============= Prompt Definitions =============
 
-  const systemPrompt = `Extract customer and market information from the company website.
-Focus on: types and sizes of customers, industries served, geographic reach.
-Be specific. Use actual industry names, not generic terms.`;
-
-  return callAI(systemPrompt, `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract customer information.`, tool, apiKey);
-}
-
-// Prompt 3: Geography/Footprint (Platform)
-async function extractGeographyFootprint(content: string, apiKey: string) {
-  const tool = {
-    type: 'function',
-    function: {
-      name: 'extract_geography_footprint',
-      description: 'Extract CURRENT geographic locations where company has physical presence',
-      parameters: {
-        type: 'object',
-        properties: {
-          hq_city: { type: 'string', description: 'Headquarters city' },
-          hq_state: { type: 'string', description: 'Headquarters state as 2-letter abbreviation (TX, CA, etc.)' },
-          geographic_footprint: { 
-            type: 'array', 
-            items: { type: 'string' }, 
-            description: 'US 2-letter state codes ONLY where they have physical locations. MUST be valid 2-letter codes.'
-          },
-          service_regions: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'US states where company actively serves customers. Use 2-letter codes ONLY.'
+function getBusinessOverviewPrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_business_overview',
+        description: 'Extract business overview from platform company website',
+        parameters: {
+          type: 'object',
+          properties: {
+            services_offered: { type: 'string', description: 'Primary services or products offered' },
+            business_summary: { type: 'string', description: 'Brief summary of what the company does' },
+            business_type: { type: 'string', description: 'Type of business (e.g., Service Provider, Manufacturer)' },
+            revenue_model: { type: 'string', description: 'How the company generates revenue' },
+            industry_vertical: { type: 'string', description: 'Primary industry vertical' },
+            specialized_focus: { type: 'string', description: 'Any specialized focus areas or niches' },
+            pe_firm_name: { type: 'string', description: 'Name of the parent PE firm if mentioned' }
           }
         }
       }
-    }
+    },
+    system: `You are a business analyst extracting structured data from company websites.
+Extract business overview information from the provided website content.
+Focus on: core services, business model, industry classification, and specialized niches.
+Be concise and factual. If information is not available, omit that field.`,
+    user: (content: string, companyName: string) => 
+      `Website Content for "${companyName}":\n\n${content.substring(0, 12000)}\n\nExtract business overview.`
   };
+}
 
-  const systemPrompt = `Extract geographic information about where the company CURRENTLY operates.
+function getCustomersEndMarketPrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_customers_end_market',
+        description: 'Extract customer and end market information',
+        parameters: {
+          type: 'object',
+          properties: {
+            primary_customer_size: { type: 'string', description: 'Primary customer size segment (SMB, Mid-market, Enterprise)' },
+            customer_industries: { type: 'array', items: { type: 'string' }, description: 'Industries served by the company' },
+            customer_geographic_reach: { type: 'string', description: 'Geographic reach of customer base' },
+            target_customer_profile: { type: 'string', description: 'Description of ideal customer profile' }
+          }
+        }
+      }
+    },
+    system: `Extract customer and market information from the company website.
+Focus on: types and sizes of customers, industries served, geographic reach.
+Be specific. Use actual industry names, not generic terms.`,
+    user: (content: string) => 
+      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract customer information.`
+  };
+}
+
+function getGeographyFootprintPrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_geography_footprint',
+        description: 'Extract CURRENT geographic locations where company has physical presence',
+        parameters: {
+          type: 'object',
+          properties: {
+            hq_city: { type: 'string', description: 'Headquarters city' },
+            hq_state: { type: 'string', description: 'Headquarters state as 2-letter abbreviation (TX, CA, etc.)' },
+            geographic_footprint: { 
+              type: 'array', 
+              items: { type: 'string' }, 
+              description: 'US 2-letter state codes ONLY where they have physical locations. MUST be valid 2-letter codes.'
+            },
+            service_regions: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'US states where company actively serves customers. Use 2-letter codes ONLY.'
+            }
+          }
+        }
+      }
+    },
+    system: `Extract geographic information about where the company CURRENTLY operates.
 
 CRITICAL RULES:
 1. geographic_footprint: ONLY 2-letter state codes where they have physical offices/locations
 2. service_regions: ONLY states they serve FROM their physical locations
 3. DO NOT include aspirational or marketing language about "serving nationwide"
 4. Be conservative - regional companies are NOT national
-5. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`;
-
-  return callAI(systemPrompt, `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence.`, tool, apiKey);
+5. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`,
+    user: (content: string) => 
+      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence.`
+  };
 }
 
-// Prompt 3b: Platform Acquisitions
-async function extractPlatformAcquisitions(content: string, apiKey: string) {
-  const tool = {
-    type: 'function',
-    function: {
-      name: 'extract_platform_acquisitions',
-      description: 'Extract acquisition history for the platform company itself',
-      parameters: {
-        type: 'object',
-        properties: {
-          recent_acquisitions: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                company_name: { type: 'string' },
-                date: { type: 'string' },
-                location: { type: 'string' }
-              }
+function getPlatformAcquisitionsPrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_platform_acquisitions',
+        description: 'Extract acquisition history for the platform company itself',
+        parameters: {
+          type: 'object',
+          properties: {
+            recent_acquisitions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  company_name: { type: 'string' },
+                  date: { type: 'string' },
+                  location: { type: 'string' }
+                }
+              },
+              description: 'List of companies acquired by this platform'
             },
-            description: 'List of companies acquired by this platform'
-          },
-          total_acquisitions: { type: 'number', description: 'Total number of acquisitions made' },
-          acquisition_frequency: { type: 'string', description: 'How often they acquire' }
+            total_acquisitions: { type: 'number', description: 'Total number of acquisitions made' },
+            acquisition_frequency: { type: 'string', description: 'How often they acquire' }
+          }
         }
       }
-    }
+    },
+    system: `Extract acquisition history for THIS company (not their PE firm owner).
+Look for press releases, news, or lists of acquired brands. Be specific with dates and locations.`,
+    user: (content: string) => 
+      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract acquisition history.`
   };
-
-  const systemPrompt = `Extract acquisition history for THIS company (not their PE firm owner).
-Look for press releases, news, or lists of acquired brands. Be specific with dates and locations.`;
-
-  return callAI(systemPrompt, `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract acquisition history.`, tool, apiKey);
 }
 
-// Prompt 4: PE Investment Thesis
-async function extractPEInvestmentThesis(content: string, apiKey: string) {
-  const tool = {
-    type: 'function',
-    function: {
-      name: 'extract_pe_investment_thesis',
-      description: "Extract PE firm's investment thesis and strategy",
-      parameters: {
-        type: 'object',
-        properties: {
-          thesis_summary: { type: 'string', description: 'Summary of investment thesis and focus' },
-          strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities' },
-          thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity' },
-          target_services: { type: 'array', items: { type: 'string' }, description: 'Services/products they seek in targets' },
-          target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries they invest in' },
-          acquisition_appetite: { type: 'string', description: 'How active they are in acquiring' }
+function getPEInvestmentThesisPrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_pe_investment_thesis',
+        description: "Extract PE firm's investment thesis and strategy",
+        parameters: {
+          type: 'object',
+          properties: {
+            thesis_summary: { type: 'string', description: 'Summary of investment thesis and focus' },
+            strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities' },
+            thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity' },
+            target_services: { type: 'array', items: { type: 'string' }, description: 'Services/products they seek in targets' },
+            target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries they invest in' },
+            acquisition_appetite: { type: 'string', description: 'How active they are in acquiring' }
+          }
         }
       }
-    }
-  };
-
-  const systemPrompt = `Extract the PE firm's investment thesis and target criteria.
+    },
+    system: `Extract the PE firm's investment thesis and target criteria.
 Look for: investment focus statements, target sectors, strategic priorities.
-Rate thesis_confidence: High (specific criteria), Medium (general focus), Low (vague info).`;
-
-  return callAI(systemPrompt, `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract investment thesis.`, tool, apiKey);
+Rate thesis_confidence: High (specific criteria), Medium (general focus), Low (vague info).`,
+    user: (content: string) => 
+      `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract investment thesis.`
+  };
 }
 
-// Prompt 5: PE Deal Structure
-async function extractPEDealStructure(content: string, apiKey: string) {
-  const tool = {
-    type: 'function',
-    function: {
-      name: 'extract_pe_deal_structure',
-      description: 'Extract deal structure preferences and financial criteria',
-      parameters: {
-        type: 'object',
-        properties: {
-          target_revenue_min: { type: 'number', description: 'Minimum revenue in dollars' },
-          target_revenue_max: { type: 'number', description: 'Maximum revenue in dollars' },
-          revenue_sweet_spot: { type: 'number', description: 'Preferred revenue level in dollars' },
-          target_ebitda_min: { type: 'number', description: 'Minimum EBITDA in dollars' },
-          target_ebitda_max: { type: 'number', description: 'Maximum EBITDA in dollars' },
-          ebitda_sweet_spot: { type: 'number', description: 'Preferred EBITDA level in dollars' },
-          acquisition_timeline: { type: 'string', description: 'Typical timeline from LOI to close' },
-          deal_preferences: { type: 'string', description: 'Preferred deal structures or terms' }
+function getPEDealStructurePrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_pe_deal_structure',
+        description: 'Extract deal structure preferences and financial criteria',
+        parameters: {
+          type: 'object',
+          properties: {
+            target_revenue_min: { type: 'number', description: 'Minimum revenue in dollars' },
+            target_revenue_max: { type: 'number', description: 'Maximum revenue in dollars' },
+            revenue_sweet_spot: { type: 'number', description: 'Preferred revenue level in dollars' },
+            target_ebitda_min: { type: 'number', description: 'Minimum EBITDA in dollars' },
+            target_ebitda_max: { type: 'number', description: 'Maximum EBITDA in dollars' },
+            ebitda_sweet_spot: { type: 'number', description: 'Preferred EBITDA level in dollars' },
+            acquisition_timeline: { type: 'string', description: 'Typical timeline from LOI to close' },
+            deal_preferences: { type: 'string', description: 'Preferred deal structures or terms' }
+          }
         }
       }
-    }
-  };
-
-  const systemPrompt = `Extract deal structure preferences and financial criteria from PE firm website.
+    },
+    system: `Extract deal structure preferences and financial criteria from PE firm website.
 Look for: revenue and EBITDA ranges, deal timelines, structure preferences.
-Convert financial figures to actual numbers (e.g., "$5M" -> 5000000).`;
-
-  return callAI(systemPrompt, `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract deal structure preferences.`, tool, apiKey);
+Convert financial figures to actual numbers (e.g., "$5M" -> 5000000).`,
+    user: (content: string) => 
+      `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract deal structure preferences.`
+  };
 }
 
-// Prompt 6: PE Portfolio
-async function extractPEPortfolio(content: string, apiKey: string) {
-  const tool = {
-    type: 'function',
-    function: {
-      name: 'extract_pe_portfolio',
-      description: 'Extract PE firm portfolio information',
-      parameters: {
-        type: 'object',
-        properties: {
-          portfolio_companies: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                name: { type: 'string' },
-                website: { type: 'string' },
-                locations: { type: 'array', items: { type: 'string' } }
-              }
+function getPEPortfolioPrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_pe_portfolio',
+        description: 'Extract PE firm portfolio information',
+        parameters: {
+          type: 'object',
+          properties: {
+            portfolio_companies: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  website: { type: 'string' },
+                  locations: { type: 'array', items: { type: 'string' } }
+                }
+              },
+              description: 'Portfolio companies'
             },
-            description: 'Portfolio companies'
-          },
-          num_platforms: { type: 'number', description: 'Number of platform companies' }
+            num_platforms: { type: 'number', description: 'Number of platform companies' }
+          }
         }
       }
-    }
+    },
+    system: `Extract portfolio information about the PE firm's current investments.
+Look for: lists of portfolio companies, number of platforms. Only include confirmed companies.`,
+    user: (content: string) => 
+      `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract portfolio.`
   };
-
-  const systemPrompt = `Extract portfolio information about the PE firm's current investments.
-Look for: lists of portfolio companies, number of platforms. Only include confirmed companies.`;
-
-  return callAI(systemPrompt, `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract portfolio.`, tool, apiKey);
 }
 
-// Intelligent merge logic
+// Intelligent merge logic with FIXED data completeness calculation
 function buildUpdateObject(
   buyer: any,
   extractedData: Record<string, any>,
@@ -686,10 +807,32 @@ function buildUpdateObject(
     extraction_sources: [...existingSources, ...evidenceRecords]
   };
 
-  // Calculate data completeness
-  const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state'];
-  const filledFields = keyFields.filter(f => extractedData[f] || buyer[f]);
-  updateData.data_completeness = filledFields.length >= 4 ? 'high' : filledFields.length >= 2 ? 'medium' : 'low';
+  // FIX: Calculate data completeness based on EXTRACTED data, not existing buyer data
+  const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state', 'pe_firm_name', 'business_summary'];
+  const extractedFields = keyFields.filter(f => extractedData[f]);
+  const existingFields = keyFields.filter(f => buyer[f]);
+  
+  console.log(`Data completeness check: ${extractedFields.length} new fields, ${existingFields.length} existing fields`);
+  console.log(`Extracted key fields: ${extractedFields.join(', ') || 'none'}`);
+  
+  // Only upgrade completeness if we actually extracted something
+  if (extractedFields.length >= 4) {
+    updateData.data_completeness = 'high';
+  } else if (extractedFields.length >= 2) {
+    updateData.data_completeness = 'medium';
+  } else if (extractedFields.length === 0) {
+    // If no extraction happened, don't change existing completeness
+    // Only set to 'low' if this is first enrichment and nothing was extracted
+    if (existingFields.length === 0) {
+      updateData.data_completeness = 'low';
+    }
+    // Otherwise, leave it unchanged
+  } else {
+    // 1 field extracted - set to medium only if we didn't have medium/high already
+    if (buyer.data_completeness !== 'medium' && buyer.data_completeness !== 'high') {
+      updateData.data_completeness = 'medium';
+    }
+  }
 
   for (const field of Object.keys(extractedData)) {
     const newValue = extractedData[field];

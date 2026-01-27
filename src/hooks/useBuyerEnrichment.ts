@@ -5,9 +5,10 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export interface EnrichmentStatus {
   buyerId: string;
-  status: 'pending' | 'enriching' | 'success' | 'error';
+  status: 'pending' | 'enriching' | 'success' | 'error' | 'warning';
   error?: string;
   errorCode?: string;
+  fieldsExtracted?: number;
 }
 
 export interface EnrichmentProgress {
@@ -120,13 +121,32 @@ export function useBuyerEnrichment(universeId?: string) {
       );
 
       // Process results
+      let batchWarnings = 0;
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
         const buyer = batch[j];
         
         if (result.status === 'fulfilled') {
-          successful++;
-          updateStatus(buyer.id, { buyerId: buyer.id, status: 'success' });
+          const enrichResult = result.value;
+          
+          // Check if enrichment succeeded but extracted no data
+          const fieldsExtracted = enrichResult?.data?.fieldsExtracted?.length || 0;
+          if (fieldsExtracted === 0) {
+            batchWarnings++;
+            updateStatus(buyer.id, { 
+              buyerId: buyer.id, 
+              status: 'warning',
+              error: 'No data extracted from website',
+              fieldsExtracted: 0
+            });
+          } else {
+            successful++;
+            updateStatus(buyer.id, { 
+              buyerId: buyer.id, 
+              status: 'success',
+              fieldsExtracted
+            });
+          }
         } else {
           failed++;
           const error = result.reason;
