@@ -133,6 +133,18 @@ export const AIResearchSection = ({
       );
 
       if (!response.ok) {
+        if (response.status === 402) {
+          toast.error("AI credits depleted. Please add credits in Settings → Workspace → Usage.", {
+            duration: 10000
+          });
+          setState('idle');
+          return;
+        }
+        if (response.status === 429) {
+          toast.warning("Rate limit reached. Please wait a moment and try again.");
+          setState('idle');
+          return;
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
@@ -293,6 +305,18 @@ export const AIResearchSection = ({
       );
 
       if (!response.ok) {
+        if (response.status === 402) {
+          toast.error("AI credits depleted. Please add credits in Settings → Workspace → Usage to continue.", {
+            duration: 10000
+          });
+          setState('error');
+          return;
+        }
+        if (response.status === 429) {
+          toast.warning("Rate limit reached. Please wait a moment and try again.");
+          setState('error');
+          return;
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -430,6 +454,19 @@ export const AIResearchSection = ({
                 break;
 
               case 'error':
+                // Check for specific error codes
+                if (event.error_code === 'payment_required') {
+                  toast.error("AI credits depleted. Please add credits in Settings → Workspace → Usage to continue.", {
+                    duration: 10000
+                  });
+                  setState('error');
+                  return; // Don't retry billing errors
+                }
+                if (event.error_code === 'rate_limited') {
+                  toast.warning("Rate limit reached. Waiting 30 seconds before retrying...");
+                  await new Promise(r => setTimeout(r, 30000));
+                  // Continue to throw so auto-retry kicks in
+                }
                 throw new Error(event.message);
             }
           } catch (e) {
