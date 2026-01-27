@@ -318,3 +318,124 @@ function inferEmail(contact, pattern): { email, confidence } {
 - [ ] Update UI to use new contact tables (when ready)
 - [ ] Create `find-buyer-contacts` edge function (when ready)
 - [ ] Implement email pattern detection (when ready)
+
+---
+
+# CTO Audit: Intelligence Extraction & Enrichment Systems
+
+## Audit Date: 2026-01-27
+## References: `4_INTELLIGENCE_EXTRACTION.md`, `5_ENRICHMENT_SYSTEM.md`
+
+## Summary
+Audited Intelligence Extraction (extract-transcript) and Enrichment System (enrich-buyer) against specifications. Major refactor completed.
+
+---
+
+## Enrichment System (`enrich-buyer`)
+
+### ✅ ALIGNED - No Changes Required
+
+| Spec Requirement | Status | Implementation |
+|-----------------|--------|----------------|
+| 6 Enrichment Prompts | ✅ | Business, Customers, Geography, Acquisitions, PE Thesis, PE Deal |
+| Dual Website Scraping | ✅ | platform_website + pe_firm_website |
+| Firecrawl Integration | ✅ | v1 API with markdown format |
+| Tool Calling (Structured Output) | ✅ | Uses tool_choice with function parameters |
+| Transcript Protection | ✅ | TRANSCRIPT_PROTECTED_FIELDS prevents overwrite |
+| Intelligent Merge | ✅ | buildUpdateObject checks length/count |
+| 402/429 Error Handling | ✅ | Fail-fast with error_code for frontend |
+| Data Validation | ✅ | Placeholder detection, state code enforcement |
+
+---
+
+## Intelligence Extraction (`extract-transcript`)
+
+### 🔧 REFACTORED - Major Changes Made
+
+| Gap Identified | Resolution |
+|---------------|------------|
+| ❌ Wrong AI Provider (OpenAI gpt-4o-mini) | ✅ Migrated to Lovable AI Gateway (gemini-3-flash-preview) |
+| ❌ Single monolithic prompt | ✅ Refactored to 8-prompt architecture |
+| ❌ No geography normalization | ✅ Uses shared geography.ts module |
+| ⚠️ Missing extraction_evidence | 🔜 Deferred per user request |
+
+### 8-Prompt Architecture Implemented
+
+**BUYER PROMPTS (4):**
+1. `extract_buyer_thesis` - Investment thesis, strategic priorities, key quotes
+2. `extract_buyer_criteria` - Revenue/EBITDA ranges, target services, deal breakers
+3. `extract_buyer_acquisitions` - Past deals, frequency patterns
+4. `extract_buyer_geography` - Target regions, exclusions, current footprint
+
+**DEAL PROMPTS (4):**
+5. `extract_deal_financials` - Revenue, EBITDA (with source quotes)
+6. `extract_deal_services` - Service mix, percentages, specializations
+7. `extract_deal_geography` - States served, HQ location, service radius
+8. `extract_deal_owner_goals` - Transition preferences, motivation, timeline
+
+### Geography Normalization
+```typescript
+// Uses shared module from supabase/functions/_shared/geography.ts
+import { normalizeStates, extractStatesFromText, mergeStates } from "../_shared/geography.ts";
+
+// All geographic arrays run through normalization
+update.target_geographies = mergeStates(buyer.target_geographies, normalized);
+```
+
+### Billing Error Handling
+```typescript
+// Returns structured error for frontend handling
+if (billingError) {
+  return Response({ 
+    error_code: billingError.code,  // 'payment_required' | 'rate_limited'
+    partial_data: extractedData,
+    recoverable: billingError.code === 'rate_limited'
+  }, { status: statusCode });
+}
+```
+
+### Extraction Source Tracking
+```typescript
+update.extraction_sources = [
+  ...existingSources,
+  {
+    type: 'buyer_transcript',
+    extracted_at: new Date().toISOString(),
+    fields_extracted: Object.keys(update)
+  }
+];
+```
+
+---
+
+## Files Modified
+
+1. `supabase/functions/extract-transcript/index.ts` - **COMPLETELY REWRITTEN**
+   - Migrated from OpenAI to Lovable AI Gateway
+   - Implemented 8-prompt architecture with dedicated tool schemas
+   - Added geography normalization using shared module
+   - Added billing error handling (402/429)
+   - Added extraction source tracking
+
+2. `supabase/functions/enrich-buyer/index.ts` - No changes needed (already aligned)
+
+---
+
+## Deferred Features
+
+| Feature | Spec Reference | Reason Deferred |
+|---------|---------------|-----------------|
+| extraction_evidence field | §7 Evidence Tracking | User requested skip |
+| Per-field confidence scoring | §7 Evidence Tracking | User requested skip |
+| LinkedIn scraping | §1 Scale | Optional feature |
+| Bulk progress persistence | §4 Bulk Enrichment | Frontend handles |
+
+---
+
+## Testing Checklist
+
+- [ ] Test buyer transcript extraction with 4 prompts
+- [ ] Verify geography normalization (state names → 2-letter codes)
+- [ ] Test 402 error handling (credit depletion)
+- [ ] Verify extraction_sources updated after processing
+- [ ] Confirm key_quotes extraction from transcripts
