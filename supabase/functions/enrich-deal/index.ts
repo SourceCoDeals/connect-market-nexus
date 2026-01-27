@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizeStates, mergeStates } from "../_shared/geography.ts";
+import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -61,10 +63,10 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the deal/listing
+    // Fetch the deal/listing with extraction_sources
     const { data: deal, error: dealError } = await supabase
       .from('listings')
-      .select('*')
+      .select('*, extraction_sources')
       .eq('id', dealId)
       .single();
 
@@ -197,7 +199,7 @@ Focus on extracting:
 2. Services offered - List of services/products they provide
 3. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
 4. Industry/sector - Primary industry classification
-5. Geographic coverage - States/regions they operate in
+5. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
 6. Number of locations - Physical office/branch count
 7. Address/headquarters - Company headquarters location
 8. Founded year - When the company was established
@@ -337,62 +339,38 @@ Extract all available business information using the provided tool.`;
 
     console.log('Extracted data:', extracted);
 
-    // Build update object - only update fields that have values and aren't already set
-    const updates: Record<string, unknown> = {
+    // Normalize geographic_states using shared module
+    if (extracted.geographic_states) {
+      extracted.geographic_states = normalizeStates(extracted.geographic_states as string[]);
+    }
+
+    // Build priority-aware updates using shared module
+    const { updates, sourceUpdates } = buildPriorityUpdates(
+      deal,
+      deal.extraction_sources,
+      extracted,
+      'website'
+    );
+
+    // Add enriched_at timestamp
+    const finalUpdates = {
+      ...updates,
       enriched_at: new Date().toISOString(),
+      extraction_sources: updateExtractionSources(deal.extraction_sources, sourceUpdates),
     };
 
-    if (extracted.executive_summary && !deal.executive_summary) {
-      updates.executive_summary = extracted.executive_summary;
-    }
-    if (extracted.service_mix && !deal.service_mix) {
-      updates.service_mix = extracted.service_mix;
-    }
-    if (extracted.business_model && !deal.business_model) {
-      updates.business_model = extracted.business_model;
-    }
-    if (extracted.industry && !deal.industry) {
-      updates.industry = extracted.industry;
-    }
-    if (extracted.geographic_states && (!deal.geographic_states || deal.geographic_states.length === 0)) {
-      updates.geographic_states = extracted.geographic_states;
-    }
-    if (extracted.number_of_locations && !deal.number_of_locations) {
-      updates.number_of_locations = extracted.number_of_locations;
-    }
-    if (extracted.address && !deal.address) {
-      updates.address = extracted.address;
-    }
-    if (extracted.founded_year && !deal.founded_year) {
-      updates.founded_year = extracted.founded_year;
-    }
-    if (extracted.customer_types && !deal.customer_types) {
-      updates.customer_types = extracted.customer_types;
-    }
-    // New fields from expanded extraction
-    if (extracted.key_risks && !deal.key_risks) {
-      updates.key_risks = extracted.key_risks;
-    }
-    if (extracted.competitive_position && !deal.competitive_position) {
-      updates.competitive_position = extracted.competitive_position;
-    }
-    if (extracted.technology_systems && !deal.technology_systems) {
-      updates.technology_systems = extracted.technology_systems;
-    }
-    if (extracted.real_estate_info && !deal.real_estate_info) {
-      updates.real_estate_info = extracted.real_estate_info;
-    }
-    if (extracted.growth_trajectory && !deal.growth_trajectory) {
-      updates.growth_trajectory = extracted.growth_trajectory;
-    }
-    if (extracted.owner_goals && !deal.owner_goals) {
-      updates.owner_goals = extracted.owner_goals;
+    // Merge geographic states if both exist (website shouldn't overwrite existing)
+    if (updates.geographic_states && deal.geographic_states?.length > 0) {
+      finalUpdates.geographic_states = mergeStates(
+        deal.geographic_states,
+        updates.geographic_states as string[]
+      );
     }
 
     // Update the listing
     const { error: updateError } = await supabase
       .from('listings')
-      .update(updates)
+      .update(finalUpdates)
       .eq('id', dealId);
 
     if (updateError) {
@@ -400,7 +378,7 @@ Extract all available business information using the provided tool.`;
       throw updateError;
     }
 
-    const fieldsUpdated = Object.keys(updates).filter(k => k !== 'enriched_at');
+    const fieldsUpdated = Object.keys(updates);
     console.log(`Updated ${fieldsUpdated.length} fields:`, fieldsUpdated);
 
     return new Response(

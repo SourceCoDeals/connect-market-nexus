@@ -2520,10 +2520,12 @@ export type Database = {
           description_json: Json | null
           ebitda: number
           ebitda_confidence: string | null
+          ebitda_is_inferred: boolean | null
           ebitda_metric_subtitle: string | null
           ebitda_source_quote: string | null
           enriched_at: string | null
           executive_summary: string | null
+          extraction_sources: Json | null
           files: string[] | null
           founded_year: number | null
           full_time_employees: number | null
@@ -2556,6 +2558,7 @@ export type Database = {
           metric_4_custom_subtitle: string | null
           metric_4_custom_value: string | null
           metric_4_type: string | null
+          notes_analyzed_at: string | null
           number_of_locations: number | null
           owner_goals: string | null
           owner_notes: string | null
@@ -2569,6 +2572,7 @@ export type Database = {
           real_estate_info: string | null
           revenue: number
           revenue_confidence: string | null
+          revenue_is_inferred: boolean | null
           revenue_metric_subtitle: string | null
           revenue_model_breakdown: Json | null
           revenue_source_quote: string | null
@@ -2610,10 +2614,12 @@ export type Database = {
           description_json?: Json | null
           ebitda: number
           ebitda_confidence?: string | null
+          ebitda_is_inferred?: boolean | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
           enriched_at?: string | null
           executive_summary?: string | null
+          extraction_sources?: Json | null
           files?: string[] | null
           founded_year?: number | null
           full_time_employees?: number | null
@@ -2646,6 +2652,7 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          notes_analyzed_at?: string | null
           number_of_locations?: number | null
           owner_goals?: string | null
           owner_notes?: string | null
@@ -2659,6 +2666,7 @@ export type Database = {
           real_estate_info?: string | null
           revenue: number
           revenue_confidence?: string | null
+          revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           revenue_source_quote?: string | null
@@ -2700,10 +2708,12 @@ export type Database = {
           description_json?: Json | null
           ebitda?: number
           ebitda_confidence?: string | null
+          ebitda_is_inferred?: boolean | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
           enriched_at?: string | null
           executive_summary?: string | null
+          extraction_sources?: Json | null
           files?: string[] | null
           founded_year?: number | null
           full_time_employees?: number | null
@@ -2736,6 +2746,7 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          notes_analyzed_at?: string | null
           number_of_locations?: number | null
           owner_goals?: string | null
           owner_notes?: string | null
@@ -2749,6 +2760,7 @@ export type Database = {
           real_estate_info?: string | null
           revenue?: number
           revenue_confidence?: string | null
+          revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           revenue_source_quote?: string | null

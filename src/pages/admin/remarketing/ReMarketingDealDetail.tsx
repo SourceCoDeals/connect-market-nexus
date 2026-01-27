@@ -59,6 +59,7 @@ const ReMarketingDealDetail = () => {
   const queryClient = useQueryClient();
   
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isAnalyzingNotes, setIsAnalyzingNotes] = useState(false);
 
   // Fetch deal/listing data
   const { data: deal, isLoading: dealLoading } = useQuery({
@@ -340,8 +341,27 @@ const ReMarketingDealDetail = () => {
         onSave={async (notes) => {
           await updateDealMutation.mutateAsync({ general_notes: notes });
         }}
-        onAnalyze={async () => {
-          toast.info("AI notes analysis coming soon");
+        isAnalyzing={isAnalyzingNotes}
+        onAnalyze={async (notes) => {
+          setIsAnalyzingNotes(true);
+          try {
+            const { data, error } = await supabase.functions.invoke('analyze-deal-notes', {
+              body: { dealId, notesText: notes }
+            });
+            
+            if (error) throw error;
+            
+            if (data?.success) {
+              toast.success(`Extracted ${data.fieldsUpdated?.length || 0} fields from notes`);
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+            } else {
+              toast.error(data?.error || "Failed to analyze notes");
+            }
+          } catch (error: any) {
+            toast.error(error.message || "Failed to analyze notes");
+          } finally {
+            setIsAnalyzingNotes(false);
+          }
         }}
       />
 
