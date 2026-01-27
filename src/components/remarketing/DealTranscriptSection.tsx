@@ -266,7 +266,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
   });
 
-  // Extract intelligence from transcript
+  // Extract intelligence from transcript - now automatically applies to deal per spec
   const handleExtract = async (transcript: DealTranscript) => {
     setProcessingId(transcript.id);
     try {
@@ -274,14 +274,23 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         body: { 
           transcriptId: transcript.id, 
           transcriptText: transcript.transcript_text,
-          dealInfo
+          dealInfo,
+          applyToDeal: true // Automatically apply to listing per spec
         }
       });
 
       if (error) throw error;
 
+      // Invalidate both transcript and deal queries since we now update the listing
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-      toast.success(`Extracted ${data.fieldsExtracted || 0} fields`);
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      
+      // Show detailed success message per spec
+      if (data.dealUpdated && data.fieldsUpdated?.length > 0) {
+        toast.success(`Extracted ${data.fieldsExtracted || 0} fields and updated deal with: ${data.fieldsUpdated.slice(0, 3).join(', ')}${data.fieldsUpdated.length > 3 ? ` +${data.fieldsUpdated.length - 3} more` : ''}`);
+      } else {
+        toast.success(`Extracted ${data.fieldsExtracted || 0} fields from transcript`);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to extract intelligence");
     } finally {
