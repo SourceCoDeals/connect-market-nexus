@@ -11,10 +11,19 @@ import {
   GitMerge,
   Loader2,
   X,
-  AlertCircle
+  AlertCircle,
+  Target
 } from "lucide-react";
 
 interface EnrichmentProgress {
+  current: number;
+  total: number;
+  successful?: number;
+  failed?: number;
+  creditsDepleted?: boolean;
+}
+
+interface AlignmentProgress {
   current: number;
   total: number;
   successful?: number;
@@ -31,10 +40,14 @@ interface BuyerTableToolbarProps {
   onEnrichAll?: () => void;
   onDedupe?: () => void;
   onCancelEnrichment?: () => void;
+  onScoreAlignment?: () => void;
+  onCancelAlignment?: () => void;
   isEnriching?: boolean;
   isDeduping?: boolean;
+  isScoringAlignment?: boolean;
   selectedCount?: number;
   enrichmentProgress?: EnrichmentProgress;
+  alignmentProgress?: AlignmentProgress;
   className?: string;
 }
 
@@ -47,15 +60,24 @@ export const BuyerTableToolbar = ({
   onEnrichAll,
   onDedupe,
   onCancelEnrichment,
+  onScoreAlignment,
+  onCancelAlignment,
   isEnriching = false,
   isDeduping = false,
+  isScoringAlignment = false,
   selectedCount = 0,
   enrichmentProgress,
+  alignmentProgress,
   className = ""
 }: BuyerTableToolbarProps) => {
-  const showProgress = isEnriching && enrichmentProgress && enrichmentProgress.total > 0;
-  const progressPercent = showProgress 
+  const showEnrichProgress = isEnriching && enrichmentProgress && enrichmentProgress.total > 0;
+  const enrichProgressPercent = showEnrichProgress 
     ? (enrichmentProgress.current / enrichmentProgress.total) * 100 
+    : 0;
+
+  const showAlignmentProgress = isScoringAlignment && alignmentProgress && alignmentProgress.total > 0;
+  const alignmentProgressPercent = showAlignmentProgress 
+    ? (alignmentProgress.current / alignmentProgress.total) * 100 
     : 0;
 
   return (
@@ -99,7 +121,7 @@ export const BuyerTableToolbar = ({
               variant="outline" 
               size="sm" 
               onClick={onEnrichAll}
-              disabled={isEnriching}
+              disabled={isEnriching || isScoringAlignment}
             >
               {isEnriching ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -114,6 +136,35 @@ export const BuyerTableToolbar = ({
               variant="ghost" 
               size="sm" 
               onClick={onCancelEnrichment}
+              className="text-destructive"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+          )}
+          {onScoreAlignment && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onScoreAlignment}
+              disabled={isScoringAlignment || isEnriching}
+            >
+              {isScoringAlignment ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Target className="h-4 w-4 mr-1" />
+              )}
+              {isScoringAlignment && alignmentProgress 
+                ? `Scoring... ${alignmentProgress.current}/${alignmentProgress.total}`
+                : "Score Alignment"
+              }
+            </Button>
+          )}
+          {isScoringAlignment && onCancelAlignment && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onCancelAlignment}
               className="text-destructive"
             >
               <X className="h-4 w-4 mr-1" />
@@ -139,7 +190,7 @@ export const BuyerTableToolbar = ({
       </div>
 
       {/* Enrichment Progress Bar */}
-      {showProgress && (
+      {showEnrichProgress && (
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
           <div className="flex-1 space-y-1">
@@ -154,9 +205,36 @@ export const BuyerTableToolbar = ({
                 </span>
               )}
             </div>
-            <Progress value={progressPercent} className="h-2" />
+            <Progress value={enrichProgressPercent} className="h-2" />
           </div>
           {enrichmentProgress.creditsDepleted && (
+            <Badge variant="destructive" className="gap-1 shrink-0">
+              <AlertCircle className="h-3 w-3" />
+              Credits Depleted
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {/* Alignment Scoring Progress Bar */}
+      {showAlignmentProgress && (
+        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
+          <Target className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span>
+                Scoring industry alignment... {alignmentProgress.current} of {alignmentProgress.total}
+              </span>
+              {alignmentProgress.successful !== undefined && (
+                <span className="text-muted-foreground">
+                  {alignmentProgress.successful} scored
+                  {alignmentProgress.failed ? `, ${alignmentProgress.failed} failed` : ''}
+                </span>
+              )}
+            </div>
+            <Progress value={alignmentProgressPercent} className="h-2" />
+          </div>
+          {alignmentProgress.creditsDepleted && (
             <Badge variant="destructive" className="gap-1 shrink-0">
               <AlertCircle className="h-3 w-3" />
               Credits Depleted

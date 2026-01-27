@@ -1,0 +1,312 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface ScoreRequest {
+  buyerId: string;
+  universeId: string;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const body: ScoreRequest = await req.json();
+    const { buyerId, universeId } = body;
+
+    if (!buyerId || !universeId) {
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters: buyerId and universeId" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[score-industry-alignment] Starting for buyer: ${buyerId}, universe: ${universeId}`);
+
+    // Step 1: Fetch buyer data
+    const { data: buyer, error: buyerError } = await supabase
+      .from("remarketing_buyers")
+      .select(`
+        id, company_name, company_website, pe_firm_name, 
+        hq_city, hq_state, business_summary,
+        target_services, target_geographies,
+        thesis_summary, industry_vertical, target_industries
+      `)
+      .eq("id", buyerId)
+      .single();
+
+    if (buyerError || !buyer) {
+      console.error("Buyer not found:", buyerError);
+      return new Response(
+        JSON.stringify({ error: "Buyer not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Step 2: Fetch universe data including M&A guide content
+    const { data: universe, error: universeError } = await supabase
+      .from("remarketing_buyer_universes")
+      .select("id, name, description, fit_criteria, ma_guide_content, size_criteria, geography_criteria, service_criteria")
+      .eq("id", universeId)
+      .single();
+
+    if (universeError || !universe) {
+      console.error("Universe not found:", universeError);
+      return new Response(
+        JSON.stringify({ error: "Universe not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[score-industry-alignment] Scoring ${buyer.company_name} against ${universe.name}`);
+
+    // Step 3: Build AI prompt with all available context
+    const systemPrompt = `You are an M&A industry expert specializing in evaluating company fit for buyer universes. Your job is to score how well a company aligns with a specific target industry.
+
+CRITICAL RULES:
+1. Be STRICT - adjacent or related industries should score LOW
+2. "Restoration" is NOT the same as "Fire & Water Restoration"
+3. Equipment suppliers are NOT the same as service providers
+4. Consider business model (B2B vs B2C), service type, and target customers
+5. Use all available context: company data, existing enrichment, and industry knowledge
+
+SCORING SCALE:
+- 95-100: Perfect fit - clearly operates in exact target industry with matching business model
+- 85-94: Excellent fit - right industry, minor variations in focus or geography
+- 70-84: Good fit - right industry, some differences in service mix or business model
+- 55-69: Partial fit - adjacent industry or significantly different business model
+- 40-54: Weak fit - related but distinctly different industry or business model
+- 20-39: Poor fit - different industry with only superficial connection
+- 0-19: Non-fit - completely unrelated industry
+
+EXAMPLES:
+Universe: "Fire & Water Restoration"
+- Fire damage restoration company → Score: 98 (perfect fit)
+- Water damage + mold remediation → Score: 90 (excellent fit, includes target services)
+- General disaster restoration → Score: 75 (good fit, broader but includes target)
+- Mold remediation only → Score: 60 (partial fit, adjacent service)
+- Property management → Score: 35 (poor fit, uses services but doesn't provide)
+- Equipment supplier to restoration → Score: 25 (poor fit, wrong business model)
+- Classic car restoration → Score: 5 (non-fit, completely different industry)`;
+
+    // Build the industry knowledge context from M&A guide if available
+    let industryKnowledge = "";
+    if (universe.ma_guide_content) {
+      // Truncate to avoid token limits
+      industryKnowledge = `
+INDUSTRY KNOWLEDGE BASE (from M&A Research Guide):
+${universe.ma_guide_content.slice(0, 6000)}
+`;
+    }
+
+    // Build service criteria context
+    let serviceCriteriaContext = "";
+    const serviceCriteria = universe.service_criteria as any;
+    if (serviceCriteria) {
+      if (serviceCriteria.primary_focus) {
+        serviceCriteriaContext += `\nPrimary Industry Focus: ${serviceCriteria.primary_focus}`;
+      }
+      if (serviceCriteria.keywords?.length) {
+        serviceCriteriaContext += `\nIndustry Keywords: ${serviceCriteria.keywords.join(", ")}`;
+      }
+    }
+
+    const userPrompt = `
+UNIVERSE DETAILS:
+Industry: ${universe.name}
+Description: ${universe.description || "Not specified"}
+Fit Criteria: ${universe.fit_criteria || "Not specified"}
+${serviceCriteriaContext}
+${industryKnowledge}
+
+COMPANY TO EVALUATE:
+Name: ${buyer.company_name}
+Location: ${[buyer.hq_city, buyer.hq_state].filter(Boolean).join(", ") || "Not provided"}
+Website: ${buyer.company_website || "Not provided"}
+PE Firm: ${buyer.pe_firm_name || "Not specified"}
+Industry Vertical: ${buyer.industry_vertical || "Not specified"}
+
+${buyer.business_summary ? `
+Business Overview (from prior enrichment):
+${buyer.business_summary}
+` : ""}
+
+${buyer.thesis_summary ? `
+Investment Thesis:
+${buyer.thesis_summary}
+` : ""}
+
+${buyer.target_services?.length ? `
+Services: ${buyer.target_services.join(", ")}
+` : ""}
+
+${buyer.target_industries?.length ? `
+Target Industries: ${buyer.target_industries.join(", ")}
+` : ""}
+
+${buyer.target_geographies?.length ? `
+Target Geographies: ${buyer.target_geographies.join(", ")}
+` : ""}
+
+TASK: Analyze this company and determine its alignment score (0-100) with the target industry "${universe.name}". Use the score_alignment tool to return your evaluation.`;
+
+    // Step 4: Call Lovable AI Gateway with tool calling
+    const toolDefinition = {
+      type: "function",
+      function: {
+        name: "score_alignment",
+        description: "Score a company's alignment with the target industry",
+        parameters: {
+          type: "object",
+          properties: {
+            score: {
+              type: "integer",
+              minimum: 0,
+              maximum: 100,
+              description: "Alignment score from 0-100"
+            },
+            reasoning: {
+              type: "string",
+              description: "Detailed 3-4 sentence explanation of why this score was assigned. Include specific factors that support or hurt the fit."
+            },
+            key_factors: {
+              type: "array",
+              items: { type: "string" },
+              description: "3-5 specific factors that influenced the score (positive or negative)"
+            },
+            confidence: {
+              type: "string",
+              enum: ["high", "medium", "low"],
+              description: "Confidence level in this score based on available data"
+            }
+          },
+          required: ["score", "reasoning", "key_factors", "confidence"],
+          additionalProperties: false
+        }
+      }
+    };
+
+    console.log(`[score-industry-alignment] Calling AI for ${buyer.company_name}...`);
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        tools: [toolDefinition],
+        tool_choice: { type: "function", function: { name: "score_alignment" } }
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error(`[score-industry-alignment] AI API error: ${aiResponse.status}`, errorText);
+      
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({
+            error: "AI credits depleted",
+            error_code: "payment_required",
+            message: "Please add credits to continue scoring"
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({
+            error: "Rate limited",
+            error_code: "rate_limited",
+            message: "Too many requests - please wait and retry"
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      throw new Error(`AI API error: ${aiResponse.status}`);
+    }
+
+    const aiResult = await aiResponse.json();
+    console.log(`[score-industry-alignment] AI Response:`, JSON.stringify(aiResult).slice(0, 500));
+
+    // Extract tool call result
+    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      console.error("[score-industry-alignment] No tool call in AI response:", aiResult);
+      throw new Error("AI did not return a scoring result");
+    }
+
+    let scoringResult;
+    try {
+      scoringResult = JSON.parse(toolCall.function.arguments);
+    } catch (parseError) {
+      console.error("[score-industry-alignment] Failed to parse tool arguments:", toolCall.function.arguments);
+      throw new Error("Failed to parse AI scoring result");
+    }
+
+    console.log(`[score-industry-alignment] Score for ${buyer.company_name}: ${scoringResult.score}`);
+
+    // Step 5: Update the buyer with alignment data
+    const { error: updateError } = await supabase
+      .from("remarketing_buyers")
+      .update({
+        alignment_score: scoringResult.score,
+        alignment_reasoning: scoringResult.reasoning,
+        alignment_checked_at: new Date().toISOString()
+      })
+      .eq("id", buyerId);
+
+    if (updateError) {
+      console.error("[score-industry-alignment] Update error:", updateError);
+      throw new Error(`Failed to update buyer: ${updateError.message}`);
+    }
+
+    // Step 6: Return the result
+    return new Response(
+      JSON.stringify({
+        success: true,
+        buyer_id: buyerId,
+        company_name: buyer.company_name,
+        score: scoringResult.score,
+        reasoning: scoringResult.reasoning,
+        key_factors: scoringResult.key_factors,
+        confidence: scoringResult.confidence
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error("[score-industry-alignment] Error:", error);
+    
+    return new Response(
+      JSON.stringify({
+        error: "Scoring failed",
+        message: error instanceof Error ? error.message : "Unknown error"
+      }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

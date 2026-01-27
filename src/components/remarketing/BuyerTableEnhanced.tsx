@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,13 @@ import {
   Building,
   ExternalLink,
   Search as SearchIcon,
-  DollarSign
+  DollarSign,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
+import { AlignmentScoreBadge } from "./AlignmentScoreBadge";
 import type { DataCompleteness } from "@/types/remarketing";
 
 interface BuyerRow {
@@ -49,6 +53,17 @@ interface BuyerRow {
   target_geographies?: string[];
   geographic_footprint?: string[];
   has_fee_agreement?: boolean | null;
+  alignment_score?: number | null;
+  alignment_reasoning?: string | null;
+  alignment_checked_at?: string | null;
+}
+
+type SortKey = 'company_name' | 'pe_firm_name' | 'data_completeness' | 'alignment_score';
+type SortDirection = 'asc' | 'desc';
+
+interface SortConfig {
+  key: SortKey;
+  direction: SortDirection;
 }
 
 interface BuyerTableEnhancedProps {
@@ -57,6 +72,7 @@ interface BuyerTableEnhancedProps {
   onDelete?: (buyerId: string) => void;
   isEnriching?: string | null;
   showPEColumn?: boolean;
+  scoringBuyerIds?: string[];
 }
 
 export const BuyerTableEnhanced = ({
@@ -65,8 +81,13 @@ export const BuyerTableEnhanced = ({
   onDelete,
   isEnriching,
   showPEColumn = true,
+  scoringBuyerIds = [],
 }: BuyerTableEnhancedProps) => {
   const navigate = useNavigate();
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'company_name',
+    direction: 'asc'
+  });
 
   const getLocation = (buyer: BuyerRow) => {
     const parts = [];
@@ -75,15 +96,70 @@ export const BuyerTableEnhanced = ({
     return parts.length > 0 ? parts.join(', ') : null;
   };
 
-  const getIntelLabel = (completeness: string | null) => {
-    switch (completeness) {
-      case 'high':
-        return { label: 'Enriched', variant: 'default' as const };
-      case 'medium':
-        return { label: 'Partial', variant: 'secondary' as const };
-      default:
-        return { label: 'Needs Research', variant: 'outline' as const };
-    }
+  const handleSort = (key: SortKey) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const sortedBuyers = useMemo(() => {
+    return [...buyers].sort((a, b) => {
+      const { key, direction } = sortConfig;
+      const multiplier = direction === 'asc' ? 1 : -1;
+
+      switch (key) {
+        case 'company_name':
+          return multiplier * (a.company_name || '').localeCompare(b.company_name || '');
+        
+        case 'pe_firm_name':
+          const peA = a.pe_firm_name || '';
+          const peB = b.pe_firm_name || '';
+          if (!peA && !peB) return 0;
+          if (!peA) return 1;
+          if (!peB) return -1;
+          return multiplier * peA.localeCompare(peB);
+        
+        case 'data_completeness':
+          const orderMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
+          const compA = orderMap[a.data_completeness || 'low'] || 0;
+          const compB = orderMap[b.data_completeness || 'low'] || 0;
+          return multiplier * (compA - compB);
+        
+        case 'alignment_score':
+          // Null scores go to the end
+          if (a.alignment_score === null && b.alignment_score === null) return 0;
+          if (a.alignment_score === null) return 1;
+          if (b.alignment_score === null) return -1;
+          return multiplier * (a.alignment_score - b.alignment_score);
+        
+        default:
+          return 0;
+      }
+    });
+  }, [buyers, sortConfig]);
+
+  const SortButton = ({ label, sortKey }: { label: string; sortKey: SortKey }) => {
+    const isActive = sortConfig.key === sortKey;
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 font-medium"
+        onClick={() => handleSort(sortKey)}
+      >
+        {label}
+        {isActive ? (
+          sortConfig.direction === 'asc' ? (
+            <ArrowUp className="ml-1 h-3 w-3" />
+          ) : (
+            <ArrowDown className="ml-1 h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+        )}
+      </Button>
+    );
   };
 
   return (
@@ -91,27 +167,38 @@ export const BuyerTableEnhanced = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[280px]">Platform / Buyer</TableHead>
-            {showPEColumn && <TableHead className="w-[180px]">PE Firm</TableHead>}
+            <TableHead className="w-[280px]">
+              <SortButton label="Platform / Buyer" sortKey="company_name" />
+            </TableHead>
+            <TableHead className="w-[140px]">
+              <SortButton label="Industry Fit" sortKey="alignment_score" />
+            </TableHead>
+            {showPEColumn && (
+              <TableHead className="w-[180px]">
+                <SortButton label="PE Firm" sortKey="pe_firm_name" />
+              </TableHead>
+            )}
             <TableHead>Description</TableHead>
-            <TableHead className="w-[130px]">Intel</TableHead>
+            <TableHead className="w-[130px]">
+              <SortButton label="Intel" sortKey="data_completeness" />
+            </TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {buyers.length === 0 ? (
+          {sortedBuyers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={showPEColumn ? 5 : 4} className="text-center py-12 text-muted-foreground">
+              <TableCell colSpan={showPEColumn ? 6 : 5} className="text-center py-12 text-muted-foreground">
                 <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">No buyers found</p>
                 <p className="text-sm">Add buyers manually or import from CSV</p>
               </TableCell>
             </TableRow>
           ) : (
-            buyers.map((buyer) => {
+            sortedBuyers.map((buyer) => {
               const location = getLocation(buyer);
-              const intel = getIntelLabel(buyer.data_completeness);
               const isCurrentlyEnriching = isEnriching === buyer.id;
+              const isCurrentlyScoring = scoringBuyerIds.includes(buyer.id);
 
               return (
                 <TableRow
@@ -162,6 +249,15 @@ export const BuyerTableEnhanced = ({
                         )}
                       </div>
                     </div>
+                  </TableCell>
+
+                  {/* Industry Fit Column */}
+                  <TableCell>
+                    <AlignmentScoreBadge
+                      score={buyer.alignment_score ?? null}
+                      reasoning={buyer.alignment_reasoning}
+                      isScoring={isCurrentlyScoring}
+                    />
                   </TableCell>
 
                   {/* PE Firm Column */}

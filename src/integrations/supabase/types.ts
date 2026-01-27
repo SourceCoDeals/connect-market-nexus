@@ -3908,6 +3908,9 @@ export type Database = {
           acquisition_appetite: string | null
           acquisition_frequency: string | null
           acquisition_timeline: string | null
+          alignment_checked_at: string | null
+          alignment_reasoning: string | null
+          alignment_score: number | null
           archived: boolean
           business_summary: string | null
           buyer_linkedin: string | null
@@ -3972,6 +3975,9 @@ export type Database = {
           acquisition_appetite?: string | null
           acquisition_frequency?: string | null
           acquisition_timeline?: string | null
+          alignment_checked_at?: string | null
+          alignment_reasoning?: string | null
+          alignment_score?: number | null
           archived?: boolean
           business_summary?: string | null
           buyer_linkedin?: string | null
@@ -4036,6 +4042,9 @@ export type Database = {
           acquisition_appetite?: string | null
           acquisition_frequency?: string | null
           acquisition_timeline?: string | null
+          alignment_checked_at?: string | null
+          alignment_reasoning?: string | null
+          alignment_score?: number | null
           archived?: boolean
           business_summary?: string | null
           buyer_linkedin?: string | null
