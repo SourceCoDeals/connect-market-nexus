@@ -715,10 +715,16 @@ Do NOT use placeholders like [X] or TBD - use realistic example values.${context
     console.error(`Phase ${phase.id} generation failed:`, response.status, text);
     
     if (response.status === 429) {
-      throw new Error(`Rate limit exceeded for phase ${phase.id}`);
+      const err = new Error(`Rate limit exceeded for phase ${phase.id}`);
+      (err as any).code = 'rate_limited';
+      (err as any).recoverable = true;
+      throw err;
     }
     if (response.status === 402) {
-      throw new Error(`Usage limit reached for phase ${phase.id}`);
+      const err = new Error(`AI credits depleted. Please add credits to continue.`);
+      (err as any).code = 'payment_required';
+      (err as any).recoverable = false;
+      throw err;
     }
     throw new Error(`Failed to generate phase ${phase.id}`);
   }
@@ -1165,7 +1171,21 @@ serve(async (req) => {
           }
 
         } catch (error) {
-          send({ type: 'error', message: error.message });
+          const errorCode = (error as any).code || 'unknown';
+          const recoverable = (error as any).recoverable ?? true;
+          console.error('SSE generation error:', { 
+            message: error.message, 
+            code: errorCode, 
+            recoverable,
+            batch: batch_index 
+          });
+          send({ 
+            type: 'error', 
+            message: error.message,
+            error_code: errorCode,
+            recoverable,
+            batch_index
+          });
         } finally {
           clearInterval(heartbeatInterval);
           controller.close();
