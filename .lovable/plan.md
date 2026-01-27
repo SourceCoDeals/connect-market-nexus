@@ -1,78 +1,93 @@
 
-# Fix: Listing Detail Page Crash Due to `key_risks` Type Mismatch
+# M&A Guide Generation Fix Plan
 
-## Root Cause
+## Problem Summary
+The M&A Guide generation shows "1 words generated" and silently fails because **the Lovable AI Gateway is returning a 402 Payment Required error (out of credits)**. The error isn't being surfaced to users properly.
 
-The listing `4524ff91-e5a2-497d-8f7d-7e65b9e991d4` has `key_risks` stored as a **JSONB string** instead of a **JSONB array**:
+## Immediate Action Required
+**Add credits to the Lovable workspace** - Go to Settings → Workspace → Usage and top up your AI credits. The system is working correctly; it just needs credits to call the AI models.
 
-```
-"Profitability is currently impacted..."  // ❌ String
-["Profitability is currently impacted..."] // ✅ Array
-```
+---
 
-The `EnhancedInvestorDashboard` component calls `.map()` on `key_risks`, which fails on strings.
+## Technical Fixes (To Prevent Future Confusion)
 
-## Recommended Fix (Two-Part Solution)
+### Fix 1: Enhanced Error Messaging in Edge Function
+**File:** `supabase/functions/generate-ma-guide/index.ts`
 
-### Part 1: Defensive Code Fix (Immediate)
+Update the SSE error event to include error codes:
+- Add `error_code` field to error events ("payment_required", "rate_limited", "timeout", "unknown")
+- Include user-friendly messages for each error type
+- Log the full error context for debugging
 
-Update `EnhancedInvestorDashboard.tsx` to safely handle both string and array formats:
+### Fix 2: Frontend Error Classification
+**File:** `src/components/remarketing/AIResearchSection.tsx`
 
-```typescript
-// Normalize key_risks to always be an array
-const normalizeToArray = (value: string[] | string | undefined | null): string[] => {
-  if (!value) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value === 'string' && value.trim()) return [value];
-  return [];
-};
+Update the error handling in `generateBatch()` to:
+- Parse SSE error events for `error_code`
+- Show specific toast messages:
+  - 402: "AI credits depleted. Please add credits in Settings → Workspace → Usage to continue."
+  - 429: "Rate limit reached. Please wait a moment and try again."
+  - Timeout: "Generation timed out. Click 'Resume' to continue from where you left off."
+- Add a "Add Credits" button link when 402 is detected
+- Stop retrying on billing errors (402) since retries won't help
 
-const keyRisks = normalizeToArray(listing.key_risks);
-const growthDrivers = normalizeToArray(listing.growth_drivers);
-```
+### Fix 3: HTTP-Level 402/429 Handling
+**File:** `src/components/remarketing/AIResearchSection.tsx`
 
-Then use `keyRisks` and `growthDrivers` in the render:
+For cases where the edge function itself returns 402/429 (before SSE starts):
+- Check `response.status` for 402/429 before starting stream parsing
+- Show appropriate credit/rate-limit messaging
+- Preserve user progress for resume after adding credits
 
-```tsx
-{keyRisks.length > 0 && (
-  <div className="space-y-2">
-    {keyRisks.map((risk, index) => (
-      <div key={index}>• {risk}</div>
-    ))}
-  </div>
-)}
-```
+### Fix 4: Clarification Flow Error Handling
+**File:** `src/components/remarketing/AIResearchSection.tsx`
 
-### Part 2: Data Cleanup (Optional but Recommended)
+Update `handleStartClarification()` to:
+- Parse the error response JSON for specific error types
+- Show credit messaging instead of falling back to direct generation
+- Prevent wasted attempts when credits are exhausted
 
-Run a migration to fix the malformed data:
-
-```sql
-UPDATE listings
-SET key_risks = to_jsonb(ARRAY[key_risks #>> '{}'])
-WHERE jsonb_typeof(key_risks) = 'string'
-  AND key_risks IS NOT NULL;
-```
-
-This converts any string values into single-element arrays.
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/listing-detail/EnhancedInvestorDashboard.tsx` | Add `normalizeToArray` helper and use it for `key_risks` and `growth_drivers` |
+---
 
 ## Technical Details
 
-The defensive code approach is preferred because:
-1. It prevents crashes immediately without database changes
-2. It handles future data inconsistencies gracefully
-3. It's backward compatible with both formats
-4. The data cleanup can be done later as a non-urgent task
+### Error Event Structure (Edge Function)
+```typescript
+send({ 
+  type: 'error', 
+  message: 'AI credits depleted. Please add credits to continue.',
+  error_code: 'payment_required',  // NEW
+  recoverable: false,              // NEW
+  phase: currentPhaseId            // NEW - for resume
+});
+```
 
-## Expected Result
+### Frontend Error Handler
+```typescript
+case 'error':
+  if (event.error_code === 'payment_required') {
+    toast.error('AI credits depleted. Add credits in Settings → Usage.', {
+      action: { label: 'Add Credits', onClick: () => window.open('/settings/usage', '_blank') }
+    });
+    setState('error');
+    return; // Don't retry
+  }
+  if (event.error_code === 'rate_limited') {
+    toast.warning('Rate limit reached. Retrying in 30 seconds...');
+    await new Promise(r => setTimeout(r, 30000));
+    // Retry current batch
+  }
+  throw new Error(event.message);
+```
 
-After the fix:
-- The listing page at `/listing/4524ff91-e5a2-497d-8f7d-7e65b9e991d4` will render correctly
-- The risk text will display as a single bullet point (since it's one string)
-- All other listings will continue to work as expected
+### Files to Modify
+1. `supabase/functions/generate-ma-guide/index.ts` - Add error codes to SSE events
+2. `src/components/remarketing/AIResearchSection.tsx` - Enhanced error handling and user messaging
+3. Optional: `supabase/functions/clarify-industry/index.ts` - Already has 402 handling, just needs frontend to respect it
+
+---
+
+## Summary
+The M&A Guide system is architecturally sound but has a **user experience gap** where billing errors appear as generation failures. The fix involves:
+1. **Immediate:** Add Lovable AI credits to your workspace
+2. **Code changes:** Add error classification and user-friendly messaging so future credit issues are immediately clear to users
