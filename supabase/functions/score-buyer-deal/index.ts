@@ -237,6 +237,84 @@ function applySweetSpotBonus(
   return { score: adjustedScore, bonusApplied, bonusReason };
 }
 
+// ========== SIZE MULTIPLIER CALCULATION (KEY SPEC INNOVATION) ==========
+// Size acts as a GATE on final score - a deal perfect on geography and services
+// but wrong on size will NOT score high. The size multiplier (0-1.0) is applied
+// to the final composite score.
+function calculateSizeMultiplier(
+  listing: any,
+  buyer: any,
+  behavior: ScoringBehavior,
+  sizeScore: number
+): number {
+  const dealRevenue = listing.revenue || 0;
+  const dealEbitda = listing.ebitda || 0;
+  const buyerMinRevenue = buyer.target_revenue_min;
+  const buyerMaxRevenue = buyer.target_revenue_max;
+  const buyerMinEbitda = buyer.target_ebitda_min;
+  const revenueSweetSpot = buyer.revenue_sweet_spot;
+  
+  // If size score is very low, apply heavy multiplier penalty
+  if (sizeScore <= 25) {
+    return 0.3; // Heavy penalty - 70% reduction
+  }
+  
+  // Check for disqualification scenarios
+  
+  // Revenue significantly below minimum (>30% below)
+  if (buyerMinRevenue && dealRevenue > 0 && dealRevenue < buyerMinRevenue * 0.7) {
+    if (behavior.below_minimum_handling === 'disqualify') {
+      return 0; // Complete disqualification
+    }
+    return 0.3; // Heavy penalty
+  }
+  
+  // Revenue below minimum but within 30%
+  if (buyerMinRevenue && dealRevenue > 0 && dealRevenue < buyerMinRevenue) {
+    const percentBelow = (buyerMinRevenue - dealRevenue) / buyerMinRevenue;
+    // Sliding scale: 20% below = 0.5x, 10% below = 0.65x
+    return Math.max(0.35, 0.35 + (1 - percentBelow / 0.3) * 0.35);
+  }
+  
+  // Revenue significantly above maximum (>50% above)
+  if (buyerMaxRevenue && dealRevenue > buyerMaxRevenue * 1.5) {
+    return 0; // Disqualify - way too big
+  }
+  
+  // EBITDA significantly below minimum
+  if (buyerMinEbitda && dealEbitda > 0 && dealEbitda < buyerMinEbitda * 0.5) {
+    return 0.25; // Very heavy penalty
+  }
+  
+  // EBITDA below minimum (but not by much)
+  if (buyerMinEbitda && dealEbitda > 0 && dealEbitda < buyerMinEbitda) {
+    const percentBelow = (buyerMinEbitda - dealEbitda) / buyerMinEbitda;
+    return Math.max(0.4, 1 - percentBelow);
+  }
+  
+  // ========== POSITIVE SCENARIOS (DEAL FITS WELL) ==========
+  
+  // Perfect sweet spot match
+  if (revenueSweetSpot && dealRevenue > 0) {
+    const percentDiff = Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot;
+    if (percentDiff < 0.1) {
+      return 1.0; // Perfect match - no penalty
+    } else if (percentDiff < 0.2) {
+      return 0.95; // Very close - minimal penalty
+    } else if (percentDiff < 0.4) {
+      return 0.85; // Reasonable match
+    }
+  }
+  
+  // Within buyer's range
+  if (buyerMinRevenue && buyerMaxRevenue && dealRevenue >= buyerMinRevenue && dealRevenue <= buyerMaxRevenue) {
+    return 1.0; // In range - no penalty
+  }
+  
+  // Default - no special multiplier
+  return 1.0;
+}
+
 // Apply learning adjustments to score
 function applyLearningAdjustment(
   baseScore: number, 
@@ -350,12 +428,12 @@ async function handleSingleScore(
     adjustments
   );
 
-  // Recalculate tier based on adjusted score
+  // Recalculate tier based on adjusted score - ALIGNED WITH SPEC
   let tier: string;
-  if (adjustedScore >= 85) tier = "A";
-  else if (adjustedScore >= 70) tier = "B";
-  else if (adjustedScore >= 55) tier = "C";
-  else tier = "D";
+  if (adjustedScore >= 80) tier = "A";      // Tier 1 per spec
+  else if (adjustedScore >= 60) tier = "B"; // Tier 2 per spec
+  else if (adjustedScore >= 40) tier = "C"; // Tier 3 per spec
+  else tier = "D";                          // Pass per spec
 
   // Create deal snapshot for stale detection
   const dealSnapshot = {
@@ -520,12 +598,12 @@ async function handleBulkScore(
           adjustments
         );
 
-        // Recalculate tier
+        // Recalculate tier - ALIGNED WITH SPEC
         let tier: string;
-        if (adjustedScore >= 85) tier = "A";
-        else if (adjustedScore >= 70) tier = "B";
-        else if (adjustedScore >= 55) tier = "C";
-        else tier = "D";
+        if (adjustedScore >= 80) tier = "A";      // Tier 1 per spec
+        else if (adjustedScore >= 60) tier = "B"; // Tier 2 per spec
+        else if (adjustedScore >= 40) tier = "C"; // Tier 3 per spec
+        else tier = "D";                          // Pass per spec
 
         // Create deal snapshot for stale detection
         const dealSnapshot = {
@@ -1191,29 +1269,40 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
     serviceCriteria
   );
 
+  // ========== SIZE MULTIPLIER CALCULATION (KEY INNOVATION FROM SPEC) ==========
+  // Size acts as a GATE on final score - wrong size = low score regardless of other factors
+  const sizeMultiplier = calculateSizeMultiplier(
+    listing,
+    buyer,
+    scoringBehavior,
+    enforcedScores.size_score
+  );
+  
+  console.log(`[SizeMultiplier] Deal ${listing.id}: size_score=${enforcedScores.size_score}, multiplier=${sizeMultiplier}`);
+
   // Calculate composite score using universe weights (core 4 categories)
-  const composite = Math.round(
+  const baseComposite = Math.round(
     (enforcedScores.geography_score * universe.geography_weight +
      enforcedScores.size_score * universe.size_weight +
      enforcedScores.service_score * universe.service_weight +
      enforcedScores.owner_goals_score * universe.owner_goals_weight) / 100
   );
 
-  // Bonus from secondary scores (up to +10 points) - but not if disqualified
+  // Bonus from secondary scores (up to +5 points per spec) - but not if disqualified
   const secondaryAvg = (enforcedScores.acquisition_score + enforcedScores.portfolio_score + enforcedScores.business_model_score) / 3;
   const secondaryBonus = forceDisqualify ? 0 : (secondaryAvg >= 80 ? 5 : secondaryAvg >= 60 ? 2 : 0);
-  let finalComposite = Math.min(100, composite + secondaryBonus);
+  let compositeBeforeMultiplier = Math.min(100, baseComposite + secondaryBonus);
   
   // Apply primary focus bonus (+10pt when deal's primary service matches buyer's primary focus)
   const { score: primaryFocusScore, bonusApplied: primaryBonusApplied } = applyPrimaryFocusBonus(
     listing,
     buyer,
     scoringBehavior,
-    finalComposite
+    compositeBeforeMultiplier
   );
   
   if (primaryBonusApplied && !forceDisqualify) {
-    finalComposite = primaryFocusScore;
+    compositeBeforeMultiplier = primaryFocusScore;
   }
   
   // Apply sweet spot bonus (+5pt when deal revenue/EBITDA matches buyer's sweet spot)
@@ -1224,8 +1313,15 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
     // Update the size score and recalculate composite with the bonus
     const sizeDiff = sweetSpotSizeScore - enforcedScores.size_score;
     const compositeBoost = Math.round((sizeDiff * universe.size_weight) / 100);
-    finalComposite = Math.min(100, finalComposite + compositeBoost);
+    compositeBeforeMultiplier = Math.min(100, compositeBeforeMultiplier + compositeBoost);
   }
+  
+  // ========== APPLY SIZE MULTIPLIER (KEY SPEC REQUIREMENT) ==========
+  // This is the critical gate: perfect geo/services but wrong size = low final score
+  let finalComposite = Math.round(compositeBeforeMultiplier * sizeMultiplier);
+  finalComposite = Math.min(100, Math.max(0, finalComposite));
+  
+  console.log(`[CompositeCalc] Before multiplier: ${compositeBeforeMultiplier}, After (×${sizeMultiplier}): ${finalComposite}`);
   
   // Apply engagement weight multiplier for priority buyers (0.5x to 2.0x)
   let engagementMultiplierApplied = false;
@@ -1238,17 +1334,17 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
     engagementMultiplierApplied = multiplier !== 1.0;
   }
   
-  // If force disqualified, cap the composite score
+  // If force disqualified, score is 0 per spec (not capped at 45)
   if (forceDisqualify) {
-    finalComposite = Math.min(finalComposite, 45);
+    finalComposite = 0;
   }
 
-  // Determine tier
+  // Determine tier - ALIGNED WITH SPEC: Tier1=80+, Tier2=60-79, Tier3=40-59, Pass<40
   let tier: string;
-  if (finalComposite >= 85) tier = "A";
-  else if (finalComposite >= 70) tier = "B";
-  else if (finalComposite >= 55) tier = "C";
-  else tier = "D";
+  if (finalComposite >= 80) tier = "A";      // Tier 1 per spec
+  else if (finalComposite >= 60) tier = "B"; // Tier 2 per spec  
+  else if (finalComposite >= 40) tier = "C"; // Tier 3 per spec
+  else tier = "D";                            // Pass per spec
 
   // Determine data completeness based on buyer data
   const hasThesis = !!buyer.thesis_summary;
@@ -1266,8 +1362,13 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
     dataCompleteness = "low";
   }
 
-  // Build final reasoning with enforcement notes and bonuses
+  // Build final reasoning with enforcement notes, size multiplier, and bonuses
   let finalReasoning = enforcedScores.reasoning;
+  
+  // Add size multiplier note (KEY SPEC REQUIREMENT)
+  if (sizeMultiplier < 1.0 && !forceDisqualify) {
+    finalReasoning += ` Size Multiplier: ${(sizeMultiplier * 100).toFixed(0)}%.`;
+  }
   
   // Add bonus notes if applied
   if (primaryBonusApplied && !forceDisqualify) {

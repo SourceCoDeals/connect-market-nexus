@@ -126,10 +126,11 @@ export const ScoreTierBadge = ({
 };
 
 export const getTierFromScore = (score: number): ScoreTier => {
-  if (score >= 85) return 'A';
-  if (score >= 70) return 'B';
-  if (score >= 55) return 'C';
-  return 'D';
+  // ALIGNED WITH SPEC: Tier1=80+, Tier2=60-79, Tier3=40-59, Pass<40
+  if (score >= 80) return 'A';  // Tier 1
+  if (score >= 60) return 'B';  // Tier 2
+  if (score >= 40) return 'C';  // Tier 3
+  return 'D';                    // Pass
 };
 
 export default ScoreTierBadge;
