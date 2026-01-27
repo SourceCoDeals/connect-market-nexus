@@ -21,6 +21,7 @@ import {
   BuyerTableToolbar,
   AddDealToUniverseDialog,
   DealCSVImport,
+  BuyerCSVImport,
   BuyerFitCriteriaDialog,
   AIResearchSection,
   ScoringStyleCard,
@@ -107,6 +108,9 @@ const ReMarketingUniverseDetail = () => {
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [showAIResearch, setShowAIResearch] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
+  const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
+  const [isEnrichingAllBuyers, setIsEnrichingAllBuyers] = useState(false);
+  const [isDeduping, setIsDeduping] = useState(false);
 
   // Fetch universe if editing
   const { data: universe, isLoading } = useQuery({
@@ -532,6 +536,52 @@ const ReMarketingUniverseDetail = () => {
                   searchValue={buyerSearch}
                   onSearchChange={setBuyerSearch}
                   onAddBuyer={() => navigate('/admin/remarketing/buyers')}
+                  onImportCSV={() => setImportBuyersDialogOpen(true)}
+                  onEnrichAll={async () => {
+                    if (!buyers?.length) {
+                      toast.error('No buyers to enrich');
+                      return;
+                    }
+                    setIsEnrichingAllBuyers(true);
+                    try {
+                      let enriched = 0;
+                      for (const buyer of buyers) {
+                        if (buyer.company_website) {
+                          await supabase.functions.invoke('enrich-buyer', {
+                            body: { buyerId: buyer.id }
+                          });
+                          enriched++;
+                        }
+                      }
+                      toast.success(`Enriched ${enriched} buyers`);
+                      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+                    } catch (error) {
+                      toast.error('Failed to enrich buyers');
+                    } finally {
+                      setIsEnrichingAllBuyers(false);
+                    }
+                  }}
+                  onDedupe={async () => {
+                    if (!buyers?.length || buyers.length < 2) {
+                      toast.error('Need at least 2 buyers to dedupe');
+                      return;
+                    }
+                    setIsDeduping(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('dedupe-buyers', {
+                        body: { universeId: id }
+                      });
+                      if (error) throw error;
+                      toast.success(data?.message || 'Deduplication complete');
+                      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+                    } catch (error) {
+                      toast.error('Failed to dedupe buyers');
+                    } finally {
+                      setIsDeduping(false);
+                    }
+                  }}
+                  isEnriching={isEnrichingAllBuyers}
+                  isDeduping={isDeduping}
                 />
               </CardHeader>
               <CardContent className="p-0">
@@ -902,6 +952,20 @@ const ReMarketingUniverseDetail = () => {
           onDealAdded={() => {
             refetchDeals();
             setAddDealDialogOpen(false);
+          }}
+        />
+      )}
+
+      {/* Import Buyers Dialog */}
+      {!isNew && id && (
+        <BuyerCSVImport
+          universeId={id}
+          open={importBuyersDialogOpen}
+          onOpenChange={setImportBuyersDialogOpen}
+          hideTrigger
+          onComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+            setImportBuyersDialogOpen(false);
           }}
         />
       )}
