@@ -1,441 +1,258 @@
 
-# Buyer Enrichment System - CTO Audit Complete
+# Fix Plan: Buyer Enrichment Not Populating PE Firm and Description Fields
 
-## ✅ AUDIT STATUS: COMPLETE
+## Problem Summary
 
-**Date:** January 27, 2026  
-**Reference:** SourceCo Complete System Map
+The buyer enrichment process is completing successfully (websites are scraped, `data_completeness` is set to `high`, `extraction_sources` is recorded) but **no actual data is being extracted** from the AI calls. The `fields_extracted` array is empty for all recent enrichments.
 
----
+## Root Cause Analysis
 
-## Implementation Verification
+After extensive investigation, I identified **three interconnected issues**:
 
-### ✅ Fix 1: Parallel Batch Processing
-**Status:** IMPLEMENTED  
-**Files:** 
-- `src/components/remarketing/BuyerCSVImport.tsx` (lines 524-605)
-- `src/hooks/useBuyerEnrichment.ts` (new)
+### Issue 1: Silent AI Failures (Critical)
+The `callAI()` function at lines 391-450 returns `{ data: null }` without adequate logging when:
+- The AI response doesn't include a tool call
+- JSON parsing fails
+- The response format is unexpected
 
-**Implementation:**
-- Batch size: 5 buyers in parallel
-- Uses `Promise.allSettled` for fault tolerance
-- 1-second delay between batches
-- Progress tracking with granular success/failure counts
+There's no visibility into what the AI is actually returning, making debugging impossible.
 
-### ✅ Fix 2: 402 Error Fail-Fast
-**Status:** IMPLEMENTED  
-**Files:**
-- `supabase/functions/enrich-buyer/index.ts` (lines 160-173, 280-302)
-- `src/hooks/useBuyerEnrichment.ts` (lines 143-172)
-- `src/components/remarketing/BuyerCSVImport.tsx` (lines 573-586)
-
-**Implementation:**
-- Edge function returns structured error with `error_code: 'payment_required'`
-- Frontend detects 402/credits errors and halts loop immediately
-- User-facing toast with link to Settings → Workspace → Usage
-- Partial data saved before error
-
-### ✅ Fix 3: Progress UI
-**Status:** IMPLEMENTED  
-**Files:**
-- `src/components/remarketing/BuyerTableToolbar.tsx` (lines 141-166)
-
-**Implementation:**
-- Real-time progress bar during enrichment
-- Shows current/total counts
-- Shows successful/failed counts
-- Credits Depleted badge when billing error occurs
-
-### ✅ Fix 4: Cancel Button
-**Status:** IMPLEMENTED  
-**Files:**
-- `src/hooks/useBuyerEnrichment.ts` (lines 211-213)
-- `src/components/remarketing/BuyerTableToolbar.tsx` (lines 112-122)
-- `src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx` (lines 562)
-
-**Implementation:**
-- Cancel button appears during enrichment
-- Uses ref-based cancellation pattern
-- Stops loop cleanly between batches
-- Reports partial completion
-
-### ✅ Fix 5: useBuyerEnrichment Hook Integration
-**Status:** IMPLEMENTED  
-**Files:**
-- `src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx` (lines 52, 115-120, 548-589)
-
-**Implementation:**
-- Hook now properly wired to main universe detail page
-- Removed inline duplicate enrichment logic
-- Progress state flows from hook → toolbar
-- Cancel/reset functions exposed
-
----
-
-## Architecture Alignment with SourceCo Reference
-
-### Data Model ✅
-Our `remarketing_buyers` table aligns with the reference `buyers` table:
-- PE firm hierarchy (pe_firm_name, pe_firm_website)
-- Platform data (company_name, company_website)
-- Target criteria (target_geographies, target_services)
-- Thesis intelligence (thesis_summary, thesis_confidence)
-- Extraction metadata (extraction_sources)
-
-### Enrichment Pipeline ✅
-Matches reference `enrich-buyer` edge function:
-- 6-prompt extraction strategy (Business Overview, Customers, Geography, Acquisitions, PE Thesis, PE Deal Structure)
-- Dual-website scraping (Platform + PE Firm)
-- Transcript protection for high-value fields
-- Intelligent merge logic
-
-### Error Handling ✅
-Matches reference patterns:
-- 402/429 detection at gateway level
-- Structured error responses with error codes
-- Fail-fast on billing errors
-- Partial data preservation
-
----
-
-## Performance Expectations
-
-| Metric | Before Fixes | After Fixes |
-|--------|-------------|-------------|
-| 120 buyers enrichment | ~60 minutes | ~12 minutes |
-| Failed enrichment visibility | Silent | Clear toast |
-| Credit depletion handling | Continues failing | Stops immediately |
-| Progress visibility | None | Real-time bar |
-| Cancel capability | None | Cancel button |
-
----
-
-## Recommended Future Improvements
-
-### 1. Per-Row Status Badges
-Add visual status indicators to `BuyerTableEnhanced.tsx`:
-- "Enriching..." badge during processing
-- "Enriched" green badge on completion
-- "Failed" red badge with retry button
-
-### 2. Background Enrichment
-Allow dialog closure while enrichment continues:
-- Move enrichment state to global store
-- Show persistent "Enrichment in Progress" indicator
-- Allow reopening to view progress
-
-### 3. Retry Failed Buyers
-Add batch retry for failed enrichments:
-- Track failed buyer IDs
-- "Retry Failed" button in toolbar
-- Skip already-successful buyers
-
-### 4. Rate Limit Backoff
-For 429 errors, implement exponential backoff:
-- Wait 30 seconds on first 429
-- Double wait time on consecutive 429s
-- Resume automatically after cooldown
-
-### 5. Enrichment Queue
-For very large datasets (500+ buyers):
-- Queue enrichment requests
-- Process in background job
-- Email notification on completion
-
----
-
-## Files Modified in This Audit
-
-1. `src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx`
-   - Added useBuyerEnrichment hook import
-   - Wired hook to toolbar
-   - Removed duplicate inline logic
-
-2. `supabase/functions/enrich-buyer/index.ts` (deployed)
-   - Already had 402/429 handling
-   - Verified structured error responses
-
-3. `src/hooks/useBuyerEnrichment.ts` (created previously)
-   - Parallel batch processing
-   - Cancellation support
-   - Progress state management
-
-4. `src/components/remarketing/BuyerTableToolbar.tsx`
-   - Progress bar UI
-   - Cancel button
-
----
-
-## Testing Checklist
-
-- [ ] Import 10 buyers via CSV → verify parallel enrichment
-- [ ] Test cancel button mid-enrichment
-- [ ] Simulate 402 error → verify immediate stop and messaging
-- [ ] Verify progress bar updates in real-time
-- [ ] Confirm buyers are updated in database after enrichment
-
----
-
-## Conclusion
-
-All critical fixes from the original plan have been implemented and verified. The buyer enrichment system now:
-1. Processes 5 buyers in parallel (5x faster)
-2. Fails fast on billing errors with clear messaging
-3. Shows real-time progress with success/failure counts
-4. Allows cancellation mid-process
-5. Preserves partial data on failure
-
-The implementation aligns with the SourceCo reference architecture patterns.
-
----
-
-# CTO Audit: Scoring Engine Alignment
-
-## Audit Date: 2026-01-27
-
-## Summary
-Completed comprehensive audit of `supabase/functions/score-buyer-deal/index.ts` against the specification document `1_SCORING_ENGINE.md`.
-
-## Critical Fixes Implemented
-
-### 1. SIZE MULTIPLIER (KEY INNOVATION) ✅ FIXED
-**Spec Requirement:** Size acts as a gate on final score (0-1.0 multiplier applied to composite)
-**Previous State:** Size was only used in weighted average
-**Fix:** Added `calculateSizeMultiplier()` function that:
-- Returns 0 for disqualified scenarios (revenue >50% above max, >30% below min with disqualify mode)
-- Returns 0.3 for heavy penalties (size_score ≤25, revenue 30%+ below min)
-- Returns 0.35-0.70 sliding scale for soft mismatches
-- Returns 1.0 for perfect/sweet spot matches
-- Applied to final composite AFTER bonuses
-
-### 2. TIER THRESHOLDS ✅ FIXED
-**Spec Requirement:** Tier1=80+, Tier2=60-79, Tier3=40-59, Pass<40
-**Previous State:** A=85+, B=70+, C=55+, D=<55
-**Fix:** Updated thresholds in:
-- `generateAIScore()` function
-- `handleSingleScore()` function
-- `handleBulkScore()` batch processing
-- `ScoreTierBadge.tsx` - `getTierFromScore()` function
-
-### 3. DISQUALIFICATION BEHAVIOR ✅ FIXED
-**Spec Requirement:** Disqualified scores = 0
-**Previous State:** Capped at 45
-**Fix:** Changed to `finalComposite = 0`
-
-### 4. REASONING FORMAT ✅ ENHANCED
-Added size multiplier percentage to fit_reasoning when <100%
-
-## Files Modified
-1. `supabase/functions/score-buyer-deal/index.ts`
-2. `src/components/remarketing/ScoreTierBadge.tsx`
-
----
-
-# CTO Audit: Contact Management System
-
-## Audit Date: 2026-01-27
-## Reference: `2_CONTACT_MANAGEMENT.md`
-
-## Summary
-Audited contact management system against spec. Schema foundation created; contact discovery edge function deferred per user request.
-
-## Gap Analysis
-
-| Spec Requirement | Status | Notes |
-|-----------------|--------|-------|
-| 3-tier hierarchy (PE Firm → Platform → Contacts) | ✅ IMPLEMENTED | Created `pe_firm_contacts` + `platform_contacts` tables |
-| `find-buyer-contacts` edge function | 🔜 DEFERRED | Spec documented for future implementation |
-| URL Scoring Algorithm | 🔜 DEFERRED | Detects team pages vs individual profiles |
-| Email Pattern Detection | ✅ SCHEMA READY | `detected_email_pattern` column added |
-| Email Inference (first.last, flast) | 🔜 DEFERRED | Schema supports confidence levels |
-| Priority Assignment (1-5) | ✅ IMPLEMENTED | CHECK constraints on both tables |
-| Role Categories | ✅ IMPLEMENTED | Separate enums per table type |
-| Deduplication Logic | 🔜 DEFERRED | Will use email/LinkedIn/fuzzy name matching |
-| Firecrawl Integration | ✅ READY | Exists in `enrich-buyer`, reusable |
-
-## Database Schema Created
-
-### `pe_firm_contacts` table
-```sql
-role_category IN ('partner', 'principal', 'director', 'vp', 'associate', 'analyst', 'operating_partner', 'other')
-priority_level 1-5 (Partner=1, Analyst=4)
-email_confidence IN ('Verified', 'Likely', 'Guessed')
-```
-
-### `platform_contacts` table
-```sql
-role_category IN ('ceo', 'cfo', 'coo', 'president', 'vp', 'director', 'manager', 'corp_dev', 'business_dev', 'other')
-priority_level 1-5 (C-suite=1, Manager=4)
-```
-
-### `remarketing_buyers` enhancements
-```sql
-detected_email_pattern TEXT  -- 'firstlast', 'first.last', 'first_last', 'flast'
-email_domain TEXT
-last_contact_discovery_at TIMESTAMPTZ
-contact_discovery_status TEXT  -- 'pending', 'in_progress', 'completed', 'failed', 'no_contacts'
-```
-
-## Future Implementation Reference
-
-### URL Scoring Algorithm (from spec)
+### Issue 2: Incorrect Data Completeness Calculation (High)
+At lines 689-692:
 ```typescript
-const POSITIVE_KEYWORDS = ['team', 'leadership', 'executive', 'management', 'people', 'board'];
-const NEGATIVE_KEYWORDS = ['careers', 'jobs', 'hiring', 'news', 'blog', 'contact'];
-const PROFILE_PARENT_KEYWORDS = ['team', 'team-members', 'people', 'leadership'];
-
-// /team = +45 points
-// /team/john-doe = -30 points (INDIVIDUAL PROFILE PENALTY)
-// /careers = -20 points
+const filledFields = keyFields.filter(f => extractedData[f] || buyer[f]);
 ```
 
-### Email Pattern Inference (from spec)
-```typescript
-function detectEmailPattern(contacts, domain): Pattern {
-  // Analyze known emails to detect: firstlast, first.last, first_last, flast
-  // Confidence: 2+ matches = 'Verified', 1 match = 'Likely', 0 = 'Guessed'
-}
+This counts **existing buyer data** (`buyer[f]`), not just the newly extracted data. So even when extraction fails completely, buyers are marked as `data_completeness: high` if they already had data from import.
 
-function inferEmail(contact, pattern): { email, confidence } {
-  // Apply detected pattern to contacts without emails
-}
+### Issue 3: Evidence Recording Without Validation (Medium)
+Evidence records are added even when no data is extracted:
+```typescript
+evidenceRecords.push({
+  type: 'website',
+  url: platformWebsite!,
+  extracted_at: new Date().toISOString(),
+  fields_extracted: Object.keys(extractedData)  // Empty if extraction failed
+});
 ```
 
-### Priority Assignment (from spec)
+This makes the system appear to work when it's actually failing silently.
+
+## Implementation Plan
+
+### Step 1: Add Comprehensive Logging to AI Calls
+**File**: `supabase/functions/enrich-buyer/index.ts`
+
+Modify the `callAI()` function to:
+1. Log the full AI response body for debugging
+2. Log the model's actual response message content
+3. Capture and log any JSON parsing errors with the raw string
+4. Add more specific error codes for different failure modes
+
 ```typescript
-// PE Firm: Partner=1, Principal/VP=2, Associate=3, Analyst=4, Other=5
-// Platform: C-suite=1, CorpDev/BizDev=2, VP=3, Director/Manager=4, Other=5
-```
-
-## Files Modified
-1. Database migration created:
-   - `pe_firm_contacts` table with indexes and RLS
-   - `platform_contacts` table with indexes and RLS
-   - `remarketing_buyers` enhanced with discovery metadata
-
-## Testing Checklist
-- [x] Verify new tables created in Supabase
-- [ ] Update UI to use new contact tables (when ready)
-- [ ] Create `find-buyer-contacts` edge function (when ready)
-- [ ] Implement email pattern detection (when ready)
-
----
-
-# CTO Audit: Intelligence Extraction & Enrichment Systems
-
-## Audit Date: 2026-01-27
-## References: `4_INTELLIGENCE_EXTRACTION.md`, `5_ENRICHMENT_SYSTEM.md`
-
-## Summary
-Audited Intelligence Extraction (extract-transcript) and Enrichment System (enrich-buyer) against specifications. Major refactor completed.
-
----
-
-## Enrichment System (`enrich-buyer`)
-
-### ✅ ALIGNED - No Changes Required
-
-| Spec Requirement | Status | Implementation |
-|-----------------|--------|----------------|
-| 6 Enrichment Prompts | ✅ | Business, Customers, Geography, Acquisitions, PE Thesis, PE Deal |
-| Dual Website Scraping | ✅ | platform_website + pe_firm_website |
-| Firecrawl Integration | ✅ | v1 API with markdown format |
-| Tool Calling (Structured Output) | ✅ | Uses tool_choice with function parameters |
-| Transcript Protection | ✅ | TRANSCRIPT_PROTECTED_FIELDS prevents overwrite |
-| Intelligent Merge | ✅ | buildUpdateObject checks length/count |
-| 402/429 Error Handling | ✅ | Fail-fast with error_code for frontend |
-| Data Validation | ✅ | Placeholder detection, state code enforcement |
-
----
-
-## Intelligence Extraction (`extract-transcript`)
-
-### 🔧 REFACTORED - Major Changes Made
-
-| Gap Identified | Resolution |
-|---------------|------------|
-| ❌ Wrong AI Provider (OpenAI gpt-4o-mini) | ✅ Migrated to Lovable AI Gateway (gemini-3-flash-preview) |
-| ❌ Single monolithic prompt | ✅ Refactored to 8-prompt architecture |
-| ❌ No geography normalization | ✅ Uses shared geography.ts module |
-| ⚠️ Missing extraction_evidence | 🔜 Deferred per user request |
-
-### 8-Prompt Architecture Implemented
-
-**BUYER PROMPTS (4):**
-1. `extract_buyer_thesis` - Investment thesis, strategic priorities, key quotes
-2. `extract_buyer_criteria` - Revenue/EBITDA ranges, target services, deal breakers
-3. `extract_buyer_acquisitions` - Past deals, frequency patterns
-4. `extract_buyer_geography` - Target regions, exclusions, current footprint
-
-**DEAL PROMPTS (4):**
-5. `extract_deal_financials` - Revenue, EBITDA (with source quotes)
-6. `extract_deal_services` - Service mix, percentages, specializations
-7. `extract_deal_geography` - States served, HQ location, service radius
-8. `extract_deal_owner_goals` - Transition preferences, motivation, timeline
-
-### Geography Normalization
-```typescript
-// Uses shared module from supabase/functions/_shared/geography.ts
-import { normalizeStates, extractStatesFromText, mergeStates } from "../_shared/geography.ts";
-
-// All geographic arrays run through normalization
-update.target_geographies = mergeStates(buyer.target_geographies, normalized);
-```
-
-### Billing Error Handling
-```typescript
-// Returns structured error for frontend handling
-if (billingError) {
-  return Response({ 
-    error_code: billingError.code,  // 'payment_required' | 'rate_limited'
-    partial_data: extractedData,
-    recoverable: billingError.code === 'rate_limited'
-  }, { status: statusCode });
-}
-```
-
-### Extraction Source Tracking
-```typescript
-update.extraction_sources = [
-  ...existingSources,
-  {
-    type: 'buyer_transcript',
-    extracted_at: new Date().toISOString(),
-    fields_extracted: Object.keys(update)
+async function callAI(...) {
+  try {
+    const response = await fetch(...);
+    
+    // Existing error handling...
+    
+    const responseText = await response.text();
+    console.log(`AI Response status: ${response.status}`);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', responseText.substring(0, 500));
+      return { data: null };
+    }
+    
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (!toolCall) {
+      // Log what we actually received for debugging
+      console.warn('No tool call in response. Message content:', 
+        JSON.stringify(data.choices?.[0]?.message || 'no message'));
+      return { data: null };
+    }
+    
+    try {
+      return { data: JSON.parse(toolCall.function.arguments) };
+    } catch (argParseError) {
+      console.error('Failed to parse tool arguments:', toolCall.function.arguments);
+      return { data: null };
+    }
+  } catch (error) {
+    console.error('AI extraction error:', error);
+    return { data: null };
   }
-];
+}
 ```
 
----
+### Step 2: Fix Data Completeness Calculation
+**File**: `supabase/functions/enrich-buyer/index.ts`
 
-## Files Modified
+Change the calculation to only count newly extracted fields:
 
-1. `supabase/functions/extract-transcript/index.ts` - **COMPLETELY REWRITTEN**
-   - Migrated from OpenAI to Lovable AI Gateway
-   - Implemented 8-prompt architecture with dedicated tool schemas
-   - Added geography normalization using shared module
-   - Added billing error handling (402/429)
-   - Added extraction source tracking
+```typescript
+// Calculate data completeness based on EXTRACTED data, not existing buyer data
+const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state', 'pe_firm_name', 'business_summary'];
+const extractedFields = keyFields.filter(f => extractedData[f]);
+const existingFields = keyFields.filter(f => buyer[f]);
+const totalFilledFields = new Set([...extractedFields, ...existingFields.map(f => f)]).size;
 
-2. `supabase/functions/enrich-buyer/index.ts` - No changes needed (already aligned)
+// Only upgrade completeness if we actually extracted something
+if (extractedFields.length >= 4) {
+  updateData.data_completeness = 'high';
+} else if (extractedFields.length >= 2 || totalFilledFields >= 4) {
+  updateData.data_completeness = 'medium';
+} else if (extractedFields.length === 0 && existingFields.length === 0) {
+  updateData.data_completeness = 'low';
+}
+// If no extraction happened, don't change existing completeness
+else if (extractedFields.length === 0) {
+  // Don't set data_completeness - leave it as-is
+  delete updateData.data_completeness;
+}
+```
 
----
+### Step 3: Only Record Evidence When Data is Extracted
+**File**: `supabase/functions/enrich-buyer/index.ts`
 
-## Deferred Features
+Only add evidence records when we actually extracted something:
 
-| Feature | Spec Reference | Reason Deferred |
-|---------|---------------|-----------------|
-| extraction_evidence field | §7 Evidence Tracking | User requested skip |
-| Per-field confidence scoring | §7 Evidence Tracking | User requested skip |
-| LinkedIn scraping | §1 Scale | Optional feature |
-| Bulk progress persistence | §4 Bulk Enrichment | Frontend handles |
+```typescript
+// Only add evidence if we extracted at least one field
+const platformExtractedFields = Object.keys(extractedData);
+if (platformExtractedFields.length > 0) {
+  evidenceRecords.push({
+    type: 'website',
+    url: platformWebsite!,
+    extracted_at: new Date().toISOString(),
+    fields_extracted: platformExtractedFields
+  });
+}
+```
 
----
+### Step 4: Add Retry Logic with Exponential Backoff
+**File**: `supabase/functions/enrich-buyer/index.ts`
 
-## Testing Checklist
+Sometimes AI calls fail transiently. Add retry logic:
 
-- [ ] Test buyer transcript extraction with 4 prompts
-- [ ] Verify geography normalization (state names → 2-letter codes)
-- [ ] Test 402 error handling (credit depletion)
-- [ ] Verify extraction_sources updated after processing
-- [ ] Confirm key_quotes extraction from transcripts
+```typescript
+async function callAIWithRetry(
+  systemPrompt: string, 
+  userPrompt: string, 
+  tool: any, 
+  apiKey: string,
+  maxRetries = 2
+): Promise<{ data: any | null; error?: { code: string; message: string } }> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const result = await callAI(systemPrompt, userPrompt, tool, apiKey);
+    
+    if (result.data !== null || result.error) {
+      return result;  // Success or billing error - don't retry
+    }
+    
+    if (attempt < maxRetries) {
+      console.log(`Attempt ${attempt} failed, retrying in ${attempt * 1000}ms...`);
+      await new Promise(r => setTimeout(r, attempt * 1000));
+    }
+  }
+  
+  return { data: null };
+}
+```
+
+### Step 5: Improve Error Surfacing to Frontend
+**File**: `supabase/functions/enrich-buyer/index.ts`
+
+Return more detailed information about extraction failures:
+
+```typescript
+return new Response(
+  JSON.stringify({
+    success: true,
+    data: {
+      buyerId,
+      fieldsUpdated,
+      fieldsExtracted: Object.keys(extractedData),
+      dataCompleteness: updateData.data_completeness || buyer.data_completeness || 'low',
+      extractedData,
+      scraped: {
+        platform: !!platformContent,
+        peFirm: !!peFirmContent
+      },
+      extractionDetails: {
+        platformScraped: !!platformContent,
+        platformContentLength: platformContent?.length || 0,
+        peFirmScraped: !!peFirmContent,
+        peFirmContentLength: peFirmContent?.length || 0,
+        promptsRun: 6,
+        promptsSuccessful: Object.keys(extractedData).length > 0 ? 'at least 1' : 0
+      }
+    },
+    warning: warnings.length > 0 ? warnings.join('; ') : undefined
+  }),
+  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+);
+```
+
+### Step 6: Update Frontend to Display Extraction Warnings
+**File**: `src/hooks/useBuyerEnrichment.ts`
+
+Show more specific feedback when enrichment succeeds but extracts no data:
+
+```typescript
+if (result.status === 'fulfilled') {
+  const enrichResult = result.value;
+  
+  // Check if enrichment succeeded but extracted no data
+  if (enrichResult.data?.fieldsExtracted?.length === 0) {
+    warnings++;
+    updateStatus(buyer.id, { 
+      buyerId: buyer.id, 
+      status: 'success',
+      error: 'No data extracted from website'
+    });
+  } else {
+    successful++;
+    updateStatus(buyer.id, { buyerId: buyer.id, status: 'success' });
+  }
+}
+```
+
+## Testing Plan
+
+After implementing these fixes:
+
+1. **Deploy the updated edge function**
+2. **Run enrichment on a single buyer** and check logs for detailed output
+3. **Verify AI is returning tool calls** - if not, the logs will show what's being returned
+4. **Confirm fields are populated** in the database after successful extraction
+5. **Check UI shows correct status** - "Enriched" with data vs "Enriched" without data
+
+## Technical Details
+
+### Files to Modify
+| File | Changes |
+|------|---------|
+| `supabase/functions/enrich-buyer/index.ts` | Add logging, fix data completeness, add retry logic |
+| `src/hooks/useBuyerEnrichment.ts` | Add warning detection for empty extractions |
+
+### Database Impact
+- No schema changes required
+- Existing `data_completeness: high` records with no data will remain until re-enriched
+
+### Edge Cases to Handle
+- Websites that block scrapers (Firecrawl returns minimal content)
+- AI model returning text instead of tool calls
+- Rate limiting mid-batch (already handled with fail-fast)
+- Empty PE firm websites (no thesis available)
+
+## Rollback Plan
+
+If issues persist after deployment:
+1. Check edge function logs for the specific error
+2. Temporarily revert to previous version
+3. Test AI gateway directly using curl to isolate the issue
