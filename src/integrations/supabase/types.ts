@@ -3153,6 +3153,87 @@ export type Database = {
         }
         Relationships: []
       }
+      pe_firm_contacts: {
+        Row: {
+          bio_url: string | null
+          buyer_id: string | null
+          created_at: string
+          email: string | null
+          email_confidence: string | null
+          id: string
+          is_deal_team: boolean | null
+          is_primary_contact: boolean | null
+          linkedin_url: string | null
+          name: string
+          notes: string | null
+          pe_firm_id: string | null
+          phone: string | null
+          priority_level: number | null
+          role_category: string | null
+          source: string | null
+          source_url: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          bio_url?: string | null
+          buyer_id?: string | null
+          created_at?: string
+          email?: string | null
+          email_confidence?: string | null
+          id?: string
+          is_deal_team?: boolean | null
+          is_primary_contact?: boolean | null
+          linkedin_url?: string | null
+          name: string
+          notes?: string | null
+          pe_firm_id?: string | null
+          phone?: string | null
+          priority_level?: number | null
+          role_category?: string | null
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bio_url?: string | null
+          buyer_id?: string | null
+          created_at?: string
+          email?: string | null
+          email_confidence?: string | null
+          id?: string
+          is_deal_team?: boolean | null
+          is_primary_contact?: boolean | null
+          linkedin_url?: string | null
+          name?: string
+          notes?: string | null
+          pe_firm_id?: string | null
+          phone?: string | null
+          priority_level?: number | null
+          role_category?: string | null
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pe_firm_contacts_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pe_firm_contacts_pe_firm_id_fkey"
+            columns: ["pe_firm_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permission_audit_log: {
         Row: {
           changed_by: string | null
@@ -3221,6 +3302,87 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      platform_contacts: {
+        Row: {
+          bio_url: string | null
+          buyer_id: string | null
+          created_at: string
+          email: string | null
+          email_confidence: string | null
+          id: string
+          is_deal_team: boolean | null
+          is_primary_contact: boolean | null
+          linkedin_url: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          platform_id: string | null
+          priority_level: number | null
+          role_category: string | null
+          source: string | null
+          source_url: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          bio_url?: string | null
+          buyer_id?: string | null
+          created_at?: string
+          email?: string | null
+          email_confidence?: string | null
+          id?: string
+          is_deal_team?: boolean | null
+          is_primary_contact?: boolean | null
+          linkedin_url?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          platform_id?: string | null
+          priority_level?: number | null
+          role_category?: string | null
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bio_url?: string | null
+          buyer_id?: string | null
+          created_at?: string
+          email?: string | null
+          email_confidence?: string | null
+          id?: string
+          is_deal_team?: boolean | null
+          is_primary_contact?: boolean | null
+          linkedin_url?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          platform_id?: string | null
+          priority_level?: number | null
+          role_category?: string | null
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_contacts_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_contacts_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profile_data_snapshots: {
         Row: {
@@ -3753,6 +3915,7 @@ export type Database = {
           company_name: string
           company_website: string | null
           confidence_level: string | null
+          contact_discovery_status: string | null
           created_at: string
           customer_geographic_reach: string | null
           customer_industries: string[] | null
@@ -3760,7 +3923,9 @@ export type Database = {
           data_last_updated: string | null
           deal_breakers: string[] | null
           deal_preferences: string | null
+          detected_email_pattern: string | null
           ebitda_sweet_spot: number | null
+          email_domain: string | null
           extraction_sources: Json | null
           fee_agreement_status: string | null
           geographic_footprint: string[] | null
@@ -3773,6 +3938,7 @@ export type Database = {
           industry_tracker_id: string | null
           industry_vertical: string | null
           key_quotes: string[] | null
+          last_contact_discovery_at: string | null
           notes: string | null
           num_platforms: number | null
           operating_locations: string[] | null
@@ -3813,6 +3979,7 @@ export type Database = {
           company_name: string
           company_website?: string | null
           confidence_level?: string | null
+          contact_discovery_status?: string | null
           created_at?: string
           customer_geographic_reach?: string | null
           customer_industries?: string[] | null
@@ -3820,7 +3987,9 @@ export type Database = {
           data_last_updated?: string | null
           deal_breakers?: string[] | null
           deal_preferences?: string | null
+          detected_email_pattern?: string | null
           ebitda_sweet_spot?: number | null
+          email_domain?: string | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
@@ -3833,6 +4002,7 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           key_quotes?: string[] | null
+          last_contact_discovery_at?: string | null
           notes?: string | null
           num_platforms?: number | null
           operating_locations?: string[] | null
@@ -3873,6 +4043,7 @@ export type Database = {
           company_name?: string
           company_website?: string | null
           confidence_level?: string | null
+          contact_discovery_status?: string | null
           created_at?: string
           customer_geographic_reach?: string | null
           customer_industries?: string[] | null
@@ -3880,7 +4051,9 @@ export type Database = {
           data_last_updated?: string | null
           deal_breakers?: string[] | null
           deal_preferences?: string | null
+          detected_email_pattern?: string | null
           ebitda_sweet_spot?: number | null
+          email_domain?: string | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
           geographic_footprint?: string[] | null
@@ -3893,6 +4066,7 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           key_quotes?: string[] | null
+          last_contact_discovery_at?: string | null
           notes?: string | null
           num_platforms?: number | null
           operating_locations?: string[] | null
