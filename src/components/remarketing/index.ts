@@ -38,6 +38,7 @@ export { BuyerMatchCard } from './BuyerMatchCard';
 
 // Table Components
 export { BuyerTableEnhanced } from './BuyerTableEnhanced';
+export { AlignmentScoreBadge } from './AlignmentScoreBadge';
 export { UniverseDealsTable } from './UniverseDealsTable';
 export { DealMergePanel } from './DealMergePanel';
 // Deal Management Components

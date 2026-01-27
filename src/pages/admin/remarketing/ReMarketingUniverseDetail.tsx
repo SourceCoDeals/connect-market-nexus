@@ -57,6 +57,7 @@ import {
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
+import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
 
 // Default buyer types configuration (industry-agnostic, will be replaced by AI Research)
 const DEFAULT_BUYER_TYPES: TargetBuyerTypeConfig[] = [
@@ -120,6 +121,15 @@ const ReMarketingUniverseDetail = () => {
     reset: resetEnrichment 
   } = useBuyerEnrichment(id);
 
+  // Use the alignment scoring hook
+  const {
+    isScoring: isScoringAlignment,
+    progress: alignmentProgress,
+    scoreBuyers: scoreAlignmentBuyers,
+    cancel: cancelAlignmentScoring,
+    reset: resetAlignmentScoring
+  } = useAlignmentScoring(id);
+
   // Fetch universe if editing
   const { data: universe, isLoading } = useQuery({
     queryKey: ['remarketing', 'universe', id],
@@ -139,17 +149,17 @@ const ReMarketingUniverseDetail = () => {
   });
 
   // Fetch buyers in this universe
-  const { data: buyers } = useQuery({
+  const { data: buyers, refetch: refetchBuyers } = useQuery({
     queryKey: ['remarketing', 'buyers', 'universe', id],
     queryFn: async () => {
       if (isNew) return [];
       
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_city, hq_state, thesis_summary, data_completeness, target_geographies, geographic_footprint')
+        .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_city, hq_state, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at')
         .eq('universe_id', id)
         .eq('archived', false)
-        .order('company_name');
+        .order('alignment_score', { ascending: false, nullsFirst: false });
       
       if (error) throw error;
       return data || [];
@@ -561,6 +571,26 @@ const ReMarketingUniverseDetail = () => {
                     })));
                   }}
                   onCancelEnrichment={cancelEnrichment}
+                  onScoreAlignment={async () => {
+                    if (!buyers?.length) {
+                      toast.error('No buyers to score');
+                      return;
+                    }
+                    
+                    // Reset any previous alignment state
+                    resetAlignmentScoring();
+                    
+                    // Score buyers and refresh when done
+                    await scoreAlignmentBuyers(
+                      buyers.map(b => ({
+                        id: b.id,
+                        company_name: b.company_name,
+                        alignment_score: b.alignment_score ?? null
+                      })),
+                      () => refetchBuyers()
+                    );
+                  }}
+                  onCancelAlignment={cancelAlignmentScoring}
                   onDedupe={async () => {
                     if (!buyers?.length || buyers.length < 2) {
                       toast.error('Need at least 2 buyers to dedupe');
@@ -582,12 +612,20 @@ const ReMarketingUniverseDetail = () => {
                   }}
                   isEnriching={enrichmentProgress.isRunning}
                   isDeduping={isDeduping}
+                  isScoringAlignment={isScoringAlignment}
                   enrichmentProgress={{
                     current: enrichmentProgress.current,
                     total: enrichmentProgress.total,
                     successful: enrichmentProgress.successful,
                     failed: enrichmentProgress.failed,
                     creditsDepleted: enrichmentProgress.creditsDepleted
+                  }}
+                  alignmentProgress={{
+                    current: alignmentProgress.current,
+                    total: alignmentProgress.total,
+                    successful: alignmentProgress.successful,
+                    failed: alignmentProgress.failed,
+                    creditsDepleted: alignmentProgress.creditsDepleted
                   }}
                 />
               </CardHeader>
