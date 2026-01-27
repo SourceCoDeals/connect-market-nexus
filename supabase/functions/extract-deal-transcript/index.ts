@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizeStates, mergeStates } from "../_shared/geography.ts";
+import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,63 +151,7 @@ EXTRACTION INSTRUCTIONS:
    - "15%" margin = 0.15 (as decimal)
 4. For key quotes, extract the EXACT words - these are extremely valuable for understanding the seller's mindset
 
-Return a valid JSON object with these fields (use null for fields not found):
-
-{
-  "revenue": number (annual revenue in dollars, e.g., 7500000 for $7.5M),
-  "ebitda": number (annual EBITDA in dollars),
-  "ebitda_margin": number (as decimal, e.g., 0.18 for 18%),
-  "asking_price": number (if mentioned, in dollars),
-  
-  "location": "City, State",
-  "headquarters_address": "Full address if mentioned",
-  "industry": "Primary industry/sector (e.g., HVAC, Plumbing, Electrical, Landscaping)",
-  "founded_year": number,
-  "full_time_employees": number,
-  "website": "URL if mentioned",
-  
-  "services": ["HVAC Repair", "Duct Cleaning", "Commercial Refrigeration"] (list ALL services mentioned),
-  "service_mix": "Revenue breakdown, e.g., '60% residential, 40% commercial' or '70% repair, 30% installation'",
-  "business_model": "Recurring/service contracts, project-based, subscription, etc.",
-  
-  "geographic_states": ["MN", "TX", "FL"] (MUST be 2-letter US state codes ONLY - convert full names: Minnesota→MN, Texas→TX, California→CA, Florida→FL, Arizona→AZ, etc. If city mentioned, infer state: Minneapolis→MN, Dallas→TX, Miami→FL),
-  "number_of_locations": number,
-  
-  "owner_goals": "What the owner wants - be specific (e.g., 'Full exit within 6 months, wants to retire', 'Looking for growth partner, willing to stay 2 years')",
-  "transition_preferences": "How long owner will stay, handoff details",
-  "special_requirements": "Deal breakers or must-haves (e.g., 'Must keep all employees', 'Cash only, no earnouts')",
-  "timeline_notes": "Desired timing (e.g., 'Want to close by Q2', 'No rush, finding right buyer')",
-  
-  "customer_types": "B2B enterprise, SMB, residential consumers, government, etc.",
-  "end_market_description": "Who are the ultimate customers - be specific",
-  "customer_concentration": "e.g., 'No customer >10% revenue' or 'Top 3 customers = 40% revenue'",
-  "customer_geography": "e.g., '80% within 50 miles of HQ' or 'Regional - Midwest only'",
-  
-  "executive_summary": "2-3 sentence summary capturing the essence of this business opportunity",
-  "competitive_position": "Market position, moat, competitive advantages mentioned",
-  "growth_trajectory": "Historical and projected growth, recent trends",
-  "key_risks": "Risk factors, concerns, or challenges mentioned",
-  "technology_systems": "Software, CRM, fleet management, other tech mentioned",
-  "real_estate_info": "Owned vs leased, property details, warehouse/office info",
-  
-  "primary_contact_name": "Main contact's full name",
-  "primary_contact_email": "Email if mentioned",
-  "primary_contact_phone": "Phone if mentioned",
-  
-  "key_quotes": [
-    "Extract 5-8 VERBATIM quotes that reveal important information",
-    "Focus on quotes about: why selling, what they want in a buyer, business strengths/weaknesses, financial details, future concerns",
-    "These should be the owner's exact words, not paraphrased"
-  ],
-  
-  "revenue_source_quote": "The exact quote where revenue was mentioned, e.g., 'We did about 7.5 million last year'",
-  "ebitda_source_quote": "The exact quote where EBITDA/profit was mentioned",
-  
-  "confidence": {
-    "revenue": "high|medium|low",
-    "ebitda": "high|medium|low"
-  }
-}
+Use the extract_transcript_intelligence tool to return structured data.
 
 CRITICAL GUIDELINES:
 - Key quotes are EXTREMELY valuable - prioritize extracting 5-8 meaningful verbatim quotes
@@ -227,10 +173,80 @@ CRITICAL GUIDELINES:
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert M&A analyst. Extract structured data from transcripts. Always respond with valid JSON only, no markdown formatting or code blocks.' 
+            content: 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool.' 
           },
           { role: 'user', content: extractionPrompt }
         ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'extract_transcript_intelligence',
+            description: 'Extract comprehensive deal intelligence from transcript',
+            parameters: {
+              type: 'object',
+              properties: {
+                revenue: { type: 'number', description: 'Annual revenue in dollars (e.g., 7500000 for $7.5M)' },
+                ebitda: { type: 'number', description: 'Annual EBITDA in dollars' },
+                ebitda_margin: { type: 'number', description: 'EBITDA margin as decimal (e.g., 0.18 for 18%)' },
+                asking_price: { type: 'number', description: 'Asking price in dollars if mentioned' },
+                revenue_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence in revenue figure' },
+                ebitda_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence in EBITDA figure' },
+                revenue_source_quote: { type: 'string', description: 'Exact quote where revenue was mentioned' },
+                ebitda_source_quote: { type: 'string', description: 'Exact quote where EBITDA was mentioned' },
+                
+                location: { type: 'string', description: 'City, State format' },
+                headquarters_address: { type: 'string', description: 'Full address if mentioned' },
+                industry: { type: 'string', description: 'Primary industry (e.g., HVAC, Plumbing, Electrical)' },
+                founded_year: { type: 'number', description: 'Year founded' },
+                full_time_employees: { type: 'number', description: 'Number of full-time employees' },
+                website: { type: 'string', description: 'Website URL if mentioned' },
+                
+                services: { 
+                  type: 'array', 
+                  items: { type: 'string' },
+                  description: 'List of all services mentioned'
+                },
+                service_mix: { type: 'string', description: 'Revenue breakdown (e.g., 60% residential, 40% commercial)' },
+                business_model: { type: 'string', description: 'Recurring/service contracts, project-based, etc.' },
+                
+                geographic_states: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: '2-letter US state codes ONLY (MN, TX, FL, etc.)'
+                },
+                number_of_locations: { type: 'number', description: 'Number of physical locations' },
+                
+                owner_goals: { type: 'string', description: 'What the owner wants - be specific' },
+                transition_preferences: { type: 'string', description: 'How long owner will stay, handoff details' },
+                special_requirements: { type: 'string', description: 'Deal breakers or must-haves' },
+                timeline_notes: { type: 'string', description: 'Desired timing' },
+                
+                customer_types: { type: 'string', description: 'B2B, SMB, residential, government, etc.' },
+                end_market_description: { type: 'string', description: 'Who are the ultimate customers' },
+                customer_concentration: { type: 'string', description: 'Customer concentration info' },
+                customer_geography: { type: 'string', description: 'Customer geographic distribution' },
+                
+                executive_summary: { type: 'string', description: '2-3 sentence summary of business opportunity' },
+                competitive_position: { type: 'string', description: 'Market position, moat, competitive advantages' },
+                growth_trajectory: { type: 'string', description: 'Historical and projected growth' },
+                key_risks: { type: 'string', description: 'Risk factors or concerns mentioned' },
+                technology_systems: { type: 'string', description: 'Software, CRM, tech mentioned' },
+                real_estate_info: { type: 'string', description: 'Owned vs leased, property details' },
+                
+                primary_contact_name: { type: 'string', description: 'Main contact full name' },
+                primary_contact_email: { type: 'string', description: 'Email if mentioned' },
+                primary_contact_phone: { type: 'string', description: 'Phone if mentioned' },
+                
+                key_quotes: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: '5-8 VERBATIM quotes revealing important information'
+                }
+              }
+            }
+          }
+        }],
+        tool_choice: { type: 'function', function: { name: 'extract_transcript_intelligence' } },
         temperature: 0.2,
       }),
     });
@@ -242,23 +258,43 @@ CRITICAL GUIDELINES:
     }
 
     const aiData = await aiResponse.json();
-    let extractedText = aiData.choices?.[0]?.message?.content || '{}';
     
-    // Clean up any markdown formatting
-    extractedText = extractedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    // Extract from tool call
+    let extracted: ExtractionResult = { confidence: {} };
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     
-    console.log('AI response:', extractedText.substring(0, 500));
+    if (toolCall?.function?.arguments) {
+      try {
+        const parsed = JSON.parse(toolCall.function.arguments);
+        extracted = {
+          ...parsed,
+          confidence: {
+            revenue: parsed.revenue_confidence || 'medium',
+            ebitda: parsed.ebitda_confidence || 'medium',
+          }
+        };
+      } catch (parseError) {
+        console.error('Failed to parse tool arguments:', parseError);
+      }
+    } else {
+      // Fallback: try to parse from content
+      const content = aiData.choices?.[0]?.message?.content || '{}';
+      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      try {
+        extracted = JSON.parse(cleanedContent);
+        if (!extracted.confidence) extracted.confidence = {};
+      } catch (parseError) {
+        console.error('Failed to parse AI content:', parseError);
+        extracted = { 
+          confidence: {},
+          key_quotes: [`Parse error - raw response: ${cleanedContent.substring(0, 200)}`]
+        };
+      }
+    }
 
-    let extracted: ExtractionResult;
-    try {
-      extracted = JSON.parse(extractedText);
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      // Return empty extraction with error note
-      extracted = { 
-        confidence: {},
-        key_quotes: [`Parse error - raw response: ${extractedText.substring(0, 200)}`]
-      };
+    // Normalize geographic_states using shared module
+    if (extracted.geographic_states) {
+      extracted.geographic_states = normalizeStates(extracted.geographic_states);
     }
 
     console.log('Extracted fields:', Object.keys(extracted).filter(k => k !== 'confidence' && extracted[k as keyof ExtractionResult] != null));
