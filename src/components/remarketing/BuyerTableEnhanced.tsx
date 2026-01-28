@@ -49,6 +49,7 @@ interface BuyerRow {
   hq_city?: string | null;
   hq_state?: string | null;
   thesis_summary?: string | null;
+  business_summary?: string | null;
   data_completeness?: string | null;
   target_geographies?: string[];
   geographic_footprint?: string[];
@@ -217,7 +218,8 @@ export const BuyerTableEnhanced = ({
                           <span className="font-medium text-foreground truncate">
                             {buyer.company_name}
                           </span>
-                          {buyer.data_completeness === 'high' && (
+                          {/* Only show Enriched badge if completeness is high AND actual data exists */}
+                          {buyer.data_completeness === 'high' && (buyer.business_summary || buyer.thesis_summary || buyer.pe_firm_name) && (
                             <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
                               Enriched
                             </Badge>
