@@ -1,12 +1,12 @@
-import { Monitor, Smartphone, Tablet, Globe, Link } from "lucide-react";
+import { Monitor, Smartphone, Tablet, Globe, Link, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { countryCodeToFlag } from "@/lib/flagEmoji";
 import type { EnhancedRealTimeData } from "@/hooks/useEnhancedRealTimeAnalytics";
 
 interface RealTimeSummaryPanelProps {
   data: EnhancedRealTimeData;
-  activeFilter?: { type: 'country' | 'device' | 'referrer'; value: string } | null;
-  onFilterChange?: (filter: { type: 'country' | 'device' | 'referrer'; value: string } | null) => void;
+  activeFilter?: { type: 'country' | 'device' | 'referrer' | 'entrySource'; value: string } | null;
+  onFilterChange?: (filter: { type: 'country' | 'device' | 'referrer' | 'entrySource'; value: string } | null) => void;
 }
 
 export function RealTimeSummaryPanel({ 
@@ -36,6 +36,34 @@ export function RealTimeSummaryPanel({
         </div>
       </div>
 
+      {/* Entry Sources - NEW */}
+      <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <LogIn className="w-3 h-3 text-white/50" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            Entry Sources
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {data.byEntrySource.slice(0, 6).map(({ source, count }) => (
+            <FilterChip
+              key={source}
+              label={source}
+              count={count}
+              isActive={activeFilter?.type === 'entrySource' && activeFilter.value === source}
+              onClick={() => {
+                if (activeFilter?.type === 'entrySource' && activeFilter.value === source) {
+                  onFilterChange?.(null);
+                } else {
+                  onFilterChange?.({ type: 'entrySource', value: source });
+                }
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Referrers */}
       <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-3">
         <div className="flex items-center gap-2 mb-2">
@@ -46,7 +74,7 @@ export function RealTimeSummaryPanel({
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {data.byReferrer.map(({ referrer, count }) => (
+          {data.byReferrer.slice(0, 5).map(({ referrer, count }) => (
             <FilterChip
               key={referrer}
               label={referrer}
