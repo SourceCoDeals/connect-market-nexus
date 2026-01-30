@@ -1,4 +1,7 @@
 import { cn } from "@/lib/utils";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { exportToCSV } from "@/lib/exportUtils";
 
 interface TopSearchQueriesProps {
   data: Array<{
@@ -13,19 +16,41 @@ interface TopSearchQueriesProps {
 export function TopSearchQueries({ data, className }: TopSearchQueriesProps) {
   const maxCount = Math.max(...data.map(d => d.count), 1);
 
+  const handleExport = () => {
+    exportToCSV(data, 'search-queries', [
+      { key: 'query', label: 'Search Query' },
+      { key: 'count', label: 'Count' },
+      { key: 'avgResults', label: 'Avg Results' },
+      { key: 'clickRate', label: 'Click Rate %' },
+    ]);
+  };
+
   return (
     <div className={cn(
       "rounded-2xl bg-card border border-border/50 p-6",
       className
     )}>
       {/* Header */}
-      <div className="mb-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-          Top Search Queries
-        </p>
-        <p className="text-xs text-muted-foreground/70 mt-1">
-          Most frequently searched terms
-        </p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+            Top Search Queries
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            Most frequently searched terms
+          </p>
+        </div>
+        {data.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleExport}
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Download className="h-3.5 w-3.5 mr-1" />
+            Export
+          </Button>
+        )}
       </div>
 
       {/* Table */}

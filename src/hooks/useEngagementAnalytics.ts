@@ -44,6 +44,13 @@ export interface EngagementAnalyticsData {
     category: string;
     avgSeconds: number;
   }>;
+
+  // User journey paths
+  userJourneyPaths: Array<{
+    source: string;
+    target: string;
+    count: number;
+  }>;
 }
 
 export function useEngagementAnalytics(timeRangeDays: number = 30) {
@@ -54,7 +61,7 @@ export function useEngagementAnalytics(timeRangeDays: number = 30) {
       const startDate = subDays(now, timeRangeDays);
       
       // Fetch listing analytics
-      const [analyticsResult, listingsResult, requestsResult, savedResult] = await Promise.all([
+      const [analyticsResult, listingsResult, requestsResult, savedResult, referrerResult] = await Promise.all([
         supabase
           .from('listing_analytics')
           .select('listing_id, action_type, time_spent, scroll_depth')
@@ -71,12 +78,20 @@ export function useEngagementAnalytics(timeRangeDays: number = 30) {
           .from('saved_listings')
           .select('listing_id')
           .gte('created_at', startDate.toISOString()),
+        // Referrer page data for user journey
+        supabase
+          .from('listing_analytics')
+          .select('referrer_page, action_type')
+          .gte('created_at', startDate.toISOString())
+          .eq('action_type', 'view')
+          .not('referrer_page', 'is', null),
       ]);
       
       const analytics = analyticsResult.data || [];
       const listings = listingsResult.data || [];
       const requests = requestsResult.data || [];
       const saved = savedResult.data || [];
+      const referrerData = referrerResult.data || [];
       
       // Create listing lookup
       const listingMap = new Map(listings.map(l => [l.id, l]));
@@ -205,6 +220,23 @@ export function useEngagementAnalytics(timeRangeDays: number = 30) {
         .filter(c => c.avgSeconds > 0)
         .sort((a, b) => b.avgSeconds - a.avgSeconds)
         .slice(0, 8);
+      // User journey paths - aggregate referrer pages to listing actions
+      const journeyPathCounts: Record<string, number> = {};
+      referrerData.forEach(r => {
+        if (r.referrer_page) {
+          const source = parseReferrerSource(r.referrer_page);
+          const key = `${source}->Listing`;
+          journeyPathCounts[key] = (journeyPathCounts[key] || 0) + 1;
+        }
+      });
+      
+      const userJourneyPaths = Object.entries(journeyPathCounts)
+        .map(([path, count]) => {
+          const [source, target] = path.split('->');
+          return { source, target, count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
       
       return {
         listingLeaderboard,
@@ -212,9 +244,27 @@ export function useEngagementAnalytics(timeRangeDays: number = 30) {
         categoryPerformance,
         scrollDepthDistribution,
         avgTimeByCategory,
+        userJourneyPaths,
       };
     },
     staleTime: 60000,
     refetchInterval: 120000,
   });
+}
+
+function parseReferrerSource(referrer: string): string {
+  if (!referrer) return 'Direct';
+  
+  const lowerRef = referrer.toLowerCase();
+  
+  // Categorize by common patterns
+  if (lowerRef.includes('/search') || lowerRef.includes('search?')) return 'Search Page';
+  if (lowerRef.includes('/category') || lowerRef.includes('/categories')) return 'Category Page';
+  if (lowerRef === '/' || lowerRef.endsWith('/home')) return 'Home Page';
+  if (lowerRef.includes('/listing')) return 'Other Listing';
+  if (lowerRef.includes('google.com')) return 'Google';
+  if (lowerRef.includes('linkedin.com')) return 'LinkedIn';
+  if (lowerRef.includes('email') || lowerRef.includes('brevo')) return 'Email Campaign';
+  
+  return 'External';
 }
