@@ -1,13 +1,42 @@
-import { useRealTimeAnalytics } from "@/hooks/useRealTimeAnalytics";
+import { useState, useMemo } from "react";
+import { useEnhancedRealTimeAnalytics } from "@/hooks/useEnhancedRealTimeAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ActiveUsersCounter } from "./ActiveUsersCounter";
-import { LiveActivityMap } from "./LiveActivityMap";
-import { CurrentPagesPanel } from "./CurrentPagesPanel";
+import { PremiumGlobeMap } from "./PremiumGlobeMap";
+import { RealTimeSummaryPanel } from "./RealTimeSummaryPanel";
+import { LiveActivityFeed } from "./LiveActivityFeed";
 import { ActiveSessionsList } from "./ActiveSessionsList";
 import { cn } from "@/lib/utils";
 
 export function RealTimeTab() {
-  const { data, isLoading, error } = useRealTimeAnalytics();
+  const { data, isLoading, error } = useEnhancedRealTimeAnalytics();
+  const [activeFilter, setActiveFilter] = useState<{ 
+    type: 'country' | 'device' | 'referrer'; 
+    value: string 
+  } | null>(null);
+
+  // Filter users based on active filter
+  const filteredUsers = useMemo(() => {
+    if (!data?.activeUsers) return [];
+    if (!activeFilter) return data.activeUsers;
+
+    return data.activeUsers.filter(user => {
+      switch (activeFilter.type) {
+        case 'country':
+          return user.country === activeFilter.value;
+        case 'device':
+          return user.deviceType === activeFilter.value;
+        case 'referrer':
+          const referrer = user.referrer || user.utmSource || 'Direct';
+          const normalized = referrer.includes('google') ? 'Google' :
+            referrer.includes('facebook') ? 'Facebook' :
+            referrer.includes('linkedin') ? 'LinkedIn' :
+            referrer === 'Direct' ? 'Direct' : 'Other';
+          return normalized === activeFilter.value;
+        default:
+          return true;
+      }
+    });
+  }, [data?.activeUsers, activeFilter]);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -23,78 +52,94 @@ export function RealTimeTab() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <ActiveUsersCounter count={data.activeUsers} />
-        <DurationCard 
-          label="Avg Duration"
-          value={formatDuration(getAvgDuration(data.activeUsersList))}
-        />
-        <StatCard 
-          label="Countries Active"
-          value={data.activeByCountry.length.toString()}
-        />
-        <StatCard 
-          label="Pages Viewed (5m)"
-          value={data.currentPages.reduce((sum, p) => sum + p.viewCount, 0).toString()}
-        />
+      {/* Filter banner when active */}
+      {activeFilter && (
+        <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-coral-500/10 border border-coral-500/20">
+          <span className="text-sm text-coral-500">
+            Showing {filteredUsers.length} users filtered by {activeFilter.type}: <strong>{activeFilter.value}</strong>
+          </span>
+          <button 
+            onClick={() => setActiveFilter(null)}
+            className="text-xs text-coral-500 hover:underline"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+
+      {/* Main layout: Map + Summary panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Globe Map - 3 columns */}
+        <div className="lg:col-span-3">
+          <PremiumGlobeMap 
+            users={filteredUsers}
+            onUserClick={(user) => console.log('User clicked:', user)}
+          />
+        </div>
+
+        {/* Summary Panel - 1 column */}
+        <div className="lg:col-span-1">
+          <RealTimeSummaryPanel 
+            data={data}
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+          />
+        </div>
       </div>
 
-      {/* Live Map + Current Pages */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <LiveActivityMap data={data.activeByCountry} />
-        </div>
-        <div>
-          <CurrentPagesPanel data={data.currentPages} />
-        </div>
-      </div>
-
-      {/* Duration Distribution + Active Sessions */}
+      {/* Bottom row: Activity Feed + Session List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DurationDistributionCard data={data.durationDistribution} />
-        <ActiveSessionsList sessions={data.activeUsersList.slice(0, 10)} />
+        {/* Live Activity Feed */}
+        <LiveActivityFeed 
+          events={data.recentEvents}
+          onUserClick={(sessionId) => console.log('Filter to user:', sessionId)}
+        />
+
+        {/* Active Sessions List */}
+        <ActiveSessionsList 
+          sessions={data.activeUsers.slice(0, 10).map(u => ({
+            sessionId: u.sessionId,
+            userId: u.userId,
+            country: u.country,
+            city: u.city,
+            lastActiveAt: u.lastActiveAt,
+            durationSeconds: u.sessionDurationSeconds,
+          }))} 
+        />
       </div>
+
+      {/* Duration distribution card */}
+      <DurationDistributionCard users={data.activeUsers} />
     </div>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-card border border-border/50 p-5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="text-2xl md:text-3xl font-light tracking-tight text-foreground mt-2 tabular-nums">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function DurationCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-card border border-border/50 p-5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="text-2xl md:text-3xl font-light tracking-tight text-foreground mt-2 tabular-nums">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function DurationDistributionCard({ data }: { 
-  data: { under1min: number; oneToFive: number; fiveToFifteen: number; over15min: number } 
+function DurationDistributionCard({ users }: { 
+  users: Array<{ sessionDurationSeconds: number }> 
 }) {
-  const total = data.under1min + data.oneToFive + data.fiveToFifteen + data.over15min;
+  // Calculate distribution
+  const distribution = {
+    under1min: 0,
+    oneToFive: 0,
+    fiveToFifteen: 0,
+    over15min: 0,
+  };
+
+  users.forEach(u => {
+    const duration = u.sessionDurationSeconds || 0;
+    if (duration < 60) distribution.under1min++;
+    else if (duration < 300) distribution.oneToFive++;
+    else if (duration < 900) distribution.fiveToFifteen++;
+    else distribution.over15min++;
+  });
+
+  const total = users.length;
   
   const bars = [
-    { label: '< 1 min', value: data.under1min, color: 'bg-coral-200' },
-    { label: '1-5 min', value: data.oneToFive, color: 'bg-coral-300' },
-    { label: '5-15 min', value: data.fiveToFifteen, color: 'bg-coral-400' },
-    { label: '15+ min', value: data.over15min, color: 'bg-coral-500' },
+    { label: '< 1 min', value: distribution.under1min, color: 'bg-coral-200' },
+    { label: '1-5 min', value: distribution.oneToFive, color: 'bg-coral-300' },
+    { label: '5-15 min', value: distribution.fiveToFifteen, color: 'bg-coral-400' },
+    { label: '15+ min', value: distribution.over15min, color: 'bg-coral-500' },
   ];
 
   return (
@@ -108,21 +153,17 @@ function DurationDistributionCard({ data }: {
         </p>
       </div>
       
-      <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-4">
         {bars.map(bar => (
-          <div key={bar.label}>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-muted-foreground">{bar.label}</span>
-              <span className="text-sm font-medium tabular-nums">
-                {bar.value} ({total > 0 ? Math.round((bar.value / total) * 100) : 0}%)
-              </span>
-            </div>
-            <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
+          <div key={bar.label} className="text-center">
+            <div className="h-24 flex items-end justify-center mb-2">
               <div 
-                className={cn("h-full rounded-full transition-all", bar.color)}
-                style={{ width: `${total > 0 ? (bar.value / total) * 100 : 0}%` }}
+                className={cn("w-12 rounded-t-lg transition-all", bar.color)}
+                style={{ height: `${total > 0 ? Math.max((bar.value / total) * 100, 8) : 8}%` }}
               />
             </div>
+            <p className="text-lg font-semibold tabular-nums">{bar.value}</p>
+            <p className="text-[10px] text-muted-foreground">{bar.label}</p>
           </div>
         ))}
       </div>
@@ -130,32 +171,20 @@ function DurationDistributionCard({ data }: {
   );
 }
 
-function getAvgDuration(sessions: Array<{ durationSeconds: number }>): number {
-  if (sessions.length === 0) return 0;
-  return sessions.reduce((sum, s) => sum + s.durationSeconds, 0) / sessions.length;
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  return `${Math.round(seconds / 3600)}h`;
-}
-
 function LoadingSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-24 rounded-2xl" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Skeleton className="h-[360px] rounded-2xl lg:col-span-2" />
-        <Skeleton className="h-[360px] rounded-2xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Skeleton className="h-[400px] rounded-2xl lg:col-span-3" />
+        <div className="space-y-4">
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Skeleton className="h-[280px] rounded-2xl" />
-        <Skeleton className="h-[280px] rounded-2xl" />
+        <Skeleton className="h-[300px] rounded-2xl" />
+        <Skeleton className="h-[300px] rounded-2xl" />
       </div>
     </div>
   );
