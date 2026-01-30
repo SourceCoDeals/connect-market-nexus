@@ -1,4 +1,4 @@
-import { Monitor, Smartphone, Tablet, Globe, Clock, Eye, Bookmark, Link2, CheckCircle2, FileSignature } from "lucide-react";
+import { Monitor, Smartphone, Tablet, Globe, Clock, Eye, Bookmark, Link2, CheckCircle2, FileSignature, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { countryCodeToFlag } from "@/lib/flagEmoji";
 import { getAvatarColor, getInitials } from "@/lib/anonymousNames";
@@ -7,9 +7,11 @@ import type { EnhancedActiveUser } from "@/hooks/useEnhancedRealTimeAnalytics";
 interface UserTooltipCardProps {
   user: EnhancedActiveUser;
   position?: { x: number; y: number };
+  pinned?: boolean;
+  onClose?: () => void;
 }
 
-export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
+export function UserTooltipCard({ user, position, pinned, onClose }: UserTooltipCardProps) {
   const flag = countryCodeToFlag(user.countryCode);
   const avatarColor = user.isAnonymous 
     ? getAvatarColor(user.displayName)
@@ -40,19 +42,61 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
     };
     return typeMap[type] || type;
   };
+
+  // Normalize referrer for display
+  const getDisplayReferrer = (referrer: string | null, utmSource: string | null): string => {
+    const source = referrer?.toLowerCase() || utmSource?.toLowerCase() || '';
+    
+    if (!source) return 'Direct';
+    if (source.includes('google')) return 'Google';
+    if (source.includes('facebook') || source.includes('fb.')) return 'Facebook';
+    if (source.includes('linkedin')) return 'LinkedIn';
+    if (source.includes('twitter') || source.includes('x.com') || source.includes('t.co')) return 'X (Twitter)';
+    if (source.includes('instagram')) return 'Instagram';
+    if (source.includes('tiktok')) return 'TikTok';
+    if (source.includes('youtube')) return 'YouTube';
+    if (source.includes('reddit')) return 'Reddit';
+    if (source.includes('lovable.dev') || source.includes('lovable.app')) return 'Lovable';
+    if (source.includes('bing')) return 'Bing';
+    
+    try {
+      const url = new URL(source.startsWith('http') ? source : `https://${source}`);
+      return url.hostname.replace('www.', '');
+    } catch {
+      return 'Referral';
+    }
+  };
   
   return (
     <div 
-      className="w-80 rounded-2xl bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl overflow-hidden"
+      className={cn(
+        "w-80 rounded-2xl bg-card/95 backdrop-blur-xl border shadow-2xl overflow-hidden",
+        pinned ? "border-coral-500/50" : "border-border/50"
+      )}
       style={position ? {
         position: 'fixed',
         left: Math.min(position.x + 16, window.innerWidth - 340),
         top: Math.max(position.y - 120, 10),
         zIndex: 1000,
       } : undefined}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Header with avatar and identity */}
-      <div className="p-4 border-b border-border/50 bg-muted/30">
+      <div className="p-4 border-b border-border/50 bg-muted/30 relative">
+        {/* Close button for pinned cards */}
+        {pinned && onClose && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-muted transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        )}
+        
         <div className="flex items-start gap-3">
           {/* Avatar */}
           <div className={cn(
@@ -63,7 +107,7 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
           </div>
           
           {/* Identity */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pr-6">
             <p className="font-semibold text-foreground truncate text-base">
               {user.displayName}
             </p>
@@ -100,8 +144,8 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
       <div className="p-4 border-b border-border/50 space-y-2">
         <InfoRow 
           icon={<Globe className="w-3.5 h-3.5" />}
-          label="Referrer"
-          value={user.referrer || user.utmSource || 'Direct'}
+          label="Source"
+          value={getDisplayReferrer(user.referrer, user.utmSource)}
         />
         <InfoRow 
           icon={<Eye className="w-3.5 h-3.5" />}
@@ -120,6 +164,20 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
           value={user.totalVisits.toString()}
         />
       </div>
+      
+      {/* Visitor Journey section for anonymous users */}
+      {user.isAnonymous && user.currentPage && (
+        <div className="p-4 border-b border-border/50">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            Visitor Journey
+          </p>
+          <div className="text-xs text-muted-foreground">
+            <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">
+              {user.currentPage}
+            </span>
+          </div>
+        </div>
+      )}
       
       {/* Real engagement metrics */}
       {!user.isAnonymous && (
