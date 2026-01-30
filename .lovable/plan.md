@@ -1,380 +1,152 @@
 
-# Premium Real-Time Intelligence Dashboard Enhancement
 
-## Analysis Summary
+# Fix Real Names & Add Globe Drag-to-Stop Functionality
 
-### Current Implementation Issues
+## Issues Identified
 
-| Issue | Current State | Required State |
-|-------|--------------|----------------|
-| **Map Size** | 400px height, small within grid | Full viewport-height immersive experience |
-| **Globe Style** | Mercator projection, dark slate | 3D orthographic rotating globe with star background |
-| **User Names** | Anonymous names shown even for logged-in users | Real names (first + last) for logged-in users |
-| **Tooltip Metrics** | "Estimated value" and "Conversion likelihood" (fake metrics) | Real metrics we actually track |
-| **Globe Interactivity** | Static, no rotation | Auto-rotating with pause on hover |
-| **Visual Design** | Functional but not premium | DataFast-level immersive dark theme |
+### Issue 1: "gold owl" Appearing Instead of Real Names
 
-### Real Data Available in Database
+**Root Cause:**
+The `recentEvents` logic tries to match page_view sessions with active sessions. However:
+- Active sessions are filtered by `last_active_at >= 2 minutes ago`
+- Many sessions have `NULL` in `last_active_at` (only have `started_at`)
+- When no match is found, `createDefaultUser()` is called which generates an anonymous name like "gold owl"
+- This happens even when the session HAS a `user_id` linked to a real profile
 
-**For Each Active User (from profiles + user_sessions):**
-- `first_name`, `last_name` - Real names
-- `company` - Company name
-- `buyer_type` - Private Equity, Family Office, etc.
-- `job_title` - Their role
-- `country`, `city` - Location
-- `device_type`, `browser`, `os` - Tech stack
-- `referrer`, `utm_source` - Traffic source
-- `session_duration_seconds` - Time on site
-- `fee_agreement_signed` - Has signed fee agreement (real engagement signal)
-- `nda_signed` - Has signed NDA (real engagement signal)
+**Database Evidence:**
+- Session `session_1769794934143_hvmyix7n2` has `user_id: 1d5727f8-2a8c-4600-9a46-bddbb036ea45`
+- This user_id belongs to "Admin User" from "SourceCo"
+- But the session has `last_active_at: NULL`, so it's excluded from activeUsers
+- The page view falls back to "gold owl" (anonymous name)
 
-**For Each User (from engagement_scores):**
-- `listings_viewed` - Number of listings they've viewed
-- `listings_saved` - Number of listings saved
-- `connections_requested` - Number of connection requests made
-- `session_count` - Total visits to the platform
-- `total_session_time` - Lifetime time spent
-- `search_count` - Number of searches performed
-- `activity_streak` - Days of consecutive activity
-- `churn_risk_score` - Actual churn risk (0-100)
+**Fix:**
+1. Modify the session query to use `COALESCE(last_active_at, started_at)` for filtering
+2. For `recentEvents`, directly fetch profile data for page_view sessions instead of relying on activeUsers matching
+3. Ensure every page_view with a `user_id` gets the real name from profiles
 
-**For Activity Feed (from page_views + saved_listings + connection_requests):**
-- Page visits with timestamps
-- Listing saves with listing titles
-- Connection requests with listing info
+### Issue 2: Globe Should Stop When Dragged
 
----
+**Current Behavior:**
+- Globe auto-rotates at 0.3° per 50ms
+- Globe pauses only on hover (over a user marker)
+- No drag detection
 
-## Design Transformation
+**Desired Behavior:**
+- Globe spins by default
+- When user drags the globe to focus on a region (e.g., France), rotation stops
+- Globe stays focused on that area until user navigates away
 
-### Visual Upgrade: DataFast-Style Premium Experience
-
-**Current:**
-```text
-+------------------+  +--------+
-|   Small Map      |  | Panel  |
-|   (400px)        |  |        |
-+------------------+  +--------+
-+--------+  +--------+
-| Feed   |  | List   |
-+--------+  +--------+
-```
-
-**New:**
-```text
-+------------------------------------------------+
-|  [Summary Panel overlay]                        |
-|  ● 5 visitors on sourcecodeals.com              |
-|  Referrers: ⊙ Direct (3)  🔗 Google (2)        |
-|  Countries: 🇺🇸 United States (3) 🇭🇺 Hungary  |
-|                                                 |
-|     +--------------------------+                |
-|     |     PREMIUM 3D GLOBE     |                |
-|     |   with star background   |                |
-|     |   auto-rotating          |                |
-|     |   user avatars           |                |
-|     +--------------------------+                |
-|                                                 |
-|  [Live Activity Feed overlay]                   |
-|  ● Admin User from 🇭🇺 Hungary visited /admin   |
-|  ● azure falcon from 🇫🇷 France visited /market |
-+------------------------------------------------+
-```
-
-### Globe Visual Specifications
-
-**Background:**
-- Deep space gradient: `radial-gradient(ellipse at center, #0a1628 0%, #020617 100%)`
-- Subtle star particles (CSS or SVG dots)
-- Ambient glow around globe
-
-**Globe:**
-- Orthographic projection (3D sphere effect)
-- Auto-rotation: 0.5° per second (full rotation in 12 minutes)
-- Pause rotation on hover
-- Globe fill: `#0f172a` (dark navy)
-- Country borders: `#1e3a5f` (subtle blue)
-- Ocean: Slightly lighter than background
-- Lit effect: Subtle gradient making one side brighter
-
-**User Markers:**
-- Real photo-style avatars using initials
-- Pulsing red rings for active users
-- Size: 32px diameter for clear visibility
-- White border ring for contrast
-
-**Size:**
-- Minimum height: 600px
-- Preferred: 70vh or full available height
-- Map takes 100% width on mobile, with overlays
-
----
-
-## Metrics Replacement Strategy
-
-### Remove These (Fake/Calculated)
-- "Estimated value" ($1.70) - Not a real metric
-- "Conversion likelihood" (+35% vs avg) - Misleading
-
-### Replace With Real Metrics
-
-**User Engagement Card:**
-```text
-+----------------------------------+
-|  [Avatar]  Admin User            |
-|            SourceCo              |
-|            🇭🇺 Budapest, Hungary  |
-|            💻 Desktop  macOS     |
-|                        Chrome    |
-+----------------------------------+
-|  Current page:   /admin          |
-|  Session time:   52 min 14 sec   |
-|  Total visits:   47              |
-+----------------------------------+
-|  ENGAGEMENT                      |
-|  Listings viewed:     34         |
-|  Listings saved:      8          |
-|  Connections sent:    12         |
-+----------------------------------+
-|  STATUS                          |
-|  ✓ Fee Agreement Signed          |
-|  ✓ NDA Signed                    |
-|  Buyer Type: Family Office       |
-+----------------------------------+
-```
-
-**For Anonymous Users:**
-```text
-+----------------------------------+
-|  [Avatar]  azure falcon          |
-|            (Anonymous visitor)   |
-|            🇫🇷 Paris, France      |
-|            📱 Mobile   iOS       |
-|                        Safari    |
-+----------------------------------+
-|  Current page:   /marketplace    |
-|  Session time:   3 min 42 sec    |
-|  Referrer:       Google          |
-+----------------------------------+
-```
+**Fix:**
+Add mouse/touch drag detection to the globe:
+- Track `isDragging` state
+- On mousedown/touchstart: set `isDragging = true`
+- On mouseup/touchend: if dragged, set `isManuallyPaused = true`
+- The `isManuallyPaused` flag permanently stops rotation until page refresh
 
 ---
 
 ## Implementation Details
 
-### Phase 1: Data Layer Enhancement
+### File 1: `src/hooks/useEnhancedRealTimeAnalytics.ts`
 
-**Modify: `src/hooks/useEnhancedRealTimeAnalytics.ts`**
-
-Remove fake metrics, add real engagement data:
+**Changes:**
+1. Update session filtering to use `COALESCE(last_active_at, started_at)` via OR condition
+2. For `recentEvents`, create a map of session_id → user_id from page_views
+3. Fetch profiles for ALL user_ids found in page_views (not just active sessions)
+4. When building recentEvents, look up the user_id directly from the session, then fetch profile
 
 ```typescript
-interface EnhancedActiveUser {
-  // Identity - REAL DATA
-  sessionId: string;
-  userId: string | null;
-  userName: string | null;      // Real name: "Admin User"
-  displayName: string;          // Real name OR anonymous name
-  companyName: string | null;   // Real company
-  buyerType: string | null;
-  jobTitle: string | null;
-  isAnonymous: boolean;
-  
-  // Location
-  country: string | null;
-  countryCode: string | null;
-  city: string | null;
-  coordinates: { lat: number; lng: number } | null;
-  
-  // Tech Stack
-  deviceType: 'mobile' | 'desktop' | 'tablet';
-  browser: string | null;
-  os: string | null;
-  
-  // Traffic Source
-  referrer: string | null;
-  utmSource: string | null;
-  
-  // Current Session
-  sessionDurationSeconds: number;
-  lastActiveAt: string;
-  currentPage: string | null;
-  
-  // Real Engagement Metrics
-  listingsViewed: number;
-  listingsSaved: number;
-  connectionsSent: number;
-  totalVisits: number;
-  totalTimeSpent: number;       // Lifetime seconds
-  searchCount: number;
-  
-  // Trust Signals
-  feeAgreementSigned: boolean;
-  ndaSigned: boolean;
-}
+// Modified session query - also include sessions with recent started_at
+.or(`last_active_at.gte.${twoMinutesAgo},started_at.gte.${twoMinutesAgo}`)
+
+// For recentEvents - get user_id directly from sessions for each page_view
+// Then look up profile for that user_id
 ```
 
-**Fetch additional profile data:**
-- `job_title`
-- `fee_agreement_signed`
-- `nda_signed`
+### File 2: `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx`
 
-**Fetch engagement_scores:**
-- `listings_viewed`
-- `listings_saved`
-- `connections_requested`
-- `session_count`
-- `total_session_time`
-- `search_count`
+**Changes:**
+1. Add `isManuallyPaused` state to track if user has dragged
+2. Add `onMouseDown`, `onMouseUp`, `onMouseMove` handlers for drag detection
+3. Add `onTouchStart`, `onTouchEnd` handlers for mobile support
+4. Track actual drag movement (not just click) before pausing
 
-### Phase 2: Premium Globe Map
-
-**Modify: `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx`**
-
-**Visual upgrades:**
-1. Change projection from `geoMercator` to `geoOrthographic` for 3D effect
-2. Add star background using CSS pseudo-elements
-3. Increase height from 400px to 600px minimum
-4. Add auto-rotation with state management
-5. Add ambient globe glow effect
-
-**Rotation implementation:**
 ```typescript
-const [rotation, setRotation] = useState(0);
-const [isPaused, setIsPaused] = useState(false);
+const [isManuallyPaused, setIsManuallyPaused] = useState(false);
+const [isDragging, setIsDragging] = useState(false);
+const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
+// Auto-rotate only if not manually paused
 useEffect(() => {
-  if (isPaused) return;
-  const interval = setInterval(() => {
-    setRotation(prev => (prev + 0.5) % 360);
-  }, 100);
-  return () => clearInterval(interval);
-}, [isPaused]);
+  if (isPaused || isManuallyPaused) return;
+  // ... rotation logic
+}, [isPaused, isManuallyPaused]);
+
+// Drag detection
+const handleMouseDown = (e: React.MouseEvent) => {
+  dragStartPos.current = { x: e.clientX, y: e.clientY };
+};
+
+const handleMouseUp = (e: React.MouseEvent) => {
+  if (dragStartPos.current) {
+    const dx = Math.abs(e.clientX - dragStartPos.current.x);
+    const dy = Math.abs(e.clientY - dragStartPos.current.y);
+    // If moved more than 5px, consider it a drag
+    if (dx > 5 || dy > 5) {
+      setIsManuallyPaused(true);
+    }
+  }
+  dragStartPos.current = null;
+};
 ```
 
-**Projection config:**
+---
+
+## Technical Details
+
+### Session Filtering Fix
+
+The current query filters by:
 ```typescript
-projection="geoOrthographic"
-projectionConfig={{
-  scale: 280,
-  rotate: [-rotation, -20, 0],
-  center: [0, 0],
-}}
+.gte('last_active_at', twoMinutesAgo)
 ```
 
-**Larger user markers:**
-- Increase avatar circle radius from 8 to 14
-- Increase pulse rings proportionally
-- Make initials font larger (10px)
-
-### Phase 3: Real Metrics Tooltip
-
-**Modify: `src/components/admin/analytics/realtime/UserTooltipCard.tsx`**
-
-Remove:
-- `ConversionLikelihoodBar` component
-- "Estimated value" display
-- "Conversion likelihood" display
-
-Add:
-- Engagement section with listings viewed/saved/connections
-- Trust signals (Fee Agreement, NDA status)
-- Buyer type badge
-- Job title display
-
-**New layout structure:**
-```text
-┌─────────────────────────────────┐
-│ [Avatar] Name                   │
-│          Company                │
-│          🇺🇸 City, Country       │
-│          💻 Desktop  🍎 macOS   │
-│                      🔵 Chrome  │
-├─────────────────────────────────┤
-│ Current page    /marketplace    │
-│ Session time    12 min 34 sec   │
-│ Total visits    23              │
-├─────────────────────────────────┤
-│ ENGAGEMENT                      │
-│ Viewed     12 listings          │
-│ Saved      3 listings           │
-│ Requested  2 connections        │
-├─────────────────────────────────┤
-│ ✓ Fee Agreement                 │
-│ ✓ NDA Signed                    │
-│ [Family Office] badge           │
-└─────────────────────────────────┘
+This excludes sessions where `last_active_at` is NULL. Change to:
+```typescript
+.or(`last_active_at.gte.${twoMinutesAgo},and(last_active_at.is.null,started_at.gte.${twoMinutesAgo})`)
 ```
 
-### Phase 4: Layout Restructure
+### Recent Events Profile Lookup
 
-**Modify: `src/components/admin/analytics/realtime/RealTimeTab.tsx`**
+Currently:
+1. Fetch active sessions → build `activeUsers` array
+2. Fetch page_views
+3. For each page_view, try to find matching user in `activeUsers`
+4. If not found, create anonymous user
 
-Change from grid layout to overlay layout:
+Problem: Page view session might not be in activeUsers (filtered out)
 
-```text
-Current:
-grid-cols-4 → 3 cols map + 1 col panel
-grid-cols-2 → feed + sessions list
+Fix:
+1. Fetch page_views with session join to get user_id
+2. Collect all user_ids from page_views
+3. Fetch profiles for those user_ids
+4. When building recentEvents, look up profile by user_id
 
-New:
-Full-width globe container
-Floating overlay panels (absolute positioned)
+### Drag Detection Logic
+
 ```
+State Machine:
+  SPINNING (default)
+    → onMouseDown: record start position
+    → onMouseUp: if moved > 5px → PAUSED_BY_DRAG
+    → onHover marker: PAUSED_TEMP
 
-**New layout:**
-```tsx
-<div className="relative min-h-[600px] h-[70vh]">
-  {/* Full-size globe */}
-  <PremiumGlobeMap users={filteredUsers} className="absolute inset-0" />
-  
-  {/* Floating summary panel - top left */}
-  <div className="absolute top-4 left-4 w-72 z-10">
-    <RealTimeSummaryPanel data={data} />
-  </div>
-  
-  {/* Floating activity feed - bottom left */}
-  <div className="absolute bottom-4 left-4 w-80 max-h-64 z-10">
-    <LiveActivityFeed events={data.recentEvents} />
-  </div>
-  
-  {/* Active count badge - top right */}
-  <div className="absolute top-4 right-4 z-10">
-    <ActiveCountBadge count={data.totalActiveUsers} />
-  </div>
-</div>
-```
+  PAUSED_BY_DRAG
+    → stays paused until page refresh
+    → onHover marker: no effect (already paused)
 
-### Phase 5: Summary Panel Simplification
-
-**Modify: `src/components/admin/analytics/realtime/RealTimeSummaryPanel.tsx`**
-
-Remove "Est. value" display (fake metric)
-
-Change header to show domain:
-```text
-● 5 visitors on sourcecodeals.com
-```
-
-Make panels more compact for overlay use:
-- Reduce padding
-- Make background translucent: `bg-card/90 backdrop-blur-xl`
-- Collapse into single card with sections
-
-### Phase 6: Activity Feed Real Events
-
-**Modify: `src/components/admin/analytics/realtime/LiveActivityFeed.tsx`**
-
-Show REAL user names for logged-in users:
-```text
-Before: "coral falcon from 🇭🇺 Hungary visited /admin"
-After:  "Admin User from 🇭🇺 Hungary visited /admin"
-```
-
-Add event types for saves and connections (if available):
-```text
-"Mike Rathbun saved 'Premium HVAC Business'"
-"Zachary Streichler requested connection with 'Tech SaaS'"
+  PAUSED_TEMP (hover on marker)
+    → onLeave marker: → SPINNING (unless PAUSED_BY_DRAG)
 ```
 
 ---
@@ -383,51 +155,17 @@ Add event types for saves and connections (if available):
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useEnhancedRealTimeAnalytics.ts` | Add real profile fields (job_title, fee_agreement_signed, nda_signed), fetch engagement_scores properly, remove fake conversion/value calculations |
-| `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx` | Switch to orthographic projection, add rotation, increase size to 600px+, add star background, make markers larger |
-| `src/components/admin/analytics/realtime/UserTooltipCard.tsx` | Replace fake metrics with real engagement data (listings viewed/saved/connections), add trust signals section |
-| `src/components/admin/analytics/realtime/RealTimeTab.tsx` | Change to overlay layout with full-height globe |
-| `src/components/admin/analytics/realtime/RealTimeSummaryPanel.tsx` | Remove "est. value", make translucent for overlay, more compact |
-| `src/components/admin/analytics/realtime/LiveActivityFeed.tsx` | Show real names, make translucent for overlay |
-
-## Components to Remove
-
-| File | Reason |
-|------|--------|
-| `src/components/admin/analytics/realtime/ConversionLikelihoodBar.tsx` | Displayed fake metric - no longer needed |
+| `src/hooks/useEnhancedRealTimeAnalytics.ts` | Fix session filtering, fetch profiles for page_view sessions, ensure recentEvents uses real names |
+| `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx` | Add drag detection with `isManuallyPaused` state, add mouse/touch event handlers |
 
 ---
 
-## Visual Reference Comparison
-
-### DataFast (Reference)
-- Full-screen 3D rotating globe
-- Star background with space theme
-- User avatars as illustrated faces
-- Floating translucent panels
-- Activity feed at bottom left
-- Real-time pulse indicators
-
-### Our Implementation (After Enhancement)
-- 70vh height orthographic globe
-- CSS star background effect
-- User avatars as colored initials
-- Floating translucent panels (same pattern)
-- Activity feed at bottom left (same pattern)
-- Real-time pulse indicators (already have)
-- REAL DATA: actual names, actual engagement metrics
-
----
-
-## Success Criteria
+## Expected Results
 
 After implementation:
-1. Globe fills 70% of viewport height (minimum 600px)
-2. Globe auto-rotates, pauses on hover
-3. All logged-in users show real names and company
-4. Tooltip shows REAL metrics: listings viewed, saved, connections
-5. Trust signals visible: Fee Agreement, NDA status
-6. No fake "estimated value" or "conversion likelihood"
-7. Star background creates premium space theme
-8. Panels float over globe with translucent backdrop
-9. Activity feed shows real user names when available
+1. Activity feed shows "Admin User from 🇭🇺 Hungary visited /admin" (real name)
+2. Globe spins automatically on page load
+3. User can drag globe to France → rotation stops
+4. Globe stays focused on France until page refresh
+5. Hovering on markers still shows tooltip (existing behavior)
+
