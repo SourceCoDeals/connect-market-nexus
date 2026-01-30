@@ -13,8 +13,8 @@ declare global {
   }
 }
 
-// GA4 Measurement ID - Replace with your actual ID
-export const GA4_MEASUREMENT_ID = 'G-XXXXXXXXXX';
+// GA4 Measurement ID for SourceCo
+export const GA4_MEASUREMENT_ID = 'G-N5T31YT52K';
 
 /**
  * Track a custom GA4 event
