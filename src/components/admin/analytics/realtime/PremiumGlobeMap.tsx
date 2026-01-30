@@ -10,15 +10,17 @@ const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 interface PremiumGlobeMapProps {
   users: EnhancedActiveUser[];
   onUserClick?: (user: EnhancedActiveUser) => void;
+  focusedSessionId?: string | null;
   className?: string;
 }
 
-export function PremiumGlobeMap({ users, onUserClick, className }: PremiumGlobeMapProps) {
+export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, className }: PremiumGlobeMapProps) {
   const [hoveredUser, setHoveredUser] = useState<EnhancedActiveUser | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [rotation, setRotation] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
+  const [highlightedSession, setHighlightedSession] = useState<string | null>(null);
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
   
   // Auto-rotate the globe (unless manually paused by drag)
@@ -29,6 +31,21 @@ export function PremiumGlobeMap({ users, onUserClick, className }: PremiumGlobeM
     }, 50);
     return () => clearInterval(interval);
   }, [isPaused, isManuallyPaused]);
+  
+  // Focus on a user when clicked from activity feed
+  useEffect(() => {
+    if (focusedSessionId) {
+      const user = users.find(u => u.sessionId === focusedSessionId);
+      if (user?.coordinates) {
+        // Rotate globe to center on this user's longitude
+        setRotation(-user.coordinates.lng);
+        setIsManuallyPaused(true);
+        setHighlightedSession(focusedSessionId);
+        // Clear highlight after 3 seconds
+        setTimeout(() => setHighlightedSession(null), 3000);
+      }
+    }
+  }, [focusedSessionId, users]);
   
   // Drag detection handlers
   const handleGlobeMouseDown = (e: React.MouseEvent) => {
@@ -184,61 +201,84 @@ export function PremiumGlobeMap({ users, onUserClick, className }: PremiumGlobeM
           </Geographies>
 
           {/* User markers */}
-          {usersWithCoords.map((user) => (
-            <Marker 
-              key={user.sessionId} 
-              coordinates={[user.coordinates!.lng, user.coordinates!.lat]}
-            >
-              <g
-                onMouseEnter={(e) => handleMouseEnter(user, e as unknown as React.MouseEvent)}
-                onMouseLeave={handleMouseLeave}
-                onClick={() => onUserClick?.(user)}
-                style={{ cursor: 'pointer' }}
+          {usersWithCoords.map((user) => {
+            const isHighlighted = highlightedSession === user.sessionId;
+            return (
+              <Marker 
+                key={user.sessionId} 
+                coordinates={[user.coordinates!.lng, user.coordinates!.lat]}
               >
-                {/* Outer pulse ring */}
-                <circle
-                  r={24}
-                  fill="none"
-                  stroke="hsl(0, 84%, 60%)"
-                  strokeWidth={1.5}
-                  opacity={0.4}
-                  className="animate-ping"
-                  style={{ animationDuration: '2s' }}
-                />
-                
-                {/* Middle glow */}
-                <circle
-                  r={18}
-                  fill="hsl(0, 84%, 60%)"
-                  opacity={0.15}
-                />
-                
-                {/* Avatar circle */}
-                <circle
-                  r={12}
-                  fill={getAvatarFill(user)}
-                  stroke="rgba(255,255,255,0.9)"
-                  strokeWidth={2}
-                  className="transition-transform hover:scale-110"
-                />
-                
-                {/* Initials text */}
-                <text
-                  textAnchor="middle"
-                  y={4}
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    fill: "white",
-                    pointerEvents: "none",
-                    textShadow: "0 1px 2px rgba(0,0,0,0.5)",
-                  }}
+                <g
+                  onMouseEnter={(e) => handleMouseEnter(user, e as unknown as React.MouseEvent)}
+                  onMouseLeave={handleMouseLeave}
+                  onClick={() => onUserClick?.(user)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {getInitials(user.displayName)}
-                </text>
-              </g>
-            </Marker>
-          ))}
+                  {/* Highlight ring for focused user */}
+                  {isHighlighted && (
+                    <>
+                      <circle
+                        r={40}
+                        fill="none"
+                        stroke="hsl(45, 100%, 60%)"
+                        strokeWidth={3}
+                        opacity={0.8}
+                        className="animate-ping"
+                        style={{ animationDuration: '1s' }}
+                      />
+                      <circle
+                        r={32}
+                        fill="hsl(45, 100%, 50%)"
+                        opacity={0.2}
+                      />
+                    </>
+                  )}
+                  
+                  {/* Outer pulse ring */}
+                  <circle
+                    r={24}
+                    fill="none"
+                    stroke={isHighlighted ? "hsl(45, 100%, 60%)" : "hsl(0, 84%, 60%)"}
+                    strokeWidth={isHighlighted ? 2 : 1.5}
+                    opacity={isHighlighted ? 0.8 : 0.4}
+                    className="animate-ping"
+                    style={{ animationDuration: '2s' }}
+                  />
+                  
+                  {/* Middle glow */}
+                  <circle
+                    r={18}
+                    fill={isHighlighted ? "hsl(45, 100%, 60%)" : "hsl(0, 84%, 60%)"}
+                    opacity={isHighlighted ? 0.3 : 0.15}
+                  />
+                  
+                  {/* Avatar circle */}
+                  <circle
+                    r={isHighlighted ? 16 : 12}
+                    fill={getAvatarFill(user)}
+                    stroke={isHighlighted ? "hsl(45, 100%, 70%)" : "rgba(255,255,255,0.9)"}
+                    strokeWidth={isHighlighted ? 3 : 2}
+                    className="transition-transform hover:scale-110"
+                  />
+                  
+                  {/* Initials text */}
+                  <text
+                    textAnchor="middle"
+                    y={4}
+                    style={{
+                      fontSize: isHighlighted ? "12px" : "10px",
+                      fontWeight: 700,
+                      fill: "white",
+                      pointerEvents: "none",
+                      textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    {getInitials(user.displayName)}
+                  </text>
+                </g>
+              </Marker>
+            );
+          })}
         </ComposableMap>
       </div>
 

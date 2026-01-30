@@ -35,6 +35,9 @@ export interface EnhancedActiveUser {
   lastActiveAt: string;
   currentPage: string | null;
   
+  // Session Status (for display in activity feed)
+  sessionStatus: 'active' | 'idle' | 'ended';
+  
   // Real Engagement Metrics
   listingsViewed: number;
   listingsSaved: number;
@@ -68,12 +71,24 @@ export interface EnhancedRealTimeData {
   }>;
 }
 
+// Helper to calculate session status based on last activity
+function getSessionStatus(lastActiveAt: string | null): 'active' | 'idle' | 'ended' {
+  if (!lastActiveAt) return 'ended';
+  const lastActive = new Date(lastActiveAt).getTime();
+  const now = Date.now();
+  const diffMinutes = (now - lastActive) / (60 * 1000);
+  
+  if (diffMinutes < 2) return 'active';
+  if (diffMinutes < 10) return 'idle';
+  return 'ended';
+}
+
 export function useEnhancedRealTimeAnalytics() {
   return useQuery({
     queryKey: ['enhanced-realtime-analytics'],
     queryFn: async (): Promise<EnhancedRealTimeData> => {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       
       // Fetch active sessions with profile data - include sessions with recent started_at OR last_active_at
       const [sessionsResult, pageViewsResult] = await Promise.all([
@@ -82,17 +97,16 @@ export function useEnhancedRealTimeAnalytics() {
           .select(`
             id, session_id, user_id, country, country_code, city, region,
             device_type, browser, os, referrer, utm_source,
-            session_duration_seconds, last_active_at, started_at
+            session_duration_seconds, last_active_at, started_at, is_active
           `)
-          .eq('is_active', true)
-          .or(`last_active_at.gte.${twoMinutesAgo},started_at.gte.${twoMinutesAgo}`)
+          .or(`last_active_at.gte.${oneHourAgo},started_at.gte.${oneHourAgo}`)
           .order('last_active_at', { ascending: false, nullsFirst: false })
           .limit(100),
         
         supabase
           .from('page_views')
           .select('page_path, session_id, created_at')
-          .gte('created_at', fiveMinutesAgo)
+          .gte('created_at', oneHourAgo)
           .order('created_at', { ascending: false })
           .limit(500),
       ]);
@@ -175,6 +189,9 @@ export function useEnhancedRealTimeAnalytics() {
           coordinates = addJitter(coordinates, session.session_id);
         }
         
+        const lastActiveAt = session.last_active_at || session.started_at;
+        const sessionStatus = getSessionStatus(lastActiveAt);
+        
         return {
           sessionId: session.session_id,
           userId: session.user_id,
@@ -194,8 +211,9 @@ export function useEnhancedRealTimeAnalytics() {
           referrer: session.referrer,
           utmSource: session.utm_source,
           sessionDurationSeconds: session.session_duration_seconds || 0,
-          lastActiveAt: session.last_active_at || session.started_at,
+          lastActiveAt,
           currentPage: sessionCurrentPage[session.session_id] || null,
+          sessionStatus,
           // Real engagement metrics
           listingsViewed: engagement?.listings_viewed || 0,
           listingsSaved: engagement?.listings_saved || 0,
@@ -237,7 +255,7 @@ export function useEnhancedRealTimeAnalytics() {
       });
       
       // Recent events - look up user by session's user_id, not just active sessions
-      const recentEvents = pageViews.slice(0, 20).map((pv, i) => {
+      const recentEvents = pageViews.slice(0, 30).map((pv, i) => {
         // First try to find in active users
         let matchingUser = activeUsers.find(u => u.sessionId === pv.session_id);
         
@@ -270,6 +288,7 @@ export function useEnhancedRealTimeAnalytics() {
               sessionDurationSeconds: 0,
               lastActiveAt: pv.created_at,
               currentPage: pv.page_path,
+              sessionStatus: getSessionStatus(pv.created_at),
               listingsViewed: engagement?.listings_viewed || 0,
               listingsSaved: engagement?.listings_saved || 0,
               connectionsSent: engagement?.connections_requested || 0,
@@ -333,6 +352,7 @@ function createDefaultUser(sessionId: string, pagePath: string | null, timestamp
     sessionDurationSeconds: 0,
     lastActiveAt: timestamp,
     currentPage: pagePath,
+    sessionStatus: getSessionStatus(timestamp),
     listingsViewed: 0,
     listingsSaved: 0,
     connectionsSent: 0,
