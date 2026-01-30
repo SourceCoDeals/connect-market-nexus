@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TopSearchQueries } from "./TopSearchQueries";
 import { ZeroResultsAlert } from "./ZeroResultsAlert";
 import { FilterUsageChart } from "./FilterUsageChart";
+import { SearchQualityScore } from "./SearchQualityScore";
 import { cn } from "@/lib/utils";
 
 interface SearchIntelligenceDashboardProps {
@@ -47,6 +48,9 @@ export function SearchIntelligenceDashboard({ timeRangeDays }: SearchIntelligenc
         />
       </div>
 
+      {/* Search Quality Score - NEW */}
+      <SearchQualityScore timeRangeDays={timeRangeDays} />
+
       {/* Top Queries */}
       <TopSearchQueries data={data.topQueries} />
 
@@ -86,6 +90,7 @@ function LoadingSkeleton() {
           <Skeleton key={i} className="h-24 rounded-2xl" />
         ))}
       </div>
+      <Skeleton className="h-[380px] rounded-2xl" />
       <Skeleton className="h-[360px] rounded-2xl" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Skeleton className="h-[280px] rounded-2xl" />
