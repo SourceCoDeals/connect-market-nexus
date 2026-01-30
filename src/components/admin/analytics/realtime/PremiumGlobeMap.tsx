@@ -18,10 +18,18 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
   const [hoveredUser, setHoveredUser] = useState<EnhancedActiveUser | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [rotation, setRotation] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [highlightedSession, setHighlightedSession] = useState<string | null>(null);
+  
+  // Pinned tooltip state
+  const [pinnedUser, setPinnedUser] = useState<EnhancedActiveUser | null>(null);
+  const [pinnedTooltipPos, setPinnedTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const isDragging = useRef(false);
+  const baseRotationOnDragStart = useRef(0);
   
   // Auto-rotate the globe (unless manually paused by drag)
   useEffect(() => {
@@ -39,6 +47,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
       if (user?.coordinates) {
         // Rotate globe to center on this user's longitude
         setRotation(-user.coordinates.lng);
+        setDragOffset(0);
         setIsManuallyPaused(true);
         setHighlightedSession(focusedSessionId);
         // Clear highlight after 3 seconds
@@ -47,37 +56,77 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
     }
   }, [focusedSessionId, users]);
   
-  // Drag detection handlers
+  // Drag handlers for rotation
   const handleGlobeMouseDown = (e: React.MouseEvent) => {
     dragStartPos.current = { x: e.clientX, y: e.clientY };
+    baseRotationOnDragStart.current = rotation;
+    isDragging.current = true;
+  };
+  
+  const handleGlobeMouseMove = (e: React.MouseEvent) => {
+    // Update tooltip position during hover
+    if (hoveredUser && !isDragging.current) {
+      setTooltipPos({ x: e.clientX, y: e.clientY });
+    }
+    
+    // Handle drag-to-rotate
+    if (isDragging.current && dragStartPos.current) {
+      const dx = e.clientX - dragStartPos.current.x;
+      // Convert pixel delta to rotation degrees (sensitivity factor)
+      setDragOffset(dx * 0.3);
+    }
   };
   
   const handleGlobeMouseUp = (e: React.MouseEvent) => {
-    if (dragStartPos.current) {
-      const dx = Math.abs(e.clientX - dragStartPos.current.x);
-      const dy = Math.abs(e.clientY - dragStartPos.current.y);
-      // If moved more than 5px, consider it a drag and stop rotation
-      if (dx > 5 || dy > 5) {
+    if (dragStartPos.current && isDragging.current) {
+      const dx = e.clientX - dragStartPos.current.x;
+      // If moved more than 5px, apply the rotation
+      if (Math.abs(dx) > 5) {
+        setRotation(prev => (prev + dragOffset) % 360);
         setIsManuallyPaused(true);
       }
     }
+    isDragging.current = false;
+    setDragOffset(0);
+    dragStartPos.current = null;
+  };
+  
+  const handleGlobeMouseLeave = () => {
+    // If we leave while dragging, apply the rotation
+    if (isDragging.current && dragOffset !== 0) {
+      setRotation(prev => (prev + dragOffset) % 360);
+      setIsManuallyPaused(true);
+    }
+    isDragging.current = false;
+    setDragOffset(0);
     dragStartPos.current = null;
   };
   
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       dragStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      baseRotationOnDragStart.current = rotation;
+      isDragging.current = true;
+    }
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isDragging.current && dragStartPos.current && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - dragStartPos.current.x;
+      setDragOffset(dx * 0.3);
     }
   };
   
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (dragStartPos.current && e.changedTouches.length === 1) {
-      const dx = Math.abs(e.changedTouches[0].clientX - dragStartPos.current.x);
-      const dy = Math.abs(e.changedTouches[0].clientY - dragStartPos.current.y);
-      if (dx > 5 || dy > 5) {
+      const dx = e.changedTouches[0].clientX - dragStartPos.current.x;
+      if (Math.abs(dx) > 5) {
+        setRotation(prev => (prev + dragOffset) % 360);
         setIsManuallyPaused(true);
       }
     }
+    isDragging.current = false;
+    setDragOffset(0);
     dragStartPos.current = null;
   };
   
@@ -88,34 +137,64 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
   );
 
   const handleMouseEnter = (user: EnhancedActiveUser, event: React.MouseEvent) => {
-    setHoveredUser(user);
-    setTooltipPos({ x: event.clientX, y: event.clientY });
+    if (!pinnedUser) {
+      setHoveredUser(user);
+      setTooltipPos({ x: event.clientX, y: event.clientY });
+    }
     setIsPaused(true);
   };
 
   const handleMouseLeave = () => {
-    setHoveredUser(null);
-    setTooltipPos(null);
+    if (!pinnedUser) {
+      setHoveredUser(null);
+      setTooltipPos(null);
+    }
     setIsPaused(false);
   };
 
-  const handleMouseMove = (event: React.MouseEvent) => {
-    if (hoveredUser) {
-      setTooltipPos({ x: event.clientX, y: event.clientY });
+  // Click on marker to pin
+  const handleMarkerClick = (user: EnhancedActiveUser, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (pinnedUser?.sessionId === user.sessionId) {
+      // Clicking same user unpins
+      setPinnedUser(null);
+      setPinnedTooltipPos(null);
+    } else {
+      // Pin new user
+      setPinnedUser(user);
+      setPinnedTooltipPos({ x: e.clientX, y: e.clientY });
+      setHoveredUser(null);
+    }
+    
+    onUserClick?.(user);
+  };
+  
+  // Click on globe background to close pinned tooltip
+  const handleGlobeBackgroundClick = () => {
+    if (pinnedUser && !isDragging.current) {
+      setPinnedUser(null);
+      setPinnedTooltipPos(null);
     }
   };
+
+  // Effective rotation for display (base + drag offset)
+  const effectiveRotation = rotation + dragOffset;
 
   return (
     <div 
       className={cn(
-        "relative rounded-2xl overflow-hidden",
+        "relative rounded-2xl overflow-hidden cursor-grab active:cursor-grabbing",
         className
       )}
-      onMouseMove={handleMouseMove}
+      onMouseMove={handleGlobeMouseMove}
       onMouseDown={handleGlobeMouseDown}
       onMouseUp={handleGlobeMouseUp}
+      onMouseLeave={handleGlobeMouseLeave}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onClick={handleGlobeBackgroundClick}
       style={{
         background: 'radial-gradient(ellipse at center, #0a1628 0%, #020617 100%)',
       }}
@@ -160,7 +239,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
           projection="geoOrthographic"
           projectionConfig={{
             scale: 280,
-            rotate: [-rotation, -20, 0],
+            rotate: [-effectiveRotation, -20, 0],
             center: [0, 0],
           }}
           style={{ width: "100%", height: "100%" }}
@@ -203,6 +282,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
           {/* User markers */}
           {usersWithCoords.map((user) => {
             const isHighlighted = highlightedSession === user.sessionId;
+            const isPinned = pinnedUser?.sessionId === user.sessionId;
             return (
               <Marker 
                 key={user.sessionId} 
@@ -211,16 +291,16 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
                 <g
                   onMouseEnter={(e) => handleMouseEnter(user, e as unknown as React.MouseEvent)}
                   onMouseLeave={handleMouseLeave}
-                  onClick={() => onUserClick?.(user)}
+                  onClick={(e) => handleMarkerClick(user, e as unknown as React.MouseEvent)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {/* Highlight ring for focused user */}
-                  {isHighlighted && (
+                  {/* Highlight ring for focused/pinned user */}
+                  {(isHighlighted || isPinned) && (
                     <>
                       <circle
                         r={40}
                         fill="none"
-                        stroke="hsl(45, 100%, 60%)"
+                        stroke={isPinned ? "hsl(0, 84%, 60%)" : "hsl(45, 100%, 60%)"}
                         strokeWidth={3}
                         opacity={0.8}
                         className="animate-ping"
@@ -228,7 +308,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
                       />
                       <circle
                         r={32}
-                        fill="hsl(45, 100%, 50%)"
+                        fill={isPinned ? "hsl(0, 84%, 50%)" : "hsl(45, 100%, 50%)"}
                         opacity={0.2}
                       />
                     </>
@@ -238,9 +318,9 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
                   <circle
                     r={24}
                     fill="none"
-                    stroke={isHighlighted ? "hsl(45, 100%, 60%)" : "hsl(0, 84%, 60%)"}
-                    strokeWidth={isHighlighted ? 2 : 1.5}
-                    opacity={isHighlighted ? 0.8 : 0.4}
+                    stroke={isHighlighted || isPinned ? "hsl(45, 100%, 60%)" : "hsl(0, 84%, 60%)"}
+                    strokeWidth={isHighlighted || isPinned ? 2 : 1.5}
+                    opacity={isHighlighted || isPinned ? 0.8 : 0.4}
                     className="animate-ping"
                     style={{ animationDuration: '2s' }}
                   />
@@ -248,16 +328,16 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
                   {/* Middle glow */}
                   <circle
                     r={18}
-                    fill={isHighlighted ? "hsl(45, 100%, 60%)" : "hsl(0, 84%, 60%)"}
-                    opacity={isHighlighted ? 0.3 : 0.15}
+                    fill={isHighlighted || isPinned ? "hsl(45, 100%, 60%)" : "hsl(0, 84%, 60%)"}
+                    opacity={isHighlighted || isPinned ? 0.3 : 0.15}
                   />
                   
                   {/* Avatar circle */}
                   <circle
-                    r={isHighlighted ? 16 : 12}
+                    r={isHighlighted || isPinned ? 16 : 12}
                     fill={getAvatarFill(user)}
-                    stroke={isHighlighted ? "hsl(45, 100%, 70%)" : "rgba(255,255,255,0.9)"}
-                    strokeWidth={isHighlighted ? 3 : 2}
+                    stroke={isHighlighted || isPinned ? "hsl(45, 100%, 70%)" : "rgba(255,255,255,0.9)"}
+                    strokeWidth={isHighlighted || isPinned ? 3 : 2}
                     className="transition-transform hover:scale-110"
                   />
                   
@@ -266,7 +346,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
                     textAnchor="middle"
                     y={4}
                     style={{
-                      fontSize: isHighlighted ? "12px" : "10px",
+                      fontSize: isHighlighted || isPinned ? "12px" : "10px",
                       fontWeight: 700,
                       fill: "white",
                       pointerEvents: "none",
@@ -282,9 +362,19 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
         </ComposableMap>
       </div>
 
-      {/* Tooltip */}
-      {hoveredUser && tooltipPos && (
+      {/* Hover Tooltip (only show if not pinned) */}
+      {hoveredUser && !pinnedUser && tooltipPos && (
         <UserTooltipCard user={hoveredUser} position={tooltipPos} />
+      )}
+      
+      {/* Pinned Tooltip */}
+      {pinnedUser && pinnedTooltipPos && (
+        <UserTooltipCard 
+          user={pinnedUser} 
+          position={pinnedTooltipPos}
+          pinned={true}
+          onClose={() => { setPinnedUser(null); setPinnedTooltipPos(null); }}
+        />
       )}
 
       {/* Active count badge - top right */}
@@ -296,14 +386,33 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
         <span className="text-sm font-medium text-white">{users.length} active</span>
       </div>
       
+      {/* Resume rotation button when paused */}
+      {isManuallyPaused && (
+        <button
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-xs text-white/80 hover:bg-white/10 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsManuallyPaused(false);
+          }}
+        >
+          ▶ Resume rotation
+        </button>
+      )}
+      
       {/* User legend - bottom */}
       <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2">
         {users.slice(0, 8).map((user) => (
           <div 
             key={user.sessionId}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border cursor-pointer hover:bg-white/10 transition-colors",
+              pinnedUser?.sessionId === user.sessionId 
+                ? "border-coral-500" 
+                : "border-white/10"
+            )}
             onMouseEnter={(e) => handleMouseEnter(user, e)}
             onMouseLeave={handleMouseLeave}
+            onClick={(e) => handleMarkerClick(user, e)}
           >
             <div className={cn(
               "w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white",

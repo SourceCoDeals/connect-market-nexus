@@ -83,6 +83,51 @@ function getSessionStatus(lastActiveAt: string | null): 'active' | 'idle' | 'end
   return 'ended';
 }
 
+// Helper to calculate session duration dynamically
+function calculateDuration(session: {
+  session_duration_seconds: number | null;
+  started_at: string;
+  last_active_at: string | null;
+}): number {
+  // If we have actual duration from heartbeat, use it
+  if (session.session_duration_seconds && session.session_duration_seconds > 0) {
+    return session.session_duration_seconds;
+  }
+  
+  // Calculate from timestamps
+  const startedAt = new Date(session.started_at).getTime();
+  const lastActive = session.last_active_at 
+    ? new Date(session.last_active_at).getTime() 
+    : Date.now();
+  
+  return Math.max(0, Math.floor((lastActive - startedAt) / 1000));
+}
+
+// Helper to normalize referrer to a readable source name
+function normalizeReferrer(referrer: string | null, utmSource: string | null): string {
+  const source = referrer?.toLowerCase() || utmSource?.toLowerCase() || '';
+  
+  if (!source) return 'Direct';
+  if (source.includes('google')) return 'Google';
+  if (source.includes('facebook') || source.includes('fb.')) return 'Facebook';
+  if (source.includes('linkedin')) return 'LinkedIn';
+  if (source.includes('twitter') || source.includes('x.com') || source.includes('t.co')) return 'X (Twitter)';
+  if (source.includes('instagram')) return 'Instagram';
+  if (source.includes('tiktok')) return 'TikTok';
+  if (source.includes('youtube')) return 'YouTube';
+  if (source.includes('reddit')) return 'Reddit';
+  if (source.includes('lovable.dev') || source.includes('lovable.app')) return 'Lovable';
+  if (source.includes('bing')) return 'Bing';
+  
+  // Try to extract domain name
+  try {
+    const url = new URL(source.startsWith('http') ? source : `https://${source}`);
+    return url.hostname.replace('www.', '');
+  } catch {
+    return 'Referral';
+  }
+}
+
 export function useEnhancedRealTimeAnalytics() {
   return useQuery({
     queryKey: ['enhanced-realtime-analytics'],
@@ -210,7 +255,7 @@ export function useEnhancedRealTimeAnalytics() {
           os: session.os,
           referrer: session.referrer,
           utmSource: session.utm_source,
-          sessionDurationSeconds: session.session_duration_seconds || 0,
+          sessionDurationSeconds: calculateDuration(session),
           lastActiveAt,
           currentPage: sessionCurrentPage[session.session_id] || null,
           sessionStatus,
@@ -244,14 +289,9 @@ export function useEnhancedRealTimeAnalytics() {
         const device = user.deviceType || 'unknown';
         deviceCounts[device] = (deviceCounts[device] || 0) + 1;
         
-        // Referrer
-        const referrer = user.referrer || user.utmSource || 'Direct';
-        const normalizedReferrer = referrer.includes('google') ? 'Google' :
-          referrer.includes('facebook') ? 'Facebook' :
-          referrer.includes('linkedin') ? 'LinkedIn' :
-          referrer.includes('twitter') ? 'Twitter' :
-          referrer === 'Direct' ? 'Direct' : 'Other';
-        referrerCounts[normalizedReferrer] = (referrerCounts[normalizedReferrer] || 0) + 1;
+        // Referrer - use improved normalizer
+        const normalizedRef = normalizeReferrer(user.referrer, user.utmSource);
+        referrerCounts[normalizedRef] = (referrerCounts[normalizedRef] || 0) + 1;
       });
       
       // Recent events - look up user by session's user_id, not just active sessions
