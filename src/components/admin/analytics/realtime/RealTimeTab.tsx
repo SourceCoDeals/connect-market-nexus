@@ -11,6 +11,7 @@ export function RealTimeTab() {
     type: 'country' | 'device' | 'referrer'; 
     value: string 
   } | null>(null);
+  const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
 
   // Filter users based on active filter
   const filteredUsers = useMemo(() => {
@@ -71,6 +72,7 @@ export function RealTimeTab() {
         <PremiumGlobeMap 
           users={filteredUsers}
           onUserClick={(user) => console.log('User clicked:', user)}
+          focusedSessionId={focusedSessionId}
           className="absolute inset-0"
         />
         
@@ -87,7 +89,7 @@ export function RealTimeTab() {
         <div className="absolute bottom-4 left-4 w-96 max-h-72 z-10">
           <LiveActivityFeed 
             events={data.recentEvents}
-            onUserClick={(sessionId) => console.log('Filter to user:', sessionId)}
+            onUserClick={(sessionId) => setFocusedSessionId(sessionId)}
           />
         </div>
       </div>

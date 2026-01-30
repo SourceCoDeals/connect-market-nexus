@@ -9,6 +9,29 @@ interface LiveActivityFeedProps {
   onUserClick?: (sessionId: string) => void;
 }
 
+function SessionStatusIndicator({ status }: { status: 'active' | 'idle' | 'ended' }) {
+  if (status === 'active') {
+    return (
+      <span className="relative flex h-1.5 w-1.5">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+      </span>
+    );
+  }
+  
+  if (status === 'idle') {
+    return <span className="inline-flex rounded-full h-1.5 w-1.5 bg-amber-400"></span>;
+  }
+  
+  return <span className="inline-flex rounded-full h-1.5 w-1.5 bg-slate-500"></span>;
+}
+
+function getStatusLabel(status: 'active' | 'idle' | 'ended'): string {
+  if (status === 'active') return 'Active';
+  if (status === 'idle') return 'Idle';
+  return 'Session ended';
+}
+
 export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps) {
   if (events.length === 0) {
     return (
@@ -41,13 +64,13 @@ export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps)
           Live Activity
         </span>
         <span className="ml-auto text-[10px] text-white/40">
-          Last 5 minutes
+          Last 1 hour
         </span>
       </div>
 
       {/* Events list */}
       <div className="max-h-[220px] overflow-y-auto">
-        {events.slice(0, 10).map((event, i) => (
+        {events.slice(0, 15).map((event, i) => (
           <ActivityEventRow 
             key={event.id} 
             event={event} 
@@ -76,6 +99,7 @@ function ActivityEventRow({
     : getBuyerTypeColor(user.buyerType);
 
   const timeAgo = formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+  const sessionStatus = user.sessionStatus || 'ended';
 
   // Format page path for display
   const displayPath = formatPagePath(pagePath || '/');
@@ -83,14 +107,16 @@ function ActivityEventRow({
   return (
     <div 
       className={cn(
-        "flex items-start gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors cursor-pointer",
-        isFirst && "bg-coral-500/10"
+        "flex items-start gap-3 px-4 py-2.5 hover:bg-white/10 transition-colors cursor-pointer group",
+        isFirst && "bg-coral-500/10",
+        sessionStatus === 'ended' && "opacity-70"
       )}
       onClick={() => onUserClick?.(user.sessionId)}
+      title="Click to focus on map"
     >
       {/* Avatar */}
       <div className={cn(
-        "w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0 mt-0.5",
+        "w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0 mt-0.5 group-hover:ring-2 group-hover:ring-white/30 transition-all",
         avatarColor
       )}>
         {getInitials(user.displayName)}
@@ -113,7 +139,21 @@ function ActivityEventRow({
             {displayPath}
           </code>
         </p>
-        <p className="text-[10px] text-white/40 mt-0.5">{timeAgo}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-[10px] text-white/40">{timeAgo}</p>
+          <span className="text-white/20">•</span>
+          <div className="flex items-center gap-1">
+            <SessionStatusIndicator status={sessionStatus} />
+            <span className={cn(
+              "text-[10px]",
+              sessionStatus === 'active' && "text-emerald-400",
+              sessionStatus === 'idle' && "text-amber-400",
+              sessionStatus === 'ended' && "text-slate-400"
+            )}>
+              {getStatusLabel(sessionStatus)}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
