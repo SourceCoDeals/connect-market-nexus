@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Search, RefreshCw, Settings, Activity, Users, Database, Bell, HelpCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StripeOverviewTab } from "@/components/admin/StripeOverviewTab";
-import { PremiumAnalyticsDashboard } from "@/components/admin/analytics/PremiumAnalyticsDashboard";
+import { AnalyticsTabContainer } from "@/components/admin/analytics/AnalyticsTabContainer";
 import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManagementTab";
 import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
 import { ListingIntelligenceTab } from "@/components/admin/ListingIntelligenceTab";
@@ -213,7 +213,7 @@ const AdminDashboard = () => {
               </TabsContent>
 
               <TabsContent value="analytics" className="mt-0">
-                <PremiumAnalyticsDashboard />
+                <AnalyticsTabContainer />
               </TabsContent>
 
               <TabsContent value="activity" className="mt-0">
