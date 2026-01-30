@@ -1,418 +1,419 @@
 
+# Analytics Dashboard Enhancement Suite
+## Surfacing Every New Data Point for Maximum Intelligence
 
-# Comprehensive Analytics Data Capture Suite
+---
 
 ## Executive Summary
 
-This plan implements a world-class analytics data capture system that fills all current gaps and establishes forward-looking tracking infrastructure. The goal: give marketplace admins complete intelligence on buyer behavior, engagement patterns, and conversion paths.
+We've implemented a comprehensive data capture system that collects geographic location, session duration, scroll depth, time on page, click heatmaps, and search UX metrics. Now we need to **surface all this intelligence** in the admin dashboard with world-class visualizations.
 
 ---
 
-## Current State: Data Audit
+## Current State Analysis
 
-### What We Have (Working)
-| Metric | Status | Records |
-|--------|--------|---------|
-| Session creation | Partial | 44,036 sessions |
-| Page views | Working | 48,163 records |
-| Listing views/saves | Working | 24,993 records |
-| Search queries | Working | 1,386 records |
-| User events | Working | 3,982 records |
-| UTM tracking | Working | Stored per session |
+### New Data Being Captured (Schema Ready)
 
-### Critical Gaps (Not Captured)
+| Table | New Columns | Status |
+|-------|-------------|--------|
+| `user_sessions` | `country`, `city`, `region`, `country_code`, `timezone`, `ip_address`, `session_duration_seconds`, `last_active_at` | Schema ready, data populating |
+| `page_views` | `time_on_page`, `scroll_depth`, `exit_page` | Schema ready, data populating |
+| `listing_analytics` | `clicked_elements` (JSONB heatmap data) | Schema ready, data populating |
+| `search_analytics` | `time_to_click`, `position_clicked`, `search_session_id` | Schema ready, awaiting data |
+| `daily_metrics` | Full daily aggregates (19 columns) | Schema ready, needs CRON trigger |
 
-| Gap | Impact | Current State |
-|-----|--------|---------------|
-| **Geographic location** | Cannot analyze user distribution by region | 0/44,036 sessions have country/city |
-| **Session duration** | Cannot calculate engagement depth | Only 2,476/44,036 have ended_at |
-| **Time on page** | Cannot identify high-value content | 0/48,163 page views have time_on_page |
-| **Scroll depth** | Cannot measure content engagement | 0/48,163 page views have scroll_depth |
-| **IP address** | Cannot detect fraud or geographic trends | 0/44,036 sessions have IP |
-| **Clicked elements** | Cannot understand UI interaction patterns | 0/24,993 listing views tracked clicks |
-| **Search-to-click time** | Cannot measure search UX quality | 0/1,386 searches have time_to_click |
-| **Daily aggregates** | Cannot show historical trends | 0 records in daily_metrics |
-| **Real-time heartbeat** | Cannot detect active users accurately | is_active field unreliable |
+### What's NOT Yet Visualized in Dashboard
+
+| Data Point | Impact | Priority |
+|------------|--------|----------|
+| **Geographic Map (Real Data)** | Currently uses profile `target_locations`, not actual session geo | Critical |
+| **Real-Time Active Users** | `is_active` + `last_active_at` not queried | Critical |
+| **Avg Session Duration** | `session_duration_seconds` not displayed | High |
+| **Scroll Depth Distribution** | Currently placeholder, now has real data | High |
+| **Time on Page Analysis** | Currently placeholder, now has real data | High |
+| **Click Heatmaps** | `clicked_elements` JSONB not visualized | High |
+| **Search UX Quality** | `time_to_click`, `position_clicked` not shown | Medium |
+| **Historical Trends** | `daily_metrics` table empty, needs dashboard | Medium |
+| **Exit Page Analysis** | `exit_page` boolean not used | Medium |
+| **Timezone Distribution** | `timezone` not visualized | Low |
 
 ---
 
-## Architecture Overview
+## Implementation Architecture
+
+### Tab Structure Enhancement
 
 ```text
-+------------------------+     +------------------------+     +--------------------+
-|   CLIENT-SIDE          |     |   EDGE FUNCTION        |     |   DATABASE         |
-|   TRACKING             |     |   ENRICHMENT           |     |                    |
-+------------------------+     +------------------------+     +--------------------+
-|                        |     |                        |     |                    |
-| SessionContext         |---->| track-session          |---->| user_sessions      |
-|  - Generate session ID |     |  - IP geolocation      |     |  - country, city   |
-|  - Capture UTM params  |     |  - Parse user-agent    |     |  - timezone        |
-|  - Track referrer      |     |  - Fraud detection     |     |  - ip_address      |
-|                        |     |                        |     |                    |
-| PageTracker            |---->| (direct insert)        |---->| page_views         |
-|  - Time on page        |     |                        |     |  - time_on_page    |
-|  - Scroll depth        |     |                        |     |  - scroll_depth    |
-|  - Exit tracking       |     |                        |     |                    |
-|                        |     |                        |     |                    |
-| EngagementTracker      |---->| (direct insert)        |---->| listing_analytics  |
-|  - Click heatmaps      |     |                        |     |  - clicked_elements|
-|  - Time to first click |     |                        |     |  - engagement_score|
-|                        |     |                        |     |                    |
-| HeartbeatProvider      |---->| session-heartbeat      |---->| user_sessions      |
-|  - Every 30 seconds    |     |  - Update last_active  |     |  - last_active_at  |
-|  - Active tab detection|     |  - Calculate duration  |     |  - ended_at        |
-|                        |     |                        |     |                    |
-| DailyAggregator        |---->| aggregate-daily-metrics|---->| daily_metrics      |
-|  (Scheduled CRON)      |     |  - Runs at midnight    |     |  - All aggregates  |
-+------------------------+     +------------------------+     +--------------------+
+CURRENT TABS:
+├── Overview (Premium Dashboard)
+├── Traffic
+├── Engagement
+├── Search
+└── Live Activity
+
+PROPOSED:
+├── Overview (Enhanced with real-time + geo)
+├── Traffic (Enhanced with geo + duration)
+├── Engagement (Enhanced with scroll + heatmaps)
+├── Search (Enhanced with UX quality metrics)
+├── Real-Time (NEW - Live users, active sessions)
+└── Historical (NEW - Daily metrics trends)
 ```
 
 ---
 
-## Implementation Details
+## New Components & Visualizations
 
-### 1. IP Geolocation Edge Function
+### 1. Real-Time Intelligence Panel
 
-Create a new edge function `track-session` that enriches session data with geographic information.
+**New Component**: `RealTimeIntelligencePanel.tsx`
 
-**Approach**: Use free IP geolocation API (ipapi.co or ip-api.com) to resolve visitor location from IP address. Edge functions have access to the client IP through request headers.
-
-```typescript
-// supabase/functions/track-session/index.ts
-// Key capabilities:
-// - Extract IP from request headers (x-forwarded-for, cf-connecting-ip)
-// - Call ipapi.co/json for country, city, region, timezone
-// - Update user_sessions with geographic data
-// - Rate limit: 1000 requests/day on free tier (sufficient for new sessions)
-```
-
-**Data captured**:
-- Country code (US, CA, UK, etc.)
-- Country name
-- City
-- Region/State
-- Timezone
-- ISP (for bot detection)
-
-### 2. Session Heartbeat System
-
-Create a lightweight heartbeat to accurately track session duration and active users.
-
-**Client component**: `HeartbeatProvider.tsx`
-```typescript
-// Sends heartbeat every 30 seconds when tab is active
-// Uses document.visibilityState to pause when tab is hidden
-// Calculates accurate session duration
-// Updates is_active = true for real-time "online" status
-```
-
-**Edge function**: `session-heartbeat`
-```typescript
-// Updates user_sessions:
-// - last_active_at: current timestamp
-// - is_active: true
-// - session_duration_seconds: calculated from started_at
-```
-
-**Benefits**:
-- Accurate session duration (not just start/end)
-- Real-time "online users" count
-- Detect idle vs active engagement
-
-### 3. Enhanced Page Tracking
-
-Upgrade `PageTracker` to capture engagement metrics:
-
-```typescript
-// New usePageEngagement hook
-// Captures:
-// - Time on page (calculated when navigating away)
-// - Max scroll depth (0-100%)
-// - Scroll velocity (reading pace indicator)
-// - Focus time (active reading vs idle)
-// - Click count on page
-```
-
-**Implementation**:
-- Use `IntersectionObserver` for scroll depth
-- Track `document.hasFocus()` for attention time
-- Store pending metrics, flush on `beforeunload` or route change
-
-### 4. Click Element Tracking
-
-Enhanced click tracking for interaction heatmaps:
-
-```typescript
-// useClickTracking hook
-// For listing pages, capture:
-// - Element ID clicked
-// - Element type (button, link, image, etc.)
-// - Position on page (x, y coordinates)
-// - Time since page load (time_to_first_click)
-// - Click sequence number
-```
-
-**Stored as JSONB in `clicked_elements`**:
-```json
-{
-  "clicks": [
-    { "element": "save-button", "type": "button", "x": 450, "y": 320, "time_ms": 5230 },
-    { "element": "contact-cta", "type": "button", "x": 450, "y": 890, "time_ms": 12450 }
-  ],
-  "total_clicks": 2,
-  "first_click_ms": 5230
-}
-```
-
-### 5. Search Enhancement
-
-Improve search analytics for conversion optimization:
-
-```typescript
-// Enhanced trackSearch function
-// New metrics:
-// - time_to_first_click: ms from search to clicking a result
-// - position_clicked: which result position (1, 2, 3...)
-// - results_clicked: total results clicked in session
-// - refined_search: did user modify query?
-// - search_session: group related searches together
-```
-
-### 6. Daily Metrics Aggregation
-
-Scheduled edge function to compute daily aggregates:
-
-```typescript
-// supabase/functions/aggregate-daily-metrics/index.ts
-// Runs via pg_cron at midnight UTC
-// Aggregates:
-// - total_users, new_signups, active_users, returning_users
-// - total_sessions, avg_session_duration, bounce_rate
-// - page_views, unique_page_views
-// - new_listings, listing_views
-// - connection_requests, successful_connections
-// - searches_performed, conversion_rate
-```
-
-**Trigger**: Database function called by pg_cron:
+**Data Source**: 
 ```sql
-SELECT cron.schedule(
-  'aggregate-daily-metrics',
-  '0 0 * * *',  -- Midnight UTC daily
-  $$SELECT net.http_post(
-    'https://<project>.supabase.co/functions/v1/aggregate-daily-metrics',
-    '{}',
-    headers:='{"Authorization": "Bearer <service_key>"}'
-  )$$
-);
+SELECT COUNT(*) FROM user_sessions 
+WHERE is_active = true 
+  AND last_active_at > NOW() - INTERVAL '2 minutes'
+```
+
+**Displays**:
+- Live active user count (animated counter)
+- Geographic distribution of active users (mini world map)
+- Current page paths being viewed
+- Active session duration distribution
+- Real-time activity feed with user avatars
+
+---
+
+### 2. World Geography Map (Session-Based)
+
+**New Component**: `WorldGeographyMap.tsx`
+
+**Data Source**: `user_sessions.country`, `user_sessions.city`
+
+**Enhancement over current**: Replace `target_locations` (where buyers WANT to buy) with actual session geographic data (where buyers ARE)
+
+**Features**:
+- Interactive world map using react-simple-maps
+- Choropleth coloring by session count
+- City-level drill-down on country click
+- Timezone overlay option
+
+---
+
+### 3. Session Duration Analytics Card
+
+**New Component**: `SessionDurationCard.tsx`
+
+**Data Source**: `user_sessions.session_duration_seconds`
+
+**Visualizations**:
+- Average session duration (large hero stat)
+- Duration distribution histogram (0-30s, 30s-2m, 2m-5m, 5m-15m, 15m+)
+- Duration trend over time (sparkline)
+- Comparison: New vs returning users
+
+---
+
+### 4. Enhanced Scroll Depth Visualization
+
+**Updated Component**: `ScrollDepthCard.tsx` (already exists, needs real data)
+
+**Data Source**: `page_views.scroll_depth`, `listing_analytics.scroll_depth`
+
+**Enhancements**:
+- Show scroll depth by page type (listing vs search vs home)
+- "Deep readers" percentage (users who scroll 75%+)
+- Correlation: scroll depth vs conversion rate
+
+---
+
+### 5. Time on Page Intelligence
+
+**Updated Component**: `TimeOnPageCard.tsx` (already exists, needs real data)
+
+**Data Source**: `page_views.time_on_page`
+
+**Enhancements**:
+- Average time by page path pattern
+- "Engaged readers" metric (time > 60s)
+- Exit page analysis (pages where users leave)
+
+---
+
+### 6. Click Heatmap Visualization
+
+**New Component**: `ClickHeatmapPanel.tsx`
+
+**Data Source**: `listing_analytics.clicked_elements` (JSONB)
+
+**Features**:
+- Aggregate click positions across all listing views
+- Show most-clicked elements (save button, contact, etc.)
+- Time-to-first-click distribution
+- Click sequence analysis (what do users click first, second, third)
+
+---
+
+### 7. Search UX Quality Dashboard
+
+**New Components**: 
+- `SearchQualityScore.tsx`
+- `SearchPositionAnalysis.tsx`
+
+**Data Sources**: 
+- `search_analytics.time_to_click`
+- `search_analytics.position_clicked`
+- `search_analytics.search_session_id`
+
+**Metrics**:
+- Search Quality Score (composite: time_to_click + position_clicked + results_clicked)
+- Position clicked distribution (are users clicking result #1, #5, #10?)
+- Average time to first click
+- Search refinement rate (users who modified their query)
+
+---
+
+### 8. Historical Trends Dashboard
+
+**New Component**: `HistoricalTrendsDashboard.tsx`
+
+**Data Source**: `daily_metrics` table
+
+**Visualizations**:
+- Multi-line chart: sessions, users, page views over 30/60/90 days
+- Conversion funnel trends over time
+- Week-over-week comparison cards
+- Anomaly detection highlights
+
+---
+
+## Hook Enhancements
+
+### Enhanced `useTrafficAnalytics.ts`
+
+Add queries for:
+```typescript
+// Real geographic data from sessions
+const geoResult = await supabase
+  .from('user_sessions')
+  .select('country, city, country_code')
+  .gte('created_at', startDate.toISOString())
+  .not('country', 'is', null);
+
+// Session duration stats
+const durationResult = await supabase
+  .from('user_sessions')
+  .select('session_duration_seconds')
+  .gte('created_at', startDate.toISOString())
+  .not('session_duration_seconds', 'is', null);
+
+// Timezone distribution
+const timezoneResult = await supabase
+  .from('user_sessions')
+  .select('timezone')
+  .gte('created_at', startDate.toISOString())
+  .not('timezone', 'is', null);
+```
+
+### Enhanced `useEngagementAnalytics.ts`
+
+Add queries for:
+```typescript
+// Click heatmap data
+const clicksResult = await supabase
+  .from('listing_analytics')
+  .select('clicked_elements')
+  .gte('created_at', startDate.toISOString())
+  .not('clicked_elements', 'is', null);
+
+// Real scroll depth from page_views
+const pageScrollResult = await supabase
+  .from('page_views')
+  .select('page_path, scroll_depth, time_on_page, exit_page')
+  .gte('created_at', startDate.toISOString());
+```
+
+### New `useRealTimeAnalytics.ts`
+
+```typescript
+// Active sessions (real-time)
+const activeResult = await supabase
+  .from('user_sessions')
+  .select('id, session_id, country, city, last_active_at')
+  .eq('is_active', true)
+  .gte('last_active_at', new Date(Date.now() - 2 * 60 * 1000).toISOString());
+
+// Current page views (real-time)
+const currentPagesResult = await supabase
+  .from('page_views')
+  .select('page_path, session_id')
+  .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+  .order('created_at', { ascending: false });
+```
+
+### Enhanced `useSearchAnalytics.ts`
+
+Add queries for:
+```typescript
+// Position clicked distribution
+const positionResult = await supabase
+  .from('search_analytics')
+  .select('position_clicked')
+  .gte('created_at', startDate.toISOString())
+  .not('position_clicked', 'is', null);
+
+// Time to click analysis
+const timeToClickResult = await supabase
+  .from('search_analytics')
+  .select('time_to_click, search_query')
+  .gte('created_at', startDate.toISOString())
+  .not('time_to_click', 'is', null);
+```
+
+### New `useHistoricalMetrics.ts`
+
+```typescript
+// Daily metrics for trend analysis
+const metricsResult = await supabase
+  .from('daily_metrics')
+  .select('*')
+  .gte('date', startDate.toISOString())
+  .order('date', { ascending: true });
 ```
 
 ---
 
-## Database Schema Updates
+## File Structure
 
-### New Columns for `user_sessions`
-
-```sql
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS session_duration_seconds INTEGER;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS timezone TEXT;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS region TEXT;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS country_code TEXT;
-```
-
-### Indexes for Performance
-
-```sql
--- For real-time active users query
-CREATE INDEX IF NOT EXISTS idx_user_sessions_active 
-  ON user_sessions(is_active, last_active_at) 
-  WHERE is_active = true;
-
--- For geographic analytics
-CREATE INDEX IF NOT EXISTS idx_user_sessions_geo 
-  ON user_sessions(country, city) 
-  WHERE country IS NOT NULL;
-
--- For time-based queries
-CREATE INDEX IF NOT EXISTS idx_user_sessions_started 
-  ON user_sessions(started_at DESC);
-```
-
----
-
-## New Files to Create
-
-| File | Purpose |
-|------|---------|
-| `supabase/functions/track-session/index.ts` | IP geolocation and session enrichment |
-| `supabase/functions/session-heartbeat/index.ts` | Keep sessions alive, calculate duration |
-| `supabase/functions/aggregate-daily-metrics/index.ts` | Daily rollup computation |
-| `src/hooks/use-page-engagement.ts` | Track time on page, scroll depth |
-| `src/hooks/use-click-tracking.ts` | Track element clicks for heatmaps |
-| `src/hooks/use-session-heartbeat.ts` | Send periodic heartbeats |
-| `src/components/HeartbeatProvider.tsx` | Wrapper component for heartbeat |
-| `src/components/PageEngagementTracker.tsx` | Wrapper for page metrics |
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/context/AnalyticsContext.tsx` | Call track-session edge function, add heartbeat |
-| `src/hooks/use-analytics-tracking.ts` | Integrate page engagement and click tracking |
-| `src/contexts/SessionContext.tsx` | Initialize heartbeat on session start |
-| `src/components/SessionTrackingProvider.tsx` | Add HeartbeatProvider wrapper |
-| `supabase/config.toml` | Add new edge function configurations |
-
----
-
-## Data Flow: Complete Session Lifecycle
+### New Files to Create
 
 ```text
-1. USER LANDS ON SITE
-   └── SessionContext generates session_id
-       └── track-session edge function called
-           ├── Parse User-Agent (browser, device, OS)
-           ├── Get IP from headers
-           ├── Call ipapi.co for geolocation
-           └── Insert enriched record to user_sessions
+src/components/admin/analytics/
+├── realtime/
+│   ├── RealTimeTab.tsx
+│   ├── ActiveUsersCounter.tsx
+│   ├── LiveActivityMap.tsx
+│   └── CurrentPagesPanel.tsx
+├── geographic/
+│   ├── WorldGeographyMap.tsx
+│   ├── CountryBreakdownTable.tsx
+│   └── TimezoneDistribution.tsx
+├── session/
+│   ├── SessionDurationCard.tsx
+│   └── DurationHistogram.tsx
+├── heatmap/
+│   ├── ClickHeatmapPanel.tsx
+│   └── ElementClickStats.tsx
+├── historical/
+│   ├── HistoricalTrendsDashboard.tsx
+│   ├── DailyMetricsChart.tsx
+│   └── WeekOverWeekCards.tsx
+└── search/
+    ├── SearchQualityScore.tsx
+    └── PositionClickedChart.tsx
 
-2. USER BROWSES PAGES
-   └── PageEngagementTracker active
-       ├── Track scroll depth continuously
-       ├── Track focus/blur events
-       └── On page exit: insert page_view with metrics
+src/hooks/
+├── useRealTimeAnalytics.ts
+├── useHistoricalMetrics.ts
+└── useGeographicAnalytics.ts (new)
+```
 
-3. USER VIEWS LISTINGS
-   └── ClickTracking active
-       ├── Record each click with position and timing
-       └── On exit: insert listing_analytics with engagement
+### Files to Modify
 
-4. USER SEARCHES
-   └── Enhanced search tracking
-       ├── Record query, filters, results
-       └── Track clicks on results with position
+```text
+src/components/admin/analytics/
+├── AnalyticsTabContainer.tsx (add Real-Time and Historical tabs)
+├── traffic/TrafficIntelligenceDashboard.tsx (add geographic + duration sections)
+├── engagement/EngagementDashboard.tsx (enhance scroll + click sections)
+└── search/SearchIntelligenceDashboard.tsx (add quality score section)
 
-5. EVERY 30 SECONDS (while tab active)
-   └── HeartbeatProvider sends pulse
-       └── session-heartbeat edge function
-           ├── Update last_active_at
-           ├── Calculate session_duration_seconds
-           └── Set is_active = true
-
-6. USER LEAVES/CLOSES TAB
-   └── beforeunload event fires
-       ├── Final page metrics flushed
-       ├── Session ended_at updated
-       └── is_active = false
-
-7. MIDNIGHT UTC (DAILY)
-   └── aggregate-daily-metrics runs
-       └── Compute all daily_metrics aggregates
+src/hooks/
+├── useTrafficAnalytics.ts (add geo, duration queries)
+├── useEngagementAnalytics.ts (add click heatmap queries)
+├── useSearchAnalytics.ts (add position, time_to_click queries)
+└── usePremiumAnalytics.ts (use real session geo data)
 ```
 
 ---
 
-## Analytics Dashboard Enhancements
+## Visual Design System
 
-With this new data, the analytics dashboard can show:
+Following the existing premium aesthetic:
 
-### New Visualizations
-
-| Visualization | Data Source |
-|---------------|-------------|
-| **World/US Map** | user_sessions.country, city |
-| **Real-time Active Users** | is_active = true AND last_active_at > NOW() - 2 min |
-| **Avg Session Duration** | session_duration_seconds |
-| **Engagement Heatmap** | listing_analytics.clicked_elements |
-| **Content Depth Analysis** | page_views.scroll_depth |
-| **Reading Time Distribution** | page_views.time_on_page |
-| **Search Quality Score** | search_analytics.time_to_click, position_clicked |
-| **Historical Trends** | daily_metrics (30/60/90 day charts) |
-
-### New KPIs
-
-| KPI | Calculation |
-|-----|-------------|
-| **Engaged Session Rate** | Sessions with scroll_depth > 50% |
-| **Active User Count** | Real-time count of active sessions |
-| **Avg Time to First Click** | Mean of first_click_ms across sessions |
-| **Search Success Rate** | Searches with position_clicked < 5 |
-| **Geographic Concentration** | Top 5 countries by session count |
+- **Cards**: `rounded-2xl bg-card border border-border/50 p-6`
+- **Headers**: `text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground`
+- **Large Numbers**: `text-5xl font-light tracking-tight tabular-nums`
+- **Color Palette**: Coral (#E57373), Peach (#FFAB91), Navy for maps
+- **Hover States**: `transition-all duration-300 hover:shadow-lg`
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Session Enrichment (Core)
-1. Create `track-session` edge function with IP geolocation
-2. Update `AnalyticsContext` to call new edge function
-3. Add database columns and indexes
-4. Test: Verify new sessions have country/city data
+### Phase 1: Core Metrics (Real Data Wiring)
+1. Update `useTrafficAnalytics` to query real geographic data
+2. Update `useEngagementAnalytics` to use page_views scroll/time data
+3. Update `usePremiumAnalytics` to use session-based geography
+4. Add session duration stats to Traffic dashboard
 
-### Phase 2: Heartbeat System
-1. Create `session-heartbeat` edge function
-2. Create `HeartbeatProvider` component
-3. Add to `SessionTrackingProvider`
-4. Test: Verify accurate session duration and active status
+### Phase 2: Real-Time Intelligence
+1. Create `useRealTimeAnalytics` hook
+2. Build `RealTimeTab` with active users counter
+3. Add live activity map showing active session locations
+4. Add current pages being viewed panel
 
-### Phase 3: Page Engagement
-1. Create `use-page-engagement` hook
-2. Create `PageEngagementTracker` component
-3. Integrate with existing page tracking
-4. Test: Verify time_on_page and scroll_depth populated
+### Phase 3: Click Heatmap Visualization
+1. Create `ClickHeatmapPanel` component
+2. Parse and aggregate `clicked_elements` JSONB
+3. Show element click frequency chart
+4. Add time-to-first-click analysis
 
-### Phase 4: Click Tracking
-1. Create `use-click-tracking` hook
-2. Integrate with listing detail pages
-3. Store click data in JSONB format
-4. Test: Verify clicked_elements populated
+### Phase 4: Search UX Quality
+1. Create `SearchQualityScore` component
+2. Add position clicked distribution chart
+3. Show time-to-click metrics
+4. Add search refinement analysis
 
-### Phase 5: Search Enhancement
-1. Upgrade `trackSearch` function
-2. Add time_to_click tracking
-3. Track result position clicked
-4. Test: Verify search metrics populated
+### Phase 5: Historical Trends
+1. Create `useHistoricalMetrics` hook
+2. Build `HistoricalTrendsDashboard`
+3. Add week-over-week comparison cards
+4. Trigger daily_metrics aggregation
 
-### Phase 6: Daily Aggregation
-1. Create `aggregate-daily-metrics` edge function
-2. Set up pg_cron schedule (or manual trigger initially)
-3. Populate daily_metrics table
-4. Test: Verify aggregates match source data
-
----
-
-## IP Geolocation Service Options
-
-| Service | Free Tier | Rate Limit | Accuracy |
-|---------|-----------|------------|----------|
-| **ipapi.co** | 1,000/day | 30/min | Good |
-| **ip-api.com** | Unlimited (non-commercial) | 45/min | Good |
-| **ipdata.co** | 1,500/day | 10/sec | Excellent |
-
-**Recommendation**: Start with `ip-api.com` for development (free, no key needed), then move to `ipapi.co` or `ipdata.co` for production with proper rate limiting.
-
----
-
-## Privacy and Compliance
-
-- IP addresses stored only for analytics (not displayed to users)
-- Consider IP anonymization option (truncate last octet)
-- Add data retention policy (auto-delete sessions > 90 days)
-- Document data collection in privacy policy
-- Respect DNT (Do Not Track) header if set
+### Phase 6: World Map + Advanced Geo
+1. Create `WorldGeographyMap` component
+2. Add country breakdown table
+3. Add timezone distribution chart
+4. City-level drill-down capability
 
 ---
 
 ## Success Metrics
 
-After implementation, we should see:
-- 100% of new sessions have country/city data
-- 95%+ of page views have time_on_page and scroll_depth
-- 100% of sessions have accurate duration
-- Real-time "active users" count available
-- daily_metrics populated for historical analysis
-- Search UX metrics (time_to_click, position) tracked
+After implementation:
+- Dashboard shows real session geography (not just buyer preferences)
+- Real-time active user count accurate within 2 minutes
+- Session duration metrics visible on Traffic tab
+- Click heatmap shows top 10 clicked elements
+- Search quality score displayed (time_to_click + position)
+- Historical trends show 30/60/90 day patterns
+- All new data points have corresponding visualizations
 
-This comprehensive tracking suite will transform the analytics dashboard from "what happened" to "why it happened" - enabling data-driven decisions on content, UX, and marketing investments.
+---
 
+## Technical Considerations
+
+### Performance
+- Use `refetchInterval` for real-time data (30 second refresh)
+- Aggregate click heatmap data server-side for large datasets
+- Consider database views for complex aggregations
+
+### Data Freshness
+- Session geo data requires track-session edge function to run
+- Heartbeat data requires HeartbeatProvider to be active
+- Daily metrics require aggregate-daily-metrics CRON or manual trigger
+
+### Fallbacks
+- Show "No data yet" states gracefully for new metrics
+- Provide date range info when data is sparse
+- Consider mock data for empty historical trends
