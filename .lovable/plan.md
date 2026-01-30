@@ -1,419 +1,289 @@
 
-# Analytics Dashboard Enhancement Suite
-## Surfacing Every New Data Point for Maximum Intelligence
+
+# Analytics Dashboard Enhancement Suite - Gap Analysis & Phase 2 Strategy
+
+## Investigation Results
+
+### What Was Implemented (Complete)
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Tab Structure (8 tabs) | Complete | `AnalyticsTabContainer.tsx` |
+| Real-Time Tab | Complete | `realtime/RealTimeTab.tsx` |
+| Historical Tab | Complete | `historical/HistoricalTrendsDashboard.tsx` |
+| Geography Tab | Complete | `geographic/WorldGeographyMap.tsx` |
+| Traffic Dashboard (with duration) | Complete | `traffic/TrafficIntelligenceDashboard.tsx` |
+| Engagement Dashboard (with clicks) | Complete | `engagement/EngagementDashboard.tsx` |
+| Search Dashboard (with quality) | Complete | `search/SearchIntelligenceDashboard.tsx` |
+| All new hooks | Complete | `useRealTimeAnalytics`, `useHistoricalMetrics`, `useGeographicAnalytics` |
+
+### Critical Data Flow Issues
+
+The database audit reveals a major problem:
+
+| Table | Total Records | With New Data | Coverage |
+|-------|--------------|---------------|----------|
+| `user_sessions` | 44,067 | **5 with geo** | 0.01% |
+| `page_views` | 48,208 | **6 with scroll/time** | 0.01% |
+| `listing_analytics` | 4,312 | **0 with clicks** | 0% |
+| `daily_metrics` | 0 | **0** | No aggregation yet |
+
+**Root Cause**: The edge functions are deployed but:
+1. `track-session` needs more users to visit with the new tracking
+2. `PageEngagementTracker` is integrated but data isn't flowing yet
+3. `aggregate-daily-metrics` CRON hasn't been triggered
+4. Click tracking on listing pages hasn't accumulated data
+
+### Hidden Intelligence Assets (NOT SURFACED)
+
+Three powerful intelligence components exist but are **not visible in any dashboard**:
+
+| Component | Capability | Current Status |
+|-----------|------------|----------------|
+| `PredictiveIntelligenceTab.tsx` | Conversion probability, churn risk, LTV predictions, engagement strategies | **NOT WIRED TO ANY PAGE** |
+| `MarketIntelligenceTab.tsx` | Market demand trends, pricing insights, geographic demand | **NOT WIRED TO ANY PAGE** |
+| `RevenueOptimizationTab.tsx` | Pricing optimization, deal velocity, revenue attribution | **NOT WIRED TO ANY PAGE** |
+
+These contain **buyer sentiment intelligence** that admins critically need!
 
 ---
 
-## Executive Summary
+## Gap Analysis: Missing World-Class Intelligence
 
-We've implemented a comprehensive data capture system that collects geographic location, session duration, scroll depth, time on page, click heatmaps, and search UX metrics. Now we need to **surface all this intelligence** in the admin dashboard with world-class visualizations.
+### 1. Buyer Intent & Sentiment Signals (MISSING)
 
----
+The platform captures rich buyer profile data that isn't being analyzed:
+- `deal_intent` - Why they're here (Actively buying, Exploring, etc.)
+- `corpdev_intent` - Speed of acquisition intent
+- `owner_intent` - Business owner motivations
+- `deploying_capital_now` - Capital readiness
+- `mandate_blurb` - Investment thesis text
 
-## Current State Analysis
+**Opportunity**: Create a "Buyer Intent Dashboard" showing:
+- Intent distribution (% actively deploying vs. exploring)
+- Buyer readiness segmentation
+- Mandate keyword analysis (what are buyers seeking?)
 
-### New Data Being Captured (Schema Ready)
+### 2. Engagement Health Scoring (PARTIAL)
 
-| Table | New Columns | Status |
-|-------|-------------|--------|
-| `user_sessions` | `country`, `city`, `region`, `country_code`, `timezone`, `ip_address`, `session_duration_seconds`, `last_active_at` | Schema ready, data populating |
-| `page_views` | `time_on_page`, `scroll_depth`, `exit_page` | Schema ready, data populating |
-| `listing_analytics` | `clicked_elements` (JSONB heatmap data) | Schema ready, data populating |
-| `search_analytics` | `time_to_click`, `position_clicked`, `search_session_id` | Schema ready, awaiting data |
-| `daily_metrics` | Full daily aggregates (19 columns) | Schema ready, needs CRON trigger |
+The `engagement_scores` table exists but visualization is limited to `PredictiveIntelligenceTab`:
+- Individual user scores not visualized
+- No aggregate "marketplace health" score
+- No cohort engagement trending
 
-### What's NOT Yet Visualized in Dashboard
+### 3. Exit Page Analysis (NOT VISUALIZED)
 
-| Data Point | Impact | Priority |
-|------------|--------|----------|
-| **Geographic Map (Real Data)** | Currently uses profile `target_locations`, not actual session geo | Critical |
-| **Real-Time Active Users** | `is_active` + `last_active_at` not queried | Critical |
-| **Avg Session Duration** | `session_duration_seconds` not displayed | High |
-| **Scroll Depth Distribution** | Currently placeholder, now has real data | High |
-| **Time on Page Analysis** | Currently placeholder, now has real data | High |
-| **Click Heatmaps** | `clicked_elements` JSONB not visualized | High |
-| **Search UX Quality** | `time_to_click`, `position_clicked` not shown | Medium |
-| **Historical Trends** | `daily_metrics` table empty, needs dashboard | Medium |
-| **Exit Page Analysis** | `exit_page` boolean not used | Medium |
-| **Timezone Distribution** | `timezone` not visualized | Low |
+We capture `exit_page` boolean but don't show:
+- Which pages have highest exit rates
+- Exit funnel breakdown (where in journey do users leave?)
+- Exit page correlation with no-conversion
 
----
+### 4. UTM Campaign Attribution (NOT VISUALIZED)
 
-## Implementation Architecture
+We capture full UTM data but don't show:
+- Campaign performance comparison
+- Source/Medium effectiveness
+- Attribution to conversions
 
-### Tab Structure Enhancement
+### 5. Listing-Level Intelligence (PARTIAL)
 
-```text
-CURRENT TABS:
-├── Overview (Premium Dashboard)
-├── Traffic
-├── Engagement
-├── Search
-└── Live Activity
+We have listing performance but missing:
+- Time-to-first-connection per listing
+- "Stale listing" alerts (views but no saves/requests)
+- Listing "health score" composite
 
-PROPOSED:
-├── Overview (Enhanced with real-time + geo)
-├── Traffic (Enhanced with geo + duration)
-├── Engagement (Enhanced with scroll + heatmaps)
-├── Search (Enhanced with UX quality metrics)
-├── Real-Time (NEW - Live users, active sessions)
-└── Historical (NEW - Daily metrics trends)
-```
+### 6. Session Quality Metrics (NOT VISUALIZED)
+
+With heartbeat data we could show:
+- Session quality distribution (engaged vs. bounced)
+- Returning visitor behavior differences
+- Multi-session buyer journeys
 
 ---
 
-## New Components & Visualizations
+## Strategic Enhancements Roadmap
 
-### 1. Real-Time Intelligence Panel
+### Phase 2A: Surface Hidden Intelligence
 
-**New Component**: `RealTimeIntelligencePanel.tsx`
+**Priority 1: Wire existing intelligence tabs into Analytics**
 
-**Data Source**: 
-```sql
-SELECT COUNT(*) FROM user_sessions 
-WHERE is_active = true 
-  AND last_active_at > NOW() - INTERVAL '2 minutes'
-```
+Add three new tabs to `AnalyticsTabContainer.tsx`:
+- "Buyer Intelligence" - use existing `PredictiveIntelligenceTab`
+- "Market Insights" - use existing `MarketIntelligenceTab`
+- "Revenue" - use existing `RevenueOptimizationTab`
 
-**Displays**:
-- Live active user count (animated counter)
-- Geographic distribution of active users (mini world map)
-- Current page paths being viewed
-- Active session duration distribution
-- Real-time activity feed with user avatars
+Estimated effort: 30 minutes
 
----
+### Phase 2B: Buyer Intent Dashboard (NEW)
 
-### 2. World Geography Map (Session-Based)
+**Create `/analytics/buyer-intent`**
 
-**New Component**: `WorldGeographyMap.tsx`
+| Visualization | Data Source | Insight |
+|---------------|-------------|---------|
+| Intent Funnel | `profiles.deal_intent` | % of buyers at each intent level |
+| Capital Readiness | `profiles.deploying_capital_now` | Real-time ready-to-buy count |
+| Mandate Word Cloud | `profiles.mandate_blurb` | Common investment themes |
+| Buyer Type × Intent Heatmap | `profiles.buyer_type` + `deal_intent` | Which buyer types are most active |
+| Intent Trend Line | `profiles.created_at` + `deal_intent` | Are new signups more/less engaged? |
 
-**Data Source**: `user_sessions.country`, `user_sessions.city`
+### Phase 2C: Campaign Attribution Panel (NEW)
 
-**Enhancement over current**: Replace `target_locations` (where buyers WANT to buy) with actual session geographic data (where buyers ARE)
+**Add to Traffic tab or new tab**
 
-**Features**:
-- Interactive world map using react-simple-maps
-- Choropleth coloring by session count
-- City-level drill-down on country click
-- Timezone overlay option
+| Visualization | Data Source | Insight |
+|---------------|-------------|---------|
+| UTM Source Performance | `user_sessions.utm_source` | Which sources drive traffic |
+| Campaign ROI Table | `utm_campaign` × connections | Which campaigns convert |
+| Medium Comparison | `utm_medium` | Email vs. Social vs. Organic |
+| Attribution Funnel | UTM → Session → View → Request | Full attribution path |
 
----
+### Phase 2D: Listing Health Dashboard (NEW)
 
-### 3. Session Duration Analytics Card
+**Enhance Engagement tab**
 
-**New Component**: `SessionDurationCard.tsx`
+| Metric | Calculation | Alert Threshold |
+|--------|-------------|-----------------|
+| Listing Health Score | (views × 0.2 + saves × 0.5 + requests × 0.3) / age | Score < 5 after 14 days |
+| Time to First Save | Days from publish to first save | > 7 days = warning |
+| View-to-Save Ratio | saves / views | < 2% = needs attention |
+| Stale Listings | Views > 10, Saves = 0, Age > 14d | Alert list |
 
-**Data Source**: `user_sessions.session_duration_seconds`
+### Phase 2E: Exit Analysis Card (NEW)
 
-**Visualizations**:
-- Average session duration (large hero stat)
-- Duration distribution histogram (0-30s, 30s-2m, 2m-5m, 5m-15m, 15m+)
-- Duration trend over time (sparkline)
-- Comparison: New vs returning users
+**Add to Traffic or Engagement tab**
 
----
+| Visualization | Insight |
+|---------------|---------|
+| Exit Page Ranking | Pages with highest exit rates |
+| Exit by Journey Stage | Do users exit early or after engagement? |
+| Exit × No-Conversion | Correlation between exit pages and failed journeys |
 
-### 4. Enhanced Scroll Depth Visualization
+### Phase 2F: Daily Metrics CRON Trigger
 
-**Updated Component**: `ScrollDepthCard.tsx` (already exists, needs real data)
-
-**Data Source**: `page_views.scroll_depth`, `listing_analytics.scroll_depth`
-
-**Enhancements**:
-- Show scroll depth by page type (listing vs search vs home)
-- "Deep readers" percentage (users who scroll 75%+)
-- Correlation: scroll depth vs conversion rate
+**Infrastructure need**: Trigger `aggregate-daily-metrics` function to populate the empty `daily_metrics` table, enabling the Historical tab to show real data.
 
 ---
 
-### 5. Time on Page Intelligence
-
-**Updated Component**: `TimeOnPageCard.tsx` (already exists, needs real data)
-
-**Data Source**: `page_views.time_on_page`
-
-**Enhancements**:
-- Average time by page path pattern
-- "Engaged readers" metric (time > 60s)
-- Exit page analysis (pages where users leave)
-
----
-
-### 6. Click Heatmap Visualization
-
-**New Component**: `ClickHeatmapPanel.tsx`
-
-**Data Source**: `listing_analytics.clicked_elements` (JSONB)
-
-**Features**:
-- Aggregate click positions across all listing views
-- Show most-clicked elements (save button, contact, etc.)
-- Time-to-first-click distribution
-- Click sequence analysis (what do users click first, second, third)
-
----
-
-### 7. Search UX Quality Dashboard
-
-**New Components**: 
-- `SearchQualityScore.tsx`
-- `SearchPositionAnalysis.tsx`
-
-**Data Sources**: 
-- `search_analytics.time_to_click`
-- `search_analytics.position_clicked`
-- `search_analytics.search_session_id`
-
-**Metrics**:
-- Search Quality Score (composite: time_to_click + position_clicked + results_clicked)
-- Position clicked distribution (are users clicking result #1, #5, #10?)
-- Average time to first click
-- Search refinement rate (users who modified their query)
-
----
-
-### 8. Historical Trends Dashboard
-
-**New Component**: `HistoricalTrendsDashboard.tsx`
-
-**Data Source**: `daily_metrics` table
-
-**Visualizations**:
-- Multi-line chart: sessions, users, page views over 30/60/90 days
-- Conversion funnel trends over time
-- Week-over-week comparison cards
-- Anomaly detection highlights
-
----
-
-## Hook Enhancements
-
-### Enhanced `useTrafficAnalytics.ts`
-
-Add queries for:
-```typescript
-// Real geographic data from sessions
-const geoResult = await supabase
-  .from('user_sessions')
-  .select('country, city, country_code')
-  .gte('created_at', startDate.toISOString())
-  .not('country', 'is', null);
-
-// Session duration stats
-const durationResult = await supabase
-  .from('user_sessions')
-  .select('session_duration_seconds')
-  .gte('created_at', startDate.toISOString())
-  .not('session_duration_seconds', 'is', null);
-
-// Timezone distribution
-const timezoneResult = await supabase
-  .from('user_sessions')
-  .select('timezone')
-  .gte('created_at', startDate.toISOString())
-  .not('timezone', 'is', null);
-```
-
-### Enhanced `useEngagementAnalytics.ts`
-
-Add queries for:
-```typescript
-// Click heatmap data
-const clicksResult = await supabase
-  .from('listing_analytics')
-  .select('clicked_elements')
-  .gte('created_at', startDate.toISOString())
-  .not('clicked_elements', 'is', null);
-
-// Real scroll depth from page_views
-const pageScrollResult = await supabase
-  .from('page_views')
-  .select('page_path, scroll_depth, time_on_page, exit_page')
-  .gte('created_at', startDate.toISOString());
-```
-
-### New `useRealTimeAnalytics.ts`
-
-```typescript
-// Active sessions (real-time)
-const activeResult = await supabase
-  .from('user_sessions')
-  .select('id, session_id, country, city, last_active_at')
-  .eq('is_active', true)
-  .gte('last_active_at', new Date(Date.now() - 2 * 60 * 1000).toISOString());
-
-// Current page views (real-time)
-const currentPagesResult = await supabase
-  .from('page_views')
-  .select('page_path, session_id')
-  .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-  .order('created_at', { ascending: false });
-```
-
-### Enhanced `useSearchAnalytics.ts`
-
-Add queries for:
-```typescript
-// Position clicked distribution
-const positionResult = await supabase
-  .from('search_analytics')
-  .select('position_clicked')
-  .gte('created_at', startDate.toISOString())
-  .not('position_clicked', 'is', null);
-
-// Time to click analysis
-const timeToClickResult = await supabase
-  .from('search_analytics')
-  .select('time_to_click, search_query')
-  .gte('created_at', startDate.toISOString())
-  .not('time_to_click', 'is', null);
-```
-
-### New `useHistoricalMetrics.ts`
-
-```typescript
-// Daily metrics for trend analysis
-const metricsResult = await supabase
-  .from('daily_metrics')
-  .select('*')
-  .gte('date', startDate.toISOString())
-  .order('date', { ascending: true });
-```
-
----
-
-## File Structure
+## Technical Implementation Details
 
 ### New Files to Create
 
 ```text
-src/components/admin/analytics/
-├── realtime/
-│   ├── RealTimeTab.tsx
-│   ├── ActiveUsersCounter.tsx
-│   ├── LiveActivityMap.tsx
-│   └── CurrentPagesPanel.tsx
-├── geographic/
-│   ├── WorldGeographyMap.tsx
-│   ├── CountryBreakdownTable.tsx
-│   └── TimezoneDistribution.tsx
-├── session/
-│   ├── SessionDurationCard.tsx
-│   └── DurationHistogram.tsx
-├── heatmap/
-│   ├── ClickHeatmapPanel.tsx
-│   └── ElementClickStats.tsx
-├── historical/
-│   ├── HistoricalTrendsDashboard.tsx
-│   ├── DailyMetricsChart.tsx
-│   └── WeekOverWeekCards.tsx
-└── search/
-    ├── SearchQualityScore.tsx
-    └── PositionClickedChart.tsx
-
 src/hooks/
-├── useRealTimeAnalytics.ts
-├── useHistoricalMetrics.ts
-└── useGeographicAnalytics.ts (new)
+├── useBuyerIntentAnalytics.ts       # Query profiles for intent distribution
+├── useCampaignAttribution.ts        # Query UTM data with conversions
+├── useListingHealth.ts              # Calculate listing health scores
+└── useExitAnalysis.ts               # Query exit_page data
+
+src/components/admin/analytics/
+├── buyer-intent/
+│   ├── BuyerIntentDashboard.tsx
+│   ├── IntentFunnelChart.tsx
+│   ├── CapitalReadinessCard.tsx
+│   └── MandateWordCloud.tsx
+├── campaigns/
+│   ├── CampaignAttributionPanel.tsx
+│   └── UTMPerformanceTable.tsx
+└── listings/
+    ├── ListingHealthDashboard.tsx
+    ├── StaleListingsAlert.tsx
+    └── ListingHealthScore.tsx
 ```
 
 ### Files to Modify
 
 ```text
-src/components/admin/analytics/
-├── AnalyticsTabContainer.tsx (add Real-Time and Historical tabs)
-├── traffic/TrafficIntelligenceDashboard.tsx (add geographic + duration sections)
-├── engagement/EngagementDashboard.tsx (enhance scroll + click sections)
-└── search/SearchIntelligenceDashboard.tsx (add quality score section)
+src/components/admin/analytics/AnalyticsTabContainer.tsx
+  - Add 3 new tabs: Buyer Intelligence, Market Insights, Revenue
 
-src/hooks/
-├── useTrafficAnalytics.ts (add geo, duration queries)
-├── useEngagementAnalytics.ts (add click heatmap queries)
-├── useSearchAnalytics.ts (add position, time_to_click queries)
-└── usePremiumAnalytics.ts (use real session geo data)
+src/components/admin/analytics/traffic/TrafficIntelligenceDashboard.tsx
+  - Add Campaign Attribution section
+
+src/components/admin/analytics/engagement/EngagementDashboard.tsx
+  - Add Exit Analysis card
+  - Add Listing Health section
+```
+
+### Database Queries Needed
+
+**Buyer Intent Distribution**
+```sql
+SELECT 
+  deal_intent,
+  COUNT(*) as count,
+  COUNT(*) * 100.0 / SUM(COUNT(*)) OVER () as percentage
+FROM profiles 
+WHERE deal_intent IS NOT NULL 
+  AND approval_status = 'approved'
+GROUP BY deal_intent
+ORDER BY count DESC;
+```
+
+**Campaign Attribution**
+```sql
+SELECT 
+  us.utm_source,
+  us.utm_campaign,
+  COUNT(DISTINCT us.session_id) as sessions,
+  COUNT(DISTINCT cr.id) as conversions,
+  ROUND(COUNT(DISTINCT cr.id) * 100.0 / NULLIF(COUNT(DISTINCT us.session_id), 0), 2) as conversion_rate
+FROM user_sessions us
+LEFT JOIN connection_requests cr ON cr.user_id = us.user_id
+WHERE us.utm_source IS NOT NULL
+  AND us.created_at > NOW() - INTERVAL '30 days'
+GROUP BY us.utm_source, us.utm_campaign
+ORDER BY sessions DESC;
+```
+
+**Exit Page Analysis**
+```sql
+SELECT 
+  page_path,
+  COUNT(*) as exit_count,
+  COUNT(*) * 100.0 / SUM(COUNT(*)) OVER () as exit_percentage
+FROM page_views
+WHERE exit_page = true
+  AND created_at > NOW() - INTERVAL '30 days'
+GROUP BY page_path
+ORDER BY exit_count DESC
+LIMIT 10;
 ```
 
 ---
 
-## Visual Design System
+## Summary: What's Needed for World-Class Intelligence
 
-Following the existing premium aesthetic:
+| Priority | Enhancement | Impact | Effort |
+|----------|-------------|--------|--------|
+| 1 | Wire existing intelligence tabs | Immediate access to predictive analytics | Low |
+| 2 | Trigger daily_metrics CRON | Enable Historical trends | Low |
+| 3 | Buyer Intent Dashboard | Understand buyer sentiment at scale | Medium |
+| 4 | Campaign Attribution | Measure marketing ROI | Medium |
+| 5 | Listing Health Scoring | Proactive listing optimization | Medium |
+| 6 | Exit Analysis | Identify UX friction points | Low |
+| 7 | Wait for data accumulation | New tracking needs time to populate | Time |
 
-- **Cards**: `rounded-2xl bg-card border border-border/50 p-6`
-- **Headers**: `text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground`
-- **Large Numbers**: `text-5xl font-light tracking-tight tabular-nums`
-- **Color Palette**: Coral (#E57373), Peach (#FFAB91), Navy for maps
-- **Hover States**: `transition-all duration-300 hover:shadow-lg`
+### Success Metrics After Implementation
 
----
-
-## Implementation Phases
-
-### Phase 1: Core Metrics (Real Data Wiring)
-1. Update `useTrafficAnalytics` to query real geographic data
-2. Update `useEngagementAnalytics` to use page_views scroll/time data
-3. Update `usePremiumAnalytics` to use session-based geography
-4. Add session duration stats to Traffic dashboard
-
-### Phase 2: Real-Time Intelligence
-1. Create `useRealTimeAnalytics` hook
-2. Build `RealTimeTab` with active users counter
-3. Add live activity map showing active session locations
-4. Add current pages being viewed panel
-
-### Phase 3: Click Heatmap Visualization
-1. Create `ClickHeatmapPanel` component
-2. Parse and aggregate `clicked_elements` JSONB
-3. Show element click frequency chart
-4. Add time-to-first-click analysis
-
-### Phase 4: Search UX Quality
-1. Create `SearchQualityScore` component
-2. Add position clicked distribution chart
-3. Show time-to-click metrics
-4. Add search refinement analysis
-
-### Phase 5: Historical Trends
-1. Create `useHistoricalMetrics` hook
-2. Build `HistoricalTrendsDashboard`
-3. Add week-over-week comparison cards
-4. Trigger daily_metrics aggregation
-
-### Phase 6: World Map + Advanced Geo
-1. Create `WorldGeographyMap` component
-2. Add country breakdown table
-3. Add timezone distribution chart
-4. City-level drill-down capability
+| Metric | Current | Target |
+|--------|---------|--------|
+| Intelligence tabs available | 8 | 11 (add Buyer, Market, Revenue) |
+| Buyer sentiment visibility | 0% | 100% (intent + readiness + mandate) |
+| Campaign ROI measurable | No | Yes (full UTM attribution) |
+| Listing health monitored | Partial | Complete with health scores |
+| Historical data | 0 days | 30/60/90 day trends |
+| Geo data coverage | 0.01% | 100% of new sessions |
 
 ---
 
-## Success Metrics
+## Recommended Implementation Order
 
-After implementation:
-- Dashboard shows real session geography (not just buyer preferences)
-- Real-time active user count accurate within 2 minutes
-- Session duration metrics visible on Traffic tab
-- Click heatmap shows top 10 clicked elements
-- Search quality score displayed (time_to_click + position)
-- Historical trends show 30/60/90 day patterns
-- All new data points have corresponding visualizations
+1. **Immediate (this session)**: Wire 3 existing intelligence tabs into AnalyticsTabContainer
+2. **Next**: Trigger aggregate-daily-metrics to populate Historical data
+3. **Then**: Build Buyer Intent Dashboard for sentiment visibility
+4. **Then**: Add Campaign Attribution Panel to Traffic tab
+5. **Then**: Add Listing Health metrics to Engagement tab
+6. **Finally**: Add Exit Analysis card
 
----
+This phased approach delivers immediate value while building toward complete marketplace intelligence.
 
-## Technical Considerations
-
-### Performance
-- Use `refetchInterval` for real-time data (30 second refresh)
-- Aggregate click heatmap data server-side for large datasets
-- Consider database views for complex aggregations
-
-### Data Freshness
-- Session geo data requires track-session edge function to run
-- Heartbeat data requires HeartbeatProvider to be active
-- Daily metrics require aggregate-daily-metrics CRON or manual trigger
-
-### Fallbacks
-- Show "No data yet" states gracefully for new metrics
-- Provide date range info when data is sparse
-- Consider mock data for empty historical trends
