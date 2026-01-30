@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { exportToCSV } from "@/lib/exportUtils";
 
 interface ListingData {
   id: string;
@@ -36,19 +39,43 @@ export function ListingLeaderboard({ data, className }: ListingLeaderboardProps)
     }
   };
 
+  const handleExport = () => {
+    exportToCSV(sortedData, 'listing-leaderboard', [
+      { key: 'title', label: 'Listing' },
+      { key: 'category', label: 'Category' },
+      { key: 'views', label: 'Views' },
+      { key: 'saves', label: 'Saves' },
+      { key: 'requests', label: 'Requests' },
+      { key: 'conversionRate', label: 'Conversion Rate %' },
+    ]);
+  };
+
   return (
     <div className={cn(
       "rounded-2xl bg-card border border-border/50 p-6",
       className
     )}>
       {/* Header */}
-      <div className="mb-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-          Listing Leaderboard
-        </p>
-        <p className="text-xs text-muted-foreground/70 mt-1">
-          Top performing listings by engagement
-        </p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+            Listing Leaderboard
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            Top performing listings by engagement
+          </p>
+        </div>
+        {data.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleExport}
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Download className="h-3.5 w-3.5 mr-1" />
+            Export
+          </Button>
+        )}
       </div>
 
       {/* Table */}

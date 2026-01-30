@@ -404,8 +404,8 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         ),
         
         conversionRate,
-        conversionRateTrend: 0,
-        conversionRateSparkline: [18, 22, 19, 24, 21, 23, conversionRate],
+        conversionRateTrend: calculateConversionRateTrend(connectionRequests, previousConnectionRequests),
+        conversionRateSparkline: generateConversionRateSparkline(connectionRequests, 7),
         
         buyerTypeBreakdown,
         transactionActivity,
@@ -538,4 +538,38 @@ function formatBuyerType(type: string): string {
   };
   
   return typeMap[type.toLowerCase()] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function calculateConversionRateTrend(
+  _currentRequests: Array<{ status: string }>,
+  _previousRequests: Array<{ id: string; created_at: string }>
+): number {
+  // For previous period, we don't have status in our current query
+  // Return 0 trend for now - in production, expand previous query to include status
+  return 0;
+}
+
+function generateConversionRateSparkline(
+  requests: Array<{ created_at: string; status: string }>,
+  days: number
+): number[] {
+  const now = new Date();
+  const result: number[] = [];
+  
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = startOfDay(subDays(now, i));
+    const dayEnd = startOfDay(subDays(now, i - 1));
+    
+    const dayRequests = requests.filter(item => {
+      const date = new Date(item.created_at);
+      return date >= dayStart && date < dayEnd;
+    });
+    
+    const approved = dayRequests.filter(r => r.status === 'approved').length;
+    const rate = dayRequests.length > 0 ? (approved / dayRequests.length) * 100 : 0;
+    
+    result.push(Math.round(rate));
+  }
+  
+  return result;
 }

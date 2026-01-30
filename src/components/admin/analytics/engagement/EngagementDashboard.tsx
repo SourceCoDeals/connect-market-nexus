@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ListingLeaderboard } from "./ListingLeaderboard";
 import { EngagementFunnel } from "./EngagementFunnel";
 import { CategoryPerformanceChart } from "./CategoryPerformanceChart";
+import { UserJourneyFlow } from "./UserJourneyFlow";
 import { cn } from "@/lib/utils";
 
 interface EngagementDashboardProps {
@@ -54,6 +55,9 @@ export function EngagementDashboard({ timeRangeDays }: EngagementDashboardProps)
         <EngagementFunnel metrics={data.funnelMetrics} />
         <CategoryPerformanceChart data={data.categoryPerformance} />
       </div>
+
+      {/* User Journey Flow */}
+      <UserJourneyFlow data={data.userJourneyPaths} />
 
       {/* Scroll Depth + Time on Page */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
