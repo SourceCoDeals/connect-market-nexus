@@ -205,7 +205,7 @@ export function initGA4(measurementId: string = GA4_MEASUREMENT_ID): void {
   window.gtag('config', measurementId, {
     // Enable cross-domain tracking for your domains
     linker: {
-      domains: ['sourcecodeals.com', 'marketplace.sourcecodeals.com', 'market.sourcecodeals.com'],
+      domains: ['sourcecodeals.com', 'marketplace.sourcecodeals.com'],
       accept_incoming: true,
     },
     // Enhanced measurement features
