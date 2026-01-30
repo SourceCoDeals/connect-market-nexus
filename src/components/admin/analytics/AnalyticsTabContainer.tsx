@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Activity, Globe, TrendingUp } from "lucide-react";
+import { CalendarIcon, Activity, Globe, TrendingUp, Brain, DollarSign, Target, Megaphone, Heart, LogOut } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,15 @@ import { RealTimeTab } from "./realtime/RealTimeTab";
 import { HistoricalTrendsDashboard } from "./historical/HistoricalTrendsDashboard";
 import { WorldGeographyMap } from "./geographic/WorldGeographyMap";
 import { UserActivityFeed } from "../UserActivityFeed";
+import { PredictiveIntelligenceTab } from "../PredictiveIntelligenceTab";
+import { MarketIntelligenceTab } from "../MarketIntelligenceTab";
+import { RevenueOptimizationTab } from "../RevenueOptimizationTab";
+import { BuyerIntentDashboard } from "./buyer-intent/BuyerIntentDashboard";
+import { CampaignAttributionPanel } from "./campaigns/CampaignAttributionPanel";
+import { ListingHealthDashboard } from "./listings/ListingHealthDashboard";
+import { ExitAnalysisPanel } from "./exit/ExitAnalysisPanel";
 import { cn } from "@/lib/utils";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 export function AnalyticsTabContainer() {
   const [timeRange, setTimeRange] = useState("30");
@@ -45,7 +53,7 @@ export function AnalyticsTabContainer() {
             Intelligence Center
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Comprehensive marketplace analytics and insights
+            Comprehensive marketplace analytics and buyer intelligence
           </p>
         </div>
         
@@ -108,59 +116,96 @@ export function AnalyticsTabContainer() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="h-auto p-1 bg-muted/50 rounded-xl border border-border/30 flex-wrap">
-          <TabsTrigger 
-            value="overview" 
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger 
-            value="realtime"
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            <Activity className="h-3.5 w-3.5 mr-1.5" />
-            Real-Time
-          </TabsTrigger>
-          <TabsTrigger 
-            value="traffic"
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            Traffic
-          </TabsTrigger>
-          <TabsTrigger 
-            value="engagement"
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            Engagement
-          </TabsTrigger>
-          <TabsTrigger 
-            value="search"
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            Search
-          </TabsTrigger>
-          <TabsTrigger 
-            value="geography"
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            <Globe className="h-3.5 w-3.5 mr-1.5" />
-            Geography
-          </TabsTrigger>
-          <TabsTrigger 
-            value="historical"
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
-            Historical
-          </TabsTrigger>
-          <TabsTrigger 
-            value="activity"
-            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            Live Feed
-          </TabsTrigger>
-        </TabsList>
+        <ScrollArea className="w-full whitespace-nowrap">
+          <TabsList className="h-auto p-1 bg-muted/50 rounded-xl border border-border/30 inline-flex w-max">
+            <TabsTrigger 
+              value="overview" 
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="realtime"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Activity className="h-3.5 w-3.5 mr-1.5" />
+              Real-Time
+            </TabsTrigger>
+            <TabsTrigger 
+              value="buyer-intent"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Target className="h-3.5 w-3.5 mr-1.5" />
+              Buyer Intent
+            </TabsTrigger>
+            <TabsTrigger 
+              value="traffic"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Traffic
+            </TabsTrigger>
+            <TabsTrigger 
+              value="engagement"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Engagement
+            </TabsTrigger>
+            <TabsTrigger 
+              value="search"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Search
+            </TabsTrigger>
+            <TabsTrigger 
+              value="geography"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Globe className="h-3.5 w-3.5 mr-1.5" />
+              Geography
+            </TabsTrigger>
+            <TabsTrigger 
+              value="historical"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+              Historical
+            </TabsTrigger>
+            <TabsTrigger 
+              value="predictive"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Brain className="h-3.5 w-3.5 mr-1.5" />
+              Predictive
+            </TabsTrigger>
+            <TabsTrigger 
+              value="market"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Market
+            </TabsTrigger>
+            <TabsTrigger 
+              value="revenue"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <DollarSign className="h-3.5 w-3.5 mr-1.5" />
+              Revenue
+            </TabsTrigger>
+            <TabsTrigger 
+              value="listings"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Heart className="h-3.5 w-3.5 mr-1.5" />
+              Listing Health
+            </TabsTrigger>
+            <TabsTrigger 
+              value="activity"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Live Feed
+            </TabsTrigger>
+          </TabsList>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
 
         <TabsContent value="overview" className="mt-0">
           <PremiumAnalyticsDashboard timeRangeDays={timeRangeDays} />
@@ -170,12 +215,35 @@ export function AnalyticsTabContainer() {
           <RealTimeTab />
         </TabsContent>
 
+        <TabsContent value="buyer-intent" className="mt-0">
+          <BuyerIntentDashboard timeRangeDays={timeRangeDays} />
+        </TabsContent>
+
         <TabsContent value="traffic" className="mt-0">
-          <TrafficIntelligenceDashboard timeRangeDays={timeRangeDays} />
+          <div className="space-y-8">
+            <TrafficIntelligenceDashboard timeRangeDays={timeRangeDays} />
+            
+            {/* Campaign Attribution */}
+            <div className="border-t border-border/30 pt-8">
+              <CampaignAttributionPanel timeRangeDays={timeRangeDays} />
+            </div>
+            
+            {/* Exit Analysis */}
+            <div className="border-t border-border/30 pt-8">
+              <ExitAnalysisPanel timeRangeDays={timeRangeDays} />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="engagement" className="mt-0">
-          <EngagementDashboard timeRangeDays={timeRangeDays} />
+          <div className="space-y-8">
+            <EngagementDashboard timeRangeDays={timeRangeDays} />
+            
+            {/* Listing Health */}
+            <div className="border-t border-border/30 pt-8">
+              <ListingHealthDashboard />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="search" className="mt-0">
@@ -188,6 +256,22 @@ export function AnalyticsTabContainer() {
 
         <TabsContent value="historical" className="mt-0">
           <HistoricalTrendsDashboard timeRangeDays={timeRangeDays} />
+        </TabsContent>
+
+        <TabsContent value="predictive" className="mt-0">
+          <PredictiveIntelligenceTab />
+        </TabsContent>
+
+        <TabsContent value="market" className="mt-0">
+          <MarketIntelligenceTab />
+        </TabsContent>
+
+        <TabsContent value="revenue" className="mt-0">
+          <RevenueOptimizationTab />
+        </TabsContent>
+
+        <TabsContent value="listings" className="mt-0">
+          <ListingHealthDashboard />
         </TabsContent>
 
         <TabsContent value="activity" className="mt-0">
