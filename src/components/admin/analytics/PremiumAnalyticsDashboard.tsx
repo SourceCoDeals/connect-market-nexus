@@ -1,5 +1,4 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { Skeleton } from "@/components/ui/skeleton";
 import { usePremiumAnalytics } from "@/hooks/usePremiumAnalytics";
 import { PremiumStatCard } from "./premium/PremiumStatCard";
 import { MultiSeriesVelocityChart } from "./premium/MultiSeriesVelocityChart";
