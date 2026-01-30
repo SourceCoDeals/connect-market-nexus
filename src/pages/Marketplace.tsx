@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { useSimplePagination } from '@/hooks/use-simple-pagination';
 import { useSimpleListings, useListingMetadata } from '@/hooks/use-simple-listings';
 import { useOnboarding } from "@/hooks/use-onboarding";
@@ -6,6 +6,8 @@ import { FilterOptions } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
+import { SearchSessionProvider } from "@/contexts/SearchSessionContext";
+import { useSearchSession } from "@/hooks/use-search-session";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,7 +35,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Wifi } from "lucide-react";
 import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
 
-const Marketplace = () => {
+const MarketplaceContent = () => {
   const { user, authChecked } = useAuth();
   const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
   const { listingsConnected } = useRealtime();
@@ -42,8 +44,25 @@ const Marketplace = () => {
   const { data: listingsData, isLoading, error } = useSimpleListings(pagination.state);
   const { data: metadata } = useListingMetadata();
   
+  // Search session tracking for analytics
+  const { startSearch, registerResults } = useSearchSession();
+  
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalItems || 0;
+  
+  // Track search query changes
+  useEffect(() => {
+    if (pagination.state.search) {
+      startSearch(pagination.state.search);
+    }
+  }, [pagination.state.search, startSearch]);
+  
+  // Register listing positions for click tracking
+  useEffect(() => {
+    if (listings.length > 0) {
+      registerResults(listings.map(l => l.id));
+    }
+  }, [listings, registerResults]);
   const categories = metadata?.categories || [];
   const locations = metadata?.locations || [];
   
@@ -412,6 +431,14 @@ const Marketplace = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const Marketplace = () => {
+  return (
+    <SearchSessionProvider>
+      <MarketplaceContent />
+    </SearchSessionProvider>
   );
 };
 

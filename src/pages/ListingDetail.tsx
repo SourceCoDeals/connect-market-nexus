@@ -1,9 +1,12 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
 import { useAnalytics } from "@/context/AnalyticsContext";
+import { useClickTracking } from "@/hooks/use-click-tracking";
+import { supabase } from "@/integrations/supabase/client";
+import { useSessionContext } from "@/contexts/SessionContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +51,11 @@ const ListingDetail = () => {
   
   const queryClient = useQueryClient();
   
+  // Click tracking for engagement analytics
+  const { getClickData, resetTracking } = useClickTracking(true);
+  const { sessionId } = useSessionContext();
+  const hasFlushOnUnmountRef = useRef(false);
+  
   const { 
     useListing, 
     useRequestConnection, 
@@ -69,8 +77,39 @@ const ListingDetail = () => {
   useEffect(() => {
     if (id && listing) {
       trackListingView(id);
+      resetTracking(); // Reset click tracking for this listing
     }
-  }, [id, listing, trackListingView]);
+  }, [id, listing, trackListingView, resetTracking]);
+
+  // Flush click data when leaving the page
+  useEffect(() => {
+    const flushClickData = async () => {
+      if (!id || hasFlushOnUnmountRef.current) return;
+      
+      const clickData = getClickData();
+      if (!clickData || clickData.total_clicks === 0) return;
+      
+      hasFlushOnUnmountRef.current = true;
+      
+      try {
+        await supabase.from('listing_analytics').insert([{
+          listing_id: id,
+          user_id: user?.id || null,
+          session_id: sessionId,
+          action_type: 'view',
+          clicked_elements: clickData as any,
+        }]);
+        console.log('📊 Flushed click data for listing:', id, clickData);
+      } catch (error) {
+        console.error('Failed to flush click data:', error);
+      }
+    };
+
+    // Cleanup function runs when component unmounts (user leaves page)
+    return () => {
+      flushClickData();
+    };
+  }, [id, user?.id, sessionId, getClickData]);
 
   const handleRequestConnection = (message?: string) => {
     if (id) {

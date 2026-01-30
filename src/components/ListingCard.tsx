@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAnalytics } from "@/context/AnalyticsContext";
+import { useAnalyticsTracking } from "@/hooks/use-analytics-tracking";
 import { Card, CardContent } from "@/components/ui/card";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { formatCurrency } from "@/lib/currency-utils";
@@ -11,6 +12,15 @@ import ListingCardTitle from "./listing/ListingCardTitle";
 import ListingCardFinancials from "./listing/ListingCardFinancials";
 import ListingCardActions from "./listing/ListingCardActions";
 import ListingStatusTag from "./listing/ListingStatusTag";
+
+// Try to import SearchSessionContext - may not always be available
+let useSearchSessionContext: (() => any) | null = null;
+try {
+  const mod = require('@/contexts/SearchSessionContext');
+  useSearchSessionContext = mod.useSearchSessionContext;
+} catch {
+  // Context not available
+}
 
 interface ListingCardProps {
   listing: Listing;
@@ -30,6 +40,18 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { trackListingSave, trackConnectionRequest } = useAnalytics();
+  const { trackSearchResultClick } = useAnalyticsTracking();
+  const navigate = useNavigate();
+
+  // Try to get search session context for tracking
+  let searchSession: any = null;
+  try {
+    if (useSearchSessionContext) {
+      searchSession = useSearchSessionContext();
+    }
+  } catch {
+    // Not within SearchSessionProvider - that's fine
+  }
 
   const connectionExists = connectionStatus?.exists || false;
   
@@ -37,6 +59,31 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     // Track the connection request attempt
     trackConnectionRequest(listing.id);
     requestConnection({ listingId: listing.id, message });
+  };
+
+  // Handle click on the listing card
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't intercept if clicking on action buttons
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    
+    // Track search result click if we have an active search session
+    if (searchSession?.hasActiveSearch?.()) {
+      const clickData = searchSession.getClickData(listing.id);
+      if (clickData.position_clicked && clickData.time_to_click) {
+        trackSearchResultClick(
+          listing.id,
+          clickData.search_session_id,
+          clickData.position_clicked,
+          clickData.time_to_click,
+          clickData.query
+        );
+      }
+    }
+    
+    // Navigate to the listing
+    navigate(`/listing/${listing.id}`);
   };
 
   const handleToggleSave = (e: React.MouseEvent) => {
@@ -51,9 +98,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   };
 
   return (
-    <div className="group">
-      <Link to={`/listing/${listing.id}`} className="block h-full">
-        <Card 
+    <div className="group" onClick={handleCardClick}>
+      <div className="block h-full cursor-pointer">
+        <Card
           className={`
             h-full cursor-pointer transition-all duration-300 ease-out
             bg-white border border-slate-200/70 rounded-xl
@@ -151,7 +198,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               </CardContent>
             </div>
           </Card>
-        </Link>
+        </div>
       </div>
   );
 };
