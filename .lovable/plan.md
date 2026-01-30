@@ -1,152 +1,121 @@
 
+# Live Activity Feed Improvements: Real Names, Click-to-Focus & Extended History
 
-# Fix Real Names & Add Globe Drag-to-Stop Functionality
+## Analysis of Current State
 
-## Issues Identified
+### Why "teal wolf" and "sage dolphin" Are Showing
 
-### Issue 1: "gold owl" Appearing Instead of Real Names
+After investigating the database, I found these are **genuinely anonymous visitors**:
+- Session `session_1769795252781_5jmlfhula` has `user_id: NULL` - no logged-in user
+- Session `90a55368-baf9-411d-acb9-bec77344e6db` (Spain) has `user_id: NULL`
 
-**Root Cause:**
-The `recentEvents` logic tries to match page_view sessions with active sessions. However:
-- Active sessions are filtered by `last_active_at >= 2 minutes ago`
-- Many sessions have `NULL` in `last_active_at` (only have `started_at`)
-- When no match is found, `createDefaultUser()` is called which generates an anonymous name like "gold owl"
-- This happens even when the session HAS a `user_id` linked to a real profile
+The code IS working correctly for logged-in users (Admin User shows properly). Anonymous names appear for visitors who haven't logged in.
 
-**Database Evidence:**
-- Session `session_1769794934143_hvmyix7n2` has `user_id: 1d5727f8-2a8c-4600-9a46-bddbb036ea45`
-- This user_id belongs to "Admin User" from "SourceCo"
-- But the session has `last_active_at: NULL`, so it's excluded from activeUsers
-- The page view falls back to "gold owl" (anonymous name)
+**However**, there's room to improve by:
+1. Fetching session data more comprehensively to catch any edge cases
+2. Extending the time window to capture more data
 
-**Fix:**
-1. Modify the session query to use `COALESCE(last_active_at, started_at)` for filtering
-2. For `recentEvents`, directly fetch profile data for page_view sessions instead of relying on activeUsers matching
-3. Ensure every page_view with a `user_id` gets the real name from profiles
+### Current Time Windows
+- Active sessions: 2 minutes
+- Page views: 5 minutes
 
-### Issue 2: Globe Should Stop When Dragged
-
-**Current Behavior:**
-- Globe auto-rotates at 0.3° per 50ms
-- Globe pauses only on hover (over a user marker)
-- No drag detection
-
-**Desired Behavior:**
-- Globe spins by default
-- When user drags the globe to focus on a region (e.g., France), rotation stops
-- Globe stays focused on that area until user navigates away
-
-**Fix:**
-Add mouse/touch drag detection to the globe:
-- Track `isDragging` state
-- On mousedown/touchstart: set `isDragging = true`
-- On mouseup/touchend: if dragged, set `isManuallyPaused = true`
-- The `isManuallyPaused` flag permanently stops rotation until page refresh
+### Proposed Changes
 
 ---
 
-## Implementation Details
+## Implementation Plan
 
-### File 1: `src/hooks/useEnhancedRealTimeAnalytics.ts`
+### 1. Extend Time Windows to 1 Hour
 
-**Changes:**
-1. Update session filtering to use `COALESCE(last_active_at, started_at)` via OR condition
-2. For `recentEvents`, create a map of session_id → user_id from page_views
-3. Fetch profiles for ALL user_ids found in page_views (not just active sessions)
-4. When building recentEvents, look up the user_id directly from the session, then fetch profile
+**File: `src/hooks/useEnhancedRealTimeAnalytics.ts`**
 
+Current:
 ```typescript
-// Modified session query - also include sessions with recent started_at
-.or(`last_active_at.gte.${twoMinutesAgo},started_at.gte.${twoMinutesAgo}`)
-
-// For recentEvents - get user_id directly from sessions for each page_view
-// Then look up profile for that user_id
+const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 ```
 
-### File 2: `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx`
-
-**Changes:**
-1. Add `isManuallyPaused` state to track if user has dragged
-2. Add `onMouseDown`, `onMouseUp`, `onMouseMove` handlers for drag detection
-3. Add `onTouchStart`, `onTouchEnd` handlers for mobile support
-4. Track actual drag movement (not just click) before pausing
-
+Change to:
 ```typescript
-const [isManuallyPaused, setIsManuallyPaused] = useState(false);
-const [isDragging, setIsDragging] = useState(false);
-const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+```
 
-// Auto-rotate only if not manually paused
+- For activity feed: Show page views from last 1 hour
+- For "active" sessions: Still use 2 minutes as the cutoff for "currently active"
+- Add `isActive` status based on last_active_at or started_at
+
+### 2. Add "Session Ended" Status
+
+**Add to interface:**
+```typescript
+interface EnhancedActiveUser {
+  // ... existing fields
+  isSessionActive: boolean;  // true if activity in last 2 mins
+  sessionStatus: 'active' | 'idle' | 'ended';  // for display
+}
+```
+
+**Logic:**
+- `active`: last_active_at within 2 minutes
+- `idle`: last_active_at 2-10 minutes ago
+- `ended`: last_active_at > 10 minutes ago (or is_active = false)
+
+### 3. Click-to-Focus on Map
+
+**Files to modify:**
+- `src/components/admin/analytics/realtime/RealTimeTab.tsx`
+- `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx`
+- `src/components/admin/analytics/realtime/LiveActivityFeed.tsx`
+
+**Approach:**
+
+1. Add `focusedSessionId` state to RealTimeTab
+2. Pass to PremiumGlobeMap as prop
+3. When activity item clicked, set focusedSessionId
+4. PremiumGlobeMap uses sessionId to:
+   - Calculate user's coordinates
+   - Rotate globe to center on that location
+   - Stop auto-rotation (already implemented)
+   - Highlight the user with a special effect
+
+**Globe focus implementation:**
+```typescript
+// In PremiumGlobeMap
 useEffect(() => {
-  if (isPaused || isManuallyPaused) return;
-  // ... rotation logic
-}, [isPaused, isManuallyPaused]);
-
-// Drag detection
-const handleMouseDown = (e: React.MouseEvent) => {
-  dragStartPos.current = { x: e.clientX, y: e.clientY };
-};
-
-const handleMouseUp = (e: React.MouseEvent) => {
-  if (dragStartPos.current) {
-    const dx = Math.abs(e.clientX - dragStartPos.current.x);
-    const dy = Math.abs(e.clientY - dragStartPos.current.y);
-    // If moved more than 5px, consider it a drag
-    if (dx > 5 || dy > 5) {
+  if (focusedSessionId) {
+    const user = users.find(u => u.sessionId === focusedSessionId);
+    if (user?.coordinates) {
+      // Set rotation to center on this user
+      setRotation(-user.coordinates.lng);
       setIsManuallyPaused(true);
+      setHighlightedSession(focusedSessionId);
     }
   }
-  dragStartPos.current = null;
-};
+}, [focusedSessionId, users]);
 ```
 
----
+### 4. Enhanced Activity Feed with Status
 
-## Technical Details
+**File: `src/components/admin/analytics/realtime/LiveActivityFeed.tsx`**
 
-### Session Filtering Fix
+Add visual indicators:
+- Active sessions: Green pulsing dot
+- Idle sessions: Yellow dot
+- Ended sessions: Gray dot with "Session ended" text
 
-The current query filters by:
-```typescript
-.gte('last_active_at', twoMinutesAgo)
+Update header:
+```text
+● LIVE ACTIVITY          Last 1 hour
 ```
 
-This excludes sessions where `last_active_at` is NULL. Change to:
-```typescript
-.or(`last_active_at.gte.${twoMinutesAgo},and(last_active_at.is.null,started_at.gte.${twoMinutesAgo})`)
-```
+Show session status in each row:
+```text
+[AU] Admin User from 🇭🇺 Hungary visited /admin
+     less than a minute ago • Active
 
-### Recent Events Profile Lookup
-
-Currently:
-1. Fetch active sessions → build `activeUsers` array
-2. Fetch page_views
-3. For each page_view, try to find matching user in `activeUsers`
-4. If not found, create anonymous user
-
-Problem: Page view session might not be in activeUsers (filtered out)
-
-Fix:
-1. Fetch page_views with session join to get user_id
-2. Collect all user_ids from page_views
-3. Fetch profiles for those user_ids
-4. When building recentEvents, look up profile by user_id
-
-### Drag Detection Logic
-
-```
-State Machine:
-  SPINNING (default)
-    → onMouseDown: record start position
-    → onMouseUp: if moved > 5px → PAUSED_BY_DRAG
-    → onHover marker: PAUSED_TEMP
-
-  PAUSED_BY_DRAG
-    → stays paused until page refresh
-    → onHover marker: no effect (already paused)
-
-  PAUSED_TEMP (hover on marker)
-    → onLeave marker: → SPINNING (unless PAUSED_BY_DRAG)
+[TW] teal wolf from 🌍 Unknown visited /welcome
+     12 minutes ago • Session ended
 ```
 
 ---
@@ -155,17 +124,63 @@ State Machine:
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useEnhancedRealTimeAnalytics.ts` | Fix session filtering, fetch profiles for page_view sessions, ensure recentEvents uses real names |
-| `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx` | Add drag detection with `isManuallyPaused` state, add mouse/touch event handlers |
+| `src/hooks/useEnhancedRealTimeAnalytics.ts` | Extend page view window to 1 hour, add `isSessionActive` and `sessionStatus` fields, improve session matching |
+| `src/components/admin/analytics/realtime/RealTimeTab.tsx` | Add `focusedSessionId` state, pass to globe and activity feed, wire up the click handler |
+| `src/components/admin/analytics/realtime/PremiumGlobeMap.tsx` | Add `focusedSessionId` prop, implement globe rotation to focus on user, add highlight effect for focused user |
+| `src/components/admin/analytics/realtime/LiveActivityFeed.tsx` | Update header to "Last 1 hour", add session status indicator (active/idle/ended), make items clickable with focus effect |
+
+---
+
+## Technical Details
+
+### Session Status Logic
+```typescript
+function getSessionStatus(lastActiveAt: string): 'active' | 'idle' | 'ended' {
+  const lastActive = new Date(lastActiveAt).getTime();
+  const now = Date.now();
+  const diffMinutes = (now - lastActive) / (60 * 1000);
+  
+  if (diffMinutes < 2) return 'active';
+  if (diffMinutes < 10) return 'idle';
+  return 'ended';
+}
+```
+
+### Globe Focus Animation
+```typescript
+// Smooth rotation to user's longitude
+const targetRotation = -user.coordinates.lng;
+// Use the existing rotation state, just set to target
+setRotation(targetRotation);
+setIsManuallyPaused(true);
+```
+
+### Activity Feed Click Handler
+```typescript
+// In LiveActivityFeed
+<div onClick={() => onUserClick?.(event.user.sessionId)}>
+  {/* event row */}
+</div>
+
+// In RealTimeTab
+const handleActivityClick = (sessionId: string) => {
+  setFocusedSessionId(sessionId);
+};
+
+<LiveActivityFeed 
+  events={data.recentEvents}
+  onUserClick={handleActivityClick}
+/>
+```
 
 ---
 
 ## Expected Results
 
 After implementation:
-1. Activity feed shows "Admin User from 🇭🇺 Hungary visited /admin" (real name)
-2. Globe spins automatically on page load
-3. User can drag globe to France → rotation stops
-4. Globe stays focused on France until page refresh
-5. Hovering on markers still shows tooltip (existing behavior)
-
+1. Activity feed shows last 1 hour of events (not just 5 minutes)
+2. Each event shows session status: "Active", "Idle", or "Session ended"
+3. Clicking on an activity item focuses the globe on that user's location
+4. Globe stops spinning and highlights the focused user
+5. Anonymous visitors still show anonymous names (correct behavior - they have no profile)
+6. Logged-in users show real names (already working for Admin User)
