@@ -5,48 +5,52 @@ import { generateAnonymousName } from "@/lib/anonymousNames";
 import { getCountryCode } from "@/lib/flagEmoji";
 
 export interface EnhancedActiveUser {
-  // Session data
+  // Identity - REAL DATA
   sessionId: string;
   userId: string | null;
+  userName: string | null;
+  displayName: string;
+  companyName: string | null;
+  buyerType: string | null;
+  jobTitle: string | null;
+  isAnonymous: boolean;
+  
+  // Location
   country: string | null;
   countryCode: string | null;
   city: string | null;
+  coordinates: { lat: number; lng: number } | null;
   
-  // Device/Tech data
+  // Tech Stack
   deviceType: 'mobile' | 'desktop' | 'tablet';
   browser: string | null;
   os: string | null;
   
-  // Traffic source
+  // Traffic Source
   referrer: string | null;
   utmSource: string | null;
   
-  // Timing
+  // Current Session
   sessionDurationSeconds: number;
   lastActiveAt: string;
   currentPage: string | null;
   
-  // User profile (if logged in)
-  userName: string | null;
-  displayName: string; // Either real name or anonymous name
-  companyName: string | null;
-  buyerType: string | null;
-  isAnonymous: boolean;
-  
-  // Intelligence metrics (calculated)
-  conversionLikelihood: number;
-  conversionVsAvg: number; // percentage vs average
-  estimatedValue: number;
+  // Real Engagement Metrics
+  listingsViewed: number;
+  listingsSaved: number;
+  connectionsSent: number;
   totalVisits: number;
+  totalTimeSpent: number;
+  searchCount: number;
   
-  // Geographic coordinates for map
-  coordinates: { lat: number; lng: number } | null;
+  // Trust Signals
+  feeAgreementSigned: boolean;
+  ndaSigned: boolean;
 }
 
 export interface EnhancedRealTimeData {
   activeUsers: EnhancedActiveUser[];
   totalActiveUsers: number;
-  totalEstimatedValue: number;
   
   // Aggregates for summary panel
   byCountry: Array<{ country: string; countryCode: string | null; count: number }>;
@@ -62,50 +66,6 @@ export interface EnhancedRealTimeData {
     listingTitle?: string;
     timestamp: string;
   }>;
-}
-
-// Calculate conversion likelihood based on engagement
-function calculateConversion(data: {
-  listingViews: number;
-  savedListings: number;
-  connectionRequests: number;
-  sessionCount: number;
-}): { score: number; vsAvg: number } {
-  let score = 0;
-  
-  // Engagement signals
-  score += Math.min(data.listingViews / 10 * 25, 25);
-  score += Math.min(data.savedListings / 5 * 30, 30);
-  score += Math.min(data.connectionRequests * 15, 30);
-  score += Math.min(data.sessionCount / 10 * 15, 15);
-  
-  // Compare to average (50) and express as percentage vs avg
-  const avgScore = 50;
-  const vsAvg = Math.round(((score - avgScore) / avgScore) * 100);
-  
-  return { score: Math.round(score), vsAvg };
-}
-
-// Calculate estimated value based on buyer type and engagement
-function calculateEstimatedValue(buyerType: string | null, conversionScore: number): number {
-  const baseValues: Record<string, number> = {
-    'privateEquity': 5.00,
-    'familyOffice': 4.00,
-    'corporate': 3.50,
-    'searchFund': 2.50,
-    'independentSponsor': 3.00,
-    'individual': 1.50,
-  };
-  
-  const base = baseValues[buyerType || ''] || 0.50;
-  
-  // Multiply by engagement level
-  const engagementMultiplier = 
-    conversionScore > 70 ? 2.0 :
-    conversionScore > 50 ? 1.5 :
-    conversionScore > 30 ? 1.0 : 0.5;
-  
-  return Math.round(base * engagementMultiplier * 100) / 100;
 }
 
 export function useEnhancedRealTimeAnalytics() {
@@ -145,12 +105,12 @@ export function useEnhancedRealTimeAnalytics() {
         .filter(s => s.user_id)
         .map(s => s.user_id as string);
       
-      // Fetch profiles for logged-in users
+      // Fetch profiles for logged-in users with real fields
       let profiles: Record<string, any> = {};
       if (userIds.length > 0) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, company_name, buyer_type')
+          .select('id, first_name, last_name, company, company_name, buyer_type, job_title, fee_agreement_signed, nda_signed')
           .in('id', userIds);
         
         profiles = (profileData || []).reduce((acc, p) => {
@@ -164,7 +124,7 @@ export function useEnhancedRealTimeAnalytics() {
       if (userIds.length > 0) {
         const { data: engagement } = await supabase
           .from('engagement_scores')
-          .select('user_id, listings_viewed, listings_saved, connections_requested, session_count')
+          .select('user_id, listings_viewed, listings_saved, connections_requested, session_count, total_session_time, search_count')
           .in('user_id', userIds);
         
         engagementData = (engagement || []).reduce((acc, e) => {
@@ -181,25 +141,16 @@ export function useEnhancedRealTimeAnalytics() {
         }
       });
       
-      // Build enhanced user objects
+      // Build enhanced user objects with REAL data
       const activeUsers: EnhancedActiveUser[] = sessions.map(session => {
         const profile = session.user_id ? profiles[session.user_id] : null;
         const engagement = session.user_id ? engagementData[session.user_id] : null;
         
         const isAnonymous = !profile;
-        const displayName = profile 
-          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User'
-          : generateAnonymousName(session.session_id);
-        
-        const conversionData = calculateConversion({
-          listingViews: engagement?.listings_viewed || 0,
-          savedListings: engagement?.listings_saved || 0,
-          connectionRequests: engagement?.connections_requested || 0,
-          sessionCount: engagement?.session_count || 1,
-        });
-        
-        const buyerType = profile?.buyer_type || null;
-        const estimatedValue = calculateEstimatedValue(buyerType, conversionData.score);
+        const realName = profile 
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+          : null;
+        const displayName = realName || generateAnonymousName(session.session_id);
         
         // Get coordinates
         let coordinates = getCoordinates(session.city, session.country);
@@ -210,9 +161,16 @@ export function useEnhancedRealTimeAnalytics() {
         return {
           sessionId: session.session_id,
           userId: session.user_id,
+          userName: realName,
+          displayName,
+          companyName: profile?.company || profile?.company_name || null,
+          buyerType: profile?.buyer_type || null,
+          jobTitle: profile?.job_title || null,
+          isAnonymous,
           country: session.country,
           countryCode: session.country_code || getCountryCode(session.country),
           city: session.city,
+          coordinates,
           deviceType: (session.device_type as 'mobile' | 'desktop' | 'tablet') || 'desktop',
           browser: session.browser,
           os: session.os,
@@ -221,16 +179,16 @@ export function useEnhancedRealTimeAnalytics() {
           sessionDurationSeconds: session.session_duration_seconds || 0,
           lastActiveAt: session.last_active_at || session.started_at,
           currentPage: sessionCurrentPage[session.session_id] || null,
-          userName: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : null,
-          displayName,
-          companyName: profile?.company_name || null,
-          buyerType,
-          isAnonymous,
-          conversionLikelihood: conversionData.score,
-          conversionVsAvg: conversionData.vsAvg,
-          estimatedValue,
+          // Real engagement metrics
+          listingsViewed: engagement?.listings_viewed || 0,
+          listingsSaved: engagement?.listings_saved || 0,
+          connectionsSent: engagement?.connections_requested || 0,
           totalVisits: engagement?.session_count || 1,
-          coordinates,
+          totalTimeSpent: engagement?.total_session_time || 0,
+          searchCount: engagement?.search_count || 0,
+          // Trust signals
+          feeAgreementSigned: profile?.fee_agreement_signed || false,
+          ndaSigned: profile?.nda_signed || false,
         };
       });
       
@@ -267,31 +225,7 @@ export function useEnhancedRealTimeAnalytics() {
         return {
           id: `event-${i}`,
           type: 'page_view' as const,
-          user: matchingUser || {
-            sessionId: pv.session_id || '',
-            userId: null,
-            country: null,
-            countryCode: null,
-            city: null,
-            deviceType: 'desktop' as const,
-            browser: null,
-            os: null,
-            referrer: null,
-            utmSource: null,
-            sessionDurationSeconds: 0,
-            lastActiveAt: pv.created_at,
-            currentPage: pv.page_path,
-            userName: null,
-            displayName: generateAnonymousName(pv.session_id || `anon-${i}`),
-            companyName: null,
-            buyerType: null,
-            isAnonymous: true,
-            conversionLikelihood: 20,
-            conversionVsAvg: -60,
-            estimatedValue: 0.25,
-            totalVisits: 1,
-            coordinates: null,
-          },
+          user: matchingUser || createDefaultUser(pv.session_id || `anon-${i}`, pv.page_path, pv.created_at),
           pagePath: pv.page_path,
           timestamp: pv.created_at,
         };
@@ -300,7 +234,6 @@ export function useEnhancedRealTimeAnalytics() {
       return {
         activeUsers,
         totalActiveUsers: activeUsers.length,
-        totalEstimatedValue: activeUsers.reduce((sum, u) => sum + u.estimatedValue, 0),
         byCountry: Object.entries(countryCounts)
           .map(([country, data]) => ({ country, countryCode: data.code, count: data.count }))
           .sort((a, b) => b.count - a.count),
@@ -314,6 +247,39 @@ export function useEnhancedRealTimeAnalytics() {
       };
     },
     staleTime: 5000,
-    refetchInterval: 10000, // Refresh every 10 seconds for real-time feel
+    refetchInterval: 10000,
   });
+}
+
+function createDefaultUser(sessionId: string, pagePath: string | null, timestamp: string): EnhancedActiveUser {
+  return {
+    sessionId,
+    userId: null,
+    userName: null,
+    displayName: generateAnonymousName(sessionId),
+    companyName: null,
+    buyerType: null,
+    jobTitle: null,
+    isAnonymous: true,
+    country: null,
+    countryCode: null,
+    city: null,
+    coordinates: null,
+    deviceType: 'desktop',
+    browser: null,
+    os: null,
+    referrer: null,
+    utmSource: null,
+    sessionDurationSeconds: 0,
+    lastActiveAt: timestamp,
+    currentPage: pagePath,
+    listingsViewed: 0,
+    listingsSaved: 0,
+    connectionsSent: 0,
+    totalVisits: 1,
+    totalTimeSpent: 0,
+    searchCount: 0,
+    feeAgreementSigned: false,
+    ndaSigned: false,
+  };
 }
