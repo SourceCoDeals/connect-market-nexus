@@ -8,8 +8,21 @@ export interface UTMParams {
   utm_content?: string;
 }
 
+// Extended UTM params with first-touch attribution
+export interface EnhancedUTMParams extends UTMParams {
+  // First-touch attribution (never overwritten once set)
+  first_touch_source?: string;
+  first_touch_medium?: string;
+  first_touch_campaign?: string;
+  first_touch_timestamp?: string;
+  // Landing page info
+  landing_page?: string;
+  landing_referrer?: string;
+}
+
 const UTM_STORAGE_KEY = 'utm_params';
 const UTM_EXPIRY_KEY = 'utm_expiry';
+const FIRST_TOUCH_KEY = 'first_touch_utm';
 const UTM_SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
 
 /**
@@ -53,15 +66,40 @@ export function useUTMParams() {
     const hasNewUtms = Object.values(newUtmParams).some(value => value !== undefined);
     
     if (hasNewUtms) {
-      // Store new UTM params with expiry
+      // Store new UTM params with expiry (last-touch)
       const expiryTime = Date.now() + UTM_SESSION_DURATION;
       sessionStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(newUtmParams));
       sessionStorage.setItem(UTM_EXPIRY_KEY, expiryTime.toString());
       setUtmParams(newUtmParams);
+      
+      // First-touch attribution - only set if not already present (localStorage persists)
+      const existingFirstTouch = localStorage.getItem(FIRST_TOUCH_KEY);
+      if (!existingFirstTouch) {
+        const firstTouchData: EnhancedUTMParams = {
+          first_touch_source: newUtmParams.utm_source,
+          first_touch_medium: newUtmParams.utm_medium,
+          first_touch_campaign: newUtmParams.utm_campaign,
+          first_touch_timestamp: new Date().toISOString(),
+          landing_page: window.location.pathname,
+          landing_referrer: document.referrer || undefined,
+        };
+        localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(firstTouchData));
+      }
     } else if (Object.keys(utmParams).length > 0) {
       // Update expiry time for existing UTM params (extend session)
       const expiryTime = Date.now() + UTM_SESSION_DURATION;
       sessionStorage.setItem(UTM_EXPIRY_KEY, expiryTime.toString());
+    }
+    
+    // Also store first-touch if this is the first visit (even without UTMs)
+    const existingFirstTouch = localStorage.getItem(FIRST_TOUCH_KEY);
+    if (!existingFirstTouch) {
+      const firstTouchData: EnhancedUTMParams = {
+        landing_page: window.location.pathname,
+        landing_referrer: document.referrer || undefined,
+        first_touch_timestamp: new Date().toISOString(),
+      };
+      localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(firstTouchData));
     }
   }, []);
 
@@ -88,4 +126,40 @@ export function getCurrentUTMParams(): UTMParams {
   }
   
   return {};
+}
+
+/**
+ * Get first-touch attribution data (persists across sessions in localStorage)
+ * Returns the UTM params and landing info from the user's first ever visit
+ */
+export function getFirstTouchAttribution(): EnhancedUTMParams {
+  try {
+    const stored = localStorage.getItem(FIRST_TOUCH_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Error reading first-touch attribution:', e);
+  }
+  return {};
+}
+
+/**
+ * Get full attribution data combining first-touch and last-touch
+ */
+export function getFullAttribution(): {
+  firstTouch: EnhancedUTMParams;
+  lastTouch: UTMParams;
+  landingPage: string | null;
+  originalReferrer: string | null;
+} {
+  const firstTouch = getFirstTouchAttribution();
+  const lastTouch = getCurrentUTMParams();
+  
+  return {
+    firstTouch,
+    lastTouch,
+    landingPage: firstTouch.landing_page || null,
+    originalReferrer: firstTouch.landing_referrer || null,
+  };
 }
