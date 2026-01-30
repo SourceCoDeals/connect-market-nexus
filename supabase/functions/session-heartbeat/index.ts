@@ -11,6 +11,7 @@ interface HeartbeatData {
   page_path?: string;
   scroll_depth?: number;
   is_focused?: boolean;
+  ended?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -33,6 +34,29 @@ Deno.serve(async (req) => {
       );
     }
 
+    const now = new Date();
+
+    // Handle session end (from beforeunload)
+    if (body.ended) {
+      const { error: endError } = await supabase
+        .from('user_sessions')
+        .update({
+          ended_at: now.toISOString(),
+          is_active: false,
+          updated_at: now.toISOString(),
+        })
+        .eq('session_id', body.session_id);
+
+      if (endError) {
+        console.error('Failed to end session:', endError);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, ended: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get current session to calculate duration
     const { data: session, error: selectError } = await supabase
       .from('user_sessions')
@@ -45,17 +69,37 @@ Deno.serve(async (req) => {
       throw selectError;
     }
 
+    // If session doesn't exist yet, create it (handles race condition)
     if (!session) {
-      console.log('Session not found:', body.session_id);
+      console.log('Session not found, creating:', body.session_id);
+      
+      const { error: insertError } = await supabase.from('user_sessions').insert({
+        session_id: body.session_id,
+        user_id: body.user_id || null,
+        started_at: now.toISOString(),
+        is_active: true,
+        last_active_at: now.toISOString(),
+        session_duration_seconds: 0,
+      });
+
+      if (insertError) {
+        // Might fail due to RLS or concurrent insert, but that's ok
+        console.log('Could not create session (may already exist):', insertError.message);
+      }
+
       return new Response(
-        JSON.stringify({ error: 'Session not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: true, 
+          created: true,
+          duration_seconds: 0,
+          last_active_at: now.toISOString()
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Calculate session duration
     const startedAt = new Date(session.started_at);
-    const now = new Date();
     const durationSeconds = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
 
     // Update session with heartbeat data
