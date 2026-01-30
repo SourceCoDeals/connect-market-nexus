@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePremiumAnalytics } from "@/hooks/usePremiumAnalytics";
 import { PremiumStatCard } from "./premium/PremiumStatCard";
@@ -18,10 +17,11 @@ const VELOCITY_SERIES = [
   { key: 'other', name: 'Other', color: 'hsl(160 60% 50%)' },
 ];
 
-export function PremiumAnalyticsDashboard() {
-  const [timeRange, setTimeRange] = useState("30");
-  const timeRangeDays = parseInt(timeRange);
-  
+interface PremiumAnalyticsDashboardProps {
+  timeRangeDays?: number;
+}
+
+export function PremiumAnalyticsDashboard({ timeRangeDays = 30 }: PremiumAnalyticsDashboardProps) {
   const { data, isLoading, error } = usePremiumAnalytics(timeRangeDays);
 
   if (isLoading) {
@@ -38,25 +38,6 @@ export function PremiumAnalyticsDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-light tracking-tight text-foreground">Deal Intelligence</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Real-time marketplace performance
-          </p>
-        </div>
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-[140px] h-9 rounded-xl border-border/50 bg-card">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {/* Hero Stats - 3 columns for cleaner impact */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
