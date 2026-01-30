@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { cn } from "@/lib/utils";
 import { UserTooltipCard } from "./UserTooltipCard";
@@ -18,15 +18,51 @@ export function PremiumGlobeMap({ users, onUserClick, className }: PremiumGlobeM
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [rotation, setRotation] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isManuallyPaused, setIsManuallyPaused] = useState(false);
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
   
-  // Auto-rotate the globe
+  // Auto-rotate the globe (unless manually paused by drag)
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || isManuallyPaused) return;
     const interval = setInterval(() => {
       setRotation(prev => (prev + 0.3) % 360);
     }, 50);
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, isManuallyPaused]);
+  
+  // Drag detection handlers
+  const handleGlobeMouseDown = (e: React.MouseEvent) => {
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+  };
+  
+  const handleGlobeMouseUp = (e: React.MouseEvent) => {
+    if (dragStartPos.current) {
+      const dx = Math.abs(e.clientX - dragStartPos.current.x);
+      const dy = Math.abs(e.clientY - dragStartPos.current.y);
+      // If moved more than 5px, consider it a drag and stop rotation
+      if (dx > 5 || dy > 5) {
+        setIsManuallyPaused(true);
+      }
+    }
+    dragStartPos.current = null;
+  };
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      dragStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+  
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (dragStartPos.current && e.changedTouches.length === 1) {
+      const dx = Math.abs(e.changedTouches[0].clientX - dragStartPos.current.x);
+      const dy = Math.abs(e.changedTouches[0].clientY - dragStartPos.current.y);
+      if (dx > 5 || dy > 5) {
+        setIsManuallyPaused(true);
+      }
+    }
+    dragStartPos.current = null;
+  };
   
   // Filter users with coordinates
   const usersWithCoords = useMemo(() => 
@@ -59,6 +95,10 @@ export function PremiumGlobeMap({ users, onUserClick, className }: PremiumGlobeM
         className
       )}
       onMouseMove={handleMouseMove}
+      onMouseDown={handleGlobeMouseDown}
+      onMouseUp={handleGlobeMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
         background: 'radial-gradient(ellipse at center, #0a1628 0%, #020617 100%)',
       }}
