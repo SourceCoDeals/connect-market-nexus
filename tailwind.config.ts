@@ -98,9 +98,37 @@ export default {
 					DEFAULT: 'hsl(var(--status-completed))',
 					foreground: 'hsl(var(--status-completed-foreground))'
 				},
-				notification: {
+			notification: {
 					DEFAULT: 'hsl(var(--notification))',
 					foreground: 'hsl(var(--notification-foreground))'
+				},
+				// Premium Analytics Colors
+				coral: {
+					50: 'hsl(0 100% 98%)',
+					100: 'hsl(0 100% 94%)',
+					200: 'hsl(0 100% 88%)',
+					300: 'hsl(0 85% 75%)',
+					400: 'hsl(0 82% 75%)',
+					500: 'hsl(0 65% 67%)',
+					600: 'hsl(0 72% 51%)',
+				},
+				peach: {
+					50: 'hsl(20 100% 98%)',
+					100: 'hsl(20 100% 94%)',
+					200: 'hsl(20 95% 88%)',
+					300: 'hsl(20 90% 80%)',
+					400: 'hsl(20 100% 78%)',
+					500: 'hsl(20 100% 70%)',
+				},
+				navy: {
+					50: 'hsl(220 30% 96%)',
+					100: 'hsl(220 30% 90%)',
+					200: 'hsl(220 30% 80%)',
+					600: 'hsl(220 50% 35%)',
+					700: 'hsl(220 55% 28%)',
+					800: 'hsl(220 60% 20%)',
+					900: 'hsl(220 65% 15%)',
+					950: 'hsl(220 70% 10%)',
 				}
 			},
 			borderRadius: {

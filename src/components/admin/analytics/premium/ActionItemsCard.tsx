@@ -1,139 +1,94 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { 
-  AlertCircle, 
-  Clock, 
-  UserPlus, 
-  Pause, 
-  ArrowRight,
-  CheckCircle2
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
-interface ActionItemsCardProps {
-  items: {
-    pendingRequests: number;
-    newSignupsToReview: number;
-    requestsOnHold: number;
-    staleListings: number;
-  };
+interface ActionItems {
+  pendingRequests: number;
+  newSignupsToReview: number;
+  requestsOnHold: number;
+  staleListings: number;
 }
 
-export function ActionItemsCard({ items }: ActionItemsCardProps) {
+interface ActionItemsCardProps {
+  items: ActionItems;
+  className?: string;
+}
+
+export function ActionItemsCard({ items, className }: ActionItemsCardProps) {
   const navigate = useNavigate();
   
   const actionItems = [
-    {
-      label: 'Pending Requests',
-      count: items.pendingRequests,
-      icon: Clock,
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-500/10',
-      priority: items.pendingRequests > 50 ? 'high' : items.pendingRequests > 10 ? 'medium' : 'low',
+    { 
+      label: 'Pending Requests', 
+      value: items.pendingRequests,
+      priority: items.pendingRequests > 10 ? 'high' : items.pendingRequests > 0 ? 'medium' : 'low',
       action: () => navigate('/admin'),
     },
-    {
-      label: 'New Signups to Review',
-      count: items.newSignupsToReview,
-      icon: UserPlus,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
-      priority: items.newSignupsToReview > 20 ? 'high' : items.newSignupsToReview > 5 ? 'medium' : 'low',
+    { 
+      label: 'New Signups', 
+      value: items.newSignupsToReview,
+      priority: items.newSignupsToReview > 5 ? 'high' : items.newSignupsToReview > 0 ? 'medium' : 'low',
       action: () => navigate('/admin'),
     },
-    {
-      label: 'Requests On Hold',
-      count: items.requestsOnHold,
-      icon: Pause,
-      color: 'text-violet-500',
-      bgColor: 'bg-violet-500/10',
-      priority: items.requestsOnHold > 10 ? 'high' : items.requestsOnHold > 3 ? 'medium' : 'low',
+    { 
+      label: 'On Hold', 
+      value: items.requestsOnHold,
+      priority: items.requestsOnHold > 5 ? 'medium' : 'low',
       action: () => navigate('/admin'),
     },
-  ].filter(item => item.count > 0);
+  ].filter(item => item.value > 0);
 
-  const totalItems = actionItems.reduce((sum, item) => sum + item.count, 0);
-  const hasHighPriority = actionItems.some(item => item.priority === 'high');
+  const getPriorityStyles = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-coral-500/10 text-coral-500 border-coral-500/20 hover:bg-coral-500/15';
+      case 'medium':
+        return 'bg-peach-400/10 text-peach-500 border-peach-400/20 hover:bg-peach-400/15';
+      default:
+        return 'bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted/70';
+    }
+  };
 
   return (
-    <Card className={cn(
-      "border-border/50 transition-all",
-      hasHighPriority && "border-amber-500/50 shadow-amber-500/10"
+    <div className={cn(
+      "rounded-2xl bg-card border border-border/50 p-6",
+      className
     )}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className={cn(
-              "h-5 w-5",
-              hasHighPriority ? "text-amber-500" : "text-muted-foreground"
-            )} />
-            <CardTitle className="text-lg font-semibold">Action Items</CardTitle>
-          </div>
-          {totalItems > 0 && (
-            <span className={cn(
-              "text-xs font-bold px-2 py-1 rounded-full",
-              hasHighPriority 
-                ? "bg-amber-500/10 text-amber-500" 
-                : "bg-muted text-muted-foreground"
-            )}>
-              {totalItems} pending
-            </span>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {actionItems.length > 0 ? (
-          <div className="space-y-3 mt-2">
-            {actionItems.map((item) => {
-              const Icon = item.icon;
-              
-              return (
-                <button
-                  key={item.label}
-                  onClick={item.action}
-                  className="w-full group flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-border hover:bg-muted/30 transition-all text-left"
-                >
-                  <div className={cn("rounded-lg p-2", item.bgColor)}>
-                    <Icon className={cn("h-4 w-4", item.color)} />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{item.label}</span>
-                      {item.priority === 'high' && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive">
-                          URGENT
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {item.count} item{item.count !== 1 ? 's' : ''} need attention
-                    </span>
-                  </div>
+      {/* Header */}
+      <div className="mb-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+          Action Items
+        </p>
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          Tasks requiring attention
+        </p>
+      </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold tabular-nums">
-                      {item.count}
-                    </span>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-success/10 mb-3">
-              <CheckCircle2 className="h-6 w-6 text-success" />
-            </div>
-            <p className="font-medium text-success">All caught up!</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              No pending action items
-            </p>
+      {/* Items */}
+      <div className="space-y-2">
+        {actionItems.map((item) => (
+          <button 
+            key={item.label}
+            onClick={item.action}
+            className={cn(
+              "w-full flex items-center justify-between p-3 rounded-xl border transition-all",
+              "hover:scale-[1.01] cursor-pointer",
+              getPriorityStyles(item.priority)
+            )}
+          >
+            <span className="text-sm font-medium">{item.label}</span>
+            <span className="text-lg font-semibold tabular-nums">
+              {item.value}
+            </span>
+          </button>
+        ))}
+
+        {actionItems.length === 0 && (
+          <div className="text-center py-6">
+            <p className="text-sm text-muted-foreground">All caught up!</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">No pending actions</p>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
