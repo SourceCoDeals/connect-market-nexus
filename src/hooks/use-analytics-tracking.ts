@@ -2,6 +2,15 @@ import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthState } from './auth/use-auth-state';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { 
+  trackGA4PageView, 
+  trackGA4Event, 
+  trackGA4Search, 
+  trackGA4ViewItem,
+  trackGA4AddToWishlist,
+  trackGA4GenerateLead,
+  setGA4UserId 
+} from '@/lib/ga4';
 
 interface TrackEventParams {
   eventType: string;
@@ -24,6 +33,13 @@ export function useAnalyticsTracking() {
   const sessionIdRef = useRef<string>(sessionId);
   const pageStartTimeRef = useRef<number>(Date.now());
   const currentPageRef = useRef<string>('');
+
+  // Set GA4 user ID when user logs in
+  useEffect(() => {
+    if (user?.id) {
+      setGA4UserId(user.id);
+    }
+  }, [user?.id]);
 
   // Create session record with UTM parameters
   useEffect(() => {
@@ -52,9 +68,12 @@ export function useAnalyticsTracking() {
     createSession();
   }, [user?.id, referrer, utmParams]);
 
-  // Track page views
+  // Track page views (Supabase + GA4)
   const trackPageView = useCallback(async ({ pagePath, pageTitle, referrer }: TrackPageViewParams) => {
     try {
+      // Track in GA4
+      trackGA4PageView(pagePath, pageTitle || document.title);
+      
       // End previous page view if exists
       if (currentPageRef.current) {
         const timeOnPage = Math.floor((Date.now() - pageStartTimeRef.current) / 1000);
@@ -82,9 +101,9 @@ export function useAnalyticsTracking() {
     } catch (error) {
       console.error('Failed to track page view:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, utmParams]);
 
-  // Track custom events
+  // Track custom events (Supabase + GA4)
   const trackEvent = useCallback(async ({ 
     eventType, 
     eventCategory, 
@@ -94,6 +113,16 @@ export function useAnalyticsTracking() {
     metadata 
   }: TrackEventParams) => {
     try {
+      // Track in GA4
+      trackGA4Event(eventType, {
+        event_category: eventCategory,
+        event_action: eventAction,
+        event_label: eventLabel,
+        value: eventValue,
+        ...metadata,
+      });
+      
+      // Track in Supabase
       await supabase.from('user_events').insert({
         session_id: sessionIdRef.current,
         user_id: user?.id || null,
@@ -113,15 +142,25 @@ export function useAnalyticsTracking() {
     } catch (error) {
       console.error('Failed to track event:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, utmParams]);
 
-  // Track listing interactions
+  // Track listing interactions (Supabase + GA4)
   const trackListingInteraction = useCallback(async (
     listingId: string, 
     actionType: 'view' | 'save' | 'unsave' | 'request_connection' | 'share',
     metadata?: Record<string, any>
   ) => {
     try {
+      // Track in GA4 with appropriate event
+      if (actionType === 'view') {
+        trackGA4ViewItem(listingId, metadata?.listingTitle || listingId, metadata?.category);
+      } else if (actionType === 'save') {
+        trackGA4AddToWishlist(listingId, metadata?.listingTitle || listingId, metadata?.category);
+      } else if (actionType === 'request_connection') {
+        trackGA4GenerateLead(listingId, metadata?.listingTitle || listingId);
+      }
+      
+      // Track in Supabase
       await supabase.from('listing_analytics').insert({
         listing_id: listingId,
         user_id: user?.id || null,
@@ -150,9 +189,9 @@ export function useAnalyticsTracking() {
     } catch (error) {
       console.error('Failed to track listing interaction:', error);
     }
-  }, [user?.id, trackEvent]);
+  }, [user?.id, trackEvent, utmParams]);
 
-  // Track search
+  // Track search (Supabase + GA4)
   const trackSearch = useCallback(async (
     searchQuery: string,
     filters: Record<string, any>,
@@ -161,6 +200,10 @@ export function useAnalyticsTracking() {
     searchSessionId?: string
   ) => {
     try {
+      // Track in GA4
+      trackGA4Search(searchQuery, resultsCount);
+      
+      // Track in Supabase
       await supabase.from('search_analytics').insert({
         session_id: sessionIdRef.current,
         user_id: user?.id || null,

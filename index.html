@@ -42,6 +42,26 @@
     <link rel="preconnect" href="https://vhzipqarkmmfuqadefep.supabase.co" />
     <link rel="dns-prefetch" href="https://vhzipqarkmmfuqadefep.supabase.co" />
     
+    <!-- Google Analytics 4 with Cross-Domain Tracking -->
+    <!-- IMPORTANT: Replace G-XXXXXXXXXX with your actual GA4 Measurement ID -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX', {
+        // Cross-domain tracking for your domains
+        linker: {
+          domains: ['sourcecodeals.com', 'marketplace.sourcecodeals.com', 'market.sourcecodeals.com'],
+          accept_incoming: true
+        },
+        // Use subdomain cookie for shared tracking
+        cookie_domain: '.sourcecodeals.com',
+        // Let the SPA handle page views
+        send_page_view: false
+      });
+    </script>
+    
     <!-- Structured Data for SEO -->
     <script type="application/ld+json">
     {

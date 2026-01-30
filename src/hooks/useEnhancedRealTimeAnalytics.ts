@@ -104,28 +104,55 @@ function calculateDuration(session: {
 }
 
 // Helper to normalize referrer to a readable source name
+// FIXED: Uses exact domain matching to prevent false positives (e.g., JWT tokens matching "t.co")
 function normalizeReferrer(referrer: string | null, utmSource: string | null): string {
   const source = referrer?.toLowerCase() || utmSource?.toLowerCase() || '';
   
   if (!source) return 'Direct';
-  if (source.includes('google')) return 'Google';
-  if (source.includes('facebook') || source.includes('fb.')) return 'Facebook';
-  if (source.includes('linkedin')) return 'LinkedIn';
-  if (source.includes('twitter') || source.includes('x.com') || source.includes('t.co')) return 'X (Twitter)';
-  if (source.includes('instagram')) return 'Instagram';
-  if (source.includes('tiktok')) return 'TikTok';
-  if (source.includes('youtube')) return 'YouTube';
-  if (source.includes('reddit')) return 'Reddit';
-  if (source.includes('lovable.dev') || source.includes('lovable.app')) return 'Lovable';
-  if (source.includes('bing')) return 'Bing';
   
-  // Try to extract domain name
+  // Parse as URL for accurate domain matching
+  let hostname = '';
   try {
     const url = new URL(source.startsWith('http') ? source : `https://${source}`);
-    return url.hostname.replace('www.', '');
+    hostname = url.hostname.replace('www.', '');
   } catch {
-    return 'Referral';
+    // If it can't parse as URL, check if source itself matches known patterns
+    hostname = source;
   }
+  
+  // Check against EXACT domains - order matters for specificity
+  // Social Media
+  if (hostname === 'twitter.com' || hostname === 'x.com' || hostname === 't.co') return 'X (Twitter)';
+  if (hostname.includes('facebook.') || hostname === 'fb.com' || hostname.includes('fb.me')) return 'Facebook';
+  if (hostname.includes('linkedin.')) return 'LinkedIn';
+  if (hostname.includes('instagram.')) return 'Instagram';
+  if (hostname.includes('tiktok.')) return 'TikTok';
+  if (hostname.includes('youtube.') || hostname === 'youtu.be') return 'YouTube';
+  if (hostname.includes('reddit.')) return 'Reddit';
+  
+  // Search Engines
+  if (hostname.includes('google.')) return 'Google';
+  if (hostname.includes('bing.')) return 'Bing';
+  if (hostname.includes('duckduckgo.')) return 'DuckDuckGo';
+  if (hostname.includes('yahoo.')) return 'Yahoo';
+  
+  // Email Marketing - Brevo/Sendinblue domains
+  if (hostname.includes('brevo.') || hostname.includes('sendib') || hostname.includes('sendinblue')) return 'Email (Brevo)';
+  if (hostname.includes('mailchimp.')) return 'Email (Mailchimp)';
+  
+  // Development/Preview
+  if (hostname.includes('lovable.dev') || hostname.includes('lovable.app') || hostname.includes('lovableproject.com')) return 'Lovable';
+  if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) return 'Localhost';
+  
+  // Your own domain
+  if (hostname.includes('sourcecodeals.com') || hostname.includes('sourceco')) return 'SourceCoDeals';
+  
+  // Microsoft/Enterprise
+  if (hostname.includes('teams.') || hostname.includes('office.net') || hostname.includes('microsoft.')) return 'Microsoft Teams';
+  if (hostname.includes('slack.')) return 'Slack';
+  
+  // Return cleaned hostname if valid, otherwise "Referral"
+  return hostname && hostname.length > 0 && hostname.includes('.') ? hostname : 'Referral';
 }
 
 export function useEnhancedRealTimeAnalytics() {

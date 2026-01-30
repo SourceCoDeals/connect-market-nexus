@@ -46,7 +46,7 @@ export const useInitialSessionTracking = () => {
         
         console.log('🎯 Starting initial session tracking, sessionId:', sessionId);
 
-        // Prepare tracking data for edge function
+        // Prepare tracking data for edge function with enhanced landing info
         const trackingData = {
           session_id: sessionId,
           user_id: user?.id || null,
@@ -60,6 +60,10 @@ export const useInitialSessionTracking = () => {
           utm_campaign: utmParams.utm_campaign || null,
           utm_term: utmParams.utm_term || null,
           utm_content: utmParams.utm_content || null,
+          // Enhanced landing page tracking
+          landing_url: window.location.href,
+          landing_path: window.location.pathname,
+          landing_search: window.location.search,
         };
 
         console.log('📤 Sending session data to track-session edge function');
