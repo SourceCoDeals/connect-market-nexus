@@ -27,6 +27,13 @@ interface SessionData {
   utm_campaign?: string;
   utm_term?: string;
   utm_content?: string;
+  // New GA4 and first-touch fields
+  ga4_client_id?: string;
+  first_touch_source?: string;
+  first_touch_medium?: string;
+  first_touch_campaign?: string;
+  first_touch_landing_page?: string;
+  first_touch_referrer?: string;
 }
 
 async function getGeoData(ip: string): Promise<GeoData | null> {
@@ -147,7 +154,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create new session with all data
+    // Create new session with all data including GA4 and first-touch attribution
     const { error: insertError } = await supabase.from('user_sessions').insert({
       session_id: body.session_id,
       user_id: body.user_id || null,
@@ -168,6 +175,13 @@ Deno.serve(async (req) => {
       utm_campaign: body.utm_campaign || null,
       utm_term: body.utm_term || null,
       utm_content: body.utm_content || null,
+      // GA4 and first-touch attribution
+      ga4_client_id: body.ga4_client_id || null,
+      first_touch_source: body.first_touch_source || null,
+      first_touch_medium: body.first_touch_medium || null,
+      first_touch_campaign: body.first_touch_campaign || null,
+      first_touch_landing_page: body.first_touch_landing_page || null,
+      first_touch_referrer: body.first_touch_referrer || null,
       is_active: true,
       last_active_at: new Date().toISOString(),
     });

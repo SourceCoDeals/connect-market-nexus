@@ -139,6 +139,21 @@ function ActivityEventRow({
             {displayPath}
           </code>
         </p>
+        
+        {/* Entry source and journey preview */}
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] text-white/50">via</span>
+          <span className="text-[10px] font-medium text-coral-400">{user.entrySource}</span>
+          {user.pageSequence && user.pageSequence.length > 1 && (
+            <>
+              <span className="text-white/20">•</span>
+              <span className="text-[10px] text-white/40">
+                {user.pageSequence.length} pages
+              </span>
+            </>
+          )}
+        </div>
+        
         <div className="flex items-center gap-2 mt-0.5">
           <p className="text-[10px] text-white/40">{timeAgo}</p>
           <span className="text-white/20">•</span>

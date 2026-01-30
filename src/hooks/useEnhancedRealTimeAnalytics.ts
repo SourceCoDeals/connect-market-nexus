@@ -30,6 +30,14 @@ export interface EnhancedActiveUser {
   referrer: string | null;
   utmSource: string | null;
   
+  // Entry/Attribution Data - NEW
+  entrySource: string;             // Normalized: "Google", "LinkedIn", "Direct", etc.
+  firstPagePath: string | null;    // Landing page path
+  pageSequence: string[];          // All pages visited this session
+  ga4ClientId: string | null;      // For GA4 data stitching
+  firstTouchSource: string | null; // Original acquisition source
+  firstTouchMedium: string | null; // Original acquisition medium
+  
   // Current Session
   sessionDurationSeconds: number;
   lastActiveAt: string;
@@ -59,6 +67,7 @@ export interface EnhancedRealTimeData {
   byCountry: Array<{ country: string; countryCode: string | null; count: number }>;
   byDevice: Array<{ device: string; count: number }>;
   byReferrer: Array<{ referrer: string; count: number }>;
+  byEntrySource: Array<{ source: string; count: number }>; // NEW: Entry source breakdown
   
   // Recent activity events
   recentEvents: Array<{
@@ -162,14 +171,16 @@ export function useEnhancedRealTimeAnalytics() {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       
-      // Fetch active sessions with profile data - include sessions with recent started_at OR last_active_at
+      // Fetch active sessions with profile data - include new GA4 and first-touch fields
       const [sessionsResult, pageViewsResult] = await Promise.all([
         supabase
           .from('user_sessions')
           .select(`
             id, session_id, user_id, country, country_code, city, region,
             device_type, browser, os, referrer, utm_source,
-            session_duration_seconds, last_active_at, started_at, is_active
+            session_duration_seconds, last_active_at, started_at, is_active,
+            ga4_client_id, first_touch_source, first_touch_medium, first_touch_campaign,
+            first_touch_landing_page, first_touch_referrer
           `)
           .or(`last_active_at.gte.${oneHourAgo},started_at.gte.${oneHourAgo}`)
           .order('last_active_at', { ascending: false, nullsFirst: false })
@@ -236,12 +247,34 @@ export function useEnhancedRealTimeAnalytics() {
         }, {} as Record<string, any>);
       }
       
-      // Get current page for each session
+      // Get current page AND build page sequence for each session
       const sessionCurrentPage: Record<string, string> = {};
+      const sessionPageSequence: Record<string, string[]> = {};
+      const sessionFirstPage: Record<string, string> = {};
+      
+      // Process page views in reverse chronological order to build sequences
       pageViews.forEach(pv => {
-        if (pv.session_id && !sessionCurrentPage[pv.session_id]) {
-          sessionCurrentPage[pv.session_id] = pv.page_path;
+        if (pv.session_id) {
+          // Track current page (most recent)
+          if (!sessionCurrentPage[pv.session_id]) {
+            sessionCurrentPage[pv.session_id] = pv.page_path;
+          }
+          // Build page sequence (will be in reverse order, we'll reverse later)
+          if (!sessionPageSequence[pv.session_id]) {
+            sessionPageSequence[pv.session_id] = [];
+          }
+          // Add to sequence if not already present (dedup consecutive same pages)
+          const seq = sessionPageSequence[pv.session_id];
+          if (seq.length === 0 || seq[seq.length - 1] !== pv.page_path) {
+            seq.push(pv.page_path);
+          }
         }
+      });
+      
+      // Reverse sequences to be in chronological order, first page is the landing page
+      Object.keys(sessionPageSequence).forEach(sid => {
+        sessionPageSequence[sid] = sessionPageSequence[sid].reverse();
+        sessionFirstPage[sid] = sessionPageSequence[sid][0] || null;
       });
       
       // Build enhanced user objects with REAL data
@@ -264,6 +297,16 @@ export function useEnhancedRealTimeAnalytics() {
         const lastActiveAt = session.last_active_at || session.started_at;
         const sessionStatus = getSessionStatus(lastActiveAt);
         
+        // Entry source - use first-touch if available, otherwise derive from referrer
+        const entrySource = normalizeReferrer(
+          (session as any).first_touch_referrer || session.referrer, 
+          (session as any).first_touch_source || session.utm_source
+        );
+        
+        // Page sequence for this session
+        const pageSequence = sessionPageSequence[session.session_id] || [];
+        const firstPagePath = (session as any).first_touch_landing_page || sessionFirstPage[session.session_id] || null;
+        
         return {
           sessionId: session.session_id,
           userId: session.user_id,
@@ -282,6 +325,14 @@ export function useEnhancedRealTimeAnalytics() {
           os: session.os,
           referrer: session.referrer,
           utmSource: session.utm_source,
+          // Entry/Attribution - NEW
+          entrySource,
+          firstPagePath,
+          pageSequence,
+          ga4ClientId: (session as any).ga4_client_id || null,
+          firstTouchSource: (session as any).first_touch_source || null,
+          firstTouchMedium: (session as any).first_touch_medium || null,
+          // Current session
           sessionDurationSeconds: calculateDuration(session),
           lastActiveAt,
           currentPage: sessionCurrentPage[session.session_id] || null,
@@ -303,6 +354,7 @@ export function useEnhancedRealTimeAnalytics() {
       const countryCounts: Record<string, { count: number; code: string | null }> = {};
       const deviceCounts: Record<string, number> = {};
       const referrerCounts: Record<string, number> = {};
+      const entrySourceCounts: Record<string, number> = {};
       
       activeUsers.forEach(user => {
         // Country
@@ -319,6 +371,9 @@ export function useEnhancedRealTimeAnalytics() {
         // Referrer - use improved normalizer
         const normalizedRef = normalizeReferrer(user.referrer, user.utmSource);
         referrerCounts[normalizedRef] = (referrerCounts[normalizedRef] || 0) + 1;
+        
+        // Entry source
+        entrySourceCounts[user.entrySource] = (entrySourceCounts[user.entrySource] || 0) + 1;
       });
       
       // Recent events - look up user by session's user_id, not just active sessions
@@ -352,6 +407,14 @@ export function useEnhancedRealTimeAnalytics() {
               os: null,
               referrer: null,
               utmSource: null,
+              // Entry/Attribution
+              entrySource: 'Direct',
+              firstPagePath: pv.page_path,
+              pageSequence: [pv.page_path],
+              ga4ClientId: null,
+              firstTouchSource: null,
+              firstTouchMedium: null,
+              // Session
               sessionDurationSeconds: 0,
               lastActiveAt: pv.created_at,
               currentPage: pv.page_path,
@@ -389,6 +452,9 @@ export function useEnhancedRealTimeAnalytics() {
         byReferrer: Object.entries(referrerCounts)
           .map(([referrer, count]) => ({ referrer, count }))
           .sort((a, b) => b.count - a.count),
+        byEntrySource: Object.entries(entrySourceCounts)
+          .map(([source, count]) => ({ source, count }))
+          .sort((a, b) => b.count - a.count),
         recentEvents,
       };
     },
@@ -416,6 +482,14 @@ function createDefaultUser(sessionId: string, pagePath: string | null, timestamp
     os: null,
     referrer: null,
     utmSource: null,
+    // Entry/Attribution
+    entrySource: 'Direct',
+    firstPagePath: pagePath,
+    pageSequence: pagePath ? [pagePath] : [],
+    ga4ClientId: null,
+    firstTouchSource: null,
+    firstTouchMedium: null,
+    // Session
     sessionDurationSeconds: 0,
     lastActiveAt: timestamp,
     currentPage: pagePath,

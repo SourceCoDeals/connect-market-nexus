@@ -4878,6 +4878,12 @@ export type Database = {
           created_at: string | null
           device_type: string | null
           ended_at: string | null
+          first_touch_campaign: string | null
+          first_touch_landing_page: string | null
+          first_touch_medium: string | null
+          first_touch_referrer: string | null
+          first_touch_source: string | null
+          ga4_client_id: string | null
           id: string
           ip_address: unknown
           is_active: boolean | null
@@ -4906,6 +4912,12 @@ export type Database = {
           created_at?: string | null
           device_type?: string | null
           ended_at?: string | null
+          first_touch_campaign?: string | null
+          first_touch_landing_page?: string | null
+          first_touch_medium?: string | null
+          first_touch_referrer?: string | null
+          first_touch_source?: string | null
+          ga4_client_id?: string | null
           id?: string
           ip_address?: unknown
           is_active?: boolean | null
@@ -4934,6 +4946,12 @@ export type Database = {
           created_at?: string | null
           device_type?: string | null
           ended_at?: string | null
+          first_touch_campaign?: string | null
+          first_touch_landing_page?: string | null
+          first_touch_medium?: string | null
+          first_touch_referrer?: string | null
+          first_touch_source?: string | null
+          ga4_client_id?: string | null
           id?: string
           ip_address?: unknown
           is_active?: boolean | null

@@ -8,7 +8,7 @@ import { LiveActivityFeed } from "./LiveActivityFeed";
 export function RealTimeTab() {
   const { data, isLoading, error } = useEnhancedRealTimeAnalytics();
   const [activeFilter, setActiveFilter] = useState<{ 
-    type: 'country' | 'device' | 'referrer'; 
+    type: 'country' | 'device' | 'referrer' | 'entrySource'; 
     value: string 
   } | null>(null);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
@@ -31,6 +31,8 @@ export function RealTimeTab() {
             referrer.includes('linkedin') ? 'LinkedIn' :
             referrer === 'Direct' ? 'Direct' : 'Other';
           return normalized === activeFilter.value;
+        case 'entrySource':
+          return user.entrySource === activeFilter.value;
         default:
           return true;
       }
