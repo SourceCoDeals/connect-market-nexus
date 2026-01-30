@@ -20,16 +20,38 @@ export interface PremiumAnalyticsData {
   conversionRateTrend: number;
   conversionRateSparkline: number[];
   
-  // Buyer breakdown
+  // Buyer breakdown for transaction panel
   buyerTypeBreakdown: Array<{
     type: string;
     count: number;
     percentage: number;
   }>;
+
+  // Transaction activity (accounts + connections by type)
+  transactionActivity: Array<{
+    type: string;
+    accounts: number;
+    connections: number;
+  }>;
   
   // Connection velocity (daily data for chart)
   connectionVelocity: Array<{
     date: string;
+    count: number;
+  }>;
+
+  // Multi-series velocity by buyer type
+  velocityByBuyerType: Array<{
+    date: string;
+    pe: number;
+    individual: number;
+    searchFund: number;
+    other: number;
+  }>;
+  
+  // Geography data
+  buyerGeography: Array<{
+    region: string;
     count: number;
   }>;
   
@@ -54,6 +76,16 @@ export interface PremiumAnalyticsData {
     title: string;
     connectionCount: number;
     category: string;
+  }>;
+  
+  // Recent activity for feed
+  recentActivity: Array<{
+    id: string;
+    userName: string;
+    userType: string;
+    action: string;
+    timestamp: string;
+    targetTitle?: string;
   }>;
   
   // Action items
@@ -86,11 +118,13 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         newSignupsResult,
         onHoldRequestsResult,
         introductionsResult,
+        recentActivityResult,
+        geographyResult,
       ] = await Promise.all([
         // Connection requests in current period
         supabase
           .from('connection_requests')
-          .select('id, created_at, status')
+          .select('id, created_at, status, user_id')
           .gte('created_at', startDate.toISOString()),
           
         // Connection requests in previous period
@@ -103,7 +137,7 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         // Approved profiles in current period
         supabase
           .from('profiles')
-          .select('id, created_at, approval_status')
+          .select('id, created_at, approval_status, buyer_type')
           .eq('approval_status', 'approved'),
           
         // Approved profiles created in previous period (for trend)
@@ -114,10 +148,10 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
           .gte('created_at', previousPeriodStart.toISOString())
           .lt('created_at', startDate.toISOString()),
           
-        // Buyer type breakdown
+        // Buyer type breakdown with connection counts
         supabase
           .from('profiles')
-          .select('buyer_type')
+          .select('id, buyer_type')
           .eq('approval_status', 'approved')
           .not('buyer_type', 'is', null),
           
@@ -164,6 +198,25 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
           .from('connection_requests')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'approved'),
+
+        // Recent activity - get latest connection requests with user info
+        supabase
+          .from('connection_requests')
+          .select(`
+            id,
+            created_at,
+            user_id,
+            listings!connection_requests_listing_id_fkey(title)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(10),
+
+        // Geography from profiles
+        supabase
+          .from('profiles')
+          .select('target_locations')
+          .eq('approval_status', 'approved')
+          .not('target_locations', 'is', null),
       ]);
 
       const connectionRequests = connectionRequestsResult.data || [];
@@ -173,6 +226,19 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
       const buyerTypes = buyerTypesResult.data || [];
       const listings = listingsResult.data || [];
       const topListingsData = topListingsResult.data || [];
+      const recentActivityData = recentActivityResult.data || [];
+      const geographyData = geographyResult.data || [];
+
+      // Get user details for recent activity
+      const userIds = [...new Set(recentActivityData.map(r => r.user_id).filter(Boolean))];
+      let userProfiles: any[] = [];
+      if (userIds.length > 0) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, buyer_type')
+          .in('id', userIds);
+        userProfiles = data || [];
+      }
 
       // Calculate connection requests metrics
       const connectionRequestsCount = connectionRequests.length;
@@ -199,24 +265,63 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         ? (approvedRequests / connectionRequestsCount) * 100
         : 0;
 
-      // Buyer type breakdown
-      const buyerTypeCounts: Record<string, number> = {};
+      // Buyer type breakdown with connection counts
+      const buyerTypeCounts: Record<string, { accounts: number; connections: number }> = {};
+      const userBuyerTypes: Record<string, string> = {};
+      
       buyerTypes.forEach(p => {
         const type = p.buyer_type || 'Other';
-        buyerTypeCounts[type] = (buyerTypeCounts[type] || 0) + 1;
+        const formattedType = formatBuyerType(type);
+        if (!buyerTypeCounts[formattedType]) {
+          buyerTypeCounts[formattedType] = { accounts: 0, connections: 0 };
+        }
+        buyerTypeCounts[formattedType].accounts += 1;
+        userBuyerTypes[p.id] = formattedType;
+      });
+
+      // Count connections by buyer type
+      connectionRequests.forEach(req => {
+        if (req.user_id && userBuyerTypes[req.user_id]) {
+          buyerTypeCounts[userBuyerTypes[req.user_id]].connections += 1;
+        }
       });
       
       const totalBuyers = buyerTypes.length;
       const buyerTypeBreakdown = Object.entries(buyerTypeCounts)
-        .map(([type, count]) => ({
-          type: formatBuyerType(type),
-          count,
-          percentage: totalBuyers > 0 ? (count / totalBuyers) * 100 : 0,
+        .map(([type, data]) => ({
+          type,
+          count: data.accounts,
+          percentage: totalBuyers > 0 ? (data.accounts / totalBuyers) * 100 : 0,
         }))
         .sort((a, b) => b.count - a.count);
 
+      const transactionActivity = Object.entries(buyerTypeCounts)
+        .map(([type, data]) => ({
+          type,
+          accounts: data.accounts,
+          connections: data.connections,
+        }))
+        .sort((a, b) => b.accounts - a.accounts);
+
       // Connection velocity (daily data)
       const connectionVelocity = generateDailyData(connectionRequests, timeRangeDays);
+
+      // Multi-series velocity by buyer type (weekly buckets for cleaner display)
+      const velocityByBuyerType = generateVelocityByType(connectionRequests, userBuyerTypes, timeRangeDays);
+
+      // Geography data
+      const geographyCounts: Record<string, number> = {};
+      geographyData.forEach(profile => {
+        const locations = profile.target_locations as string[] | null;
+        if (locations) {
+          locations.forEach(loc => {
+            geographyCounts[loc] = (geographyCounts[loc] || 0) + 1;
+          });
+        }
+      });
+      const buyerGeography = Object.entries(geographyCounts)
+        .map(([region, count]) => ({ region, count }))
+        .sort((a, b) => b.count - a.count);
 
       // Listing performance by category
       const categoryPerformance: Record<string, { connections: number; listings: number }> = {};
@@ -264,6 +369,21 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         .sort((a, b) => b.connectionCount - a.connectionCount)
         .slice(0, 5);
 
+      // Recent activity
+      const userProfileMap = new Map(userProfiles.map(p => [p.id, p]));
+      const recentActivity = recentActivityData.map(activity => {
+        const user = userProfileMap.get(activity.user_id);
+        const listing = activity.listings as any;
+        return {
+          id: activity.id,
+          userName: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown' : 'Unknown',
+          userType: user ? formatBuyerType(user.buyer_type || 'Unknown') : 'Unknown',
+          action: 'connection_request',
+          timestamp: activity.created_at,
+          targetTitle: listing?.title || undefined,
+        };
+      });
+
       // Funnel data
       const totalSignups = approvedProfiles.length + (newSignupsResult.count || 0);
       
@@ -284,11 +404,14 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         ),
         
         conversionRate,
-        conversionRateTrend: 0, // Would need historical data to calculate
+        conversionRateTrend: 0,
         conversionRateSparkline: [18, 22, 19, 24, 21, 23, conversionRate],
         
         buyerTypeBreakdown,
+        transactionActivity,
         connectionVelocity,
+        velocityByBuyerType,
+        buyerGeography,
         listingPerformance,
         
         funnelData: {
@@ -299,17 +422,18 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         },
         
         topListings,
+        recentActivity,
         
         actionItems: {
           pendingRequests: pendingRequestsResult.count || 0,
           newSignupsToReview: newSignupsResult.count || 0,
           requestsOnHold: onHoldRequestsResult.count || 0,
-          staleListings: 0, // Would need additional query
+          staleListings: 0,
         },
       };
     },
-    staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // 1 minute
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -354,6 +478,47 @@ function generateDailyData(
     result.push({
       date: format(dayStart, 'MMM d'),
       count,
+    });
+  }
+  
+  return result;
+}
+
+function generateVelocityByType(
+  requests: Array<{ created_at: string; user_id: string | null }>,
+  userBuyerTypes: Record<string, string>,
+  days: number
+): Array<{ date: string; pe: number; individual: number; searchFund: number; other: number }> {
+  const now = new Date();
+  const bucketSize = days <= 7 ? 1 : days <= 30 ? 7 : 14; // Daily, weekly, or bi-weekly
+  const numBuckets = Math.ceil(days / bucketSize);
+  const result: Array<{ date: string; pe: number; individual: number; searchFund: number; other: number }> = [];
+  
+  for (let i = numBuckets - 1; i >= 0; i--) {
+    const bucketEnd = subDays(now, i * bucketSize);
+    const bucketStart = subDays(now, (i + 1) * bucketSize);
+    
+    const counts = { pe: 0, individual: 0, searchFund: 0, other: 0 };
+    
+    requests.forEach(req => {
+      const date = new Date(req.created_at);
+      if (date >= bucketStart && date < bucketEnd) {
+        const buyerType = req.user_id ? userBuyerTypes[req.user_id] : null;
+        if (buyerType?.toLowerCase().includes('equity')) {
+          counts.pe += 1;
+        } else if (buyerType?.toLowerCase().includes('individual')) {
+          counts.individual += 1;
+        } else if (buyerType?.toLowerCase().includes('search')) {
+          counts.searchFund += 1;
+        } else {
+          counts.other += 1;
+        }
+      }
+    });
+    
+    result.push({
+      date: format(bucketEnd, 'MMM d'),
+      ...counts,
     });
   }
   
