@@ -14,7 +14,10 @@ interface TrackingData {
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
   user_agent: string;
+  ga4_client_id?: string;
 }
 
 interface ParsedUserAgent {
@@ -226,7 +229,7 @@ Deno.serve(async (req) => {
     // Get short referrer
     const shortReferrer = getShortReferrer(trackingData.referrer);
 
-    // Prepare initial session data
+    // Prepare initial session data with GA4 client ID and full UTM params
     const initialSessionData = {
       user_id: trackingData.user_id,
       session_id: trackingData.session_id,
@@ -237,11 +240,14 @@ Deno.serve(async (req) => {
       utm_source: trackingData.utm_source || null,
       utm_medium: trackingData.utm_medium || null,
       utm_campaign: trackingData.utm_campaign || null,
+      utm_term: trackingData.utm_term || null,
+      utm_content: trackingData.utm_content || null,
       browser: userAgentData.browser,
       browser_type: userAgentData.browser_type,
       device_type: userAgentData.device_type,
       platform: userAgentData.platform,
       marketing_channel: marketingChannel,
+      ga4_client_id: trackingData.ga4_client_id || null,
       location: null, // Will be populated later if we add IP geolocation
       first_seen_at: new Date().toISOString(),
     };
