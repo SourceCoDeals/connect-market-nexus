@@ -4,8 +4,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PremiumGlobeMap } from "./PremiumGlobeMap";
 import { RealTimeSummaryPanel } from "./RealTimeSummaryPanel";
 import { LiveActivityFeed } from "./LiveActivityFeed";
-import { ActiveSessionsList } from "./ActiveSessionsList";
-import { cn } from "@/lib/utils";
 
 export function RealTimeTab() {
   const { data, isLoading, error } = useEnhancedRealTimeAnalytics();
@@ -67,105 +65,31 @@ export function RealTimeTab() {
         </div>
       )}
 
-      {/* Main layout: Map + Summary panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Globe Map - 3 columns */}
-        <div className="lg:col-span-3">
-          <PremiumGlobeMap 
-            users={filteredUsers}
-            onUserClick={(user) => console.log('User clicked:', user)}
-          />
-        </div>
-
-        {/* Summary Panel - 1 column */}
-        <div className="lg:col-span-1">
+      {/* Premium overlay layout */}
+      <div className="relative min-h-[600px] h-[70vh]">
+        {/* Full-size globe */}
+        <PremiumGlobeMap 
+          users={filteredUsers}
+          onUserClick={(user) => console.log('User clicked:', user)}
+          className="absolute inset-0"
+        />
+        
+        {/* Floating summary panel - top left */}
+        <div className="absolute top-4 left-4 w-72 z-10">
           <RealTimeSummaryPanel 
             data={data}
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
           />
         </div>
-      </div>
-
-      {/* Bottom row: Activity Feed + Session List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Live Activity Feed */}
-        <LiveActivityFeed 
-          events={data.recentEvents}
-          onUserClick={(sessionId) => console.log('Filter to user:', sessionId)}
-        />
-
-        {/* Active Sessions List */}
-        <ActiveSessionsList 
-          sessions={data.activeUsers.slice(0, 10).map(u => ({
-            sessionId: u.sessionId,
-            userId: u.userId,
-            country: u.country,
-            city: u.city,
-            lastActiveAt: u.lastActiveAt,
-            durationSeconds: u.sessionDurationSeconds,
-          }))} 
-        />
-      </div>
-
-      {/* Duration distribution card */}
-      <DurationDistributionCard users={data.activeUsers} />
-    </div>
-  );
-}
-
-function DurationDistributionCard({ users }: { 
-  users: Array<{ sessionDurationSeconds: number }> 
-}) {
-  // Calculate distribution
-  const distribution = {
-    under1min: 0,
-    oneToFive: 0,
-    fiveToFifteen: 0,
-    over15min: 0,
-  };
-
-  users.forEach(u => {
-    const duration = u.sessionDurationSeconds || 0;
-    if (duration < 60) distribution.under1min++;
-    else if (duration < 300) distribution.oneToFive++;
-    else if (duration < 900) distribution.fiveToFifteen++;
-    else distribution.over15min++;
-  });
-
-  const total = users.length;
-  
-  const bars = [
-    { label: '< 1 min', value: distribution.under1min, color: 'bg-coral-200' },
-    { label: '1-5 min', value: distribution.oneToFive, color: 'bg-coral-300' },
-    { label: '5-15 min', value: distribution.fiveToFifteen, color: 'bg-coral-400' },
-    { label: '15+ min', value: distribution.over15min, color: 'bg-coral-500' },
-  ];
-
-  return (
-    <div className="rounded-2xl bg-card border border-border/50 p-6">
-      <div className="mb-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-          Session Duration Distribution
-        </p>
-        <p className="text-xs text-muted-foreground/70 mt-1">
-          Active sessions by time spent
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-4 gap-4">
-        {bars.map(bar => (
-          <div key={bar.label} className="text-center">
-            <div className="h-24 flex items-end justify-center mb-2">
-              <div 
-                className={cn("w-12 rounded-t-lg transition-all", bar.color)}
-                style={{ height: `${total > 0 ? Math.max((bar.value / total) * 100, 8) : 8}%` }}
-              />
-            </div>
-            <p className="text-lg font-semibold tabular-nums">{bar.value}</p>
-            <p className="text-[10px] text-muted-foreground">{bar.label}</p>
-          </div>
-        ))}
+        
+        {/* Floating activity feed - bottom left */}
+        <div className="absolute bottom-4 left-4 w-96 max-h-72 z-10">
+          <LiveActivityFeed 
+            events={data.recentEvents}
+            onUserClick={(sessionId) => console.log('Filter to user:', sessionId)}
+          />
+        </div>
       </div>
     </div>
   );
@@ -174,17 +98,16 @@ function DurationDistributionCard({ users }: {
 function LoadingSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Skeleton className="h-[400px] rounded-2xl lg:col-span-3" />
-        <div className="space-y-4">
+      <div className="relative min-h-[600px] h-[70vh]">
+        <Skeleton className="absolute inset-0 rounded-2xl" />
+        <div className="absolute top-4 left-4 w-72 space-y-3">
           <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-20 rounded-2xl" />
+          <Skeleton className="h-20 rounded-2xl" />
         </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Skeleton className="h-[300px] rounded-2xl" />
-        <Skeleton className="h-[300px] rounded-2xl" />
+        <div className="absolute bottom-4 left-4 w-96">
+          <Skeleton className="h-48 rounded-2xl" />
+        </div>
       </div>
     </div>
   );

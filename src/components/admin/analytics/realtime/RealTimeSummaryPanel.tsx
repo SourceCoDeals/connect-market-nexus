@@ -15,36 +15,32 @@ export function RealTimeSummaryPanel({
   onFilterChange 
 }: RealTimeSummaryPanelProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Main stats card */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
+      <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-4">
+        <div className="flex items-center gap-2 mb-2">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-coral-500"></span>
           </span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
             Real-Time
           </span>
         </div>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-foreground tabular-nums">
+          <span className="text-3xl font-light tracking-tight text-white tabular-nums">
             {data.totalActiveUsers}
           </span>
-          <span className="text-sm text-muted-foreground">visitors on site</span>
-        </div>
-
-        <div className="mt-2 text-xs text-muted-foreground">
-          Est. value: <span className="font-semibold text-coral-400">${data.totalEstimatedValue.toFixed(2)}</span>
+          <span className="text-xs text-white/60">visitors on site</span>
         </div>
       </div>
 
       {/* Referrers */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Link className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Link className="w-3 h-3 text-white/50" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Referrers
           </span>
         </div>
@@ -69,10 +65,10 @@ export function RealTimeSummaryPanel({
       </div>
 
       {/* Countries */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe className="w-3 h-3 text-white/50" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Countries
           </span>
         </div>
@@ -97,10 +93,10 @@ export function RealTimeSummaryPanel({
       </div>
 
       {/* Devices */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Monitor className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Monitor className="w-3 h-3 text-white/50" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Devices
           </span>
         </div>
@@ -147,16 +143,16 @@ function FilterChip({
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-colors",
+        "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] transition-colors",
         isActive 
           ? "bg-coral-500 text-white" 
-          : "bg-muted/50 text-muted-foreground hover:bg-muted"
+          : "bg-white/10 text-white/70 hover:bg-white/20"
       )}
     >
       {label}
       <span className={cn(
         "font-semibold tabular-nums",
-        isActive ? "text-white/90" : "text-foreground"
+        isActive ? "text-white/90" : "text-white/90"
       )}>
         {count}
       </span>

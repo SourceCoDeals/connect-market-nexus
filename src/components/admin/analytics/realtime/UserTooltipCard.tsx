@@ -1,8 +1,7 @@
-import { Monitor, Smartphone, Tablet, Globe, Clock, Eye, TrendingUp } from "lucide-react";
+import { Monitor, Smartphone, Tablet, Globe, Clock, Eye, Bookmark, Link2, CheckCircle2, FileSignature } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { countryCodeToFlag } from "@/lib/flagEmoji";
 import { getAvatarColor, getInitials } from "@/lib/anonymousNames";
-import { ConversionLikelihoodBar } from "./ConversionLikelihoodBar";
 import type { EnhancedActiveUser } from "@/hooks/useEnhancedRealTimeAnalytics";
 
 interface UserTooltipCardProps {
@@ -27,23 +26,37 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
     const hours = Math.floor(mins / 60);
     return `${hours}h ${mins % 60}m`;
   };
+
+  // Format buyer type for display
+  const formatBuyerType = (type: string | null): string => {
+    if (!type) return 'Unknown';
+    const typeMap: Record<string, string> = {
+      'privateEquity': 'Private Equity',
+      'familyOffice': 'Family Office',
+      'corporate': 'Corporate',
+      'searchFund': 'Search Fund',
+      'independentSponsor': 'Independent Sponsor',
+      'individual': 'Individual',
+    };
+    return typeMap[type] || type;
+  };
   
   return (
     <div 
-      className="w-72 rounded-2xl bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl overflow-hidden"
+      className="w-80 rounded-2xl bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl overflow-hidden"
       style={position ? {
         position: 'fixed',
-        left: position.x + 16,
-        top: position.y - 100,
+        left: Math.min(position.x + 16, window.innerWidth - 340),
+        top: Math.max(position.y - 120, 10),
         zIndex: 1000,
       } : undefined}
     >
       {/* Header with avatar and identity */}
-      <div className="p-4 border-b border-border/50">
+      <div className="p-4 border-b border-border/50 bg-muted/30">
         <div className="flex items-start gap-3">
           {/* Avatar */}
           <div className={cn(
-            "w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white text-sm flex-shrink-0",
+            "w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-base flex-shrink-0",
             avatarColor
           )}>
             {getInitials(user.displayName)}
@@ -51,16 +64,22 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
           
           {/* Identity */}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground truncate">
+            <p className="font-semibold text-foreground truncate text-base">
               {user.displayName}
             </p>
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            {user.companyName && (
+              <p className="text-sm text-muted-foreground truncate">{user.companyName}</p>
+            )}
+            {user.isAnonymous && (
+              <p className="text-xs text-muted-foreground/70 italic">Anonymous visitor</p>
+            )}
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
               <span>{flag}</span>
               <span className="truncate">{location}</span>
             </p>
             
             {/* Device/OS/Browser row */}
-            <div className="flex items-center gap-2 mt-1.5">
+            <div className="flex items-center gap-2 mt-2">
               <DeviceIcon type={user.deviceType} />
               {user.os && (
                 <span className="text-[10px] text-muted-foreground/70">{user.os}</span>
@@ -75,13 +94,6 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
             </div>
           </div>
         </div>
-        
-        {/* Company if logged in */}
-        {user.companyName && (
-          <div className="mt-2 px-2 py-1 rounded-md bg-muted/50 text-xs text-muted-foreground">
-            {user.companyName}
-          </div>
-        )}
       </div>
       
       {/* Session details */}
@@ -93,7 +105,7 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
         />
         <InfoRow 
           icon={<Eye className="w-3.5 h-3.5" />}
-          label="Current URL"
+          label="Current page"
           value={user.currentPage || '/'}
           isCode
         />
@@ -103,28 +115,66 @@ export function UserTooltipCard({ user, position }: UserTooltipCardProps) {
           value={formatDuration(user.sessionDurationSeconds)}
         />
         <InfoRow 
-          icon={<TrendingUp className="w-3.5 h-3.5" />}
+          icon={<Link2 className="w-3.5 h-3.5" />}
           label="Total visits"
           value={user.totalVisits.toString()}
         />
       </div>
       
-      {/* Intelligence metrics */}
-      <div className="p-4 space-y-4">
-        <ConversionLikelihoodBar 
-          score={user.conversionLikelihood} 
-          vsAvg={user.conversionVsAvg} 
-        />
-        
-        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Estimated value
-          </span>
-          <span className="text-lg font-semibold text-coral-400 tabular-nums">
-            ${user.estimatedValue.toFixed(2)}
-          </span>
+      {/* Real engagement metrics */}
+      {!user.isAnonymous && (
+        <div className="p-4 border-b border-border/50">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+            Engagement
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <EngagementStat 
+              label="Viewed" 
+              value={user.listingsViewed} 
+              suffix="listings"
+            />
+            <EngagementStat 
+              label="Saved" 
+              value={user.listingsSaved} 
+              suffix="listings"
+            />
+            <EngagementStat 
+              label="Requested" 
+              value={user.connectionsSent} 
+              suffix="connections"
+            />
+          </div>
         </div>
-      </div>
+      )}
+      
+      {/* Trust signals for logged-in users */}
+      {!user.isAnonymous && (
+        <div className="p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <TrustSignal 
+              label="Fee Agreement" 
+              signed={user.feeAgreementSigned} 
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <TrustSignal 
+              label="NDA" 
+              signed={user.ndaSigned} 
+            />
+          </div>
+          
+          {user.buyerType && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <span className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                getBuyerTypeBadgeColor(user.buyerType)
+              )}>
+                {formatBuyerType(user.buyerType)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -147,10 +197,45 @@ function InfoRow({
         <span className="text-xs">{label}</span>
       </div>
       <span className={cn(
-        "text-xs text-foreground truncate max-w-[140px]",
+        "text-xs text-foreground truncate max-w-[150px]",
         isCode && "font-mono bg-muted/50 px-1.5 py-0.5 rounded"
       )}>
         {value}
+      </span>
+    </div>
+  );
+}
+
+function EngagementStat({ 
+  label, 
+  value, 
+  suffix 
+}: { 
+  label: string; 
+  value: number;
+  suffix: string;
+}) {
+  return (
+    <div className="text-center">
+      <p className="text-xl font-semibold tabular-nums text-foreground">{value}</p>
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function TrustSignal({ label, signed }: { label: string; signed: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      {signed ? (
+        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+      ) : (
+        <FileSignature className="w-4 h-4 text-muted-foreground/50" />
+      )}
+      <span className={cn(
+        "text-xs",
+        signed ? "text-emerald-600" : "text-muted-foreground/60"
+      )}>
+        {signed ? `${label} Signed` : `${label} Pending`}
       </span>
     </div>
   );
@@ -187,4 +272,17 @@ function getBuyerTypeColor(buyerType: string | null): string {
   };
   
   return colorMap[buyerType || ''] || 'bg-slate-500';
+}
+
+function getBuyerTypeBadgeColor(buyerType: string): string {
+  const colorMap: Record<string, string> = {
+    'privateEquity': 'bg-violet-500/20 text-violet-400',
+    'familyOffice': 'bg-emerald-500/20 text-emerald-400',
+    'corporate': 'bg-blue-500/20 text-blue-400',
+    'searchFund': 'bg-amber-500/20 text-amber-400',
+    'independentSponsor': 'bg-cyan-500/20 text-cyan-400',
+    'individual': 'bg-rose-500/20 text-rose-400',
+  };
+  
+  return colorMap[buyerType] || 'bg-slate-500/20 text-slate-400';
 }

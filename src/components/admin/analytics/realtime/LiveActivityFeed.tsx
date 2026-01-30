@@ -12,17 +12,17 @@ interface LiveActivityFeedProps {
 export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps) {
   if (events.length === 0) {
     return (
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
+      <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-coral-500"></span>
           </span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
             Live Activity
           </span>
         </div>
-        <p className="text-sm text-muted-foreground text-center py-4">
+        <p className="text-sm text-white/50 text-center py-4">
           Waiting for activity...
         </p>
       </div>
@@ -30,24 +30,24 @@ export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps)
   }
 
   return (
-    <div className="rounded-2xl bg-card border border-border/50 overflow-hidden">
+    <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2 w-2 bg-coral-500"></span>
         </span>
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
           Live Activity
         </span>
-        <span className="ml-auto text-[10px] text-muted-foreground/60">
+        <span className="ml-auto text-[10px] text-white/40">
           Last 5 minutes
         </span>
       </div>
 
       {/* Events list */}
-      <div className="max-h-[280px] overflow-y-auto">
-        {events.map((event, i) => (
+      <div className="max-h-[220px] overflow-y-auto">
+        {events.slice(0, 10).map((event, i) => (
           <ActivityEventRow 
             key={event.id} 
             event={event} 
@@ -83,8 +83,8 @@ function ActivityEventRow({
   return (
     <div 
       className={cn(
-        "flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer",
-        isFirst && "bg-coral-500/5"
+        "flex items-start gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors cursor-pointer",
+        isFirst && "bg-coral-500/10"
       )}
       onClick={() => onUserClick?.(user.sessionId)}
     >
@@ -98,22 +98,22 @@ function ActivityEventRow({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm leading-relaxed">
+        <p className="text-xs leading-relaxed text-white/90">
           <span 
-            className="font-medium text-foreground hover:underline"
+            className="font-medium"
             style={{ color: getTextColor(user.displayName, user.isAnonymous, user.buyerType) }}
           >
             {user.displayName}
           </span>
-          <span className="text-muted-foreground"> from </span>
+          <span className="text-white/50"> from </span>
           <span>{flag}</span>
-          <span className="text-muted-foreground"> {user.country || 'Unknown'} </span>
-          <span className="text-muted-foreground">visited </span>
-          <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono text-foreground">
+          <span className="text-white/50"> {user.country || 'Unknown'} </span>
+          <span className="text-white/50">visited </span>
+          <code className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-white/80">
             {displayPath}
           </code>
         </p>
-        <p className="text-[10px] text-muted-foreground/60 mt-0.5">{timeAgo}</p>
+        <p className="text-[10px] text-white/40 mt-0.5">{timeAgo}</p>
       </div>
     </div>
   );
@@ -143,26 +143,26 @@ function getBuyerTypeColor(buyerType: string | null): string {
 function getTextColor(name: string, isAnonymous: boolean, buyerType: string | null): string {
   if (!isAnonymous) {
     const buyerColors: Record<string, string> = {
-      'privateEquity': '#8b5cf6',
-      'familyOffice': '#10b981',
-      'corporate': '#3b82f6',
-      'searchFund': '#f59e0b',
-      'independentSponsor': '#06b6d4',
-      'individual': '#f43f5e',
+      'privateEquity': '#a78bfa',
+      'familyOffice': '#34d399',
+      'corporate': '#60a5fa',
+      'searchFund': '#fbbf24',
+      'independentSponsor': '#22d3ee',
+      'individual': '#fb7185',
     };
-    return buyerColors[buyerType || ''] || '#64748b';
+    return buyerColors[buyerType || ''] || '#94a3b8';
   }
   
   const colorMap: Record<string, string> = {
-    coral: '#f87171',
-    azure: '#3b82f6',
-    amber: '#f59e0b',
-    jade: '#10b981',
-    violet: '#8b5cf6',
-    rose: '#f43f5e',
-    teal: '#14b8a6',
-    gold: '#eab308',
+    coral: '#fca5a5',
+    azure: '#93c5fd',
+    amber: '#fcd34d',
+    jade: '#6ee7b7',
+    violet: '#c4b5fd',
+    rose: '#fda4af',
+    teal: '#5eead4',
+    gold: '#fde047',
   };
   const colorWord = name.split(' ')[0];
-  return colorMap[colorWord] || '#64748b';
+  return colorMap[colorWord] || '#94a3b8';
 }
