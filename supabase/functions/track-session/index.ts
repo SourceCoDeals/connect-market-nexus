@@ -1,0 +1,197 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface GeoData {
+  country: string;
+  country_code: string;
+  city: string;
+  region: string;
+  timezone: string;
+  isp?: string;
+}
+
+interface SessionData {
+  session_id: string;
+  user_id?: string;
+  user_agent: string;
+  referrer?: string;
+  device_type: string;
+  browser: string;
+  os: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+}
+
+async function getGeoData(ip: string): Promise<GeoData | null> {
+  // Skip geolocation for localhost/private IPs
+  if (ip === '127.0.0.1' || ip === 'localhost' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '::1') {
+    console.log('Skipping geolocation for local/private IP:', ip);
+    return null;
+  }
+
+  try {
+    // Using ip-api.com (free, no key required, 45 requests/minute)
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,timezone,isp`);
+    
+    if (!response.ok) {
+      console.error('Geo API response not OK:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data.status === 'fail') {
+      console.error('Geo API failed:', data.message);
+      return null;
+    }
+
+    return {
+      country: data.country || 'Unknown',
+      country_code: data.countryCode || 'XX',
+      city: data.city || 'Unknown',
+      region: data.regionName || 'Unknown',
+      timezone: data.timezone || 'UTC',
+      isp: data.isp || null,
+    };
+  } catch (error) {
+    console.error('Failed to get geo data:', error);
+    return null;
+  }
+}
+
+function getClientIP(req: Request): string {
+  // Try various headers in order of preference
+  const cfConnectingIP = req.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) return cfConnectingIP;
+
+  const xForwardedFor = req.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    // Take the first IP in the chain (original client)
+    return xForwardedFor.split(',')[0].trim();
+  }
+
+  const xRealIP = req.headers.get('x-real-ip');
+  if (xRealIP) return xRealIP;
+
+  // Fallback
+  return '127.0.0.1';
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const body: SessionData = await req.json();
+    const clientIP = getClientIP(req);
+    
+    console.log('Track session request:', {
+      session_id: body.session_id,
+      client_ip: clientIP,
+      user_agent: body.user_agent?.substring(0, 50) + '...',
+    });
+
+    // Get geographic data from IP
+    const geoData = await getGeoData(clientIP);
+    console.log('Geo data result:', geoData);
+
+    // Check if session already exists
+    const { data: existingSession } = await supabase
+      .from('user_sessions')
+      .select('id')
+      .eq('session_id', body.session_id)
+      .maybeSingle();
+
+    if (existingSession) {
+      // Update existing session with geo data
+      const { error: updateError } = await supabase
+        .from('user_sessions')
+        .update({
+          ip_address: clientIP,
+          country: geoData?.country || null,
+          country_code: geoData?.country_code || null,
+          city: geoData?.city || null,
+          region: geoData?.region || null,
+          timezone: geoData?.timezone || null,
+          last_active_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('session_id', body.session_id);
+
+      if (updateError) {
+        console.error('Failed to update session:', updateError);
+        throw updateError;
+      }
+
+      console.log('Updated existing session with geo data');
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          updated: true,
+          geo: geoData ? { country: geoData.country, city: geoData.city } : null 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create new session with all data
+    const { error: insertError } = await supabase.from('user_sessions').insert({
+      session_id: body.session_id,
+      user_id: body.user_id || null,
+      started_at: new Date().toISOString(),
+      user_agent: body.user_agent,
+      referrer: body.referrer || null,
+      device_type: body.device_type,
+      browser: body.browser,
+      os: body.os,
+      ip_address: clientIP,
+      country: geoData?.country || null,
+      country_code: geoData?.country_code || null,
+      city: geoData?.city || null,
+      region: geoData?.region || null,
+      timezone: geoData?.timezone || null,
+      utm_source: body.utm_source || null,
+      utm_medium: body.utm_medium || null,
+      utm_campaign: body.utm_campaign || null,
+      utm_term: body.utm_term || null,
+      utm_content: body.utm_content || null,
+      is_active: true,
+      last_active_at: new Date().toISOString(),
+    });
+
+    if (insertError) {
+      console.error('Failed to insert session:', insertError);
+      throw insertError;
+    }
+
+    console.log('Created new session with geo data');
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        created: true,
+        geo: geoData ? { country: geoData.country, city: geoData.city } : null 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Track session error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

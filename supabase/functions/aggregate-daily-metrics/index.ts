@@ -1,0 +1,209 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse optional date parameter (default to yesterday for cron jobs)
+    const body = await req.json().catch(() => ({}));
+    const targetDate = body.date || getYesterdayDate();
+    
+    console.log(`Aggregating metrics for date: ${targetDate}`);
+
+    const startOfDay = `${targetDate}T00:00:00Z`;
+    const endOfDay = `${targetDate}T23:59:59Z`;
+
+    // Get total users count
+    const { count: totalUsers } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    // Get new signups for the day
+    const { count: newSignups } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+
+    // Get session data
+    const { data: sessions } = await supabase
+      .from('user_sessions')
+      .select('user_id, session_duration_seconds, is_active')
+      .gte('started_at', startOfDay)
+      .lte('started_at', endOfDay);
+
+    const totalSessions = sessions?.length || 0;
+    const activeUsers = new Set(sessions?.filter(s => s.user_id).map(s => s.user_id)).size;
+    
+    // Calculate average session duration
+    const sessionsWithDuration = sessions?.filter(s => s.session_duration_seconds && s.session_duration_seconds > 0) || [];
+    const avgSessionDuration = sessionsWithDuration.length > 0
+      ? Math.round(sessionsWithDuration.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length)
+      : 0;
+
+    // Get page views
+    const { count: pageViews } = await supabase
+      .from('page_views')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+
+    // Get unique page views (distinct session_ids)
+    const { data: uniquePageViewData } = await supabase
+      .from('page_views')
+      .select('session_id')
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+    
+    const uniquePageViews = new Set(uniquePageViewData?.map(p => p.session_id)).size;
+
+    // Get listing views
+    const { count: listingViews } = await supabase
+      .from('listing_analytics')
+      .select('*', { count: 'exact', head: true })
+      .eq('action_type', 'view')
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+
+    // Get new listings
+    const { count: newListings } = await supabase
+      .from('listings')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+
+    // Get connection requests
+    const { count: connectionRequests } = await supabase
+      .from('connection_requests')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+
+    // Get successful connections (approved)
+    const { count: successfulConnections } = await supabase
+      .from('connection_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'approved')
+      .gte('approved_at', startOfDay)
+      .lte('approved_at', endOfDay);
+
+    // Get searches performed
+    const { count: searchesPerformed } = await supabase
+      .from('search_analytics')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+
+    // Calculate bounce rate (sessions with only 1 page view)
+    const { data: sessionPageCounts } = await supabase
+      .from('page_views')
+      .select('session_id')
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+
+    const pageCountsBySession: Record<string, number> = {};
+    sessionPageCounts?.forEach(p => {
+      pageCountsBySession[p.session_id] = (pageCountsBySession[p.session_id] || 0) + 1;
+    });
+    
+    const totalSessionsWithViews = Object.keys(pageCountsBySession).length;
+    const bouncedSessions = Object.values(pageCountsBySession).filter(count => count === 1).length;
+    const bounceRate = totalSessionsWithViews > 0 
+      ? Math.round((bouncedSessions / totalSessionsWithViews) * 100) 
+      : 0;
+
+    // Calculate conversion rate
+    const conversionRate = (pageViews || 0) > 0 
+      ? Math.round(((connectionRequests || 0) / (pageViews || 1)) * 10000) / 100
+      : 0;
+
+    // Returning users (users who had sessions before this day)
+    const { data: todayUserIds } = await supabase
+      .from('user_sessions')
+      .select('user_id')
+      .gte('started_at', startOfDay)
+      .lte('started_at', endOfDay)
+      .not('user_id', 'is', null);
+
+    const uniqueTodayUsers = [...new Set(todayUserIds?.map(u => u.user_id))];
+    
+    let returningUsers = 0;
+    if (uniqueTodayUsers.length > 0) {
+      const { count } = await supabase
+        .from('user_sessions')
+        .select('user_id', { count: 'exact', head: true })
+        .in('user_id', uniqueTodayUsers)
+        .lt('started_at', startOfDay);
+      returningUsers = count || 0;
+    }
+
+    // Upsert the metrics
+    const metrics = {
+      date: targetDate,
+      total_users: totalUsers || 0,
+      new_signups: newSignups || 0,
+      active_users: activeUsers,
+      returning_users: returningUsers,
+      total_sessions: totalSessions,
+      avg_session_duration: avgSessionDuration,
+      page_views: pageViews || 0,
+      unique_page_views: uniquePageViews,
+      listing_views: listingViews || 0,
+      new_listings: newListings || 0,
+      connection_requests: connectionRequests || 0,
+      successful_connections: successfulConnections || 0,
+      searches_performed: searchesPerformed || 0,
+      bounce_rate: bounceRate,
+      conversion_rate: conversionRate,
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log('Computed metrics:', metrics);
+
+    // Upsert (insert or update on conflict)
+    const { error: upsertError } = await supabase
+      .from('daily_metrics')
+      .upsert(metrics, { onConflict: 'date' });
+
+    if (upsertError) {
+      console.error('Failed to upsert daily metrics:', upsertError);
+      throw upsertError;
+    }
+
+    console.log(`Successfully aggregated metrics for ${targetDate}`);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        date: targetDate,
+        metrics 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Aggregate metrics error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+function getYesterdayDate(): string {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return yesterday.toISOString().split('T')[0];
+}

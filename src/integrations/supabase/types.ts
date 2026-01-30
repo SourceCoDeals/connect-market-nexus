@@ -4446,6 +4446,7 @@ export type Database = {
           results_clicked: number | null
           results_count: number | null
           search_query: string
+          search_session_id: string | null
           session_id: string | null
           time_to_click: number | null
           user_id: string | null
@@ -4460,6 +4461,7 @@ export type Database = {
           results_clicked?: number | null
           results_count?: number | null
           search_query: string
+          search_session_id?: string | null
           session_id?: string | null
           time_to_click?: number | null
           user_id?: string | null
@@ -4474,6 +4476,7 @@ export type Database = {
           results_clicked?: number | null
           results_count?: number | null
           search_query?: string
+          search_session_id?: string | null
           session_id?: string | null
           time_to_click?: number | null
           user_id?: string | null
@@ -4853,16 +4856,21 @@ export type Database = {
           browser: string | null
           city: string | null
           country: string | null
+          country_code: string | null
           created_at: string | null
           device_type: string | null
           ended_at: string | null
           id: string
           ip_address: unknown
           is_active: boolean | null
+          last_active_at: string | null
           os: string | null
           referrer: string | null
+          region: string | null
+          session_duration_seconds: number | null
           session_id: string
           started_at: string | null
+          timezone: string | null
           updated_at: string | null
           user_agent: string | null
           user_id: string | null
@@ -4876,16 +4884,21 @@ export type Database = {
           browser?: string | null
           city?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string | null
           device_type?: string | null
           ended_at?: string | null
           id?: string
           ip_address?: unknown
           is_active?: boolean | null
+          last_active_at?: string | null
           os?: string | null
           referrer?: string | null
+          region?: string | null
+          session_duration_seconds?: number | null
           session_id: string
           started_at?: string | null
+          timezone?: string | null
           updated_at?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -4899,16 +4912,21 @@ export type Database = {
           browser?: string | null
           city?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string | null
           device_type?: string | null
           ended_at?: string | null
           id?: string
           ip_address?: unknown
           is_active?: boolean | null
+          last_active_at?: string | null
           os?: string | null
           referrer?: string | null
+          region?: string | null
+          session_duration_seconds?: number | null
           session_id?: string
           started_at?: string | null
+          timezone?: string | null
           updated_at?: string | null
           user_agent?: string | null
           user_id?: string | null
