@@ -157,7 +157,8 @@ export function useAnalyticsTracking() {
     searchQuery: string,
     filters: Record<string, any>,
     resultsCount: number,
-    noResults: boolean = false
+    noResults: boolean = false,
+    searchSessionId?: string
   ) => {
     try {
       await supabase.from('search_analytics').insert({
@@ -167,6 +168,7 @@ export function useAnalyticsTracking() {
         filters_applied: filters,
         results_count: resultsCount,
         no_results: noResults,
+        search_session_id: searchSessionId || null,
       });
 
       await trackEvent({
@@ -175,12 +177,44 @@ export function useAnalyticsTracking() {
         eventAction: noResults ? 'no_results' : 'has_results',
         eventLabel: searchQuery,
         eventValue: resultsCount,
-        metadata: { filters, noResults },
+        metadata: { filters, noResults, searchSessionId },
       });
     } catch (error) {
       console.error('Failed to track search:', error);
     }
   }, [user?.id, trackEvent]);
+
+  // Track search result click (when user clicks on a search result)
+  const trackSearchResultClick = useCallback(async (
+    listingId: string,
+    searchSessionId: string,
+    positionClicked: number,
+    timeToClickMs: number,
+    searchQuery: string
+  ) => {
+    try {
+      // Update the search analytics record with click data
+      await supabase.from('search_analytics')
+        .update({
+          position_clicked: positionClicked,
+          time_to_click: timeToClickMs,
+          results_clicked: 1,
+        })
+        .eq('search_session_id', searchSessionId)
+        .eq('search_query', searchQuery)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      console.log('📊 Search result click tracked:', {
+        listingId,
+        positionClicked,
+        timeToClickMs,
+        searchSessionId,
+      });
+    } catch (error) {
+      console.error('Failed to track search result click:', error);
+    }
+  }, []);
 
   // Track registration funnel
   const trackRegistrationStep = useCallback(async (
@@ -259,6 +293,7 @@ export function useAnalyticsTracking() {
     trackEvent,
     trackListingInteraction,
     trackSearch,
+    trackSearchResultClick,
     trackRegistrationStep,
     sessionId: sessionIdRef.current,
   };
