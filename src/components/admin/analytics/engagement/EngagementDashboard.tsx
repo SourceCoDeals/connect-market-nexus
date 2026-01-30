@@ -4,6 +4,7 @@ import { ListingLeaderboard } from "./ListingLeaderboard";
 import { EngagementFunnel } from "./EngagementFunnel";
 import { CategoryPerformanceChart } from "./CategoryPerformanceChart";
 import { UserJourneyFlow } from "./UserJourneyFlow";
+import { ClickHeatmapPanel } from "../heatmap/ClickHeatmapPanel";
 import { cn } from "@/lib/utils";
 
 interface EngagementDashboardProps {
@@ -55,6 +56,9 @@ export function EngagementDashboard({ timeRangeDays }: EngagementDashboardProps)
         <EngagementFunnel metrics={data.funnelMetrics} />
         <CategoryPerformanceChart data={data.categoryPerformance} />
       </div>
+
+      {/* Click Heatmap - NEW */}
+      <ClickHeatmapPanel timeRangeDays={timeRangeDays} />
 
       {/* User Journey Flow */}
       <UserJourneyFlow data={data.userJourneyPaths} />
@@ -177,6 +181,12 @@ function LoadingSkeleton() {
         ))}
       </div>
       <Skeleton className="h-[400px] rounded-2xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Skeleton className="h-[280px] rounded-2xl" />
+        <Skeleton className="h-[280px] rounded-2xl" />
+      </div>
+      <Skeleton className="h-[400px] rounded-2xl" />
+      <Skeleton className="h-[300px] rounded-2xl" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Skeleton className="h-[280px] rounded-2xl" />
         <Skeleton className="h-[280px] rounded-2xl" />

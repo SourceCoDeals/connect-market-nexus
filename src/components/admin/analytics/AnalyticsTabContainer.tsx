@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Activity, Globe, TrendingUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { PremiumAnalyticsDashboard } from "./PremiumAnalyticsDashboard";
 import { TrafficIntelligenceDashboard } from "./traffic/TrafficIntelligenceDashboard";
 import { EngagementDashboard } from "./engagement/EngagementDashboard";
 import { SearchIntelligenceDashboard } from "./search/SearchIntelligenceDashboard";
+import { RealTimeTab } from "./realtime/RealTimeTab";
+import { HistoricalTrendsDashboard } from "./historical/HistoricalTrendsDashboard";
+import { WorldGeographyMap } from "./geographic/WorldGeographyMap";
 import { UserActivityFeed } from "../UserActivityFeed";
 import { cn } from "@/lib/utils";
 
@@ -105,41 +108,66 @@ export function AnalyticsTabContainer() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="h-12 p-1 bg-muted/50 rounded-xl border border-border/30">
+        <TabsList className="h-auto p-1 bg-muted/50 rounded-xl border border-border/30 flex-wrap">
           <TabsTrigger 
             value="overview" 
-            className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             Overview
           </TabsTrigger>
           <TabsTrigger 
+            value="realtime"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <Activity className="h-3.5 w-3.5 mr-1.5" />
+            Real-Time
+          </TabsTrigger>
+          <TabsTrigger 
             value="traffic"
-            className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             Traffic
           </TabsTrigger>
           <TabsTrigger 
             value="engagement"
-            className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             Engagement
           </TabsTrigger>
           <TabsTrigger 
             value="search"
-            className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             Search
           </TabsTrigger>
           <TabsTrigger 
-            value="activity"
-            className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            value="geography"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
-            Live Activity
+            <Globe className="h-3.5 w-3.5 mr-1.5" />
+            Geography
+          </TabsTrigger>
+          <TabsTrigger 
+            value="historical"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+            Historical
+          </TabsTrigger>
+          <TabsTrigger 
+            value="activity"
+            className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            Live Feed
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-0">
           <PremiumAnalyticsDashboard timeRangeDays={timeRangeDays} />
+        </TabsContent>
+
+        <TabsContent value="realtime" className="mt-0">
+          <RealTimeTab />
         </TabsContent>
 
         <TabsContent value="traffic" className="mt-0">
@@ -152,6 +180,14 @@ export function AnalyticsTabContainer() {
 
         <TabsContent value="search" className="mt-0">
           <SearchIntelligenceDashboard timeRangeDays={timeRangeDays} />
+        </TabsContent>
+
+        <TabsContent value="geography" className="mt-0">
+          <WorldGeographyMap timeRangeDays={timeRangeDays} />
+        </TabsContent>
+
+        <TabsContent value="historical" className="mt-0">
+          <HistoricalTrendsDashboard timeRangeDays={timeRangeDays} />
         </TabsContent>
 
         <TabsContent value="activity" className="mt-0">

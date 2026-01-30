@@ -44,6 +44,23 @@ export interface TrafficAnalyticsData {
   avgSessionsPerDay: number;
   peakDay: { date: string; count: number };
   peakHour: number;
+  
+  // NEW: Session duration stats
+  avgSessionDuration: number;
+  durationDistribution: {
+    under30s: number;
+    thirtyToTwo: number;
+    twoToFive: number;
+    fiveToFifteen: number;
+    over15min: number;
+  };
+  
+  // NEW: Geographic data from sessions
+  sessionGeography: Array<{
+    country: string;
+    sessions: number;
+    percentage: number;
+  }>;
 }
 
 export function useTrafficAnalytics(timeRangeDays: number = 30) {
@@ -53,10 +70,10 @@ export function useTrafficAnalytics(timeRangeDays: number = 30) {
       const now = new Date();
       const startDate = subDays(now, timeRangeDays);
       
-      // Fetch all session data
+      // Fetch all session data including new geo and duration fields
       const { data: sessions, error } = await supabase
         .from('user_sessions')
-        .select('id, user_id, device_type, browser, referrer, created_at')
+        .select('id, user_id, device_type, browser, referrer, created_at, country, session_duration_seconds')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: true });
       
@@ -185,6 +202,45 @@ export function useTrafficAnalytics(timeRangeDays: number = 30) {
       const peakHour = Object.entries(hourCounts)
         .sort((a, b) => b[1] - a[1])[0]?.[0] || 0;
       
+      // NEW: Session duration analysis
+      const sessionsWithDuration = sessionData.filter(s => s.session_duration_seconds != null);
+      const totalDuration = sessionsWithDuration.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0);
+      const avgSessionDuration = sessionsWithDuration.length > 0 ? totalDuration / sessionsWithDuration.length : 0;
+      
+      const durationDistribution = {
+        under30s: 0,
+        thirtyToTwo: 0,
+        twoToFive: 0,
+        fiveToFifteen: 0,
+        over15min: 0,
+      };
+      
+      sessionsWithDuration.forEach(s => {
+        const duration = s.session_duration_seconds || 0;
+        if (duration < 30) durationDistribution.under30s++;
+        else if (duration < 120) durationDistribution.thirtyToTwo++;
+        else if (duration < 300) durationDistribution.twoToFive++;
+        else if (duration < 900) durationDistribution.fiveToFifteen++;
+        else durationDistribution.over15min++;
+      });
+      
+      // NEW: Geographic breakdown from sessions
+      const countryCounts: Record<string, number> = {};
+      sessionData.forEach(s => {
+        if (s.country) {
+          countryCounts[s.country] = (countryCounts[s.country] || 0) + 1;
+        }
+      });
+      
+      const sessionGeography = Object.entries(countryCounts)
+        .map(([country, sessions]) => ({
+          country,
+          sessions,
+          percentage: totalSessions > 0 ? (sessions / totalSessions) * 100 : 0,
+        }))
+        .sort((a, b) => b.sessions - a.sessions)
+        .slice(0, 10);
+      
       return {
         sessionVolume,
         deviceBreakdown,
@@ -196,6 +252,9 @@ export function useTrafficAnalytics(timeRangeDays: number = 30) {
         avgSessionsPerDay: Math.round(avgSessionsPerDay),
         peakDay,
         peakHour: Number(peakHour),
+        avgSessionDuration,
+        durationDistribution,
+        sessionGeography,
       };
     },
     staleTime: 60000,
