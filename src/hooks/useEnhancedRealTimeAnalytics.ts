@@ -75,7 +75,7 @@ export function useEnhancedRealTimeAnalytics() {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       
-      // Fetch active sessions with profile data
+      // Fetch active sessions with profile data - include sessions with recent started_at OR last_active_at
       const [sessionsResult, pageViewsResult] = await Promise.all([
         supabase
           .from('user_sessions')
@@ -85,8 +85,8 @@ export function useEnhancedRealTimeAnalytics() {
             session_duration_seconds, last_active_at, started_at
           `)
           .eq('is_active', true)
-          .gte('last_active_at', twoMinutesAgo)
-          .order('last_active_at', { ascending: false })
+          .or(`last_active_at.gte.${twoMinutesAgo},started_at.gte.${twoMinutesAgo}`)
+          .order('last_active_at', { ascending: false, nullsFirst: false })
           .limit(100),
         
         supabase
@@ -100,10 +100,27 @@ export function useEnhancedRealTimeAnalytics() {
       const sessions = sessionsResult.data || [];
       const pageViews = pageViewsResult.data || [];
       
-      // Get user IDs to fetch profiles
-      const userIds = sessions
-        .filter(s => s.user_id)
-        .map(s => s.user_id as string);
+      // Get unique session IDs from page views to fetch their user_ids
+      const pageViewSessionIds = [...new Set(pageViews.map(pv => pv.session_id).filter(Boolean))];
+      
+      // Fetch sessions for page views to get their user_ids
+      let pageViewSessions: Record<string, string | null> = {};
+      if (pageViewSessionIds.length > 0) {
+        const { data: pvSessions } = await supabase
+          .from('user_sessions')
+          .select('session_id, user_id')
+          .in('session_id', pageViewSessionIds);
+        
+        pageViewSessions = (pvSessions || []).reduce((acc, s) => {
+          acc[s.session_id] = s.user_id;
+          return acc;
+        }, {} as Record<string, string | null>);
+      }
+      
+      // Get all user IDs - from active sessions AND from page view sessions
+      const sessionUserIds = sessions.filter(s => s.user_id).map(s => s.user_id as string);
+      const pageViewUserIds = Object.values(pageViewSessions).filter(Boolean) as string[];
+      const userIds = [...new Set([...sessionUserIds, ...pageViewUserIds])];
       
       // Fetch profiles for logged-in users with real fields
       let profiles: Record<string, any> = {};
@@ -219,9 +236,52 @@ export function useEnhancedRealTimeAnalytics() {
         referrerCounts[normalizedReferrer] = (referrerCounts[normalizedReferrer] || 0) + 1;
       });
       
-      // Recent events
+      // Recent events - look up user by session's user_id, not just active sessions
       const recentEvents = pageViews.slice(0, 20).map((pv, i) => {
-        const matchingUser = activeUsers.find(u => u.sessionId === pv.session_id);
+        // First try to find in active users
+        let matchingUser = activeUsers.find(u => u.sessionId === pv.session_id);
+        
+        // If not found but session has a user_id, create user from profile data
+        if (!matchingUser && pv.session_id) {
+          const userId = pageViewSessions[pv.session_id];
+          if (userId && profiles[userId]) {
+            const profile = profiles[userId];
+            const engagement = engagementData[userId];
+            const realName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+            
+            matchingUser = {
+              sessionId: pv.session_id,
+              userId,
+              userName: realName || null,
+              displayName: realName || generateAnonymousName(pv.session_id),
+              companyName: profile.company || profile.company_name || null,
+              buyerType: profile.buyer_type || null,
+              jobTitle: profile.job_title || null,
+              isAnonymous: !realName,
+              country: null,
+              countryCode: null,
+              city: null,
+              coordinates: null,
+              deviceType: 'desktop',
+              browser: null,
+              os: null,
+              referrer: null,
+              utmSource: null,
+              sessionDurationSeconds: 0,
+              lastActiveAt: pv.created_at,
+              currentPage: pv.page_path,
+              listingsViewed: engagement?.listings_viewed || 0,
+              listingsSaved: engagement?.listings_saved || 0,
+              connectionsSent: engagement?.connections_requested || 0,
+              totalVisits: engagement?.session_count || 1,
+              totalTimeSpent: engagement?.total_session_time || 0,
+              searchCount: engagement?.search_count || 0,
+              feeAgreementSigned: profile.fee_agreement_signed || false,
+              ndaSigned: profile.nda_signed || false,
+            };
+          }
+        }
+        
         return {
           id: `event-${i}`,
           type: 'page_view' as const,
