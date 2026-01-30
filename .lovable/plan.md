@@ -1,258 +1,238 @@
 
-# Fix Plan: Buyer Enrichment Not Populating PE Firm and Description Fields
+# Premium Analytics Dashboard Strategy
 
-## Problem Summary
+## Executive Summary
 
-The buyer enrichment process is completing successfully (websites are scraped, `data_completeness` is set to `high`, `extraction_sources` is recorded) but **no actual data is being extracted** from the AI calls. The `fields_extracted` array is empty for all recent enrichments.
+This plan outlines a complete redesign of the marketplace analytics tab to create a world-class, addictive analytics experience. The new design will transform raw data into actionable intelligence that helps admins drive deal flow, identify opportunities, and optimize marketplace performance.
 
-## Root Cause Analysis
+---
 
-After extensive investigation, I identified **three interconnected issues**:
+## Strategic Vision: The "Deal Intelligence Command Center"
 
-### Issue 1: Silent AI Failures (Critical)
-The `callAI()` function at lines 391-450 returns `{ data: null }` without adequate logging when:
-- The AI response doesn't include a tool call
-- JSON parsing fails
-- The response format is unexpected
+The redesigned analytics dashboard will follow three core principles:
 
-There's no visibility into what the AI is actually returning, making debugging impossible.
+1. **Action-Oriented Metrics**: Every metric should answer "So what?" and guide next steps
+2. **Visual Storytelling**: Data presented as compelling narratives, not just numbers
+3. **M&A-Specific Intelligence**: Metrics that matter to deal-makers, not generic web analytics
 
-### Issue 2: Incorrect Data Completeness Calculation (High)
-At lines 689-692:
-```typescript
-const filledFields = keyFields.filter(f => extractedData[f] || buyer[f]);
+---
+
+## Proposed Tab Structure
+
+The analytics experience will be split into two tabs:
+
+| Tab | Purpose |
+|-----|---------|
+| **Analytics** | Premium metrics dashboard with charts, hero stats, and deal intelligence |
+| **Activity** | Live user activity feed (moved from current location) |
+
+---
+
+## Analytics Dashboard Layout
+
+### Hero Section (Top Row)
+Four large stat cards with sparkline trends and period comparisons:
+
+```text
++-------------------+-------------------+-------------------+-------------------+
+|  CONNECTION       |  DEAL ACTIVITY    |  BUYER PIPELINE   |  CONVERSION RATE  |
+|  REQUESTS         |                   |                   |                   |
+|      26           |       517         |       357         |      22.3%        |
+|  Last 30 days     |   Total requests  |  Approved buyers  |  Request->Approve |
+|  +13 vs prior     |   +8% this month  |  +33 this period  |  +2.1% vs prior   |
+|  [sparkline]      |   [sparkline]     |  [sparkline]      |  [sparkline]      |
++-------------------+-------------------+-------------------+-------------------+
 ```
 
-This counts **existing buyer data** (`buyer[f]`), not just the newly extracted data. So even when extraction fails completely, buyers are marked as `data_completeness: high` if they already had data from import.
+### Primary Charts Section (Second Row)
 
-### Issue 3: Evidence Recording Without Validation (Medium)
-Evidence records are added even when no data is extracted:
-```typescript
-evidenceRecords.push({
-  type: 'website',
-  url: platformWebsite!,
-  extracted_at: new Date().toISOString(),
-  fields_extracted: Object.keys(extractedData)  // Empty if extraction failed
-});
+```text
++----------------------------------------+----------------------------------------+
+|  CONNECTION VELOCITY CHART             |  BUYER TYPE BREAKDOWN                  |
+|                                        |                                        |
+|  [Area chart showing connection        |  [Horizontal bar chart or donut:       |
+|   requests over 30 days with           |   - Private Equity: 177 (32%)          |
+|   trend line and annotations]          |   - Individual: 97 (18%)               |
+|                                        |   - Independent Sponsor: 82 (15%)      |
+|  "Peak: Jan 26 with 13 requests"       |   - Search Fund: 77 (14%)              |
+|                                        |   - Family Office: 56 (10%)            |
+|                                        |   - Corporate: 32 (6%)                 |
++----------------------------------------+----------------------------------------+
 ```
 
-This makes the system appear to work when it's actually failing silently.
+### Deal Intelligence Section (Third Row)
 
-## Implementation Plan
-
-### Step 1: Add Comprehensive Logging to AI Calls
-**File**: `supabase/functions/enrich-buyer/index.ts`
-
-Modify the `callAI()` function to:
-1. Log the full AI response body for debugging
-2. Log the model's actual response message content
-3. Capture and log any JSON parsing errors with the raw string
-4. Add more specific error codes for different failure modes
-
-```typescript
-async function callAI(...) {
-  try {
-    const response = await fetch(...);
-    
-    // Existing error handling...
-    
-    const responseText = await response.text();
-    console.log(`AI Response status: ${response.status}`);
-    
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', responseText.substring(0, 500));
-      return { data: null };
-    }
-    
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall) {
-      // Log what we actually received for debugging
-      console.warn('No tool call in response. Message content:', 
-        JSON.stringify(data.choices?.[0]?.message || 'no message'));
-      return { data: null };
-    }
-    
-    try {
-      return { data: JSON.parse(toolCall.function.arguments) };
-    } catch (argParseError) {
-      console.error('Failed to parse tool arguments:', toolCall.function.arguments);
-      return { data: null };
-    }
-  } catch (error) {
-    console.error('AI extraction error:', error);
-    return { data: null };
-  }
-}
+```text
++----------------------------------------+----------------------------------------+
+|  LISTING PERFORMANCE                   |  DEAL FLOW FUNNEL                      |
+|                                        |                                        |
+|  [Bar chart by category:               |  [Horizontal funnel visualization:     |
+|   - Professional Services: 14          |   - 555 Total Signups                  |
+|   - Construction: 13                   |   - 357 Approved Buyers (64%)          |
+|   - Automotive: 7                      |   - 517 Connection Requests            |
+|   - Technology: 6                      |   - 115 Introductions Made (22%)       |
+|   - Retail: 5]                         |   - XX Active Negotiations]            |
+|                                        |                                        |
++----------------------------------------+----------------------------------------+
 ```
 
-### Step 2: Fix Data Completeness Calculation
-**File**: `supabase/functions/enrich-buyer/index.ts`
+### Key Performance Insights (Fourth Row)
 
-Change the calculation to only count newly extracted fields:
-
-```typescript
-// Calculate data completeness based on EXTRACTED data, not existing buyer data
-const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state', 'pe_firm_name', 'business_summary'];
-const extractedFields = keyFields.filter(f => extractedData[f]);
-const existingFields = keyFields.filter(f => buyer[f]);
-const totalFilledFields = new Set([...extractedFields, ...existingFields.map(f => f)]).size;
-
-// Only upgrade completeness if we actually extracted something
-if (extractedFields.length >= 4) {
-  updateData.data_completeness = 'high';
-} else if (extractedFields.length >= 2 || totalFilledFields >= 4) {
-  updateData.data_completeness = 'medium';
-} else if (extractedFields.length === 0 && existingFields.length === 0) {
-  updateData.data_completeness = 'low';
-}
-// If no extraction happened, don't change existing completeness
-else if (extractedFields.length === 0) {
-  // Don't set data_completeness - leave it as-is
-  delete updateData.data_completeness;
-}
+```text
++---------------------------+---------------------------+---------------------------+
+|  TOP PERFORMING LISTINGS  |  HOTTEST BUYER SEGMENTS   |  ADMIN ACTION ITEMS       |
+|                           |                           |                           |
+|  1. [Listing Title]       |  PE firms requesting      |  - 384 pending requests   |
+|     12 connections        |  Professional Services    |  - 33 new signups to      |
+|  2. [Listing Title]       |  deals at 3x rate         |    review                 |
+|     9 connections         |                           |  - 2 requests on hold     |
+|  3. [Listing Title]       |  Search funds showing     |                           |
+|     7 connections         |  increased interest in    |                           |
+|                           |  Construction sector      |                           |
++---------------------------+---------------------------+---------------------------+
 ```
 
-### Step 3: Only Record Evidence When Data is Extracted
-**File**: `supabase/functions/enrich-buyer/index.ts`
+---
 
-Only add evidence records when we actually extracted something:
+## M&A-Specific Metrics to Implement
 
-```typescript
-// Only add evidence if we extracted at least one field
-const platformExtractedFields = Object.keys(extractedData);
-if (platformExtractedFields.length > 0) {
-  evidenceRecords.push({
-    type: 'website',
-    url: platformWebsite!,
-    extracted_at: new Date().toISOString(),
-    fields_extracted: platformExtractedFields
-  });
-}
-```
+### Deal Flow Metrics
+- **Connection Request Volume**: Daily/weekly trends with sparklines
+- **Conversion Rate**: Pending -> Approved -> Introduced -> Closed
+- **Time to First Contact**: Average days from listing to first connection request
+- **Deal Velocity**: Average time through pipeline stages
 
-### Step 4: Add Retry Logic with Exponential Backoff
-**File**: `supabase/functions/enrich-buyer/index.ts`
+### Buyer Intelligence
+- **Buyer Type Distribution**: Visual breakdown with engagement levels per type
+- **Geographic Concentration**: Where buyers are located/interested
+- **Target Industry Preferences**: What sectors attract most interest
+- **Buyer Quality Score**: Profile completion, engagement frequency
 
-Sometimes AI calls fail transiently. Add retry logic:
+### Listing Intelligence
+- **Listing Heat Map**: Which listings generate the most interest
+- **Category Performance**: Requests per category with benchmarks
+- **Price Point Analysis**: Which revenue/EBITDA ranges perform best
+- **Time on Market**: Average days from listing to first connection
 
-```typescript
-async function callAIWithRetry(
-  systemPrompt: string, 
-  userPrompt: string, 
-  tool: any, 
-  apiKey: string,
-  maxRetries = 2
-): Promise<{ data: any | null; error?: { code: string; message: string } }> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const result = await callAI(systemPrompt, userPrompt, tool, apiKey);
-    
-    if (result.data !== null || result.error) {
-      return result;  // Success or billing error - don't retry
-    }
-    
-    if (attempt < maxRetries) {
-      console.log(`Attempt ${attempt} failed, retrying in ${attempt * 1000}ms...`);
-      await new Promise(r => setTimeout(r, attempt * 1000));
-    }
-  }
-  
-  return { data: null };
-}
-```
+### Pipeline Health
+- **Funnel Conversion Rates**: Stage-by-stage dropoff analysis
+- **Pending Queue Age**: Requests aging without response
+- **Admin Response Time**: Time to process requests
 
-### Step 5: Improve Error Surfacing to Frontend
-**File**: `supabase/functions/enrich-buyer/index.ts`
+---
 
-Return more detailed information about extraction failures:
+## Design Principles
 
-```typescript
-return new Response(
-  JSON.stringify({
-    success: true,
-    data: {
-      buyerId,
-      fieldsUpdated,
-      fieldsExtracted: Object.keys(extractedData),
-      dataCompleteness: updateData.data_completeness || buyer.data_completeness || 'low',
-      extractedData,
-      scraped: {
-        platform: !!platformContent,
-        peFirm: !!peFirmContent
-      },
-      extractionDetails: {
-        platformScraped: !!platformContent,
-        platformContentLength: platformContent?.length || 0,
-        peFirmScraped: !!peFirmContent,
-        peFirmContentLength: peFirmContent?.length || 0,
-        promptsRun: 6,
-        promptsSuccessful: Object.keys(extractedData).length > 0 ? 'at least 1' : 0
-      }
-    },
-    warning: warnings.length > 0 ? warnings.join('; ') : undefined
-  }),
-  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-);
-```
+### Visual Language
+- **Dark theme option** with warm accent colors (reference screenshot uses navy/coral)
+- **Large typography** for key numbers (4xl-5xl fonts)
+- **Subtle sparklines** embedded in stat cards
+- **Soft shadows** and rounded corners for premium feel
+- **Color-coded trends**: Green for up, coral/red for down, blue for neutral
 
-### Step 6: Update Frontend to Display Extraction Warnings
-**File**: `src/hooks/useBuyerEnrichment.ts`
+### Interaction Patterns
+- **Hover states** reveal additional context
+- **Time range selector** affects all charts simultaneously
+- **Click-through** from any metric to detailed view
+- **Smooth animations** on data transitions
 
-Show more specific feedback when enrichment succeeds but extracts no data:
+### Information Hierarchy
+1. **Hero stats**: Scannable in 2 seconds
+2. **Trend charts**: Understand patterns in 10 seconds  
+3. **Detail tables**: Deep dive when needed
+4. **Action items**: Clear next steps highlighted
 
-```typescript
-if (result.status === 'fulfilled') {
-  const enrichResult = result.value;
-  
-  // Check if enrichment succeeded but extracted no data
-  if (enrichResult.data?.fieldsExtracted?.length === 0) {
-    warnings++;
-    updateStatus(buyer.id, { 
-      buyerId: buyer.id, 
-      status: 'success',
-      error: 'No data extracted from website'
-    });
-  } else {
-    successful++;
-    updateStatus(buyer.id, { buyerId: buyer.id, status: 'success' });
-  }
-}
-```
+---
 
-## Testing Plan
+## Technical Implementation
 
-After implementing these fixes:
-
-1. **Deploy the updated edge function**
-2. **Run enrichment on a single buyer** and check logs for detailed output
-3. **Verify AI is returning tool calls** - if not, the logs will show what's being returned
-4. **Confirm fields are populated** in the database after successful extraction
-5. **Check UI shows correct status** - "Enriched" with data vs "Enriched" without data
-
-## Technical Details
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `src/components/admin/analytics/PremiumAnalyticsDashboard.tsx` | Main dashboard wrapper |
+| `src/components/admin/analytics/premium/HeroStatsSection.tsx` | Top row stat cards |
+| `src/components/admin/analytics/premium/ConnectionVelocityChart.tsx` | Request trends chart |
+| `src/components/admin/analytics/premium/BuyerTypeBreakdown.tsx` | Buyer composition chart |
+| `src/components/admin/analytics/premium/ListingPerformanceChart.tsx` | Category performance |
+| `src/components/admin/analytics/premium/DealFlowFunnel.tsx` | Conversion funnel |
+| `src/components/admin/analytics/premium/TopListingsCard.tsx` | Best performing listings |
+| `src/components/admin/analytics/premium/ActionItemsCard.tsx` | Admin to-do summary |
+| `src/hooks/usePremiumAnalytics.ts` | Data fetching hook |
 
 ### Files to Modify
-| File | Changes |
-|------|---------|
-| `supabase/functions/enrich-buyer/index.ts` | Add logging, fix data completeness, add retry logic |
-| `src/hooks/useBuyerEnrichment.ts` | Add warning detection for empty extractions |
+| File | Change |
+|------|--------|
+| `src/pages/admin/AdminDashboard.tsx` | Replace Analytics tab content, add Activity tab |
+| `src/components/admin/analytics/StripeAnalyticsTab.tsx` | Integrate new dashboard or replace |
 
-### Database Impact
-- No schema changes required
-- Existing `data_completeness: high` records with no data will remain until re-enriched
+### Data Sources
+All metrics can be derived from existing tables:
+- `profiles`: User counts, buyer types, approval status
+- `connection_requests`: Deal flow, pipeline stages, conversion
+- `listings`: Category breakdown, performance
+- `saved_listings`: Interest signals
+- `listing_analytics`: Engagement depth
+- `daily_metrics`: Historical trends
 
-### Edge Cases to Handle
-- Websites that block scrapers (Firecrawl returns minimal content)
-- AI model returning text instead of tool calls
-- Rate limiting mid-batch (already handled with fail-fast)
-- Empty PE firm websites (no thesis available)
+---
 
-## Rollback Plan
+## Component Specifications
 
-If issues persist after deployment:
-1. Check edge function logs for the specific error
-2. Temporarily revert to previous version
-3. Test AI gateway directly using curl to isolate the issue
+### HeroStatCard Component
+```text
+Props:
+- title: string
+- value: number | string
+- subtitle: string
+- trend: { value: number, direction: 'up' | 'down' | 'neutral' }
+- sparklineData: number[]
+- icon: LucideIcon
+
+Features:
+- Large numeric display with tabular-nums
+- Subtle sparkline in background
+- Color-coded trend indicator
+- Hover state with expanded context
+```
+
+### VelocityChart Component
+```text
+Features:
+- 30-day area chart with gradient fill
+- Reference line for average
+- Annotations for peak days
+- Tooltip with full context
+- Time range selector integration
+```
+
+### DealFlowFunnel Component
+```text
+Features:
+- Horizontal funnel visualization
+- Stage labels with counts and percentages
+- Color gradient from start to end
+- Dropoff indicators between stages
+- Click to filter by stage
+```
+
+---
+
+## Success Metrics
+
+The redesigned dashboard should:
+- Load in under 2 seconds
+- Display all key metrics without scrolling on desktop
+- Update in real-time (30-second intervals)
+- Provide clear action items for admins
+- Make the admin team want to check it daily
+
+---
+
+## Implementation Phases
+
+**Phase 1**: Create new component structure and hook
+**Phase 2**: Build hero stats section with real data
+**Phase 3**: Implement primary charts (velocity + buyer type)
+**Phase 4**: Add deal intelligence section
+**Phase 5**: Move activity feed to dedicated tab
+**Phase 6**: Polish animations and interactions
