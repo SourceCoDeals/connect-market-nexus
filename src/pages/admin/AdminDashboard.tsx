@@ -3,10 +3,10 @@ import { adminErrorHandler } from "@/lib/error-handler";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Settings, LayoutGrid, Activity, TrendingUp, Users, ShoppingBag, Database, Workflow, Bell, HelpCircle } from "lucide-react";
+import { Search, RefreshCw, Settings, Activity, Users, Database, Bell, HelpCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StripeOverviewTab } from "@/components/admin/StripeOverviewTab";
-import { StripeAnalyticsTab } from "@/components/admin/analytics/StripeAnalyticsTab";
+import { PremiumAnalyticsDashboard } from "@/components/admin/analytics/PremiumAnalyticsDashboard";
 import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManagementTab";
 import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
 import { ListingIntelligenceTab } from "@/components/admin/ListingIntelligenceTab";
@@ -213,7 +213,7 @@ const AdminDashboard = () => {
               </TabsContent>
 
               <TabsContent value="analytics" className="mt-0">
-                <StripeAnalyticsTab users={usersData || []} />
+                <PremiumAnalyticsDashboard />
               </TabsContent>
 
               <TabsContent value="activity" className="mt-0">
