@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -80,20 +81,17 @@ serve(async (req) => {
       
       console.log(`PDF file, size: ${arrayBuffer.byteLength} bytes, base64 length: ${base64Content.length}`);
       
-      // Use Lovable AI to extract text from PDF
-      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-      if (!lovableApiKey) {
-        throw new Error('LOVABLE_API_KEY not configured');
+      // Use Gemini AI to extract text from PDF
+      const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+      if (!geminiApiKey) {
+        throw new Error('GEMINI_API_KEY not configured');
       }
 
-      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const aiResponse = await fetch(GEMINI_API_URL, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${lovableApiKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers: getGeminiHeaders(geminiApiKey),
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: DEFAULT_GEMINI_MODEL,
           messages: [
             {
               role: 'system',
@@ -142,19 +140,16 @@ serve(async (req) => {
       
       console.log(`Word file, size: ${arrayBuffer.byteLength} bytes, base64 length: ${base64Content.length}`);
       
-      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-      if (!lovableApiKey) {
-        throw new Error('LOVABLE_API_KEY not configured');
+      const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+      if (!geminiApiKey) {
+        throw new Error('GEMINI_API_KEY not configured');
       }
 
-      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const aiResponse = await fetch(GEMINI_API_URL, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${lovableApiKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers: getGeminiHeaders(geminiApiKey),
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: DEFAULT_GEMINI_MODEL,
           messages: [
             {
               role: 'system',

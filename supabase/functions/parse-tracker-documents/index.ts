@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,9 +29,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     // Initialize Supabase client for storage access
@@ -48,7 +49,7 @@ serve(async (req) => {
       const name = document_names?.[i] || `Document ${i + 1}`;
       
       try {
-        const text = await extractTextFromDocument(url, name, LOVABLE_API_KEY);
+        const text = await extractTextFromDocument(url, name, GEMINI_API_KEY);
         if (text) {
           allTexts.push(`\n--- ${name} ---\n${text}`);
         }
@@ -69,7 +70,7 @@ serve(async (req) => {
     console.log(`Extracted ${combinedText.length} chars from ${allTexts.length} documents`);
 
     // Now extract criteria from the combined text
-    const criteria = await extractCriteriaFromText(combinedText, LOVABLE_API_KEY);
+    const criteria = await extractCriteriaFromText(combinedText, GEMINI_API_KEY);
 
     // Update the universe if ID provided
     if (universe_id && criteria) {
@@ -155,14 +156,11 @@ async function extractTextFromDocument(url: string, filename: string, apiKey: st
 
 async function extractPdfWithVision(url: string, apiKey: string): Promise<string> {
   // Use Gemini's vision capability to extract text from document images
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: DEFAULT_GEMINI_MODEL,
       messages: [
         {
           role: "user",
@@ -287,14 +285,11 @@ async function extractCriteriaFromText(text: string, apiKey: string): Promise<an
     }
   };
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: DEFAULT_GEMINI_MODEL,
       messages: [
         {
           role: "system",

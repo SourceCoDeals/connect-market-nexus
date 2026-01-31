@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,9 +44,9 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -56,9 +57,9 @@ serve(async (req) => {
     const isBulk = body.bulk === true;
 
     if (isBulk) {
-      return await handleBulkScore(supabase, body as BulkScoreRequest, LOVABLE_API_KEY, corsHeaders);
+      return await handleBulkScore(supabase, body as BulkScoreRequest, GEMINI_API_KEY, corsHeaders);
     } else {
-      return await handleSingleScore(supabase, body as ScoreRequest, LOVABLE_API_KEY, corsHeaders);
+      return await handleSingleScore(supabase, body as ScoreRequest, GEMINI_API_KEY, corsHeaders);
     }
   } catch (error) {
     console.error("Score buyer-deal error:", error);
@@ -1169,14 +1170,11 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
 
   console.log("Scoring with behavior:", JSON.stringify(scoringBehavior));
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: DEFAULT_GEMINI_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }

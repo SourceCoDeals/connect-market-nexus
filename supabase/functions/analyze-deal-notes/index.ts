@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, extractStatesFromText, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -208,11 +209,11 @@ serve(async (req) => {
     console.log('Geography from notes:', geographyFromNotes);
 
     // Step 2: AI extraction for complex fields
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     
     let aiExtracted: Record<string, unknown> = {};
     
-    if (lovableApiKey) {
+    if (geminiApiKey) {
       const systemPrompt = `You are an M&A analyst extracting deal intelligence from internal notes.
 Focus on:
 - Owner goals and motivations
@@ -229,14 +230,11 @@ ${notes.substring(0, 10000)}
 Extract the relevant information using the provided tool.`;
 
       try {
-        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const aiResponse = await fetch(GEMINI_API_URL, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
+          headers: getGeminiHeaders(geminiApiKey),
           body: JSON.stringify({
-            model: 'google/gemini-3-flash-preview',
+            model: DEFAULT_GEMINI_MODEL,
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
