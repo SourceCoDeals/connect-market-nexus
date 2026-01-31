@@ -1,214 +1,146 @@
 
+# Fix: Auto-Retry Rate-Limited Batches + Inter-Phase Delays
 
-# Migration Plan: Lovable AI Gateway → Direct API Keys
+## Problem Summary
 
-## Overview
+The AI Guide generation stopped at Phase 1b due to a 429 "RESOURCE_EXHAUSTED" rate limit from Gemini. The system has two issues:
 
-Migrate all 16 AI-powered edge functions from using the Lovable AI Gateway (`ai.gateway.lovable.dev`) to direct API calls using the project's own API keys:
-- `GEMINI_API_KEY` - For Google Gemini models
-- `OPENAI_API_KEY` - Already configured
-- `ANTHROPIC_API_KEY` - For Claude models
-
----
-
-## Current State Analysis
-
-### Functions Using Lovable AI Gateway (15 functions)
-
-| Function | Current Model | New Provider | Priority |
-|----------|--------------|--------------|----------|
-| `score-buyer-deal` | `gemini-3-flash-preview` | GEMINI_API_KEY | High |
-| `extract-transcript` | `gemini-3-flash-preview` | GEMINI_API_KEY | High |
-| `enrich-buyer` | `gemini-2.5-flash` | GEMINI_API_KEY | High |
-| `enrich-deal` | `gemini-3-flash-preview` | GEMINI_API_KEY | High |
-| `generate-ma-guide` | `gemini-2.5-flash/pro` | GEMINI_API_KEY | High |
-| `parse-fit-criteria` | `gemini-2.5-flash` | GEMINI_API_KEY | Medium |
-| `map-csv-columns` | `gemini-3-flash-preview` | GEMINI_API_KEY | Medium |
-| `parse-tracker-documents` | `gemini-2.5-flash` | GEMINI_API_KEY | Medium |
-| `analyze-tracker-notes` | `gemini-2.5-flash` | GEMINI_API_KEY | Medium |
-| `analyze-deal-notes` | `gemini-3-flash-preview` | GEMINI_API_KEY | Medium |
-| `update-fit-criteria-chat` | `gemini-2.5-flash` | GEMINI_API_KEY | Medium |
-| `clarify-industry` | `gemini-2.5-flash` | GEMINI_API_KEY | Low |
-| `score-industry-alignment` | `gemini-3-flash-preview` | GEMINI_API_KEY | Low |
-| `parse-transcript-file` | `gemini-2.5-flash` | GEMINI_API_KEY | Medium |
-| `extract-deal-transcript` | `gemini-2.5-flash` | GEMINI_API_KEY | Medium |
-
-### Functions Using Anthropic API (1 function)
-
-| Function | Current Model | Issue | Solution |
-|----------|--------------|-------|----------|
-| `suggest-universe` | `claude-3-haiku-20240307` | Uses `LOVABLE_API_KEY` as x-api-key | Switch to `ANTHROPIC_API_KEY` |
+1. **Backend**: No delay between phases - batches fire API calls back-to-back, hitting Gemini's rate limits
+2. **Frontend**: Rate limit errors are detected but not auto-retried - the generation fails instead of waiting and retrying
 
 ---
 
-## Technical Implementation
+## Solution Overview
 
-### 1. Create Shared AI Helper Module
+| Component | Issue | Fix |
+|-----------|-------|-----|
+| Backend (`generate-ma-guide`) | No inter-phase delays | Add 2-second delay between phases |
+| Frontend (`AIResearchSection`) | Rate limit errors fail immediately | Auto-retry after 30s backoff |
+| Frontend | MAX_BATCH_RETRIES = 2 | Increase to 3 for rate limit resilience |
 
-**New file: `supabase/functions/_shared/ai-providers.ts`**
+---
 
-Create a centralized module for AI provider configuration:
+## Implementation Details
+
+### Part 1: Backend - Add Inter-Phase Delays
+
+**File: `supabase/functions/generate-ma-guide/index.ts`**
+
+Add a delay constant and insert delays between phase generations:
 
 ```typescript
-// API Endpoints
-export const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-export const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+// At line ~617 (after BATCH_SIZE constant)
+const INTER_PHASE_DELAY_MS = 2000; // 2 seconds between API calls
 
-// Model mappings (Lovable Gateway → Native)
-export const MODEL_MAP = {
-  // Gemini models - use native names
-  "google/gemini-3-flash-preview": "gemini-2.0-flash",
-  "google/gemini-2.5-flash": "gemini-2.0-flash", 
-  "google/gemini-2.5-flash-lite": "gemini-2.0-flash-lite",
-  "google/gemini-2.5-pro": "gemini-2.0-pro-exp",
-  // Claude models
-  "claude-3-haiku-20240307": "claude-3-haiku-20240307",
-};
-```
-
-### 2. Migration Pattern for Each Function
-
-**Before (Lovable Gateway):**
-```typescript
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-  headers: {
-    Authorization: `Bearer ${LOVABLE_API_KEY}`,
-  },
-  body: JSON.stringify({
-    model: "google/gemini-2.5-flash",
-    messages: [...],
-  }),
-});
-```
-
-**After (Direct Gemini API):**
-```typescript
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const response = await fetch(
-  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-  {
-    headers: {
-      Authorization: `Bearer ${GEMINI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gemini-2.0-flash",  // Native model name
-      messages: [...],
-    }),
+// In the batch loop (around line 1074), add delay BEFORE each phase except the first:
+for (let i = 0; i < batchPhases.length; i++) {
+  const phase = batchPhases[i];
+  
+  // Add delay between phases to prevent rate limiting
+  if (i > 0) {
+    send({ type: 'heartbeat', message: 'Cooling down before next phase...' });
+    await new Promise(r => setTimeout(r, INTER_PHASE_DELAY_MS));
   }
-);
+  
+  // ... rest of phase generation
+}
 ```
 
-**After (Direct Anthropic API):**
+This proactively prevents rate limits by spacing out API calls.
+
+---
+
+### Part 2: Frontend - Auto-Retry Rate-Limited Batches
+
+**File: `src/components/remarketing/AIResearchSection.tsx`**
+
+**Change 1: Increase retry budget (line 96)**
 ```typescript
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-const response = await fetch("https://api.anthropic.com/v1/messages", {
-  headers: {
-    "x-api-key": ANTHROPIC_API_KEY,
-    "anthropic-version": "2023-06-01",
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    model: "claude-3-haiku-20240307",
-    max_tokens: 1024,
-    messages: [...],
-  }),
-});
+// Change from 2 to 3
+const MAX_BATCH_RETRIES = 3;
+```
+
+**Change 2: Modify the rate limit handling in SSE event parser (lines 465-470)**
+
+Currently the code waits 30 seconds then throws, which fails the generation. Instead, it should let the error bubble up to the catch block which handles auto-retry.
+
+```typescript
+// BEFORE (lines 465-470):
+if (event.error_code === 'rate_limited') {
+  toast.warning("Rate limit reached. Waiting 30 seconds before retrying...");
+  await new Promise(r => setTimeout(r, 30000));
+  // Continue to throw so auto-retry kicks in
+}
+throw new Error(event.message);
+
+// AFTER:
+if (event.error_code === 'rate_limited') {
+  // Throw with rate limit flag so catch block handles retry with backoff
+  const err = new Error(event.message);
+  (err as any).isRateLimited = true;
+  throw err;
+}
+throw new Error(event.message);
+```
+
+**Change 3: Update the catch block to handle rate limits (lines 497-512)**
+
+```typescript
+// BEFORE:
+const isStreamCutoff = message.includes('Stream ended unexpectedly during batch');
+const currentRetries = batchRetryCountRef.current[batchIndex] ?? 0;
+if (state === 'generating' && isStreamCutoff && currentRetries < MAX_BATCH_RETRIES) {
+  // ... retry logic
+}
+
+// AFTER:
+const isStreamCutoff = message.includes('Stream ended unexpectedly during batch');
+const isRateLimited = 
+  (error as any).isRateLimited || 
+  message.includes('Rate limit') ||
+  message.includes('rate_limited') ||
+  message.includes('RESOURCE_EXHAUSTED');
+
+const currentRetries = batchRetryCountRef.current[batchIndex] ?? 0;
+if (state === 'generating' && (isStreamCutoff || isRateLimited) && currentRetries < MAX_BATCH_RETRIES) {
+  batchRetryCountRef.current[batchIndex] = currentRetries + 1;
+  
+  // Use longer backoff for rate limits (30s) vs stream cutoffs (1-3s)
+  const backoffMs = isRateLimited ? 30000 : 1000 * (currentRetries + 1);
+  
+  toast.info(
+    isRateLimited
+      ? `Rate limit hit. Waiting 30s before retry (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+      : `Connection dropped during batch ${batchIndex + 1}. Retrying (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+  );
+  
+  await new Promise((r) => setTimeout(r, backoffMs));
+  abortControllerRef.current = new AbortController();
+  await generateBatch(batchIndex, previousContent, clarificationContext);
+  return;
+}
 ```
 
 ---
 
 ## Files to Modify
 
-### High Priority (Core Remarketing AI)
-
-1. **`supabase/functions/score-buyer-deal/index.ts`**
-   - Replace `LOVABLE_API_KEY` → `GEMINI_API_KEY`
-   - Update API URL to Gemini direct endpoint
-   - Map model `google/gemini-3-flash-preview` → `gemini-2.0-flash`
-
-2. **`supabase/functions/extract-transcript/index.ts`**
-   - Same pattern as above
-
-3. **`supabase/functions/enrich-buyer/index.ts`**
-   - Same pattern as above
-
-4. **`supabase/functions/enrich-deal/index.ts`**
-   - Same pattern as above
-
-5. **`supabase/functions/generate-ma-guide/index.ts`**
-   - Multiple AI calls to update
-   - Map both `gemini-2.5-flash` and `gemini-2.5-pro` models
-
-### Medium Priority
-
-6. **`supabase/functions/parse-fit-criteria/index.ts`**
-7. **`supabase/functions/map-csv-columns/index.ts`**
-8. **`supabase/functions/parse-tracker-documents/index.ts`**
-9. **`supabase/functions/analyze-tracker-notes/index.ts`**
-10. **`supabase/functions/analyze-deal-notes/index.ts`**
-11. **`supabase/functions/update-fit-criteria-chat/index.ts`**
-12. **`supabase/functions/parse-transcript-file/index.ts`**
-13. **`supabase/functions/extract-deal-transcript/index.ts`**
-
-### Low Priority
-
-14. **`supabase/functions/clarify-industry/index.ts`**
-15. **`supabase/functions/score-industry-alignment/index.ts`**
-
-### Anthropic Migration
-
-16. **`supabase/functions/suggest-universe/index.ts`**
-   - Replace `LOVABLE_API_KEY` → `ANTHROPIC_API_KEY`
-   - Update header from `x-api-key: LOVABLE_API_KEY` to `x-api-key: ANTHROPIC_API_KEY`
+| File | Lines | Changes |
+|------|-------|---------|
+| `supabase/functions/generate-ma-guide/index.ts` | ~617 | Add `INTER_PHASE_DELAY_MS = 2000` constant |
+| `supabase/functions/generate-ma-guide/index.ts` | ~1074 | Add delay before each phase (except first) |
+| `src/components/remarketing/AIResearchSection.tsx` | 96 | Increase `MAX_BATCH_RETRIES` to 3 |
+| `src/components/remarketing/AIResearchSection.tsx` | 465-470 | Throw with `isRateLimited` flag instead of waiting inline |
+| `src/components/remarketing/AIResearchSection.tsx` | 497-512 | Add rate limit detection to auto-retry logic |
 
 ---
 
-## Model Mapping Reference
+## Expected Behavior After Fix
 
-| Lovable Gateway Model | Native Gemini Model |
-|----------------------|---------------------|
-| `google/gemini-3-flash-preview` | `gemini-2.0-flash` |
-| `google/gemini-2.5-flash` | `gemini-2.0-flash` |
-| `google/gemini-2.5-flash-lite` | `gemini-2.0-flash-lite` |
-| `google/gemini-2.5-pro` | `gemini-2.0-pro-exp` |
-
----
-
-## Error Handling Updates
-
-Update error code detection for direct APIs:
-
-**Gemini API errors:**
-- 401: Invalid API key
-- 429: Rate limit exceeded
-- 500/503: Service unavailable
-
-**Anthropic API errors:**
-- 401: Invalid API key
-- 429: Rate limit exceeded  
-- 529: API overloaded
-
----
-
-## Implementation Order
-
-1. Create `_shared/ai-providers.ts` helper module
-2. Migrate high-priority functions (5 files)
-3. Test scoring and extraction workflows
-4. Migrate medium-priority functions (8 files)
-5. Migrate low-priority functions (2 files)
-6. Migrate Anthropic function (1 file)
-
----
-
-## Expected Outcome
-
-After migration:
-- All AI calls use your own API keys directly
-- No dependency on Lovable AI Gateway
-- Full control over rate limits and billing
-- Same functionality with native API endpoints
-
+1. **Proactive Prevention**: 2-second delays between phases reduce likelihood of hitting rate limits
+2. **Graceful Recovery**: If a rate limit does occur:
+   - User sees: "Rate limit hit. Waiting 30s before retry (1/3)..."
+   - System waits 30 seconds automatically
+   - Batch retries from where it left off
+   - Up to 3 retry attempts before failing
+3. **Seamless Experience**: Users don't need to manually resume - the generation continues automatically
