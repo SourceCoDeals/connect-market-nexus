@@ -6,9 +6,25 @@
  */
 
 // API Endpoints
+// Gemini OpenAI-compatible endpoint with x-goog-api-key header
 export const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+export const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 export const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+
+/**
+ * Get the Gemini API URL with API key
+ */
+export function getGeminiApiUrl(apiKey: string): string {
+  return GEMINI_API_URL;
+}
+
+/**
+ * Build Gemini API URL for native endpoint (non-OpenAI compatible)
+ */
+export function getGeminiNativeUrl(model: string, apiKey: string): string {
+  return `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey}`;
+}
 
 // Model mappings (Lovable Gateway model names → Native model names)
 export const GEMINI_MODEL_MAP: Record<string, string> = {
@@ -32,10 +48,11 @@ export function getGeminiModel(gatewayModel: string): string {
 
 /**
  * Build Gemini API request headers
+ * Uses x-goog-api-key header for authentication
  */
 export function getGeminiHeaders(apiKey: string): Record<string, string> {
   return {
-    "Authorization": `Bearer ${apiKey}`,
+    "x-goog-api-key": apiKey,
     "Content-Type": "application/json",
   };
 }
