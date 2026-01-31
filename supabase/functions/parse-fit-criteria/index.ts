@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -74,10 +75,10 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
       // Fallback to local parsing
-      console.log("LOVABLE_API_KEY not configured, using local parsing");
+      console.log("GEMINI_API_KEY not configured, using local parsing");
       const localParsed = parseLocally(fit_criteria_text);
       return new Response(
         JSON.stringify(localParsed),
@@ -97,14 +98,11 @@ CRITICAL REQUIREMENTS:
 4. Use full state names (e.g., "Texas" not "TX")
 5. Do NOT include placeholder values like [X], TBD, or $XM`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(GEMINI_API_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: getGeminiHeaders(GEMINI_API_KEY),
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: DEFAULT_GEMINI_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Parse this fit criteria text:\n\n${fit_criteria_text}` }

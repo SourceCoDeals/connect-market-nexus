@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_PRO_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -196,14 +197,11 @@ async function extractCriteria(content: string, apiKey: string): Promise<Extract
   }
 
   // Fallback to AI extraction with tool calling
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: DEFAULT_GEMINI_MODEL,
       messages: [
         { 
           role: "system", 
@@ -367,14 +365,11 @@ async function extractBuyerProfilesWithAI(content: string, apiKey: string): Prom
                           content.match(/BUYER TYPE[\s\S]*?(?=##\s*PHASE|$)/i)?.[0] ||
                           content.slice(-20000);
   
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: DEFAULT_GEMINI_MODEL,
       messages: [
         { 
           role: "system", 
@@ -592,14 +587,11 @@ Focus especially on:
 
 Be comprehensive and specific.`;
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: DEFAULT_GEMINI_MODEL,
       messages: [
         { role: "system", content: "You are an M&A advisor filling gaps in an industry guide. Be specific and detailed." },
         { role: "user", content: prompt }
@@ -627,10 +619,10 @@ const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase
 // Prefer failing fast and letting the client retry the batch.
 const MAX_RETRIES = 0;
 
-// Model selection: Use faster model for non-critical phases
+// Model selection: Use PRO model for critical phases
 const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
 const getModelForPhase = (phaseId: string) => 
-  CRITICAL_PHASES.includes(phaseId) ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
+  CRITICAL_PHASES.includes(phaseId) ? DEFAULT_GEMINI_PRO_MODEL : DEFAULT_GEMINI_MODEL;
 
 // Timeout wrapper for phase generation
 async function generatePhaseWithTimeout(
@@ -693,12 +685,9 @@ Do NOT use placeholders like [X] or TBD - use realistic example values.${context
   const phasePrompts: Record<string, string> = getPhasePrompts(industryName);
   const userPrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
       model,
       messages: [

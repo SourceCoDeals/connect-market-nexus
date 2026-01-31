@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ANTHROPIC_API_URL, getAnthropicHeaders } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,9 +25,9 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -114,13 +115,9 @@ For each universe that is a potential match, provide:
 Return JSON array: [{ "index": 1, "confidence": 85, "reason": "...", "matching_criteria": ["category", "size"] }]
 Only include universes with confidence >= 50. Sort by confidence descending.`;
 
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    const aiResponse = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": LOVABLE_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: getAnthropicHeaders(ANTHROPIC_API_KEY),
       body: JSON.stringify({
         model: "claude-3-haiku-20240307",
         max_tokens: 1024,

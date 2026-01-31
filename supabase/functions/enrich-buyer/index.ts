@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
     }
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -71,10 +72,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!lovableApiKey) {
-      console.error('LOVABLE_API_KEY not configured');
+    if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ success: false, error: 'Lovable API key not configured' }),
+        JSON.stringify({ success: false, error: 'Gemini API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -183,7 +184,7 @@ Deno.serve(async (req) => {
         getBusinessOverviewPrompt().system,
         getBusinessOverviewPrompt().user(platformContent, buyer.company_name),
         getBusinessOverviewPrompt().tool,
-        lovableApiKey
+        geminiApiKey
       );
       if (checkBillingError(overviewResult)) {
         console.error('Billing error during business overview extraction');
@@ -200,7 +201,7 @@ Deno.serve(async (req) => {
           getCustomersEndMarketPrompt().system,
           getCustomersEndMarketPrompt().user(platformContent),
           getCustomersEndMarketPrompt().tool,
-          lovableApiKey
+          geminiApiKey
         );
         if (checkBillingError(customersResult)) {
           console.error('Billing error during customers extraction');
@@ -218,7 +219,7 @@ Deno.serve(async (req) => {
           getGeographyFootprintPrompt().system,
           getGeographyFootprintPrompt().user(platformContent),
           getGeographyFootprintPrompt().tool,
-          lovableApiKey
+          geminiApiKey
         );
         if (checkBillingError(geographyResult)) {
           console.error('Billing error during geography extraction');
@@ -236,7 +237,7 @@ Deno.serve(async (req) => {
           getPlatformAcquisitionsPrompt().system,
           getPlatformAcquisitionsPrompt().user(platformContent),
           getPlatformAcquisitionsPrompt().tool,
-          lovableApiKey
+          geminiApiKey
         );
         if (checkBillingError(acquisitionsResult)) {
           console.error('Billing error during acquisitions extraction');
@@ -271,7 +272,7 @@ Deno.serve(async (req) => {
         getPEInvestmentThesisPrompt().system,
         getPEInvestmentThesisPrompt().user(peFirmContent),
         getPEInvestmentThesisPrompt().tool,
-        lovableApiKey
+        geminiApiKey
       );
       if (checkBillingError(thesisResult)) {
         console.error('Billing error during PE thesis extraction');
@@ -289,7 +290,7 @@ Deno.serve(async (req) => {
           getPEDealStructurePrompt().system,
           getPEDealStructurePrompt().user(peFirmContent),
           getPEDealStructurePrompt().tool,
-          lovableApiKey
+          geminiApiKey
         );
         if (checkBillingError(dealStructureResult)) {
           console.error('Billing error during deal structure extraction');
@@ -308,7 +309,7 @@ Deno.serve(async (req) => {
           getPEPortfolioPrompt().system,
           getPEPortfolioPrompt().user(peFirmContent),
           getPEPortfolioPrompt().tool,
-          lovableApiKey
+          geminiApiKey
         );
         if (checkBillingError(portfolioResult)) {
           console.error('Billing error during portfolio extraction');
@@ -465,14 +466,11 @@ async function callAI(
   try {
     console.log(`Calling AI with tool: ${tool.function.name}`);
     
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getGeminiHeaders(apiKey),
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: DEFAULT_GEMINI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
