@@ -993,9 +993,10 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    console.log(`GEMINI_API_KEY configured: ${!!GEMINI_API_KEY}, length: ${GEMINI_API_KEY?.length || 0}`);
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     // Calculate which phases to generate for this batch
@@ -1013,14 +1014,14 @@ serve(async (req) => {
     if (!stream) {
       let fullContent = previous_content;
       for (const phase of batchPhases) {
-        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, LOVABLE_API_KEY, clarification_context);
+        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, clarification_context);
         fullContent += phaseContent + '\n\n';
       }
       
       // Only validate and extract on last batch
       if (isLastBatch) {
         const quality = validateQuality(fullContent);
-        const criteria = await extractCriteria(fullContent, LOVABLE_API_KEY);
+        const criteria = await extractCriteria(fullContent, GEMINI_API_KEY);
         
         return new Response(
           JSON.stringify({ 
@@ -1086,7 +1087,7 @@ serve(async (req) => {
             });
 
             // Generate phase content with clarification context
-            const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, LOVABLE_API_KEY, clarification_context);
+            const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, clarification_context);
             fullContent += phaseContent + '\n\n';
 
             // Send content chunks
@@ -1129,7 +1130,7 @@ serve(async (req) => {
             if (!quality.passed && quality.missingElements.length > 0) {
               send({ type: 'gap_fill_start', missingElements: quality.missingElements });
               
-              const gapContent = await generateGapFill(quality.missingElements, industry_name, LOVABLE_API_KEY);
+              const gapContent = await generateGapFill(quality.missingElements, industry_name, GEMINI_API_KEY);
               fullContent += '\n\n## GAP FILL CONTENT\n\n' + gapContent;
               
               // Stream gap fill content
@@ -1148,7 +1149,7 @@ serve(async (req) => {
 
             // Extract criteria
             send({ type: 'criteria_extraction_start' });
-            const criteria = await extractCriteria(fullContent, LOVABLE_API_KEY);
+            const criteria = await extractCriteria(fullContent, GEMINI_API_KEY);
             send({ type: 'criteria', criteria });
 
             // Complete

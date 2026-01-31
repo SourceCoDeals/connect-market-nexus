@@ -561,11 +561,11 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (!lovableApiKey) {
-      console.error('LOVABLE_API_KEY not configured');
+    if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not configured');
       return new Response(JSON.stringify({ error: 'AI API key not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -647,7 +647,7 @@ serve(async (req) => {
       const { data: extractedData, billingError } = await extractBuyerData(
         transcriptText, 
         buyer, 
-        lovableApiKey
+        geminiApiKey
       );
 
       console.log('Extracted buyer data:', JSON.stringify(extractedData, null, 2));
@@ -737,7 +737,7 @@ serve(async (req) => {
       const { data: extractedData, billingError } = await extractDealData(
         transcriptText, 
         listing, 
-        lovableApiKey
+        geminiApiKey
       );
 
       console.log('Extracted deal data:', JSON.stringify(extractedData, null, 2));
