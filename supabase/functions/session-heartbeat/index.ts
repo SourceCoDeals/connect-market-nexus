@@ -57,12 +57,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get current session to calculate duration
-    const { data: session, error: selectError } = await supabase
+    // Get current session to calculate duration (use limit(1) to handle duplicates gracefully)
+    const { data: sessions, error: selectError } = await supabase
       .from('user_sessions')
       .select('started_at, session_duration_seconds')
       .eq('session_id', body.session_id)
-      .maybeSingle();
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    const session = sessions?.[0] ?? null;
 
     if (selectError) {
       console.error('Failed to get session:', selectError);
