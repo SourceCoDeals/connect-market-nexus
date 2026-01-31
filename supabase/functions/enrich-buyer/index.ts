@@ -165,6 +165,10 @@ Deno.serve(async (req) => {
     let promptsRun = 0;
     let promptsSuccessful = 0;
 
+    // Delay between prompts to avoid rate limiting (Gemini has ~10 RPM for free tier)
+    const INTER_PROMPT_DELAY_MS = 600;
+    const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+    
     // Helper to check for billing errors and stop if found
     const checkBillingError = (result: { data: any; error?: { code: string; message: string } }) => {
       if (result.error && (result.error.code === 'payment_required' || result.error.code === 'rate_limited')) {
@@ -194,8 +198,9 @@ Deno.serve(async (req) => {
         console.log('Extracted business overview:', Object.keys(overviewResult.data));
       }
 
-      // Prompt 2: Customers/End Market
+      // Prompt 2: Customers/End Market (with delay)
       if (!billingError) {
+        await delay(INTER_PROMPT_DELAY_MS);
         promptsRun++;
         const customersResult = await callAIWithRetry(
           getCustomersEndMarketPrompt().system,
@@ -212,8 +217,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Prompt 3: Geography/Footprint
+      // Prompt 3: Geography/Footprint (with delay)
       if (!billingError) {
+        await delay(INTER_PROMPT_DELAY_MS);
         promptsRun++;
         const geographyResult = await callAIWithRetry(
           getGeographyFootprintPrompt().system,
@@ -230,8 +236,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Prompt 3b: Platform Acquisitions
+      // Prompt 3b: Platform Acquisitions (with delay)
       if (!billingError) {
+        await delay(INTER_PROMPT_DELAY_MS);
         promptsRun++;
         const acquisitionsResult = await callAIWithRetry(
           getPlatformAcquisitionsPrompt().system,
@@ -266,7 +273,8 @@ Deno.serve(async (req) => {
       console.log('Extracting from PE firm website...');
       const peFirmFields: string[] = [];
 
-      // Prompt 4: PE Investment Thesis
+      // Prompt 4: PE Investment Thesis (with delay from platform prompts)
+      await delay(INTER_PROMPT_DELAY_MS);
       promptsRun++;
       const thesisResult = await callAIWithRetry(
         getPEInvestmentThesisPrompt().system,
@@ -283,8 +291,9 @@ Deno.serve(async (req) => {
         console.log('Extracted PE thesis:', Object.keys(thesisResult.data));
       }
 
-      // Prompt 5: PE Deal Structure
+      // Prompt 5: PE Deal Structure (with delay)
       if (!billingError) {
+        await delay(INTER_PROMPT_DELAY_MS);
         promptsRun++;
         const dealStructureResult = await callAIWithRetry(
           getPEDealStructurePrompt().system,
@@ -302,8 +311,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Prompt 6: PE Portfolio
+      // Prompt 6: PE Portfolio (with delay)
       if (!billingError) {
+        await delay(INTER_PROMPT_DELAY_MS);
         promptsRun++;
         const portfolioResult = await callAIWithRetry(
           getPEPortfolioPrompt().system,
