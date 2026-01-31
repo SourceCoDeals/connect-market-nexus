@@ -22,8 +22,8 @@ export interface EnrichmentProgress {
   creditsDepleted: boolean;
 }
 
-const BATCH_SIZE = 5;
-const BATCH_DELAY_MS = 1000;
+const BATCH_SIZE = 2; // Reduced from 5 to avoid Gemini rate limits (each buyer makes 6 API calls)
+const BATCH_DELAY_MS = 2000; // Increased from 1000ms for better rate limit handling
 
 export function useBuyerEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
