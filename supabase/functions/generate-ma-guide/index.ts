@@ -619,6 +619,9 @@ const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase
 // Prefer failing fast and letting the client retry the batch.
 const MAX_RETRIES = 0;
 
+// Inter-phase delay to prevent hitting Gemini rate limits
+const INTER_PHASE_DELAY_MS = 2000; // 2 seconds between API calls
+
 // Model selection: Use PRO model for critical phases
 const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
 const getModelForPhase = (phaseId: string) => 
@@ -1074,6 +1077,12 @@ serve(async (req) => {
           for (let i = 0; i < batchPhases.length; i++) {
             const phase = batchPhases[i];
             const globalPhaseIndex = startPhase + i;
+            
+            // Add delay between phases to prevent rate limiting (skip first phase)
+            if (i > 0) {
+              send({ type: 'heartbeat', message: 'Cooling down before next phase...' });
+              await new Promise(r => setTimeout(r, INTER_PHASE_DELAY_MS));
+            }
             
             // Send phase start
             send({ 

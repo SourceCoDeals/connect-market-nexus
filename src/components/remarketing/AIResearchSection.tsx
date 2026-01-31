@@ -93,7 +93,7 @@ export const AIResearchSection = ({
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string | string[]>>({});
 
   // Auto-retry configuration (prevents manual Resume for transient stream cut-offs)
-  const MAX_BATCH_RETRIES = 2;
+  const MAX_BATCH_RETRIES = 3;
   const batchRetryCountRef = useRef<Record<number, number>>({});
 
   useEffect(() => {
@@ -463,9 +463,10 @@ export const AIResearchSection = ({
                   return; // Don't retry billing errors
                 }
                 if (event.error_code === 'rate_limited') {
-                  toast.warning("Rate limit reached. Waiting 30 seconds before retrying...");
-                  await new Promise(r => setTimeout(r, 30000));
-                  // Continue to throw so auto-retry kicks in
+                  // Throw with rate limit flag so catch block handles retry with backoff
+                  const err = new Error(event.message);
+                  (err as any).isRateLimited = true;
+                  throw err;
                 }
                 throw new Error(event.message);
             }
@@ -494,15 +495,27 @@ export const AIResearchSection = ({
       } else {
         const message = (error as Error).message || 'Unknown error';
 
-        // Auto-retry on likely transient stream cut-offs so the user doesn't need to manually resume.
+        // Auto-retry on likely transient stream cut-offs or rate limits so the user doesn't need to manually resume.
         const isStreamCutoff = message.includes('Stream ended unexpectedly during batch');
+        const isRateLimited = 
+          (error as any).isRateLimited || 
+          message.includes('Rate limit') ||
+          message.includes('rate_limited') ||
+          message.includes('RESOURCE_EXHAUSTED');
+
         const currentRetries = batchRetryCountRef.current[batchIndex] ?? 0;
-        if (state === 'generating' && isStreamCutoff && currentRetries < MAX_BATCH_RETRIES) {
+        if (state === 'generating' && (isStreamCutoff || isRateLimited) && currentRetries < MAX_BATCH_RETRIES) {
           batchRetryCountRef.current[batchIndex] = currentRetries + 1;
-          const backoffMs = 1000 * (currentRetries + 1);
+          
+          // Use longer backoff for rate limits (30s) vs stream cutoffs (1-3s)
+          const backoffMs = isRateLimited ? 30000 : 1000 * (currentRetries + 1);
+          
           toast.info(
-            `Connection dropped during batch ${batchIndex + 1}. Retrying (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+            isRateLimited
+              ? `Rate limit hit. Waiting 30s before retry (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+              : `Connection dropped during batch ${batchIndex + 1}. Retrying (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
           );
+          
           await new Promise((r) => setTimeout(r, backoffMs));
 
           // New controller for the retry to ensure the previous stream is fully abandoned.
