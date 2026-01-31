@@ -83,6 +83,7 @@ export function useBuyerEnrichment(universeId?: string) {
     let successful = 0;
     let failed = 0;
     let creditsDepleted = false;
+    let rateLimited = false;
 
     // Process in parallel batches
     for (let i = 0; i < enrichableBuyers.length; i += BATCH_SIZE) {
@@ -190,6 +191,36 @@ export function useBuyerEnrichment(universeId?: string) {
             
             return { successful, failed, creditsDepleted: true };
           }
+
+          // Check for rate limit error - fail fast (avoid hammering the API)
+          if (
+            errorCode === 'rate_limited' ||
+            errorMessage.includes('429') ||
+            errorMessage.toLowerCase().includes('rate limit')
+          ) {
+            rateLimited = true;
+
+            setProgress(prev => ({
+              ...prev,
+              current: i + batch.length,
+              successful,
+              failed,
+              isRunning: false,
+            }));
+
+            toast.warning(
+              'Rate limit reached. Please wait ~1–2 minutes and run enrichment again.',
+              { duration: 10000 }
+            );
+
+            // Invalidate queries to show partial results
+            queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+            if (universeId) {
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', universeId] });
+            }
+
+            return { successful, failed, creditsDepleted: false };
+          }
         }
       }
 
@@ -208,7 +239,7 @@ export function useBuyerEnrichment(universeId?: string) {
     }
 
     // Complete
-    if (!creditsDepleted && !cancelledRef.current) {
+    if (!creditsDepleted && !rateLimited && !cancelledRef.current) {
       setProgress(prev => ({ ...prev, isRunning: false }));
       
       if (successful > 0) {

@@ -381,7 +381,17 @@ Deno.serve(async (req) => {
     if (updateError) {
       console.error('Failed to update buyer:', updateError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to save enrichment data' }),
+        JSON.stringify({
+          success: false,
+          error: 'Failed to save enrichment data',
+          error_code: 'db_update_failed',
+          details: {
+            message: (updateError as any)?.message,
+            code: (updateError as any)?.code,
+            hint: (updateError as any)?.hint,
+            // Note: no raw data payload returned to avoid leaking PII
+          }
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -556,25 +566,43 @@ async function callAIWithRetry(
   userPrompt: string, 
   tool: any, 
   apiKey: string,
-  maxRetries = 2
+  maxRetries = 3
 ): Promise<{ data: any | null; error?: { code: string; message: string } }> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const result = await callAI(systemPrompt, userPrompt, tool, apiKey);
-    
-    // Success or billing error - don't retry
-    if (result.data !== null || result.error) {
+
+    // Success
+    if (result.data !== null) return result;
+
+    // Billing error: never retry
+    if (result.error?.code === 'payment_required') return result;
+
+    // Rate limit: backoff + retry
+    if (result.error?.code === 'rate_limited') {
+      if (attempt < maxRetries) {
+        // Gemini rate limits can require a longer cool-down. Use exponential backoff + jitter.
+        const baseMs = 30_000 * Math.pow(2, attempt - 1); // 30s, 60s, 120s...
+        const jitterMs = Math.floor(Math.random() * 2_000);
+        const waitMs = baseMs + jitterMs;
+        console.log(`Rate limited for ${tool.function.name}. Waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries}...`);
+        await new Promise(r => setTimeout(r, waitMs));
+        continue;
+      }
       return result;
     }
-    
+
+    // Other transient failures (e.g., parse issues). Short backoff.
     if (attempt < maxRetries) {
-      const delay = attempt * 1000;
-      console.log(`Attempt ${attempt} for ${tool.function.name} failed, retrying in ${delay}ms...`);
-      await new Promise(r => setTimeout(r, delay));
-    } else {
-      console.warn(`All ${maxRetries} attempts failed for ${tool.function.name}`);
+      const waitMs = attempt * 1000;
+      console.log(`Attempt ${attempt} for ${tool.function.name} failed, retrying in ${waitMs}ms...`);
+      await new Promise(r => setTimeout(r, waitMs));
+      continue;
     }
+
+    console.warn(`All ${maxRetries} attempts failed for ${tool.function.name}`);
+    return { data: null };
   }
-  
+
   return { data: null };
 }
 
