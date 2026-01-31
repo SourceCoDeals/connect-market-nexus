@@ -48,11 +48,11 @@ export function getGeminiModel(gatewayModel: string): string {
 
 /**
  * Build Gemini API request headers
- * Uses x-goog-api-key header for authentication
+ * Gemini OpenAI-compatible endpoint expects Authorization: Bearer <API_KEY>
  */
 export function getGeminiHeaders(apiKey: string): Record<string, string> {
   return {
-    "x-goog-api-key": apiKey,
+    Authorization: `Bearer ${apiKey}`,
     "Content-Type": "application/json",
   };
 }
