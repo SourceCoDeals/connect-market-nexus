@@ -44,6 +44,34 @@ const PLACEHOLDER_STRINGS = new Set([
   'not specified', 'n/a', 'na', 'unknown', 'none', 'tbd', 'not available', ''
 ]);
 
+// Valid columns in remarketing_buyers table - prevents schema mismatch errors
+// When AI extracts a field that doesn't exist in DB, the entire update fails
+const VALID_BUYER_COLUMNS = new Set([
+  // Core business fields
+  'company_name', 'company_website', 'platform_website', 'pe_firm_name', 'pe_firm_website',
+  'business_summary', 'thesis_summary', 'thesis_confidence', 'buyer_type',
+  // Location fields
+  'hq_city', 'hq_state', 'hq_country', 'hq_region',
+  'geographic_footprint', 'service_regions', 'operating_locations',
+  // Customer/Market fields
+  'primary_customer_size', 'customer_geographic_reach', 'customer_industries', 'target_customer_profile',
+  // Investment criteria
+  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
+  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
+  'target_services', 'target_industries', 'target_geographies',
+  // Deal preferences
+  'deal_preferences', 'deal_breakers', 'acquisition_timeline', 'acquisition_appetite', 'acquisition_frequency',
+  'owner_roll_requirement', 'owner_transition_goals',
+  // Acquisition history
+  'recent_acquisitions', 'portfolio_companies', 'total_acquisitions', 'num_platforms',
+  // Metadata
+  'strategic_priorities', 'specialized_focus', 'industry_vertical',
+  'data_completeness', 'data_last_updated', 'extraction_sources',
+  'key_quotes', 'notes', 'has_fee_agreement',
+  // New enrichment columns (added to schema)
+  'services_offered', 'business_type', 'revenue_model',
+]);
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -876,6 +904,13 @@ function buildUpdateObject(
 
     // Skip null/undefined values
     if (newValue === undefined || newValue === null) continue;
+
+    // SAFETY NET: Skip fields that don't exist in the database schema
+    // This prevents PGRST204 errors that cause the entire update to fail
+    if (!VALID_BUYER_COLUMNS.has(field)) {
+      console.warn(`Skipping non-existent column: ${field}`);
+      continue;
+    }
 
     // Skip fields that should NEVER come from website
     if (NEVER_UPDATE_FROM_WEBSITE.includes(field)) {

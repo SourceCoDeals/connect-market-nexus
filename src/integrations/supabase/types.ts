@@ -3913,6 +3913,7 @@ export type Database = {
           alignment_score: number | null
           archived: boolean
           business_summary: string | null
+          business_type: string | null
           buyer_linkedin: string | null
           buyer_type: string | null
           company_name: string
@@ -3953,8 +3954,10 @@ export type Database = {
           portfolio_companies: Json | null
           primary_customer_size: string | null
           recent_acquisitions: Json | null
+          revenue_model: string | null
           revenue_sweet_spot: number | null
           service_regions: string[] | null
+          services_offered: string | null
           specialized_focus: string | null
           strategic_priorities: string[] | null
           target_customer_profile: string | null
@@ -3980,6 +3983,7 @@ export type Database = {
           alignment_score?: number | null
           archived?: boolean
           business_summary?: string | null
+          business_type?: string | null
           buyer_linkedin?: string | null
           buyer_type?: string | null
           company_name: string
@@ -4020,8 +4024,10 @@ export type Database = {
           portfolio_companies?: Json | null
           primary_customer_size?: string | null
           recent_acquisitions?: Json | null
+          revenue_model?: string | null
           revenue_sweet_spot?: number | null
           service_regions?: string[] | null
+          services_offered?: string | null
           specialized_focus?: string | null
           strategic_priorities?: string[] | null
           target_customer_profile?: string | null
@@ -4047,6 +4053,7 @@ export type Database = {
           alignment_score?: number | null
           archived?: boolean
           business_summary?: string | null
+          business_type?: string | null
           buyer_linkedin?: string | null
           buyer_type?: string | null
           company_name?: string
@@ -4087,8 +4094,10 @@ export type Database = {
           portfolio_companies?: Json | null
           primary_customer_size?: string | null
           recent_acquisitions?: Json | null
+          revenue_model?: string | null
           revenue_sweet_spot?: number | null
           service_regions?: string[] | null
+          services_offered?: string | null
           specialized_focus?: string | null
           strategic_priorities?: string[] | null
           target_customer_profile?: string | null
