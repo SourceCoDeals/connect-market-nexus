@@ -6,6 +6,8 @@ import { ConnectionRequest } from '@/types';
 import { createQueryKey } from '@/lib/query-keys';
 import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
 
+const VISITOR_ID_KEY = 'sourceco_visitor_id';
+
 // Request connection to a listing
 export const useRequestConnection = () => {
   const queryClient = useQueryClient();
@@ -41,6 +43,19 @@ export const useRequestConnection = () => {
           activity_type: 'connection_request',
           metadata: { listing_id: listingId, request_id: requestId }
         });
+        
+        // Record milestone for user journey tracking
+        const visitorId = localStorage.getItem(VISITOR_ID_KEY);
+        if (visitorId) {
+          console.log('📍 Recording first_connection_at milestone');
+          supabase.rpc('update_journey_milestone', {
+            p_visitor_id: visitorId,
+            p_milestone_key: 'first_connection_at',
+            p_milestone_time: new Date().toISOString()
+          }).then(({ error }) => {
+            if (error) console.error('Failed to record connection milestone:', error);
+          });
+        }
 
         // Send notification email to user
         try {

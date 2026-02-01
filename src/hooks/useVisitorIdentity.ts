@@ -128,22 +128,41 @@ export function useVisitorIdentity() {
         localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(firstTouch));
         console.log('📊 Captured first-touch attribution:', firstTouch);
         
-        // If GA4 client ID wasn't available, try again after delay
+        // If GA4 client ID wasn't available, retry with exponential backoff
+        // GA4 cookie may take time to be set after gtag loads
         if (!firstTouch.ga4_client_id) {
-          setTimeout(async () => {
-            const ga4Id = await getGA4ClientIdAsync();
-            if (ga4Id) {
-              const stored = localStorage.getItem(FIRST_TOUCH_KEY);
-              if (stored) {
-                const data = JSON.parse(stored);
-                if (!data.ga4_client_id) {
-                  data.ga4_client_id = ga4Id;
-                  localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(data));
-                  console.log('📊 Updated first-touch with GA4 client ID:', ga4Id);
-                }
-              }
+          const retryIntervals = [500, 1000, 2000, 3000, 5000]; // Total 11.5s of retries
+          
+          const attemptGA4Capture = async (attemptIndex: number) => {
+            if (attemptIndex >= retryIntervals.length) {
+              console.log('📊 GA4 client ID capture exhausted after', retryIntervals.length, 'attempts');
+              return;
             }
-          }, 2000);
+            
+            setTimeout(async () => {
+              const ga4Id = await getGA4ClientIdAsync();
+              if (ga4Id) {
+                try {
+                  const stored = localStorage.getItem(FIRST_TOUCH_KEY);
+                  if (stored) {
+                    const data = JSON.parse(stored);
+                    if (!data.ga4_client_id) {
+                      data.ga4_client_id = ga4Id;
+                      localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(data));
+                      console.log('📊 GA4 client ID captured on attempt', attemptIndex + 1, ':', ga4Id);
+                    }
+                  }
+                } catch {
+                  // Ignore localStorage errors
+                }
+              } else {
+                // Retry with next interval
+                attemptGA4Capture(attemptIndex + 1);
+              }
+            }, retryIntervals[attemptIndex]);
+          };
+          
+          attemptGA4Capture(0);
         }
       }
     } catch (error) {

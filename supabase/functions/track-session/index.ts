@@ -148,6 +148,53 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
+      // CRITICAL FIX: Always upsert journey even for existing sessions
+      // This was previously skipped, causing 0 journey records
+      if (body.visitor_id) {
+        console.log('Upserting journey for existing session, visitor:', body.visitor_id);
+        
+        const { error: journeyError } = await supabase
+          .from('user_journeys')
+          .upsert({
+            visitor_id: body.visitor_id,
+            ga4_client_id: body.ga4_client_id || null,
+            user_id: body.user_id || null,
+            first_seen_at: new Date().toISOString(),
+            first_landing_page: body.landing_path || null,
+            first_referrer: body.referrer || null,
+            first_utm_source: body.first_touch_source || body.utm_source || null,
+            first_utm_medium: body.first_touch_medium || body.utm_medium || null,
+            first_utm_campaign: body.first_touch_campaign || body.utm_campaign || null,
+            first_utm_term: body.utm_term || null,
+            first_utm_content: body.utm_content || null,
+            first_device_type: body.device_type,
+            first_browser: body.browser,
+            first_os: body.os,
+            first_country: geoData?.country || null,
+            first_city: geoData?.city || null,
+            last_seen_at: new Date().toISOString(),
+            last_session_id: body.session_id,
+            last_page_path: body.landing_path || null,
+            journey_stage: body.user_id ? 'registered' : 'anonymous',
+          }, {
+            onConflict: 'visitor_id',
+            ignoreDuplicates: false,
+          });
+
+        if (journeyError) {
+          console.error('Failed to upsert journey for existing session:', journeyError);
+        } else {
+          // Increment session count
+          await supabase.rpc('increment_journey_sessions', { 
+            p_visitor_id: body.visitor_id,
+            p_session_id: body.session_id,
+            p_page_path: body.landing_path || '/'
+          }).catch(err => console.error('RPC increment error:', err));
+          
+          console.log('Journey upserted for existing session');
+        }
+      }
+
       console.log('Updated existing session with geo data');
       return new Response(
         JSON.stringify({ 
