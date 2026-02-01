@@ -1,168 +1,253 @@
 
-# Fix: PE Firm & Business Data Not Populating During Enrichment
+# Intelligence Center Enhancement: 3rd-Party Data Integration
 
-## Root Cause
+## Executive Summary
 
-The edge function logs reveal the exact issue:
-```
-Failed to update buyer: {
-  code: "PGRST204",
-  message: "Could not find the 'services_offered' column of 'remarketing_buyers' in the schema cache"
-}
-```
-
-The AI extraction is **working correctly** - it successfully extracts 15-18 fields including `pe_firm_name`, `thesis_summary`, and `business_summary`. However, the database update **fails entirely** because the edge function tries to save fields that don't exist in the database schema.
-
-When PostgREST encounters a non-existent column, it rejects the **entire update** - losing all extracted data, including valid fields.
-
-### Fields Being Extracted That Don't Exist:
-| Field | Extracted In | Exists in DB |
-|-------|-------------|--------------|
-| `services_offered` | Prompt 1 (Business Overview) | No |
-| `business_type` | Prompt 1 | No |
-| `revenue_model` | Prompt 1 | No |
-
-### Fields That ARE Being Extracted Correctly But Lost:
-- `pe_firm_name` - exists in DB
-- `business_summary` - exists in DB  
-- `thesis_summary` - exists in DB
-- `thesis_confidence` - exists in DB
-- `strategic_priorities` - exists in DB
-- etc.
+After 2 days of data collection, your 3rd-party analytics tools are **tracking visitors client-side**, but the most valuable data (B2B company identification from RB2B/Warmly) is NOT flowing into your Intelligence Center. This plan adds webhook receivers to capture company identification data and surfaces it in a new "Visitor Companies" dashboard.
 
 ---
 
-## Solution
+## What Data is Available Now vs. What's Missing
 
-Two options to fix this:
-
-### Option A: Add Missing Columns to Database (Recommended)
-Add the three missing columns that provide valuable business intelligence:
-
-```sql
-ALTER TABLE public.remarketing_buyers 
-  ADD COLUMN IF NOT EXISTS services_offered TEXT,
-  ADD COLUMN IF NOT EXISTS business_type TEXT,
-  ADD COLUMN IF NOT EXISTS revenue_model TEXT;
-```
-
-### Option B: Filter Out Invalid Fields in Edge Function
-Modify `buildUpdateObject()` to only include fields that exist in the schema:
-
-```typescript
-const VALID_BUYER_COLUMNS = new Set([
-  'thesis_summary', 'thesis_confidence', 'pe_firm_name', 'business_summary',
-  'hq_city', 'hq_state', 'geographic_footprint', 'service_regions',
-  // ... all valid columns
-]);
-
-for (const field of Object.keys(extractedData)) {
-  if (!VALID_BUYER_COLUMNS.has(field)) {
-    console.warn(`Skipping non-existent column: ${field}`);
-    continue;
-  }
-  // ... rest of merge logic
-}
-```
-
----
-
-## Recommended Approach: Option A + Safety Net
-
-1. **Add the missing columns** - `services_offered`, `business_type`, `revenue_model` are valuable business intelligence that should be stored
-
-2. **Add a schema validation safety net** - Filter out any fields that don't match the known schema to prevent future issues
+| Data Source | Currently Captured | Missing (Needs Integration) |
+|-------------|-------------------|----------------------------|
+| **RB2B** | Client tracking only | Company name, industry, employee count, revenue, visitor LinkedIn profile, job title |
+| **Warmly** | Client tracking only | Same as RB2B + tech stack, social handles, intent signals |
+| **GA4** | Not synced server-side | Cross-domain user journeys, session attribution |
+| **Heap** | Client tracking only | Session replays, behavioral funnels (requires Heap Connect) |
+| **Hotjar** | Client tracking only | Session recordings (requires Business plan API) |
+| **Brevo** | Email delivery logs | Open/click tracking (already have via edge functions) |
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Database Migration
-Create a migration to add the missing columns:
+### Phase 1: RB2B & Warmly Webhook Integration (High Value)
+
+Both RB2B and Warmly offer webhook endpoints that POST company identification data when they identify a visitor. This is the highest-value data to capture.
+
+**Step 1.1: Create Database Table**
 
 ```sql
--- Add missing enrichment columns to remarketing_buyers
-ALTER TABLE public.remarketing_buyers 
-  ADD COLUMN IF NOT EXISTS services_offered TEXT,
-  ADD COLUMN IF NOT EXISTS business_type TEXT,
-  ADD COLUMN IF NOT EXISTS revenue_model TEXT;
+CREATE TABLE visitor_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Visitor identification
+  session_id TEXT,
+  captured_url TEXT,
+  seen_at TIMESTAMPTZ,
+  referrer TEXT,
+  
+  -- Person data (from RB2B/Warmly)
+  linkedin_url TEXT,
+  first_name TEXT,
+  last_name TEXT,
+  job_title TEXT,
+  business_email TEXT,
+  
+  -- Company data
+  company_name TEXT,
+  company_website TEXT,
+  company_industry TEXT,
+  company_size TEXT,  -- "1-10", "11-50", "51-200", etc.
+  estimated_revenue TEXT,
+  company_city TEXT,
+  company_state TEXT,
+  company_country TEXT,
+  
+  -- Metadata
+  source TEXT CHECK (source IN ('rb2b', 'warmly', 'manual')),
+  is_repeat_visit BOOLEAN DEFAULT FALSE,
+  raw_payload JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- Add helpful comments
-COMMENT ON COLUMN public.remarketing_buyers.services_offered IS 'Primary services or products offered by the company';
-COMMENT ON COLUMN public.remarketing_buyers.business_type IS 'Type of business (Service Provider, Manufacturer, etc.)';
-COMMENT ON COLUMN public.remarketing_buyers.revenue_model IS 'How the company generates revenue';
+-- Index for fast lookups
+CREATE INDEX idx_visitor_companies_company ON visitor_companies(company_name);
+CREATE INDEX idx_visitor_companies_seen_at ON visitor_companies(seen_at DESC);
+CREATE INDEX idx_visitor_companies_source ON visitor_companies(source);
 ```
 
-### Step 2: Add Schema Validation Safety Net
-Update `supabase/functions/enrich-buyer/index.ts` to validate fields before updating:
+**Step 1.2: Create Edge Function Webhook Receiver**
 
-Add a constant listing all valid columns:
+Create `supabase/functions/webhook-visitor-identification/index.ts`:
+
 ```typescript
-const VALID_BUYER_COLUMNS = new Set([
-  // Core fields
-  'thesis_summary', 'thesis_confidence', 'pe_firm_name', 'business_summary',
-  'hq_city', 'hq_state', 'hq_country', 'hq_region',
-  'geographic_footprint', 'service_regions', 'operating_locations',
-  // Customer/Market fields
-  'primary_customer_size', 'customer_geographic_reach', 'customer_industries', 'target_customer_profile',
-  // Investment fields
-  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
-  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
-  'target_services', 'target_industries', 'target_geographies',
-  // Deal fields
-  'deal_preferences', 'deal_breakers', 'acquisition_timeline', 'acquisition_appetite', 'acquisition_frequency',
-  // Acquisition history
-  'recent_acquisitions', 'portfolio_companies', 'total_acquisitions', 'num_platforms',
-  // Metadata
-  'strategic_priorities', 'specialized_focus', 'industry_vertical',
-  'data_completeness', 'data_last_updated', 'extraction_sources',
-  // New columns
-  'services_offered', 'business_type', 'revenue_model',
-]);
-```
+// Receives webhooks from RB2B and Warmly
+// POST /webhook-visitor-identification?source=rb2b
 
-Update `buildUpdateObject()` to filter invalid fields:
-```typescript
-function buildUpdateObject(...): Record<string, any> {
-  // ... existing code ...
-
-  for (const field of Object.keys(extractedData)) {
-    // Safety: Skip fields that don't exist in schema
-    if (!VALID_BUYER_COLUMNS.has(field)) {
-      console.warn(`Skipping non-existent column: ${field}`);
-      continue;
-    }
-    
-    // ... rest of existing merge logic ...
-  }
+export async function handler(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const source = url.searchParams.get('source') || 'unknown';
+  const payload = await req.json();
+  
+  // Normalize RB2B/Warmly payload to common schema
+  const visitorData = {
+    linkedin_url: payload['LinkedIn URL'],
+    first_name: payload['First Name'],
+    last_name: payload['Last Name'],
+    job_title: payload['Title'],
+    business_email: payload['Business Email'],
+    company_name: payload['Company Name'],
+    company_website: payload['Website'],
+    company_industry: payload['Industry'],
+    company_size: payload['Employee Count'],
+    estimated_revenue: payload['Estimate Revenue'],
+    company_city: payload['City'],
+    company_state: payload['State'],
+    captured_url: payload['Captured URL'],
+    referrer: payload['Referrer'],
+    seen_at: payload['Seen At'],
+    is_repeat_visit: payload['is_repeat_visit'] || false,
+    source: source,
+    raw_payload: payload
+  };
+  
+  // Insert into database
+  await supabase.from('visitor_companies').insert(visitorData);
+  
+  return new Response(JSON.stringify({ success: true }));
 }
+```
+
+**Step 1.3: Configure RB2B & Warmly Webhooks**
+
+In RB2B Dashboard (app.rb2b.com/integrations/webhook):
+```
+URL: https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=rb2b
+```
+
+In Warmly Dashboard (opps.getwarmly.com/settings → Webhooks):
+```
+URL: https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=warmly
 ```
 
 ---
 
-## Files to Modify
+### Phase 2: New Intelligence Center Tab - "Visitor Companies"
 
-| File | Change |
-|------|--------|
-| `supabase/migrations/[new].sql` | Add `services_offered`, `business_type`, `revenue_model` columns |
-| `supabase/functions/enrich-buyer/index.ts` | Add `VALID_BUYER_COLUMNS` schema validation |
+**Step 2.1: Create Dashboard Component**
+
+```
+src/components/admin/analytics/companies/
+├── VisitorCompaniesDashboard.tsx    # Main dashboard
+├── CompanyIdentificationCard.tsx     # Single company card
+├── TopCompaniesTable.tsx             # Ranked list of visiting companies
+├── IndustryBreakdownChart.tsx        # Pie chart of visitor industries
+└── CompanySizeDistribution.tsx       # Bar chart of company sizes
+```
+
+**Dashboard Features:**
+- **Live Feed**: Real-time stream of identified visitors with company/title
+- **Top Visiting Companies**: Ranked by visit frequency
+- **Industry Breakdown**: Pie chart showing which industries are browsing
+- **Company Size Distribution**: SMB vs Mid-Market vs Enterprise visitors
+- **Hot Leads Panel**: Visitors who viewed multiple listings or pricing pages
+- **Visitor Timeline**: Individual visitor journey with all pages viewed
+
+**Step 2.2: Add Tab to Intelligence Center**
+
+Add new "Companies" tab to AnalyticsTabContainer.tsx with Building2 icon.
+
+---
+
+### Phase 3: Enhance Existing Tabs with Company Data
+
+**3.1: Real-Time Tab Enhancement**
+- Show company name + logo next to active visitor dots on globe
+- Add "Identified" badge to known visitors in live feed
+- Display job title in hover tooltip
+
+**3.2: Buyer Intent Tab Enhancement**
+- Cross-reference identified visitors with your remarketing_buyers table
+- Show "Known Buyer" badge for visitors matching PE firms
+- Alert when high-value prospects are browsing
+
+**3.3: Traffic Tab Enhancement**
+- Add "Company Attribution" section showing traffic by company
+- Show company industry breakdown in traffic sources
+
+---
+
+### Phase 4: GA4 Server-Side Integration (Optional - Requires GCP Setup)
+
+To pull GA4 data server-side, you would need:
+1. Create GCP Service Account with Analytics Data API access
+2. Add service account JSON credentials as Supabase secret
+3. Create edge function using `@google-analytics/data` package
+4. Build scheduled job to sync daily metrics
+
+This is more complex and may not be necessary since you already have good session tracking in Supabase.
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `supabase/migrations/xxx_visitor_companies.sql` | Create | New table for company identification data |
+| `supabase/functions/webhook-visitor-identification/index.ts` | Create | Webhook receiver for RB2B/Warmly |
+| `src/components/admin/analytics/companies/VisitorCompaniesDashboard.tsx` | Create | Main companies dashboard |
+| `src/components/admin/analytics/companies/TopCompaniesTable.tsx` | Create | Ranked companies table |
+| `src/components/admin/analytics/companies/CompanyCard.tsx` | Create | Individual company card |
+| `src/hooks/useVisitorCompanies.ts` | Create | Data fetching hook |
+| `src/components/admin/analytics/AnalyticsTabContainer.tsx` | Modify | Add "Companies" tab |
+| `src/components/admin/analytics/realtime/LiveActivityFeed.tsx` | Modify | Show company name for identified visitors |
+| `src/integrations/supabase/types.ts` | Auto-update | Types for new table |
+
+---
+
+## External Configuration Required (Your Action)
+
+After implementation, you need to configure webhooks in external platforms:
+
+1. **RB2B** (app.rb2b.com → Integrations → Webhook):
+   - URL: `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=rb2b`
+   - Enable "Sync company-only profiles"
+   - Consider enabling "Send repeat visitor data"
+
+2. **Warmly** (opps.getwarmly.com → Settings → Webhooks):
+   - URL: `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=warmly`
 
 ---
 
 ## Expected Outcome
 
-After this fix:
-1. All extracted fields will be saved to the database successfully
-2. PE firm name, business description, thesis summary will populate correctly
-3. Future schema mismatches will be logged but won't break the entire update
-4. New columns will store valuable services/business type intelligence
+After implementation:
+
+1. **New Data Captured**: Every visitor RB2B/Warmly identifies will be stored with:
+   - LinkedIn profile URL
+   - Name and job title
+   - Company name, size, industry, revenue
+   - Pages they visited
+
+2. **New Dashboard**: "Visitor Companies" tab showing:
+   - Which PE firms and strategics are browsing your marketplace
+   - What industries are most interested
+   - Individual visitor timelines
+
+3. **Enhanced Real-Time**: Live feed will show company names and job titles for identified visitors
+
+4. **Lead Intelligence**: You'll know when a Managing Director at a $5B PE firm is browsing your listings
 
 ---
 
-## Technical Details
+## Priority Order
 
-### Why This Happened
-The AI prompts were updated to extract additional fields (`services_offered`, `business_type`, `revenue_model`) but the corresponding database columns were never created. PostgREST's strict schema validation rejects updates containing unknown columns.
+| Priority | Task | Value | Effort |
+|----------|------|-------|--------|
+| 1 | RB2B/Warmly webhook integration | Very High | Medium |
+| 2 | Visitor Companies dashboard | Very High | Medium |
+| 3 | Real-time feed enhancement | High | Low |
+| 4 | Buyer Intent cross-reference | High | Medium |
+| 5 | GA4 server-side sync | Medium | High |
 
-### Why It Wasn't Caught Earlier
-The edge function was returning 500 errors with "Failed to save enrichment data", but the detailed error message (including the specific missing column) was only visible in the logs.
+---
+
+## Technical Notes
+
+- RB2B requires Pro plan for webhooks (verify your plan)
+- Warmly webhooks are available on free plan
+- Webhook payloads are slightly different between providers - edge function normalizes them
+- Consider rate limiting on webhook endpoint to prevent abuse
+- Store raw_payload JSONB for future field extraction
