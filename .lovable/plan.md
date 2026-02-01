@@ -1,253 +1,310 @@
 
-# Intelligence Center Enhancement: 3rd-Party Data Integration
+# Strategic Cleanup & User Journey Analytics Enhancement
 
-## Executive Summary
+## Part 1: Cleanup - Remove RB2B, Warmly & Companies Tab
 
-After 2 days of data collection, your 3rd-party analytics tools are **tracking visitors client-side**, but the most valuable data (B2B company identification from RB2B/Warmly) is NOT flowing into your Intelligence Center. This plan adds webhook receivers to capture company identification data and surfaces it in a new "Visitor Companies" dashboard.
+The following components will be removed since they're not needed:
 
----
+### Files to Delete
+| File/Directory | Description |
+|----------------|-------------|
+| `src/components/admin/analytics/companies/` | Entire folder (5 files) |
+| `src/hooks/useVisitorCompanies.ts` | Visitor companies hook |
+| `supabase/functions/webhook-visitor-identification/` | Webhook receiver |
 
-## What Data is Available Now vs. What's Missing
+### Files to Modify
+| File | Change |
+|------|--------|
+| `index.html` | Remove RB2B script (lines 108-138) and Warmly script (lines 140-141) |
+| `src/components/admin/analytics/AnalyticsTabContainer.tsx` | Remove Companies tab and import |
+| `supabase/config.toml` | Remove webhook-visitor-identification from verify_jwt = false list |
 
-| Data Source | Currently Captured | Missing (Needs Integration) |
-|-------------|-------------------|----------------------------|
-| **RB2B** | Client tracking only | Company name, industry, employee count, revenue, visitor LinkedIn profile, job title |
-| **Warmly** | Client tracking only | Same as RB2B + tech stack, social handles, intent signals |
-| **GA4** | Not synced server-side | Cross-domain user journeys, session attribution |
-| **Heap** | Client tracking only | Session replays, behavioral funnels (requires Heap Connect) |
-| **Hotjar** | Client tracking only | Session recordings (requires Business plan API) |
-| **Brevo** | Email delivery logs | Open/click tracking (already have via edge functions) |
-
----
-
-## Implementation Plan
-
-### Phase 1: RB2B & Warmly Webhook Integration (High Value)
-
-Both RB2B and Warmly offer webhook endpoints that POST company identification data when they identify a visitor. This is the highest-value data to capture.
-
-**Step 1.1: Create Database Table**
-
+### Database Cleanup
 ```sql
-CREATE TABLE visitor_companies (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  
-  -- Visitor identification
-  session_id TEXT,
-  captured_url TEXT,
-  seen_at TIMESTAMPTZ,
-  referrer TEXT,
-  
-  -- Person data (from RB2B/Warmly)
-  linkedin_url TEXT,
-  first_name TEXT,
-  last_name TEXT,
-  job_title TEXT,
-  business_email TEXT,
-  
-  -- Company data
-  company_name TEXT,
-  company_website TEXT,
-  company_industry TEXT,
-  company_size TEXT,  -- "1-10", "11-50", "51-200", etc.
-  estimated_revenue TEXT,
-  company_city TEXT,
-  company_state TEXT,
-  company_country TEXT,
-  
-  -- Metadata
-  source TEXT CHECK (source IN ('rb2b', 'warmly', 'manual')),
-  is_repeat_visit BOOLEAN DEFAULT FALSE,
-  raw_payload JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Index for fast lookups
-CREATE INDEX idx_visitor_companies_company ON visitor_companies(company_name);
-CREATE INDEX idx_visitor_companies_seen_at ON visitor_companies(seen_at DESC);
-CREATE INDEX idx_visitor_companies_source ON visitor_companies(source);
+DROP TABLE IF EXISTS public.visitor_companies;
 ```
 
-**Step 1.2: Create Edge Function Webhook Receiver**
+---
 
-Create `supabase/functions/webhook-visitor-identification/index.ts`:
+## Part 2: Strategic Analysis - Current State of User Journey Tracking
+
+### What's Already Working
+
+| Capability | Status | Data Location |
+|------------|--------|---------------|
+| Session creation with geo-IP | Active | `user_sessions` |
+| Page views with scroll depth | Active | `page_views` |
+| Session heartbeat/duration | Active | `user_sessions.session_duration_seconds` |
+| Referrer tracking | Active | 93% of sessions have referrer |
+| UTM parameter capture | Active | Stored but 0% populated (no UTMs on traffic) |
+| GA4 Client ID capture | Code exists | **0% captured** - GA4 cookie not being read |
+| First-touch attribution | Code exists | **0% populated** - localStorage not syncing |
+| Search analytics | Active | `search_analytics` |
+| Listing interactions | Active | `listing_analytics` |
+| User events | Active | `user_events` |
+
+### Critical Gaps Identified
+
+1. **GA4 Client ID Not Populating** - The `getGA4ClientId()` function looks for `_ga` cookie but GA4 cookie may have different format or not set yet when tracking fires
+
+2. **First-Touch Attribution Always Empty** - The localStorage-based first-touch system isn't being initialized on first visit
+
+3. **No Cross-Domain Journey Stitching** - When users come from sourcecodeals.com → marketplace, we can't connect the sessions
+
+4. **Page Sequence Only Per-Session** - We reconstruct journeys from `page_views` but it's expensive and not real-time
+
+5. **Missing Conversion Funnel Events** - Key conversion milestones (NDA signed, fee agreement, connection request) tracked but not easily correlated to journey
+
+---
+
+## Part 3: Enhanced User Journey Architecture
+
+### New `user_journeys` Table
+
+Create a dedicated table to track complete user journeys across sessions:
+
+```sql
+CREATE TABLE user_journeys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Identity (can link anonymous → authenticated)
+  visitor_id TEXT NOT NULL,           -- Persistent across sessions (localStorage UUID)
+  ga4_client_id TEXT,                 -- For GA4 data stitching
+  user_id UUID REFERENCES profiles(id), -- NULL until authenticated
+  
+  -- First Touch (never changes after set)
+  first_seen_at TIMESTAMPTZ DEFAULT NOW(),
+  first_landing_page TEXT,
+  first_referrer TEXT,
+  first_utm_source TEXT,
+  first_utm_medium TEXT,
+  first_utm_campaign TEXT,
+  first_device_type TEXT,
+  first_country TEXT,
+  first_city TEXT,
+  
+  -- Latest Session Info (updated on each visit)
+  last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+  last_session_id TEXT,
+  last_page_path TEXT,
+  
+  -- Aggregates
+  total_sessions INTEGER DEFAULT 1,
+  total_page_views INTEGER DEFAULT 0,
+  total_time_seconds INTEGER DEFAULT 0,
+  
+  -- Conversion Milestones (JSONB for flexibility)
+  milestones JSONB DEFAULT '{}'::jsonb,
+  -- Example: {"signup_at": "...", "nda_signed_at": "...", "first_connection_at": "..."}
+  
+  -- Journey Status
+  journey_stage TEXT DEFAULT 'anonymous',
+  -- Values: anonymous, registered, engaged, qualified, converted
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_journeys_visitor ON user_journeys(visitor_id);
+CREATE INDEX idx_user_journeys_ga4 ON user_journeys(ga4_client_id) WHERE ga4_client_id IS NOT NULL;
+CREATE INDEX idx_user_journeys_user ON user_journeys(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_user_journeys_stage ON user_journeys(journey_stage);
+```
+
+### New Frontend Hook: `useVisitorIdentity`
+
+Create a persistent visitor identity that survives across sessions:
 
 ```typescript
-// Receives webhooks from RB2B and Warmly
-// POST /webhook-visitor-identification?source=rb2b
+// src/hooks/useVisitorIdentity.ts
+const VISITOR_ID_KEY = 'sourceco_visitor_id';
+const FIRST_TOUCH_KEY = 'sourceco_first_touch';
 
-export async function handler(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-  const source = url.searchParams.get('source') || 'unknown';
-  const payload = await req.json();
-  
-  // Normalize RB2B/Warmly payload to common schema
-  const visitorData = {
-    linkedin_url: payload['LinkedIn URL'],
-    first_name: payload['First Name'],
-    last_name: payload['Last Name'],
-    job_title: payload['Title'],
-    business_email: payload['Business Email'],
-    company_name: payload['Company Name'],
-    company_website: payload['Website'],
-    company_industry: payload['Industry'],
-    company_size: payload['Employee Count'],
-    estimated_revenue: payload['Estimate Revenue'],
-    company_city: payload['City'],
-    company_state: payload['State'],
-    captured_url: payload['Captured URL'],
-    referrer: payload['Referrer'],
-    seen_at: payload['Seen At'],
-    is_repeat_visit: payload['is_repeat_visit'] || false,
-    source: source,
-    raw_payload: payload
-  };
-  
-  // Insert into database
-  await supabase.from('visitor_companies').insert(visitorData);
-  
-  return new Response(JSON.stringify({ success: true }));
+export function useVisitorIdentity() {
+  // Get or create persistent visitor ID
+  const visitorId = useMemo(() => {
+    let id = localStorage.getItem(VISITOR_ID_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(VISITOR_ID_KEY, id);
+    }
+    return id;
+  }, []);
+
+  // Capture first-touch attribution on FIRST visit only
+  useEffect(() => {
+    const existing = localStorage.getItem(FIRST_TOUCH_KEY);
+    if (!existing) {
+      const firstTouch = {
+        landing_page: window.location.pathname,
+        referrer: document.referrer || null,
+        utm_source: new URLSearchParams(window.location.search).get('utm_source'),
+        utm_medium: new URLSearchParams(window.location.search).get('utm_medium'),
+        utm_campaign: new URLSearchParams(window.location.search).get('utm_campaign'),
+        timestamp: new Date().toISOString(),
+        ga4_client_id: getGA4ClientId(),
+      };
+      localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(firstTouch));
+    }
+  }, []);
+
+  return { visitorId, getFirstTouch: () => JSON.parse(localStorage.getItem(FIRST_TOUCH_KEY) || '{}') };
 }
 ```
 
-**Step 1.3: Configure RB2B & Warmly Webhooks**
-
-In RB2B Dashboard (app.rb2b.com/integrations/webhook):
-```
-URL: https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=rb2b
-```
-
-In Warmly Dashboard (opps.getwarmly.com/settings → Webhooks):
-```
-URL: https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=warmly
-```
-
----
-
-### Phase 2: New Intelligence Center Tab - "Visitor Companies"
-
-**Step 2.1: Create Dashboard Component**
+### Updated Session Tracking Flow
 
 ```
-src/components/admin/analytics/companies/
-├── VisitorCompaniesDashboard.tsx    # Main dashboard
-├── CompanyIdentificationCard.tsx     # Single company card
-├── TopCompaniesTable.tsx             # Ranked list of visiting companies
-├── IndustryBreakdownChart.tsx        # Pie chart of visitor industries
-└── CompanySizeDistribution.tsx       # Bar chart of company sizes
+┌─────────────────────────────────────────────────────────────────┐
+│                         USER ARRIVES                             │
+│  (sourcecodeals.com → marketplace.sourcecodeals.com/welcome)    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  1. useVisitorIdentity initializes                              │
+│     - Get/create visitor_id (localStorage UUID)                 │
+│     - Capture first-touch if new visitor                        │
+│     - Read GA4 client ID from cookie                            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. track-session edge function                                 │
+│     - Creates user_session with geo data                        │
+│     - Upserts user_journeys (create or update)                  │
+│     - Links visitor_id → session_id                             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. On Auth (login/signup)                                      │
+│     - Update user_journeys.user_id                              │
+│     - Merge anonymous journey with registered identity          │
+│     - Record milestone: signup_at                               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. On Key Actions                                              │
+│     - NDA signed → milestone: nda_signed_at                     │
+│     - Fee agreement → milestone: fee_agreement_at               │
+│     - Connection request → milestone: first_connection_at       │
+│     - Update journey_stage accordingly                          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Dashboard Features:**
-- **Live Feed**: Real-time stream of identified visitors with company/title
-- **Top Visiting Companies**: Ranked by visit frequency
-- **Industry Breakdown**: Pie chart showing which industries are browsing
-- **Company Size Distribution**: SMB vs Mid-Market vs Enterprise visitors
-- **Hot Leads Panel**: Visitors who viewed multiple listings or pricing pages
-- **Visitor Timeline**: Individual visitor journey with all pages viewed
+### New Intelligence Center: "User Journeys" Tab
 
-**Step 2.2: Add Tab to Intelligence Center**
+Replace the removed Companies tab with a **User Journeys** dashboard:
 
-Add new "Companies" tab to AnalyticsTabContainer.tsx with Building2 icon.
+**Features:**
+1. **Journey Timeline Visualization** - See every page a visitor viewed across all sessions
+2. **Conversion Funnel** - Anonymous → Registered → Engaged → Qualified → Converted
+3. **Attribution Analysis** - Which sources drive complete journeys vs bounces
+4. **Journey Stage Distribution** - How many visitors at each stage
+5. **Time-to-Conversion** - Average days from first visit to conversion milestones
 
----
+### Fix GA4 Client ID Capture
 
-### Phase 3: Enhance Existing Tabs with Company Data
+The current `getGA4ClientId()` function has issues. Updated approach:
 
-**3.1: Real-Time Tab Enhancement**
-- Show company name + logo next to active visitor dots on globe
-- Add "Identified" badge to known visitors in live feed
-- Display job title in hover tooltip
-
-**3.2: Buyer Intent Tab Enhancement**
-- Cross-reference identified visitors with your remarketing_buyers table
-- Show "Known Buyer" badge for visitors matching PE firms
-- Alert when high-value prospects are browsing
-
-**3.3: Traffic Tab Enhancement**
-- Add "Company Attribution" section showing traffic by company
-- Show company industry breakdown in traffic sources
-
----
-
-### Phase 4: GA4 Server-Side Integration (Optional - Requires GCP Setup)
-
-To pull GA4 data server-side, you would need:
-1. Create GCP Service Account with Analytics Data API access
-2. Add service account JSON credentials as Supabase secret
-3. Create edge function using `@google-analytics/data` package
-4. Build scheduled job to sync daily metrics
-
-This is more complex and may not be necessary since you already have good session tracking in Supabase.
-
----
-
-## Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| `supabase/migrations/xxx_visitor_companies.sql` | Create | New table for company identification data |
-| `supabase/functions/webhook-visitor-identification/index.ts` | Create | Webhook receiver for RB2B/Warmly |
-| `src/components/admin/analytics/companies/VisitorCompaniesDashboard.tsx` | Create | Main companies dashboard |
-| `src/components/admin/analytics/companies/TopCompaniesTable.tsx` | Create | Ranked companies table |
-| `src/components/admin/analytics/companies/CompanyCard.tsx` | Create | Individual company card |
-| `src/hooks/useVisitorCompanies.ts` | Create | Data fetching hook |
-| `src/components/admin/analytics/AnalyticsTabContainer.tsx` | Modify | Add "Companies" tab |
-| `src/components/admin/analytics/realtime/LiveActivityFeed.tsx` | Modify | Show company name for identified visitors |
-| `src/integrations/supabase/types.ts` | Auto-update | Types for new table |
+```typescript
+function getGA4ClientId(): string | null {
+  try {
+    // Try standard _ga cookie format
+    const gaCookie = document.cookie.match(/_ga=GA\d\.\d\.(\d+\.\d+)/);
+    if (gaCookie) return gaCookie[1];
+    
+    // Try _ga_MEASUREMENTID format (newer GA4)
+    const ga4Cookie = document.cookie.match(/_ga_[A-Z0-9]+=[^;]+/);
+    if (ga4Cookie) {
+      const parts = ga4Cookie[0].split('.');
+      if (parts.length >= 3) return `${parts[2]}.${parts[3]}`;
+    }
+    
+    // Fallback: wait for gtag to be ready and get client_id
+    if (window.gtag) {
+      return new Promise((resolve) => {
+        window.gtag('get', 'G-N5T31YT52K', 'client_id', resolve);
+      });
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+```
 
 ---
 
-## External Configuration Required (Your Action)
+## Part 4: Implementation Files
 
-After implementation, you need to configure webhooks in external platforms:
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `src/hooks/useVisitorIdentity.ts` | Persistent visitor ID & first-touch capture |
+| `src/components/admin/analytics/journeys/UserJourneysDashboard.tsx` | Main journeys dashboard |
+| `src/components/admin/analytics/journeys/JourneyTimeline.tsx` | Individual journey visualization |
+| `src/components/admin/analytics/journeys/JourneyStageFunnel.tsx` | Stage distribution chart |
+| `src/components/admin/analytics/journeys/AttributionTable.tsx` | Source attribution analysis |
+| `supabase/migrations/xxx_user_journeys.sql` | New table creation |
 
-1. **RB2B** (app.rb2b.com → Integrations → Webhook):
-   - URL: `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=rb2b`
-   - Enable "Sync company-only profiles"
-   - Consider enabling "Send repeat visitor data"
-
-2. **Warmly** (opps.getwarmly.com → Settings → Webhooks):
-   - URL: `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/webhook-visitor-identification?source=warmly`
-
----
-
-## Expected Outcome
-
-After implementation:
-
-1. **New Data Captured**: Every visitor RB2B/Warmly identifies will be stored with:
-   - LinkedIn profile URL
-   - Name and job title
-   - Company name, size, industry, revenue
-   - Pages they visited
-
-2. **New Dashboard**: "Visitor Companies" tab showing:
-   - Which PE firms and strategics are browsing your marketplace
-   - What industries are most interested
-   - Individual visitor timelines
-
-3. **Enhanced Real-Time**: Live feed will show company names and job titles for identified visitors
-
-4. **Lead Intelligence**: You'll know when a Managing Director at a $5B PE firm is browsing your listings
+### Files to Modify
+| File | Change |
+|------|---------|
+| `src/hooks/use-initial-session-tracking.ts` | Add visitor_id, fix GA4 client ID capture |
+| `supabase/functions/track-session/index.ts` | Upsert user_journeys record |
+| `src/components/SessionTrackingProvider.tsx` | Integrate useVisitorIdentity |
+| `src/lib/ga4.ts` | Fix getGA4ClientId function |
+| `src/components/admin/analytics/AnalyticsTabContainer.tsx` | Replace Companies with Journeys tab |
 
 ---
 
-## Priority Order
+## Part 5: Expected Outcomes
 
-| Priority | Task | Value | Effort |
-|----------|------|-------|--------|
-| 1 | RB2B/Warmly webhook integration | Very High | Medium |
-| 2 | Visitor Companies dashboard | Very High | Medium |
-| 3 | Real-time feed enhancement | High | Low |
-| 4 | Buyer Intent cross-reference | High | Medium |
-| 5 | GA4 server-side sync | Medium | High |
+After implementation, you'll have:
+
+| Capability | Before | After |
+|------------|--------|-------|
+| Cross-session visitor tracking | No | Yes - via persistent visitor_id |
+| GA4 data stitching | 0% | ~95% via proper cookie reading |
+| First-touch attribution | 0% | 100% for all new visitors |
+| Journey stage visibility | None | Full funnel view |
+| Time-to-conversion metrics | None | Days from first visit to each milestone |
+| Anonymous → registered linking | Manual | Automatic on auth |
+
+**Example Journey You'll See:**
+```
+Visitor: azure-wolf-42 (visitor_id: abc123)
+├── Session 1: Jan 28 via Google Organic
+│   ├── /welcome (landed)
+│   ├── /explore
+│   └── /listing/xyz (viewed)
+├── Session 2: Jan 29 via Direct
+│   ├── / 
+│   ├── /signup (milestone: registered)
+│   └── /explore
+├── Session 3: Jan 30 - Now linked to "John Smith" (user_id: xyz)
+│   ├── /listing/abc (viewed)
+│   ├── /nda (milestone: nda_signed)
+│   └── /connection-request (milestone: first_connection)
+└── Journey Stage: QUALIFIED
+```
 
 ---
 
-## Technical Notes
+## Summary: What This Achieves
 
-- RB2B requires Pro plan for webhooks (verify your plan)
-- Warmly webhooks are available on free plan
-- Webhook payloads are slightly different between providers - edge function normalizes them
-- Consider rate limiting on webhook endpoint to prevent abuse
-- Store raw_payload JSONB for future field extraction
+This plan transforms your analytics from **session-based** to **journey-based**, enabling:
+
+1. **True Cross-Session Attribution** - Know that the user who converted today first found you 2 weeks ago via a specific campaign
+
+2. **Anonymous-to-Registered Linking** - When someone signs up, you instantly see their entire history as an anonymous visitor
+
+3. **Conversion Funnel Clarity** - See exactly where in the journey users drop off
+
+4. **First-Touch ROI** - Calculate which acquisition sources drive the most conversions (not just visits)
+
+5. **Real-Time Journey Monitoring** - Watch users progress through stages in the Intelligence Center
