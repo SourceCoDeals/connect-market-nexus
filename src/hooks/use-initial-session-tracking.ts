@@ -191,36 +191,11 @@ export const useInitialSessionTracking = () => {
       }
     };
 
-    // Fallback function to create session directly
-    const createSessionDirectly = async (data: any) => {
-      try {
-        const { error } = await supabase.from('user_sessions').insert({
-          session_id: data.session_id,
-          user_id: data.user_id,
-          started_at: new Date().toISOString(),
-          user_agent: data.user_agent,
-          referrer: data.referrer,
-          device_type: data.device_type,
-          browser: data.browser,
-          os: data.os,
-          utm_source: data.utm_source,
-          utm_medium: data.utm_medium,
-          utm_campaign: data.utm_campaign,
-          utm_term: data.utm_term,
-          utm_content: data.utm_content,
-          is_active: true,
-          last_active_at: new Date().toISOString(),
-        });
-
-        if (error) {
-          console.error('❌ Fallback session creation failed:', error);
-        } else {
-          console.log('✅ Session created via fallback (no geo data)');
-          hasTracked.current = true;
-        }
-      } catch (error) {
-        console.error('❌ Fallback session creation error:', error);
-      }
+    // Removed fallback session creation - track-session edge function is the single source of truth
+    // This prevents race conditions that skip journey upsert logic
+    const createSessionDirectly = async (_data: any) => {
+      console.log('⚠️ Fallback session creation disabled - sessions created via edge function only');
+      hasTracked.current = true;
     };
 
     // Track after a short delay to ensure visitor identity is initialized

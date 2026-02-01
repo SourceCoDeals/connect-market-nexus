@@ -8,6 +8,8 @@ import { parseCurrency } from '@/lib/currency-utils';
 import { toStandardCategory, toStandardLocation, standardizeCategories, standardizeLocations } from '@/lib/standardization';
 import { processUrl } from '@/lib/url-utils';
 
+const VISITOR_ID_KEY = 'sourceco_visitor_id';
+
 // Ultra-simple auth state - no caching, no localStorage interference, no managers
 export function useNuclearAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -88,6 +90,18 @@ export function useNuclearAuth() {
           if (profile && isMounted) {
             const appUser = createUserObject(profile);
             setUser(appUser);
+            
+            // Link journey to user on successful auth
+            const visitorId = localStorage.getItem(VISITOR_ID_KEY);
+            if (visitorId) {
+              console.log('🔗 Linking journey to authenticated user:', session.user.id);
+              supabase.rpc('link_journey_to_user', {
+                p_visitor_id: visitorId,
+                p_user_id: session.user.id
+              }).then(({ error }) => {
+                if (error) console.error('Failed to link journey:', error);
+              });
+            }
           }
         } else {
           setUser(null);

@@ -3,6 +3,31 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logDealActivity } from '@/lib/deal-activity-logger';
 
+// Helper to get visitor ID for milestone tracking
+const getVisitorIdForRequest = async (requestId: string): Promise<string | null> => {
+  try {
+    // Get the user_id from connection request
+    const { data: request } = await supabase
+      .from('connection_requests')
+      .select('user_id')
+      .eq('id', requestId)
+      .single();
+    
+    if (!request?.user_id) return null;
+    
+    // Try to find visitor_id in user_journeys for this user
+    const { data: journey } = await supabase
+      .from('user_journeys')
+      .select('visitor_id')
+      .eq('user_id', request.user_id)
+      .maybeSingle();
+    
+    return journey?.visitor_id || null;
+  } catch {
+    return null;
+  }
+};
+
 interface LeadRequestParams {
   requestId: string;
   value: boolean;
@@ -74,6 +99,19 @@ export const useUpdateLeadNDAStatus = () => {
             : `NDA signature revoked for ${deal.contact_name || 'contact'}`,
           metadata: { document_type: 'nda', signed: value }
         });
+      }
+      
+      // Record journey milestone for NDA signed
+      if (value) {
+        const visitorId = await getVisitorIdForRequest(requestId);
+        if (visitorId) {
+          console.log('📍 Recording nda_signed_at milestone for visitor:', visitorId);
+          await supabase.rpc('update_journey_milestone', {
+            p_visitor_id: visitorId,
+            p_milestone_key: 'nda_signed_at',
+            p_milestone_time: new Date().toISOString()
+          });
+        }
       }
       
       toast({ title: 'Lead NDA status updated' });
@@ -219,6 +257,19 @@ export const useUpdateLeadFeeAgreementStatus = () => {
             : `Fee Agreement signature revoked for ${deal.contact_name || 'contact'}`,
           metadata: { document_type: 'fee_agreement', signed: value }
         });
+      }
+      
+      // Record journey milestone for fee agreement signed
+      if (value) {
+        const visitorId = await getVisitorIdForRequest(requestId);
+        if (visitorId) {
+          console.log('📍 Recording fee_agreement_at milestone for visitor:', visitorId);
+          await supabase.rpc('update_journey_milestone', {
+            p_visitor_id: visitorId,
+            p_milestone_key: 'fee_agreement_at',
+            p_milestone_time: new Date().toISOString()
+          });
+        }
       }
       
       toast({ title: 'Lead fee agreement status updated' });

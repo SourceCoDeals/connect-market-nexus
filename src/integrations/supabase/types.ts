@@ -5383,6 +5383,10 @@ export type Database = {
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
+      link_journey_to_user: {
+        Args: { p_user_id: string; p_visitor_id: string }
+        Returns: undefined
+      }
       log_fee_agreement_email: {
         Args: {
           admin_notes?: string
@@ -5556,6 +5560,14 @@ export type Database = {
           target_user_id: string
         }
         Returns: boolean
+      }
+      update_journey_milestone: {
+        Args: {
+          p_milestone_key: string
+          p_milestone_time?: string
+          p_visitor_id: string
+        }
+        Returns: undefined
       }
       update_lead_fee_agreement_email_status:
         | { Args: { p_request_id: string; p_value: boolean }; Returns: boolean }

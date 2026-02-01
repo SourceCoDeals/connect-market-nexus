@@ -148,63 +148,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Create/update session record when auth state is available
-  useEffect(() => {
-    if (!authState.authChecked || !currentSessionId) return;
-
-    const createOrUpdateSession = async () => {
-      try {
-        // Check if session already exists (handle duplicates gracefully)
-        const { data: existingSessions, error: selectError } = await supabase
-          .from('user_sessions')
-          .select('id, session_id')
-          .eq('session_id', currentSessionId);
-
-        if (selectError) {
-          console.error('❌ Error checking existing session:', selectError);
-          return;
-        }
-
-        const existingSession = existingSessions?.[0]; // Take first if multiple exist
-
-        if (existingSession) {
-          // Update existing session with user info
-          const { error: updateError } = await supabase
-            .from('user_sessions')
-            .update({
-              user_id: authState.user?.id || null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('session_id', currentSessionId);
-
-          if (updateError) {
-            console.error('❌ Failed to update session:', updateError);
-          } else {
-            
-          }
-        } else {
-          // Create new session
-          const { error: insertError } = await supabase.from('user_sessions').insert({
-            session_id: currentSessionId,
-            user_id: authState.user?.id || null,
-            started_at: sessionStartTime?.toISOString() || new Date().toISOString(),
-            user_agent: navigator.userAgent,
-            referrer: document.referrer || null,
-          });
-
-          if (insertError) {
-            console.error('❌ Failed to create session:', insertError);
-          } else {
-            
-          }
-        }
-      } catch (error) {
-        console.error('❌ Failed to create/update session:', error);
-      }
-    };
-
-    createOrUpdateSession();
-  }, [authState.user, authState.authChecked]);
+  // Session creation is now handled by track-session edge function via use-initial-session-tracking
+  // This prevents race conditions that skip journey upsert logic
+  // AnalyticsContext only handles page views, events, and listing tracking - not session creation
 
   // Track page views on location change
   useEffect(() => {

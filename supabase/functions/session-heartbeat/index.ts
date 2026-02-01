@@ -72,29 +72,16 @@ Deno.serve(async (req) => {
       throw selectError;
     }
 
-    // If session doesn't exist yet, create it (handles race condition)
+    // If session doesn't exist yet, return gracefully
+    // Session creation is handled by track-session edge function to prevent race conditions with journey tracking
     if (!session) {
-      console.log('Session not found, creating:', body.session_id);
-      
-      const { error: insertError } = await supabase.from('user_sessions').insert({
-        session_id: body.session_id,
-        user_id: body.user_id || null,
-        started_at: now.toISOString(),
-        is_active: true,
-        last_active_at: now.toISOString(),
-        session_duration_seconds: 0,
-      });
-
-      if (insertError) {
-        // Might fail due to RLS or concurrent insert, but that's ok
-        console.log('Could not create session (may already exist):', insertError.message);
-      }
+      console.log('Session not found (will be created by track-session):', body.session_id);
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          created: true,
-          duration_seconds: 0,
+          pending: true,
+          message: 'Session will be created by track-session',
           last_active_at: now.toISOString()
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

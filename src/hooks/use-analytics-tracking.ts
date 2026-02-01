@@ -41,32 +41,9 @@ export function useAnalyticsTracking() {
     }
   }, [user?.id]);
 
-  // Create session record with UTM parameters
-  useEffect(() => {
-    const createSession = async () => {
-      try {
-        await supabase.from('user_sessions').insert({
-          session_id: sessionIdRef.current,
-          user_id: user?.id || null,
-          started_at: new Date().toISOString(),
-          user_agent: navigator.userAgent,
-          referrer: referrer || null,
-          device_type: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'mobile' : 'desktop',
-          browser: getBrowserName(),
-          os: getOSName(),
-          utm_source: utmParams.utm_source || null,
-          utm_medium: utmParams.utm_medium || null,
-          utm_campaign: utmParams.utm_campaign || null,
-          utm_term: utmParams.utm_term || null,
-          utm_content: utmParams.utm_content || null,
-        });
-      } catch (error) {
-        console.error('Failed to create session:', error);
-      }
-    };
-
-    createSession();
-  }, [user?.id, referrer, utmParams]);
+  // Session creation is now handled by track-session edge function via use-initial-session-tracking
+  // This hook only tracks page views and events, not session creation
+  // Remove duplicate session creation to prevent race conditions with journey tracking
 
   // Track page views (Supabase + GA4)
   const trackPageView = useCallback(async ({ pagePath, pageTitle, referrer }: TrackPageViewParams) => {
