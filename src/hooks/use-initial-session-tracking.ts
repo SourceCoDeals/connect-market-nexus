@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { useVisitorIdentity, getGA4ClientIdAsync } from './useVisitorIdentity';
 
 // Helper functions
 function getBrowserName(): string {
@@ -31,17 +32,7 @@ function getDeviceType(): string {
   return 'desktop';
 }
 
-// Get GA4 Client ID from cookie for data stitching
-function getGA4ClientId(): string | null {
-  try {
-    const match = document.cookie.match(/_ga=GA\d\.\d\.(\d+\.\d+)/);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
-}
-
-// Get first-touch attribution from localStorage
+// Get first-touch attribution from localStorage (supports both old and new key)
 function getFirstTouchAttribution(): {
   first_touch_source: string | null;
   first_touch_medium: string | null;
@@ -53,7 +44,8 @@ function getFirstTouchAttribution(): {
   first_touch_referrer: string | null;
 } {
   try {
-    const stored = localStorage.getItem('first_touch_attribution');
+    // Try new key first, then legacy key
+    const stored = localStorage.getItem('sourceco_first_touch') || localStorage.getItem('first_touch_attribution');
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
@@ -84,6 +76,7 @@ function getFirstTouchAttribution(): {
 
 export const useInitialSessionTracking = () => {
   const { sessionId, utmParams, referrer } = useSessionContext();
+  const { visitorId, getCurrentGA4ClientId } = useVisitorIdentity();
   const hasTracked = useRef(false);
 
   useEffect(() => {
@@ -96,16 +89,21 @@ export const useInitialSessionTracking = () => {
         const { data: { user } } = await supabase.auth.getUser();
         
         console.log('🎯 Starting initial session tracking, sessionId:', sessionId);
+        console.log('🆔 Visitor ID:', visitorId);
 
-        // Get GA4 client ID for data stitching
-        const ga4ClientId = getGA4ClientId();
+        // Get GA4 client ID - try sync first, then async
+        let ga4ClientId = getCurrentGA4ClientId();
+        if (!ga4ClientId) {
+          ga4ClientId = await getGA4ClientIdAsync();
+        }
         
         // Get first-touch attribution data from localStorage
         const firstTouchData = getFirstTouchAttribution();
 
-        // Prepare tracking data for edge function with enhanced landing info
+        // Prepare tracking data for edge function with enhanced journey tracking
         const trackingData = {
           session_id: sessionId,
+          visitor_id: visitorId,
           user_id: user?.id || null,
           user_agent: navigator.userAgent,
           referrer: referrer || document.referrer || null,
@@ -128,7 +126,7 @@ export const useInitialSessionTracking = () => {
         };
 
         console.log('📤 Sending session data to track-session edge function');
-        console.log('🔗 GA4 Client ID:', ga4ClientId || 'not available yet');
+        console.log('🔗 GA4 Client ID:', ga4ClientId || 'not available');
         console.log('📊 First-touch source:', firstTouchData.first_touch_source || 'current session');
 
         // Call edge function for IP geolocation and session creation
@@ -225,9 +223,9 @@ export const useInitialSessionTracking = () => {
       }
     };
 
-    // Track after a short delay to ensure everything is loaded
-    const timeoutId = setTimeout(trackInitialSession, 500);
+    // Track after a short delay to ensure visitor identity is initialized
+    const timeoutId = setTimeout(trackInitialSession, 800);
 
     return () => clearTimeout(timeoutId);
-  }, [sessionId, utmParams, referrer]);
+  }, [sessionId, utmParams, referrer, visitorId, getCurrentGA4ClientId]);
 };

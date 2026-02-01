@@ -4762,6 +4762,104 @@ export type Database = {
         }
         Relationships: []
       }
+      user_journeys: {
+        Row: {
+          created_at: string | null
+          first_browser: string | null
+          first_city: string | null
+          first_country: string | null
+          first_device_type: string | null
+          first_landing_page: string | null
+          first_os: string | null
+          first_referrer: string | null
+          first_seen_at: string | null
+          first_utm_campaign: string | null
+          first_utm_content: string | null
+          first_utm_medium: string | null
+          first_utm_source: string | null
+          first_utm_term: string | null
+          ga4_client_id: string | null
+          id: string
+          journey_stage: string | null
+          last_page_path: string | null
+          last_seen_at: string | null
+          last_session_id: string | null
+          milestones: Json | null
+          total_page_views: number | null
+          total_sessions: number | null
+          total_time_seconds: number | null
+          updated_at: string | null
+          user_id: string | null
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          first_browser?: string | null
+          first_city?: string | null
+          first_country?: string | null
+          first_device_type?: string | null
+          first_landing_page?: string | null
+          first_os?: string | null
+          first_referrer?: string | null
+          first_seen_at?: string | null
+          first_utm_campaign?: string | null
+          first_utm_content?: string | null
+          first_utm_medium?: string | null
+          first_utm_source?: string | null
+          first_utm_term?: string | null
+          ga4_client_id?: string | null
+          id?: string
+          journey_stage?: string | null
+          last_page_path?: string | null
+          last_seen_at?: string | null
+          last_session_id?: string | null
+          milestones?: Json | null
+          total_page_views?: number | null
+          total_sessions?: number | null
+          total_time_seconds?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string | null
+          first_browser?: string | null
+          first_city?: string | null
+          first_country?: string | null
+          first_device_type?: string | null
+          first_landing_page?: string | null
+          first_os?: string | null
+          first_referrer?: string | null
+          first_seen_at?: string | null
+          first_utm_campaign?: string | null
+          first_utm_content?: string | null
+          first_utm_medium?: string | null
+          first_utm_source?: string | null
+          first_utm_term?: string | null
+          ga4_client_id?: string | null
+          id?: string
+          journey_stage?: string | null
+          last_page_path?: string | null
+          last_seen_at?: string | null
+          last_session_id?: string | null
+          milestones?: Json | null
+          total_page_views?: number | null
+          total_sessions?: number | null
+          total_time_seconds?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_journeys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notes: {
         Row: {
           admin_id: string
@@ -4980,81 +5078,6 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
-        }
-        Relationships: []
-      }
-      visitor_companies: {
-        Row: {
-          business_email: string | null
-          captured_url: string | null
-          company_city: string | null
-          company_country: string | null
-          company_industry: string | null
-          company_name: string | null
-          company_size: string | null
-          company_state: string | null
-          company_website: string | null
-          created_at: string | null
-          estimated_revenue: string | null
-          first_name: string | null
-          id: string
-          is_repeat_visit: boolean | null
-          job_title: string | null
-          last_name: string | null
-          linkedin_url: string | null
-          raw_payload: Json | null
-          referrer: string | null
-          seen_at: string | null
-          session_id: string | null
-          source: string | null
-        }
-        Insert: {
-          business_email?: string | null
-          captured_url?: string | null
-          company_city?: string | null
-          company_country?: string | null
-          company_industry?: string | null
-          company_name?: string | null
-          company_size?: string | null
-          company_state?: string | null
-          company_website?: string | null
-          created_at?: string | null
-          estimated_revenue?: string | null
-          first_name?: string | null
-          id?: string
-          is_repeat_visit?: boolean | null
-          job_title?: string | null
-          last_name?: string | null
-          linkedin_url?: string | null
-          raw_payload?: Json | null
-          referrer?: string | null
-          seen_at?: string | null
-          session_id?: string | null
-          source?: string | null
-        }
-        Update: {
-          business_email?: string | null
-          captured_url?: string | null
-          company_city?: string | null
-          company_country?: string | null
-          company_industry?: string | null
-          company_name?: string | null
-          company_size?: string | null
-          company_state?: string | null
-          company_website?: string | null
-          created_at?: string | null
-          estimated_revenue?: string | null
-          first_name?: string | null
-          id?: string
-          is_repeat_visit?: boolean | null
-          job_title?: string | null
-          last_name?: string | null
-          linkedin_url?: string | null
-          raw_payload?: Json | null
-          referrer?: string | null
-          seen_at?: string | null
-          session_id?: string | null
-          source?: string | null
         }
         Relationships: []
       }
@@ -5350,6 +5373,14 @@ export type Database = {
         Returns: boolean
       }
       increment: { Args: { x: number }; Returns: number }
+      increment_journey_sessions: {
+        Args: {
+          p_page_path?: string
+          p_session_id: string
+          p_visitor_id: string
+        }
+        Returns: undefined
+      }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       log_fee_agreement_email: {
