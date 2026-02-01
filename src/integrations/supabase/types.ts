@@ -4983,6 +4983,81 @@ export type Database = {
         }
         Relationships: []
       }
+      visitor_companies: {
+        Row: {
+          business_email: string | null
+          captured_url: string | null
+          company_city: string | null
+          company_country: string | null
+          company_industry: string | null
+          company_name: string | null
+          company_size: string | null
+          company_state: string | null
+          company_website: string | null
+          created_at: string | null
+          estimated_revenue: string | null
+          first_name: string | null
+          id: string
+          is_repeat_visit: boolean | null
+          job_title: string | null
+          last_name: string | null
+          linkedin_url: string | null
+          raw_payload: Json | null
+          referrer: string | null
+          seen_at: string | null
+          session_id: string | null
+          source: string | null
+        }
+        Insert: {
+          business_email?: string | null
+          captured_url?: string | null
+          company_city?: string | null
+          company_country?: string | null
+          company_industry?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          company_state?: string | null
+          company_website?: string | null
+          created_at?: string | null
+          estimated_revenue?: string | null
+          first_name?: string | null
+          id?: string
+          is_repeat_visit?: boolean | null
+          job_title?: string | null
+          last_name?: string | null
+          linkedin_url?: string | null
+          raw_payload?: Json | null
+          referrer?: string | null
+          seen_at?: string | null
+          session_id?: string | null
+          source?: string | null
+        }
+        Update: {
+          business_email?: string | null
+          captured_url?: string | null
+          company_city?: string | null
+          company_country?: string | null
+          company_industry?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          company_state?: string | null
+          company_website?: string | null
+          created_at?: string | null
+          estimated_revenue?: string | null
+          first_name?: string | null
+          id?: string
+          is_repeat_visit?: boolean | null
+          job_title?: string | null
+          last_name?: string | null
+          linkedin_url?: string | null
+          raw_payload?: Json | null
+          referrer?: string | null
+          seen_at?: string | null
+          session_id?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       unmapped_primary_owners: {

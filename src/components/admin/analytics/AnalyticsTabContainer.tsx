@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Activity, Globe, TrendingUp, Brain, DollarSign, Target, Megaphone, Heart, LogOut } from "lucide-react";
+import { CalendarIcon, Activity, Globe, TrendingUp, Brain, DollarSign, Target, Building2, Heart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { BuyerIntentDashboard } from "./buyer-intent/BuyerIntentDashboard";
 import { CampaignAttributionPanel } from "./campaigns/CampaignAttributionPanel";
 import { ListingHealthDashboard } from "./listings/ListingHealthDashboard";
 import { ExitAnalysisPanel } from "./exit/ExitAnalysisPanel";
+import { VisitorCompaniesDashboard } from "./companies/VisitorCompaniesDashboard";
 import { cn } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
@@ -139,6 +140,13 @@ export function AnalyticsTabContainer() {
               Buyer Intent
             </TabsTrigger>
             <TabsTrigger 
+              value="companies"
+              className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Building2 className="h-3.5 w-3.5 mr-1.5" />
+              Companies
+            </TabsTrigger>
+            <TabsTrigger 
               value="traffic"
               className="rounded-lg px-3 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
             >
@@ -217,6 +225,10 @@ export function AnalyticsTabContainer() {
 
         <TabsContent value="buyer-intent" className="mt-0">
           <BuyerIntentDashboard timeRangeDays={timeRangeDays} />
+        </TabsContent>
+
+        <TabsContent value="companies" className="mt-0">
+          <VisitorCompaniesDashboard timeRangeDays={timeRangeDays} />
         </TabsContent>
 
         <TabsContent value="traffic" className="mt-0">
