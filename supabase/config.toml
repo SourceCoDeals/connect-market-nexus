@@ -163,3 +163,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.aggregate-daily-metrics]
 verify_jwt = false
+[functions.webhook-visitor-identification]
+verify_jwt = false
