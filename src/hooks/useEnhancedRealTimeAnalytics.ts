@@ -128,17 +128,26 @@ function normalizeReferrer(referrer: string | null, utmSource: string | null): s
   
   // Parse as URL for accurate domain matching
   let hostname = '';
+  let pathname = '';
   try {
     const url = new URL(source.startsWith('http') ? source : `https://${source}`);
     hostname = url.hostname.replace('www.', '');
+    pathname = url.pathname;
   } catch {
     // If it can't parse as URL, check if source itself matches known patterns
     hostname = source;
   }
   
   // Check against EXACT domains - order matters for specificity
+  
+  // AI/Chat platforms
+  if (hostname.includes('chatgpt.') || hostname.includes('chat.openai.')) return 'ChatGPT';
+  if (hostname.includes('claude.ai') || hostname.includes('anthropic.')) return 'Claude';
+  if (hostname.includes('perplexity.')) return 'Perplexity';
+  if (hostname.includes('bard.google.') || hostname.includes('gemini.google.')) return 'Gemini';
+  
   // Social Media
-  if (hostname === 'twitter.com' || hostname === 'x.com' || hostname === 't.co') return 'X (Twitter)';
+  if (hostname === 'twitter.com' || hostname === 'x.com' || hostname === 't.co') return 'X';
   if (hostname.includes('facebook.') || hostname === 'fb.com' || hostname.includes('fb.me')) return 'Facebook';
   if (hostname.includes('linkedin.')) return 'LinkedIn';
   if (hostname.includes('instagram.')) return 'Instagram';
@@ -153,22 +162,38 @@ function normalizeReferrer(referrer: string | null, utmSource: string | null): s
   if (hostname.includes('yahoo.')) return 'Yahoo';
   
   // Email Marketing - Brevo/Sendinblue domains
-  if (hostname.includes('brevo.') || hostname.includes('sendib') || hostname.includes('sendinblue')) return 'Email (Brevo)';
-  if (hostname.includes('mailchimp.')) return 'Email (Mailchimp)';
+  if (hostname.includes('brevo.') || hostname.includes('sendib') || hostname.includes('sendinblue')) return 'Brevo';
+  if (hostname.includes('mailchimp.')) return 'Mailchimp';
   
   // Development/Preview
   if (hostname.includes('lovable.dev') || hostname.includes('lovable.app') || hostname.includes('lovableproject.com')) return 'Lovable';
   if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) return 'Localhost';
   
-  // Your own domain
-  if (hostname.includes('sourcecodeals.com') || hostname.includes('sourceco')) return 'SourceCoDeals';
+  // Your own domain - show the subdomain or path for clarity
+  if (hostname.includes('sourcecodeals.com') || hostname.includes('sourceco')) {
+    // If it's from the main site (not marketplace), show sourcecodeals.com
+    if (!hostname.includes('marketplace')) {
+      return 'sourcecodeals.com';
+    }
+    return 'Internal';
+  }
   
   // Microsoft/Enterprise
-  if (hostname.includes('teams.') || hostname.includes('office.net') || hostname.includes('microsoft.')) return 'Microsoft Teams';
+  if (hostname.includes('teams.') || hostname.includes('office.net') || hostname.includes('microsoft.')) return 'Teams';
   if (hostname.includes('slack.')) return 'Slack';
   
-  // Return cleaned hostname if valid, otherwise "Referral"
-  return hostname && hostname.length > 0 && hostname.includes('.') ? hostname : 'Referral';
+  // Return the domain name itself for other valid domains
+  if (hostname && hostname.length > 0 && hostname.includes('.')) {
+    // Clean up common prefixes/suffixes
+    const cleanDomain = hostname
+      .replace('.com', '')
+      .replace('.org', '')
+      .replace('.net', '')
+      .replace('.io', '');
+    return cleanDomain.charAt(0).toUpperCase() + cleanDomain.slice(1);
+  }
+  
+  return 'Referral';
 }
 
 // Extract external referrer domain for display (e.g., sourcecodeals.com/blog -> sourcecodeals.com)
