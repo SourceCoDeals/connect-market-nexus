@@ -163,3 +163,9 @@ verify_jwt = false
 verify_jwt = false
 [functions.aggregate-daily-metrics]
 verify_jwt = false
+[functions.backfill-daily-metrics]
+verify_jwt = false
+[functions.enrich-session-metadata]
+verify_jwt = false
+[functions.enrich-geo-data]
+verify_jwt = false
