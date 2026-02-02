@@ -1,327 +1,118 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import Anthropic from "npm:@anthropic-ai/sdk@0.30.1";
+
+const anthropic = new Anthropic({
+  apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
+});
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-/**
- * Parse Tracker Documents Edge Function
- * 
- * Input Pathway 2: Document Upload & Parsing
- * Downloads documents from Supabase Storage, extracts text, and parses criteria
- */
-
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { universe_id, document_urls, document_names } = await req.json();
+    const { document_url, document_type, tracker_id } = await req.json();
 
-    if (!document_urls || document_urls.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No documents provided' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    console.log("[parse-tracker-documents] Processing:", {
+      document_type,
+      tracker_id,
+    });
+
+    // Fetch document content
+    const docResponse = await fetch(document_url);
+    if (!docResponse.ok) {
+      throw new Error(\`Failed to fetch document: \${docResponse.statusText}\`);
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
-    }
+    const docBuffer = await docResponse.arrayBuffer();
+    const base64Doc = btoa(String.fromCharCode(...new Uint8Array(docBuffer)));
 
-    // Initialize Supabase client for storage access
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Analyze with Claude Sonnet 4 (supports PDF)
+    const system_prompt = \`You are a document analysis assistant specialized in analyzing M&A documents.
 
-    console.log(`Processing ${document_urls.length} documents for universe ${universe_id}`);
+Your task is to extract key information from documents such as:
+- CIMs (Confidential Information Memorandums)
+- Investment presentations
+- Company profiles
+- Deal teaser documents
 
-    // Extract text from each document
-    const allTexts: string[] = [];
-    
-    for (let i = 0; i < document_urls.length; i++) {
-      const url = document_urls[i];
-      const name = document_names?.[i] || `Document ${i + 1}`;
-      
-      try {
-        const text = await extractTextFromDocument(url, name, GEMINI_API_KEY);
-        if (text) {
-          allTexts.push(`\n--- ${name} ---\n${text}`);
-        }
-      } catch (err) {
-        console.error(`Failed to extract text from ${name}:`, err);
-        // Continue with other documents
-      }
-    }
+Extract and structure:
+1. Company overview and business description
+2. Financial information (revenue, EBITDA, margins)
+3. Geographic footprint and locations
+4. Services/products offered
+5. Growth metrics and trends
+6. Key risks and opportunities
+7. Target buyer profile hints
 
-    if (allTexts.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Could not extract text from any documents' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+Return a JSON object with the extracted information.\`;
 
-    const combinedText = allTexts.join('\n\n');
-    console.log(`Extracted ${combinedText.length} chars from ${allTexts.length} documents`);
-
-    // Now extract criteria from the combined text
-    const criteria = await extractCriteriaFromText(combinedText, GEMINI_API_KEY);
-
-    // Update the universe if ID provided
-    if (universe_id && criteria) {
-      const { error: updateError } = await supabase
-        .from('remarketing_buyer_universes')
-        .update({
-          size_criteria: criteria.size_criteria || {},
-          service_criteria: criteria.service_criteria || {},
-          geography_criteria: criteria.geography_criteria || {},
-          buyer_types_criteria: criteria.buyer_types_criteria || {},
-          scoring_behavior: criteria.scoring_hints || {},
-          documents_analyzed_at: new Date().toISOString(),
-          // Human-readable summaries
-          fit_criteria_size: criteria.summaries?.size_summary || null,
-          fit_criteria_service: criteria.summaries?.service_summary || null,
-          fit_criteria_geography: criteria.summaries?.geography_summary || null,
-          fit_criteria_buyer_types: criteria.summaries?.buyer_types_summary || null,
-        })
-        .eq('id', universe_id);
-
-      if (updateError) {
-        console.error('Failed to update universe:', updateError);
-      } else {
-        console.log('Universe criteria updated successfully');
-      }
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        criteria: criteria,
-        documentsProcessed: allTexts.length,
-        totalCharsExtracted: combinedText.length
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Error parsing documents:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Failed to parse documents' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
-
-async function extractTextFromDocument(url: string, filename: string, apiKey: string): Promise<string> {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  
-  // Fetch the document
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch document: ${response.status}`);
-  }
-
-  // Handle based on file type
-  switch (ext) {
-    case 'txt':
-      return await response.text();
-      
-    case 'pdf':
-      // Use AI vision to extract text from PDF
-      return await extractPdfWithVision(url, apiKey);
-      
-    case 'docx':
-      // Extract from DOCX (simplified - just get raw text from XML)
-      const buffer = await response.arrayBuffer();
-      return await extractDocxText(buffer);
-      
-    case 'doc':
-      // For .doc files, use AI vision as fallback
-      return await extractPdfWithVision(url, apiKey);
-      
-    default:
-      // Try to read as text
-      try {
-        return await response.text();
-      } catch {
-        return await extractPdfWithVision(url, apiKey);
-      }
-  }
-}
-
-async function extractPdfWithVision(url: string, apiKey: string): Promise<string> {
-  // Use Gemini's vision capability to extract text from document images
-  const response = await fetch(GEMINI_API_URL, {
-    method: "POST",
-    headers: getGeminiHeaders(apiKey),
-    body: JSON.stringify({
-      model: DEFAULT_GEMINI_MODEL,
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      system: system_prompt,
       messages: [
         {
           role: "user",
           content: [
             {
-              type: "text",
-              text: "Extract all text from this document. Include all content, tables, and data. Format as plain text preserving structure where possible."
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: base64Doc,
+              },
             },
             {
-              type: "image_url",
-              image_url: { url: url }
-            }
-          ]
-        }
-      ],
-      max_tokens: 8000
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`AI extraction failed: ${response.status}`);
-  }
-
-  const result = await response.json();
-  return result.choices?.[0]?.message?.content || '';
-}
-
-async function extractDocxText(buffer: ArrayBuffer): Promise<string> {
-  // Simple DOCX extraction - DOCX is a ZIP with XML inside
-  // For production, you'd want a proper DOCX parser
-  try {
-    const uint8 = new Uint8Array(buffer);
-    const decoder = new TextDecoder('utf-8');
-    const content = decoder.decode(uint8);
-    
-    // Try to find XML document content
-    const docMatch = content.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
-    if (docMatch) {
-      return docMatch
-        .map(m => m.replace(/<[^>]+>/g, ''))
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-    
-    // Fallback: extract any readable text
-    return content.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
-  } catch {
-    return '';
-  }
-}
-
-async function extractCriteriaFromText(text: string, apiKey: string): Promise<any> {
-  const EXTRACTION_TOOL = {
-    type: "function",
-    function: {
-      name: "extract_criteria",
-      description: "Extract structured buyer universe criteria from document text",
-      parameters: {
-        type: "object",
-        properties: {
-          size_criteria: {
-            type: "object",
-            properties: {
-              revenue_min: { type: "number" },
-              revenue_max: { type: "number" },
-              ebitda_min: { type: "number" },
-              ebitda_max: { type: "number" },
-              locations_min: { type: "number" },
-              locations_max: { type: "number" }
-            }
-          },
-          service_criteria: {
-            type: "object",
-            properties: {
-              primary_focus: { type: "array", items: { type: "string" } },
-              required_services: { type: "array", items: { type: "string" } },
-              preferred_services: { type: "array", items: { type: "string" } },
-              excluded_services: { type: "array", items: { type: "string" } },
-              business_model: { type: "string" },
-              customer_profile: { type: "string" }
+              type: "text",
+              text: "Please analyze this document and extract all relevant M&A intelligence information. Return the extracted data as a structured JSON object.",
             },
-            required: ["primary_focus"]
-          },
-          geography_criteria: {
-            type: "object",
-            properties: {
-              target_states: { type: "array", items: { type: "string" } },
-              target_regions: { type: "array", items: { type: "string" } },
-              coverage: { type: "string", enum: ["local", "regional", "national"] },
-              exclude_states: { type: "array", items: { type: "string" } }
-            }
-          },
-          buyer_types_criteria: {
-            type: "object",
-            properties: {
-              include_pe_firms: { type: "boolean" },
-              include_platforms: { type: "boolean" },
-              include_strategic: { type: "boolean" },
-              include_family_office: { type: "boolean" }
-            }
-          },
-          scoring_hints: {
-            type: "object",
-            properties: {
-              geography_mode: { type: "string", enum: ["strict", "flexible", "national"] },
-              size_importance: { type: "string", enum: ["critical", "important", "flexible"] }
-            }
-          },
-          summaries: {
-            type: "object",
-            properties: {
-              size_summary: { type: "string" },
-              service_summary: { type: "string" },
-              geography_summary: { type: "string" },
-              buyer_types_summary: { type: "string" }
-            }
-          }
+          ],
         },
-        required: ["service_criteria"]
-      }
-    }
-  };
-
-  const response = await fetch(GEMINI_API_URL, {
-    method: "POST",
-    headers: getGeminiHeaders(apiKey),
-    body: JSON.stringify({
-      model: DEFAULT_GEMINI_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert M&A analyst extracting buyer universe criteria from documents.
-Extract structured criteria including:
-- Size criteria (revenue, EBITDA ranges)
-- Service/industry focus (ALWAYS populate primary_focus)
-- Geographic targets
-- Buyer type preferences
-Convert all currency values to raw numbers (no $ or M suffixes).
-Do not use placeholder values like [X] or [TBD].`
-        },
-        {
-          role: "user",
-          content: `Extract buyer universe criteria from this document text:\n\n${text.slice(0, 50000)}`
-        }
       ],
-      tools: [EXTRACTION_TOOL],
-      tool_choice: { type: "function", function: { name: "extract_criteria" } }
-    }),
-  });
+    });
 
-  if (!response.ok) {
-    throw new Error(`AI extraction failed: ${response.status}`);
+    const assistant_message = response.content[0].type === "text"
+      ? response.content[0].text
+      : "";
+
+    // Parse JSON from response
+    let extracted_data = {};
+    try {
+      const jsonMatch = assistant_message.match(/\\{[\\s\\S]*\\}/);
+      if (jsonMatch) {
+        extracted_data = JSON.parse(jsonMatch[0]);
+      }
+    } catch (e) {
+      console.warn("[parse-tracker-documents] Could not parse JSON from response");
+      extracted_data = { raw_text: assistant_message };
+    }
+
+    console.log("[parse-tracker-documents] Extracted data successfully");
+
+    return new Response(
+      JSON.stringify({
+        extracted_data,
+        raw_response: assistant_message,
+        usage: response.usage,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error: any) {
+    console.error("[parse-tracker-documents] Error:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
-
-  const result = await response.json();
-  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-  
-  if (!toolCall) {
-    throw new Error("No extraction result");
-  }
-
-  return JSON.parse(toolCall.function.arguments);
-}
+});
