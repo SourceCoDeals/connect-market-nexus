@@ -1,5 +1,5 @@
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect } from "react";
 import { ArrowRight } from "lucide-react";
@@ -11,6 +11,7 @@ import sfcLogo from '@/assets/sfc-logo.png';
 const Welcome = () => {
   const { user, authChecked } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Redirect authenticated users away
   useEffect(() => {
@@ -121,7 +122,7 @@ const Welcome = () => {
         <div className="space-y-3">
           {/* Buyer Card */}
           <Link 
-            to="/signup"
+            to={`/signup${location.search}`}
             className="group block"
           >
             <Card className="border border-border/60 hover:border-primary/30 hover:shadow-md transition-all duration-200 cursor-pointer">
@@ -148,7 +149,7 @@ const Welcome = () => {
 
           {/* Seller Card */}
           <Link 
-            to="/sell"
+            to={`/sell${location.search}`}
             className="group block"
           >
             <Card className="border border-border/60 hover:border-primary/30 hover:shadow-md transition-all duration-200 cursor-pointer">
@@ -177,7 +178,7 @@ const Welcome = () => {
         {/* Bottom Link */}
         <div className="text-xs text-muted-foreground">
           Already have an account?{" "}
-          <Link to="/login" className="text-primary font-medium hover:underline">
+          <Link to={`/login${location.search}`} className="text-primary font-medium hover:underline">
             Sign in
           </Link>
         </div>
