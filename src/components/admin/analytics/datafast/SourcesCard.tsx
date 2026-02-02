@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
+import { ReferrerLogo, formatReferrerName } from "./ReferrerLogo";
 
 interface SourcesCardProps {
   channels: Array<{ name: string; visitors: number; connections: number; icon: string }>;
@@ -52,15 +53,31 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
     { id: 'keyword', label: 'Keyword' },
   ];
 
+  // Sort all data by sortBy
   const sortedChannels = [...channels].sort((a, b) => 
     sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
   );
   
+  const sortedReferrers = [...referrers].sort((a, b) => 
+    sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
+  );
+  
+  const sortedCampaigns = [...campaigns].sort((a, b) => 
+    sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
+  );
+  
+  const sortedKeywords = [...keywords].sort((a, b) => 
+    sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
+  );
+  
   const totalVisitors = channels.reduce((sum, c) => sum + c.visitors, 0);
+  const totalConnections = channels.reduce((sum, c) => sum + c.connections, 0);
   const maxReferrerVisitors = Math.max(...referrers.map(r => r.visitors), 1);
   const maxReferrerConnections = Math.max(...referrers.map(r => r.connections), 1);
   const maxCampaignVisitors = Math.max(...campaigns.map(c => c.visitors), 1);
+  const maxCampaignConnections = Math.max(...campaigns.map(c => c.connections), 1);
   const maxKeywordVisitors = Math.max(...keywords.map(k => k.visitors), 1);
+  const maxKeywordConnections = Math.max(...keywords.map(k => k.connections), 1);
 
   return (
     <AnalyticsCard
@@ -99,8 +116,9 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
               {/* Legend List */}
               <div className="flex-1 space-y-1">
                 {sortedChannels.slice(0, 6).map((channel) => {
-                  const percentage = totalVisitors > 0 
-                    ? ((channel[sortBy] / (sortBy === 'visitors' ? totalVisitors : channels.reduce((s, c) => s + c.connections, 0) || 1)) * 100).toFixed(0)
+                  const total = sortBy === 'visitors' ? totalVisitors : totalConnections;
+                  const percentage = total > 0 
+                    ? ((channel[sortBy] / total) * 100).toFixed(0)
                     : '0';
                   
                   return (
@@ -142,10 +160,10 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
           
           {activeTab === 'referrer' && (
             <div className="space-y-1">
-              {referrers.slice(0, 8).map((ref) => (
+              {sortedReferrers.slice(0, 8).map((ref) => (
                 <AnalyticsTooltip
                   key={ref.domain}
-                  title={ref.domain}
+                  title={formatReferrerName(ref.domain)}
                   rows={[
                     { label: 'Visitors', value: ref.visitors.toLocaleString() },
                     { label: 'Connections', value: ref.connections },
@@ -153,20 +171,17 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                   ]}
                 >
                   <ProportionalBar 
-                    value={ref.visitors} 
-                    maxValue={maxReferrerVisitors}
+                    value={sortBy === 'visitors' ? ref.visitors : ref.connections} 
+                    maxValue={sortBy === 'visitors' ? maxReferrerVisitors : maxReferrerConnections}
                     secondaryValue={ref.connections}
                     secondaryMaxValue={maxReferrerConnections}
                   >
                     <div className="flex items-center justify-between cursor-pointer group">
                       <div className="flex items-center gap-2.5">
-                        <img 
-                          src={ref.favicon} 
-                          alt="" 
-                          className="w-4 h-4 rounded"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                        <span className="text-sm font-medium truncate max-w-[180px]">{ref.domain}</span>
+                        <ReferrerLogo domain={ref.domain} className="w-4 h-4" />
+                        <span className="text-sm font-medium truncate max-w-[180px]">
+                          {formatReferrerName(ref.domain)}
+                        </span>
                         <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                       <div className="flex items-center gap-3">
@@ -176,7 +191,7 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                           </span>
                         )}
                         <span className="text-sm font-medium tabular-nums w-10 text-right">
-                          {ref.visitors.toLocaleString()}
+                          {ref[sortBy === 'visitors' ? 'visitors' : 'connections'].toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -191,21 +206,32 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
           
           {activeTab === 'campaign' && (
             <div className="space-y-1">
-              {campaigns.slice(0, 8).map((campaign) => (
+              {sortedCampaigns.slice(0, 8).map((campaign) => (
                 <AnalyticsTooltip
                   key={campaign.name}
                   title={campaign.name}
                   rows={[
                     { label: 'Visitors', value: campaign.visitors.toLocaleString() },
                     { label: 'Connections', value: campaign.connections },
+                    { label: 'Conv. Rate', value: `${campaign.visitors > 0 ? ((campaign.connections / campaign.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                   ]}
                 >
-                  <ProportionalBar value={campaign.visitors} maxValue={maxCampaignVisitors}>
+                  <ProportionalBar 
+                    value={sortBy === 'visitors' ? campaign.visitors : campaign.connections} 
+                    maxValue={sortBy === 'visitors' ? maxCampaignVisitors : maxCampaignConnections}
+                  >
                     <div className="flex items-center justify-between cursor-pointer">
                       <span className="text-sm font-medium truncate max-w-[200px]">{campaign.name}</span>
-                      <span className="text-sm font-medium tabular-nums">
-                        {campaign[sortBy].toLocaleString()}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {campaign.connections > 0 && (
+                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                            {campaign.connections} conv
+                          </span>
+                        )}
+                        <span className="text-sm font-medium tabular-nums">
+                          {campaign[sortBy].toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </ProportionalBar>
                 </AnalyticsTooltip>
@@ -218,15 +244,35 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
           
           {activeTab === 'keyword' && (
             <div className="space-y-1">
-              {keywords.slice(0, 8).map((kw) => (
-                <ProportionalBar key={kw.term} value={kw.visitors} maxValue={maxKeywordVisitors}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate max-w-[200px]">{kw.term}</span>
-                    <span className="text-sm font-medium tabular-nums">
-                      {kw[sortBy].toLocaleString()}
-                    </span>
-                  </div>
-                </ProportionalBar>
+              {sortedKeywords.slice(0, 8).map((kw) => (
+                <AnalyticsTooltip
+                  key={kw.term}
+                  title={kw.term}
+                  rows={[
+                    { label: 'Visitors', value: kw.visitors.toLocaleString() },
+                    { label: 'Connections', value: kw.connections },
+                    { label: 'Conv. Rate', value: `${kw.visitors > 0 ? ((kw.connections / kw.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
+                  ]}
+                >
+                  <ProportionalBar 
+                    value={sortBy === 'visitors' ? kw.visitors : kw.connections} 
+                    maxValue={sortBy === 'visitors' ? maxKeywordVisitors : maxKeywordConnections}
+                  >
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm font-medium truncate max-w-[200px]">{kw.term}</span>
+                      <div className="flex items-center gap-3">
+                        {kw.connections > 0 && (
+                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                            {kw.connections} conv
+                          </span>
+                        )}
+                        <span className="text-sm font-medium tabular-nums">
+                          {kw[sortBy].toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </ProportionalBar>
+                </AnalyticsTooltip>
               ))}
               {keywords.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">No keyword data</div>

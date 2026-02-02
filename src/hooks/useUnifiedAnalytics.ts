@@ -411,9 +411,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      // Referrer breakdown - count unique visitors
+      // Referrer breakdown - count unique visitors AND connections
       const referrerVisitors: Record<string, Set<string>> = {};
       const referrerSessions: Record<string, number> = {};
+      const referrerConnections: Record<string, number> = {};
+      
       uniqueSessions.forEach(s => {
         const domain = extractDomain(s.referrer);
         if (!referrerVisitors[domain]) {
@@ -424,12 +426,24 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         if (visitorKey) referrerVisitors[domain].add(visitorKey);
         referrerSessions[domain]++;
       });
+      
+      // Map connections to referrers via user's first-touch referrer
+      connections.forEach(c => {
+        if (c.user_id) {
+          const userSession = userSessionMap.get(c.user_id);
+          if (userSession) {
+            const domain = extractDomain(userSession.referrer);
+            referrerConnections[domain] = (referrerConnections[domain] || 0) + 1;
+          }
+        }
+      });
+      
       const referrers = Object.keys(referrerVisitors)
         .map(domain => ({ 
           domain, 
           visitors: referrerVisitors[domain].size, 
           sessions: referrerSessions[domain] || 0,
-          connections: 0, 
+          connections: referrerConnections[domain] || 0, 
           favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32` 
         }))
         .sort((a, b) => b.visitors - a.visitors)
@@ -449,12 +463,23 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           campaignSessions[s.utm_campaign]++;
         }
       });
+      // Map connections to campaigns
+      const campaignConnections: Record<string, number> = {};
+      connections.forEach(c => {
+        if (c.user_id) {
+          const userSession = userSessionMap.get(c.user_id);
+          if (userSession?.utm_campaign) {
+            campaignConnections[userSession.utm_campaign] = (campaignConnections[userSession.utm_campaign] || 0) + 1;
+          }
+        }
+      });
+      
       const campaigns = Object.keys(campaignVisitors)
         .map(name => ({ 
           name, 
           visitors: campaignVisitors[name].size,
           sessions: campaignSessions[name] || 0,
-          connections: 0 
+          connections: campaignConnections[name] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors);
       
@@ -472,19 +497,34 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           keywordSessions[s.utm_term]++;
         }
       });
+      // Map connections to keywords
+      const keywordConnections: Record<string, number> = {};
+      connections.forEach(c => {
+        if (c.user_id) {
+          const userSession = userSessionMap.get(c.user_id);
+          if (userSession?.utm_term) {
+            keywordConnections[userSession.utm_term] = (keywordConnections[userSession.utm_term] || 0) + 1;
+          }
+        }
+      });
+      
       const keywords = Object.keys(keywordVisitors)
         .map(term => ({ 
           term, 
           visitors: keywordVisitors[term].size,
           sessions: keywordSessions[term] || 0,
-          connections: 0 
+          connections: keywordConnections[term] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      // Geography breakdown - count unique visitors
+      // Geography breakdown - count unique visitors AND connections
       const countryVisitors: Record<string, Set<string>> = {};
       const countrySessions: Record<string, number> = {};
+      const countryConnections: Record<string, number> = {};
       const cityVisitors: Record<string, { visitors: Set<string>; sessions: number; country: string }> = {};
+      const cityConnections: Record<string, number> = {};
+      const regionVisitors: Record<string, { visitors: Set<string>; sessions: number; country: string }> = {};
+      const regionConnections: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
         const country = s.country || 'Unknown';
@@ -497,6 +537,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         if (visitorKey) countryVisitors[country].add(visitorKey);
         countrySessions[country]++;
         
+        // City aggregation
         if (s.city) {
           const cityKey = `${s.city}, ${country}`;
           if (!cityVisitors[cityKey]) {
@@ -504,6 +545,40 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           }
           if (visitorKey) cityVisitors[cityKey].visitors.add(visitorKey);
           cityVisitors[cityKey].sessions++;
+        }
+        
+        // Region aggregation (use city as region fallback since we don't have region field)
+        // In a real setup, you'd have a separate region field
+        const region = (s as any).region || s.city;
+        if (region) {
+          const regionKey = `${region}, ${country}`;
+          if (!regionVisitors[regionKey]) {
+            regionVisitors[regionKey] = { visitors: new Set(), sessions: 0, country };
+          }
+          if (visitorKey) regionVisitors[regionKey].visitors.add(visitorKey);
+          regionVisitors[regionKey].sessions++;
+        }
+      });
+      
+      // Map connections to geography via user's session
+      connections.forEach(c => {
+        if (c.user_id) {
+          const userSession = userSessionMap.get(c.user_id);
+          if (userSession) {
+            const country = userSession.country || 'Unknown';
+            countryConnections[country] = (countryConnections[country] || 0) + 1;
+            
+            if (userSession.city) {
+              const cityKey = `${userSession.city}, ${country}`;
+              cityConnections[cityKey] = (cityConnections[cityKey] || 0) + 1;
+            }
+            
+            const region = (userSession as any).region || userSession.city;
+            if (region) {
+              const regionKey = `${region}, ${country}`;
+              regionConnections[regionKey] = (regionConnections[regionKey] || 0) + 1;
+            }
+          }
         }
       });
       
@@ -513,17 +588,29 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           code: name.substring(0, 2).toUpperCase(), 
           visitors: countryVisitors[name].size,
           sessions: countrySessions[name] || 0,
-          connections: 0 
+          connections: countryConnections[name] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      const cities = Object.entries(cityVisitors)
-        .map(([name, data]) => ({ 
-          name: name.split(',')[0], 
+      const regions = Object.entries(regionVisitors)
+        .map(([key, data]) => ({ 
+          name: key.split(',')[0].trim(), 
           country: data.country,
           visitors: data.visitors.size,
           sessions: data.sessions,
-          connections: 0 
+          connections: regionConnections[key] || 0 
+        }))
+        .filter(r => r.name && r.name !== 'Unknown')
+        .sort((a, b) => b.visitors - a.visitors)
+        .slice(0, 10);
+      
+      const cities = Object.entries(cityVisitors)
+        .map(([key, data]) => ({ 
+          name: key.split(',')[0].trim(), 
+          country: data.country,
+          visitors: data.visitors.size,
+          sessions: data.sessions,
+          connections: cityConnections[key] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors)
         .slice(0, 10);
@@ -799,7 +886,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         campaigns,
         keywords,
         countries,
-        regions: [],
+        regions,
         cities,
         topPages,
         entryPages,
