@@ -5,6 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Dev/bot traffic patterns to filter out
+const DEV_TRAFFIC_PATTERNS = [
+  'lovable.dev',
+  'lovableproject.com',
+  'preview--',
+  'localhost',
+  '127.0.0.1',
+];
+
+function isDevTraffic(referrer: string | null): boolean {
+  if (!referrer) return false;
+  const lowerReferrer = referrer.toLowerCase();
+  return DEV_TRAFFIC_PATTERNS.some(pattern => lowerReferrer.includes(pattern));
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -18,11 +33,11 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const startDate = body.startDate || '2025-07-21';
     const endDate = body.endDate || new Date().toISOString().split('T')[0];
-    const delayMs = body.delayMs || 100; // Reduced delay for faster processing
+    const delayMs = body.delayMs || 50;
 
     console.log(`Starting backfill from ${startDate} to ${endDate}`);
 
-    const results: Array<{ date: string; success: boolean; error?: string }> = [];
+    const results: Array<{ date: string; success: boolean; visitors?: number; sessions?: number; error?: string }> = [];
     let currentDate = new Date(startDate);
     const end = new Date(endDate);
     let processedCount = 0;
@@ -31,10 +46,8 @@ Deno.serve(async (req) => {
       const dateStr = currentDate.toISOString().split('T')[0];
       
       try {
-        // Aggregate metrics for this specific date
         const metrics = await aggregateMetricsForDate(supabase, dateStr);
         
-        // Upsert to daily_metrics table
         const { error: upsertError } = await supabase
           .from('daily_metrics')
           .upsert(metrics, { onConflict: 'date' });
@@ -43,11 +56,10 @@ Deno.serve(async (req) => {
           console.error(`Failed to upsert for ${dateStr}:`, upsertError);
           results.push({ date: dateStr, success: false, error: upsertError.message });
         } else {
-          results.push({ date: dateStr, success: true });
+          results.push({ date: dateStr, success: true, visitors: metrics.unique_visitors, sessions: metrics.total_sessions });
           processedCount++;
         }
 
-        // Log progress every 10 days
         if (processedCount % 10 === 0) {
           console.log(`Processed ${processedCount} days...`);
         }
@@ -57,10 +69,7 @@ Deno.serve(async (req) => {
         results.push({ date: dateStr, success: false, error: String(err) });
       }
 
-      // Small delay to avoid overwhelming the database
       await new Promise(resolve => setTimeout(resolve, delayMs));
-      
-      // Move to next day
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
@@ -79,6 +88,7 @@ Deno.serve(async (req) => {
         successCount,
         failCount,
         failures: results.filter(r => !r.success),
+        lastResults: results.slice(-5),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -96,7 +106,7 @@ async function aggregateMetricsForDate(supabase: any, targetDate: string) {
   const startOfDay = `${targetDate}T00:00:00Z`;
   const endOfDay = `${targetDate}T23:59:59Z`;
 
-  // Get total users count (cumulative up to this date)
+  // Get total users count
   const { count: totalUsers } = await supabase
     .from('profiles')
     .select('*', { count: 'exact', head: true })
@@ -109,18 +119,41 @@ async function aggregateMetricsForDate(supabase: any, targetDate: string) {
     .gte('created_at', startOfDay)
     .lte('created_at', endOfDay);
 
-  // Get session data
+  // Get session data WITH referrer, visitor_id, user_id for proper filtering and counting
   const { data: sessions } = await supabase
     .from('user_sessions')
-    .select('user_id, session_duration_seconds, is_active')
+    .select('session_id, user_id, visitor_id, session_duration_seconds, referrer')
     .gte('started_at', startOfDay)
     .lte('started_at', endOfDay);
 
-  const totalSessions = sessions?.length || 0;
-  const activeUsers = new Set(sessions?.filter((s: any) => s.user_id).map((s: any) => s.user_id)).size;
+  // CRITICAL: Filter out dev traffic
+  const productionSessions = (sessions || []).filter((s: any) => !isDevTraffic(s.referrer));
   
-  // Calculate average session duration
-  const sessionsWithDuration = sessions?.filter((s: any) => s.session_duration_seconds && s.session_duration_seconds > 0) || [];
+  // Deduplicate by session_id
+  const uniqueSessionMap = new Map<string, any>();
+  productionSessions.forEach((s: any) => {
+    if (!uniqueSessionMap.has(s.session_id)) {
+      uniqueSessionMap.set(s.session_id, s);
+    }
+  });
+  const uniqueSessions = Array.from(uniqueSessionMap.values());
+  
+  const totalSessions = uniqueSessions.length;
+  
+  // CRITICAL: Count unique VISITORS (people), not sessions
+  const uniqueVisitorSet = new Set<string>();
+  uniqueSessions.forEach((s: any) => {
+    // Use user_id, visitor_id, or session_id as fallback for identity
+    const visitorKey = s.user_id || s.visitor_id || s.session_id;
+    uniqueVisitorSet.add(visitorKey);
+  });
+  const uniqueVisitors = uniqueVisitorSet.size;
+  
+  // Active logged-in users
+  const activeUsers = new Set(uniqueSessions.filter((s: any) => s.user_id).map((s: any) => s.user_id)).size;
+  
+  // Average session duration
+  const sessionsWithDuration = uniqueSessions.filter((s: any) => s.session_duration_seconds && s.session_duration_seconds > 0);
   const avgSessionDuration = sessionsWithDuration.length > 0
     ? Math.round(sessionsWithDuration.reduce((sum: number, s: any) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length)
     : 0;
@@ -132,14 +165,14 @@ async function aggregateMetricsForDate(supabase: any, targetDate: string) {
     .gte('created_at', startOfDay)
     .lte('created_at', endOfDay);
 
-  // Get unique page views (distinct session_ids)
-  const { data: uniquePageViewData } = await supabase
+  // Get unique page views
+  const { data: pageViewData } = await supabase
     .from('page_views')
     .select('session_id')
     .gte('created_at', startOfDay)
     .lte('created_at', endOfDay);
   
-  const uniquePageViews = new Set(uniquePageViewData?.map((p: any) => p.session_id)).size;
+  const uniquePageViews = new Set(pageViewData?.map((p: any) => p.session_id)).size;
 
   // Get listing views
   const { count: listingViews } = await supabase
@@ -163,7 +196,7 @@ async function aggregateMetricsForDate(supabase: any, targetDate: string) {
     .gte('created_at', startOfDay)
     .lte('created_at', endOfDay);
 
-  // Get successful connections (approved)
+  // Get successful connections
   const { count: successfulConnections } = await supabase
     .from('connection_requests')
     .select('*', { count: 'exact', head: true })
@@ -178,15 +211,9 @@ async function aggregateMetricsForDate(supabase: any, targetDate: string) {
     .gte('created_at', startOfDay)
     .lte('created_at', endOfDay);
 
-  // Calculate bounce rate (sessions with only 1 page view)
-  const { data: sessionPageCounts } = await supabase
-    .from('page_views')
-    .select('session_id')
-    .gte('created_at', startOfDay)
-    .lte('created_at', endOfDay);
-
+  // Calculate bounce rate
   const pageCountsBySession: Record<string, number> = {};
-  sessionPageCounts?.forEach((p: any) => {
+  pageViewData?.forEach((p: any) => {
     pageCountsBySession[p.session_id] = (pageCountsBySession[p.session_id] || 0) + 1;
   });
   
@@ -196,21 +223,19 @@ async function aggregateMetricsForDate(supabase: any, targetDate: string) {
     ? Math.round((bouncedSessions / totalSessionsWithViews) * 100) 
     : 0;
 
-  // Calculate conversion rate
-  const conversionRate = (pageViews || 0) > 0 
-    ? Math.round(((connectionRequests || 0) / (pageViews || 1)) * 10000) / 100
+  // CRITICAL: Conversion rate uses unique visitors, not sessions or page views
+  const conversionRate = uniqueVisitors > 0 
+    ? Math.round(((connectionRequests || 0) / uniqueVisitors) * 10000) / 100
     : 0;
-
-  // Returning users calculation (simplified for backfill)
-  const returningUsers = 0; // This would require complex cross-day queries
 
   return {
     date: targetDate,
     total_users: totalUsers || 0,
     new_signups: newSignups || 0,
     active_users: activeUsers,
-    returning_users: returningUsers,
+    returning_users: 0,
     total_sessions: totalSessions,
+    unique_visitors: uniqueVisitors, // NEW: proper unique people count
     avg_session_duration: avgSessionDuration,
     page_views: pageViews || 0,
     unique_page_views: uniquePageViews,

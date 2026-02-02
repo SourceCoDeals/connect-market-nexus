@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Users, Link2, Percent, Timer, ArrowDownUp, Wifi } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Link2, Percent, Timer, ArrowDownUp, Wifi, MousePointerClick } from "lucide-react";
 import { Sparkline } from "./Sparkline";
 import { cn } from "@/lib/utils";
 import type { UnifiedAnalyticsData } from "@/hooks/useUnifiedAnalytics";
@@ -27,9 +27,10 @@ interface KPIItemProps {
   sparkline?: number[];
   icon: React.ReactNode;
   isLive?: boolean;
+  subtitle?: string;
 }
 
-function KPIItem({ label, value, trend, sparkline, icon, isLive }: KPIItemProps) {
+function KPIItem({ label, value, trend, sparkline, icon, isLive, subtitle }: KPIItemProps) {
   const trendIsPositive = trend !== undefined && trend > 0;
   const trendIsNegative = trend !== undefined && trend < 0;
   
@@ -49,26 +50,31 @@ function KPIItem({ label, value, trend, sparkline, icon, isLive }: KPIItemProps)
       </div>
       
       <div className="flex items-end justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-light tabular-nums tracking-tight text-foreground">
-            {value}
-          </span>
-          {trend !== undefined && (
-            <div className={cn(
-              "flex items-center gap-0.5 text-xs font-medium",
-              trendIsPositive && "text-emerald-600",
-              trendIsNegative && "text-red-500",
-              !trendIsPositive && !trendIsNegative && "text-muted-foreground"
-            )}>
-              {trendIsPositive ? (
-                <TrendingUp className="h-3 w-3" />
-              ) : trendIsNegative ? (
-                <TrendingDown className="h-3 w-3" />
-              ) : null}
-              <span className="tabular-nums">
-                {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-              </span>
-            </div>
+        <div className="flex flex-col">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-light tabular-nums tracking-tight text-foreground">
+              {value}
+            </span>
+            {trend !== undefined && (
+              <div className={cn(
+                "flex items-center gap-0.5 text-xs font-medium",
+                trendIsPositive && "text-emerald-600",
+                trendIsNegative && "text-red-500",
+                !trendIsPositive && !trendIsNegative && "text-muted-foreground"
+              )}>
+                {trendIsPositive ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : trendIsNegative ? (
+                  <TrendingDown className="h-3 w-3" />
+                ) : null}
+                <span className="tabular-nums">
+                  {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                </span>
+              </div>
+            )}
+          </div>
+          {subtitle && (
+            <span className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</span>
           )}
         </div>
         
@@ -85,13 +91,23 @@ function KPIItem({ label, value, trend, sparkline, icon, isLive }: KPIItemProps)
 
 export function KPIStrip({ data }: KPIStripProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 p-6 bg-card rounded-2xl border border-border/50">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6 p-6 bg-card rounded-2xl border border-border/50">
       <KPIItem
         label="Visitors"
         value={formatNumber(data.visitors.value)}
         trend={data.visitors.trend}
         sparkline={data.visitors.sparkline}
         icon={<Users className="h-3.5 w-3.5" />}
+        subtitle="Unique people"
+      />
+      
+      <KPIItem
+        label="Sessions"
+        value={formatNumber(data.sessions.value)}
+        trend={data.sessions.trend}
+        sparkline={data.sessions.sparkline}
+        icon={<MousePointerClick className="h-3.5 w-3.5" />}
+        subtitle="Total visits"
       />
       
       <KPIItem

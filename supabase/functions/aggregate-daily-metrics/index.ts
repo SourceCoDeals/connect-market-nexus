@@ -5,6 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Dev/bot traffic patterns to filter out
+const DEV_TRAFFIC_PATTERNS = [
+  'lovable.dev',
+  'lovableproject.com',
+  'preview--',
+  'localhost',
+  '127.0.0.1',
+];
+
+function isDevTraffic(referrer: string | null): boolean {
+  if (!referrer) return false;
+  const lowerReferrer = referrer.toLowerCase();
+  return DEV_TRAFFIC_PATTERNS.some(pattern => lowerReferrer.includes(pattern));
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -37,18 +52,40 @@ Deno.serve(async (req) => {
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
-    // Get session data
+    // Get session data WITH referrer for filtering dev traffic
     const { data: sessions } = await supabase
       .from('user_sessions')
-      .select('user_id, session_duration_seconds, is_active')
+      .select('session_id, user_id, visitor_id, session_duration_seconds, is_active, referrer')
       .gte('started_at', startOfDay)
       .lte('started_at', endOfDay);
 
-    const totalSessions = sessions?.length || 0;
-    const activeUsers = new Set(sessions?.filter(s => s.user_id).map(s => s.user_id)).size;
+    // CRITICAL: Filter out dev traffic and deduplicate
+    const productionSessions = (sessions || []).filter(s => !isDevTraffic(s.referrer));
+    
+    // Deduplicate by session_id
+    const uniqueSessionMap = new Map<string, typeof productionSessions[0]>();
+    productionSessions.forEach(s => {
+      if (!uniqueSessionMap.has(s.session_id)) {
+        uniqueSessionMap.set(s.session_id, s);
+      }
+    });
+    const uniqueSessions = Array.from(uniqueSessionMap.values());
+    
+    const totalSessions = uniqueSessions.length;
+    
+    // CRITICAL FIX: Count unique VISITORS (people), not sessions
+    const uniqueVisitorSet = new Set<string>();
+    uniqueSessions.forEach(s => {
+      const visitorKey = s.user_id || s.visitor_id || s.session_id;
+      uniqueVisitorSet.add(visitorKey);
+    });
+    const uniqueVisitors = uniqueVisitorSet.size;
+    
+    // Active users (logged in users only)
+    const activeUsers = new Set(uniqueSessions.filter(s => s.user_id).map(s => s.user_id)).size;
     
     // Calculate average session duration
-    const sessionsWithDuration = sessions?.filter(s => s.session_duration_seconds && s.session_duration_seconds > 0) || [];
+    const sessionsWithDuration = uniqueSessions.filter(s => s.session_duration_seconds && s.session_duration_seconds > 0);
     const avgSessionDuration = sessionsWithDuration.length > 0
       ? Math.round(sessionsWithDuration.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length)
       : 0;
@@ -124,9 +161,9 @@ Deno.serve(async (req) => {
       ? Math.round((bouncedSessions / totalSessionsWithViews) * 100) 
       : 0;
 
-    // Calculate conversion rate
-    const conversionRate = (pageViews || 0) > 0 
-      ? Math.round(((connectionRequests || 0) / (pageViews || 1)) * 10000) / 100
+    // CRITICAL FIX: Calculate conversion rate using unique visitors, not sessions
+    const conversionRate = uniqueVisitors > 0 
+      ? Math.round(((connectionRequests || 0) / uniqueVisitors) * 10000) / 100
       : 0;
 
     // Returning users (users who had sessions before this day)
@@ -157,6 +194,7 @@ Deno.serve(async (req) => {
       active_users: activeUsers,
       returning_users: returningUsers,
       total_sessions: totalSessions,
+      unique_visitors: uniqueVisitors, // NEW: unique people count
       avg_session_duration: avgSessionDuration,
       page_views: pageViews || 0,
       unique_page_views: uniquePageViews,

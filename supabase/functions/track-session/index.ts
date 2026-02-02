@@ -27,31 +27,26 @@ interface SessionData {
   utm_campaign?: string;
   utm_term?: string;
   utm_content?: string;
-  // GA4 and first-touch fields
   ga4_client_id?: string;
   first_touch_source?: string;
   first_touch_medium?: string;
   first_touch_campaign?: string;
   first_touch_landing_page?: string;
   first_touch_referrer?: string;
-  // Visitor identity for journey tracking
   visitor_id?: string;
   landing_url?: string;
   landing_path?: string;
   landing_search?: string;
-  // Initial time on page for accurate duration from first load
   time_on_page?: number;
 }
 
 async function getGeoData(ip: string): Promise<GeoData | null> {
-  // Skip geolocation for localhost/private IPs
   if (ip === '127.0.0.1' || ip === 'localhost' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '::1') {
     console.log('Skipping geolocation for local/private IP:', ip);
     return null;
   }
 
   try {
-    // Using ip-api.com (free, no key required, 45 requests/minute)
     const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,timezone,isp`);
     
     if (!response.ok) {
@@ -81,25 +76,21 @@ async function getGeoData(ip: string): Promise<GeoData | null> {
 }
 
 function getClientIP(req: Request): string {
-  // Try various headers in order of preference
   const cfConnectingIP = req.headers.get('cf-connecting-ip');
   if (cfConnectingIP) return cfConnectingIP;
 
   const xForwardedFor = req.headers.get('x-forwarded-for');
   if (xForwardedFor) {
-    // Take the first IP in the chain (original client)
     return xForwardedFor.split(',')[0].trim();
   }
 
   const xRealIP = req.headers.get('x-real-ip');
   if (xRealIP) return xRealIP;
 
-  // Fallback
   return '127.0.0.1';
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -122,142 +113,52 @@ Deno.serve(async (req) => {
     const geoData = await getGeoData(clientIP);
     console.log('Geo data result:', geoData);
 
-    // Check if session already exists
-    const { data: existingSession } = await supabase
-      .from('user_sessions')
-      .select('id')
-      .eq('session_id', body.session_id)
-      .maybeSingle();
-
-    if (existingSession) {
-      // Update existing session with geo data AND visitor_id
-      const { error: updateError } = await supabase
-        .from('user_sessions')
-        .update({
-          ip_address: clientIP,
-          country: geoData?.country || null,
-          country_code: geoData?.country_code || null,
-          city: geoData?.city || null,
-          region: geoData?.region || null,
-          timezone: geoData?.timezone || null,
-          // CRITICAL FIX: Store visitor_id on session updates for anonymous users
-          visitor_id: body.visitor_id || null,
-          // Store initial duration if provided
-          ...(body.time_on_page !== undefined && body.time_on_page > 0 
-            ? { session_duration_seconds: body.time_on_page } 
-            : {}),
-          last_active_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('session_id', body.session_id);
-
-      if (updateError) {
-        console.error('Failed to update session:', updateError);
-        throw updateError;
-      }
-
-      // CRITICAL FIX: Always upsert journey even for existing sessions
-      // This was previously skipped, causing 0 journey records
-      if (body.visitor_id) {
-        console.log('Upserting journey for existing session, visitor:', body.visitor_id);
-        
-        const { error: journeyError } = await supabase
-          .from('user_journeys')
-          .upsert({
-            visitor_id: body.visitor_id,
-            ga4_client_id: body.ga4_client_id || null,
-            user_id: body.user_id || null,
-            first_seen_at: new Date().toISOString(),
-            first_landing_page: body.landing_path || null,
-            first_referrer: body.referrer || null,
-            first_utm_source: body.first_touch_source || body.utm_source || null,
-            first_utm_medium: body.first_touch_medium || body.utm_medium || null,
-            first_utm_campaign: body.first_touch_campaign || body.utm_campaign || null,
-            first_utm_term: body.utm_term || null,
-            first_utm_content: body.utm_content || null,
-            first_device_type: body.device_type,
-            first_browser: body.browser,
-            first_os: body.os,
-            first_country: geoData?.country || null,
-            first_city: geoData?.city || null,
-            last_seen_at: new Date().toISOString(),
-            last_session_id: body.session_id,
-            last_page_path: body.landing_path || null,
-            journey_stage: body.user_id ? 'registered' : 'anonymous',
-          }, {
-            onConflict: 'visitor_id',
-            ignoreDuplicates: false,
-          });
-
-        if (journeyError) {
-          console.error('Failed to upsert journey for existing session:', journeyError);
-        } else {
-          // Increment session count
-          try {
-            await supabase.rpc('increment_journey_sessions', { 
-              p_visitor_id: body.visitor_id,
-              p_session_id: body.session_id,
-              p_page_path: body.landing_path || '/'
-            });
-          } catch (rpcErr) {
-            console.error('RPC increment error:', rpcErr);
-          }
-          
-          console.log('Journey upserted for existing session');
-        }
-      }
-
-      console.log('Updated existing session with geo data');
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          updated: true,
-          geo: geoData ? { country: geoData.country, city: geoData.city } : null 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create new session with all data including GA4, first-touch attribution, and visitor_id
+    // Use UPSERT to prevent race condition duplicates
+    // The session_id column has a UNIQUE constraint
     const initialDuration = body.time_on_page || 0;
     
-    const { error: insertError } = await supabase.from('user_sessions').insert({
-      session_id: body.session_id,
-      visitor_id: body.visitor_id || null, // NEW: Store visitor identity for cross-session tracking
-      user_id: body.user_id || null,
-      started_at: new Date().toISOString(),
-      user_agent: body.user_agent,
-      referrer: body.referrer || null,
-      device_type: body.device_type,
-      browser: body.browser,
-      os: body.os,
-      ip_address: clientIP,
-      country: geoData?.country || null,
-      country_code: geoData?.country_code || null,
-      city: geoData?.city || null,
-      region: geoData?.region || null,
-      timezone: geoData?.timezone || null,
-      utm_source: body.utm_source || null,
-      utm_medium: body.utm_medium || null,
-      utm_campaign: body.utm_campaign || null,
-      utm_term: body.utm_term || null,
-      utm_content: body.utm_content || null,
-      // GA4 and first-touch attribution
-      ga4_client_id: body.ga4_client_id || null,
-      first_touch_source: body.first_touch_source || null,
-      first_touch_medium: body.first_touch_medium || null,
-      first_touch_campaign: body.first_touch_campaign || null,
-      first_touch_landing_page: body.first_touch_landing_page || null,
-      first_touch_referrer: body.first_touch_referrer || null,
-      is_active: true,
-      last_active_at: new Date().toISOString(),
-      // Set initial duration based on time since page load
-      session_duration_seconds: initialDuration,
-    });
+    const { data: upsertResult, error: upsertError } = await supabase
+      .from('user_sessions')
+      .upsert({
+        session_id: body.session_id,
+        visitor_id: body.visitor_id || null,
+        user_id: body.user_id || null,
+        started_at: new Date().toISOString(),
+        user_agent: body.user_agent,
+        referrer: body.referrer || null,
+        device_type: body.device_type,
+        browser: body.browser,
+        os: body.os,
+        ip_address: clientIP,
+        country: geoData?.country || null,
+        country_code: geoData?.country_code || null,
+        city: geoData?.city || null,
+        region: geoData?.region || null,
+        timezone: geoData?.timezone || null,
+        utm_source: body.utm_source || null,
+        utm_medium: body.utm_medium || null,
+        utm_campaign: body.utm_campaign || null,
+        utm_term: body.utm_term || null,
+        utm_content: body.utm_content || null,
+        ga4_client_id: body.ga4_client_id || null,
+        first_touch_source: body.first_touch_source || null,
+        first_touch_medium: body.first_touch_medium || null,
+        first_touch_campaign: body.first_touch_campaign || null,
+        first_touch_landing_page: body.first_touch_landing_page || null,
+        first_touch_referrer: body.first_touch_referrer || null,
+        is_active: true,
+        last_active_at: new Date().toISOString(),
+        session_duration_seconds: initialDuration,
+      }, {
+        onConflict: 'session_id',
+        ignoreDuplicates: false,
+      })
+      .select('id')
+      .maybeSingle();
 
-    if (insertError) {
-      console.error('Failed to insert session:', insertError);
-      throw insertError;
+    if (upsertError) {
+      console.error('Failed to upsert session:', upsertError);
+      throw upsertError;
     }
 
     // Upsert user_journeys record for cross-session tracking
@@ -294,9 +195,8 @@ Deno.serve(async (req) => {
 
       if (journeyError) {
         console.error('Failed to upsert journey:', journeyError);
-        // Don't throw - session was created successfully
       } else {
-        // Update journey with incremented session count
+        // Increment session count
         try {
           await supabase.rpc('increment_journey_sessions', { 
             p_visitor_id: body.visitor_id,
@@ -304,18 +204,17 @@ Deno.serve(async (req) => {
             p_page_path: body.landing_path || '/'
           });
         } catch (rpcErr) {
-          console.error('RPC error:', rpcErr);
+          console.error('RPC increment error:', rpcErr);
         }
         
         console.log('User journey upserted successfully');
       }
     }
 
-    console.log('Created new session with geo data');
+    console.log('Session tracked successfully');
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        created: true,
+        success: true,
         geo: geoData ? { country: geoData.country, city: geoData.city } : null 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

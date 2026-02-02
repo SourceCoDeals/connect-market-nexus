@@ -852,6 +852,7 @@ export type Database = {
           total_sessions: number | null
           total_users: number | null
           unique_page_views: number | null
+          unique_visitors: number | null
           updated_at: string | null
         }
         Insert: {
@@ -873,6 +874,7 @@ export type Database = {
           total_sessions?: number | null
           total_users?: number | null
           unique_page_views?: number | null
+          unique_visitors?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -894,6 +896,7 @@ export type Database = {
           total_sessions?: number | null
           total_users?: number | null
           unique_page_views?: number | null
+          unique_visitors?: number | null
           updated_at?: string | null
         }
         Relationships: []
