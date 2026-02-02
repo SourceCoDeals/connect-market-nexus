@@ -46,23 +46,23 @@ export default function MATrackers() {
   }, []);
 
   const loadTrackers = async () => {
-    const { data: trackersData } = await supabase
+    const { data: trackersData } = await (supabase as any)
       .from("industry_trackers")
       .select("*")
       .order("updated_at", { ascending: false });
 
     const withStats = await Promise.all(
-      (trackersData || []).map(async (tracker) => {
+      (trackersData || []).map(async (tracker: any) => {
         const [buyersRes, dealsRes] = await Promise.all([
-          supabase.from("buyers").select("*").eq("tracker_id", tracker.id),
-          supabase.from("deals").select("id").eq("tracker_id", tracker.id),
+          supabase.from("remarketing_buyers").select("*").eq("industry_tracker_id", tracker.id),
+          supabase.from("deals").select("id").eq("listing_id", tracker.id),
         ]);
-        const buyers = buyersRes.data || [];
+        const buyers = (buyersRes.data || []) as any[];
         const intelligent = buyers.filter((b) => getIntelligenceCoverage(b as unknown as Partial<MABuyer>) !== "low").length;
         return {
           id: tracker.id,
-          industry_name: tracker.industry_name,
-          archived: tracker.archived || false,
+          industry_name: tracker.name || tracker.industry_name || 'Unknown',
+          archived: !tracker.is_active, // Derive archived from is_active
           updated_at: tracker.updated_at,
           buyer_count: buyers.length,
           deal_count: dealsRes.data?.length || 0,
@@ -76,9 +76,10 @@ export default function MATrackers() {
 
   const handleArchiveToggle = async (e: React.MouseEvent, tracker: TrackerWithStats) => {
     e.stopPropagation();
-    const { error } = await supabase
+    // Use is_active (inverted) since is_archived doesn't exist in schema
+    const { error } = await (supabase as any)
       .from("industry_trackers")
-      .update({ archived: !tracker.archived })
+      .update({ is_active: tracker.archived }) // If archived, set active; if active, set inactive
       .eq("id", tracker.id);
 
     if (error) {

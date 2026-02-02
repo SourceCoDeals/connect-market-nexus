@@ -156,7 +156,8 @@ export function useDashboardMetrics(timeframe: TimeframeOption): DashboardMetric
 }
 
 async function fetchPipelineData(startDate?: string) {
-  let query = supabase.from("buyer_deal_scores").select("composite_score, selected_for_outreach, interested, passed_on_deal");
+  // Use remarketing_scores instead of buyer_deal_scores
+  let query = supabase.from("remarketing_scores").select("composite_score, status");
 
   if (startDate) {
     query = query.gte("scored_at", startDate);
@@ -166,14 +167,14 @@ async function fetchPipelineData(startDate?: string) {
 
   if (error) throw error;
 
-  const scores = data || [];
+  const scores = (data || []) as any[];
   return {
     totalMatches: scores.length,
     strongFit: scores.filter(s => (s.composite_score || 0) >= 70).length,
-    approved: scores.filter(s => s.selected_for_outreach === true).length,
-    interested: scores.filter(s => s.interested === true).length,
-    passed: scores.filter(s => s.passed_on_deal === true).length,
-    totalEngaged: scores.filter(s => s.selected_for_outreach === true || s.passed_on_deal === true).length,
+    approved: scores.filter(s => s.status === 'approved').length,
+    interested: scores.filter(s => s.status === 'interested').length,
+    passed: scores.filter(s => s.status === 'passed').length,
+    totalEngaged: scores.filter(s => s.status === 'approved' || s.status === 'passed').length,
   };
 }
 
@@ -184,8 +185,8 @@ async function fetchTimeSeriesData(): Promise<TimeSeriesDataPoint[]> {
 
   const [scoresData, dealsData] = await Promise.all([
     supabase
-      .from("buyer_deal_scores")
-      .select("scored_at, selected_for_outreach, interested")
+      .from("remarketing_scores")
+      .select("scored_at, status")
       .gte("scored_at", eightWeeksAgo.toISOString()),
     supabase
       .from("deals")
@@ -211,18 +212,18 @@ async function fetchTimeSeriesData(): Promise<TimeSeriesDataPoint[]> {
   }
 
   // Aggregate scores
-  (scoresData.data || []).forEach(score => {
+  ((scoresData.data || []) as any[]).forEach(score => {
     const weekKey = getWeekKey(new Date(score.scored_at));
     const entry = weekMap.get(weekKey);
     if (entry) {
       entry.matchesScored++;
-      if (score.selected_for_outreach) entry.approvals++;
-      if (score.interested) entry.interested++;
+      if (score.status === 'approved') entry.approvals++;
+      if (score.status === 'interested') entry.interested++;
     }
   });
 
   // Aggregate deals
-  (dealsData.data || []).forEach(deal => {
+  ((dealsData.data || []) as any[]).forEach(deal => {
     const weekKey = getWeekKey(new Date(deal.created_at));
     const entry = weekMap.get(weekKey);
     if (entry) {
@@ -234,7 +235,7 @@ async function fetchTimeSeriesData(): Promise<TimeSeriesDataPoint[]> {
 }
 
 async function fetchScoreDistribution(startDate?: string) {
-  let query = supabase.from("buyer_deal_scores").select("composite_score");
+  let query = supabase.from("remarketing_scores").select("composite_score");
 
   if (startDate) {
     query = query.gte("scored_at", startDate);
@@ -244,7 +245,7 @@ async function fetchScoreDistribution(startDate?: string) {
 
   if (error) throw error;
 
-  const scores = data || [];
+  const scores = (data || []) as any[];
   return {
     bucket0to30: scores.filter(s => (s.composite_score || 0) < 30).length,
     bucket30to50: scores.filter(s => (s.composite_score || 0) >= 30 && (s.composite_score || 0) < 50).length,
@@ -260,9 +261,9 @@ async function fetchSparklineData() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   const [buyersData, dealsData, scoresData] = await Promise.all([
-    supabase.from("buyers").select("created_at").gte("created_at", sevenDaysAgo.toISOString()),
+    supabase.from("remarketing_buyers").select("created_at").gte("created_at", sevenDaysAgo.toISOString()),
     supabase.from("deals").select("created_at").gte("created_at", sevenDaysAgo.toISOString()),
-    supabase.from("buyer_deal_scores").select("scored_at").gte("scored_at", sevenDaysAgo.toISOString()),
+    supabase.from("remarketing_scores").select("scored_at").gte("scored_at", sevenDaysAgo.toISOString()),
   ]);
 
   const buyers: number[] = [];
@@ -276,21 +277,21 @@ async function fetchSparklineData() {
     const dayEnd = new Date(date.setHours(23, 59, 59, 999));
 
     buyers.push(
-      (buyersData.data || []).filter(b => {
+      ((buyersData.data || []) as any[]).filter(b => {
         const created = new Date(b.created_at);
         return created >= dayStart && created <= dayEnd;
       }).length
     );
 
     deals.push(
-      (dealsData.data || []).filter(d => {
+      ((dealsData.data || []) as any[]).filter(d => {
         const created = new Date(d.created_at);
         return created >= dayStart && created <= dayEnd;
       }).length
     );
 
     scores.push(
-      (scoresData.data || []).filter(s => {
+      ((scoresData.data || []) as any[]).filter(s => {
         const scored = new Date(s.scored_at);
         return scored >= dayStart && scored <= dayEnd;
       }).length

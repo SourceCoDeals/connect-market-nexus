@@ -322,6 +322,162 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_contacts: {
+        Row: {
+          buyer_id: string
+          company_type: string | null
+          created_at: string
+          email: string | null
+          email_confidence: string | null
+          fee_agreement_status: string | null
+          id: string
+          is_deal_team: boolean | null
+          is_primary_contact: boolean | null
+          last_contacted_date: string | null
+          linkedin_url: string | null
+          name: string
+          phone: string | null
+          priority_level: number | null
+          role_category: string | null
+          salesforce_id: string | null
+          source: string | null
+          source_url: string | null
+          title: string | null
+        }
+        Insert: {
+          buyer_id: string
+          company_type?: string | null
+          created_at?: string
+          email?: string | null
+          email_confidence?: string | null
+          fee_agreement_status?: string | null
+          id?: string
+          is_deal_team?: boolean | null
+          is_primary_contact?: boolean | null
+          last_contacted_date?: string | null
+          linkedin_url?: string | null
+          name: string
+          phone?: string | null
+          priority_level?: number | null
+          role_category?: string | null
+          salesforce_id?: string | null
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          company_type?: string | null
+          created_at?: string
+          email?: string | null
+          email_confidence?: string | null
+          fee_agreement_status?: string | null
+          id?: string
+          is_deal_team?: boolean | null
+          is_primary_contact?: boolean | null
+          last_contacted_date?: string | null
+          linkedin_url?: string | null
+          name?: string
+          phone?: string | null
+          priority_level?: number | null
+          role_category?: string | null
+          salesforce_id?: string | null
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
+      buyer_deal_scores: {
+        Row: {
+          acquisition_score: number | null
+          business_model_score: number | null
+          buyer_id: string
+          composite_score: number | null
+          data_completeness: string | null
+          deal_id: string
+          fit_reasoning: string | null
+          geography_score: number | null
+          hidden_from_deal: boolean | null
+          human_override_score: number | null
+          id: string
+          interested: boolean | null
+          interested_at: string | null
+          pass_category: string | null
+          pass_notes: string | null
+          pass_reason: string | null
+          passed_at: string | null
+          passed_on_deal: boolean | null
+          portfolio_score: number | null
+          rejected_at: string | null
+          rejection_category: string | null
+          rejection_notes: string | null
+          rejection_reason: string | null
+          scored_at: string
+          selected_for_outreach: boolean | null
+          service_score: number | null
+          thesis_bonus: number | null
+        }
+        Insert: {
+          acquisition_score?: number | null
+          business_model_score?: number | null
+          buyer_id: string
+          composite_score?: number | null
+          data_completeness?: string | null
+          deal_id: string
+          fit_reasoning?: string | null
+          geography_score?: number | null
+          hidden_from_deal?: boolean | null
+          human_override_score?: number | null
+          id?: string
+          interested?: boolean | null
+          interested_at?: string | null
+          pass_category?: string | null
+          pass_notes?: string | null
+          pass_reason?: string | null
+          passed_at?: string | null
+          passed_on_deal?: boolean | null
+          portfolio_score?: number | null
+          rejected_at?: string | null
+          rejection_category?: string | null
+          rejection_notes?: string | null
+          rejection_reason?: string | null
+          scored_at?: string
+          selected_for_outreach?: boolean | null
+          service_score?: number | null
+          thesis_bonus?: number | null
+        }
+        Update: {
+          acquisition_score?: number | null
+          business_model_score?: number | null
+          buyer_id?: string
+          composite_score?: number | null
+          data_completeness?: string | null
+          deal_id?: string
+          fit_reasoning?: string | null
+          geography_score?: number | null
+          hidden_from_deal?: boolean | null
+          human_override_score?: number | null
+          id?: string
+          interested?: boolean | null
+          interested_at?: string | null
+          pass_category?: string | null
+          pass_notes?: string | null
+          pass_reason?: string | null
+          passed_at?: string | null
+          passed_on_deal?: boolean | null
+          portfolio_score?: number | null
+          rejected_at?: string | null
+          rejection_category?: string | null
+          rejection_notes?: string | null
+          rejection_reason?: string | null
+          scored_at?: string
+          selected_for_outreach?: boolean | null
+          service_score?: number | null
+          thesis_bonus?: number | null
+        }
+        Relationships: []
+      }
       buyer_learning_history: {
         Row: {
           action: string
@@ -471,6 +627,246 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      buyers: {
+        Row: {
+          acquisition_appetite: string | null
+          acquisition_frequency: string | null
+          acquisition_geography: string[] | null
+          acquisition_timeline: string | null
+          addon_only: boolean | null
+          business_model: string | null
+          business_model_prefs: string | null
+          business_summary: string | null
+          buyer_linkedin: string | null
+          call_history: Json | null
+          created_at: string
+          data_last_updated: string
+          deal_breakers: string[] | null
+          ebitda_sweet_spot: number | null
+          extraction_evidence: Json | null
+          extraction_sources: Json | null
+          fee_agreement_status: string | null
+          geo_preferences: Json | null
+          geographic_exclusions: string[] | null
+          geographic_footprint: string[] | null
+          has_fee_agreement: boolean | null
+          hq_city: string | null
+          hq_country: string | null
+          hq_region: string | null
+          hq_state: string | null
+          id: string
+          industry_exclusions: string[] | null
+          industry_vertical: string | null
+          key_quotes: string[] | null
+          last_acquisition_date: string | null
+          last_call_date: string | null
+          max_ebitda: number | null
+          max_revenue: number | null
+          min_ebitda: number | null
+          min_revenue: number | null
+          num_platforms: number | null
+          operating_locations: Json | null
+          other_office_locations: string[] | null
+          pe_firm_linkedin: string | null
+          pe_firm_name: string
+          pe_firm_website: string | null
+          platform_company_name: string | null
+          platform_only: boolean | null
+          platform_website: string | null
+          portfolio_companies: string[] | null
+          preferred_ebitda: number | null
+          recent_acquisitions: Json | null
+          revenue_sweet_spot: number | null
+          service_mix_prefs: string | null
+          service_regions: string[] | null
+          services_offered: string | null
+          specialized_focus: string | null
+          strategic_priorities: string | null
+          target_geographies: string[] | null
+          target_industries: string[] | null
+          target_services: string[] | null
+          thesis_confidence: string | null
+          thesis_summary: string | null
+          total_acquisitions: number | null
+          tracker_id: string
+        }
+        Insert: {
+          acquisition_appetite?: string | null
+          acquisition_frequency?: string | null
+          acquisition_geography?: string[] | null
+          acquisition_timeline?: string | null
+          addon_only?: boolean | null
+          business_model?: string | null
+          business_model_prefs?: string | null
+          business_summary?: string | null
+          buyer_linkedin?: string | null
+          call_history?: Json | null
+          created_at?: string
+          data_last_updated?: string
+          deal_breakers?: string[] | null
+          ebitda_sweet_spot?: number | null
+          extraction_evidence?: Json | null
+          extraction_sources?: Json | null
+          fee_agreement_status?: string | null
+          geo_preferences?: Json | null
+          geographic_exclusions?: string[] | null
+          geographic_footprint?: string[] | null
+          has_fee_agreement?: boolean | null
+          hq_city?: string | null
+          hq_country?: string | null
+          hq_region?: string | null
+          hq_state?: string | null
+          id?: string
+          industry_exclusions?: string[] | null
+          industry_vertical?: string | null
+          key_quotes?: string[] | null
+          last_acquisition_date?: string | null
+          last_call_date?: string | null
+          max_ebitda?: number | null
+          max_revenue?: number | null
+          min_ebitda?: number | null
+          min_revenue?: number | null
+          num_platforms?: number | null
+          operating_locations?: Json | null
+          other_office_locations?: string[] | null
+          pe_firm_linkedin?: string | null
+          pe_firm_name: string
+          pe_firm_website?: string | null
+          platform_company_name?: string | null
+          platform_only?: boolean | null
+          platform_website?: string | null
+          portfolio_companies?: string[] | null
+          preferred_ebitda?: number | null
+          recent_acquisitions?: Json | null
+          revenue_sweet_spot?: number | null
+          service_mix_prefs?: string | null
+          service_regions?: string[] | null
+          services_offered?: string | null
+          specialized_focus?: string | null
+          strategic_priorities?: string | null
+          target_geographies?: string[] | null
+          target_industries?: string[] | null
+          target_services?: string[] | null
+          thesis_confidence?: string | null
+          thesis_summary?: string | null
+          total_acquisitions?: number | null
+          tracker_id: string
+        }
+        Update: {
+          acquisition_appetite?: string | null
+          acquisition_frequency?: string | null
+          acquisition_geography?: string[] | null
+          acquisition_timeline?: string | null
+          addon_only?: boolean | null
+          business_model?: string | null
+          business_model_prefs?: string | null
+          business_summary?: string | null
+          buyer_linkedin?: string | null
+          call_history?: Json | null
+          created_at?: string
+          data_last_updated?: string
+          deal_breakers?: string[] | null
+          ebitda_sweet_spot?: number | null
+          extraction_evidence?: Json | null
+          extraction_sources?: Json | null
+          fee_agreement_status?: string | null
+          geo_preferences?: Json | null
+          geographic_exclusions?: string[] | null
+          geographic_footprint?: string[] | null
+          has_fee_agreement?: boolean | null
+          hq_city?: string | null
+          hq_country?: string | null
+          hq_region?: string | null
+          hq_state?: string | null
+          id?: string
+          industry_exclusions?: string[] | null
+          industry_vertical?: string | null
+          key_quotes?: string[] | null
+          last_acquisition_date?: string | null
+          last_call_date?: string | null
+          max_ebitda?: number | null
+          max_revenue?: number | null
+          min_ebitda?: number | null
+          min_revenue?: number | null
+          num_platforms?: number | null
+          operating_locations?: Json | null
+          other_office_locations?: string[] | null
+          pe_firm_linkedin?: string | null
+          pe_firm_name?: string
+          pe_firm_website?: string | null
+          platform_company_name?: string | null
+          platform_only?: boolean | null
+          platform_website?: string | null
+          portfolio_companies?: string[] | null
+          preferred_ebitda?: number | null
+          recent_acquisitions?: Json | null
+          revenue_sweet_spot?: number | null
+          service_mix_prefs?: string | null
+          service_regions?: string[] | null
+          services_offered?: string | null
+          specialized_focus?: string | null
+          strategic_priorities?: string | null
+          target_geographies?: string[] | null
+          target_industries?: string[] | null
+          target_services?: string[] | null
+          thesis_confidence?: string | null
+          thesis_summary?: string | null
+          total_acquisitions?: number | null
+          tracker_id?: string
+        }
+        Relationships: []
+      }
+      call_intelligence: {
+        Row: {
+          buyer_id: string | null
+          call_date: string | null
+          call_summary: string | null
+          call_type: string
+          created_at: string | null
+          deal_id: string | null
+          extracted_data: Json | null
+          extraction_version: string | null
+          follow_up_questions: string[] | null
+          id: string
+          key_takeaways: string[] | null
+          processed_at: string | null
+          transcript_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_id?: string | null
+          call_date?: string | null
+          call_summary?: string | null
+          call_type?: string
+          created_at?: string | null
+          deal_id?: string | null
+          extracted_data?: Json | null
+          extraction_version?: string | null
+          follow_up_questions?: string[] | null
+          id?: string
+          key_takeaways?: string[] | null
+          processed_at?: string | null
+          transcript_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_id?: string | null
+          call_date?: string | null
+          call_summary?: string | null
+          call_type?: string
+          created_at?: string | null
+          deal_id?: string | null
+          extracted_data?: Json | null
+          extraction_version?: string | null
+          follow_up_questions?: string[] | null
+          id?: string
+          key_takeaways?: string[] | null
+          processed_at?: string | null
+          transcript_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       categories: {
         Row: {
@@ -1275,6 +1671,7 @@ export type Database = {
           adjustment_value: number
           created_at: string | null
           created_by: string | null
+          deal_id: string | null
           id: string
           listing_id: string
           reason: string | null
@@ -1284,6 +1681,7 @@ export type Database = {
           adjustment_value?: number
           created_at?: string | null
           created_by?: string | null
+          deal_id?: string | null
           id?: string
           listing_id: string
           reason?: string | null
@@ -1293,6 +1691,7 @@ export type Database = {
           adjustment_value?: number
           created_at?: string | null
           created_by?: string | null
+          deal_id?: string | null
           id?: string
           listing_id?: string
           reason?: string | null
