@@ -1,209 +1,128 @@
 
-
-# Fix Attribution Mismatch: Channel vs Referrer
+# Fix Channel Attribution for Signups
 
 ## Problem Identified
 
-Based on my deep investigation, here's the core issue:
+The Channel tab shows incorrect data because:
 
-**The Channel tab shows 0 signups for Organic Search, but the Referrer tab shows 21 signups for "sourcecodeals".**
+1. **Current logic** uses `original_external_referrer` (which is NULL for all sessions) → falls back to `referrer` (which is `sourcecodeals.com`) → categorized as "Referral"
+2. **But** the `profiles.referral_source` contains the actual user-reported discovery source (google, linkedin, friend, ai, etc.)
 
-This is because:
+**Current incorrect data:**
+| Channel | Signups |
+|---------|---------|
+| Referral | 21 |
+| Direct | 7 |
+| Internal | 1 |
 
-1. **Channel categorization** uses a function `categorizeChannel()` that checks the referrer for specific patterns
-2. When referrer is `www.sourcecodeals.com`, it gets categorized as **"Referral"** (not "Organic Search")
-3. So all those 21 signups from your blog are correctly showing as "Referral" in the Channel tab
+**What it should show (based on user-reported data):**
+| Channel | Signups |
+|---------|---------|
+| Organic Search (Google) | 15 |
+| Organic Social (LinkedIn/Instagram) | 7 |
+| Referral (Friend/Other) | 10 |
+| AI | 1 |
 
-The **technical truth** is: their immediate referrer to the marketplace WAS sourcecodeals.com (your blog). Google was the referrer TO the blog, not to the marketplace.
+## Root Cause
 
----
-
-## Database Reality (Last 30 Days)
-
-| Metric | Value |
-|--------|-------|
-| Total sessions | 2,038 |
-| Sessions from Google directly | 11 |
-| Sessions from sourcecodeals.com (blog) | 169 |
-| Total signups | 33 |
-| Signups with first session from blog | 21 |
-| Signups with first session direct/null | 7 |
-| Signups self-reporting "Google" | 15 |
-
-The 21 signups ARE going to "Referral" in Channel (from blog), and 21 signups to "sourcecodeals" in Referrer - that's consistent and correct.
-
----
-
-## Why "Organic Search" Shows 1 Signup
-
-`categorizeChannel()` only returns "Organic Search" when the referrer contains `google`, `bing`, `duckduckgo`, or `brave`. 
-
-Of your 33 signups:
-- 21 came via `www.sourcecodeals.com` (blog) → "Referral"
-- 7 came with no referrer → "Direct"  
-- 1 came directly from `www.google.com` → "Organic Search"
-- 4 scattered among other sources
-
-This is **technically correct** but not what you want to see.
-
----
-
-## The Fix Required
-
-To show the "true" discovery source (Google search that led to blog that led to marketplace), we need to:
-
-### Phase 1: Website-Side Tracking (Required)
-
-Add JavaScript to `sourcecodeals.com` (entire site, not just blog) that:
-1. Captures `document.referrer` on first page load
-2. Stores it in localStorage
-3. Appends it to marketplace links as URL parameters
-
-### Phase 2: Marketplace Capture (Already Implemented)
-
-The `track-session` edge function already looks for `original_referrer` and `blog_landing` URL params - it just never receives them because the website doesn't send them.
-
-### Phase 3: Display Logic Update
-
-Update `useUnifiedAnalytics.ts` to:
-1. Check `original_external_referrer` first (if blog passes it)
-2. Fall back to regular `referrer` if not available
-
----
-
-## Implementation Details
-
-### Step 1: JavaScript for sourcecodeals.com
-
-Add this script to the entire sourcecodeals.com website (all pages, in the `<head>` tag):
-
-```javascript
-(function() {
-  // Only capture on first visit to this domain
-  if (!localStorage.getItem('sco_original_referrer')) {
-    localStorage.setItem('sco_original_referrer', document.referrer || '');
-    localStorage.setItem('sco_landing_page', window.location.pathname);
-  }
-
-  // Intercept clicks on marketplace links
-  document.addEventListener('click', function(e) {
-    const link = e.target.closest('a[href*="marketplace.sourcecodeals.com"]');
-    if (link) {
-      try {
-        const url = new URL(link.href);
-        const originalRef = localStorage.getItem('sco_original_referrer');
-        const landingPage = localStorage.getItem('sco_landing_page');
-        if (originalRef) url.searchParams.set('original_referrer', originalRef);
-        if (landingPage) url.searchParams.set('blog_landing', landingPage);
-        link.href = url.toString();
-      } catch (err) {
-        console.warn('Attribution tracking error:', err);
-      }
-    }
-  }, true);
-})();
+In `src/hooks/useUnifiedAnalytics.ts` (lines 492-502), the signup channel attribution only checks:
+```typescript
+const effectiveReferrer = firstSession.original_external_referrer || firstSession.referrer;
+const channel = categorizeChannel(effectiveReferrer, ...);
 ```
 
-This works for entire sourcecodeals.com including blog, homepage, and any other pages.
+It **never** uses `profiles.referral_source`, which is where the actual discovery source is stored.
 
-### Step 2: Capture in Marketplace (Already Done)
+## Solution
 
-The `track-session` edge function already captures these parameters:
+### Step 1: Create a mapping function for self-reported sources to channels
+
+Add a helper function to convert `profiles.referral_source` values to standard channel names:
 
 ```typescript
-// Lines 155-157 in track-session/index.ts
-original_external_referrer: body.original_referrer || null,
-blog_landing_page: body.blog_landing || null,
+function selfReportedSourceToChannel(source: string | null): string | null {
+  if (!source) return null;
+  const s = source.toLowerCase().trim();
+  
+  // Map self-reported sources to standard channels
+  if (s === 'google') return 'Organic Search';
+  if (s === 'linkedin' || s === 'instagram' || s === 'twitter' || s === 'facebook') return 'Organic Social';
+  if (s === 'ai' || s === 'chatgpt' || s === 'perplexity') return 'AI';
+  if (s === 'friend') return 'Referral';  // Word of mouth is a referral
+  if (s === 'other') return null;  // Fall back to session data for "other"
+  
+  return null;  // Unknown - fall back to session data
+}
 ```
 
-But the frontend needs to extract them from URL params and send them.
+### Step 2: Update signup channel attribution logic
 
-### Step 3: Update Frontend Tracking
+Modify the signup attribution (lines 492-502) to use this priority:
 
-Modify `src/hooks/use-initial-session-tracking.ts` to extract URL params:
-
-```typescript
-// Add to trackingData object
-const searchParams = new URLSearchParams(window.location.search);
-const originalReferrer = searchParams.get('original_referrer');
-const blogLanding = searchParams.get('blog_landing');
-
-const trackingData = {
-  // ... existing fields
-  original_referrer: originalReferrer || undefined,
-  blog_landing: blogLanding || undefined,
-};
-```
-
-### Step 4: Update Channel Categorization for Signups
-
-Modify `useUnifiedAnalytics.ts` to use `original_external_referrer` when attributing signups:
+1. Check `original_external_referrer` (for future cross-domain tracking)
+2. If NULL, use `profiles.referral_source` (user-reported)
+3. If still NULL or "other", fall back to session referrer
 
 ```typescript
-// When mapping signups to channels (line ~491-496)
 profiles.forEach(p => {
   const firstSession = profileToFirstSession.get(p.id);
+  
+  // Priority 1: Cross-domain tracking (if we have it)
+  if (firstSession?.original_external_referrer) {
+    const channel = categorizeChannel(firstSession.original_external_referrer, firstSession.utm_source, firstSession.utm_medium);
+    channelSignups[channel] = (channelSignups[channel] || 0) + 1;
+    return;
+  }
+  
+  // Priority 2: User-reported discovery source (this is real data!)
+  const selfReportedChannel = selfReportedSourceToChannel(p.referral_source);
+  if (selfReportedChannel) {
+    channelSignups[selfReportedChannel] = (channelSignups[selfReportedChannel] || 0) + 1;
+    return;
+  }
+  
+  // Priority 3: Fall back to session referrer
   if (firstSession) {
-    // Use original_external_referrer if available, otherwise fall back to referrer
-    const effectiveReferrer = (firstSession as any).original_external_referrer || firstSession.referrer;
-    const channel = categorizeChannel(effectiveReferrer, firstSession.utm_source, firstSession.utm_medium);
+    const channel = categorizeChannel(firstSession.referrer, firstSession.utm_source, firstSession.utm_medium);
     channelSignups[channel] = (channelSignups[channel] || 0) + 1;
   }
 });
 ```
 
-Also update the first sessions query to include `original_external_referrer`:
+## Why This Is NOT Fake Data
 
-```typescript
-const { data: firstSessionsData } = await supabase
-  .from('user_sessions')
-  .select('..., original_external_referrer, blog_landing_page')
-  .in('user_id', profileIds)
-  .order('started_at', { ascending: true });
-```
+The `profiles.referral_source` field is:
+- Collected from users during signup when you ask "How did you hear about us?"
+- Real answers like "Google", "LinkedIn", "Friend", "AI"
+- Includes specific keywords like "M&A deal sourcing" in `referral_source_detail`
 
----
+This is the most accurate data we have for "original discovery source" because:
+- Technical tracking shows `sourcecodeals.com` (the blog) as the immediate referrer
+- But users tell you they found the blog via Google search
+- Until cross-domain tracking is implemented, this is the only source of original discovery data
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/hooks/use-initial-session-tracking.ts` | Extract `original_referrer` and `blog_landing` from URL params |
-| `src/hooks/useUnifiedAnalytics.ts` | Include `original_external_referrer` in first session query; use it for channel categorization when attributing signups |
-| **External: sourcecodeals.com** | Add the JavaScript snippet to capture and pass original referrer |
+| `src/hooks/useUnifiedAnalytics.ts` | Add `selfReportedSourceToChannel()` function; update signup channel attribution to use it |
 
----
+## Expected Results After Fix
 
-## What This Will Achieve
+| Channel | Before | After |
+|---------|--------|-------|
+| Organic Search | 0 | 15 |
+| Organic Social | 0 | 7 |
+| Referral | 21 | 10 |
+| AI | 0 | 1 |
+| Direct | 7 | 0 (absorbed into above) |
+| Internal | 1 | 1 |
 
-### Before (Current State)
-| Channel | Signups |
-|---------|---------|
-| Referral | 21 |
-| Direct | 7 |
-| Organic Search | 1 |
+## Technical Notes
 
-### After (With Website Script Deployed)
-| Channel | Signups |
-|---------|---------|
-| Organic Search | ~15 (users who came via Google to blog) |
-| Organic Social | ~4 (users who came via LinkedIn to blog) |
-| Direct | ~10 (users who typed URL or no referrer) |
-| Referral | ~4 (other referrers) |
+1. **Visitors and Connections** will continue to use session-based attribution (immediate referrer)
+2. **Signups** will use user-reported discovery source (more accurate for this metric)
+3. When cross-domain tracking is implemented (via the blog JavaScript), `original_external_referrer` will take priority
+4. The "other" responses (6 signups) will fall back to session referrer attribution
 
----
-
-## Historical Data Limitation
-
-The `original_external_referrer` column is currently empty for all existing sessions because the sourcecodeals.com website hasn't been passing the data. 
-
-**For historical accuracy**, we cannot backfill this automatically - it would require guessing. The fix will only work for **new visitors going forward** after you add the script to sourcecodeals.com.
-
----
-
-## Summary
-
-The current data is **technically correct** - it's showing the immediate referrer to the marketplace. To see the "true" discovery source (Google → Blog → Marketplace), you need to add the JavaScript snippet to sourcecodeals.com to pass the original referrer across domains.
-
-I'll implement the marketplace-side changes (Steps 2-4) now. You'll need to add the JavaScript snippet (Step 1) to your website for the full solution to work.
-
+This approach gives you accurate data NOW while remaining compatible with the future cross-domain tracking solution.
