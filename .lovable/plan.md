@@ -1,77 +1,109 @@
 
-# Plan: Fix Users Tab to Show Real Data Like Datafast
 
-## Problem Summary
+# Plan: Fix Users Tab to Show Real Names and Accurate Data
 
-The Users tab in the ConversionCard shows mostly "Anonymous Visitor" entries from days ago because:
+## Problem Analysis
 
-1. **Anonymous visitors (visitor_id only) are excluded entirely** - The `topUsers` logic in `useUnifiedAnalytics.ts` only processes sessions with `user_id`, completely ignoring anonymous visitors who have `visitor_id` but no `user_id`
+Based on investigation, I found the following issues:
 
-2. **"Anonymous Visitor" entries are actually registered users without profile names** - Users with `user_id` but no first/last name in their profile show as "Anonymous Visitor" instead of using the animal-name system
+### Issue 1: All Visitors Showing with Animal Names
+The current logic incorrectly determines `isAnonymous` based on the session's `user_id` presence rather than checking if a profile exists. The key line is:
+```typescript
+const isAnonymous = sessionData?.isAnonymous ?? !profile;
+```
 
-3. **Missing Datafast-style features**:
-   - Animal-based naming for anonymous visitors (e.g., "sapphire pigeon")
-   - Full country name with flag in row
-   - Source with proper favicon (currently shows channel text)
-   - "Spent" column (time on site) instead of "Conv"
-   - Proper "Last seen" formatting
+But `sessionData?.isAnonymous` is set from `!s.user_id` on the **latest session**, which can be wrong if:
+1. A registered user's session was tracked before their `user_id` was linked
+2. The `profileMap.get(id)` lookup fails because `id` is a `visitor_id`, not a `user_id`
+
+**Root Cause**: When tracking by unified key (`user_id || visitor_id`), if we use `visitor_id` as the key (even when `user_id` exists), the profile lookup by that `visitor_id` will fail since profiles are keyed by `user_id`.
+
+### Issue 2: User Detail Panel Missing "How They Landed"
+The detail panel shows:
+- "Found site via" for the referrer
+- But doesn't explicitly show the **landing page** (first page visited on marketplace)
+
+The session table has `first_touch_landing_page` column that should be displayed.
+
+### Issue 3: Anonymous Users Not Being Queried Correctly
+For anonymous users (only `visitor_id`), the `useUserDetail` hook needs to also fetch page views by joining through sessions since `page_views.visitor_id` doesn't exist.
+
+---
 
 ## Solution
 
-### Part A: Include Anonymous Visitors in topUsers
+### Part A: Fix `isAnonymous` Detection
 
-Modify `useUnifiedAnalytics.ts` to track visitors by both `user_id` AND `visitor_id`:
+Modify `useUnifiedAnalytics.ts` to properly determine if a visitor is registered:
 
-1. **Create unified visitor key**: Use `user_id` if available, otherwise `visitor_id`
-2. **Track session data by visitor key** (not just user_id)
-3. **Include anonymous visitors in allUserIds set**
-4. **Generate animal names for anonymous visitors** using the same algorithm from `useUserDetail.ts`
-
-### Part B: Update TopUser Interface
-
-Add missing fields to support Datafast-style display:
+1. **Always prefer `user_id` as the tracking key** when both exist
+2. **Look up profile by `user_id`**, not by the unified key
+3. **Set `isAnonymous = true` only when there's no `user_id` in any session** for that visitor
 
 ```text
-interface TopUser {
-  // Existing fields
-  id: string;
-  name: string;
-  company: string;
-  sessions: number;
-  pagesViewed: number;
-  connections: number;
-  
-  // Enhanced fields
-  isAnonymous: boolean;  // NEW
-  country?: string;
-  city?: string;         // NEW  
-  device?: string;
-  browser?: string;
-  os?: string;
-  source?: string;       // Channel name
-  referrerDomain?: string; // NEW: For favicon
-  lastSeen?: string;
-  timeOnSite?: number;   // NEW: Total seconds
-  activityDays?: Array<...>;
+// When processing sessions, track the user_id separately
+const visitorToUserId = new Map<string, string>(); // visitor_id -> user_id
+
+uniqueSessions.forEach(s => {
+  // If session has user_id, map any visitor_id to it
+  if (s.user_id && s.visitor_id) {
+    visitorToUserId.set(s.visitor_id, s.user_id);
+  }
+});
+
+// When building topUsers:
+const userId = visitorToUserId.get(id) || (profileMap.has(id) ? id : null);
+const profile = userId ? profileMap.get(userId) : null;
+const isAnonymous = !profile;
+
+const name = !isAnonymous
+  ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Unknown'
+  : generateAnimalName(id);
+```
+
+### Part B: Add Landing Page to User Detail Panel
+
+1. Update `useUserDetail.ts` to include `first_touch_landing_page` from the first session
+2. Update `UserDetailPanel.tsx` to display "Landed on" section showing the first page visited
+
+```text
+// In source data returned by useUserDetail:
+source: {
+  referrer: firstSession?.referrer,
+  landingPage: firstSession?.first_touch_landing_page, // NEW
+  channel: categorizeChannel(...),
+  ...
 }
 ```
 
-### Part C: Update Users Tab UI
+```text
+// In UserDetailPanel acquisition section:
+{data.source.landingPage && (
+  <div>
+    <span className="text-xs text-muted-foreground block mb-1">Landing Page</span>
+    <code className="text-xs bg-muted px-2 py-1 rounded">
+      {data.source.landingPage}
+    </code>
+  </div>
+)}
+```
 
-Modify `ConversionCard.tsx` to match Datafast style:
+### Part C: Fix Page Views Query for Anonymous Users
 
-1. **Replace "CONV" column with "SPENT"** - Show formatted time on site
-2. **Add animal avatars or colored initials** for anonymous visitors
-3. **Show country flag + full name** in the visitor row (not just tooltip)
-4. **Source column**: Show favicon + domain name (not just channel)
-5. **Fix row styling** to match Datafast's clean look
+For anonymous visitors, fetch page views by joining through sessions:
 
-### Part D: Fix useUserDetail for visitor_id Support
+```typescript
+// In useUserDetail.ts
+const pageViewsQuery = isUserId
+  ? supabase.from('page_views')...
+  : supabase.from('page_views')
+      .select('*')
+      .in('session_id', sessions.map(s => s.session_id))
+      .gte('created_at', sixMonthsAgo)
+      .order('created_at', { ascending: true });
+```
 
-The detail panel currently only queries by `user_id`. Need to:
-1. Accept either `user_id` or `visitor_id`
-2. Query sessions by appropriate ID type
-3. Handle anonymous visitor data display
+This requires fetching sessions first, then using the session IDs to query page views.
 
 ---
 
@@ -79,133 +111,26 @@ The detail panel currently only queries by `user_id`. Need to:
 
 ### File 1: `src/hooks/useUnifiedAnalytics.ts`
 
-**Location: Around line 1133-1220 (topUsers logic)**
+**Lines ~1154-1270**: Rewrite the visitor tracking logic
 
-```typescript
-// Add animal name generation (copy from useUserDetail.ts)
-const ANIMALS = ['Wolf', 'Eagle', ...];
-const COLORS = ['Azure', 'Crimson', ...];
-function generateAnimalName(id: string): string { ... }
+1. Create `visitorToUserId` map to link visitor_ids to user_ids
+2. When building `topUsers`, resolve the `user_id` for each visitor
+3. Only mark as `isAnonymous` if no user_id can be found
+4. Use the resolved profile to get real names
 
-// Replace user-only logic with unified visitor tracking
-// Create visitorSessionCounts and visitorSessionData maps
-// Key = user_id || visitor_id (unified key)
+### File 2: `src/hooks/useUserDetail.ts`
 
-const visitorSessionCounts = new Map<string, number>();
-const visitorSessionData = new Map<string, {
-  country?: string;
-  city?: string;
-  device?: string;
-  browser?: string;
-  os?: string;
-  source?: string;
-  referrerDomain?: string;
-  lastSeen?: string;
-  totalTimeOnSite?: number;
-  isAnonymous: boolean;
-}>();
+**Lines ~142-150**: Fix page views query for anonymous users
+- Fetch sessions first
+- Then use session IDs to query page views
 
-uniqueSessions.forEach(s => {
-  const visitorKey = s.user_id || s.visitor_id;
-  if (!visitorKey) return; // Skip sessions without any identifier
-  
-  visitorSessionCounts.set(visitorKey, (visitorSessionCounts.get(visitorKey) || 0) + 1);
-  
-  const existing = visitorSessionData.get(visitorKey);
-  const isNewer = !existing || new Date(s.started_at) > new Date(existing.lastSeen || 0);
-  
-  if (isNewer) {
-    visitorSessionData.set(visitorKey, {
-      country: s.country,
-      city: s.city,
-      device: s.device_type,
-      browser: s.browser,
-      os: s.os,
-      source: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
-      referrerDomain: extractDomain(s.referrer),
-      lastSeen: s.started_at,
-      totalTimeOnSite: (existing?.totalTimeOnSite || 0) + (s.session_duration_seconds || 0),
-      isAnonymous: !s.user_id,
-    });
-  } else if (existing) {
-    existing.totalTimeOnSite = (existing.totalTimeOnSite || 0) + (s.session_duration_seconds || 0);
-  }
-});
+**Lines ~255-293**: Add `landingPage` to source data
+- Include `first_touch_landing_page` in the returned source object
 
-// Build allVisitorIds from all sessions with any identifier
-const allVisitorIds = new Set<string>();
-if (filters.length > 0) {
-  uniqueSessions.forEach(s => {
-    const key = s.user_id || s.visitor_id;
-    if (key) allVisitorIds.add(key);
-  });
-} else {
-  visitorSessionCounts.forEach((_, id) => allVisitorIds.add(id));
-}
+### File 3: `src/components/admin/analytics/datafast/UserDetailPanel.tsx`
 
-// Generate topUsers with animal names for anonymous
-const topUsers = Array.from(allVisitorIds)
-  .map(id => {
-    const profile = profileMap.get(id); // Only exists if id is user_id
-    const sessionData = visitorSessionData.get(id);
-    const isAnonymous = sessionData?.isAnonymous ?? !profile;
-    
-    const name = isAnonymous
-      ? generateAnimalName(id)
-      : [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Unknown';
-    
-    return {
-      id,
-      name,
-      isAnonymous,
-      company: profile?.company || '',
-      sessions: visitorSessionCounts.get(id) || 0,
-      pagesViewed: ...,
-      connections: userConnectionCounts.get(id) || 0,
-      country: sessionData?.country,
-      city: sessionData?.city,
-      device: sessionData?.device,
-      browser: sessionData?.browser,
-      os: sessionData?.os,
-      source: sessionData?.source,
-      referrerDomain: sessionData?.referrerDomain,
-      lastSeen: sessionData?.lastSeen,
-      timeOnSite: sessionData?.totalTimeOnSite,
-      activityDays,
-    };
-  })
-  .filter(u => u.sessions > 0)
-  .sort((a, b) => {
-    // Sort by lastSeen (most recent first)
-    const aTime = a.lastSeen ? new Date(a.lastSeen).getTime() : 0;
-    const bTime = b.lastSeen ? new Date(b.lastSeen).getTime() : 0;
-    return bTime - aTime;
-  })
-  .slice(0, 50);
-```
-
-### File 2: `src/components/admin/analytics/datafast/ConversionCard.tsx`
-
-**Location: UsersTab component (lines 224-337)**
-
-1. Update header row: Change "Conv" to "Spent"
-2. Update row layout:
-   - Show country flag + name inline
-   - Show source with favicon
-   - Show formatted time instead of connection count
-   - Keep connections as a badge only if > 0
-
-**Location: Interface TopUser (lines 20-35)**
-
-Add new fields: `isAnonymous`, `city`, `referrerDomain`, `timeOnSite`
-
-### File 3: `src/hooks/useUserDetail.ts`
-
-**Location: useUserDetail hook (lines 110-288)**
-
-1. Accept `visitorId` parameter in addition to `userId`
-2. Query sessions by `visitor_id` when not a user_id
-3. Handle case where profile doesn't exist (anonymous visitor)
+**Lines ~252-312**: Add landing page display in Acquisition section
+- Display "Landing Page" field showing where the user first landed
 
 ---
 
@@ -213,9 +138,9 @@ Add new fields: `isAnonymous`, `city`, `referrerDomain`, `timeOnSite`
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useUnifiedAnalytics.ts` | Add animal name generation, track visitors by unified key (user_id OR visitor_id), include anonymous visitors in topUsers, add timeOnSite calculation |
-| `src/components/admin/analytics/datafast/ConversionCard.tsx` | Update TopUser interface, change "Conv" to "Spent", update row layout for Datafast style, show source favicon |
-| `src/hooks/useUserDetail.ts` | Support visitor_id lookup for anonymous visitor details |
+| `src/hooks/useUnifiedAnalytics.ts` | Fix `isAnonymous` detection to use profile lookup; map visitor_id to user_id for registered users |
+| `src/hooks/useUserDetail.ts` | Fix page views query for anonymous users; add `landingPage` to source data |
+| `src/components/admin/analytics/datafast/UserDetailPanel.tsx` | Display landing page in acquisition section |
 
 ---
 
@@ -225,11 +150,14 @@ After these changes:
 
 | Before | After |
 |--------|-------|
-| Only registered users shown | All visitors (registered + anonymous) shown |
-| "Anonymous Visitor" for nameless profiles | Animal names like "Sapphire Pigeon" |
-| "Conv" column with connection count | "Spent" column with time on site |
-| Source shows channel text | Source shows favicon + domain |
-| Old visitors from days ago | Recent visitors sorted by last seen |
-| 10 users max | 50 visitors, recent first |
+| "Violet Whale" for Admin User | "Admin User" |
+| "Golden Orca" for registered users | Real names from profile |
+| Animal names for everyone | Animal names ONLY for truly anonymous visitors |
+| No landing page shown | Shows "Landed on /marketplace" etc. |
+| Missing page views for anonymous | Complete event timeline for anonymous users |
 
-The Users tab will now match Datafast's real-time visitor list, showing a mix of anonymous visitors (with animal names) and registered users, sorted by most recent activity.
+The Users tab will show:
+- Real names for registered users (Adam Haile, Tomos Mughan, Champ Warren, etc.)
+- Animal names only for genuinely anonymous visitors (no user_id in any session)
+- Complete acquisition data including where they landed on the marketplace
+
