@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -5,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserJourney } from "@/hooks/useUserJourneys";
 import { formatDistanceToNow } from "date-fns";
 import { Globe, Monitor, Smartphone, MapPin, ExternalLink } from "lucide-react";
+import { JourneyDetailDialog } from "./JourneyDetailDialog";
 
 interface JourneyLiveFeedProps {
   journeys: UserJourney[];
@@ -20,6 +22,8 @@ const stageColors: Record<string, string> = {
 };
 
 export function JourneyLiveFeed({ journeys, isLoading }: JourneyLiveFeedProps) {
+  const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
+
   const getDeviceIcon = (deviceType: string | null) => {
     if (deviceType === 'mobile') return <Smartphone className="h-3 w-3" />;
     return <Monitor className="h-3 w-3" />;
@@ -63,7 +67,11 @@ export function JourneyLiveFeed({ journeys, isLoading }: JourneyLiveFeedProps) {
           ) : (
             <div className="divide-y divide-border/30">
               {journeys.map((journey) => (
-                <div key={journey.id} className="p-4 hover:bg-muted/30 transition-colors">
+                <div 
+                  key={journey.id} 
+                  className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => setSelectedVisitorId(journey.visitor_id)}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       {/* Visitor ID and Stage */}
@@ -124,6 +132,13 @@ export function JourneyLiveFeed({ journeys, isLoading }: JourneyLiveFeedProps) {
           )}
         </ScrollArea>
       </CardContent>
+
+      {/* Journey Detail Dialog */}
+      <JourneyDetailDialog
+        visitorId={selectedVisitorId}
+        open={!!selectedVisitorId}
+        onOpenChange={(open) => !open && setSelectedVisitorId(null)}
+      />
     </Card>
   );
 }
