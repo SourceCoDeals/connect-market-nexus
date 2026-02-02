@@ -2381,6 +2381,39 @@ export type Database = {
           },
         ]
       }
+      lead_sources: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          requires_partner: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          requires_partner?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          requires_partner?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       listing_analytics: {
         Row: {
           action_type: string
@@ -2674,6 +2707,8 @@ export type Database = {
           key_quotes: string[] | null
           key_risks: Json | null
           last_ranked_at: string | null
+          lead_source_id: string | null
+          lead_source_notes: string | null
           linkedin_employee_count: number | null
           location: string
           location_radius_requirement: string | null
@@ -2702,6 +2737,7 @@ export type Database = {
           rank_locked: boolean | null
           real_estate_info: string | null
           recurring_revenue_percentage: number | null
+          referral_partner_id: string | null
           revenue: number
           revenue_confidence: string | null
           revenue_is_inferred: boolean | null
@@ -2797,6 +2833,8 @@ export type Database = {
           key_quotes?: string[] | null
           key_risks?: Json | null
           last_ranked_at?: string | null
+          lead_source_id?: string | null
+          lead_source_notes?: string | null
           linkedin_employee_count?: number | null
           location: string
           location_radius_requirement?: string | null
@@ -2825,6 +2863,7 @@ export type Database = {
           rank_locked?: boolean | null
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
+          referral_partner_id?: string | null
           revenue: number
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
@@ -2920,6 +2959,8 @@ export type Database = {
           key_quotes?: string[] | null
           key_risks?: Json | null
           last_ranked_at?: string | null
+          lead_source_id?: string | null
+          lead_source_notes?: string | null
           linkedin_employee_count?: number | null
           location?: string
           location_radius_requirement?: string | null
@@ -2948,6 +2989,7 @@ export type Database = {
           rank_locked?: boolean | null
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
+          referral_partner_id?: string | null
           revenue?: number
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
@@ -2978,6 +3020,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "listings_lead_source_id_fkey"
+            columns: ["lead_source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sources"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "listings_presented_by_admin_id_fkey"
             columns: ["presented_by_admin_id"]
             isOneToOne: false
@@ -2989,6 +3038,13 @@ export type Database = {
             columns: ["primary_owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_referral_partner_id_fkey"
+            columns: ["referral_partner_id"]
+            isOneToOne: false
+            referencedRelation: "referral_partners"
             referencedColumns: ["id"]
           },
         ]
@@ -3873,6 +3929,45 @@ export type Database = {
           updated_at?: string
           uses_bank_finance?: string | null
           website?: string
+        }
+        Relationships: []
+      }
+      referral_partners: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          deal_count: number | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          deal_count?: number | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          deal_count?: number | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -5174,6 +5269,7 @@ export type Database = {
       }
       user_sessions: {
         Row: {
+          blog_landing_page: string | null
           browser: string | null
           city: string | null
           country: string | null
@@ -5191,6 +5287,9 @@ export type Database = {
           ip_address: unknown
           is_active: boolean | null
           last_active_at: string | null
+          original_external_referrer: string | null
+          original_keyword: string | null
+          original_source: string | null
           os: string | null
           referrer: string | null
           region: string | null
@@ -5209,6 +5308,7 @@ export type Database = {
           visitor_id: string | null
         }
         Insert: {
+          blog_landing_page?: string | null
           browser?: string | null
           city?: string | null
           country?: string | null
@@ -5226,6 +5326,9 @@ export type Database = {
           ip_address?: unknown
           is_active?: boolean | null
           last_active_at?: string | null
+          original_external_referrer?: string | null
+          original_keyword?: string | null
+          original_source?: string | null
           os?: string | null
           referrer?: string | null
           region?: string | null
@@ -5244,6 +5347,7 @@ export type Database = {
           visitor_id?: string | null
         }
         Update: {
+          blog_landing_page?: string | null
           browser?: string | null
           city?: string | null
           country?: string | null
@@ -5261,6 +5365,9 @@ export type Database = {
           ip_address?: unknown
           is_active?: boolean | null
           last_active_at?: string | null
+          original_external_referrer?: string | null
+          original_keyword?: string | null
+          original_source?: string | null
           os?: string | null
           referrer?: string | null
           region?: string | null

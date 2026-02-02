@@ -27,22 +27,25 @@ export interface UnifiedAnalyticsData {
     bounceRate: number;
   }>;
   
-  channels: Array<{ name: string; visitors: number; sessions: number; connections: number; icon: string }>;
-  referrers: Array<{ domain: string; visitors: number; sessions: number; connections: number; favicon: string }>;
-  campaigns: Array<{ name: string; visitors: number; sessions: number; connections: number }>;
-  keywords: Array<{ term: string; visitors: number; sessions: number; connections: number }>;
+  channels: Array<{ name: string; visitors: number; sessions: number; signups: number; connections: number; icon: string }>;
+  referrers: Array<{ domain: string; visitors: number; sessions: number; signups: number; connections: number; favicon: string }>;
+  campaigns: Array<{ name: string; visitors: number; sessions: number; signups: number; connections: number }>;
+  keywords: Array<{ term: string; visitors: number; sessions: number; signups: number; connections: number }>;
   
-  countries: Array<{ name: string; code: string; visitors: number; sessions: number; connections: number }>;
-  regions: Array<{ name: string; country: string; visitors: number; sessions: number; connections: number }>;
-  cities: Array<{ name: string; country: string; visitors: number; sessions: number; connections: number }>;
+  countries: Array<{ name: string; code: string; visitors: number; sessions: number; signups: number; connections: number }>;
+  regions: Array<{ name: string; country: string; visitors: number; sessions: number; signups: number; connections: number }>;
+  cities: Array<{ name: string; country: string; visitors: number; sessions: number; signups: number; connections: number }>;
+  
+  // NEW: Self-reported sources from profiles
+  selfReportedSources: Array<{ source: string; signups: number; connections: number; keywords: string[] }>;
   
   topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
   entryPages: Array<{ path: string; visitors: number; bounceRate: number }>;
   exitPages: Array<{ path: string; exits: number; exitRate: number }>;
   
-  browsers: Array<{ name: string; visitors: number; percentage: number }>;
-  operatingSystems: Array<{ name: string; visitors: number; percentage: number }>;
-  devices: Array<{ type: string; visitors: number; percentage: number }>;
+  browsers: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
+  operatingSystems: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
+  devices: Array<{ type: string; visitors: number; signups: number; percentage: number }>;
   
   funnel: {
     stages: Array<{ name: string; count: number; dropoff: number }>;
@@ -234,10 +237,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           .eq('is_active', true)
           .gte('last_active_at', twoMinutesAgo),
         
-        // Profiles for top users
+        // Profiles for top users AND signup attribution
         supabase
           .from('profiles')
-          .select('id, first_name, last_name, company, buyer_type')
+          .select('id, first_name, last_name, company, buyer_type, referral_source, referral_source_detail, created_at')
           .limit(500),
         
         // Query all connections with NDA/Fee Agreement status for real funnel data
@@ -256,6 +259,57 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const activeSessions = activeSessionsResult.data || [];
       const profiles = profilesResult.data || [];
       const allConnectionsWithMilestones = allConnectionsWithMilestonesResult.data || [];
+      
+      // === SIGNUP ATTRIBUTION: Map signups to their first session data ===
+      const signupProfileMap = new Map<string, typeof profiles[0]>();
+      profiles.forEach(p => signupProfileMap.set(p.id, p));
+      
+      // Create profile to first session mapping for signup attribution
+      const profileToFirstSession = new Map<string, typeof rawSessions[0]>();
+      const sortedByTime = [...rawSessions].sort((a, b) => 
+        new Date(a.started_at).getTime() - new Date(b.started_at).getTime()
+      );
+      sortedByTime.forEach(s => {
+        if (s.user_id && !profileToFirstSession.has(s.user_id)) {
+          profileToFirstSession.set(s.user_id, s);
+        }
+      });
+      
+      // Build self-reported sources from profiles
+      const selfReportedSourceMap: Record<string, { signups: number; connections: number; keywords: string[] }> = {};
+      profiles.forEach(p => {
+        if (p.referral_source) {
+          const source = p.referral_source.toLowerCase().trim();
+          if (!selfReportedSourceMap[source]) {
+            selfReportedSourceMap[source] = { signups: 0, connections: 0, keywords: [] };
+          }
+          selfReportedSourceMap[source].signups++;
+          if (p.referral_source_detail) {
+            selfReportedSourceMap[source].keywords.push(p.referral_source_detail);
+          }
+        }
+      });
+      
+      // Add connections to self-reported sources
+      allConnectionsWithMilestones.forEach(c => {
+        if (c.user_id) {
+          const profile = signupProfileMap.get(c.user_id);
+          if (profile?.referral_source) {
+            const source = profile.referral_source.toLowerCase().trim();
+            if (selfReportedSourceMap[source]) {
+              selfReportedSourceMap[source].connections++;
+            }
+          }
+        }
+      });
+      
+      const selfReportedSources = Object.entries(selfReportedSourceMap)
+        .map(([source, data]) => ({ 
+          source: source.charAt(0).toUpperCase() + source.slice(1), 
+          ...data,
+          keywords: [...new Set(data.keywords)].slice(0, 5) // Dedupe and limit
+        }))
+        .sort((a, b) => b.signups - a.signups);
       
       // CRITICAL FIX #1: Filter out dev/bot traffic
       const sessions = rawSessions.filter(s => !isDevTraffic(s.referrer));
@@ -374,6 +428,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const channelVisitors: Record<string, Set<string>> = {};
       const channelSessions: Record<string, number> = {};
       const channelConnections: Record<string, number> = {};
+      const channelSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
         const channel = categorizeChannel(s.referrer, s.utm_source, s.utm_medium);
@@ -401,11 +456,21 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         }
       });
       
+      // Map signups to channels via first session
+      profiles.forEach(p => {
+        const firstSession = profileToFirstSession.get(p.id);
+        if (firstSession) {
+          const channel = categorizeChannel(firstSession.referrer, firstSession.utm_source, firstSession.utm_medium);
+          channelSignups[channel] = (channelSignups[channel] || 0) + 1;
+        }
+      });
+      
       const channels = Object.keys(channelVisitors)
         .map(name => ({ 
           name, 
           visitors: channelVisitors[name].size, 
           sessions: channelSessions[name] || 0,
+          signups: channelSignups[name] || 0,
           connections: channelConnections[name] || 0, 
           icon: getChannelIcon(name) 
         }))
@@ -415,6 +480,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const referrerVisitors: Record<string, Set<string>> = {};
       const referrerSessions: Record<string, number> = {};
       const referrerConnections: Record<string, number> = {};
+      const referrerSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
         const domain = extractDomain(s.referrer);
@@ -438,11 +504,21 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         }
       });
       
+      // Map signups to referrers
+      profiles.forEach(p => {
+        const firstSession = profileToFirstSession.get(p.id);
+        if (firstSession) {
+          const domain = extractDomain(firstSession.referrer);
+          referrerSignups[domain] = (referrerSignups[domain] || 0) + 1;
+        }
+      });
+      
       const referrers = Object.keys(referrerVisitors)
         .map(domain => ({ 
           domain, 
           visitors: referrerVisitors[domain].size, 
           sessions: referrerSessions[domain] || 0,
+          signups: referrerSignups[domain] || 0,
           connections: referrerConnections[domain] || 0, 
           favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32` 
         }))
@@ -452,6 +528,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       // Campaign breakdown - count unique visitors
       const campaignVisitors: Record<string, Set<string>> = {};
       const campaignSessions: Record<string, number> = {};
+      const campaignSignups: Record<string, number> = {};
       uniqueSessions.forEach(s => {
         if (s.utm_campaign) {
           if (!campaignVisitors[s.utm_campaign]) {
@@ -473,12 +550,20 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           }
         }
       });
+      // Map signups to campaigns
+      profiles.forEach(p => {
+        const firstSession = profileToFirstSession.get(p.id);
+        if (firstSession?.utm_campaign) {
+          campaignSignups[firstSession.utm_campaign] = (campaignSignups[firstSession.utm_campaign] || 0) + 1;
+        }
+      });
       
       const campaigns = Object.keys(campaignVisitors)
         .map(name => ({ 
           name, 
           visitors: campaignVisitors[name].size,
           sessions: campaignSessions[name] || 0,
+          signups: campaignSignups[name] || 0,
           connections: campaignConnections[name] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors);
@@ -486,6 +571,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       // Keyword breakdown - count unique visitors
       const keywordVisitors: Record<string, Set<string>> = {};
       const keywordSessions: Record<string, number> = {};
+      const keywordSignups: Record<string, number> = {};
       uniqueSessions.forEach(s => {
         if (s.utm_term) {
           if (!keywordVisitors[s.utm_term]) {
@@ -507,12 +593,20 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           }
         }
       });
+      // Map signups to keywords
+      profiles.forEach(p => {
+        const firstSession = profileToFirstSession.get(p.id);
+        if (firstSession?.utm_term) {
+          keywordSignups[firstSession.utm_term] = (keywordSignups[firstSession.utm_term] || 0) + 1;
+        }
+      });
       
       const keywords = Object.keys(keywordVisitors)
         .map(term => ({ 
           term, 
           visitors: keywordVisitors[term].size,
           sessions: keywordSessions[term] || 0,
+          signups: keywordSignups[term] || 0,
           connections: keywordConnections[term] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors);
@@ -521,10 +615,13 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const countryVisitors: Record<string, Set<string>> = {};
       const countrySessions: Record<string, number> = {};
       const countryConnections: Record<string, number> = {};
+      const countrySignups: Record<string, number> = {};
       const cityVisitors: Record<string, { visitors: Set<string>; sessions: number; country: string }> = {};
       const cityConnections: Record<string, number> = {};
+      const citySignups: Record<string, number> = {};
       const regionVisitors: Record<string, { visitors: Set<string>; sessions: number; country: string }> = {};
       const regionConnections: Record<string, number> = {};
+      const regionSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
         const country = s.country || 'Unknown';
@@ -581,12 +678,33 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         }
       });
       
+      // Map signups to geography
+      profiles.forEach(p => {
+        const firstSession = profileToFirstSession.get(p.id);
+        if (firstSession) {
+          const country = firstSession.country || 'Unknown';
+          countrySignups[country] = (countrySignups[country] || 0) + 1;
+          
+          if (firstSession.city) {
+            const cityKey = `${firstSession.city}, ${country}`;
+            citySignups[cityKey] = (citySignups[cityKey] || 0) + 1;
+          }
+          
+          const region = (firstSession as any).region;
+          if (region) {
+            const regionKey = `${region}, ${country}`;
+            regionSignups[regionKey] = (regionSignups[regionKey] || 0) + 1;
+          }
+        }
+      });
+      
       const countries = Object.keys(countryVisitors)
         .map(name => ({ 
           name, 
           code: name.substring(0, 2).toUpperCase(), 
           visitors: countryVisitors[name].size,
           sessions: countrySessions[name] || 0,
+          signups: countrySignups[name] || 0,
           connections: countryConnections[name] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors);
@@ -597,6 +715,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           country: data.country,
           visitors: data.visitors.size,
           sessions: data.sessions,
+          signups: regionSignups[key] || 0,
           connections: regionConnections[key] || 0 
         }))
         .filter(r => r.name && r.name !== 'Unknown')
@@ -609,6 +728,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           country: data.country,
           visitors: data.visitors.size,
           sessions: data.sessions,
+          signups: citySignups[key] || 0,
           connections: cityConnections[key] || 0 
         }))
         .sort((a, b) => b.visitors - a.visitors)
@@ -689,8 +809,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       
       // Tech breakdown - count unique visitors, not sessions
       const browserVisitors: Record<string, Set<string>> = {};
+      const browserSignups: Record<string, number> = {};
       const osVisitors: Record<string, Set<string>> = {};
+      const osSignups: Record<string, number> = {};
       const deviceVisitors: Record<string, Set<string>> = {};
+      const deviceSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
         const browser = s.browser || 'Unknown';
@@ -709,22 +832,35 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         }
       });
       
+      // Map signups to tech stack
+      profiles.forEach(p => {
+        const firstSession = profileToFirstSession.get(p.id);
+        if (firstSession) {
+          const browser = firstSession.browser || 'Unknown';
+          const os = firstSession.os || 'Unknown';
+          const device = firstSession.device_type || 'Desktop';
+          browserSignups[browser] = (browserSignups[browser] || 0) + 1;
+          osSignups[os] = (osSignups[os] || 0) + 1;
+          deviceSignups[device] = (deviceSignups[device] || 0) + 1;
+        }
+      });
+      
       const totalVisitorsForPercent = currentVisitors || 1;
       
       // Filter out Unknown/null from top of lists
       const browsers = Object.entries(browserVisitors)
         .filter(([name]) => name && name !== 'Unknown' && name !== 'null' && name !== 'undefined')
-        .map(([name, visitors]) => ({ name, visitors: visitors.size, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
+        .map(([name, visitors]) => ({ name, visitors: visitors.size, signups: browserSignups[name] || 0, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
       const operatingSystems = Object.entries(osVisitors)
         .filter(([name]) => name && name !== 'Unknown' && name !== 'null' && name !== 'undefined')
-        .map(([name, visitors]) => ({ name, visitors: visitors.size, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
+        .map(([name, visitors]) => ({ name, visitors: visitors.size, signups: osSignups[name] || 0, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
       const devices = Object.entries(deviceVisitors)
         .filter(([type]) => type && type !== 'Unknown' && type !== 'null' && type !== 'undefined')
-        .map(([type, visitors]) => ({ type, visitors: visitors.size, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
+        .map(([type, visitors]) => ({ type, visitors: visitors.size, signups: deviceSignups[type] || 0, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
       // Enhanced 6-stage funnel for M&A marketplace with REAL data
@@ -887,6 +1023,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         referrers,
         campaigns,
         keywords,
+        selfReportedSources,
         countries,
         regions,
         cities,

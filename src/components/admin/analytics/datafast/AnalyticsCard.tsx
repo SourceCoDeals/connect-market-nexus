@@ -62,18 +62,32 @@ export function AnalyticsCard({
   );
 }
 
+export type SortValue = 'visitors' | 'signups' | 'connections';
+
 interface SortToggleProps {
-  value: 'visitors' | 'connections';
-  onChange: (value: 'visitors' | 'connections') => void;
+  value: SortValue;
+  onChange: (value: SortValue) => void;
 }
 
 export function SortToggle({ value, onChange }: SortToggleProps) {
+  const cycle = () => {
+    if (value === 'visitors') onChange('signups');
+    else if (value === 'signups') onChange('connections');
+    else onChange('visitors');
+  };
+
+  const labels: Record<SortValue, string> = {
+    visitors: 'Visitors',
+    signups: 'Signups',
+    connections: 'Connections',
+  };
+
   return (
     <button
-      onClick={() => onChange(value === 'visitors' ? 'connections' : 'visitors')}
+      onClick={cycle}
       className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors"
     >
-      {value === 'visitors' ? 'Visitors' : 'Connections'}
+      {labels[value]}
       <ChevronDown className="h-3 w-3" />
     </button>
   );
