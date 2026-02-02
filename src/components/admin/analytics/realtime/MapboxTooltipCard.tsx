@@ -1,14 +1,11 @@
-import { Monitor, Smartphone, Tablet, Globe, Clock, Eye, Link2, X } from 'lucide-react';
+import { Monitor, Smartphone, Tablet, X, FileCheck, FileText, Eye, Heart, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { countryCodeToFlag } from '@/lib/flagEmoji';
 import type { EnhancedActiveUser } from '@/hooks/useEnhancedRealTimeAnalytics';
-import { ConversionLikelihoodBar } from './ConversionLikelihoodBar';
 
 interface MapboxTooltipCardProps {
   user: EnhancedActiveUser;
   position: { x: number; y: number };
-  conversionLikelihood: number;
-  estimatedValue: number;
   onClose: () => void;
 }
 
@@ -24,8 +21,10 @@ const referrerIcons: Record<string, string> = {
   'Facebook': '📘',
   'LinkedIn': '💼',
   'X': '𝕏',
+  'X (Twitter)': '𝕏',
   'Twitter': '𝕏',
   'Direct': '🔗',
+  'Lovable': '💜',
 };
 
 function getDisplayReferrer(referrer: string | null, utmSource: string | null): { icon: string; name: string } {
@@ -39,6 +38,7 @@ function getDisplayReferrer(referrer: string | null, utmSource: string | null): 
   if (source.includes('twitter') || source.includes('x.com') || source.includes('t.co')) return { icon: '𝕏', name: 'X' };
   if (source.includes('instagram')) return { icon: '📷', name: 'Instagram' };
   if (source.includes('tiktok')) return { icon: '🎵', name: 'TikTok' };
+  if (source.includes('lovable')) return { icon: '💜', name: 'Lovable' };
   
   return { icon: '🌐', name: 'Referral' };
 }
@@ -52,24 +52,30 @@ function formatDuration(seconds: number): string {
   return `${hours} hr ${mins % 60} min`;
 }
 
+// Buyer type display names and colors
+const buyerTypeConfig: Record<string, { label: string; className: string }> = {
+  'privateEquity': { label: 'Private Equity', className: 'bg-violet-500/20 text-violet-600 dark:text-violet-400' },
+  'familyOffice': { label: 'Family Office', className: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+  'corporate': { label: 'Corporate', className: 'bg-blue-500/20 text-blue-600 dark:text-blue-400' },
+  'searchFund': { label: 'Search Fund', className: 'bg-amber-500/20 text-amber-600 dark:text-amber-400' },
+  'independentSponsor': { label: 'Independent Sponsor', className: 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400' },
+  'individual': { label: 'Individual', className: 'bg-rose-500/20 text-rose-600 dark:text-rose-400' },
+  'advisor': { label: 'Advisor', className: 'bg-slate-500/20 text-slate-600 dark:text-slate-400' },
+};
+
 export function MapboxTooltipCard({
   user,
   position,
-  conversionLikelihood,
-  estimatedValue,
   onClose,
 }: MapboxTooltipCardProps) {
   const flag = countryCodeToFlag(user.countryCode);
   const location = [user.city, user.country].filter(Boolean).join(', ') || 'Unknown';
   const referrer = getDisplayReferrer(user.referrer, user.utmSource);
-  
-  // Calculate vs average (baseline 30%)
-  const vsAverage = Math.round(((conversionLikelihood - 30) / 30) * 100);
-  const vsAverageText = vsAverage >= 0 ? `+${vsAverage}%` : `${vsAverage}%`;
+  const buyerConfig = user.buyerType ? buyerTypeConfig[user.buyerType] : null;
 
   // Position calculation to keep tooltip on screen
   const left = Math.min(position.x + 16, window.innerWidth - 340);
-  const top = Math.max(Math.min(position.y - 150, window.innerHeight - 400), 10);
+  const top = Math.max(Math.min(position.y - 150, window.innerHeight - 480), 10);
 
   return (
     <div
@@ -122,8 +128,9 @@ export function MapboxTooltipCard({
         </div>
       </div>
 
-      {/* Session info */}
+      {/* Traffic Source info */}
       <div className="p-4 border-b border-border/50 space-y-2">
+        <SectionLabel>Traffic Source</SectionLabel>
         <InfoRow
           label="Referrer"
           value={
@@ -145,29 +152,69 @@ export function MapboxTooltipCard({
         <InfoRow label="Total visits" value={user.totalVisits.toString()} />
       </div>
 
-      {/* Conversion metrics */}
-      <div className="p-4 space-y-3">
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">Conversion likelihood</span>
-            <span className={cn(
-              "text-xs font-medium",
-              vsAverage >= 0 ? "text-emerald-600" : "text-red-500"
-            )}>
-              {vsAverageText} vs. avg
-            </span>
-          </div>
-          <ConversionLikelihoodBar value={conversionLikelihood} />
-        </div>
-
-        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-          <span className="text-xs text-muted-foreground">Estimated value</span>
-          <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-            ${estimatedValue.toFixed(2)}
-          </span>
-        </div>
+      {/* Engagement metrics */}
+      <div className="p-4 border-b border-border/50 space-y-2">
+        <SectionLabel>Engagement</SectionLabel>
+        <EngagementRow
+          icon={<Eye className="w-3.5 h-3.5 text-muted-foreground" />}
+          label="Listings viewed"
+          value={user.listingsViewed}
+          max={10}
+        />
+        <EngagementRow
+          icon={<Heart className="w-3.5 h-3.5 text-rose-500" />}
+          label="Listings saved"
+          value={user.listingsSaved}
+          max={5}
+        />
+        <EngagementRow
+          icon={<MessageCircle className="w-3.5 h-3.5 text-coral-500" />}
+          label="Connections sent"
+          value={user.connectionsSent}
+          max={3}
+        />
       </div>
+
+      {/* Buyer Profile - only for logged-in users */}
+      {!user.isAnonymous && (
+        <div className="p-4 space-y-2">
+          <SectionLabel>Buyer Profile</SectionLabel>
+          
+          {/* Buyer Type Badge */}
+          {buyerConfig && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Buyer type</span>
+              <span className={cn(
+                "text-xs font-medium px-2 py-0.5 rounded-full",
+                buyerConfig.className
+              )}>
+                {buyerConfig.label}
+              </span>
+            </div>
+          )}
+          
+          {/* NDA Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">NDA</span>
+            <StatusBadge signed={user.ndaSigned} />
+          </div>
+          
+          {/* Fee Agreement Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Fee Agreement</span>
+            <StatusBadge signed={user.feeAgreementSigned} />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium">
+      {children}
+    </span>
   );
 }
 
@@ -177,6 +224,52 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="text-xs text-foreground">{value}</span>
     </div>
+  );
+}
+
+function EngagementRow({ 
+  icon, 
+  label, 
+  value, 
+  max = 10 
+}: { 
+  icon: React.ReactNode;
+  label: string; 
+  value: number; 
+  max?: number;
+}) {
+  const percent = Math.min((value / max) * 100, 100);
+  
+  return (
+    <div className="flex items-center gap-2">
+      {icon}
+      <span className="text-xs text-muted-foreground flex-1">{label}</span>
+      <div className="flex items-center gap-2">
+        <div className="w-16 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-coral-400 to-coral-500 rounded-full transition-all"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <span className="text-xs font-semibold text-foreground tabular-nums w-4 text-right">
+          {value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ signed }: { signed: boolean }) {
+  return signed ? (
+    <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+      <FileCheck className="w-3.5 h-3.5" />
+      <span>Signed</span>
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+      <FileText className="w-3.5 h-3.5" />
+      <span>Pending</span>
+    </span>
   );
 }
 
