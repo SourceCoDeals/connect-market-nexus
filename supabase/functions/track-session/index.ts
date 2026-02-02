@@ -159,7 +159,8 @@ Deno.serve(async (req) => {
         last_active_at: new Date().toISOString(),
         session_duration_seconds: initialDuration,
         // Cross-domain tracking: capture original referrer from blog
-        original_external_referrer: body.original_referrer || null,
+        // Support both full URL (original_referrer) and hostname-only (original_referrer_host) for privacy-safe tracking
+        original_external_referrer: body.original_referrer || body.original_referrer_host || null,
         blog_landing_page: body.blog_landing || null,
       }, {
         onConflict: 'session_id',
