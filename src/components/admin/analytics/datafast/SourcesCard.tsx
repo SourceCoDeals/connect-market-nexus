@@ -23,8 +23,6 @@ interface SourcesCardProps {
   referrers: Array<{ domain: string; visitors: number; signups: number; connections: number; favicon: string }>;
   campaigns: Array<{ name: string; visitors: number; signups: number; connections: number }>;
   keywords: Array<{ term: string; visitors: number; signups: number; connections: number }>;
-  // NEW: Self-reported sources from profiles
-  selfReportedSources?: Array<{ source: string; signups: number; connections: number; keywords: string[] }>;
 }
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -84,12 +82,12 @@ function getSourceColor(source: string): string {
   return 'hsl(220 15% 60%)';
 }
 
-export function SourcesCard({ channels, referrers, campaigns, keywords, selfReportedSources = [] }: SourcesCardProps) {
+export function SourcesCard({ channels, referrers, campaigns, keywords }: Omit<SourcesCardProps, 'selfReportedSources'>) {
   const [sortBy, setSortBy] = useState<SortValue>('visitors');
   
+  // REMOVED: "Source" tab per user request - no self-reported data, only tracked data
   const tabs = [
     { id: 'channel', label: 'Channel' },
-    { id: 'source', label: 'Source' }, // NEW: Self-reported sources
     { id: 'referrer', label: 'Referrer' },
     { id: 'campaign', label: 'Campaign' },
     { id: 'keyword', label: 'Keyword' },
@@ -107,11 +105,6 @@ export function SourcesCard({ channels, referrers, campaigns, keywords, selfRepo
   const sortedReferrers = [...referrers].sort((a, b) => getSortValue(b) - getSortValue(a));
   const sortedCampaigns = [...campaigns].sort((a, b) => getSortValue(b) - getSortValue(a));
   const sortedKeywords = [...keywords].sort((a, b) => getSortValue(b) - getSortValue(a));
-  const sortedSources = [...selfReportedSources].sort((a, b) => {
-    if (sortBy === 'visitors') return 0; // No visitor data for self-reported
-    if (sortBy === 'signups') return b.signups - a.signups;
-    return b.connections - a.connections;
-  });
   
   const totalVisitors = channels.reduce((sum, c) => sum + c.visitors, 0);
   const totalSignups = channels.reduce((sum, c) => sum + (c.signups || 0), 0);
@@ -126,7 +119,6 @@ export function SourcesCard({ channels, referrers, campaigns, keywords, selfRepo
   const maxReferrerValue = Math.max(...referrers.map(r => getSortValue(r)), 1);
   const maxCampaignValue = Math.max(...campaigns.map(c => getSortValue(c)), 1);
   const maxKeywordValue = Math.max(...keywords.map(k => getSortValue(k)), 1);
-  const maxSourceSignups = Math.max(...selfReportedSources.map(s => s.signups), 1);
 
   return (
     <AnalyticsCard
@@ -204,68 +196,6 @@ export function SourcesCard({ channels, referrers, campaigns, keywords, selfRepo
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {/* NEW: Self-Reported Sources Tab */}
-          {activeTab === 'source' && (
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
-                <UserPlus className="h-3 w-3" />
-                <span>How users say they found you (self-reported)</span>
-              </div>
-              {sortedSources.length > 0 ? (
-                sortedSources.slice(0, 8).map((src) => (
-                  <AnalyticsTooltip
-                    key={src.source}
-                    title={src.source}
-                    rows={[
-                      { label: 'Signups', value: src.signups },
-                      { label: 'Connections', value: src.connections },
-                      { label: 'Conv. Rate', value: `${src.signups > 0 ? ((src.connections / src.signups) * 100).toFixed(1) : 0}%`, highlight: true },
-                      ...(src.keywords.length > 0 ? [{ label: 'Keywords', value: src.keywords.slice(0, 3).join(', ') }] : []),
-                    ]}
-                  >
-                    <ProportionalBar 
-                      value={src.signups} 
-                      maxValue={maxSourceSignups}
-                      secondaryValue={src.connections}
-                      secondaryMaxValue={Math.max(...selfReportedSources.map(s => s.connections), 1)}
-                    >
-                      <div className="flex items-center justify-between cursor-pointer group">
-                        <div className="flex items-center gap-2.5">
-                          <div 
-                            className="w-6 h-6 rounded-md flex items-center justify-center text-white"
-                            style={{ backgroundColor: getSourceColor(src.source) }}
-                          >
-                            {getSourceIcon(src.source)}
-                          </div>
-                          <span className="text-sm font-medium capitalize">{src.source}</span>
-                          {src.keywords.length > 0 && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-                              "{src.keywords[0]}"
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {src.connections > 0 && (
-                            <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
-                              {src.connections} conv
-                            </span>
-                          )}
-                          <span className="text-sm font-medium tabular-nums w-10 text-right">
-                            {src.signups}
-                          </span>
-                        </div>
-                      </div>
-                    </ProportionalBar>
-                  </AnalyticsTooltip>
-                ))
-              ) : (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                  No self-reported source data yet
-                </div>
-              )}
             </div>
           )}
           

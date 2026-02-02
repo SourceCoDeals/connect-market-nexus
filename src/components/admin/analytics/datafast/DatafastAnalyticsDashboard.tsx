@@ -135,7 +135,6 @@ export function DatafastAnalyticsDashboard() {
               referrers={data.referrers}
               campaigns={data.campaigns}
               keywords={data.keywords}
-              selfReportedSources={data.selfReportedSources}
             />
             <GeographyCard 
               countries={data.countries}
