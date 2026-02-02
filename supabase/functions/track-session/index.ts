@@ -99,6 +99,35 @@ function getClientIP(req: Request): string {
   return '127.0.0.1';
 }
 
+// Detect if this session is from production or dev/preview environment
+function isProductionRequest(req: Request, body: SessionData): boolean {
+  const origin = req.headers.get('origin') || '';
+  const referer = req.headers.get('referer') || '';
+  const referrer = body.referrer || '';
+  
+  const devPatterns = [
+    'lovable.dev',
+    'lovableproject.com',
+    'preview--',
+    'localhost',
+    '127.0.0.1',
+  ];
+  
+  // Check origin, referer header, and session referrer
+  const urlsToCheck = [origin, referer, referrer];
+  
+  for (const url of urlsToCheck) {
+    if (url) {
+      const lowerUrl = url.toLowerCase();
+      if (devPatterns.some(pattern => lowerUrl.includes(pattern))) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -111,10 +140,12 @@ Deno.serve(async (req) => {
 
     const body: SessionData = await req.json();
     const clientIP = getClientIP(req);
+    const isProduction = isProductionRequest(req, body);
     
     console.log('Track session request:', {
       session_id: body.session_id,
       client_ip: clientIP,
+      is_production: isProduction,
       user_agent: body.user_agent?.substring(0, 50) + '...',
     });
 
@@ -162,6 +193,8 @@ Deno.serve(async (req) => {
         // Support both full URL (original_referrer) and hostname-only (original_referrer_host) for privacy-safe tracking
         original_external_referrer: body.original_referrer || body.original_referrer_host || null,
         blog_landing_page: body.blog_landing || null,
+        // Production vs dev/preview flagging
+        is_production: isProduction,
       }, {
         onConflict: 'session_id',
         ignoreDuplicates: false,

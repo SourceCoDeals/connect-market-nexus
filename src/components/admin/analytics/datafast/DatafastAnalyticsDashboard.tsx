@@ -140,6 +140,7 @@ export function DatafastAnalyticsDashboard() {
               countries={data.countries}
               regions={data.regions}
               cities={data.cities}
+              geoCoverage={data.geoCoverage}
             />
           </div>
           

@@ -35,6 +35,7 @@ export interface UnifiedAnalyticsData {
   countries: Array<{ name: string; code: string; visitors: number; sessions: number; signups: number; connections: number }>;
   regions: Array<{ name: string; country: string; visitors: number; sessions: number; signups: number; connections: number }>;
   cities: Array<{ name: string; country: string; visitors: number; sessions: number; signups: number; connections: number }>;
+  geoCoverage: number; // Percentage of sessions with geo data
   
   // NEW: Self-reported sources from profiles
   selfReportedSources: Array<{ source: string; signups: number; connections: number; keywords: string[] }>;
@@ -818,9 +819,15 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         .sort((a, b) => b.visitors - a.visitors)
         .slice(0, 10);
       
-      // Pages breakdown - FILTER by production sessions only
-      const productionSessionIds = new Set(uniqueSessions.map(s => s.session_id));
-      const filteredPageViews = pageViews.filter(pv => productionSessionIds.has(pv.session_id));
+      // Calculate geo coverage - percentage of sessions with country data
+      const sessionsWithGeo = uniqueSessions.filter(s => s.country && s.country !== 'Unknown').length;
+      const geoCoverage = uniqueSessions.length > 0 
+        ? Math.round((sessionsWithGeo / uniqueSessions.length) * 100) 
+        : 0;
+      
+      // Pages breakdown - use all page views (they are already real tracked data)
+      // Previous session-matching filter was too aggressive and hid valid data
+      const filteredPageViews = pageViews;
       
       const pageCounts: Record<string, { visitors: number; views: number }> = {};
       const entryPageCounts: Record<string, { visitors: number; bounces: number }> = {};
@@ -1111,6 +1118,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         countries,
         regions,
         cities,
+        geoCoverage,
         topPages,
         entryPages,
         exitPages,

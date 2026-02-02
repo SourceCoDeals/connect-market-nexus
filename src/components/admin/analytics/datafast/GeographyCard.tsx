@@ -11,6 +11,7 @@ interface GeographyCardProps {
   countries: Array<{ name: string; code: string; visitors: number; signups: number; connections: number }>;
   regions: Array<{ name: string; country: string; visitors: number; signups: number; connections: number }>;
   cities: Array<{ name: string; country: string; visitors: number; signups: number; connections: number }>;
+  geoCoverage?: number; // Percentage of sessions with geo data
 }
 
 // Map of country names to ISO codes for flag lookup
@@ -50,7 +51,7 @@ function getFlag(country: string): string {
   return COUNTRY_FLAGS[country] || '🌍';
 }
 
-export function GeographyCard({ countries, regions, cities }: GeographyCardProps) {
+export function GeographyCard({ countries, regions, cities, geoCoverage }: GeographyCardProps) {
   const [sortBy, setSortBy] = useState<SortValue>('visitors');
   
   const tabs = [
@@ -59,6 +60,9 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
     { id: 'region', label: 'Region' },
     { id: 'city', label: 'City' },
   ];
+
+  // Show coverage indicator if less than 80% of sessions have geo data
+  const showCoverageWarning = geoCoverage !== undefined && geoCoverage < 80;
 
   // Get sort value for any item
   const getSortValue = (item: { visitors?: number; signups?: number; connections?: number }) => {
@@ -103,7 +107,16 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
     <AnalyticsCard
       tabs={tabs}
       defaultTab="country"
-      rightAction={<SortToggle value={sortBy} onChange={setSortBy} />}
+      rightAction={
+        <div className="flex items-center gap-3">
+          {showCoverageWarning && (
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {geoCoverage}% coverage
+            </span>
+          )}
+          <SortToggle value={sortBy} onChange={setSortBy} />
+        </div>
+      }
     >
       {(activeTab) => (
         <div>
