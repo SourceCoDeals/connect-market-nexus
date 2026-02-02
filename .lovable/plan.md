@@ -1,8 +1,10 @@
 
 # Plan: Global Filter System for Intelligence Center
 
+## Status: ✅ IMPLEMENTED
+
 ## Overview
-Implement a datafast.st-style global filtering system that allows clicking any dimension (channel, referrer, country, page, etc.) to filter the entire dashboard. A filter chip appears at the top, and all cards re-calculate their data showing only the filtered subset (e.g., "Signups from Google", "Users from LinkedIn", "Visitors who viewed /marketplace").
+Implemented a datafast.st-style global filtering system that allows clicking any dimension (channel, referrer, country, page, etc.) to filter the entire dashboard. A filter chip appears at the top, and all cards re-calculate their data showing only the filtered subset (e.g., "Signups from Google", "Users from LinkedIn", "Visitors who viewed /marketplace").
 
 ---
 

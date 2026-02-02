@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUnifiedAnalytics } from "@/hooks/useUnifiedAnalytics";
+import { AnalyticsFiltersProvider, useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
 import { KPIStrip } from "./KPIStrip";
 import { DailyVisitorsChart } from "./DailyVisitorsChart";
 import { SourcesCard } from "./SourcesCard";
@@ -15,12 +16,22 @@ import { PagesCard } from "./PagesCard";
 import { TechStackCard } from "./TechStackCard";
 import { ConversionCard } from "./ConversionCard";
 import { FloatingGlobeToggle } from "./FloatingGlobeToggle";
+import { FilterChips } from "./FilterChips";
 import { cn } from "@/lib/utils";
 
 export function DatafastAnalyticsDashboard() {
+  return (
+    <AnalyticsFiltersProvider>
+      <DashboardContent />
+    </AnalyticsFiltersProvider>
+  );
+}
+
+function DashboardContent() {
   const [timeRange, setTimeRange] = useState("30");
   const [customDateRange, setCustomDateRange] = useState<{ from: Date; to: Date } | null>(null);
   const [isCustomMode, setIsCustomMode] = useState(false);
+  const { filters } = useAnalyticsFilters();
   
   const handleTimeRangeChange = (value: string) => {
     if (value === "custom") {
@@ -36,7 +47,7 @@ export function DatafastAnalyticsDashboard() {
     ? Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
     : parseInt(timeRange);
 
-  const { data, isLoading, refetch, isRefetching } = useUnifiedAnalytics(timeRangeDays);
+  const { data, isLoading, refetch, isRefetching } = useUnifiedAnalytics(timeRangeDays, filters);
 
   return (
     <div className="space-y-6 pb-24">
@@ -117,6 +128,9 @@ export function DatafastAnalyticsDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Filter Chips */}
+      <FilterChips />
 
       {isLoading ? (
         <LoadingSkeleton />

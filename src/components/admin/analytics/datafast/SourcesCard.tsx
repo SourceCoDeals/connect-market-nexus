@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AnalyticsCard, SortToggle, SortValue } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
@@ -11,12 +11,12 @@ import {
   CreditCard, 
   Mail,
   ExternalLink,
-  UserPlus,
-  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
 import { ReferrerLogo, formatReferrerName } from "./ReferrerLogo";
+import { useAnalyticsFilters, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import { FilterModal } from "./FilterModal";
 
 interface SourcesCardProps {
   channels: Array<{ name: string; visitors: number; signups: number; connections: number; icon: string }>;
@@ -45,47 +45,12 @@ const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   'Newsletter': <Mail className="h-3.5 w-3.5" />,
 };
 
-// Icons for self-reported sources
-const SOURCE_ICONS: Record<string, React.ReactNode> = {
-  'google': <Search className="h-3.5 w-3.5" />,
-  'linkedin': <Users className="h-3.5 w-3.5" />,
-  'friend': <UserPlus className="h-3.5 w-3.5" />,
-  'ai': <Sparkles className="h-3.5 w-3.5" />,
-  'chatgpt': <Sparkles className="h-3.5 w-3.5" />,
-  'newsletter': <Mail className="h-3.5 w-3.5" />,
-  'other': <MessageSquare className="h-3.5 w-3.5" />,
-};
-
-const SOURCE_COLORS: Record<string, string> = {
-  'google': 'hsl(145 60% 45%)',
-  'linkedin': 'hsl(200 70% 55%)',
-  'friend': 'hsl(35 90% 55%)',
-  'ai': 'hsl(280 70% 55%)',
-  'chatgpt': 'hsl(280 70% 55%)',
-  'newsletter': 'hsl(340 75% 55%)',
-  'other': 'hsl(220 15% 60%)',
-};
-
-function getSourceIcon(source: string): React.ReactNode {
-  const lower = source.toLowerCase();
-  for (const [key, icon] of Object.entries(SOURCE_ICONS)) {
-    if (lower.includes(key)) return icon;
-  }
-  return <Globe className="h-3.5 w-3.5" />;
-}
-
-function getSourceColor(source: string): string {
-  const lower = source.toLowerCase();
-  for (const [key, color] of Object.entries(SOURCE_COLORS)) {
-    if (lower.includes(key)) return color;
-  }
-  return 'hsl(220 15% 60%)';
-}
-
-export function SourcesCard({ channels, referrers, campaigns, keywords }: Omit<SourcesCardProps, 'selfReportedSources'>) {
+export function SourcesCard({ channels, referrers, campaigns, keywords }: SourcesCardProps) {
   const [sortBy, setSortBy] = useState<SortValue>('visitors');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState<string>('');
+  const { addFilter, hasFilter } = useAnalyticsFilters();
   
-  // REMOVED: "Source" tab per user request - no self-reported data, only tracked data
   const tabs = [
     { id: 'channel', label: 'Channel' },
     { id: 'referrer', label: 'Referrer' },
@@ -93,14 +58,12 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Omit<S
     { id: 'keyword', label: 'Keyword' },
   ];
 
-  // Get sort value for any item
   const getSortValue = (item: { visitors?: number; signups?: number; connections?: number }) => {
     if (sortBy === 'visitors') return item.visitors || 0;
     if (sortBy === 'signups') return item.signups || 0;
     return item.connections || 0;
   };
 
-  // Sort all data by sortBy
   const sortedChannels = [...channels].sort((a, b) => getSortValue(b) - getSortValue(a));
   const sortedReferrers = [...referrers].sort((a, b) => getSortValue(b) - getSortValue(a));
   const sortedCampaigns = [...campaigns].sort((a, b) => getSortValue(b) - getSortValue(a));
@@ -120,211 +83,323 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Omit<S
   const maxCampaignValue = Math.max(...campaigns.map(c => getSortValue(c)), 1);
   const maxKeywordValue = Math.max(...keywords.map(k => getSortValue(k)), 1);
 
+  const handleRowClick = (filter: AnalyticsFilter) => {
+    if (!hasFilter(filter.type, filter.value)) {
+      addFilter(filter);
+    }
+  };
+
+  const handleDetailsClick = (activeTab: string) => {
+    setModalTab(activeTab);
+    setModalOpen(true);
+  };
+
+  // Modal items based on active tab
+  const getModalItems = () => {
+    switch (modalTab) {
+      case 'channel':
+        return channels.map(c => ({
+          id: c.name,
+          label: c.name,
+          visitors: c.visitors,
+          signups: c.signups,
+          connections: c.connections,
+        }));
+      case 'referrer':
+        return referrers.map(r => ({
+          id: r.domain,
+          label: formatReferrerName(r.domain),
+          visitors: r.visitors,
+          signups: r.signups,
+          connections: r.connections,
+          icon: r.favicon,
+        }));
+      case 'campaign':
+        return campaigns.map(c => ({
+          id: c.name,
+          label: c.name,
+          visitors: c.visitors,
+          signups: c.signups,
+          connections: c.connections,
+        }));
+      case 'keyword':
+        return keywords.map(k => ({
+          id: k.term,
+          label: k.term,
+          visitors: k.visitors,
+          signups: k.signups,
+          connections: k.connections,
+        }));
+      default:
+        return [];
+    }
+  };
+
+  const getFilterType = (): 'channel' | 'referrer' | 'campaign' | 'keyword' => {
+    return modalTab as 'channel' | 'referrer' | 'campaign' | 'keyword';
+  };
+
+  const getModalTitle = () => {
+    switch (modalTab) {
+      case 'channel': return 'Channels';
+      case 'referrer': return 'Referrers';
+      case 'campaign': return 'Campaigns';
+      case 'keyword': return 'Keywords';
+      default: return 'Details';
+    }
+  };
+
   return (
-    <AnalyticsCard
-      tabs={tabs}
-      defaultTab="channel"
-      rightAction={<SortToggle value={sortBy} onChange={setSortBy} />}
-    >
-      {(activeTab) => (
-        <div className="space-y-4">
-          {activeTab === 'channel' && (
-            <div className="flex gap-6">
-              {/* Donut Chart */}
-              <div className="w-32 h-32 flex-shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={sortedChannels}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={55}
-                      dataKey={sortBy === 'signups' ? 'signups' : sortBy}
-                      paddingAngle={2}
-                    >
-                      {sortedChannels.map((entry, index) => (
-                        <Cell 
-                          key={entry.name} 
-                          fill={CHANNEL_COLORS[entry.name] || 'hsl(220 15% 60%)'} 
-                        />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
+    <>
+      <AnalyticsCard
+        tabs={tabs}
+        defaultTab="channel"
+        rightAction={<SortToggle value={sortBy} onChange={setSortBy} />}
+        onDetailsClick={handleDetailsClick}
+      >
+        {(activeTab) => (
+          <div className="space-y-4">
+            {activeTab === 'channel' && (
+              <div className="flex gap-6">
+                {/* Donut Chart */}
+                <div className="w-32 h-32 flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={sortedChannels}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={55}
+                        dataKey={sortBy === 'signups' ? 'signups' : sortBy}
+                        paddingAngle={2}
+                      >
+                        {sortedChannels.map((entry) => (
+                          <Cell 
+                            key={entry.name} 
+                            fill={CHANNEL_COLORS[entry.name] || 'hsl(220 15% 60%)'} 
+                          />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Legend List */}
+                <div className="flex-1 space-y-1">
+                  {sortedChannels.slice(0, 6).map((channel) => {
+                    const total = getTotal();
+                    const value = getSortValue(channel);
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
+                    const isActive = hasFilter('channel', channel.name);
+                    
+                    return (
+                      <AnalyticsTooltip
+                        key={channel.name}
+                        title={channel.name}
+                        rows={[
+                          { label: 'Visitors', value: channel.visitors.toLocaleString() },
+                          { label: 'Signups', value: channel.signups || 0 },
+                          { label: 'Connections', value: channel.connections },
+                          { label: 'Conv. Rate', value: `${channel.visitors > 0 ? ((channel.connections / channel.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
+                        ]}
+                      >
+                        <div 
+                          onClick={() => handleRowClick({ type: 'channel', value: channel.name, label: channel.name })}
+                          className={cn(
+                            "flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors group",
+                            isActive && "opacity-50"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2.5 h-2.5 rounded-full"
+                              style={{ backgroundColor: CHANNEL_COLORS[channel.name] || 'hsl(220 15% 60%)' }}
+                            />
+                            <span className="text-muted-foreground">
+                              {CHANNEL_ICONS[channel.name]}
+                            </span>
+                            <span className="text-sm">{channel.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm tabular-nums text-muted-foreground">
+                              {percentage}%
+                            </span>
+                            <span className="text-sm font-medium tabular-nums w-12 text-right">
+                              {value.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </AnalyticsTooltip>
+                    );
+                  })}
+                </div>
               </div>
-              
-              {/* Legend List */}
-              <div className="flex-1 space-y-1">
-                {sortedChannels.slice(0, 6).map((channel) => {
-                  const total = getTotal();
-                  const value = getSortValue(channel);
-                  const percentage = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
-                  
+            )}
+            
+            {activeTab === 'referrer' && (
+              <div className="space-y-1">
+                {sortedReferrers.slice(0, 8).map((ref) => {
+                  const isActive = hasFilter('referrer', ref.domain);
                   return (
                     <AnalyticsTooltip
-                      key={channel.name}
-                      title={channel.name}
+                      key={ref.domain}
+                      title={formatReferrerName(ref.domain)}
                       rows={[
-                        { label: 'Visitors', value: channel.visitors.toLocaleString() },
-                        { label: 'Signups', value: channel.signups || 0 },
-                        { label: 'Connections', value: channel.connections },
-                        { label: 'Conv. Rate', value: `${channel.visitors > 0 ? ((channel.connections / channel.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
+                        { label: 'Visitors', value: ref.visitors.toLocaleString() },
+                        { label: 'Signups', value: ref.signups || 0 },
+                        { label: 'Connections', value: ref.connections },
+                        { label: 'Conv. Rate', value: `${ref.visitors > 0 ? ((ref.connections / ref.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                       ]}
                     >
-                      <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{ backgroundColor: CHANNEL_COLORS[channel.name] || 'hsl(220 15% 60%)' }}
-                          />
-                          <span className="text-muted-foreground">
-                            {CHANNEL_ICONS[channel.name]}
-                          </span>
-                          <span className="text-sm">{channel.name}</span>
+                      <ProportionalBar 
+                        value={getSortValue(ref)} 
+                        maxValue={maxReferrerValue}
+                        secondaryValue={ref.connections}
+                        secondaryMaxValue={Math.max(...referrers.map(r => r.connections), 1)}
+                      >
+                        <div 
+                          onClick={() => handleRowClick({ type: 'referrer', value: ref.domain, label: formatReferrerName(ref.domain) })}
+                          className={cn(
+                            "flex items-center justify-between cursor-pointer group",
+                            isActive && "opacity-50"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <ReferrerLogo domain={ref.domain} className="w-4 h-4" />
+                            <span className="text-sm font-medium truncate max-w-[180px]">
+                              {formatReferrerName(ref.domain)}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {ref.connections > 0 && (
+                              <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                                {ref.connections} conv
+                              </span>
+                            )}
+                            <span className="text-sm font-medium tabular-nums w-10 text-right">
+                              {getSortValue(ref).toLocaleString()}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm tabular-nums text-muted-foreground">
-                            {percentage}%
-                          </span>
-                          <span className="text-sm font-medium tabular-nums w-12 text-right">
-                            {value.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
+                      </ProportionalBar>
                     </AnalyticsTooltip>
                   );
                 })}
+                {referrers.length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-4">No referrer data</div>
+                )}
               </div>
-            </div>
-          )}
-          
-          {activeTab === 'referrer' && (
-            <div className="space-y-1">
-              {sortedReferrers.slice(0, 8).map((ref) => (
-                <AnalyticsTooltip
-                  key={ref.domain}
-                  title={formatReferrerName(ref.domain)}
-                  rows={[
-                    { label: 'Visitors', value: ref.visitors.toLocaleString() },
-                    { label: 'Signups', value: ref.signups || 0 },
-                    { label: 'Connections', value: ref.connections },
-                    { label: 'Conv. Rate', value: `${ref.visitors > 0 ? ((ref.connections / ref.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
-                  ]}
-                >
-                  <ProportionalBar 
-                    value={getSortValue(ref)} 
-                    maxValue={maxReferrerValue}
-                    secondaryValue={ref.connections}
-                    secondaryMaxValue={Math.max(...referrers.map(r => r.connections), 1)}
-                  >
-                    <div className="flex items-center justify-between cursor-pointer group">
-                      <div className="flex items-center gap-2.5">
-                        <ReferrerLogo domain={ref.domain} className="w-4 h-4" />
-                        <span className="text-sm font-medium truncate max-w-[180px]">
-                          {formatReferrerName(ref.domain)}
-                        </span>
-                        <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {ref.connections > 0 && (
-                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
-                            {ref.connections} conv
-                          </span>
-                        )}
-                        <span className="text-sm font-medium tabular-nums w-10 text-right">
-                          {getSortValue(ref).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </ProportionalBar>
-                </AnalyticsTooltip>
-              ))}
-              {referrers.length === 0 && (
-                <div className="text-sm text-muted-foreground text-center py-4">No referrer data</div>
-              )}
-            </div>
-          )}
-          
-          {activeTab === 'campaign' && (
-            <div className="space-y-1">
-              {sortedCampaigns.slice(0, 8).map((campaign) => (
-                <AnalyticsTooltip
-                  key={campaign.name}
-                  title={campaign.name}
-                  rows={[
-                    { label: 'Visitors', value: campaign.visitors.toLocaleString() },
-                    { label: 'Signups', value: campaign.signups || 0 },
-                    { label: 'Connections', value: campaign.connections },
-                    { label: 'Conv. Rate', value: `${campaign.visitors > 0 ? ((campaign.connections / campaign.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
-                  ]}
-                >
-                  <ProportionalBar 
-                    value={getSortValue(campaign)} 
-                    maxValue={maxCampaignValue}
-                  >
-                    <div className="flex items-center justify-between cursor-pointer">
-                      <span className="text-sm font-medium truncate max-w-[200px]">{campaign.name}</span>
-                      <div className="flex items-center gap-3">
-                        {campaign.connections > 0 && (
-                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
-                            {campaign.connections} conv
-                          </span>
-                        )}
-                        <span className="text-sm font-medium tabular-nums">
-                          {getSortValue(campaign).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </ProportionalBar>
-                </AnalyticsTooltip>
-              ))}
-              {campaigns.length === 0 && (
-                <div className="text-sm text-muted-foreground text-center py-4">No campaign data</div>
-              )}
-            </div>
-          )}
-          
-          {activeTab === 'keyword' && (
-            <div className="space-y-1">
-              {sortedKeywords.slice(0, 8).map((kw) => (
-                <AnalyticsTooltip
-                  key={kw.term}
-                  title={kw.term}
-                  rows={[
-                    { label: 'Visitors', value: kw.visitors.toLocaleString() },
-                    { label: 'Signups', value: kw.signups || 0 },
-                    { label: 'Connections', value: kw.connections },
-                    { label: 'Conv. Rate', value: `${kw.visitors > 0 ? ((kw.connections / kw.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
-                  ]}
-                >
-                  <ProportionalBar 
-                    value={getSortValue(kw)} 
-                    maxValue={maxKeywordValue}
-                  >
-                    <div className="flex items-center justify-between cursor-pointer">
-                      <span className="text-sm font-medium truncate max-w-[200px]">{kw.term}</span>
-                      <div className="flex items-center gap-3">
-                        {kw.connections > 0 && (
-                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
-                            {kw.connections} conv
-                          </span>
-                        )}
-                        <span className="text-sm font-medium tabular-nums">
-                          {getSortValue(kw).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </ProportionalBar>
-                </AnalyticsTooltip>
-              ))}
-              {keywords.length === 0 && (
-                <div className="text-sm text-muted-foreground text-center py-4">No keyword data</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </AnalyticsCard>
+            )}
+            
+            {activeTab === 'campaign' && (
+              <div className="space-y-1">
+                {sortedCampaigns.slice(0, 8).map((campaign) => {
+                  const isActive = hasFilter('campaign', campaign.name);
+                  return (
+                    <AnalyticsTooltip
+                      key={campaign.name}
+                      title={campaign.name}
+                      rows={[
+                        { label: 'Visitors', value: campaign.visitors.toLocaleString() },
+                        { label: 'Signups', value: campaign.signups || 0 },
+                        { label: 'Connections', value: campaign.connections },
+                        { label: 'Conv. Rate', value: `${campaign.visitors > 0 ? ((campaign.connections / campaign.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
+                      ]}
+                    >
+                      <ProportionalBar 
+                        value={getSortValue(campaign)} 
+                        maxValue={maxCampaignValue}
+                      >
+                        <div 
+                          onClick={() => handleRowClick({ type: 'campaign', value: campaign.name, label: campaign.name })}
+                          className={cn(
+                            "flex items-center justify-between cursor-pointer",
+                            isActive && "opacity-50"
+                          )}
+                        >
+                          <span className="text-sm font-medium truncate max-w-[200px]">{campaign.name}</span>
+                          <div className="flex items-center gap-3">
+                            {campaign.connections > 0 && (
+                              <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                                {campaign.connections} conv
+                              </span>
+                            )}
+                            <span className="text-sm font-medium tabular-nums">
+                              {getSortValue(campaign).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </ProportionalBar>
+                    </AnalyticsTooltip>
+                  );
+                })}
+                {campaigns.length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-4">No campaign data</div>
+                )}
+              </div>
+            )}
+            
+            {activeTab === 'keyword' && (
+              <div className="space-y-1">
+                {sortedKeywords.slice(0, 8).map((kw) => {
+                  const isActive = hasFilter('keyword', kw.term);
+                  return (
+                    <AnalyticsTooltip
+                      key={kw.term}
+                      title={kw.term}
+                      rows={[
+                        { label: 'Visitors', value: kw.visitors.toLocaleString() },
+                        { label: 'Signups', value: kw.signups || 0 },
+                        { label: 'Connections', value: kw.connections },
+                        { label: 'Conv. Rate', value: `${kw.visitors > 0 ? ((kw.connections / kw.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
+                      ]}
+                    >
+                      <ProportionalBar 
+                        value={getSortValue(kw)} 
+                        maxValue={maxKeywordValue}
+                      >
+                        <div 
+                          onClick={() => handleRowClick({ type: 'keyword', value: kw.term, label: kw.term })}
+                          className={cn(
+                            "flex items-center justify-between cursor-pointer",
+                            isActive && "opacity-50"
+                          )}
+                        >
+                          <span className="text-sm font-medium truncate max-w-[200px]">{kw.term}</span>
+                          <div className="flex items-center gap-3">
+                            {kw.connections > 0 && (
+                              <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                                {kw.connections} conv
+                              </span>
+                            )}
+                            <span className="text-sm font-medium tabular-nums">
+                              {getSortValue(kw).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </ProportionalBar>
+                    </AnalyticsTooltip>
+                  );
+                })}
+                {keywords.length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-4">No keyword data</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </AnalyticsCard>
+
+      <FilterModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={getModalTitle()}
+        filterType={getFilterType()}
+        items={getModalItems()}
+        sortBy={sortBy}
+      />
+    </>
   );
 }
