@@ -1,9 +1,10 @@
 import { cn } from '@/lib/utils';
-import { Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Monitor, Smartphone, Tablet, Lock, FileCheck, FileText, MessageCircle } from 'lucide-react';
+import type { BuyerBreakdown } from './MapboxGlobeMap';
 
 interface MapboxFloatingPanelProps {
   totalUsers: number;
-  totalEstimatedValue: number;
+  buyerBreakdown: BuyerBreakdown;
   referrerBreakdown: Record<string, number>;
   countryBreakdown: Record<string, { count: number; flag: string }>;
   deviceBreakdown: Record<string, number>;
@@ -15,13 +16,15 @@ const referrerIcons: Record<string, string> = {
   'Facebook': '📘',
   'LinkedIn': '💼',
   'X': '𝕏',
+  'X (Twitter)': '𝕏',
   'Direct': '🔗',
+  'Lovable': '💜',
   'Other': '🌐',
 };
 
 export function MapboxFloatingPanel({
   totalUsers,
-  totalEstimatedValue,
+  buyerBreakdown,
   referrerBreakdown,
   countryBreakdown,
   deviceBreakdown,
@@ -45,9 +48,6 @@ export function MapboxFloatingPanel({
         <span className="text-sm font-medium text-foreground">
           <span className="font-bold">{totalUsers}</span> visitor{totalUsers !== 1 ? 's' : ''} on{' '}
           <span className="font-semibold">marketplace</span>
-        </span>
-        <span className="text-sm text-emerald-600 dark:text-emerald-400 ml-auto font-medium">
-          (est. ${totalEstimatedValue.toFixed(0)})
         </span>
       </div>
 
@@ -89,6 +89,40 @@ export function MapboxFloatingPanel({
               <DeviceChip icon={<Tablet className="w-3 h-3" />} label="Tablet" count={deviceBreakdown.tablet} />
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Buyer Breakdown Section */}
+      <div className="mt-4 pt-4 border-t border-border/50">
+        <span className="text-muted-foreground text-xs uppercase tracking-wider mb-3 block">
+          Buyer Breakdown
+        </span>
+        <div className="space-y-2">
+          <BuyerMetricRow
+            icon={<Lock className="w-3.5 h-3.5" />}
+            label="Logged in"
+            value={buyerBreakdown.loggedInCount}
+            suffix={`(${buyerBreakdown.loggedInPercent}%)`}
+          />
+          <BuyerMetricRow
+            icon={<FileCheck className="w-3.5 h-3.5 text-emerald-500" />}
+            label="NDA Signed"
+            value={buyerBreakdown.ndaSignedCount}
+            highlight={buyerBreakdown.ndaSignedCount > 0}
+          />
+          <BuyerMetricRow
+            icon={<FileText className="w-3.5 h-3.5 text-blue-500" />}
+            label="Fee Agreement"
+            value={buyerBreakdown.feeAgreementCount}
+            highlight={buyerBreakdown.feeAgreementCount > 0}
+          />
+          <BuyerMetricRow
+            icon={<MessageCircle className="w-3.5 h-3.5 text-coral-500" />}
+            label="Connections"
+            value={buyerBreakdown.connectionsThisHour}
+            suffix="this hour"
+            highlight={buyerBreakdown.connectionsThisHour > 0}
+          />
         </div>
       </div>
     </div>
@@ -140,5 +174,35 @@ function DeviceChip({
       <span className="text-muted-foreground">{label}</span>
       <span className="font-semibold text-foreground">{count}</span>
     </button>
+  );
+}
+
+function BuyerMetricRow({
+  icon,
+  label,
+  value,
+  suffix,
+  highlight,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  suffix?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <span className="text-xs">{label}</span>
+      </div>
+      <div className={cn(
+        "text-xs font-medium",
+        highlight ? "text-foreground" : "text-muted-foreground"
+      )}>
+        <span className={cn(highlight && "font-bold")}>{value}</span>
+        {suffix && <span className="ml-1 text-muted-foreground font-normal">{suffix}</span>}
+      </div>
+    </div>
   );
 }

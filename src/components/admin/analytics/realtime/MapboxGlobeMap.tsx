@@ -22,43 +22,13 @@ function getAvatarUrl(user: EnhancedActiveUser): string {
   return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 }
 
-// Calculate conversion likelihood
-function calculateConversionLikelihood(user: EnhancedActiveUser): number {
-  let score = 30; // Base score for anonymous visitors
-  
-  if (!user.isAnonymous) score += 15;
-  if (user.ndaSigned) score += 20;
-  if (user.feeAgreementSigned) score += 15;
-  if (user.listingsSaved > 0) score += 10;
-  if (user.connectionsSent > 0) score += 20;
-  if (user.sessionDurationSeconds > 300) score += 10;
-  if (user.totalVisits > 1) score += 5;
-  if (user.listingsViewed > 3) score += 5;
-  
-  if (user.isAnonymous && user.sessionDurationSeconds < 30) score -= 15;
-  
-  return Math.min(100, Math.max(0, score));
-}
-
-// Calculate estimated visitor value
-function calculateEstimatedValue(user: EnhancedActiveUser): number {
-  const baseValue: Record<string, number> = {
-    'privateEquity': 50,
-    'familyOffice': 40,
-    'corporate': 35,
-    'searchFund': 25,
-    'independentSponsor': 30,
-    'individual': 15,
-  };
-  
-  let value = baseValue[user.buyerType || ''] || 5;
-  
-  if (user.connectionsSent > 0) value *= 3;
-  if (user.listingsSaved > 0) value *= 1.5;
-  if (user.ndaSigned) value *= 2;
-  if (!user.isAnonymous) value *= 1.5;
-  
-  return Math.round(value * 100) / 100;
+// Calculate buyer breakdown for the floating panel
+export interface BuyerBreakdown {
+  loggedInCount: number;
+  loggedInPercent: number;
+  ndaSignedCount: number;
+  feeAgreementCount: number;
+  connectionsThisHour: number;
 }
 
 export function MapboxGlobeMap({ 
@@ -108,8 +78,16 @@ export function MapboxGlobeMap({
     fetchToken();
   }, []);
 
-  // Calculate aggregated stats
-  const totalEstimatedValue = users.reduce((sum, user) => sum + calculateEstimatedValue(user), 0);
+  // Calculate buyer breakdown (real M&A data)
+  const buyerBreakdown: BuyerBreakdown = {
+    loggedInCount: users.filter(u => !u.isAnonymous).length,
+    loggedInPercent: users.length > 0 
+      ? Math.round((users.filter(u => !u.isAnonymous).length / users.length) * 100) 
+      : 0,
+    ndaSignedCount: users.filter(u => u.ndaSigned).length,
+    feeAgreementCount: users.filter(u => u.feeAgreementSigned).length,
+    connectionsThisHour: users.reduce((sum, u) => sum + u.connectionsSent, 0),
+  };
   
   const referrerBreakdown = users.reduce((acc, user) => {
     const source = user.referrer || user.utmSource || 'Direct';
@@ -238,8 +216,8 @@ export function MapboxGlobeMap({
       const el = document.createElement('div');
       el.className = 'mapbox-user-marker';
       
-      const conversionLikelihood = calculateConversionLikelihood(user);
-      const isHighValue = conversionLikelihood > 60;
+      // High value = logged in with NDA or active engagement
+      const isHighValue = !user.isAnonymous && (user.ndaSigned || user.connectionsSent > 0 || user.listingsSaved > 0);
       
       el.innerHTML = `
         <div class="marker-container ${isHighValue ? 'high-value' : ''}">
@@ -346,7 +324,7 @@ export function MapboxGlobeMap({
       {/* Floating stats panel */}
       <MapboxFloatingPanel
         totalUsers={users.length}
-        totalEstimatedValue={totalEstimatedValue}
+        buyerBreakdown={buyerBreakdown}
         referrerBreakdown={referrerBreakdown}
         countryBreakdown={countryBreakdown}
         deviceBreakdown={deviceBreakdown}
@@ -366,8 +344,6 @@ export function MapboxGlobeMap({
         <MapboxTooltipCard
           user={selectedUser}
           position={tooltipPosition}
-          conversionLikelihood={calculateConversionLikelihood(selectedUser)}
-          estimatedValue={calculateEstimatedValue(selectedUser)}
           onClose={handleCloseTooltip}
         />
       )}
