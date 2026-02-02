@@ -280,8 +280,27 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const pageViews = pageViewsResult.data || [];
       const dailyMetrics = dailyMetricsResult.data || [];
       const activeSessions = activeSessionsResult.data || [];
-      const profiles = profilesResult.data || [];
+      const profiles = profilesResult.data || []; // Only NEW signups in time range
       const allConnectionsWithMilestones = allConnectionsWithMilestonesResult.data || [];
+      
+      // === CRITICAL FIX: Fetch profiles for ALL users who have sessions (for name display) ===
+      // This is separate from the signup count - we need profiles for any user_id in sessions
+      const allUserIdsFromSessions = new Set<string>();
+      rawSessions.forEach(s => {
+        if (s.user_id) allUserIdsFromSessions.add(s.user_id);
+      });
+      
+      let allProfilesForUsers: Array<{ id: string; first_name: string | null; last_name: string | null; company: string | null }> = [];
+      if (allUserIdsFromSessions.size > 0) {
+        const { data: allProfilesData } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, company')
+          .in('id', Array.from(allUserIdsFromSessions));
+        allProfilesForUsers = allProfilesData || [];
+      }
+      
+      // Build complete profile map for name resolution (ALL users with sessions)
+      const allProfilesMap = new Map(allProfilesForUsers.map(p => [p.id, p]));
       
       // === SIGNUP ATTRIBUTION: Map signups to their first session data ===
       // CRITICAL: Only profiles created in the time range should be counted as signups
@@ -1214,7 +1233,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         visitorSessionCounts.forEach((_, id) => allVisitorIds.add(id));
       }
       
-      const profileMap = new Map(profiles.map(p => [p.id, p]));
+      // Note: Use allProfilesMap (all users with sessions) for name resolution, not profileMap (only new signups)
       
       // Compute activity days from page views (last 7 days)
       const visitorPageViewsByDate = new Map<string, Map<string, number>>();
@@ -1239,8 +1258,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           
           // CRITICAL: Resolve user_id for profile lookup
           // If id is a visitor_id, check if it maps to a user_id
-          const resolvedUserId = visitorToUserId.get(id) || (profileMap.has(id) ? id : null);
-          const profile = resolvedUserId ? profileMap.get(resolvedUserId) : null;
+          const resolvedUserId = visitorToUserId.get(id) || (allProfilesMap.has(id) ? id : null);
+          const profile = resolvedUserId ? allProfilesMap.get(resolvedUserId) : null;
           
           // Only anonymous if no profile exists (meaning no user_id anywhere)
           const isAnonymous = !profile;

@@ -317,6 +317,42 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                           <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{data.source.utmMedium}</span>
                         </div>
                       )}
+                      
+                      {/* Full Visit History for all sessions */}
+                      {data.source.allSessions && data.source.allSessions.length > 0 && (
+                        <div className="pt-3 border-t mt-3">
+                          <span className="text-xs text-muted-foreground block mb-2">
+                            Visit History ({data.source.allSessions.length} {data.source.allSessions.length === 1 ? 'session' : 'sessions'})
+                          </span>
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {data.source.allSessions.map((session, i) => (
+                              <div key={i} className="text-xs bg-muted/30 p-2 rounded space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-muted-foreground">
+                                    {format(new Date(session.startedAt), 'MMM d, HH:mm')}
+                                  </span>
+                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0">{session.channel}</Badge>
+                                </div>
+                                {session.landingPage && (
+                                  <code className="block text-[10px] text-muted-foreground truncate">
+                                    → {session.landingPage}
+                                  </code>
+                                )}
+                                {session.referrer && (
+                                  <a 
+                                    href={session.referrer} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block text-[10px] text-blue-600 hover:underline truncate"
+                                  >
+                                    via {session.referrer}
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
