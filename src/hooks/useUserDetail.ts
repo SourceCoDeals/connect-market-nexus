@@ -37,6 +37,7 @@ export interface UserDetailData {
     device: string;
     os: string;
     browser: string;
+    resolution?: string;
   };
   stats: {
     totalPageviews: number;
@@ -46,6 +47,7 @@ export interface UserDetailData {
     lastSeen: string;
     timeToConvert?: number; // seconds
     connections: number;
+    convertedAt?: string;
   };
   events: UserEvent[];
   activityLast7Days: UserActivityDay[];
@@ -176,10 +178,12 @@ export function useUserDetail(userId: string | null) {
       
       // Time to convert (first session to first connection)
       let timeToConvert: number | undefined;
+      let convertedAt: string | undefined;
       if (connections.length > 0 && firstSession) {
         const firstConnectionDate = new Date(connections[0].created_at);
         const firstSessionDate = new Date(firstSession.started_at);
         timeToConvert = differenceInSeconds(firstConnectionDate, firstSessionDate);
+        convertedAt = connections[0].created_at;
       }
       
       // Build event timeline
@@ -255,6 +259,7 @@ export function useUserDetail(userId: string | null) {
           device: latestSession?.device_type || 'Desktop',
           os: latestSession?.os || 'Unknown',
           browser: latestSession?.browser || 'Unknown',
+          resolution: undefined, // Not tracked in current schema
         },
         stats: {
           totalPageviews,
@@ -264,6 +269,7 @@ export function useUserDetail(userId: string | null) {
           lastSeen,
           timeToConvert,
           connections: connections.length,
+          convertedAt,
         },
         events,
         activityLast7Days: last7Days,
