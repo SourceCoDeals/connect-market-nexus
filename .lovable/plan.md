@@ -1,259 +1,274 @@
 
-# Historical Data Backfill Strategy for Intelligence Center
+# Intelligence Center Data Accuracy Overhaul
 
-## Current State Analysis
+## Critical Issues Discovered
 
-### Data Availability (Good News!)
-Your database already contains substantial historical data:
+### Issue 1: "Visitors" Metric Actually Counts Sessions (NOT People)
 
-| Table | Records | Date Range |
-|-------|---------|------------|
-| user_sessions | 46,494 | Jul 21, 2025 → Feb 2, 2026 (7+ months) |
-| page_views | 49,528 | Jul 21, 2025 → Feb 2, 2026 |
-| user_events | 3,993 | Jul 21, 2025 → Jan 30, 2026 |
-| connection_requests | 519 | Jun 10, 2025 → Jan 30, 2026 |
-| daily_metrics | 0 | **EMPTY - needs backfill** |
+**The Core Problem:**
+The dashboard shows "98 Visitors" for Feb 2nd, but there were actually only **17 unique people** (and only **15** if you exclude dev traffic).
 
-### Data Quality Issues
+**Database Evidence (Feb 2nd):**
+| Metric | Actual Value |
+|--------|--------------|
+| Total rows in user_sessions | 1,044 |
+| Unique session_ids | 110 |
+| **TRUE unique visitors** | **17** |
+| Sessions from lovable.dev (dev traffic) | 999 |
+| Sessions from your dev account | 982 |
+| **Real unique visitors (excluding dev)** | **15** |
 
-1. **Browser/OS parsing gap**: 9,073 sessions have `user_agent` but NULL `browser`/`os`/`device_type`
-   - These sessions came through before the frontend parsing was added
-   - The user_agent strings ARE stored and can be parsed retroactively
-
-2. **No IP addresses for most sessions**: 14,557 sessions have no IP address stored
-   - Geolocation cannot be enriched for these
-   - Going forward, IPs are captured by the edge function
-
-3. **Daily metrics table is empty**: KPI sparklines and historical charts show zeros
-   - The `aggregate-daily-metrics` edge function exists but was never run historically
-
----
-
-## Backfill Strategy (3 Phases)
-
-### Phase 1: Backfill Daily Metrics Table (Immediate Impact)
-
-Create a new edge function that runs the existing `aggregate-daily-metrics` function for each day in a date range.
-
-```text
-Action: Create `backfill-daily-metrics` edge function
-Purpose: Loop from startDate to endDate, calling aggregate-daily-metrics for each day
-Result: Populates daily_metrics table with historical data
-```
-
-**Implementation:**
+**Root Cause in Code (`useUnifiedAnalytics.ts` lines 221-230):**
 ```typescript
-// supabase/functions/backfill-daily-metrics/index.ts
-// Accepts { startDate: "2025-07-21", endDate: "2026-02-01" }
-// Loops day by day, invoking aggregate-daily-metrics for each
-// Includes 500ms delay between calls to avoid rate limits
+// CURRENT - WRONG: Counts unique sessions, not visitors
+const sessionMap = new Map<string, typeof sessions[0]>();
+sessions.forEach(s => {
+  if (!sessionMap.has(s.session_id)) {
+    sessionMap.set(s.session_id, s);
+  }
+});
+const uniqueSessions = Array.from(sessionMap.values());
+const currentVisitors = uniqueSessions.length; // ← THIS IS SESSIONS, NOT VISITORS!
 ```
 
-**Expected Outcome:**
-- All KPI sparklines show real 7-day trends
-- Daily chart shows historical visitor/connection patterns
-- Week-over-week comparisons become accurate
+**Affected Components:**
+- `KPIStrip.tsx` - Main "Visitors" number
+- `DailyVisitorsChart.tsx` - Historical chart
+- `SourcesCard.tsx` - Per-source breakdowns
+- `GeographyCard.tsx` - Per-country breakdowns
+- `TechStackCard.tsx` - Per-browser/OS breakdowns
+- `daily_metrics` table - Stores `total_sessions` but displays as "visitors"
 
 ---
 
-### Phase 2: Parse User-Agent Strings for Historical Sessions
+### Issue 2: Development/Bot Traffic Pollutes All Metrics
 
-Create an edge function to retroactively parse user-agent strings and update browser/OS/device fields.
+**Your dev account created 982 sessions today** from `lovable.dev` referrer.
 
-```text
-Action: Create `enrich-session-metadata` edge function
-Purpose: Parse user_agent strings for sessions missing browser/OS data
-Target: 9,073 sessions with user_agent but no browser field
-```
+**Traffic Breakdown (Jan 2026):**
+| Traffic Type | Total Sessions | Unique Sessions | Unique Visitors |
+|--------------|----------------|-----------------|-----------------|
+| Lovable/Development | 4,127 | 857 | 3 |
+| Direct (no referrer) | 1,458 | 863 | 87 |
+| Real Traffic | 783 | 379 | 87 |
 
-**User-Agent Parsing Logic:**
+**65% of all sessions are development traffic** - completely unusable for analytics.
+
+---
+
+### Issue 3: Duplicate Row Insertion (Race Condition)
+
+One session_id (`caa6ab6e-...`) has **695 duplicate rows** inserted over 32 hours.
+
+**Cause:** The edge function's `maybeSingle()` check races with concurrent requests, causing multiple INSERTs for the same session_id before the first INSERT completes.
+
+---
+
+### Issue 4: Wrong Metric in `daily_metrics` Table
+
+The backfill function stores `total_sessions` in `daily_metrics`, but the UI displays this as "visitors":
+
 ```typescript
-function parseUserAgent(ua: string) {
-  const browser = 
-    ua.includes('Edg') ? 'Edge' :
-    ua.includes('Chrome') ? 'Chrome' :
-    ua.includes('Firefox') ? 'Firefox' :
-    ua.includes('Safari') ? 'Safari' :
-    ua.includes('Opera') || ua.includes('OPR') ? 'Opera' : 'Unknown';
-    
-  const os =
-    ua.includes('Windows') ? 'Windows' :
-    ua.includes('Mac') ? 'macOS' :
-    ua.includes('Android') ? 'Android' :
-    ua.includes('iPhone') || ua.includes('iPad') ? 'iOS' :
-    ua.includes('Linux') ? 'Linux' : 'Unknown';
-    
-  const device = /Mobile|Android|iPhone|iPad/i.test(ua) 
-    ? (/iPad/i.test(ua) ? 'tablet' : 'mobile') 
-    : 'desktop';
-    
-  return { browser, os, device };
-}
-```
+// daily_metrics stores session count:
+total_sessions: sessions?.length || 0
 
-**Expected Outcome:**
-- Tech Stack card shows accurate browser/OS distribution
-- User detail panels show device information
-- Activity breakdowns by device type become available
-
----
-
-### Phase 3: Geolocation Enrichment (Limited Scope)
-
-For the 263 sessions that DO have IP addresses but missing country data, we can enrich with geolocation.
-
-```text
-Action: Create `enrich-geo-data` edge function
-Purpose: Call ip-api.com for sessions with IP but no country
-Target: ~263 sessions (limited due to IP availability)
-Limitation: 14,557 sessions have no stored IP - cannot enrich
-```
-
-**Rate Limit Consideration:**
-- ip-api.com allows 45 requests/minute (free tier)
-- For 263 records, process in batches with delays
-- Estimated runtime: ~6 minutes
-
-**Expected Outcome:**
-- Geography card shows more data for recent sessions
-- Country/City breakdowns improve marginally
-- Going forward, all new sessions get geolocation automatically
-
----
-
-## Implementation Files
-
-### New Edge Functions to Create
-
-```text
-supabase/functions/
-├── backfill-daily-metrics/
-│   └── index.ts           # Loops through dates, calls aggregate function
-├── enrich-session-metadata/
-│   └── index.ts           # Parses user_agent, updates browser/OS
-└── enrich-geo-data/
-    └── index.ts           # Fetches geolocation for sessions with IP
-```
-
-### Updates Required
-
-```text
-supabase/config.toml
-  - Add new function entries for the backfill functions
+// UI maps it to "visitors":
+formattedDailyMetrics = dailyMetrics.map(m => ({
+  visitors: m.total_sessions || 0,  // ← WRONG LABEL
+}));
 ```
 
 ---
 
-## Execution Plan
+### Issue 5: Terminology Misuse Everywhere
 
-### Step 1: Deploy Backfill Functions
-1. Create all three edge functions
-2. Deploy to Supabase
+The codebase uses "visitors" and "sessions" interchangeably when they mean completely different things:
 
-### Step 2: Run Daily Metrics Backfill (Priority)
-```bash
-# Call with date range covering all historical data
-curl -X POST .../backfill-daily-metrics \
-  -d '{"startDate": "2025-07-21", "endDate": "2026-02-02"}'
-```
-- Processes 196 days
-- ~100 seconds total (500ms per day)
-- Immediate dashboard improvement
-
-### Step 3: Run User-Agent Parsing
-```bash
-# Parse all sessions with user_agent but missing browser
-curl -X POST .../enrich-session-metadata \
-  -d '{"batchSize": 500}'
-```
-- Processes 9,073 sessions in batches
-- ~2-3 minutes total
-- Tech stack accuracy improves dramatically
-
-### Step 4: Run Geo Enrichment (Optional)
-```bash
-# Enrich sessions with IP but no country
-curl -X POST .../enrich-geo-data \
-  -d '{"batchSize": 45}'
-```
-- Processes 263 sessions
-- ~6 minutes (respecting rate limits)
-- Marginal geography improvement
+| Term | Correct Definition | Current Usage |
+|------|-------------------|---------------|
+| **Visitor** | A unique person (by `visitor_id` or `user_id`) | ❌ Used to mean session count |
+| **Session** | One visit (may have multiple per visitor) | ❌ Called "visitor" in UI |
+| **Page View** | Single page load within a session | ✅ Used correctly |
 
 ---
 
-## Expected Results After Backfill
+## Fix Strategy
 
-| Metric | Before | After |
-|--------|--------|-------|
-| KPI Sparklines | All zeros | Real 7-day trends |
-| Daily Chart | Empty or sparse | 7+ months of data |
-| Browser Distribution | 57% unknown | ~95% known |
-| OS Distribution | 57% unknown | ~95% known |
-| Country Data | 4% known | 4-5% known (IP limitation) |
-| Week-over-week | Inaccurate | Accurate comparisons |
+### Phase 1: Fix the Visitor Count Calculation
 
----
+**In `useUnifiedAnalytics.ts`:**
 
-## Limitations & Honest Assessment
-
-### What CAN Be Fixed:
-- Daily metrics aggregation (complete fix)
-- Browser/OS/device parsing (complete fix for sessions with user_agent)
-- Geolocation for sessions with stored IP (partial fix)
-
-### What CANNOT Be Fixed:
-- Sessions without stored IP addresses (14,557 records) - no geolocation possible
-- Historical data before tracking was implemented (Jul 21, 2025 is earliest)
-- User journeys for anonymous visitors from before visitor_id tracking
-
-### Going Forward:
-The current tracking implementation captures all necessary data:
-- Browser, OS, device parsed on frontend before sending
-- IP address captured by edge function for geolocation
-- Visitor ID enables cross-session journey tracking
-
-All new sessions will have complete data. The backfill addresses the historical gap.
-
----
-
-## Technical Details
-
-### Backfill Daily Metrics Function
 ```typescript
-// Loops through date range
-// For each date, calculates:
-// - total_sessions from user_sessions
-// - active_users from distinct user_ids
-// - page_views count
-// - bounce_rate (sessions with 1 page view)
-// - connection_requests count
-// - avg_session_duration
-// Upserts to daily_metrics table
+// NEW - CORRECT: Count unique PEOPLE, not sessions
+const uniqueVisitors = new Set<string>();
+sessions.forEach(s => {
+  const visitorKey = s.user_id || s.visitor_id || s.session_id;
+  uniqueVisitors.add(visitorKey);
+});
+const currentVisitors = uniqueVisitors.size; // TRUE unique visitors
+
+// Keep session count as separate metric
+const currentSessions = uniqueSessions.length;
 ```
 
-### User-Agent Parser Function
+**Update all breakdown calculations** to use the same pattern for geo, sources, tech:
 ```typescript
-// Queries sessions WHERE browser IS NULL AND user_agent IS NOT NULL
-// Batch processes 500 at a time
-// Updates browser, os, device_type columns
-// Uses simple string matching (same as frontend)
-```
-
-### Geo Enrichment Function
-```typescript
-// Queries sessions WHERE country IS NULL AND ip_address IS NOT NULL
-// Processes in batches of 45 (respecting ip-api rate limit)
-// Adds 1.5s delay between batches
-// Updates country, country_code, city, region, timezone
+// For each category, count unique visitor_ids, not session counts
+const countryVisitors = new Map<string, Set<string>>();
+uniqueSessions.forEach(s => {
+  const country = s.country || 'Unknown';
+  if (!countryVisitors.has(country)) countryVisitors.set(country, new Set());
+  countryVisitors.get(country)!.add(s.user_id || s.visitor_id || s.session_id);
+});
 ```
 
 ---
 
-## Security Considerations
+### Phase 2: Filter Out Development Traffic
 
-All backfill functions will:
-- Require service role key (not publicly accessible)
-- Log progress for monitoring
-- Handle errors gracefully without data corruption
-- Support resumption if interrupted
+**Add exclusion filter in `useUnifiedAnalytics.ts`:**
+
+```typescript
+// Filter out development/preview traffic
+const productionSessions = sessions.filter(s => {
+  const referrer = s.referrer || '';
+  return !referrer.includes('lovable.dev') 
+      && !referrer.includes('lovableproject.com')
+      && !referrer.includes('preview--');
+});
+```
+
+**Consider adding a toggle** in the UI: "Include dev traffic" checkbox for debugging.
+
+---
+
+### Phase 3: Add `unique_visitors` Column to `daily_metrics`
+
+**Database migration:**
+```sql
+ALTER TABLE daily_metrics 
+ADD COLUMN IF NOT EXISTS unique_visitors INTEGER DEFAULT 0;
+```
+
+**Update `aggregate-daily-metrics` function:**
+```typescript
+// Count unique visitors (by visitor_id or user_id)
+const { data: visitorData } = await supabase
+  .from('user_sessions')
+  .select('user_id, visitor_id')
+  .gte('started_at', startOfDay)
+  .lte('started_at', endOfDay);
+
+const uniqueVisitorSet = new Set(
+  visitorData?.map(s => s.user_id || s.visitor_id).filter(Boolean)
+);
+const uniqueVisitors = uniqueVisitorSet.size;
+
+return {
+  ...metrics,
+  unique_visitors: uniqueVisitors,
+  total_sessions: totalSessions, // Keep for "visits" metric
+};
+```
+
+**Update `backfill-daily-metrics`** with the same logic and re-run.
+
+---
+
+### Phase 4: Fix Race Condition in Session Tracking
+
+**In `track-session/index.ts`, use UPSERT instead of check-then-insert:**
+
+```typescript
+// REPLACE the maybeSingle() check with UPSERT
+const { error: upsertError } = await supabase
+  .from('user_sessions')
+  .upsert({
+    session_id: body.session_id,
+    // ... all fields
+  }, {
+    onConflict: 'session_id',
+    ignoreDuplicates: false, // Update existing instead
+  });
+```
+
+**This requires adding a UNIQUE constraint on `session_id`:**
+```sql
+ALTER TABLE user_sessions 
+ADD CONSTRAINT user_sessions_session_id_unique UNIQUE (session_id);
+```
+
+---
+
+### Phase 5: Add Both Metrics to UI
+
+**Update `KPIStrip.tsx` to show BOTH:**
+- **Visitors** (unique people)
+- **Sessions** (visits)
+
+**Update chart tooltip to clarify:**
+```tsx
+<ChartTooltipContent 
+  data={{
+    date: data.date,
+    visitors: data.uniqueVisitors,  // People
+    sessions: data.totalSessions,   // Visits
+    connections: data.connections,
+  }}
+/>
+```
+
+---
+
+## Implementation Order
+
+| Priority | Task | Impact |
+|----------|------|--------|
+| **P0** | Fix visitor counting logic in `useUnifiedAnalytics.ts` | Accurate main KPI |
+| **P0** | Filter dev traffic from metrics | Remove 65% pollution |
+| **P1** | Add `unique_visitors` column to `daily_metrics` | Historical accuracy |
+| **P1** | Update backfill function with visitor counting | Populate historical data |
+| **P1** | Re-run backfill for all dates | Historical charts fixed |
+| **P2** | Fix race condition with UPSERT | Prevent duplicate rows |
+| **P2** | Add "Sessions" as secondary metric in UI | Complete picture |
+| **P3** | Cleanup duplicate rows in database | Data hygiene |
+
+---
+
+## Expected Results After Fix
+
+| Metric | Before (Feb 2nd) | After (Feb 2nd) |
+|--------|------------------|-----------------|
+| "Visitors" display | 98 (wrong) | 15 (correct, excluding dev) |
+| "Sessions" display | N/A | 43 (new metric) |
+| Dev traffic | Included | Filtered out |
+| Historical charts | Show sessions | Show true visitors |
+| Conversion rate | Inflated | Accurate |
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useUnifiedAnalytics.ts` | Fix visitor counting, filter dev traffic, add sessions metric |
+| `supabase/functions/aggregate-daily-metrics/index.ts` | Add unique_visitors calculation |
+| `supabase/functions/backfill-daily-metrics/index.ts` | Add unique_visitors calculation |
+| `supabase/functions/track-session/index.ts` | Fix race condition with UPSERT |
+| `src/components/admin/analytics/datafast/KPIStrip.tsx` | Show both visitors and sessions |
+| `src/components/admin/analytics/datafast/DailyVisitorsChart.tsx` | Use correct data field |
+| Database migration | Add unique_visitors column, UNIQUE constraint on session_id |
+
+---
+
+## Terminology Clarification for Future
+
+| Metric | Definition | How to Count |
+|--------|------------|--------------|
+| **Unique Visitors** | Individual people | `COUNT(DISTINCT COALESCE(user_id, visitor_id))` |
+| **Sessions** | Individual visits | `COUNT(DISTINCT session_id)` |
+| **Page Views** | Individual page loads | `COUNT(*)` from page_views |
+| **Connections** | Deal inquiries sent | `COUNT(*)` from connection_requests |
+| **Conversion Rate** | Connections ÷ Unique Visitors | Not sessions! |
+
+This ensures your Intelligence Center shows accurate, actionable data that reflects real marketplace activity - not inflated session counts or development noise.
