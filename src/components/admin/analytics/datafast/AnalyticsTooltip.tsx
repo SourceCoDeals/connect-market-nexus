@@ -14,10 +14,17 @@ interface TooltipRow {
   highlight?: boolean;
 }
 
+interface TopBreakdown {
+  name: string;
+  percentage: number;
+}
+
 interface AnalyticsTooltipProps {
   children: ReactNode;
   title?: string;
   rows: TooltipRow[];
+  topSources?: TopBreakdown[];
+  topCountries?: TopBreakdown[];
   side?: "top" | "right" | "bottom" | "left";
 }
 
@@ -25,6 +32,8 @@ export function AnalyticsTooltip({
   children, 
   title, 
   rows,
+  topSources,
+  topCountries,
   side = "top" 
 }: AnalyticsTooltipProps) {
   return (
@@ -37,7 +46,7 @@ export function AnalyticsTooltip({
           side={side}
           className="bg-[hsl(0_0%_15%)] border-[hsl(0_0%_25%)] p-0 rounded-lg shadow-xl"
         >
-          <div className="min-w-[180px]">
+          <div className="min-w-[200px]">
             {title && (
               <div className="px-3 py-2 border-b border-[hsl(0_0%_25%)]">
                 <span className="text-xs font-medium text-white">{title}</span>
@@ -68,6 +77,40 @@ export function AnalyticsTooltip({
                 </div>
               ))}
             </div>
+            
+            {/* Top Sources Section */}
+            {topSources && topSources.length > 0 && (
+              <div className="px-3 py-2 border-t border-[hsl(0_0%_25%)]">
+                <div className="text-[9px] uppercase tracking-[0.1em] text-[hsl(0_0%_50%)] mb-1.5">
+                  Top Sources
+                </div>
+                <div className="space-y-1">
+                  {topSources.slice(0, 3).map((source, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="text-[11px] text-[hsl(0_0%_75%)]">{source.name}</span>
+                      <span className="text-[11px] text-white tabular-nums">{source.percentage.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Top Countries Section */}
+            {topCountries && topCountries.length > 0 && (
+              <div className="px-3 py-2 border-t border-[hsl(0_0%_25%)]">
+                <div className="text-[9px] uppercase tracking-[0.1em] text-[hsl(0_0%_50%)] mb-1.5">
+                  Top Countries
+                </div>
+                <div className="space-y-1">
+                  {topCountries.slice(0, 3).map((country, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="text-[11px] text-[hsl(0_0%_75%)]">{country.name}</span>
+                      <span className="text-[11px] text-white tabular-nums">{country.percentage.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </TooltipContent>
       </Tooltip>
@@ -124,6 +167,30 @@ export function ChartTooltipContent({ data }: { data: ChartTooltipData }) {
           <span className="text-xs font-medium text-[hsl(12_95%_77%)] tabular-nums">{convRate}%</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Dual-bar progress indicator for source/geography rows
+interface DualBarProps {
+  visitorsPercent: number;
+  connectionsPercent: number;
+  className?: string;
+}
+
+export function DualBar({ visitorsPercent, connectionsPercent, className }: DualBarProps) {
+  return (
+    <div className={cn("relative h-1 bg-muted/30 rounded-full overflow-hidden", className)}>
+      {/* Visitors bar (blue) */}
+      <div 
+        className="absolute inset-y-0 left-0 bg-[hsl(220_70%_75%)] rounded-full"
+        style={{ width: `${Math.min(visitorsPercent, 100)}%` }}
+      />
+      {/* Connections bar overlay (coral) */}
+      <div 
+        className="absolute inset-y-0 left-0 bg-[hsl(12_95%_65%)] rounded-full"
+        style={{ width: `${Math.min(connectionsPercent, 100)}%` }}
+      />
     </div>
   );
 }
