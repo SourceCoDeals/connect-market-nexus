@@ -89,15 +89,10 @@ export function MapboxGlobeMap({
     connectionsThisHour: users.reduce((sum, u) => sum + u.connectionsSent, 0),
   };
   
+  // Use pre-normalized entrySource from useEnhancedRealTimeAnalytics
   const referrerBreakdown = users.reduce((acc, user) => {
-    const source = user.referrer || user.utmSource || 'Direct';
-    const normalized = source.toLowerCase().includes('google') ? 'Google' :
-      source.toLowerCase().includes('youtube') ? 'YouTube' :
-      source.toLowerCase().includes('facebook') ? 'Facebook' :
-      source.toLowerCase().includes('linkedin') ? 'LinkedIn' :
-      source.toLowerCase().includes('twitter') || source.toLowerCase().includes('x.com') ? 'X' :
-      source === 'Direct' || !source ? 'Direct' : 'Other';
-    acc[normalized] = (acc[normalized] || 0) + 1;
+    const source = user.entrySource || 'Direct';
+    acc[source] = (acc[source] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 

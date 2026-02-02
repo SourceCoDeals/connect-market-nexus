@@ -135,7 +135,13 @@ export function getCoordinates(city: string | null, country: string | null): Coo
     return cityCoordinates[city];
   }
   
-  // Fallback to country
+  // Normalize country name (handle "The Netherlands" -> "Netherlands", etc.)
+  const normalizedCountry = country?.replace(/^The /, '') || null;
+  
+  // Fallback to country (try normalized first, then original)
+  if (normalizedCountry && countryCoordinates[normalizedCountry]) {
+    return countryCoordinates[normalizedCountry];
+  }
   if (country && countryCoordinates[country]) {
     return countryCoordinates[country];
   }
