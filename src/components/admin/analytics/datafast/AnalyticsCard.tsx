@@ -1,6 +1,7 @@
 import { ReactNode, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, List } from "lucide-react";
+import { ChevronDown, Globe, Lightbulb } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Tab {
   id: string;
@@ -14,6 +15,7 @@ interface AnalyticsCardProps {
   children: (activeTab: string) => ReactNode;
   className?: string;
   onDetailsClick?: (activeTab: string) => void;
+  onGlobeClick?: () => void;
 }
 
 export function AnalyticsCard({ 
@@ -22,9 +24,12 @@ export function AnalyticsCard({
   rightAction,
   children, 
   className,
-  onDetailsClick
+  onDetailsClick,
+  onGlobeClick
 }: AnalyticsCardProps) {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id || '');
+
+  const hasFooter = onDetailsClick || onGlobeClick;
 
   return (
     <div className={cn(
@@ -61,16 +66,41 @@ export function AnalyticsCard({
         {children(activeTab)}
       </div>
       
-      {/* Details footer */}
-      {onDetailsClick && (
-        <div className="px-5 pb-4 pt-0">
-          <button
-            onClick={() => onDetailsClick(activeTab)}
-            className="flex items-center justify-center gap-1.5 w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors border border-border/30"
-          >
-            <List className="h-3.5 w-3.5" />
-            Details
-          </button>
+      {/* Footer with icon buttons - datafast style */}
+      {hasFooter && (
+        <div className="flex items-center justify-center gap-2 px-5 pb-4 pt-0">
+          <TooltipProvider delayDuration={200}>
+            {onGlobeClick && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={onGlobeClick}
+                    className="p-2.5 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Globe className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  View on globe
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {onDetailsClick && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onDetailsClick(activeTab)}
+                    className="p-2.5 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Lightbulb className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  View details & filter
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </TooltipProvider>
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@ import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
-import { useAnalyticsFilters, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
 import { FilterModal } from "./FilterModal";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -56,7 +56,7 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
   const [sortBy, setSortBy] = useState<SortValue>('visitors');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<string>('');
-  const { addFilter, hasFilter } = useAnalyticsFilters();
+  const { hasFilter } = useAnalyticsFilters();
   
   const tabs = [
     { id: 'map', label: 'Map' },
@@ -102,11 +102,7 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
     return `hsl(12 95% ${lightness}%)`;
   };
 
-  const handleRowClick = (filter: AnalyticsFilter) => {
-    if (!hasFilter(filter.type, filter.value)) {
-      addFilter(filter);
-    }
-  };
+  // Removed - filtering now only via Details modal
 
   const handleDetailsClick = (activeTab: string) => {
     if (activeTab === 'map') return; // No details for map
@@ -200,9 +196,8 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
                             fill={getCountryColor(countryName)}
                             stroke="hsl(220 15% 90%)"
                             strokeWidth={0.5}
-                            onClick={() => handleRowClick({ type: 'country', value: countryName, label: countryName })}
                             style={{
-                              default: { outline: 'none', cursor: 'pointer' },
+                              default: { outline: 'none' },
                               hover: { outline: 'none', fill: 'hsl(12 95% 70%)' },
                               pressed: { outline: 'none' },
                             }}
@@ -237,9 +232,8 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
                         secondaryMaxValue={Math.max(...filteredCountries.map(c => c.connections), 1)}
                       >
                         <div 
-                          onClick={() => handleRowClick({ type: 'country', value: country.name, label: country.name })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -291,9 +285,8 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
                         secondaryMaxValue={Math.max(...filteredRegions.map(r => r.connections), 1)}
                       >
                         <div 
-                          onClick={() => handleRowClick({ type: 'region', value: region.name, label: region.name })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -345,9 +338,8 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
                         secondaryMaxValue={Math.max(...filteredCities.map(c => c.connections), 1)}
                       >
                         <div 
-                          onClick={() => handleRowClick({ type: 'city', value: city.name, label: city.name })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >

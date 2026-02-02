@@ -5,7 +5,7 @@ import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrowserLogo, OSLogo } from "./BrowserLogo";
 import { ProportionalBar } from "./ProportionalBar";
-import { useAnalyticsFilters, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
 import { FilterModal } from "./FilterModal";
 
 interface TechStackCardProps {
@@ -24,7 +24,7 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
   const [sortBy, setSortBy] = useState<SortValue>('visitors');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<string>('');
-  const { addFilter, hasFilter } = useAnalyticsFilters();
+  const { hasFilter } = useAnalyticsFilters();
   
   const tabs = [
     { id: 'browser', label: 'Browser' },
@@ -46,11 +46,7 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
   const maxOSValue = Math.max(...operatingSystems.map(os => getSortValue(os)), 1);
   const maxDeviceValue = Math.max(...devices.map(d => getSortValue(d)), 1);
 
-  const handleRowClick = (filter: AnalyticsFilter) => {
-    if (!hasFilter(filter.type, filter.value)) {
-      addFilter(filter);
-    }
-  };
+  // Removed - filtering now only via Details modal
 
   const handleDetailsClick = (activeTab: string) => {
     setModalTab(activeTab);
@@ -124,9 +120,8 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                     >
                       <ProportionalBar value={getSortValue(browser)} maxValue={maxBrowserValue}>
                         <div 
-                          onClick={() => handleRowClick({ type: 'browser', value: browser.name, label: browser.name })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -169,9 +164,8 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                     >
                       <ProportionalBar value={getSortValue(os)} maxValue={maxOSValue}>
                         <div 
-                          onClick={() => handleRowClick({ type: 'os', value: os.name, label: os.name })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -214,9 +208,8 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                     >
                       <ProportionalBar value={getSortValue(device)} maxValue={maxDeviceValue}>
                         <div 
-                          onClick={() => handleRowClick({ type: 'device', value: device.type, label: device.type })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
