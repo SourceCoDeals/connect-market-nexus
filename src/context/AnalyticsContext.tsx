@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { useSessionContext } from '@/contexts/SessionContext';
 
 interface AnalyticsContextType {
   trackEvent: (eventType: string, eventData?: any) => Promise<boolean>;
@@ -21,8 +21,7 @@ interface AnalyticsContextType {
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
 
-let currentSessionId: string | null = null;
-let sessionStartTime: Date | null = null;
+// REMOVED: currentSessionId local variable - now uses SessionContext's UUID
 
 // Analytics health tracking
 let analyticsStats = {
@@ -37,10 +36,7 @@ const CIRCUIT_BREAKER_THRESHOLD = 5; // failures
 const CIRCUIT_BREAKER_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 
-// Generate session ID
-const generateSessionId = () => {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-};
+// REMOVED: generateSessionId - now uses SessionContext's UUID for consistency
 
 // Retry with exponential backoff
 const retryWithBackoff = async (
@@ -104,21 +100,24 @@ const updateAnalyticsStats = (success: boolean, error?: any) => {
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  
+  // Use shared session ID from SessionContext - ensures page_views use same UUID as user_sessions
+  const { sessionId: sharedSessionId } = useSessionContext();
+  const sessionIdRef = useRef<string>(sharedSessionId);
+  
   // PHASE 1: Remove circular dependency - defer auth usage with local state
   const [authState, setAuthState] = React.useState<{
     user: any | null;
     authChecked: boolean;
   }>({ user: null, authChecked: false });
 
-  // PHASE 1: Initialize auth state listener and session
+  // Keep ref in sync with context
   useEffect(() => {
-    // Initialize session immediately
-    if (!currentSessionId) {
-      currentSessionId = generateSessionId();
-      sessionStartTime = new Date();
-      
-    }
+    sessionIdRef.current = sharedSessionId;
+  }, [sharedSessionId]);
 
+  // PHASE 1: Initialize auth state listener
+  useEffect(() => {
     // Listen to auth changes without circular dependency
     const checkAuth = async () => {
       try {
@@ -154,13 +153,13 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
   // Track page views on location change
   useEffect(() => {
-    if (currentSessionId) {
+    if (sessionIdRef.current) {
       trackPageView(location.pathname);
     }
   }, [location.pathname]);
 
   const trackEvent = async (eventType: string, eventData?: any): Promise<boolean> => {
-    if (!currentSessionId) {
+    if (!sessionIdRef.current) {
       console.warn('❌ No session ID for event:', eventType);
       return false;
     }
@@ -174,7 +173,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('user_events').insert({
-        session_id: currentSessionId,
+        session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         event_type: eventType,
         event_category: 'user_interaction',
@@ -200,7 +199,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const trackPageView = async (pagePath: string): Promise<boolean> => {
-    if (!currentSessionId) {
+    if (!sessionIdRef.current) {
       console.warn('❌ No session ID for page view:', pagePath);
       return false;
     }
@@ -214,7 +213,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('page_views').insert({
-        session_id: currentSessionId,
+        session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         page_path: pagePath,
         page_title: document.title,
@@ -238,7 +237,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const trackListingView = async (listingId: string): Promise<boolean> => {
-    if (!currentSessionId) {
+    if (!sessionIdRef.current) {
       console.warn('❌ No session ID for listing view:', listingId);
       return false;
     }
@@ -252,7 +251,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
-        session_id: currentSessionId,
+        session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         listing_id: listingId,
         action_type: 'view',
@@ -276,7 +275,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const trackListingSave = async (listingId: string): Promise<boolean> => {
-    if (!currentSessionId) {
+    if (!sessionIdRef.current) {
       console.warn('❌ No session ID for listing save:', listingId);
       return false;
     }
@@ -290,7 +289,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
-        session_id: currentSessionId,
+        session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         listing_id: listingId,
         action_type: 'save',
@@ -314,7 +313,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const trackConnectionRequest = async (listingId: string): Promise<boolean> => {
-    if (!currentSessionId) {
+    if (!sessionIdRef.current) {
       console.warn('❌ No session ID for connection request:', listingId);
       return false;
     }
@@ -328,7 +327,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
-        session_id: currentSessionId,
+        session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         listing_id: listingId,
         action_type: 'request_connection',
@@ -352,7 +351,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const trackSearch = async (query: string, filters?: any, results?: number): Promise<boolean> => {
-    if (!currentSessionId) {
+    if (!sessionIdRef.current) {
       console.warn('❌ No session ID for search:', query);
       return false;
     }
@@ -366,7 +365,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('search_analytics').insert({
-        session_id: currentSessionId,
+        session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         search_query: query,
         filters_applied: filters || {},

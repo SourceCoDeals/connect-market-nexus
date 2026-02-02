@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingSession) {
-      // Update existing session with geo data
+      // Update existing session with geo data AND visitor_id
       const { error: updateError } = await supabase
         .from('user_sessions')
         .update({
@@ -140,6 +140,12 @@ Deno.serve(async (req) => {
           city: geoData?.city || null,
           region: geoData?.region || null,
           timezone: geoData?.timezone || null,
+          // CRITICAL FIX: Store visitor_id on session updates for anonymous users
+          visitor_id: body.visitor_id || null,
+          // Store initial duration if provided
+          ...(body.time_on_page !== undefined && body.time_on_page > 0 
+            ? { session_duration_seconds: body.time_on_page } 
+            : {}),
           last_active_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
