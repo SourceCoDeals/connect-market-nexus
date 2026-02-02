@@ -16,6 +16,7 @@ import { ChartTooltipContent } from "./AnalyticsTooltip";
 interface DailyMetric {
   date: string;
   visitors: number;
+  sessions: number;
   connections: number;
   bounceRate: number;
 }
@@ -34,6 +35,7 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
       data={{
         date: data.date,
         visitors: data.visitors,
+        sessions: data.sessions,
         connections: data.connections,
       }}
     />
@@ -58,7 +60,7 @@ export function DailyVisitorsChart({ data }: DailyVisitorsChartProps) {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-[hsl(12_95%_77%)]" />
-            <span className="text-xs text-muted-foreground">Visitors</span>
+            <span className="text-xs text-muted-foreground">Visitors (unique people)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-1.5 rounded bg-[hsl(220_70%_55%)]" />

@@ -11,6 +11,7 @@ export interface KPIMetric {
 export interface UnifiedAnalyticsData {
   kpis: {
     visitors: KPIMetric;
+    sessions: KPIMetric; // NEW: separate sessions metric
     connections: KPIMetric;
     conversionRate: { value: number; trend: number };
     bounceRate: { value: number; trend: number };
@@ -21,18 +22,19 @@ export interface UnifiedAnalyticsData {
   dailyMetrics: Array<{
     date: string;
     visitors: number;
+    sessions: number;
     connections: number;
     bounceRate: number;
   }>;
   
-  channels: Array<{ name: string; visitors: number; connections: number; icon: string }>;
-  referrers: Array<{ domain: string; visitors: number; connections: number; favicon: string }>;
-  campaigns: Array<{ name: string; visitors: number; connections: number }>;
-  keywords: Array<{ term: string; visitors: number; connections: number }>;
+  channels: Array<{ name: string; visitors: number; sessions: number; connections: number; icon: string }>;
+  referrers: Array<{ domain: string; visitors: number; sessions: number; connections: number; favicon: string }>;
+  campaigns: Array<{ name: string; visitors: number; sessions: number; connections: number }>;
+  keywords: Array<{ term: string; visitors: number; sessions: number; connections: number }>;
   
-  countries: Array<{ name: string; code: string; visitors: number; connections: number }>;
-  regions: Array<{ name: string; country: string; visitors: number; connections: number }>;
-  cities: Array<{ name: string; country: string; visitors: number; connections: number }>;
+  countries: Array<{ name: string; code: string; visitors: number; sessions: number; connections: number }>;
+  regions: Array<{ name: string; country: string; visitors: number; sessions: number; connections: number }>;
+  cities: Array<{ name: string; country: string; visitors: number; sessions: number; connections: number }>;
   
   topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
   entryPages: Array<{ path: string; visitors: number; bounceRate: number }>;
@@ -62,6 +64,21 @@ export interface UnifiedAnalyticsData {
     lastSeen?: string;
     activityDays?: Array<{ date: string; pageViews: number; level: 'none' | 'low' | 'medium' | 'high' }>;
   }>;
+}
+
+// Dev/bot traffic patterns to filter out
+const DEV_TRAFFIC_PATTERNS = [
+  'lovable.dev',
+  'lovableproject.com',
+  'preview--',
+  'localhost',
+  '127.0.0.1',
+];
+
+function isDevTraffic(referrer: string | null): boolean {
+  if (!referrer) return false;
+  const lowerReferrer = referrer.toLowerCase();
+  return DEV_TRAFFIC_PATTERNS.some(pattern => lowerReferrer.includes(pattern));
 }
 
 function categorizeChannel(referrer: string | null, utmSource: string | null, utmMedium: string | null): string {
@@ -123,6 +140,11 @@ function getChannelIcon(channel: string): string {
   return icons[channel] || 'globe';
 }
 
+// Helper to get unique visitor key from a session
+function getVisitorKey(session: { user_id?: string | null; visitor_id?: string | null; session_id: string }): string {
+  return session.user_id || session.visitor_id || session.session_id;
+}
+
 export function useUnifiedAnalytics(timeRangeDays: number = 30) {
   return useQuery({
     queryKey: ['unified-analytics', timeRangeDays],
@@ -144,20 +166,19 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         dailyMetricsResult,
         activeSessionsResult,
         profilesResult,
-        // New: Query all connections with NDA/Fee Agreement data
         allConnectionsWithMilestonesResult,
       ] = await Promise.all([
-        // Current period sessions
+        // Current period sessions - include visitor_id for proper counting
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, browser, os, device_type, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, browser, os, device_type, session_duration_seconds, started_at')
           .gte('started_at', startDateStr)
           .order('started_at', { ascending: false }),
         
         // Previous period sessions for trend
         supabase
           .from('user_sessions')
-          .select('id, session_id, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, session_duration_seconds, started_at')
           .gte('started_at', prevStartDateStr)
           .lt('started_at', startDateStr),
         
@@ -194,21 +215,21 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           .eq('is_active', true)
           .gte('last_active_at', twoMinutesAgo),
         
-        // Profiles for top users - get more to ensure we have all connected users
+        // Profiles for top users
         supabase
           .from('profiles')
           .select('id, first_name, last_name, company, buyer_type')
           .limit(500),
         
-        // NEW: Query all connections with NDA/Fee Agreement status for real funnel data
+        // Query all connections with NDA/Fee Agreement status for real funnel data
         supabase
           .from('connection_requests')
           .select('id, user_id, lead_nda_signed, lead_fee_agreement_signed, created_at')
           .gte('created_at', startDateStr),
       ]);
       
-      const sessions = sessionsResult.data || [];
-      const prevSessions = prevSessionsResult.data || [];
+      const rawSessions = sessionsResult.data || [];
+      const rawPrevSessions = prevSessionsResult.data || [];
       const connections = connectionsResult.data || [];
       const prevConnections = prevConnectionsResult.data || [];
       const pageViews = pageViewsResult.data || [];
@@ -217,7 +238,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const profiles = profilesResult.data || [];
       const allConnectionsWithMilestones = allConnectionsWithMilestonesResult.data || [];
       
-      // Deduplicate sessions by session_id
+      // CRITICAL FIX #1: Filter out dev/bot traffic
+      const sessions = rawSessions.filter(s => !isDevTraffic(s.referrer));
+      const prevSessions = rawPrevSessions.filter(s => !isDevTraffic(s.referrer));
+      
+      // Deduplicate sessions by session_id (keep first occurrence)
       const sessionMap = new Map<string, typeof sessions[0]>();
       sessions.forEach(s => {
         if (!sessionMap.has(s.session_id)) {
@@ -226,15 +251,39 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       });
       const uniqueSessions = Array.from(sessionMap.values());
       
-      // Calculate KPIs
-      const currentVisitors = uniqueSessions.length;
-      const prevVisitors = prevSessions.length;
+      // CRITICAL FIX #2: Count unique VISITORS (people), not sessions
+      const currentVisitorSet = new Set<string>();
+      uniqueSessions.forEach(s => {
+        currentVisitorSet.add(getVisitorKey(s));
+      });
+      const currentVisitors = currentVisitorSet.size;
+      const currentSessionCount = uniqueSessions.length;
+      
+      // Same for previous period
+      const prevSessionMap = new Map<string, typeof prevSessions[0]>();
+      prevSessions.forEach(s => {
+        if (!prevSessionMap.has(s.session_id)) {
+          prevSessionMap.set(s.session_id, s);
+        }
+      });
+      const prevUniqueSessions = Array.from(prevSessionMap.values());
+      
+      const prevVisitorSet = new Set<string>();
+      prevUniqueSessions.forEach(s => {
+        prevVisitorSet.add(getVisitorKey(s));
+      });
+      const prevVisitors = prevVisitorSet.size;
+      const prevSessionCount = prevUniqueSessions.length;
+      
+      // Calculate trends using correct visitor counts
       const visitorsTrend = prevVisitors > 0 ? ((currentVisitors - prevVisitors) / prevVisitors) * 100 : 0;
+      const sessionsTrend = prevSessionCount > 0 ? ((currentSessionCount - prevSessionCount) / prevSessionCount) * 100 : 0;
       
       const currentConnections = connections.length;
       const prevConnectionsCount = prevConnections.length;
       const connectionsTrend = prevConnectionsCount > 0 ? ((currentConnections - prevConnectionsCount) / prevConnectionsCount) * 100 : 0;
       
+      // CRITICAL FIX #3: Conversion rate uses visitors, not sessions
       const conversionRate = currentVisitors > 0 ? (currentConnections / currentVisitors) * 100 : 0;
       const prevConversionRate = prevVisitors > 0 ? (prevConnectionsCount / prevVisitors) * 100 : 0;
       const conversionTrend = prevConversionRate > 0 ? ((conversionRate - prevConversionRate) / prevConversionRate) * 100 : 0;
@@ -255,44 +304,63 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         ? sessionsWithDuration.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length
         : 0;
       
-      // Sparklines (last 7 days) - COMPUTE FROM RAW DATA as fallback
+      // Sparklines (last 7 days) - Count unique VISITORS per day, not sessions
       const last7Days = Array.from({ length: 7 }, (_, i) => format(subDays(endDate, 6 - i), 'yyyy-MM-dd'));
       
-      // Build daily counts from raw sessions for sparklines
-      const dailySessionCountsForSparkline = new Map<string, number>();
-      const dailyConnectionCountsForSparkline = new Map<string, number>();
+      // Build daily visitor and session counts
+      const dailyVisitorSets = new Map<string, Set<string>>();
+      const dailySessionCounts = new Map<string, number>();
+      const dailyConnectionCounts = new Map<string, number>();
       
       uniqueSessions.forEach(s => {
         try {
           const dateStr = format(parseISO(s.started_at), 'yyyy-MM-dd');
-          dailySessionCountsForSparkline.set(dateStr, (dailySessionCountsForSparkline.get(dateStr) || 0) + 1);
+          
+          // Count unique visitors per day
+          if (!dailyVisitorSets.has(dateStr)) {
+            dailyVisitorSets.set(dateStr, new Set());
+          }
+          dailyVisitorSets.get(dateStr)!.add(getVisitorKey(s));
+          
+          // Count sessions per day
+          dailySessionCounts.set(dateStr, (dailySessionCounts.get(dateStr) || 0) + 1);
         } catch { /* ignore parse errors */ }
       });
       
       connections.forEach(c => {
         try {
           const dateStr = format(parseISO(c.created_at), 'yyyy-MM-dd');
-          dailyConnectionCountsForSparkline.set(dateStr, (dailyConnectionCountsForSparkline.get(dateStr) || 0) + 1);
+          dailyConnectionCounts.set(dateStr, (dailyConnectionCounts.get(dateStr) || 0) + 1);
         } catch { /* ignore parse errors */ }
       });
       
-      // Use raw data for sparklines (more reliable than empty daily_metrics)
+      // Sparklines use unique visitors
       const visitorSparkline = last7Days.map(date => 
-        dailySessionCountsForSparkline.get(date) || 0
+        dailyVisitorSets.get(date)?.size || 0
+      );
+      const sessionSparkline = last7Days.map(date => 
+        dailySessionCounts.get(date) || 0
       );
       const connectionSparkline = last7Days.map(date => 
-        dailyConnectionCountsForSparkline.get(date) || 0
+        dailyConnectionCounts.get(date) || 0
       );
       
-      // Channel breakdown
-      const channelCounts: Record<string, { visitors: number; connections: number }> = {};
+      // CRITICAL FIX #4: Channel breakdown counts unique visitors, not sessions
+      const channelVisitors: Record<string, Set<string>> = {};
+      const channelSessions: Record<string, number> = {};
+      const channelConnections: Record<string, number> = {};
+      
       uniqueSessions.forEach(s => {
         const channel = categorizeChannel(s.referrer, s.utm_source, s.utm_medium);
-        if (!channelCounts[channel]) channelCounts[channel] = { visitors: 0, connections: 0 };
-        channelCounts[channel].visitors++;
+        if (!channelVisitors[channel]) {
+          channelVisitors[channel] = new Set();
+          channelSessions[channel] = 0;
+        }
+        channelVisitors[channel].add(getVisitorKey(s));
+        channelSessions[channel]++;
       });
       
-      // Map connections to channels (via user sessions)
+      // Map connections to channels
       const userSessionMap = new Map<string, typeof sessions[0]>();
       uniqueSessions.forEach(s => {
         if (s.user_id) userSessionMap.set(s.user_id, s);
@@ -302,72 +370,130 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           const session = userSessionMap.get(c.user_id);
           if (session) {
             const channel = categorizeChannel(session.referrer, session.utm_source, session.utm_medium);
-            if (channelCounts[channel]) channelCounts[channel].connections++;
+            channelConnections[channel] = (channelConnections[channel] || 0) + 1;
           }
         }
       });
       
-      const channels = Object.entries(channelCounts)
-        .map(([name, data]) => ({ name, ...data, icon: getChannelIcon(name) }))
+      const channels = Object.keys(channelVisitors)
+        .map(name => ({ 
+          name, 
+          visitors: channelVisitors[name].size, 
+          sessions: channelSessions[name] || 0,
+          connections: channelConnections[name] || 0, 
+          icon: getChannelIcon(name) 
+        }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      // Referrer breakdown
-      const referrerCounts: Record<string, { visitors: number; connections: number }> = {};
+      // Referrer breakdown - count unique visitors
+      const referrerVisitors: Record<string, Set<string>> = {};
+      const referrerSessions: Record<string, number> = {};
       uniqueSessions.forEach(s => {
         const domain = extractDomain(s.referrer);
-        if (!referrerCounts[domain]) referrerCounts[domain] = { visitors: 0, connections: 0 };
-        referrerCounts[domain].visitors++;
+        if (!referrerVisitors[domain]) {
+          referrerVisitors[domain] = new Set();
+          referrerSessions[domain] = 0;
+        }
+        referrerVisitors[domain].add(getVisitorKey(s));
+        referrerSessions[domain]++;
       });
-      const referrers = Object.entries(referrerCounts)
-        .map(([domain, data]) => ({ domain, ...data, favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32` }))
+      const referrers = Object.keys(referrerVisitors)
+        .map(domain => ({ 
+          domain, 
+          visitors: referrerVisitors[domain].size, 
+          sessions: referrerSessions[domain] || 0,
+          connections: 0, 
+          favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32` 
+        }))
         .sort((a, b) => b.visitors - a.visitors)
         .slice(0, 10);
       
-      // Campaign breakdown
-      const campaignCounts: Record<string, { visitors: number; connections: number }> = {};
+      // Campaign breakdown - count unique visitors
+      const campaignVisitors: Record<string, Set<string>> = {};
+      const campaignSessions: Record<string, number> = {};
       uniqueSessions.forEach(s => {
         if (s.utm_campaign) {
-          if (!campaignCounts[s.utm_campaign]) campaignCounts[s.utm_campaign] = { visitors: 0, connections: 0 };
-          campaignCounts[s.utm_campaign].visitors++;
+          if (!campaignVisitors[s.utm_campaign]) {
+            campaignVisitors[s.utm_campaign] = new Set();
+            campaignSessions[s.utm_campaign] = 0;
+          }
+          campaignVisitors[s.utm_campaign].add(getVisitorKey(s));
+          campaignSessions[s.utm_campaign]++;
         }
       });
-      const campaigns = Object.entries(campaignCounts)
-        .map(([name, data]) => ({ name, ...data }))
+      const campaigns = Object.keys(campaignVisitors)
+        .map(name => ({ 
+          name, 
+          visitors: campaignVisitors[name].size,
+          sessions: campaignSessions[name] || 0,
+          connections: 0 
+        }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      // Keyword breakdown
-      const keywordCounts: Record<string, { visitors: number; connections: number }> = {};
+      // Keyword breakdown - count unique visitors
+      const keywordVisitors: Record<string, Set<string>> = {};
+      const keywordSessions: Record<string, number> = {};
       uniqueSessions.forEach(s => {
         if (s.utm_term) {
-          if (!keywordCounts[s.utm_term]) keywordCounts[s.utm_term] = { visitors: 0, connections: 0 };
-          keywordCounts[s.utm_term].visitors++;
+          if (!keywordVisitors[s.utm_term]) {
+            keywordVisitors[s.utm_term] = new Set();
+            keywordSessions[s.utm_term] = 0;
+          }
+          keywordVisitors[s.utm_term].add(getVisitorKey(s));
+          keywordSessions[s.utm_term]++;
         }
       });
-      const keywords = Object.entries(keywordCounts)
-        .map(([term, data]) => ({ term, ...data }))
+      const keywords = Object.keys(keywordVisitors)
+        .map(term => ({ 
+          term, 
+          visitors: keywordVisitors[term].size,
+          sessions: keywordSessions[term] || 0,
+          connections: 0 
+        }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      // Geography breakdown
-      const countryCounts: Record<string, { visitors: number; connections: number }> = {};
-      const cityCounts: Record<string, { visitors: number; connections: number; country: string }> = {};
+      // Geography breakdown - count unique visitors
+      const countryVisitors: Record<string, Set<string>> = {};
+      const countrySessions: Record<string, number> = {};
+      const cityVisitors: Record<string, { visitors: Set<string>; sessions: number; country: string }> = {};
+      
       uniqueSessions.forEach(s => {
         const country = s.country || 'Unknown';
-        if (!countryCounts[country]) countryCounts[country] = { visitors: 0, connections: 0 };
-        countryCounts[country].visitors++;
+        if (!countryVisitors[country]) {
+          countryVisitors[country] = new Set();
+          countrySessions[country] = 0;
+        }
+        countryVisitors[country].add(getVisitorKey(s));
+        countrySessions[country]++;
         
         if (s.city) {
           const cityKey = `${s.city}, ${country}`;
-          if (!cityCounts[cityKey]) cityCounts[cityKey] = { visitors: 0, connections: 0, country };
-          cityCounts[cityKey].visitors++;
+          if (!cityVisitors[cityKey]) {
+            cityVisitors[cityKey] = { visitors: new Set(), sessions: 0, country };
+          }
+          cityVisitors[cityKey].visitors.add(getVisitorKey(s));
+          cityVisitors[cityKey].sessions++;
         }
       });
       
-      const countries = Object.entries(countryCounts)
-        .map(([name, data]) => ({ name, code: name.substring(0, 2).toUpperCase(), ...data }))
+      const countries = Object.keys(countryVisitors)
+        .map(name => ({ 
+          name, 
+          code: name.substring(0, 2).toUpperCase(), 
+          visitors: countryVisitors[name].size,
+          sessions: countrySessions[name] || 0,
+          connections: 0 
+        }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      const cities = Object.entries(cityCounts)
-        .map(([name, data]) => ({ name: name.split(',')[0], ...data }))
+      const cities = Object.entries(cityVisitors)
+        .map(([name, data]) => ({ 
+          name: name.split(',')[0], 
+          country: data.country,
+          visitors: data.visitors.size,
+          sessions: data.sessions,
+          connections: 0 
+        }))
         .sort((a, b) => b.visitors - a.visitors)
         .slice(0, 10);
       
@@ -441,37 +567,41 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         .sort((a, b) => b.exits - a.exits)
         .slice(0, 10);
       
-      // Tech breakdown - FILTER OUT NULL/UNKNOWN from top of lists
-      const browserCounts: Record<string, number> = {};
-      const osCounts: Record<string, number> = {};
-      const deviceCounts: Record<string, number> = {};
+      // Tech breakdown - count unique visitors, not sessions
+      const browserVisitors: Record<string, Set<string>> = {};
+      const osVisitors: Record<string, Set<string>> = {};
+      const deviceVisitors: Record<string, Set<string>> = {};
       
       uniqueSessions.forEach(s => {
         const browser = s.browser || 'Unknown';
         const os = s.os || 'Unknown';
         const device = s.device_type || 'Desktop';
         
-        browserCounts[browser] = (browserCounts[browser] || 0) + 1;
-        osCounts[os] = (osCounts[os] || 0) + 1;
-        deviceCounts[device] = (deviceCounts[device] || 0) + 1;
+        if (!browserVisitors[browser]) browserVisitors[browser] = new Set();
+        if (!osVisitors[os]) osVisitors[os] = new Set();
+        if (!deviceVisitors[device]) deviceVisitors[device] = new Set();
+        
+        browserVisitors[browser].add(getVisitorKey(s));
+        osVisitors[os].add(getVisitorKey(s));
+        deviceVisitors[device].add(getVisitorKey(s));
       });
       
-      const totalForPercent = uniqueSessions.length || 1;
+      const totalVisitorsForPercent = currentVisitors || 1;
       
-      // Filter out Unknown/null from top of lists but keep for percentage calculation
-      const browsers = Object.entries(browserCounts)
+      // Filter out Unknown/null from top of lists
+      const browsers = Object.entries(browserVisitors)
         .filter(([name]) => name && name !== 'Unknown' && name !== 'null' && name !== 'undefined')
-        .map(([name, visitors]) => ({ name, visitors, percentage: (visitors / totalForPercent) * 100 }))
+        .map(([name, visitors]) => ({ name, visitors: visitors.size, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      const operatingSystems = Object.entries(osCounts)
+      const operatingSystems = Object.entries(osVisitors)
         .filter(([name]) => name && name !== 'Unknown' && name !== 'null' && name !== 'undefined')
-        .map(([name, visitors]) => ({ name, visitors, percentage: (visitors / totalForPercent) * 100 }))
+        .map(([name, visitors]) => ({ name, visitors: visitors.size, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      const devices = Object.entries(deviceCounts)
+      const devices = Object.entries(deviceVisitors)
         .filter(([type]) => type && type !== 'Unknown' && type !== 'null' && type !== 'undefined')
-        .map(([type, visitors]) => ({ type, visitors, percentage: (visitors / totalForPercent) * 100 }))
+        .map(([type, visitors]) => ({ type, visitors: visitors.size, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
       // Enhanced 6-stage funnel for M&A marketplace with REAL data
@@ -486,7 +616,6 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       // REAL NDA and Fee Agreement counts from connection_requests
       const ndaSignedCount = allConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).length;
       const feeAgreementCount = allConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).length;
-      const totalConnectionsCount = allConnectionsWithMilestones.length;
       
       // Get unique users who signed NDA/Fee Agreement
       const ndaSignedUsers = new Set(allConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).map(c => c.user_id));
@@ -501,8 +630,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         { name: 'Connected', count: connectingUsers.size, dropoff: feeAgreementUsers.size > 0 ? ((feeAgreementUsers.size - connectingUsers.size) / feeAgreementUsers.size) * 100 : 0 },
       ];
       
-      // Top users with enhanced data - include ALL users who have connections
-      // Build maps from ALL connections in period, not just those with sessions
+      // Top users with enhanced data
       const userConnectionCounts = new Map<string, number>();
       allConnectionsWithMilestones.forEach(c => {
         if (c.user_id) {
@@ -515,7 +643,6 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       uniqueSessions.forEach(s => {
         if (s.user_id) {
           userSessionCounts.set(s.user_id, (userSessionCounts.get(s.user_id) || 0) + 1);
-          // Keep the most recent session data
           const existing = userSessionData.get(s.user_id);
           if (!existing || new Date(s.started_at) > new Date(existing.lastSeen || 0)) {
             userSessionData.set(s.user_id, {
@@ -530,12 +657,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         }
       });
       
-      // Create a combined set of all user IDs with connections OR sessions
       const allUserIds = new Set<string>();
       userConnectionCounts.forEach((_, id) => allUserIds.add(id));
       userSessionCounts.forEach((_, id) => allUserIds.add(id));
       
-      // Map profiles by ID for quick lookup
       const profileMap = new Map(profiles.map(p => [p.id, p]));
       
       // Compute activity days from page views (last 7 days)
@@ -562,7 +687,6 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           const connectionCount = userConnectionCounts.get(id) || 0;
           const sessionCount = userSessionCounts.get(id) || 0;
           
-          // Build activity days for this user
           const userDates = userPageViewsByDate.get(id);
           const activityDays = last7Days.map(date => {
             const pageViewCount = userDates?.get(date) || 0;
@@ -591,37 +715,24 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
             activityDays,
           };
         })
-        .filter(u => u.connections > 0 || u.sessions > 0) // Must have some activity
+        .filter(u => u.connections > 0 || u.sessions > 0)
         .sort((a, b) => b.connections - a.connections || b.sessions - a.sessions)
         .slice(0, 25);
       
       // Format daily metrics - FALLBACK to computing from raw data if empty
-      let formattedDailyMetrics: Array<{ date: string; visitors: number; connections: number; bounceRate: number }>;
+      // Use unique_visitors column if available, otherwise compute
+      let formattedDailyMetrics: Array<{ date: string; visitors: number; sessions: number; connections: number; bounceRate: number }>;
       
       if (dailyMetrics.length > 0) {
-        // Use aggregated daily_metrics table
         formattedDailyMetrics = dailyMetrics.map(m => ({
           date: m.date,
-          visitors: m.total_sessions || 0,
+          visitors: (m as any).unique_visitors || 0, // Use unique_visitors if backfilled
+          sessions: m.total_sessions || 0,
           connections: m.connection_requests || 0,
           bounceRate: m.bounce_rate || 0,
         }));
       } else {
         // FALLBACK: Compute from raw sessions and connections
-        const dailySessionCounts = new Map<string, number>();
-        const dailyConnectionCounts = new Map<string, number>();
-        
-        uniqueSessions.forEach(s => {
-          const dateStr = format(parseISO(s.started_at), 'yyyy-MM-dd');
-          dailySessionCounts.set(dateStr, (dailySessionCounts.get(dateStr) || 0) + 1);
-        });
-        
-        connections.forEach(c => {
-          const dateStr = format(parseISO(c.created_at), 'yyyy-MM-dd');
-          dailyConnectionCounts.set(dateStr, (dailyConnectionCounts.get(dateStr) || 0) + 1);
-        });
-        
-        // Generate array for all days in range
         formattedDailyMetrics = [];
         const currentDate = new Date(startDate);
         const end = new Date(endDate);
@@ -629,7 +740,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           const dateStr = format(currentDate, 'yyyy-MM-dd');
           formattedDailyMetrics.push({
             date: dateStr,
-            visitors: dailySessionCounts.get(dateStr) || 0,
+            visitors: dailyVisitorSets.get(dateStr)?.size || 0,
+            sessions: dailySessionCounts.get(dateStr) || 0,
             connections: dailyConnectionCounts.get(dateStr) || 0,
             bounceRate: 0,
           });
@@ -640,6 +752,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       return {
         kpis: {
           visitors: { value: currentVisitors, trend: visitorsTrend, sparkline: visitorSparkline },
+          sessions: { value: currentSessionCount, trend: sessionsTrend, sparkline: sessionSparkline },
           connections: { value: currentConnections, trend: connectionsTrend, sparkline: connectionSparkline },
           conversionRate: { value: conversionRate, trend: conversionTrend },
           bounceRate: { value: bounceRate, trend: 0 },
@@ -652,7 +765,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         campaigns,
         keywords,
         countries,
-        regions: [], // Would need additional data
+        regions: [],
         cities,
         topPages,
         entryPages,

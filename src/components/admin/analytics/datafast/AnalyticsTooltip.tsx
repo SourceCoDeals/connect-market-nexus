@@ -122,6 +122,7 @@ export function AnalyticsTooltip({
 interface ChartTooltipData {
   date: string;
   visitors: number;
+  sessions?: number;
   connections: number;
   conversionRate?: number;
 }
