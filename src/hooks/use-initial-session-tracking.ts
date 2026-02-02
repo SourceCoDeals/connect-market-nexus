@@ -106,7 +106,36 @@ export const useInitialSessionTracking = () => {
           : 0;
 
         // Extract ALL cross-domain tracking params (passed from sourcecodeals.com)
-        const searchParams = new URLSearchParams(window.location.search);
+        const SCO_SEARCH_STORAGE_KEY = 'sco_cross_domain_search';
+        const currentSearch = window.location.search || '';
+        const hasCrossDomainParams =
+          currentSearch.includes('sco_ref_host=') ||
+          currentSearch.includes('sco_landing=') ||
+          currentSearch.includes('sco_entry_time=') ||
+          currentSearch.includes('sco_ga4_cid=') ||
+          currentSearch.includes('original_referrer=') ||
+          currentSearch.includes('blog_landing=');
+
+        // Persist first seen cross-domain params so attribution survives internal redirects
+        if (hasCrossDomainParams) {
+          try {
+            sessionStorage.setItem(SCO_SEARCH_STORAGE_KEY, currentSearch);
+          } catch {
+            // Ignore sessionStorage errors
+          }
+        }
+
+        let effectiveSearch = currentSearch;
+        if (!hasCrossDomainParams) {
+          try {
+            const stored = sessionStorage.getItem(SCO_SEARCH_STORAGE_KEY);
+            if (stored) effectiveSearch = stored;
+          } catch {
+            // Ignore sessionStorage errors
+          }
+        }
+
+        const searchParams = new URLSearchParams(effectiveSearch);
         // Support both full URL (legacy) and hostname-only (hardened/recommended)
         const originalReferrer = searchParams.get('original_referrer');
         const scoRefHost = searchParams.get('sco_ref_host'); // Hardened version - hostname only
