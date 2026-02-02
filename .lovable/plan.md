@@ -1,320 +1,241 @@
 
-# Intelligence Center Enhancement Plan - Phase 2
+# Intelligence Center Fix Plan
 
-## Current State Assessment
+## Issues Identified
 
-### What's Implemented from Original Plan
-1. **KPI Strip** - 6 metrics with sparklines and trends
-2. **Daily Visitors Chart** - Dual-axis bar+line chart with tooltips
-3. **Sources Card** - Channel/Referrer/Campaign/Keyword tabs with donut chart
-4. **Geography Card** - Map/Country/Region/City tabs with choropleth
-5. **Pages Card** - Page/Entry/Exit tabs
-6. **Tech Stack Card** - Browser/OS/Device tabs with progress bars
-7. **Conversion Card** - Simplified funnel (3 stages) + basic Top Users list
-8. **Floating Globe Toggle** - Opens fullscreen Mapbox overlay
+### Issue 1: Referrer is Truncated in User Detail Panel
+**Location:** `UserDetailPanel.tsx` lines 219-224
+**Root Cause:** Referrer is truncated with `max-w-[120px]` class and only shows hostname
+```tsx
+<span className="text-xs truncate max-w-[120px]">
+  {new URL(data.source.referrer).hostname}
+</span>
+```
+**Fix:** Show full referrer with proper wrapping, add tooltip for long URLs
 
-### Critical Gaps Identified
+### Issue 2: User Detail Panel Position Should Be Bottom (Not Side)
+**Location:** `UserDetailPanel.tsx` line 133-134
+**Root Cause:** Using Sheet with default `side="right"` behavior
+```tsx
+<SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
+```
+**Fix:** Change to `side="bottom"` and increase height to cover ~80% of viewport like Datafa.st
 
-**1. Conversion Card is severely underpowered:**
-- Only 3 funnel stages (Visitors, Registered, Connected) - missing NDA and Fee Agreement milestones
-- No "Journey" tab with configurable event filtering
-- No rich user detail panel when clicking a user
-- No activity heatmap per user
-- No "time to complete" tracking
+### Issue 3: User Detail Panel Needs More Comprehensive Data
+**Current State:** Missing several key elements from Datafa.st example:
+- Resolution/screen size
+- Full referrer with favicon
+- "Found site via" acquisition entry
+- Date grouping in timeline (e.g., "Saturday, Jan 31st 2026")
+- Expandable event parameters
+- Better visual hierarchy
 
-**2. Tooltips are basic:**
-- Missing "Top Sources" and "Top Countries" in funnel hover
-- Missing dual-bar visualization (Visitors + Connections side-by-side)
-- No "Step value" equivalent metrics
+**Fix:** Enhance the panel layout to match Datafa.st example with two-column design
 
-**3. User Detail Panel missing:**
-- Datafa.st shows: avatar, location, device, OS, browser, pageviews count, time to completion, activity calendar heatmap, chronological event timeline
-- We have none of this - clicking a user should open a rich modal
+### Issue 4: Goals Tab Shows No Data (Empty)
+**Location:** `ConversionCard.tsx` GoalsTab function
+**Root Cause:** GoalsTab iterates over `funnel.stages` which has correct data, but the issue is the funnel stages in `useUnifiedAnalytics.ts` lines 450-451 use placeholders:
+```typescript
+const ndaSignedCount = Math.floor(connectingUsers.size * 0.7); // ~70% of connections
+const feeAgreementCount = Math.floor(connectingUsers.size * 0.85); // ~85% of connections
+```
+**Fix:** Query actual NDA/Fee Agreement counts from `connection_requests` table
 
-**4. Journey Tab not implemented:**
-- Should allow selecting a goal event (e.g., "connection_request")
-- Shows all users who completed that journey
-- Displays time to complete, source, completion date
-- Filterable by different goal types
+### Issue 5: Only 2 Users Show in Funnel Despite Having 20+ Users with Connections
+**Location:** `useUnifiedAnalytics.ts` lines 485-502
+**Root Cause:** The topUsers filter only includes users who have BOTH profile AND (sessions OR connections) in the current period. Since sessions are filtered by date range but connections are also date-filtered, users who connected earlier don't appear.
 
-**5. Source/Geography bar visualizations missing:**
-- Each row should have a proportional bar showing relative magnitude
-- Dual-colored bars for Visitors vs Connections comparison
+Also, the hook filters profiles that exist in `userConnectionCounts` OR `userSessionCounts` - but these maps are built from current period data only.
 
-**6. Real data issues:**
-- Funnel needs to query actual NDA signed / Fee Agreement signed counts from connection_requests
-- Time on page data exists but not displayed
-- User pageview counts not calculated
+**Database Evidence:**
+- 21 unique users made connections in last 30 days
+- There are users like "Dominic Lupo" with 17 connections and 43 sessions
 
----
+**Fix:** Query connection counts separately without date filter for user display, or include all users who have ever connected
 
-## Enhancement Plan
+### Issue 6: Globe/Bulb Icons Should Be at Bottom Center (Not Right Side)
+**Location:** `FloatingGlobeToggle.tsx` line 12
+**Current:** `fixed bottom-6 right-6 flex flex-col gap-3`
+**Fix:** Change to `fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-row gap-3`
 
-### Section 1: Enhanced Funnel with 6 Marketplace Stages
-
-Replace the simplified 3-stage funnel with the complete M&A marketplace journey:
-
-| Stage | Data Source | Description |
-|-------|-------------|-------------|
-| 1. Landing | Total unique sessions | First touchpoint |
-| 2. Marketplace | Sessions with /marketplace page view | Engaged with listings |
-| 3. Registered | Profiles created in period | Created account |
-| 4. NDA Signed | connection_requests.lead_nda_signed = true | Signed NDA |
-| 5. Fee Agreement | connection_requests.lead_fee_agreement_signed = true | Signed fee agreement |
-| 6. Connected | connection_requests.status = any | Sent connection request |
-
-Funnel visualization shows waterfall bars with drop-off percentages between stages.
-
-Hover tooltip shows:
-- Stage name
-- Count
-- Drop-off percentage
-- Top 3 sources at this stage
-- Top 3 countries at this stage
+### Issue 7: Daily Chart Shows No Data
+**Location:** `DailyVisitorsChart.tsx` & `useUnifiedAnalytics.ts`
+**Root Cause:** `daily_metrics` table is empty (query returned `[]`)
+**Fix:** Fall back to computing daily metrics from raw `user_sessions` when `daily_metrics` is empty
 
 ---
 
-### Section 2: Rich User Tab with Detail Panel
+## Implementation Plan
 
-**User List Columns:**
-- Avatar (DiceBear cartoon based on name)
-- Name (or animal name for anonymous)
-- Location with flag
-- Device + OS + Browser icons
-- Source (with favicon)
-- Time to Connect (if converted)
-- Last Seen timestamp
-- Activity dots timeline (last 7 days)
+### Part 1: Fix User Detail Panel - Bottom Position & Comprehensive Layout
 
-**User Detail Modal (slide-up panel on click):**
+**File: `src/components/admin/analytics/datafast/UserDetailPanel.tsx`**
 
-Left sidebar:
-- Large avatar
-- Full name or generated animal name
-- Country + City with flag
-- Device type + resolution
-- OS name
-- Browser name
-- "Add parameters" link (future: custom tagging)
+Changes:
+1. Change Sheet to open from bottom with `side="bottom"`
+2. Increase height to `h-[85vh]`
+3. Add two-column layout like Datafa.st:
+   - Left: Avatar, name, email, location (flag), device/resolution, OS, browser, parameters table
+   - Right: Stats grid, "Time to convert" badge, Activity heatmap, Event timeline with date headers
+4. Show full referrer with favicon
+5. Add "Found site via [referrer]" as first timeline event
+6. Group events by date with date headers
+7. Add expandable parameters to events
 
-Center timeline:
-- Chronological event list with timestamps
-- Events: "Viewed page /path", "Triggered event: marketplace_filter_applied", "Found site via referrer Google"
-- Expandable parameters per event
-- Keyword probability breakdown (for organic search visitors)
+### Part 2: Fix Data Queries in useUnifiedAnalytics
 
-Right stats panel:
-- Total pageviews
-- Total time on site
-- Time to conversion (if applicable)
-- Activity heatmap calendar (past 6 months)
-- AI Summary (future: "coming soon...")
+**File: `src/hooks/useUnifiedAnalytics.ts`**
 
----
-
-### Section 3: Journey Tab with Event Filtering
-
-**Goal Event Selector:**
-- Dropdown to choose goal: "connection_request", "nda_signed", "fee_agreement_signed", "viewed_listing", etc.
-- Shows only users who completed the selected goal
-
-**Journey Table Columns:**
-- Visitor (avatar + name + location + device icons)
-- Source (with favicon)
-- Time to Complete (formatted as "2 minutes", "17 days", etc.)
-- Completed At (timestamp)
-- Activity dots
-
-**Click row opens User Detail Modal with full timeline**
-
----
-
-### Section 4: Enhanced Tooltips Across All Cards
-
-**Sources Card (Channel/Referrer) hover:**
-```text
-Referral
-Visitors     3.6k
-Connections  42
-
-TOP SOURCES
-marclou.com    53%
-lovable.dev    15%
-linkedin.com   8%
-
-Conv. Rate: 1.16%
+Changes:
+1. Query actual NDA/Fee Agreement counts:
+```typescript
+// Add to parallel queries
+supabase
+  .from('connection_requests')
+  .select('id, lead_nda_signed, lead_fee_agreement_signed')
+  .gte('created_at', startDateStr)
 ```
 
-**Geography Card hover:**
-```text
-United States
-Visitors     847
-Connections  23
-
-TOP CITIES
-New York       28%
-Los Angeles    19%
-Chicago        12%
-
-Conv. Rate: 2.7%
+2. Compute daily metrics from raw sessions when `daily_metrics` is empty:
+```typescript
+if (dailyMetrics.length === 0) {
+  // Aggregate from sessions by date
+  const dailyMap = new Map<string, { visitors: number; connections: number }>();
+  uniqueSessions.forEach(s => {
+    const date = format(new Date(s.started_at), 'yyyy-MM-dd');
+    // ... aggregate
+  });
+}
 ```
 
-**Funnel Step hover:**
-```text
-NDA Signed
-Count: 234
-Drop-off: -33%
+3. Fix topUsers to include ALL users with connections (not just current period):
+```typescript
+// Query all connection counts, not just current period
+const allConnectionsResult = await supabase
+  .from('connection_requests')
+  .select('user_id')
+  .not('user_id', 'is', null);
+```
 
-TOP SOURCES
-Direct        45%
-Google        28%
-LinkedIn      15%
+### Part 3: Fix Globe/Bulb Button Position
 
-TOP COUNTRIES
-United States  42%
-United Kingdom 18%
-Canada         12%
+**File: `src/components/admin/analytics/datafast/FloatingGlobeToggle.tsx`**
 
-Conversion from start: 9.8%
+Change positioning from right side to bottom center:
+```tsx
+<div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-row gap-3 z-40">
+```
+
+### Part 4: Enhance Funnel Tooltips with Real Breakdown Data
+
+**File: `src/components/admin/analytics/datafast/ConversionCard.tsx`**
+
+Currently using static placeholder data in tooltips:
+```tsx
+topSources={[
+  { name: 'Direct', percentage: 45 },
+  { name: 'Google', percentage: 28 },
+  { name: 'LinkedIn', percentage: 15 },
+]}
+```
+
+Fix: Pass real computed source/country breakdown to each funnel stage
+
+---
+
+## Technical Details
+
+### UserDetailPanel Bottom Sheet Layout
+
+```
++------------------------------------------------------------------+
+|  [Drag Handle]                                              [X]   |
++------------------------------------------------------------------+
+|                                                                    |
+|   [Avatar]  Name                    |  PAGEVIEWS    SESSIONS      |
+|             Company                 |    8             9          |
+|             email@company.com       |                             |
+|                                     |  TIME ON SITE  CONNECTIONS  |
+|   LOCATION                          |    0s            2          |
+|   [Flag] Country, City              |                             |
+|                                     |  [Time to convert: 171 days]|
+|   TECHNOLOGY                        |                             |
+|   [Icon] Desktop (1728x1000)        |  ACTIVITY (LAST 6 MONTHS)   |
+|   [Icon] Mac OS                     |  [Calendar Heatmap]         |
+|   [Icon] Safari                     |                             |
+|                                     |  EVENT TIMELINE (10 EVENTS) |
+|   ACQUISITION                       |  [Saturday, Jan 31st 2026]  |
+|   Channel        [Referral]         |  [Q] Found codefa.st via... |
+|   Referrer       www.sourcecodeal...|  [Eye] Viewed page /        |
+|   (show full on hover)              |  [Eye] Viewed page /market..|
+|                                     |  [Link] Sent connection...  |
+|   First seen     Aug 11, 2025       |                             |
+|   Last seen      4 days ago         |                             |
+|                                     |                             |
++------------------------------------------------------------------+
+```
+
+### Daily Metrics Fallback Computation
+
+When `daily_metrics` table is empty, compute from raw data:
+```typescript
+const dailySessionCounts = new Map<string, number>();
+const dailyConnectionCounts = new Map<string, number>();
+
+uniqueSessions.forEach(s => {
+  const date = format(new Date(s.started_at), 'yyyy-MM-dd');
+  dailySessionCounts.set(date, (dailySessionCounts.get(date) || 0) + 1);
+});
+
+connections.forEach(c => {
+  const date = format(new Date(c.created_at), 'yyyy-MM-dd');
+  dailyConnectionCounts.set(date, (dailyConnectionCounts.get(date) || 0) + 1);
+});
+
+// Generate array for all days in range
+const formattedDailyMetrics = [];
+for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+  const dateStr = format(d, 'yyyy-MM-dd');
+  formattedDailyMetrics.push({
+    date: dateStr,
+    visitors: dailySessionCounts.get(dateStr) || 0,
+    connections: dailyConnectionCounts.get(dateStr) || 0,
+    bounceRate: 0,
+  });
+}
+```
+
+### Real Funnel Stage Data
+
+Query NDA and Fee Agreement from connection_requests:
+```sql
+SELECT 
+  COUNT(*) FILTER (WHERE lead_nda_signed = true) as nda_count,
+  COUNT(*) FILTER (WHERE lead_fee_agreement_signed = true) as fee_count,
+  COUNT(*) as total_connections
+FROM connection_requests
+WHERE created_at >= [startDate]
 ```
 
 ---
 
-### Section 5: Visual Enhancements
+## Files to Modify
 
-**Dual-bar rows in lists:**
-Each row shows proportional background bars:
-- Blue bar = Visitors (relative to max)
-- Coral bar overlay = Connections (relative to max)
-
-Example row appearance:
-```text
-[Google favicon] Google           [========coral bar=======][blue bar===] 1.8k
-```
-
-**Progress indicators in Pages/Tech cards:**
-Each row gets a thin progress bar underneath showing relative proportion.
-
-**Activity dot timeline:**
-7 dots representing last 7 days, colored by activity level:
-- Gray = no activity
-- Light blue = low activity (1-2 pages)
-- Medium blue = medium (3-5 pages)
-- Coral = high activity (6+ pages)
+| File | Changes |
+|------|---------|
+| `src/components/admin/analytics/datafast/UserDetailPanel.tsx` | Complete rewrite for bottom sheet with comprehensive layout |
+| `src/hooks/useUnifiedAnalytics.ts` | Fix data queries, add daily metrics fallback, fix topUsers |
+| `src/components/admin/analytics/datafast/FloatingGlobeToggle.tsx` | Center bottom positioning |
+| `src/components/admin/analytics/datafast/ConversionCard.tsx` | Pass real breakdown data to funnel tooltips |
 
 ---
 
-### Section 6: Goals Tab (Milestone Tracking)
+## Expected Results After Fix
 
-Track completed business milestones:
-
-| Goal | Count | Conversion |
-|------|-------|------------|
-| Viewed Marketplace | 892 | 37.2% of visitors |
-| Registered Account | 234 | 26.2% of marketplace viewers |
-| Signed NDA | 56 | 23.9% of registered |
-| Signed Fee Agreement | 34 | 60.7% of NDA signed |
-| Sent Connection | 28 | 82.4% of fee agreement |
-
-Each goal row is clickable to see the list of users who completed it.
-
----
-
-### Section 7: Real Data Integration
-
-**Fix missing data:**
-
-1. **Funnel Stages** - Add queries for:
-   - Sessions with /marketplace page view
-   - Count of lead_nda_signed = true
-   - Count of lead_fee_agreement_signed = true
-
-2. **User Page View Count** - Calculate from page_views table grouped by user_id
-
-3. **Time to Convert** - Calculate difference between first session and connection_request created_at
-
-4. **Activity Heatmap** - Aggregate page_views by date per user for calendar visualization
-
-5. **Event Timeline** - Combine page_views and user_events into chronological list per user
-
----
-
-## Technical Implementation
-
-### New/Modified Files
-
-**1. useUnifiedAnalytics.ts enhancements:**
-- Add funnel stages for NDA and Fee Agreement
-- Add user activity data (pageviews, time_on_site)
-- Add journey completion data
-
-**2. New: useUserDetail.ts**
-- Fetches complete user timeline (page_views + events)
-- Returns profile data, geo data, tech stack, activity heatmap
-
-**3. ConversionCard.tsx complete rewrite:**
-- 4 tabs: Goals | Funnel | Users | Journey
-- Goals: milestone achievement list
-- Funnel: 6-stage waterfall with rich tooltips
-- Users: searchable user list with detail panel
-- Journey: goal-filtered user list
-
-**4. New: UserDetailPanel.tsx**
-- Slide-up modal with 3-column layout
-- Chronological event timeline
-- Activity heatmap calendar
-- Stats summary
-
-**5. New: ActivityDots.tsx**
-- 7-dot timeline component showing daily activity
-
-**6. AnalyticsTooltip.tsx enhancements:**
-- Support for "TOP SOURCES" and "TOP COUNTRIES" sections
-- Dual-row value displays
-
-**7. SourcesCard.tsx / GeographyCard.tsx:**
-- Add proportional background bars to each row
-
----
-
-## Implementation Priority
-
-| Priority | Component | Impact |
-|----------|-----------|--------|
-| P0 | 6-stage funnel with real data | Critical for M&A intelligence |
-| P0 | User list with detail panel | Core Datafa.st feature |
-| P1 | Journey tab with goal filtering | High-value conversion analysis |
-| P1 | Enhanced tooltips everywhere | Polish and data density |
-| P2 | Activity dots timeline | Engagement visualization |
-| P2 | Goals tab | Milestone tracking |
-| P3 | Dual-bar proportional rows | Visual enhancement |
-| P3 | Activity heatmap calendar | Future-forward feature |
-
----
-
-## Data Schema Requirements
-
-All data is already available:
-- `connection_requests.lead_nda_signed` / `lead_fee_agreement_signed` for funnel stages
-- `page_views` for user timeline events
-- `user_events` for custom events (marketplace_filter_applied, etc.)
-- `user_journeys` for first-touch attribution and milestone tracking
-- `user_sessions` for geo, device, browser, OS data
-- `profiles` for user identity
-
-No database migrations required.
-
----
-
-## Expected Outcome
-
-After implementation, the Intelligence Center will match and exceed Datafa.st capabilities with:
-
-1. **6-stage M&A funnel** showing complete buyer journey from landing to connection
-2. **Clickable user profiles** with full event timeline and activity heatmap
-3. **Journey analysis** to see exactly which users completed specific goals
-4. **Rich tooltips** with multi-dimensional breakdowns (top sources, countries)
-5. **Visual data density** with proportional bars and activity indicators
-6. **100% real data** - no placeholders, all from live marketplace tables
-
-This transforms the dashboard from a basic analytics view into a true buyer intelligence command center for M&A decision-making.
+1. **User Detail Panel:** Opens from bottom as slide-up sheet covering 85% of viewport, with comprehensive two-column layout matching Datafa.st
+2. **Referrer:** Shows full URL with tooltip for long URLs, includes favicon
+3. **Goals Tab:** Shows real milestone counts from database
+4. **Users Tab:** Shows all 20+ users with connections, not just 2
+5. **Daily Chart:** Shows actual daily visitor/connection data computed from raw sessions
+6. **Globe/Bulb Buttons:** Positioned at bottom center of screen
+7. **Funnel Tooltips:** Show real top sources and countries for each stage
