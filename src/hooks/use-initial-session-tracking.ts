@@ -105,10 +105,14 @@ export const useInitialSessionTracking = () => {
           ? Math.max(0, Math.floor((Date.now() - performance.timing.navigationStart) / 1000))
           : 0;
 
-        // Extract original referrer from URL params (passed from blog/website)
+        // Extract ALL cross-domain tracking params (passed from sourcecodeals.com)
         const searchParams = new URLSearchParams(window.location.search);
         const originalReferrer = searchParams.get('original_referrer');
-        const blogLanding = searchParams.get('blog_landing');
+        const scoLanding = searchParams.get('sco_landing') || searchParams.get('blog_landing');
+        const scoEntryTime = searchParams.get('sco_entry_time');
+        const scoGa4Cid = searchParams.get('sco_ga4_cid');
+        const gclid = searchParams.get('gclid');
+        const fbclid = searchParams.get('fbclid');
 
         // Prepare tracking data for edge function with enhanced journey tracking
         const trackingData = {
@@ -129,13 +133,17 @@ export const useInitialSessionTracking = () => {
           landing_url: window.location.href,
           landing_path: window.location.pathname,
           landing_search: window.location.search,
-          // GA4 integration for data stitching
-          ga4_client_id: ga4ClientId,
+          // GA4 integration - prefer cross-domain CID if passed from website
+          ga4_client_id: scoGa4Cid || ga4ClientId,
           // Initial time on page for accurate session duration from start
           time_on_page: timeOnPage,
           // Cross-domain attribution (passed from sourcecodeals.com)
           original_referrer: originalReferrer || undefined,
-          blog_landing: blogLanding || undefined,
+          blog_landing: scoLanding || undefined,
+          sco_entry_time: scoEntryTime || undefined,
+          // Ad tracking IDs
+          gclid: gclid || undefined,
+          fbclid: fbclid || undefined,
           // First-touch attribution for historical analysis
           ...firstTouchData,
         };
