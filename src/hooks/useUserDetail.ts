@@ -59,6 +59,16 @@ export interface UserDetailData {
     utmSource?: string;
     utmMedium?: string;
     utmCampaign?: string;
+    // Full session history for complete journey visibility
+    allSessions?: Array<{
+      referrer: string | null;
+      landingPage: string | null;
+      startedAt: string;
+      channel: string;
+      utmSource?: string | null;
+      utmMedium?: string | null;
+      utmCampaign?: string | null;
+    }>;
   };
 }
 
@@ -302,6 +312,16 @@ export function useUserDetail(visitorId: string | null) {
           utmSource: firstSession?.utm_source,
           utmMedium: firstSession?.utm_medium,
           utmCampaign: firstSession?.utm_campaign,
+          // Full journey history - all sessions with their referrers
+          allSessions: sessions.map(s => ({
+            referrer: s.referrer,
+            landingPage: s.first_touch_landing_page,
+            startedAt: s.started_at,
+            channel: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
+            utmSource: s.utm_source,
+            utmMedium: s.utm_medium,
+            utmCampaign: s.utm_campaign,
+          })),
         },
       };
     },
