@@ -1,328 +1,189 @@
 
+# Investigation Summary: Why Anonymous Users Show Empty/Default Data
 
-# Premium Globe Design + Complete Anonymous Journey Tracking
+## Root Cause Analysis
 
-## Overview
-
-This plan addresses two critical issues:
-1. **Design Quality** - Elevate Engagement and Buyer Breakdown sections to world-class "$10M design team" aesthetic
-2. **Anonymous Journey Data** - Fix the broken tracking so "crimson wolf" (and all anonymous visitors) show their complete journey with accurate session times
+I've identified **THREE critical issues** preventing journey data from appearing for anonymous users like "rose lion" and "crimson wolf":
 
 ---
 
-## Part 1: Root Cause Analysis
+## Issue #1: Dual Session ID Systems (Primary Cause)
 
-### Why "Crimson Wolf" Shows 0s Session Time and No Journey
+The codebase has **two competing analytics systems** using different session ID formats:
 
-**Problem #1: Missing `visitor_id` in `user_sessions` Table**
-The `user_sessions` table lacks a `visitor_id` column. While we capture `visitor_id` in `user_journeys`, we cannot query historical sessions across multiple visits for anonymous users.
+| System | Session ID Format | Used By | Stored In |
+|--------|-------------------|---------|-----------|
+| **SessionContext** | UUID (`45d0257b-345b-4882-bc7e-ff7da11173c4`) | `track-session` edge function, `use-page-engagement.ts` | `user_sessions` table |
+| **AnalyticsContext** | Timestamp (`session_1770035523309_tzpas1l5v`) | `trackPageView()`, `trackListingView()` | `page_views` table |
 
-| Table | Has `visitor_id`? | Effect |
-|-------|-------------------|--------|
-| `user_journeys` | Yes | Stores first-touch, last-session |
-| `user_sessions` | **No** | Cannot link sessions to visitors |
-| `page_views` | No | Only has `session_id` |
+**The Problem:**
+- Anonymous visitors from the production site (e.g., "rose lion") have their session created by `track-session` with a UUID session ID
+- But when pages are viewed, `AnalyticsContext.tsx` generates its own timestamp-based session ID and inserts page_views with that ID
+- When `useEnhancedRealTimeAnalytics` queries page_views using the UUID from `user_sessions`, it finds **zero matching records**
+- Result: Empty `pageSequence[]` and `currentPage: null`
 
-**Problem #2: Session Duration Starts at 0**
-Duration is only updated by the heartbeat every 30 seconds. If a user lands and stays on one page for 20 seconds, their session shows "0 sec" because the first heartbeat hasn't fired yet.
-
-**Problem #3: Page Sequence Not Displayed**
-The `EnhancedActiveUser` type already has `pageSequence: string[]` but `MapboxTooltipCard` doesn't display it for anonymous users.
-
-**Problem #4: Referrer Often Shows "Direct"**
-The external referrer (e.g., `sourcecodeals.com/blog`) may be lost if:
-- Cross-origin referrer policy strips it
-- UTM parameters aren't set on inbound links
-
----
-
-## Part 2: Database Schema Changes
-
-### Add `visitor_id` to `user_sessions`
-
-```sql
--- Migration: Add visitor_id to user_sessions for cross-session linking
-ALTER TABLE user_sessions ADD COLUMN visitor_id TEXT;
-
--- Create index for fast lookups
-CREATE INDEX idx_user_sessions_visitor_id ON user_sessions(visitor_id) WHERE visitor_id IS NOT NULL;
-```
-
-This allows us to query ALL sessions for an anonymous visitor:
-```sql
-SELECT * FROM user_sessions WHERE visitor_id = 'abc123' ORDER BY started_at DESC;
-```
-
-### Update `track-session` Edge Function
-
-Modify to store `visitor_id` in `user_sessions`:
-
-```typescript
-// In track-session/index.ts - when inserting new session
-const { error: insertError } = await supabase.from('user_sessions').insert({
-  session_id: body.session_id,
-  visitor_id: body.visitor_id, // NEW: Store visitor identity
-  user_id: body.user_id || null,
-  // ... rest of fields
-});
-```
-
----
-
-## Part 3: Fix 0-Second Session Duration
-
-### Immediate Duration Calculation
-
-Update `track-session` to set initial duration based on time since page load:
-
-```typescript
-// In track-session - when creating session
-const initialDuration = body.time_on_page || 0;
-
-const { error: insertError } = await supabase.from('user_sessions').insert({
-  // ...existing fields
-  session_duration_seconds: initialDuration, // Start with actual time on page
-});
-```
-
-### Update Frontend to Send Initial Duration
-
-In `use-initial-session-tracking.ts`, capture time since page load:
-
-```typescript
-// Before calling track-session
-const timeOnPage = Math.floor((Date.now() - window.performance.timing.navigationStart) / 1000);
-
-await supabase.functions.invoke('track-session', {
-  body: {
-    ...sessionData,
-    time_on_page: timeOnPage,
-  },
-});
-```
-
----
-
-## Part 4: Display Complete Journey for Anonymous Users
-
-### Enhanced Tooltip for Anonymous Visitors
-
-Replace the generic "Visitor Journey" section with rich path visualization:
+**Database Evidence:**
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│ 🐺 crimson wolf                                             ✕   │
-│ 🇪🇸 Chamartin, Spain                                            │
-│ 💻 Desktop  •  Chrome  •  Windows                               │
-├─────────────────────────────────────────────────────────────────┤
-│ PATH INTELLIGENCE                                               │
-│                                                                 │
-│ Entry point          sourcecodeals.com/blog                     │
-│ Landing page         /welcome                                   │
-│ Current page         /marketplace                               │
-│ Session              4 min 32 sec                               │
-│                                                                 │
-│ Journey this session:                                           │
-│ ○ /welcome → ○ /marketplace → ● /signup   (3 pages)            │
-├─────────────────────────────────────────────────────────────────┤
-│ CROSS-SESSION HISTORY                                           │
-│                                                                 │
-│ Total visits         3 sessions over 5 days                     │
-│ First seen           Jan 28, 2026                               │
-│ Time on marketplace  12 min total                               │
-└─────────────────────────────────────────────────────────────────┘
+user_sessions table (anonymous users):
+session_id: 45d0257b-345b-4882-bc7e-ff7da11173c4  (UUID format)
+
+page_views table (same time period):
+session_id: session_1770035419278_2o9l7fss9  (timestamp format)
 ```
 
-### Visual Journey Path Component
-
-A horizontal path visualization showing the pages visited:
-
-```tsx
-function JourneyPath({ pages }: { pages: string[] }) {
-  return (
-    <div className="flex items-center gap-1 overflow-x-auto py-2">
-      {pages.map((page, i) => (
-        <React.Fragment key={i}>
-          <div className={cn(
-            "flex-shrink-0 px-2 py-1 rounded-md text-[10px] font-mono",
-            i === pages.length - 1 
-              ? "bg-coral-500/20 text-coral-600 border border-coral-500/30" 
-              : "bg-muted/50 text-muted-foreground"
-          )}>
-            {page}
-          </div>
-          {i < pages.length - 1 && (
-            <span className="text-muted-foreground/40 text-xs">→</span>
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-}
-```
+These IDs never match, so journey data cannot be linked.
 
 ---
 
-## Part 5: Premium Design Overhaul ($10M Aesthetic)
+## Issue #2: visitor_id NOT Being Stored for Anonymous Users
 
-### Design Principles
-- No generic Lucide icons where data should speak
-- Custom micro-visualizations for every metric
-- Subtle gradients and depth through layering
-- Typography hierarchy that guides the eye
-- Coral/Peach/Navy brand palette throughout
+The database shows that `visitor_id` is only populated for authenticated users:
 
-### Floating Panel Redesign
+```sql
+-- Query result: visitor_id only exists for admin user
+session_id: 1f24867b-8800-47c1-b7a9-39dad47b959a
+visitor_id: 61da54fb-f346-4de1-a2fe-62cb1295f450
+user_id: 1d5727f8-2a8c-4600-9a46-bddbb036ea45  -- Admin
 
-**Before (Generic):**
-```
-BUYER BREAKDOWN
-⌂ Logged in         25 (83%)
-📄 NDA Signed        21
-📄 Fee Agreement     21
-○ Connections        0 this hour
+-- Anonymous sessions:
+session_id: 45d0257b-345b-4882-bc7e-ff7da11173c4
+visitor_id: NULL  -- Missing!
+user_id: NULL
 ```
 
-**After (Premium):**
-```
-BUYER INTELLIGENCE
-
-┌─ Composition ───────────────────────────┐
-│ Authenticated     ████████████████░░░░  │
-│                   83% (25 of 30)        │
-├─────────────────────────────────────────┤
-│ QUALIFIED BUYERS                        │
-│                                         │
-│ NDA Completed              21           │
-│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░              │
-│                                         │
-│ Fee Agreement              21           │
-│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░              │
-├─────────────────────────────────────────┤
-│ ACTIVITY VELOCITY                       │
-│                                         │
-│ Connections this hour       0           │
-│ Average: 2.4/hr                         │
-└─────────────────────────────────────────┘
-```
-
-### Tooltip Engagement Section Redesign
-
-**Before:**
-```
-ENGAGEMENT
-👁 Listings viewed  ▓▓░░░░░░░░  2
-♥ Listings saved   ░░░░░░░░░░  0
-○ Connections sent ░░░░░░░░░░  0
-```
-
-**After (No icons, pure data visualization):**
-```
-ENGAGEMENT DEPTH
-
-Listings explored   ██████░░░░  6 of ~40
-Intent signals      ██░░░░░░░░  2 saved
-Outreach            ░░░░░░░░░░  0 connections
-
-─────────────────────────────────────────
-Engagement score: Above average
-```
-
-### Color-Coded Progress Bars
-
-Use semantic colors instead of flat coral:
-- **Gray**: 0 (no activity)
-- **Blue gradient**: 1-3 (light engagement)  
-- **Coral gradient**: 4-7 (moderate engagement)
-- **Green gradient**: 8+ (high engagement)
-
-```tsx
-function getEngagementColor(value: number, max: number): string {
-  const ratio = value / max;
-  if (ratio === 0) return 'bg-muted/30';
-  if (ratio < 0.3) return 'bg-gradient-to-r from-blue-400 to-blue-500';
-  if (ratio < 0.7) return 'bg-gradient-to-r from-coral-400 to-coral-500';
-  return 'bg-gradient-to-r from-emerald-400 to-emerald-500';
-}
-```
+**The Problem:**
+The edge function is receiving `visitor_id` from the frontend, but anonymous users aren't getting it stored because:
+1. The `track-session` edge function only stores `visitor_id` on **new session creation**
+2. Many anonymous sessions are **existing sessions** (the `if (existingSession)` branch) that get updated but the UPDATE query does NOT include `visitor_id`
 
 ---
 
-## Part 6: Implementation Files
+## Issue #3: session_duration_seconds is NULL for Anonymous Users
 
-### Files to Create
-| File | Purpose |
-|------|---------|
-| `supabase/migrations/add_visitor_id_to_sessions.sql` | Schema migration |
-| `src/components/admin/analytics/realtime/JourneyPath.tsx` | Visual path component |
-| `src/components/admin/analytics/realtime/EngagementDepth.tsx` | Premium engagement viz |
-| `src/components/admin/analytics/realtime/BuyerComposition.tsx` | Premium buyer breakdown |
+```sql
+-- Anonymous sessions:
+session_id: 45d0257b-345b-4882-bc7e-ff7da11173c4
+session_duration_seconds: NULL  -- Not 0, completely NULL
+```
 
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `supabase/functions/track-session/index.ts` | Store `visitor_id` in sessions, set initial duration |
-| `src/hooks/use-initial-session-tracking.ts` | Send `time_on_page` to edge function |
-| `src/hooks/useEnhancedRealTimeAnalytics.ts` | Query sessions by `visitor_id` for history |
-| `src/components/admin/analytics/realtime/MapboxTooltipCard.tsx` | Complete redesign with journey path |
-| `src/components/admin/analytics/realtime/MapboxFloatingPanel.tsx` | Premium buyer intelligence layout |
+**The Problem:**
+- The heartbeat function updates duration, but the initial session creation sets it to `time_on_page` (which may be 0)
+- If no heartbeat runs before the dashboard queries, duration stays NULL
+- The fallback calculation in `useEnhancedRealTimeAnalytics` (`calculateDuration`) tries to compute from timestamps, but if `last_active_at === started_at`, the result is 0s
 
 ---
 
-## Part 7: Technical Implementation Details
+## Solution Plan
 
-### Session Query Enhancement
+### Fix #1: Consolidate Session IDs
 
-Update `useEnhancedRealTimeAnalytics.ts` to fetch cross-session data:
+Update `AnalyticsContext.tsx` to use the UUID from `SessionContext` instead of generating its own:
 
 ```typescript
-// After fetching current sessions, get historical sessions for each visitor
-const visitorIds = sessions.map(s => s.visitor_id).filter(Boolean);
+// BEFORE (line 41-43):
+const generateSessionId = () => {
+  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
 
-const { data: historicalSessions } = await supabase
+// AFTER:
+// Remove generateSessionId function
+// Import and use SessionContext's sessionId
+import { useSessionContext } from '@/contexts/SessionContext';
+```
+
+### Fix #2: Store visitor_id on Session Update
+
+In `track-session/index.ts`, update the "existing session" branch to also set `visitor_id`:
+
+```typescript
+// Line 130-143 - Update to include visitor_id
+const { error: updateError } = await supabase
   .from('user_sessions')
-  .select('visitor_id, session_id, started_at, session_duration_seconds')
-  .in('visitor_id', visitorIds)
-  .order('started_at', { ascending: false });
-
-// Build visitor history map
-const visitorHistory: Record<string, {
-  totalSessions: number;
-  firstSeen: string;
-  totalTime: number;
-}> = {};
+  .update({
+    ip_address: clientIP,
+    country: geoData?.country || null,
+    // ...existing fields
+    visitor_id: body.visitor_id || null,  // ADD THIS
+    last_active_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  })
+  .eq('session_id', body.session_id);
 ```
 
-### Enhanced User Type
+### Fix #3: Set Initial Duration on Session Creation
 
-Add new fields to `EnhancedActiveUser`:
+Ensure `session_duration_seconds` starts with the `time_on_page` value from the frontend:
 
 ```typescript
-interface EnhancedActiveUser {
-  // ...existing fields
-  
-  // Cross-session journey data (NEW)
-  visitorFirstSeen: string | null;       // When they first visited
-  visitorTotalSessions: number;          // Sessions across all time
-  visitorTotalTime: number;              // Total time on site ever
-  externalReferrer: string | null;       // Original external source (e.g., blog)
-}
+// Already implemented in track-session/index.ts:
+session_duration_seconds: initialDuration,
+
+// But verify use-initial-session-tracking.ts is calculating correctly:
+const timeOnPage = Math.max(0, Math.floor((Date.now() - performance.timing.navigationStart) / 1000));
 ```
 
 ---
 
-## Summary
+## Implementation Steps
 
-| Issue | Root Cause | Solution |
-|-------|------------|----------|
-| 0s session time | Heartbeat hasn't fired | Send initial `time_on_page` with session |
-| No journey history | Sessions not linked by visitor | Add `visitor_id` to `user_sessions` |
-| Missing external referrer | Not displaying first-touch data | Show `first_touch_referrer` from journey |
-| Generic design | Using Lucide icons, flat layout | Custom visualizations, depth, hierarchy |
+### Step 1: Fix AnalyticsContext Session ID (Primary Fix)
 
-This plan achieves:
-1. **Complete anonymous journey visibility** - See every page "crimson wolf" visited across all sessions
-2. **Accurate real-time duration** - No more 0s from the moment they land
-3. **Premium $10M aesthetic** - Data-driven visualizations, no generic icons
-4. **Actionable intelligence** - Path visualization shows exactly where visitors go
+Modify `src/context/AnalyticsContext.tsx`:
+- Remove `generateSessionId()` function
+- Import `useSessionContext` from `@/contexts/SessionContext`
+- Use the shared `sessionId` from SessionContext
+- Remove `currentSessionId` module-level variable
 
+### Step 2: Fix track-session Edge Function
+
+Modify `supabase/functions/track-session/index.ts`:
+- Add `visitor_id` to the UPDATE query for existing sessions
+- Ensure `session_duration_seconds` uses the `time_on_page` value
+
+### Step 3: Ensure Page Views Use Correct Session ID
+
+Verify these files use `sessionId` from `SessionContext`:
+- `use-page-engagement.ts` - Already correct
+- `use-analytics-tracking.ts` - Verify and fix if needed
+
+### Step 4: Test Flow
+
+After fixes:
+1. Anonymous visitor lands on site
+2. `track-session` creates session with UUID + visitor_id + initial duration
+3. `AnalyticsContext.trackPageView()` inserts page_view with SAME UUID
+4. `useEnhancedRealTimeAnalytics` joins correctly
+5. Tooltip shows real journey data
+
+---
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/context/AnalyticsContext.tsx` | Use SessionContext's sessionId instead of generating own |
+| `supabase/functions/track-session/index.ts` | Add visitor_id to UPDATE query for existing sessions |
+| `src/hooks/use-analytics-tracking.ts` | Verify uses SessionContext's sessionId |
+
+---
+
+## Expected Results After Fix
+
+For "rose lion" (anonymous user from Amsterdam):
+
+```text
+PATH INTELLIGENCE
+Source              → Direct (or actual referrer)
+Landing             /welcome
+Current             /marketplace
+Session             4m 32s
+
+Journey this session:
+/welcome → /marketplace → /signup
+
+CROSS-SESSION HISTORY
+Total visits        3 sessions
+First seen          Jan 28, 2026
+Time spent          12 min total
+```
