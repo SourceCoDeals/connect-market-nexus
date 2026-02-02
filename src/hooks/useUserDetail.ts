@@ -54,6 +54,7 @@ export interface UserDetailData {
   activityHeatmap: UserActivityDay[]; // Last 6 months
   source: {
     referrer?: string;
+    landingPage?: string;
     channel?: string;
     utmSource?: string;
     utmMedium?: string;
@@ -139,34 +140,44 @@ export function useUserDetail(visitorId: string | null) {
             .gte('started_at', sixMonthsAgo)
             .order('started_at', { ascending: false });
       
-      // Fetch page views (need to join through sessions)
-      const pageViewsQuery = isUserId
-        ? supabase
+      // First fetch sessions to get session IDs for anonymous users
+      const sessionsResult = await sessionsQuery;
+      const sessions = sessionsResult.data || [];
+      
+      // Fetch page views - for anonymous users, query by session_id
+      let pageViews: any[] = [];
+      if (isUserId) {
+        const { data } = await supabase
+          .from('page_views')
+          .select('*')
+          .eq('user_id', visitorId)
+          .gte('created_at', sixMonthsAgo)
+          .order('created_at', { ascending: true });
+        pageViews = data || [];
+      } else if (sessions.length > 0) {
+        // For anonymous visitors, fetch page views by session IDs
+        const sessionIds = sessions.map(s => s.session_id).filter(Boolean);
+        if (sessionIds.length > 0) {
+          const { data } = await supabase
             .from('page_views')
             .select('*')
-            .eq('user_id', visitorId)
+            .in('session_id', sessionIds)
             .gte('created_at', sixMonthsAgo)
-            .order('created_at', { ascending: true })
-        : null; // For anonymous, we'll get page views from session_ids
+            .order('created_at', { ascending: true });
+          pageViews = data || [];
+        }
+      }
       
       // Only fetch connections for registered users
-      const connectionsQuery = isUserId
-        ? supabase
-            .from('connection_requests')
-            .select('id, created_at, listing_id')
-            .eq('user_id', visitorId)
-            .order('created_at', { ascending: true })
-        : null;
-      
-      const [sessionsResult, pageViewsResult, connectionsResult] = await Promise.all([
-        sessionsQuery,
-        pageViewsQuery,
-        connectionsQuery,
-      ]);
-      
-      const sessions = sessionsResult.data || [];
-      let pageViews = pageViewsResult?.data || [];
-      const connections = connectionsResult?.data || [];
+      let connections: any[] = [];
+      if (isUserId) {
+        const { data } = await supabase
+          .from('connection_requests')
+          .select('id, created_at, listing_id')
+          .eq('user_id', visitorId)
+          .order('created_at', { ascending: true });
+        connections = data || [];
+      }
       
       // Determine if anonymous
       const isAnonymous = !profile || (!profile.first_name && !profile.last_name);
@@ -286,6 +297,7 @@ export function useUserDetail(visitorId: string | null) {
         activityHeatmap,
         source: {
           referrer: firstSession?.referrer,
+          landingPage: firstSession?.first_touch_landing_page,
           channel: categorizeChannel(firstSession?.referrer, firstSession?.utm_source, firstSession?.utm_medium),
           utmSource: firstSession?.utm_source,
           utmMedium: firstSession?.utm_medium,

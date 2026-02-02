@@ -1151,7 +1151,15 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      // CRITICAL FIX: Track by unified key (user_id OR visitor_id) to include anonymous visitors
+      // CRITICAL FIX: Map visitor_id to user_id when both exist (for linking anonymous sessions to registered users)
+      const visitorToUserId = new Map<string, string>();
+      uniqueSessions.forEach(s => {
+        if (s.user_id && s.visitor_id) {
+          visitorToUserId.set(s.visitor_id, s.user_id);
+        }
+      });
+      
+      // Track sessions by unified key (prefer user_id, fall back to visitor_id)
       const visitorSessionCounts = new Map<string, number>();
       const visitorSessionData = new Map<string, { 
         country?: string; 
@@ -1163,12 +1171,13 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         referrerDomain?: string;
         lastSeen?: string;
         totalTimeOnSite: number;
-        isAnonymous: boolean;
+        hasUserId: boolean; // True if ANY session has user_id
       }>();
       
       uniqueSessions.forEach(s => {
+        // Prefer user_id as the key for consistency
         const visitorKey = s.user_id || s.visitor_id;
-        if (!visitorKey) return; // Skip sessions without any identifier
+        if (!visitorKey) return;
         
         visitorSessionCounts.set(visitorKey, (visitorSessionCounts.get(visitorKey) || 0) + 1);
         
@@ -1186,30 +1195,28 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
             referrerDomain: extractDomain(s.referrer),
             lastSeen: s.started_at,
             totalTimeOnSite: (existing?.totalTimeOnSite || 0) + (s.session_duration_seconds || 0),
-            isAnonymous: !s.user_id,
+            hasUserId: existing?.hasUserId || !!s.user_id,
           });
         } else if (existing) {
           existing.totalTimeOnSite = (existing.totalTimeOnSite || 0) + (s.session_duration_seconds || 0);
+          existing.hasUserId = existing.hasUserId || !!s.user_id;
         }
       });
       
       // Build allVisitorIds from all sessions with any identifier (includes anonymous)
       const allVisitorIds = new Set<string>();
       if (filters.length > 0) {
-        // When filtering, include visitors from filtered sessions
         uniqueSessions.forEach(s => {
           const key = s.user_id || s.visitor_id;
           if (key) allVisitorIds.add(key);
         });
       } else {
-        // When not filtering, include all visitors with sessions
         visitorSessionCounts.forEach((_, id) => allVisitorIds.add(id));
       }
       
       const profileMap = new Map(profiles.map(p => [p.id, p]));
       
-      // Compute activity days from page views (last 7 days) - uses filteredPageViews
-      // ENHANCED: Track by visitor key (includes anonymous)
+      // Compute activity days from page views (last 7 days)
       const visitorPageViewsByDate = new Map<string, Map<string, number>>();
       filteredPageViews.forEach(pv => {
         const session = sessionMap.get(pv.session_id || '');
@@ -1228,16 +1235,22 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       
       const topUsers = Array.from(allVisitorIds)
         .map(id => {
-          const profile = profileMap.get(id); // Only exists if id is user_id
           const sessionData = visitorSessionData.get(id);
-          const isAnonymous = sessionData?.isAnonymous ?? !profile;
-          const connectionCount = userConnectionCounts.get(id) || 0;
+          
+          // CRITICAL: Resolve user_id for profile lookup
+          // If id is a visitor_id, check if it maps to a user_id
+          const resolvedUserId = visitorToUserId.get(id) || (profileMap.has(id) ? id : null);
+          const profile = resolvedUserId ? profileMap.get(resolvedUserId) : null;
+          
+          // Only anonymous if no profile exists (meaning no user_id anywhere)
+          const isAnonymous = !profile;
+          const connectionCount = userConnectionCounts.get(resolvedUserId || id) || 0;
           const sessionCount = visitorSessionCounts.get(id) || 0;
           
-          // Generate name: animal name for anonymous, real name for registered
-          const name = isAnonymous
-            ? generateAnimalName(id)
-            : [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || generateAnimalName(id);
+          // Use real name for registered users, animal name for truly anonymous
+          const name = !isAnonymous && profile
+            ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Unknown'
+            : generateAnimalName(id);
           
           const visitorDates = visitorPageViewsByDate.get(id);
           const activityDays = last7Days.map(date => {

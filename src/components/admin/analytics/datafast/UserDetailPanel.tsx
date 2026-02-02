@@ -290,6 +290,15 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                         </div>
                       )}
                       
+                      {data.source.landingPage && (
+                        <div>
+                          <span className="text-xs text-muted-foreground block mb-1">Landing Page</span>
+                          <code className="text-xs bg-muted px-2 py-1 rounded block truncate">
+                            {data.source.landingPage}
+                          </code>
+                        </div>
+                      )}
+                      
                       {data.source.utmCampaign && (
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">Campaign</span>
