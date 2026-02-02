@@ -30,13 +30,17 @@ Deno.serve(async (req) => {
     let batchCount = 0;
 
     while (batchCount < maxBatches) {
-      // Get sessions with IP but missing country data
+      // Get sessions with valid IP but missing country data
+      // CRITICAL: Filter out empty strings AND private IPs at query time
       const { data: sessions, error: fetchError } = await supabase
         .from('user_sessions')
         .select('id, ip_address')
         .is('country', null)
         .not('ip_address', 'is', null)
         .neq('ip_address', '')
+        .not('ip_address', 'like', '10.%')
+        .not('ip_address', 'like', '192.168.%')
+        .not('ip_address', 'like', '127.%')
         .limit(batchSize);
 
       if (fetchError) {
