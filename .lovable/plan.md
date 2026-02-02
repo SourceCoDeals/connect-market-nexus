@@ -1,425 +1,480 @@
 
-# Premium Redesign: User Journeys Dashboard & Real-Time Globe
+# Premium Globe Redesign: Mapbox GL 3D Implementation
 
 ## Executive Summary
 
-This plan addresses two major redesign requests:
-
-1. **Journeys Tab Redesign**: Align with the premium design system used in Overview, Traffic, and Real-Time tabs
-2. **Real-Time Globe Enhancement**: Create a world-class, fullscreen globe experience matching the DataFast reference
+The current react-simple-maps implementation cannot match the DataFast experience because it uses static SVG geography data without satellite imagery, zoom capability, or city labels. To achieve 100% visual parity with DataFast, we need to implement **Mapbox GL JS** with its native 3D globe projection.
 
 ---
 
-## Part 1: Design System Analysis
+## Gap Analysis: Current vs DataFast
 
-### Current Premium Patterns (Overview, Traffic tabs)
-
-After analyzing the codebase, the premium design system uses:
-
-| Element | Pattern |
-|---------|---------|
-| **Cards** | `rounded-2xl bg-card border border-border/50 p-6` - no Card components |
-| **Headers** | `text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground` |
-| **Large Values** | `text-3xl md:text-5xl font-light tracking-tight tabular-nums` |
-| **Subtitles** | `text-xs text-muted-foreground/70 mt-1` |
-| **Tables** | `text-[10px] uppercase tracking-wider` headers, no visible borders |
-| **Progress Bars** | `h-1.5 bg-muted/50 rounded-full` with `bg-gradient-to-r from-coral-400 to-coral-500` |
-| **Hover States** | `hover:bg-muted/30 transition-colors` |
-
-### Current Journeys Tab Issues
-
-The journeys tab uses outdated patterns:
-- ShadCN `Card`, `CardHeader`, `CardTitle` components (inconsistent)
-- Icons in headers (premium design avoids this)
-- Colored icon backgrounds (`bg-primary/10`, etc.)
-- `text-base font-medium` titles instead of uppercase tracking labels
-- Inconsistent stat card sizing
+| Feature | DataFast | Current | Gap |
+|---------|----------|---------|-----|
+| Map Technology | Mapbox GL (WebGL) | react-simple-maps (SVG) | Complete replacement needed |
+| Terrain/Imagery | Satellite/terrain tiles | Solid blue shapes | Cannot replicate with SVG |
+| Country Labels | Real OpenStreetMap labels | Custom text overlays | Need tile-based labels |
+| City Labels | Automatic (zoom-dependent) | None | Impossible with current approach |
+| Zoom | Continuous zoom to street-level | Fixed scale | Major UX difference |
+| Globe Rotation | Smooth 60fps WebGL | requestAnimationFrame SVG | Comparable |
+| User Avatars | Cartoon memoji-style | Initials in circles | Style enhancement |
+| Tooltip Cards | Rich with conversion metrics | Basic user info | Add new metrics |
 
 ---
 
-## Part 2: Journeys Tab Premium Redesign
+## Part 1: Mapbox GL Integration
 
-### New Component Structure
-
-All journey components will be refactored to use the premium card pattern:
-
-```text
-┌────────────────────────────────────────────────────────────────────┐
-│  Hero Stats (3 large cards matching Overview style)               │
-│  [Total Journeys] [Registration Rate] [Conversion Rate]           │
-│  5xl font-light values with sparklines and trends                 │
-└────────────────────────────────────────────────────────────────────┘
-┌────────────────────────────┬───────────────────────────────────────┐
-│  Stage Funnel              │  Source Cohort Analysis              │
-│  No Card wrapper           │  Premium table styling               │
-│  Horizontal bars           │  No icons in header                  │
-└────────────────────────────┴───────────────────────────────────────┘
-┌────────────────────────────┬───────────────────────────────────────┐
-│  Conversion Velocity       │  Attribution Table                   │
-│  Timeline bars, no emojis  │  Coral progress bars                 │
-└────────────────────────────┴───────────────────────────────────────┘
-┌────────────────────────────┬───────────────────────────────────────┐
-│  Path Analysis             │  Top Landing Pages                   │
-│  Clean step visualization  │  No icons, progress bars             │
-└────────────────────────────┴───────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────────┐
-│  Journey Activity Feed (full width, premium styling)              │
-│  No Card wrapper, divide-y layout, clickable rows                 │
-└────────────────────────────────────────────────────────────────────┘
+### New Dependency
+```json
+{
+  "mapbox-gl": "^3.3.0",
+  "@types/mapbox-gl": "^3.1.0"
+}
 ```
+
+### Mapbox Access Token Requirement
+Mapbox requires a public access token. The free tier includes 50,000 monthly map loads which should be sufficient for admin analytics.
+
+**Required Secret**: `VITE_MAPBOX_ACCESS_TOKEN`
+
+### Globe Configuration
+```typescript
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+const map = new mapboxgl.Map({
+  container: 'globe-container',
+  style: 'mapbox://styles/mapbox/satellite-streets-v12', // Realistic terrain
+  projection: 'globe', // 3D globe projection
+  center: [0, 20],
+  zoom: 1.5,
+  attributionControl: false,
+});
+
+// Globe atmosphere effect (the blue haze around Earth)
+map.on('style.load', () => {
+  map.setFog({
+    color: 'rgb(186, 210, 235)', // Lower atmosphere
+    'high-color': 'rgb(36, 92, 223)', // Upper atmosphere
+    'horizon-blend': 0.02,
+    'space-color': 'rgb(11, 11, 25)', // Space background
+    'star-intensity': 0.6 // Stars visible
+  });
+});
+```
+
+---
+
+## Part 2: Component Architecture
+
+### New Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/admin/analytics/realtime/MapboxGlobeMap.tsx` | Main Mapbox GL globe component |
+| `src/components/admin/analytics/realtime/MapboxUserMarker.tsx` | Custom HTML marker for users |
+| `src/components/admin/analytics/realtime/MapboxTooltipCard.tsx` | Enhanced tooltip matching DataFast |
+| `src/components/admin/analytics/realtime/MapboxFloatingPanel.tsx` | Overlay stats/filter panel |
+| `src/components/admin/analytics/realtime/ConversionLikelihoodBar.tsx` | Gradient progress bar component |
 
 ### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `UserJourneysDashboard.tsx` | Replace summary cards with `PremiumStatCard` pattern |
-| `JourneyStageFunnel.tsx` | Remove Card wrapper, use premium div styling |
-| `SourceCohortAnalysis.tsx` | Remove icons, premium table headers |
-| `MilestoneVelocityChart.tsx` | Remove emojis, clean timeline bars |
-| `PathAnalysisChart.tsx` | Cleaner step visualization |
-| `AttributionTable.tsx` | Premium table styling |
-| `TopLandingPages.tsx` | Premium bar styling |
-| `JourneyLiveFeed.tsx` | Remove Card wrapper, premium list styling |
+| `RealTimeTab.tsx` | Replace PremiumGlobeMap with MapboxGlobeMap |
+| `UserTooltipCard.tsx` | Add conversion metrics, estimated value |
 
-### Specific Design Changes
+---
 
-**1. Hero Stats (new pattern):**
-```tsx
-<div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-  <PremiumStatCard
-    title="Total Journeys"
-    value={stats.totalJourneys}
-    subtitle={`Last ${timeRangeDays} days`}
-    trend={{ value: 12, direction: 'up' }}
-    sparklineData={[...]}
-  />
-  // ...
-</div>
+## Part 3: MapboxGlobeMap.tsx Implementation
+
+### Core Features
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ MapboxGlobeMap Component                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ┌─ Floating Stats Panel (top-left) ───────────────────────────────────────┐ │
+│ │ • 11 visitors on marketplace (est. value: $16)                          │ │
+│ │ Referrers: X(4) YouTube(2) Google(2)                                    │ │
+│ │ Countries: Brazil(4) South Korea(2) Thailand                            │ │
+│ │ Devices: Desktop(7) Mobile(4)                                           │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│                    ╭───────────────────────────────╮                        │
+│                   ╱                                 ╲                       │
+│                  │   3D MAPBOX GLOBE                 │                      │
+│                  │   with satellite imagery          │                      │
+│                  │   city labels, country names      │                      │
+│                  │                                   │                      │
+│                  │   👤 User markers with avatars    │                      │
+│                  │                                   │                      │
+│                   ╲                                 ╱                       │
+│                    ╰───────────────────────────────╯                        │
+│                                                                             │
+│ ┌─ Activity Feed (bottom-left) ───────────────────────────────────────────┐ │
+│ │ 🐵 bronze baboon from 🇵🇪 Peru visited /roadmap                         │ │
+│ │ 🦊 amber fox from 🇧🇷 Brazil viewed listing                             │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**2. Section Cards (premium pattern):**
-```tsx
-// BEFORE: Using ShadCN Card
-<Card className="bg-card/50 backdrop-blur-sm border-border/50">
-  <CardHeader className="pb-3">
-    <CardTitle className="text-base font-medium flex items-center gap-2">
-      <Users className="h-4 w-4 text-primary" />
-      Source Cohort Analysis
-    </CardTitle>
-  </CardHeader>
-  ...
-</Card>
+### Key Implementation Details
 
-// AFTER: Premium div pattern
-<div className="rounded-2xl bg-card border border-border/50 p-6">
-  <div className="mb-5">
-    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-      Source Cohort Analysis
-    </p>
-    <p className="text-xs text-muted-foreground/70 mt-1">
-      Conversion rates by first-touch attribution
-    </p>
+**1. Map Initialization with Globe Projection**
+```typescript
+useEffect(() => {
+  if (!mapContainer.current) return;
+  
+  mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  
+  const map = new mapboxgl.Map({
+    container: mapContainer.current,
+    style: 'mapbox://styles/mapbox/satellite-streets-v12',
+    projection: 'globe',
+    center: [0, 20],
+    zoom: 1.5,
+    minZoom: 1,
+    maxZoom: 15,
+  });
+  
+  map.on('load', () => {
+    // Add atmosphere effect
+    map.setFog({
+      color: 'rgb(186, 210, 235)',
+      'high-color': 'rgb(36, 92, 223)',
+      'horizon-blend': 0.02,
+      'space-color': 'rgb(11, 11, 25)',
+      'star-intensity': 0.6,
+    });
+  });
+  
+  mapRef.current = map;
+  return () => map.remove();
+}, []);
+```
+
+**2. Custom HTML Markers for Users**
+```typescript
+users.forEach(user => {
+  if (!user.coordinates) return;
+  
+  // Create custom HTML element for marker
+  const el = document.createElement('div');
+  el.className = 'user-marker';
+  el.innerHTML = `
+    <div class="marker-avatar">
+      <img src="${getAvatarUrl(user)}" alt="${user.displayName}" />
+    </div>
+    <div class="marker-pulse"></div>
+  `;
+  
+  const marker = new mapboxgl.Marker({ element: el })
+    .setLngLat([user.coordinates.lng, user.coordinates.lat])
+    .addTo(map);
+  
+  // Click handler for tooltip
+  el.addEventListener('click', () => showTooltip(user));
+});
+```
+
+**3. Auto-rotation with Pause on Interaction**
+```typescript
+let animationId: number;
+const spinGlobe = () => {
+  if (!isInteracting && !isPaused) {
+    const center = map.getCenter();
+    center.lng += 0.1; // Slow rotation
+    map.setCenter(center);
+  }
+  animationId = requestAnimationFrame(spinGlobe);
+};
+spinGlobe();
+
+map.on('mousedown', () => setIsInteracting(true));
+map.on('mouseup', () => setIsInteracting(false));
+```
+
+**4. Fly-to Animation When Clicking Activity**
+```typescript
+const focusOnUser = (user: EnhancedActiveUser) => {
+  if (!user.coordinates) return;
+  
+  map.flyTo({
+    center: [user.coordinates.lng, user.coordinates.lat],
+    zoom: 4,
+    duration: 2000,
+    essential: true,
+  });
+};
+```
+
+---
+
+## Part 4: Enhanced Tooltip Card (DataFast Style)
+
+### New Metrics to Add
+
+Based on the DataFast screenshot, the tooltip shows:
+
+| Metric | Source | Implementation |
+|--------|--------|----------------|
+| Referrer icon + name | `user.referrer` | Map to branded icon (YouTube, Google, etc.) |
+| Current URL | `user.currentPage` | Already available |
+| Session time | `user.sessionDurationSeconds` | Already available, format to "13 min 29 sec" |
+| Total visits | `user.totalVisits` | Already available |
+| Conversion likelihood | **NEW** - calculate from engagement | Algorithm below |
+| Estimated value | **NEW** - calculate from buyer type | Algorithm below |
+
+### Conversion Likelihood Algorithm
+```typescript
+function calculateConversionLikelihood(user: EnhancedActiveUser): number {
+  let score = 50; // Base 50%
+  
+  // Positive signals
+  if (!user.isAnonymous) score += 15; // Logged in
+  if (user.ndaSigned) score += 20;
+  if (user.feeAgreementSigned) score += 15;
+  if (user.listingsSaved > 0) score += 10;
+  if (user.connectionsSent > 0) score += 20;
+  if (user.sessionDurationSeconds > 300) score += 10; // 5+ min session
+  
+  // Negative signals
+  if (user.isAnonymous && user.sessionDurationSeconds < 30) score -= 20;
+  
+  return Math.min(100, Math.max(0, score));
+}
+```
+
+### Estimated Value Algorithm
+```typescript
+function calculateEstimatedValue(user: EnhancedActiveUser): number {
+  // Base value varies by buyer type
+  const baseValue: Record<string, number> = {
+    'privateEquity': 50,
+    'familyOffice': 40,
+    'corporate': 35,
+    'searchFund': 25,
+    'independentSponsor': 30,
+    'individual': 15,
+  };
+  
+  let value = baseValue[user.buyerType || ''] || 5; // Anonymous = $5 base
+  
+  // Adjust based on engagement
+  if (user.connectionsSent > 0) value *= 3;
+  if (user.listingsSaved > 0) value *= 1.5;
+  if (user.ndaSigned) value *= 2;
+  
+  return Math.round(value * 100) / 100; // Round to 2 decimals
+}
+```
+
+### Tooltip Card Visual
+```text
+┌─────────────────────────────────────────┐
+│ 🐵 bronze baboon                    ✕   │
+│ 🇵🇪 Cusco, Peru  🤖 Android  📱 Mobile │
+│              🌐 Chrome                  │
+├─────────────────────────────────────────┤
+│ Referrer:        ▶️ YouTube             │
+│ Current URL:              /roadmap      │
+│ Session time:         13 min 29 sec     │
+│ Total visits:                    1      │
+├─────────────────────────────────────────┤
+│ Conversion likelihood:    +200% vs. avg │
+│ [██████████████████████░░░░░] 75%       │
+│ Estimated value:              $3.74     │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## Part 5: Floating Filter Panel
+
+Replicate the DataFast top-left panel:
+
+```typescript
+<div className="absolute top-4 left-4 bg-white dark:bg-gray-900 rounded-xl 
+                shadow-2xl p-4 w-80 z-10">
+  {/* Header */}
+  <div className="flex items-center gap-2 mb-4">
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute h-full w-full rounded-full 
+                       bg-green-400 opacity-75"></span>
+      <span className="relative rounded-full h-2 w-2 bg-green-500"></span>
+    </span>
+    <span className="text-sm font-medium">
+      {totalUsers} visitors on <strong>marketplace</strong>
+    </span>
+    <span className="text-sm text-emerald-600 ml-auto">
+      (est. value: ${estimatedTotalValue})
+    </span>
   </div>
-  ...
-</div>
-```
-
-**3. Table Headers (premium pattern):**
-```tsx
-<tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/50">
-  <th className="text-left pb-3 font-medium">Source</th>
-  <th className="text-right pb-3 font-medium">Visitors</th>
-  ...
-</tr>
-```
-
-**4. Progress Bars (coral gradient):**
-```tsx
-<div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
-  <div 
-    className="h-full bg-gradient-to-r from-coral-400 to-coral-500 rounded-full"
-    style={{ width: `${percentage}%` }}
-  />
+  
+  {/* Filter rows */}
+  <div className="space-y-2 text-sm">
+    <FilterRow 
+      label="Referrers" 
+      items={[
+        { icon: '𝕏', label: 'X', count: 4 },
+        { icon: '▶️', label: 'YouTube', count: 2 },
+        { icon: '🔍', label: 'Google', count: 2 },
+      ]}
+    />
+    <FilterRow 
+      label="Countries" 
+      items={countryBreakdown.map(c => ({
+        icon: c.flag, 
+        label: c.name, 
+        count: c.count 
+      }))}
+    />
+    <FilterRow 
+      label="Devices" 
+      items={[
+        { icon: '💻', label: 'Desktop', count: desktopCount },
+        { icon: '📱', label: 'Mobile', count: mobileCount },
+      ]}
+    />
+  </div>
 </div>
 ```
 
 ---
 
-## Part 3: Real-Time Globe Premium Redesign
+## Part 6: User Avatar Enhancement
 
-### Current Issues
+DataFast uses cartoon-style avatars (like memoji/bitmoji). Options:
 
-Based on the reference screenshot and current implementation:
+**Option A: DiceBear Avatars (Recommended)**
+Use [DiceBear API](https://www.dicebear.com/) which generates consistent avatars from seed strings:
 
-1. **Cards overlay the globe** - cluttered, breaks immersion
-2. **No country labels visible** - DataFast shows country names on the globe
-3. **Drag direction inverted** - dragging left should rotate left
-4. **Globe scale too small** - should be fullscreen immersive experience
-5. **User markers overlap** - need better clustering or sizing
-
-### Target Experience (DataFast Reference)
-
-The DataFast screenshot shows:
-- **Fullscreen map** with no overlapping content panels
-- **Floating overlay panel** (top-left) with stats, collapsible
-- **Activity feed** (bottom-left) as a slim, scrollable list
-- **Country labels directly on the map** ("France", "Germany", etc.)
-- **Google Maps style** realistic globe with terrain
-- **Visitor markers** with clear icons at exact locations
-
-### Implementation Strategy
-
-**Option A: Enhanced react-simple-maps Globe**
-- Keep current react-simple-maps implementation
-- Add country labels using SVG text elements
-- Improve marker clustering
-- Fix drag direction
-
-**Option B: Switch to Interactive 3D Library**
-- Use cesium.js or mapbox-gl for realistic terrain
-- Requires additional dependencies
-- More complex but closer to DataFast quality
-
-**Recommended: Option A** (minimal dependencies, achievable within current stack)
-
-### Globe Enhancement Changes
-
-**1. Fix Drag Direction:**
-```tsx
-// BEFORE (current - inverted)
-const handleGlobeMouseMove = (e: React.MouseEvent) => {
-  if (isDragging.current && dragStartPos.current) {
-    const dx = e.clientX - dragStartPos.current.x;
-    setDragOffset(dx * 0.3); // Positive dx = right rotation
-  }
-};
-
-// AFTER (natural direction)
-const handleGlobeMouseMove = (e: React.MouseEvent) => {
-  if (isDragging.current && dragStartPos.current) {
-    const dx = e.clientX - dragStartPos.current.x;
-    setDragOffset(-dx * 0.3); // Negative: drag left = rotate left
-  }
-};
+```typescript
+function getAvatarUrl(user: EnhancedActiveUser): string {
+  // Use session ID or user ID as seed for consistent avatar
+  const seed = user.userId || user.sessionId;
+  
+  // DiceBear "adventurer" style matches DataFast's cartoon look
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+}
 ```
 
-**2. Add Country Labels:**
-```tsx
-<Geographies geography={geoUrl}>
-  {({ geographies }) =>
-    geographies.map((geo) => {
-      const countryName = geo.properties.name;
-      const centroid = geoCentroid(geo); // From d3-geo
-      
-      return (
-        <>
-          <Geography key={geo.rsmKey} ... />
-          {/* Country label */}
-          <Marker coordinates={centroid}>
-            <text
-              textAnchor="middle"
-              style={{
-                fontSize: '8px',
-                fill: 'rgba(255,255,255,0.4)',
-                fontWeight: 500,
-                letterSpacing: '0.5px',
-                textTransform: 'uppercase',
-              }}
-            >
-              {countryName}
-            </text>
-          </Marker>
-        </>
-      );
-    })
-  }
-</Geographies>
+**Option B: Simple Initials (Current)**
+Keep current initials-in-circle approach but style it better.
+
+**Recommended: Option A** - DiceBear is free, requires no API key, and provides the exact cartoon avatar style DataFast uses.
+
+---
+
+## Part 7: Map Style Options
+
+Mapbox offers several styles that could work:
+
+| Style | Look | Best For |
+|-------|------|----------|
+| `satellite-streets-v12` | Realistic satellite + roads/labels | Most like DataFast |
+| `satellite-v9` | Pure satellite, no labels | Cleaner but less informative |
+| `outdoors-v12` | Terrain with topography | Good alternative |
+| `light-v11` / `dark-v11` | Flat colored map | Matches current dark theme |
+
+**Recommendation**: Use `satellite-streets-v12` for day mode, but consider a custom style that:
+- Uses satellite imagery
+- Has darker ocean colors (to match the space background)
+- Has subtle city/country labels
+
+---
+
+## Part 8: CSS Requirements
+
+```css
+/* Mapbox container styling */
+.mapbox-globe-container {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, #0f1729 0%, #020617 100%);
+}
+
+/* User markers */
+.user-marker {
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.marker-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid white;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  transition: transform 0.2s;
+}
+
+.marker-avatar:hover {
+  transform: scale(1.2);
+}
+
+.marker-pulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.3);
+  animation: pulse 2s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
 ```
 
-**3. Fullscreen Layout (No Overlap):**
-```tsx
-// RealTimeTab.tsx - New layout
-<div className="space-y-0">
-  {/* Stats bar - above the globe */}
-  <div className="flex items-center justify-between px-4 py-3 bg-black/20 backdrop-blur rounded-t-2xl border border-white/10 border-b-0">
-    <div className="flex items-center gap-6">
-      <div className="flex items-center gap-2">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute h-full w-full rounded-full bg-coral-400 opacity-75"></span>
-          <span className="relative rounded-full h-2 w-2 bg-coral-500"></span>
-        </span>
-        <span className="text-white text-sm font-medium">{data.totalActiveUsers} visitors</span>
-      </div>
-      {/* Compact filter chips */}
-      <div className="flex gap-2">
-        {data.byCountry.slice(0,3).map(...)}
+---
+
+## Part 9: Implementation Steps
+
+1. **Add Mapbox Secret** - User needs to create a Mapbox account and add `VITE_MAPBOX_ACCESS_TOKEN`
+2. **Install Dependencies** - `mapbox-gl` and `@types/mapbox-gl`
+3. **Create MapboxGlobeMap.tsx** - Full Mapbox GL implementation
+4. **Create MapboxUserMarker.tsx** - Custom HTML marker with avatar
+5. **Update UserTooltipCard.tsx** - Add conversion likelihood and estimated value
+6. **Create ConversionLikelihoodBar.tsx** - Gradient progress bar
+7. **Update RealTimeTab.tsx** - Replace PremiumGlobeMap with new component
+8. **Add DiceBear Integration** - For cartoon avatars
+9. **Style the floating panels** - Match DataFast aesthetic
+
+---
+
+## Part 10: Fallback Strategy
+
+If Mapbox token is not configured, display the current react-simple-maps globe with a banner prompting to configure Mapbox for enhanced experience:
+
+```typescript
+if (!import.meta.env.VITE_MAPBOX_ACCESS_TOKEN) {
+  return (
+    <div className="relative">
+      <PremiumGlobeMap {...props} />
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-amber-500/10 
+                      text-amber-500 px-4 py-2 rounded-full text-xs">
+        Configure Mapbox for enhanced 3D globe →
       </div>
     </div>
-    <span className="text-xs text-white/60">Last updated just now</span>
-  </div>
-  
-  {/* Full-height globe - no overlays */}
-  <div className="relative h-[calc(100vh-200px)] min-h-[600px]">
-    <PremiumGlobeMap users={data.activeUsers} className="h-full" />
-  </div>
-  
-  {/* Activity feed - below the globe */}
-  <div className="mt-4">
-    <LiveActivityFeed events={data.recentEvents} layout="horizontal" />
-  </div>
-</div>
-```
-
-**4. Improved Globe Styling:**
-```tsx
-// Lighter, more visible countries
-<Geography
-  geography={geo}
-  fill="#2a4a6a"  // Brighter blue-green
-  stroke="#4a6a8a" // More visible borders
-  strokeWidth={0.5}
-/>
-
-// Better globe gradient
-<radialGradient id="globeGradient" cx="35%" cy="25%">
-  <stop offset="0%" stopColor="#3a5a7f" />  // Lighter center (sun reflection)
-  <stop offset="60%" stopColor="#1e3a5f" />
-  <stop offset="100%" stopColor="#0f172a" />
-</radialGradient>
-```
-
-**5. User Marker Improvements:**
-- Scale markers based on zoom level
-- Add country flag emoji to marker tooltips
-- Pulse animation only on newest visitors
-- Better z-index handling for overlapping markers
-
----
-
-## Part 4: Files to Create/Modify
-
-### New Files
-| File | Purpose |
-|------|---------|
-| `src/components/admin/analytics/journeys/PremiumJourneyStatCard.tsx` | Reusable premium stat card for journeys |
-| `src/components/admin/analytics/realtime/GlobeStatsBar.tsx` | Compact horizontal stats bar above globe |
-| `src/components/admin/analytics/realtime/HorizontalActivityFeed.tsx` | Horizontal scrolling activity feed |
-
-### Modified Files
-
-| File | Key Changes |
-|------|-------------|
-| `UserJourneysDashboard.tsx` | Replace Card grid with premium stat cards, remove icons |
-| `JourneyStageFunnel.tsx` | Premium div wrapper, coral gradient bars |
-| `SourceCohortAnalysis.tsx` | Remove icons, premium table styling |
-| `MilestoneVelocityChart.tsx` | Remove emojis, cleaner timeline |
-| `PathAnalysisChart.tsx` | Premium styling, no Route icon |
-| `AttributionTable.tsx` | Premium table headers |
-| `TopLandingPages.tsx` | Premium progress bars |
-| `JourneyLiveFeed.tsx` | Premium list styling |
-| `RealTimeTab.tsx` | New fullscreen layout, stats bar above globe |
-| `PremiumGlobeMap.tsx` | Fix drag direction, add country labels, improve styling |
-| `RealTimeSummaryPanel.tsx` | Make collapsible, reduce to essential metrics |
-| `LiveActivityFeed.tsx` | Add horizontal layout option |
-
----
-
-## Part 5: Visual Reference
-
-### Journeys Tab After Redesign
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                 │
-│  TOTAL JOURNEYS              REGISTRATION RATE          CONVERSION RATE         │
-│  ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐  │
-│  │ TOTAL JOURNEYS      │    │ REGISTRATION RATE   │    │ CONVERSION RATE     │  │
-│  │                     │    │                     │    │                     │  │
-│  │ 2,847          +12% │    │ 23.4%          +8%  │    │ 3.2%          +15%  │  │
-│  │ [sparkline graph]   │    │ [sparkline graph]   │    │ [sparkline graph]   │  │
-│  │ Last 30 days        │    │ Visitor → Signup    │    │ Signup → Convert    │  │
-│  └─────────────────────┘    └─────────────────────┘    └─────────────────────┘  │
-│                                                                                 │
-│  ┌────────────────────────────────┐  ┌────────────────────────────────────────┐ │
-│  │ STAGE FUNNEL                   │  │ SOURCE COHORT ANALYSIS                 │ │
-│  │ Visitor progression            │  │ Conversion by first-touch              │ │
-│  │                                │  │                                        │ │
-│  │ 1 ○ Anonymous    ████████ 2,847│  │ Source   Visitors  Reg%  Conv%  Sess   │ │
-│  │ 2 ○ Registered   ████░░░░  665 │  │ ─────────────────────────────────────  │ │
-│  │ 3 ○ Engaged      ███░░░░░  287 │  │ Google      1,245   24%   3.8%   4.2   │ │
-│  │ 4 ○ Qualified    ██░░░░░░  156 │  │ LinkedIn      342   41%   8.2%   2.8   │ │
-│  │ 5 ○ Converted    █░░░░░░░   91 │  │ Direct        856   18%   1.8%   6.1   │ │
-│  │                                │  │ Email         234   32%   5.4%   3.2   │ │
-│  │ Overall: 3.2%                  │  │                                        │ │
-│  └────────────────────────────────┘  └────────────────────────────────────────┘ │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Real-Time Tab After Redesign
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ ● 21 visitors   🇭🇺 Hungary 14   🇫🇷 France 1   📱 Desktop 19              Now │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│                              North                                              │
-│                             Atlantic                                            │
-│                              Ocean                                              │
-│                                                                                 │
-│                     ○ Iceland                                                   │
-│                                   Norway                                        │
-│            Greenland         ●●                                                 │
-│                        United   Germany  Poland                                 │
-│                       Kingdom  ●  ●  ●                                          │
-│                                France                                           │
-│                    Canada                    Russia                             │
-│                       ●                                                         │
-│                                Spain  Italy                                     │
-│                                                                                 │
-│                   United                                                        │
-│                   States    ●                                    China          │
-│                                                                                 │
-│                Mexico              Morocco  Algeria  Libya                      │
-│                                                                                 │
-│                                    Mauritania  Mali  Niger  Chad                │
-│                                                                                 │
-│                     Brazil                                                      │
-│                                                                                 │
-│                              South                                              │
-│                             Atlantic                                            │
-│                              Ocean                                              │
-│                                                                                 │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│ Just now  Admin User visited /admin via Lovable · 🇭🇺 Hungary                   │
-│ 2m ago    Yan Sun browsed /listing/software-company via Direct · 🌐 Unknown     │
-│ 3m ago    purple lizard scrolled to_story on / · 🇰🇷 South Korea                │
-└─────────────────────────────────────────────────────────────────────────────────┘
+  );
+}
 ```
 
 ---
 
-## Part 6: Technical Details
+## Summary
 
-### Dependencies
-- No new dependencies required
-- Uses existing react-simple-maps, recharts
+This redesign achieves 100% visual parity with DataFast by:
 
-### Country Labels Implementation
-Will use d3-geo's `geoCentroid` function (already available via react-simple-maps) to calculate country center points for label placement.
+1. **Replacing react-simple-maps with Mapbox GL** - Real satellite imagery, zoom, city labels
+2. **Using DiceBear avatars** - Cartoon memoji-style user markers
+3. **Adding conversion metrics** - Likelihood percentage and estimated value
+4. **Matching the UI layout** - Floating stats panel, bottom activity feed
+5. **Enhancing interactions** - Smooth fly-to animations, natural drag rotation
 
-### Performance Considerations
-- Country labels will only render for visible countries (based on rotation)
-- Marker clustering for areas with >5 users in close proximity
-- Throttled drag handlers (16ms frame rate)
-
----
-
-## Implementation Priority
-
-1. **High**: Fix globe drag direction (5 min)
-2. **High**: Journeys premium stat cards (30 min)
-3. **High**: Remove Card wrappers, apply premium div styling (45 min)
-4. **Medium**: Globe fullscreen layout (30 min)
-5. **Medium**: Add country labels to globe (45 min)
-6. **Low**: Horizontal activity feed (20 min)
+The implementation requires one external dependency (Mapbox access token) but falls back gracefully to the current implementation if not configured.
