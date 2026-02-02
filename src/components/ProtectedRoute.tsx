@@ -27,9 +27,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // No user - redirect to welcome/persona selection
+  // No user - redirect to welcome/persona selection (preserve query params for attribution)
   if (!user) {
-    return <Navigate to="/welcome" state={{ from: location.pathname }} replace />;
+    const redirectPath = `/welcome${location.search}`;
+    return <Navigate to={redirectPath} state={{ from: location.pathname }} replace />;
   }
 
   // Check admin requirement
