@@ -119,6 +119,16 @@ function calculateDuration(session: {
   return Math.max(0, Math.floor((lastActive - startedAt) / 1000));
 }
 
+// Helper to generate default coordinates for users without geo data
+// Places them in the Atlantic Ocean area with consistent positioning based on session ID
+function getDefaultCoordinates(sessionId: string): { lat: number; lng: number } {
+  const hash = sessionId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return {
+    lat: 25 + (hash % 30), // Between 25°N and 55°N
+    lng: -30 + (hash % 20), // Atlantic Ocean area (-30 to -10)
+  };
+}
+
 // Helper to normalize referrer to a readable source name
 // FIXED: Uses exact domain matching to prevent false positives (e.g., JWT tokens matching "t.co")
 function normalizeReferrer(referrer: string | null, utmSource: string | null): string {
@@ -252,7 +262,24 @@ export function useEnhancedRealTimeAnalytics() {
           .limit(500),
       ]);
       
-      const sessions = sessionsResult.data || [];
+      // CRITICAL FIX: Deduplicate sessions by session_id
+      // The database may have duplicate rows for the same session_id
+      const sessionsRaw = sessionsResult.data || [];
+      const sessionMap = new Map<string, typeof sessionsRaw[0]>();
+      sessionsRaw.forEach(session => {
+        const existing = sessionMap.get(session.session_id);
+        if (!existing) {
+          sessionMap.set(session.session_id, session);
+        } else if (!existing.country && session.country) {
+          // Prefer the row with geo data
+          sessionMap.set(session.session_id, session);
+        } else if (existing.last_active_at && session.last_active_at &&
+                   new Date(session.last_active_at) > new Date(existing.last_active_at)) {
+          // Or prefer more recent activity
+          sessionMap.set(session.session_id, session);
+        }
+      });
+      const sessions = Array.from(sessionMap.values());
       const pageViews = pageViewsResult.data || [];
       
       // Get unique session IDs from page views to fetch their user_ids
@@ -388,9 +415,14 @@ export function useEnhancedRealTimeAnalytics() {
           : null;
         const displayName = realName || generateAnonymousName(session.session_id);
         
-        // Get coordinates
+        // Get coordinates - with fallback for users without geo data
         let coordinates = getCoordinates(session.city, session.country);
-        if (coordinates) {
+        
+        // CRITICAL FIX: Provide default coordinates for users without geo data
+        // so they still appear on the globe (in Atlantic Ocean area)
+        if (!coordinates) {
+          coordinates = getDefaultCoordinates(session.session_id);
+        } else {
           coordinates = addJitter(coordinates, session.session_id);
         }
         
