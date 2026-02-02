@@ -57,16 +57,20 @@ export interface UnifiedAnalyticsData {
   topUsers: Array<{
     id: string;
     name: string;
+    isAnonymous: boolean;
     company: string;
     sessions: number;
     pagesViewed: number;
     connections: number;
     country?: string;
+    city?: string;
     device?: string;
     browser?: string;
     os?: string;
     source?: string;
+    referrerDomain?: string;
     lastSeen?: string;
+    timeOnSite?: number;
     activityDays?: Array<{ date: string; pageViews: number; level: 'none' | 'low' | 'medium' | 'high' }>;
   }>;
 }
@@ -1122,7 +1126,24 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         { name: 'Connected', count: connectingUsers.size, dropoff: feeAgreementUsers.size > 0 ? ((feeAgreementUsers.size - connectingUsers.size) / feeAgreementUsers.size) * 100 : 0 },
       ];
       
-      // Top users with enhanced data - only show users matching the filter
+// === ANIMAL NAME GENERATION for anonymous visitors ===
+      const ANIMALS = ['Wolf', 'Eagle', 'Lion', 'Tiger', 'Bear', 'Fox', 'Hawk', 'Panther', 'Falcon', 'Jaguar',
+        'Raven', 'Phoenix', 'Dragon', 'Serpent', 'Griffin', 'Owl', 'Shark', 'Dolphin', 'Whale', 'Orca'];
+      const COLORS = ['Azure', 'Crimson', 'Emerald', 'Golden', 'Ivory', 'Jade', 'Coral', 'Silver', 'Amber', 'Violet',
+        'Scarlet', 'Cobalt', 'Bronze', 'Indigo', 'Platinum', 'Onyx', 'Ruby', 'Sapphire', 'Topaz', 'Pearl'];
+      
+      function generateAnimalName(id: string): string {
+        let hash = 0;
+        for (let i = 0; i < id.length; i++) {
+          hash = ((hash << 5) - hash) + id.charCodeAt(i);
+          hash = hash & hash;
+        }
+        const colorIndex = Math.abs(hash) % COLORS.length;
+        const animalIndex = Math.abs(hash >> 8) % ANIMALS.length;
+        return `${COLORS[colorIndex]} ${ANIMALS[animalIndex]}`;
+      }
+      
+      // Top users with enhanced data - NOW INCLUDES ANONYMOUS VISITORS
       const userConnectionCounts = new Map<string, number>();
       filteredConnectionsWithMilestones.forEach(c => {
         if (c.user_id) {
@@ -1130,65 +1151,97 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      const userSessionCounts = new Map<string, number>();
-      const userSessionData = new Map<string, { country?: string; device?: string; browser?: string; os?: string; source?: string; lastSeen?: string }>();
+      // CRITICAL FIX: Track by unified key (user_id OR visitor_id) to include anonymous visitors
+      const visitorSessionCounts = new Map<string, number>();
+      const visitorSessionData = new Map<string, { 
+        country?: string; 
+        city?: string;
+        device?: string; 
+        browser?: string; 
+        os?: string; 
+        source?: string; 
+        referrerDomain?: string;
+        lastSeen?: string;
+        totalTimeOnSite: number;
+        isAnonymous: boolean;
+      }>();
+      
       uniqueSessions.forEach(s => {
-        if (s.user_id) {
-          userSessionCounts.set(s.user_id, (userSessionCounts.get(s.user_id) || 0) + 1);
-          const existing = userSessionData.get(s.user_id);
-          if (!existing || new Date(s.started_at) > new Date(existing.lastSeen || 0)) {
-            userSessionData.set(s.user_id, {
-              country: s.country,
-              device: s.device_type,
-              browser: s.browser,
-              os: s.os,
-              source: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
-              lastSeen: s.started_at,
-            });
-          }
+        const visitorKey = s.user_id || s.visitor_id;
+        if (!visitorKey) return; // Skip sessions without any identifier
+        
+        visitorSessionCounts.set(visitorKey, (visitorSessionCounts.get(visitorKey) || 0) + 1);
+        
+        const existing = visitorSessionData.get(visitorKey);
+        const isNewer = !existing || new Date(s.started_at) > new Date(existing.lastSeen || '1970-01-01');
+        
+        if (isNewer) {
+          visitorSessionData.set(visitorKey, {
+            country: s.country,
+            city: s.city,
+            device: s.device_type,
+            browser: s.browser,
+            os: s.os,
+            source: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
+            referrerDomain: extractDomain(s.referrer),
+            lastSeen: s.started_at,
+            totalTimeOnSite: (existing?.totalTimeOnSite || 0) + (s.session_duration_seconds || 0),
+            isAnonymous: !s.user_id,
+          });
+        } else if (existing) {
+          existing.totalTimeOnSite = (existing.totalTimeOnSite || 0) + (s.session_duration_seconds || 0);
         }
       });
       
-      // When filtered, only show users matching the filter (those in filteredUserIds)
-      const allUserIds = new Set<string>();
+      // Build allVisitorIds from all sessions with any identifier (includes anonymous)
+      const allVisitorIds = new Set<string>();
       if (filters.length > 0) {
-        // When filtering, only include users from filtered sessions
-        filteredUserIds.forEach(id => allUserIds.add(id));
+        // When filtering, include visitors from filtered sessions
+        uniqueSessions.forEach(s => {
+          const key = s.user_id || s.visitor_id;
+          if (key) allVisitorIds.add(key);
+        });
       } else {
-        // When not filtering, include all users with connections or sessions
-        userConnectionCounts.forEach((_, id) => allUserIds.add(id));
-        userSessionCounts.forEach((_, id) => allUserIds.add(id));
+        // When not filtering, include all visitors with sessions
+        visitorSessionCounts.forEach((_, id) => allVisitorIds.add(id));
       }
       
       const profileMap = new Map(profiles.map(p => [p.id, p]));
       
       // Compute activity days from page views (last 7 days) - uses filteredPageViews
-      const userPageViewsByDate = new Map<string, Map<string, number>>();
+      // ENHANCED: Track by visitor key (includes anonymous)
+      const visitorPageViewsByDate = new Map<string, Map<string, number>>();
       filteredPageViews.forEach(pv => {
         const session = sessionMap.get(pv.session_id || '');
-        if (session?.user_id) {
-          const userId = session.user_id;
-          if (!userPageViewsByDate.has(userId)) {
-            userPageViewsByDate.set(userId, new Map());
+        const visitorKey = session ? (session.user_id || session.visitor_id) : null;
+        if (visitorKey) {
+          if (!visitorPageViewsByDate.has(visitorKey)) {
+            visitorPageViewsByDate.set(visitorKey, new Map());
           }
           try {
             const dateStr = format(parseISO(pv.created_at), 'yyyy-MM-dd');
-            const userDates = userPageViewsByDate.get(userId)!;
-            userDates.set(dateStr, (userDates.get(dateStr) || 0) + 1);
+            const visitorDates = visitorPageViewsByDate.get(visitorKey)!;
+            visitorDates.set(dateStr, (visitorDates.get(dateStr) || 0) + 1);
           } catch { /* ignore */ }
         }
       });
       
-      const topUsers = Array.from(allUserIds)
+      const topUsers = Array.from(allVisitorIds)
         .map(id => {
-          const profile = profileMap.get(id);
-          const sessionData = userSessionData.get(id);
+          const profile = profileMap.get(id); // Only exists if id is user_id
+          const sessionData = visitorSessionData.get(id);
+          const isAnonymous = sessionData?.isAnonymous ?? !profile;
           const connectionCount = userConnectionCounts.get(id) || 0;
-          const sessionCount = userSessionCounts.get(id) || 0;
+          const sessionCount = visitorSessionCounts.get(id) || 0;
           
-          const userDates = userPageViewsByDate.get(id);
+          // Generate name: animal name for anonymous, real name for registered
+          const name = isAnonymous
+            ? generateAnimalName(id)
+            : [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || generateAnimalName(id);
+          
+          const visitorDates = visitorPageViewsByDate.get(id);
           const activityDays = last7Days.map(date => {
-            const pageViewCount = userDates?.get(date) || 0;
+            const pageViewCount = visitorDates?.get(date) || 0;
             let level: 'none' | 'low' | 'medium' | 'high' = 'none';
             if (pageViewCount > 10) level = 'high';
             else if (pageViewCount > 3) level = 'medium';
@@ -1198,25 +1251,33 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           
           return {
             id,
-            name: profile 
-              ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Anonymous'
-              : 'Anonymous Visitor',
+            name,
+            isAnonymous,
             company: profile?.company || '',
             sessions: sessionCount,
             pagesViewed: activityDays.reduce((sum, d) => sum + d.pageViews, 0),
             connections: connectionCount,
             country: sessionData?.country,
+            city: sessionData?.city,
             device: sessionData?.device,
             browser: sessionData?.browser,
             os: sessionData?.os,
             source: sessionData?.source,
+            referrerDomain: sessionData?.referrerDomain,
             lastSeen: sessionData?.lastSeen,
+            timeOnSite: sessionData?.totalTimeOnSite || 0,
             activityDays,
           };
         })
-        .filter(u => u.connections > 0 || u.sessions > 0)
-        .sort((a, b) => b.connections - a.connections || b.sessions - a.sessions)
-        .slice(0, 25);
+        .filter(u => u.sessions > 0)
+        // Sort by lastSeen (most recent first), then by connections
+        .sort((a, b) => {
+          const aTime = a.lastSeen ? new Date(a.lastSeen).getTime() : 0;
+          const bTime = b.lastSeen ? new Date(b.lastSeen).getTime() : 0;
+          if (bTime !== aTime) return bTime - aTime;
+          return b.connections - a.connections;
+        })
+        .slice(0, 50);
       
       // Format daily metrics - FALLBACK to computing from raw data if empty
       // Use unique_visitors column if available, otherwise compute
