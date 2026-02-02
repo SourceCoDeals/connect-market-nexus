@@ -2,8 +2,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { adminErrorHandler } from "@/lib/error-handler";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Settings, Activity, Users, Database, Bell, HelpCircle } from "lucide-react";
+import { RefreshCw, Settings, Users, Database, Bell, HelpCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StripeOverviewTab } from "@/components/admin/StripeOverviewTab";
 import { AnalyticsTabContainer } from "@/components/admin/analytics/AnalyticsTabContainer";
@@ -21,7 +20,6 @@ import { MyDealsTab } from "@/components/admin/dashboard/MyDealsTab";
 const AdminDashboard = () => {
   const { users } = useAdmin();
   const { data: usersData = [] } = users;
-  const [searchQuery, setSearchQuery] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const { canManagePermissions } = usePermissions();
@@ -132,25 +130,19 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Search Bar - Stripe minimal */}
-              <div className="max-w-sm">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
-                  <Input
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9 text-sm bg-background border-border/50 focus-visible:ring-1 focus-visible:ring-ring/20"
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
           {/* Stripe-style Tabs */}
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs defaultValue="analytics" className="w-full">
             <div className="px-8">
               <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
+                <TabsTrigger 
+                  value="analytics"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Analytics
+                </TabsTrigger>
                 <TabsTrigger 
                   value="overview"
                   className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
@@ -162,12 +154,6 @@ const AdminDashboard = () => {
                   className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
                   My Deals
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="analytics"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
-                >
-                  Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="listings"
