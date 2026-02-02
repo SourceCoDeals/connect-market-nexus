@@ -23,7 +23,7 @@ export function FilterChips() {
   if (filters.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 p-4 bg-muted/30 rounded-xl border border-border/50">
+    <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 p-4 bg-background/95 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
       <div className="flex items-center gap-1.5 text-muted-foreground mr-2">
         <Filter className="h-3.5 w-3.5" />
         <span className="text-xs font-medium uppercase tracking-wider">Filtered by</span>
