@@ -52,6 +52,8 @@ import ReMarketingBulkImport from "@/pages/admin/remarketing/ReMarketingBulkImpo
 
 import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
 import { ReMarketingLayout } from "@/components/remarketing";
+import { MAIntelligenceLayout } from "@/components/ma-intelligence/MAIntelligenceLayout";
+import { MADashboard, MATrackers, MAAllBuyers, MAAllDeals } from "@/pages/admin/ma-intelligence";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
 import { SimpleToastProvider } from "@/components/ui/simple-toast";
@@ -147,9 +149,21 @@ function App() {
               <Route path="analytics/advanced" element={<ReMarketingAdvancedAnalytics />} />
               <Route path="import" element={<ReMarketingDataImport />} />
               <Route path="bulk-import" element={<ReMarketingBulkImport />} />
-              
+
             </Route>
-            
+
+            {/* M&A Intelligence routes with dedicated MAIntelligenceLayout */}
+            <Route path="/admin/ma-intelligence" element={<ProtectedRoute requireAdmin={true}><MAIntelligenceLayout /></ProtectedRoute>}>
+              <Route index element={<MADashboard />} />
+              <Route path="trackers" element={<MATrackers />} />
+              <Route path="trackers/:id" element={<MATrackers />} />
+              <Route path="trackers/new" element={<MATrackers />} />
+              <Route path="buyers" element={<MAAllBuyers />} />
+              <Route path="buyers/:id" element={<MAAllBuyers />} />
+              <Route path="deals" element={<MAAllDeals />} />
+              <Route path="deals/:id" element={<MAAllDeals />} />
+            </Route>
+
             {/* Catch-all route for 404 Not Found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
