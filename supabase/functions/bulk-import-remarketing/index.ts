@@ -16,6 +16,87 @@ interface ImportData {
   companies: any[];
 }
 
+// ============= INPUT VALIDATION =============
+
+/**
+ * Validate the import data structure before processing
+ * Returns { valid: true } or { valid: false, errors: string[] }
+ */
+function validateImportData(data: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  if (!data || typeof data !== 'object') {
+    return { valid: false, errors: ['Import data must be an object'] };
+  }
+
+  // Check that arrays are arrays
+  const arrayFields = ['universes', 'buyers', 'contacts', 'transcripts', 'scores', 'learningHistory', 'companies'];
+  for (const field of arrayFields) {
+    if (data[field] !== undefined && !Array.isArray(data[field])) {
+      errors.push(`${field} must be an array`);
+    }
+  }
+
+  // Validate universe structure
+  if (data.universes?.length > 0) {
+    for (let i = 0; i < Math.min(data.universes.length, 5); i++) {
+      const u = data.universes[i];
+      if (!u.industry_name && !u.name) {
+        errors.push(`Universe at index ${i} missing required field: industry_name or name`);
+      }
+    }
+  }
+
+  // Validate buyer structure
+  if (data.buyers?.length > 0) {
+    for (let i = 0; i < Math.min(data.buyers.length, 5); i++) {
+      const b = data.buyers[i];
+      if (!b.platform_company_name && !b.company_name) {
+        errors.push(`Buyer at index ${i} missing required field: platform_company_name or company_name`);
+      }
+    }
+  }
+
+  // Validate contact structure
+  if (data.contacts?.length > 0) {
+    for (let i = 0; i < Math.min(data.contacts.length, 5); i++) {
+      const c = data.contacts[i];
+      if (!c.buyer_id) {
+        errors.push(`Contact at index ${i} missing required field: buyer_id`);
+      }
+    }
+  }
+
+  // Size limits to prevent abuse
+  const MAX_UNIVERSES = 100;
+  const MAX_BUYERS = 10000;
+  const MAX_CONTACTS = 50000;
+  const MAX_TRANSCRIPTS = 10000;
+  const MAX_SCORES = 100000;
+  const MAX_LEARNING = 100000;
+
+  if (data.universes?.length > MAX_UNIVERSES) {
+    errors.push(`Too many universes: ${data.universes.length} (max: ${MAX_UNIVERSES})`);
+  }
+  if (data.buyers?.length > MAX_BUYERS) {
+    errors.push(`Too many buyers: ${data.buyers.length} (max: ${MAX_BUYERS})`);
+  }
+  if (data.contacts?.length > MAX_CONTACTS) {
+    errors.push(`Too many contacts: ${data.contacts.length} (max: ${MAX_CONTACTS})`);
+  }
+  if (data.transcripts?.length > MAX_TRANSCRIPTS) {
+    errors.push(`Too many transcripts: ${data.transcripts.length} (max: ${MAX_TRANSCRIPTS})`);
+  }
+  if (data.scores?.length > MAX_SCORES) {
+    errors.push(`Too many scores: ${data.scores.length} (max: ${MAX_SCORES})`);
+  }
+  if (data.learningHistory?.length > MAX_LEARNING) {
+    errors.push(`Too many learning history records: ${data.learningHistory.length} (max: ${MAX_LEARNING})`);
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,24 +107,111 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, data }: { action: string; data?: ImportData } = await req.json();
+    const { action, data, confirmClear }: { action: string; data?: ImportData; confirmClear?: boolean } = await req.json();
+
+    // Validate action
+    if (!['clear', 'import', 'validate'].includes(action)) {
+      return new Response(JSON.stringify({
+        error: 'Invalid action. Must be: clear, import, or validate'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (action === 'clear') {
+      // SECURITY: Require explicit confirmation for destructive action
+      if (confirmClear !== true) {
+        return new Response(JSON.stringify({
+          error: 'Clear action requires explicit confirmation',
+          message: 'Set confirmClear: true to confirm you want to delete ALL remarketing data. This action cannot be undone.',
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       // Clear existing data in reverse dependency order
-      console.log('Clearing existing remarketing data...');
+      console.log('WARNING: Clearing existing remarketing data...');
+      console.log(`Timestamp: ${new Date().toISOString()}`);
+
+      // Track what we're deleting for audit
+      const { count: learningCount } = await supabase.from('buyer_learning_history').select('*', { count: 'exact', head: true });
+      const { count: scoreCount } = await supabase.from('remarketing_scores').select('*', { count: 'exact', head: true });
+      const { count: transcriptCount } = await supabase.from('buyer_transcripts').select('*', { count: 'exact', head: true });
+      const { count: contactCount } = await supabase.from('remarketing_buyer_contacts').select('*', { count: 'exact', head: true });
+      const { count: buyerCount } = await supabase.from('remarketing_buyers').select('*', { count: 'exact', head: true });
+      const { count: universeCount } = await supabase.from('remarketing_buyer_universes').select('*', { count: 'exact', head: true });
+
+      console.log(`Deleting: ${learningCount} learning, ${scoreCount} scores, ${transcriptCount} transcripts, ${contactCount} contacts, ${buyerCount} buyers, ${universeCount} universes`);
+
       await supabase.from('buyer_learning_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('remarketing_scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('buyer_transcripts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('remarketing_buyer_contacts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('remarketing_buyers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('remarketing_buyer_universes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      
-      return new Response(JSON.stringify({ success: true, message: 'Cleared all remarketing data' }), {
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Cleared all remarketing data',
+        deleted: {
+          learningHistory: learningCount || 0,
+          scores: scoreCount || 0,
+          transcripts: transcriptCount || 0,
+          contacts: contactCount || 0,
+          buyers: buyerCount || 0,
+          universes: universeCount || 0,
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Handle 'validate' action - dry run to check data before import
+    if (action === 'validate') {
+      if (!data) {
+        return new Response(JSON.stringify({ error: 'No data provided for validation' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const validation = validateImportData(data);
+      return new Response(JSON.stringify({
+        valid: validation.valid,
+        errors: validation.errors,
+        summary: {
+          universes: data.universes?.length || 0,
+          buyers: data.buyers?.length || 0,
+          contacts: data.contacts?.length || 0,
+          transcripts: data.transcripts?.length || 0,
+          scores: data.scores?.length || 0,
+          learningHistory: data.learningHistory?.length || 0,
+          companies: data.companies?.length || 0,
+        }
+      }), {
+        status: validation.valid ? 200 : 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (action === 'import' && data) {
+      // SECURITY: Validate input before processing
+      const validation = validateImportData(data);
+      if (!validation.valid) {
+        return new Response(JSON.stringify({
+          error: 'Invalid import data',
+          validationErrors: validation.errors,
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`Starting import at ${new Date().toISOString()}`);
+      console.log(`Data counts: ${data.universes?.length || 0} universes, ${data.buyers?.length || 0} buyers, ${data.contacts?.length || 0} contacts`);
+
       const results = {
         universes: { imported: 0, errors: [] as string[] },
         buyers: { imported: 0, errors: [] as string[] },

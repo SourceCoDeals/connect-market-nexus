@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,6 +54,13 @@ serve(async (req) => {
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // SECURITY: Check rate limit before making expensive AI calls
+    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_enrichment', true);
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for admin ${user.id} on ai_enrichment`);
+      return rateLimitResponse(rateLimitResult);
     }
 
     const { dealId } = await req.json();
@@ -111,6 +119,14 @@ serve(async (req) => {
     if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
       websiteUrl = `https://${websiteUrl}`;
     }
+
+    // SECURITY: Validate URL to prevent SSRF attacks
+    const urlValidation = validateUrl(websiteUrl);
+    if (!urlValidation.valid) {
+      console.error(`SSRF blocked for deal website: ${websiteUrl} - ${urlValidation.reason}`);
+      return ssrfErrorResponse(urlValidation.reason || 'Invalid URL');
+    }
+    websiteUrl = urlValidation.normalizedUrl || websiteUrl;
 
     console.log(`Enriching deal ${dealId} from website: ${websiteUrl}`);
 

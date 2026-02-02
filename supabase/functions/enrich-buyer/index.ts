@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -110,6 +111,22 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
+    // SECURITY: Check rate limit before making expensive AI calls
+    // Default to 'system' identifier if no auth header (service-to-service call)
+    const authHeader = req.headers.get('Authorization');
+    let userId = 'system';
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) userId = user.id;
+    }
+
+    const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', false);
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for user ${userId} on ai_enrichment`);
+      return rateLimitResponse(rateLimitResult);
+    }
+
     // Fetch buyer
     const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
@@ -134,6 +151,22 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Buyer has no website URL to scrape' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // SECURITY: Validate URLs to prevent SSRF attacks
+    if (platformWebsite) {
+      const platformUrlValidation = validateUrl(platformWebsite);
+      if (!platformUrlValidation.valid) {
+        console.error(`SSRF blocked for platform website: ${platformWebsite} - ${platformUrlValidation.reason}`);
+        return ssrfErrorResponse(`Platform website: ${platformUrlValidation.reason}`);
+      }
+    }
+    if (peFirmWebsite) {
+      const peFirmUrlValidation = validateUrl(peFirmWebsite);
+      if (!peFirmUrlValidation.valid) {
+        console.error(`SSRF blocked for PE firm website: ${peFirmWebsite} - ${peFirmUrlValidation.reason}`);
+        return ssrfErrorResponse(`PE firm website: ${peFirmUrlValidation.reason}`);
+      }
     }
 
     console.log(`Enriching buyer: ${buyer.company_name}`);
