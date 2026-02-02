@@ -137,6 +137,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         dailyMetricsResult,
         activeSessionsResult,
         profilesResult,
+        // New: Query all connections with NDA/Fee Agreement data
+        allConnectionsWithMilestonesResult,
       ] = await Promise.all([
         // Current period sessions
         supabase
@@ -185,11 +187,17 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           .eq('is_active', true)
           .gte('last_active_at', twoMinutesAgo),
         
-        // Profiles for top users
+        // Profiles for top users - get more to ensure we have all connected users
         supabase
           .from('profiles')
           .select('id, first_name, last_name, company, buyer_type')
-          .limit(100),
+          .limit(500),
+        
+        // NEW: Query all connections with NDA/Fee Agreement status for real funnel data
+        supabase
+          .from('connection_requests')
+          .select('id, user_id, lead_nda_signed, lead_fee_agreement_signed, created_at')
+          .gte('created_at', startDateStr),
       ]);
       
       const sessions = sessionsResult.data || [];
@@ -200,6 +208,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const dailyMetrics = dailyMetricsResult.data || [];
       const activeSessions = activeSessionsResult.data || [];
       const profiles = profilesResult.data || [];
+      const allConnectionsWithMilestones = allConnectionsWithMilestonesResult.data || [];
       
       // Deduplicate sessions by session_id
       const sessionMap = new Map<string, typeof sessions[0]>();
@@ -436,39 +445,44 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         .map(([type, visitors]) => ({ type, visitors, percentage: (visitors / totalForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      // Enhanced 6-stage funnel for M&A marketplace
+      // Enhanced 6-stage funnel for M&A marketplace with REAL data
       const registeredUsers = new Set(uniqueSessions.filter(s => s.user_id).map(s => s.user_id));
       const connectingUsers = new Set(connections.map(c => c.user_id));
       
       // Count marketplace page views
       const marketplaceViews = new Set(
-        pageViews.filter(pv => pv.page_path?.includes('/marketplace')).map(pv => pv.session_id)
+        pageViews.filter(pv => pv.page_path?.includes('/marketplace') || pv.page_path === '/').map(pv => pv.session_id)
       ).size;
       
-      // For NDA and Fee Agreement, we need additional queries
-      // These are approximated from connection data for now
-      const ndaSignedCount = Math.floor(connectingUsers.size * 0.7); // ~70% of connections
-      const feeAgreementCount = Math.floor(connectingUsers.size * 0.85); // ~85% of connections
+      // REAL NDA and Fee Agreement counts from connection_requests
+      const ndaSignedCount = allConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).length;
+      const feeAgreementCount = allConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).length;
+      const totalConnectionsCount = allConnectionsWithMilestones.length;
+      
+      // Get unique users who signed NDA/Fee Agreement
+      const ndaSignedUsers = new Set(allConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).map(c => c.user_id));
+      const feeAgreementUsers = new Set(allConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).map(c => c.user_id));
       
       const funnelStages = [
         { name: 'Visitors', count: currentVisitors, dropoff: 0 },
         { name: 'Marketplace', count: marketplaceViews, dropoff: currentVisitors > 0 ? ((currentVisitors - marketplaceViews) / currentVisitors) * 100 : 0 },
         { name: 'Registered', count: registeredUsers.size, dropoff: marketplaceViews > 0 ? ((marketplaceViews - registeredUsers.size) / marketplaceViews) * 100 : 0 },
-        { name: 'NDA Signed', count: ndaSignedCount, dropoff: registeredUsers.size > 0 ? ((registeredUsers.size - ndaSignedCount) / registeredUsers.size) * 100 : 0 },
-        { name: 'Fee Agreement', count: feeAgreementCount, dropoff: ndaSignedCount > 0 ? ((ndaSignedCount - feeAgreementCount) / ndaSignedCount) * 100 : 0 },
-        { name: 'Connected', count: connectingUsers.size, dropoff: feeAgreementCount > 0 ? ((feeAgreementCount - connectingUsers.size) / feeAgreementCount) * 100 : 0 },
+        { name: 'NDA Signed', count: ndaSignedUsers.size, dropoff: registeredUsers.size > 0 ? ((registeredUsers.size - ndaSignedUsers.size) / registeredUsers.size) * 100 : 0 },
+        { name: 'Fee Agreement', count: feeAgreementUsers.size, dropoff: ndaSignedUsers.size > 0 ? ((ndaSignedUsers.size - feeAgreementUsers.size) / ndaSignedUsers.size) * 100 : 0 },
+        { name: 'Connected', count: connectingUsers.size, dropoff: feeAgreementUsers.size > 0 ? ((feeAgreementUsers.size - connectingUsers.size) / feeAgreementUsers.size) * 100 : 0 },
       ];
       
-      // Top users with enhanced data
+      // Top users with enhanced data - include ALL users who have connections
+      // Build maps from ALL connections in period, not just those with sessions
       const userConnectionCounts = new Map<string, number>();
-      connections.forEach(c => {
+      allConnectionsWithMilestones.forEach(c => {
         if (c.user_id) {
           userConnectionCounts.set(c.user_id, (userConnectionCounts.get(c.user_id) || 0) + 1);
         }
       });
       
       const userSessionCounts = new Map<string, number>();
-      const userSessionData = new Map<string, { country?: string; device?: string; source?: string }>();
+      const userSessionData = new Map<string, { country?: string; device?: string; source?: string; lastSeen?: string }>();
       uniqueSessions.forEach(s => {
         if (s.user_id) {
           userSessionCounts.set(s.user_id, (userSessionCounts.get(s.user_id) || 0) + 1);
@@ -477,37 +491,87 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
               country: s.country,
               device: s.device_type,
               source: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
+              lastSeen: s.started_at,
             });
           }
         }
       });
       
-      const topUsers = profiles
-        .filter(p => userConnectionCounts.has(p.id) || userSessionCounts.has(p.id))
-        .map(p => {
-          const sessionData = userSessionData.get(p.id);
+      // Create a combined set of all user IDs with connections OR sessions
+      const allUserIds = new Set<string>();
+      userConnectionCounts.forEach((_, id) => allUserIds.add(id));
+      userSessionCounts.forEach((_, id) => allUserIds.add(id));
+      
+      // Map profiles by ID for quick lookup
+      const profileMap = new Map(profiles.map(p => [p.id, p]));
+      
+      const topUsers = Array.from(allUserIds)
+        .map(id => {
+          const profile = profileMap.get(id);
+          const sessionData = userSessionData.get(id);
+          const connectionCount = userConnectionCounts.get(id) || 0;
+          const sessionCount = userSessionCounts.get(id) || 0;
+          
           return {
-            id: p.id,
-            name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Anonymous',
-            company: p.company || '',
-            sessions: userSessionCounts.get(p.id) || 0,
+            id,
+            name: profile 
+              ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Anonymous'
+              : 'Anonymous Visitor',
+            company: profile?.company || '',
+            sessions: sessionCount,
             pagesViewed: 0,
-            connections: userConnectionCounts.get(p.id) || 0,
+            connections: connectionCount,
             country: sessionData?.country,
             device: sessionData?.device,
             source: sessionData?.source,
+            lastSeen: sessionData?.lastSeen,
           };
         })
-        .sort((a, b) => b.connections - a.connections)
-        .slice(0, 10);
+        .filter(u => u.connections > 0 || u.sessions > 0) // Must have some activity
+        .sort((a, b) => b.connections - a.connections || b.sessions - a.sessions)
+        .slice(0, 20);
       
-      // Format daily metrics
-      const formattedDailyMetrics = dailyMetrics.map(m => ({
-        date: m.date,
-        visitors: m.total_sessions || 0,
-        connections: m.connection_requests || 0,
-        bounceRate: m.bounce_rate || 0,
-      }));
+      // Format daily metrics - FALLBACK to computing from raw data if empty
+      let formattedDailyMetrics: Array<{ date: string; visitors: number; connections: number; bounceRate: number }>;
+      
+      if (dailyMetrics.length > 0) {
+        // Use aggregated daily_metrics table
+        formattedDailyMetrics = dailyMetrics.map(m => ({
+          date: m.date,
+          visitors: m.total_sessions || 0,
+          connections: m.connection_requests || 0,
+          bounceRate: m.bounce_rate || 0,
+        }));
+      } else {
+        // FALLBACK: Compute from raw sessions and connections
+        const dailySessionCounts = new Map<string, number>();
+        const dailyConnectionCounts = new Map<string, number>();
+        
+        uniqueSessions.forEach(s => {
+          const dateStr = format(parseISO(s.started_at), 'yyyy-MM-dd');
+          dailySessionCounts.set(dateStr, (dailySessionCounts.get(dateStr) || 0) + 1);
+        });
+        
+        connections.forEach(c => {
+          const dateStr = format(parseISO(c.created_at), 'yyyy-MM-dd');
+          dailyConnectionCounts.set(dateStr, (dailyConnectionCounts.get(dateStr) || 0) + 1);
+        });
+        
+        // Generate array for all days in range
+        formattedDailyMetrics = [];
+        const currentDate = new Date(startDate);
+        const end = new Date(endDate);
+        while (currentDate <= end) {
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          formattedDailyMetrics.push({
+            date: dateStr,
+            visitors: dailySessionCounts.get(dateStr) || 0,
+            connections: dailyConnectionCounts.get(dateStr) || 0,
+            bounceRate: 0,
+          });
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
       
       return {
         kpis: {

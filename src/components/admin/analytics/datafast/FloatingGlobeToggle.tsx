@@ -9,7 +9,7 @@ export function FloatingGlobeToggle() {
   return (
     <>
       {/* Floating Buttons */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-row gap-3 z-40">
         {/* Lightbulb - future AI insights */}
         <button
           className="w-12 h-12 rounded-full bg-muted hover:bg-muted/80 border border-border/50 shadow-lg flex items-center justify-center transition-all hover:scale-105"
