@@ -21,6 +21,9 @@ export function useEnhancedAuthActions() {
 
       // Sanitized signup data prepared
       
+      // Get visitor_id for attribution linking
+      const visitorId = typeof window !== 'undefined' ? localStorage.getItem('sourceco_visitor_id') : null;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -28,6 +31,8 @@ export function useEnhancedAuthActions() {
           // Use production domain consistently - direct to pending approval
           emailRedirectTo: `https://marketplace.sourcecodeals.com/pending-approval`,
           data: {
+            // Pass visitor_id so trigger can link to user_journeys
+            visitor_id: visitorId || null,
             first_name: userData.first_name || '',
             last_name: userData.last_name || '',
             company: userData.company || '',
