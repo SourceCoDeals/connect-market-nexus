@@ -276,6 +276,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         user_id: string | null;
         visitor_id: string | null;
         referrer: string | null;
+        original_external_referrer: string | null;
+        blog_landing_page: string | null;
         utm_source: string | null;
         utm_medium: string | null;
         utm_campaign: string | null;
@@ -292,7 +294,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       if (profileIds.length > 0) {
         const { data: firstSessionsData } = await supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at')
           .in('user_id', profileIds)
           .order('started_at', { ascending: true });
         firstSessions = firstSessionsData || [];
@@ -488,10 +490,13 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       });
       
       // Map signups to channels via first session
+      // CRITICAL: Use original_external_referrer if available (for cross-domain attribution)
       profiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         if (firstSession) {
-          const channel = categorizeChannel(firstSession.referrer, firstSession.utm_source, firstSession.utm_medium);
+          // Prioritize original_external_referrer (true discovery source) over immediate referrer
+          const effectiveReferrer = firstSession.original_external_referrer || firstSession.referrer;
+          const channel = categorizeChannel(effectiveReferrer, firstSession.utm_source, firstSession.utm_medium);
           channelSignups[channel] = (channelSignups[channel] || 0) + 1;
         }
       });
@@ -536,10 +541,12 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       });
       
       // Map signups to referrers
+      // CRITICAL: Use original_external_referrer if available (for cross-domain attribution)
       profiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         if (firstSession) {
-          const domain = extractDomain(firstSession.referrer);
+          const effectiveReferrer = firstSession.original_external_referrer || firstSession.referrer;
+          const domain = extractDomain(effectiveReferrer);
           referrerSignups[domain] = (referrerSignups[domain] || 0) + 1;
         }
       });
