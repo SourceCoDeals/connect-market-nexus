@@ -1,165 +1,269 @@
 
-
-# Critical Data Accuracy Issues - Deep Investigation Results
+# Complete Attribution Intelligence: Signups, Original Referrer & Full Journey Tracking
 
 ## Executive Summary
 
-The data discrepancy you're seeing is NOT fake data - it's **fragmented real data** caused by **two separate tracking systems** that don't share geographic information.
+You want to see the **complete acquisition funnel**: from the moment someone first discovers you (Google search, LinkedIn post, newsletter) → through the blog → to marketplace signup → approval → connection request. This requires:
+
+1. **Adding "Signups" as a third sort metric** alongside Visitors and Connections
+2. **Tracking the ORIGINAL referrer** (before blog) - not just the immediate referrer (blog)
+3. **Multi-touch attribution** showing initial source vs. converting source
 
 ---
 
-## The Core Problem: Two Session Creation Paths
+## Current Data Reality (What We Have Today)
 
-Your platform has **TWO WAYS** sessions get created, and they capture **different data**:
+### Self-Reported Attribution (profiles table)
+| Source | Signups | Keywords Used |
+|--------|---------|---------------|
+| Google | 15 | "M&A deal sourcing", "deal originators buyside", "Search fund business acquisition" |
+| LinkedIn | 7 | "Tomos Mughan", "Post", "Saw a post about European deal flow" |
+| Friend | 4 | "Tomos Mughan", "Alex Josowitz" |
+| AI | 2 | "ChatGPT", "Perplexity.ai" |
+| Other | 3 | "Road to Carry Newsletter" |
 
-### Path 1: Frontend Session Tracking (via `track-session` edge function)
-- Captures: Browser, OS, Device, IP, **Country, City, Region**
-- Used by: Anonymous visitors (before login)
-- Has: `visitor_id` (from localStorage)
-- Result: **16 tracked visitors with country data**
+### Tracked Referrers (user_sessions table)
+| Entry Point | Signups | Connections |
+|-------------|---------|-------------|
+| sourcecodeals.com (blog) | 38 | 23 |
+| Direct (no referrer) | 58 | 35 |
+| Newsletter (Brevo) | 2 | 16 |
+| Google.com direct | 1 | 0 |
+| LinkedIn.com direct | 0 | 1 |
 
-### Path 2: Backend Auth Session (via Supabase Auth)
-- Captures: `user_id`, session_id, minimal metadata
-- Used by: Logged-in users
-- Does NOT capture: **Country, City, IP, Browser, OS**
-- Result: **108 logged-in users with NO country data**
-
----
-
-## The Math Behind Your Screenshot
-
-| Metric | Value | Source |
-|--------|-------|--------|
-| **KPI: Unique Visitors** | 124 | 108 user_ids + 16 visitor_ids |
-| **Country breakdown total** | 16 | Only sessions with geo data (anonymous only) |
-| **Browser breakdown total** | 80 | 63 logged-in with browser + 16 anonymous |
-| **"Unknown" country** | 108 | All logged-in users (filtered out of display) |
-
-### Why only 16 visitors show in Country tab:
+### The Gap
+When a user says "Google" but their session referrer is `www.sourcecodeals.com`, the journey was:
 ```
-France: 9 (all anonymous visitor_ids)
-Netherlands: 3 (all anonymous visitor_ids)  
-UK: 3 (all anonymous visitor_ids)
-US: 1 (all anonymous visitor_ids)
-Spain: 0 (anonymous sessions without visitor_id)
----
-Total: 16 visitors with country data
+Google → Blog (sourcecodeals.com/blog/deal-sourcing-companies) → Marketplace → Signup
 ```
 
-### Why 108 logged-in users have NO country:
-When users log in, the auth system creates a new session row with `user_id`, but:
-- The frontend tracking call happens BEFORE login
-- After login, the new auth session doesn't call `track-session` again
-- So the logged-in session has **no geo-data** attached
+We capture the self-reported "Google" but **lose the original referrer** at the blog-to-marketplace handoff because the blog doesn't pass UTM parameters.
 
 ---
 
-## Database Evidence
+## Solution Architecture
 
-```sql
--- Sessions with country data (geo-tracked)
-| Category                    | Count |
-|----------------------------|-------|
-| Has user_id, has country   | 0     | ← ALL 0!
-| Has user_id, has browser   | 63    |
-| Has user_id, NO browser    | 108   |
-| Has visitor_id, has country| 16    |
+### Strategy 1: Enhanced Cross-Domain Tracking (Recommended)
+
+The main website (sourcecodeals.com) needs to pass attribution data when linking to marketplace. This is an **external website change** but the most accurate solution.
+
+**On sourcecodeals.com, links to marketplace should include:**
+```html
+<a href="https://marketplace.sourcecodeals.com?
+  utm_source=blog
+  &utm_medium=organic
+  &original_referrer=google.com
+  &landing_page=/blog/deal-sourcing-companies
+">Go to Marketplace</a>
 ```
 
-### Geo tracking only started working recently:
+**Implementation:** JavaScript on the blog that captures `document.referrer` and appends it to marketplace links.
+
+### Strategy 2: Self-Reported + Session Correlation (What We Can Do Now)
+
+Combine the self-reported `referral_source` and `referral_source_detail` from profiles with session data to build a complete picture.
+
+**New Data Model:**
 ```
-| Date       | Sessions | With Country |
-|------------|----------|--------------|
-| Feb 2      | 52       | 42 ✓         |
-| Feb 1      | 16       | 14 ✓         |
-| Jan 30     | 60       | 25 ✓         |
-| Jan 29     | 44       | 0            |
-| Jan 28     | 12       | 0            |
-| Jan 26     | 107      | 0            |
+profiles.referral_source = "google"
+profiles.referral_source_detail = "M&A deal sourcing"
+user_sessions.referrer = "www.sourcecodeals.com"
 ```
 
-Geo tracking only started working on **Jan 30, 2026**.
+**Derived Attribution:**
+- **Original Source:** Google (self-reported)
+- **Search Keyword:** "M&A deal sourcing"
+- **Entry Path:** Blog → Marketplace
+- **Connection Source:** Newsletter (Brevo)
 
 ---
 
-## Why Browser/OS Numbers Are Higher
+## Implementation Plan
 
-Browser data IS captured for some logged-in users because:
-1. The frontend creates a session and calls `track-session` with browser/OS
-2. User logs in → a NEW session row is created by auth
-3. Some sessions have browser data (from path 1), some don't (pure auth sessions)
+### Phase 1: Add "Signups" to All Cards
 
-```
-Chrome: 76 visitors (60 logged-in + 16 anonymous)
-Firefox: 2 visitors
-Safari: 2 visitors
----
-Total: 80 (matches database, not 124 because overlap)
-```
+**Files to modify:**
+- `src/components/admin/analytics/datafast/AnalyticsCard.tsx`
+- `src/components/admin/analytics/datafast/SourcesCard.tsx`
+- `src/components/admin/analytics/datafast/GeographyCard.tsx`
+- `src/components/admin/analytics/datafast/TechStackCard.tsx`
+- `src/hooks/useUnifiedAnalytics.ts`
 
----
+**Changes:**
 
-## Why Pages Show ~230 Visitors for "/" 
-
-The Pages card counts **unique sessions per page**, not unique visitors:
-- `/` page: 1,327 unique session_ids viewed it
-- This is NOT filtered by dev traffic
-- This is NOT using the same visitor logic as KPIs
-
-The Pages card is using `page_views` table which doesn't filter dev traffic!
-
----
-
-## The Fix Required
-
-### Fix 1: Merge Session Data on Login
-
-When a user logs in, update their **existing** session (from anonymous tracking) with their `user_id`, rather than creating a new session.
-
-**In `SessionContext.tsx` or auth callback:**
+1. Update `SortToggle` to support 3 values:
 ```typescript
-// After successful login, UPDATE the existing session with user_id
-await supabase
-  .from('user_sessions')
-  .update({ user_id: user.id })
-  .eq('session_id', currentSessionId);
+type SortValue = 'visitors' | 'signups' | 'connections';
+
+export function SortToggle({ value, onChange }: { value: SortValue; onChange: (v: SortValue) => void }) {
+  const cycle = () => {
+    if (value === 'visitors') onChange('signups');
+    else if (value === 'signups') onChange('connections');
+    else onChange('visitors');
+  };
+  return (
+    <button onClick={cycle}>
+      {value === 'visitors' ? 'Visitors ↓' : value === 'signups' ? 'Signups ↓' : 'Connections ↓'}
+    </button>
+  );
+}
 ```
 
-### Fix 2: Re-track Geo on Auth Session
-
-When auth creates a session, call `track-session` again with the user_id to capture geo data:
-
-**In auth callback:**
+2. Add signup counts to all data structures in `useUnifiedAnalytics.ts`:
 ```typescript
-// After login, call track-session to capture geo for the logged-in session
-await supabase.functions.invoke('track-session', {
-  body: {
-    session_id: authSession.access_token.substring(0, 36),
-    user_id: user.id,
-    visitor_id: localStorage.getItem('visitor_id'),
-    user_agent: navigator.userAgent,
-    // ... other tracking data
+// New query to get signups
+supabase
+  .from('profiles')
+  .select('id, referral_source, referral_source_detail, created_at')
+  .gte('created_at', startDateStr)
+```
+
+3. Calculate signups per referrer/channel/country:
+```typescript
+const referrerSignups: Record<string, number> = {};
+const channelSignups: Record<string, number> = {};
+const countrySignups: Record<string, number> = {};
+
+// For each profile signup, find their first session and attribute
+profiles.forEach(p => {
+  const firstSession = sessions.find(s => s.user_id === p.id);
+  if (firstSession?.referrer) {
+    const domain = extractDomain(firstSession.referrer);
+    referrerSignups[domain] = (referrerSignups[domain] || 0) + 1;
+  }
+  
+  // Also use self-reported source for "original referrer"
+  if (p.referral_source) {
+    channelSignups[p.referral_source] = (channelSignups[p.referral_source] || 0) + 1;
   }
 });
 ```
 
-### Fix 3: Filter Dev Traffic in Pages
+### Phase 2: Add "Original Referrer" Field
 
-Update `useUnifiedAnalytics.ts` to filter dev traffic from page views:
+Store and display the user's true first-touch source (Google, LinkedIn, ChatGPT) separately from their immediate referrer (blog, newsletter).
 
+**Database changes:**
+Add new columns to `user_sessions` table:
+```sql
+ALTER TABLE user_sessions ADD COLUMN original_source text;
+ALTER TABLE user_sessions ADD COLUMN original_keyword text;
+```
+
+**Populate from profiles:**
 ```typescript
-// Filter page views by excluding dev sessions
-const productionPageViews = pageViews.filter(pv => {
-  // Only include page views from production sessions
-  return uniqueSessions.some(s => s.session_id === pv.session_id);
+// When creating/updating session after signup, copy from profile
+await supabase
+  .from('user_sessions')
+  .update({
+    original_source: profile.referral_source,
+    original_keyword: profile.referral_source_detail,
+  })
+  .eq('user_id', userId);
+```
+
+### Phase 3: Dual Attribution Display
+
+In the SourcesCard, show BOTH:
+1. **Original Source** (self-reported): Google, LinkedIn, Friend, AI
+2. **Entry Referrer** (tracked): sourcecodeals.com, newsletter, direct
+
+**New tab structure:**
+```
+| Channel | Source | Referrer | Campaign | Keyword |
+```
+
+**Channel tab content:**
+```
+┌────────────────────────────────────────────────┐
+│ Original Source (Self-Reported)                │
+├────────────────────────────────────────────────┤
+│ 🔍 Google     │ 15 signups │ 8 connections     │
+│ 🔗 LinkedIn   │ 7 signups  │ 3 connections     │
+│ 🤖 AI         │ 2 signups  │ 1 connection      │
+│ 👤 Friend     │ 4 signups  │ 2 connections     │
+└────────────────────────────────────────────────┘
+```
+
+**Referrer tab content:**
+```
+┌────────────────────────────────────────────────┐
+│ Entry Referrer (Technical Tracking)            │
+├────────────────────────────────────────────────┤
+│ 🌐 sourcecodeals.com │ 38 signups │ 23 conn.  │
+│ 📧 Newsletter        │ 2 signups  │ 16 conn.  │
+│ 🔵 LinkedIn.com      │ 0 signups  │ 1 conn.   │
+│ 📍 Direct            │ 58 signups │ 35 conn.  │
+└────────────────────────────────────────────────┘
+```
+
+### Phase 4: Journey Path Visualization
+
+Add a new "Funnel Paths" section showing the complete journey:
+
+```
+Google Search → Blog → Marketplace → Signup → Connection
+  └─ "M&A deal sourcing" (keyword)
+  └─ /blog/deal-sourcing-companies (landing)
+  └─ Newsletter reactivation (12 connections)
+```
+
+**Implementation:**
+```typescript
+// Group users by their complete journey
+const journeyPaths = profiles.map(p => ({
+  originalSource: p.referral_source,
+  keyword: p.referral_source_detail,
+  entryReferrer: firstSession?.referrer,
+  connectionReferrer: lastConnectionSession?.referrer,
+  milestones: ['signup', 'connection'].filter(Boolean),
+}));
+
+// Aggregate common paths
+const pathCounts = journeyPaths.reduce((acc, path) => {
+  const key = `${path.originalSource}→${path.entryReferrer}→${path.connectionReferrer}`;
+  acc[key] = (acc[key] || 0) + 1;
+  return acc;
+}, {});
+```
+
+### Phase 5: Fix the Main Site (External)
+
+For complete tracking, the sourcecodeals.com website needs to:
+
+1. **Capture original referrer in localStorage:**
+```javascript
+// On blog pages
+if (!localStorage.getItem('original_referrer')) {
+  localStorage.setItem('original_referrer', document.referrer);
+  localStorage.setItem('landing_page', window.location.pathname);
+}
+```
+
+2. **Append to marketplace links:**
+```javascript
+document.querySelectorAll('a[href*="marketplace.sourcecodeals.com"]').forEach(link => {
+  const originalReferrer = localStorage.getItem('original_referrer');
+  const landingPage = localStorage.getItem('landing_page');
+  const url = new URL(link.href);
+  if (originalReferrer) url.searchParams.set('original_referrer', originalReferrer);
+  if (landingPage) url.searchParams.set('blog_landing', landingPage);
+  link.href = url.toString();
 });
 ```
 
-### Fix 4: Backfill Country Data (Optional)
+3. **In marketplace, capture these params:**
+```typescript
+// In track-session or initial-session-tracking
+const originalReferrer = searchParams.get('original_referrer');
+const blogLanding = searchParams.get('blog_landing');
 
-For historical sessions with `user_id` but no country, we could:
-1. Look up the user's most recent session with country data
-2. Copy that country to their historical sessions
+// Store in session
+await supabase.from('user_sessions').update({
+  original_referrer: originalReferrer,
+  blog_landing_page: blogLanding,
+}).eq('session_id', sessionId);
+```
 
 ---
 
@@ -167,26 +271,63 @@ For historical sessions with `user_id` but no country, we could:
 
 | File | Changes |
 |------|---------|
-| `src/contexts/SessionContext.tsx` | Merge anonymous session with auth session on login |
-| `src/hooks/useUnifiedAnalytics.ts` | Filter dev traffic from page_views; use consistent visitor key |
-| `supabase/functions/track-session/index.ts` | Handle session updates (not just inserts) |
-| `src/pages/Auth.tsx` or auth callback | Call track-session after login with user_id |
+| `src/components/admin/analytics/datafast/AnalyticsCard.tsx` | Update `SortToggle` to support 3 values |
+| `src/components/admin/analytics/datafast/SourcesCard.tsx` | Add signups sorting, add "Source" tab for self-reported |
+| `src/components/admin/analytics/datafast/GeographyCard.tsx` | Add signups to country/region data |
+| `src/components/admin/analytics/datafast/TechStackCard.tsx` | Add signups to browser/OS data |
+| `src/hooks/useUnifiedAnalytics.ts` | Query profiles for signups, calculate per-referrer/channel signups |
 
 ---
 
-## Expected Results After Fix
+## Database Migration
 
-| Metric | Current | After Fix |
-|--------|---------|-----------|
-| KPI Visitors | 124 | 124 (same) |
-| Country breakdown | 16 | ~100+ (includes logged-in users) |
-| Browser breakdown | 80 | ~120 (more complete) |
-| Pages "/" | 1,327 | ~300-400 (filtered) |
-| Country <> Browser gap | 80 vs 16 | Should match |
+```sql
+-- Add original_source fields to user_sessions for complete tracking
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS original_source text;
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS original_keyword text;
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS blog_landing_page text;
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS original_external_referrer text;
+
+-- Create index for performance
+CREATE INDEX IF NOT EXISTS idx_user_sessions_original_source ON user_sessions(original_source);
+```
+
+---
+
+## Expected Results
+
+After implementation:
+
+| Card | Current | After |
+|------|---------|-------|
+| SourcesCard | Visitors, Connections | Visitors, Signups, Connections |
+| GeographyCard | Visitors, Connections | Visitors, Signups, Connections |
+| Channel tab | Entry referrer only | Original source (Google, LinkedIn) + Entry referrer |
+| Referrer tooltips | Shows 0 signups | Shows real signup attribution |
+| Journey visibility | Blog → Marketplace | Google → Blog → Marketplace → Connection |
+
+---
+
+## Technical Considerations
+
+1. **Self-reported source is valuable** - Users who say "Google" and provide a keyword give us SEO insights
+2. **Multi-touch attribution** - Initial source (Google) may differ from converting source (Newsletter)
+3. **Cross-domain tracking** - Full solution requires changes to sourcecodeals.com
+4. **Backward compatibility** - Historical data has profile referral_source but not session original_source
 
 ---
 
 ## Summary
 
-The data is **REAL**, but it's **fragmented** across two session creation paths. Anonymous visitors get geo-tracked, but logged-in users don't inherit that tracking. The fix is to **merge session data on login** rather than creating new sessions.
+The plan implements a 3-tier attribution system:
 
+1. **Visitors** → Anyone who visited (from sessions)
+2. **Signups** → Users who registered (from profiles, correlated to sessions)
+3. **Connections** → Users who requested connections (from connection_requests)
+
+Each breakdown (channels, referrers, countries) will support all three metrics, allowing you to see:
+- Which channels bring traffic (visitors)
+- Which channels convert to users (signups)
+- Which channels generate revenue (connections)
+
+And critically, we'll display the **original source** (Google, LinkedIn, AI) separately from the **entry referrer** (blog, newsletter) to show the complete journey from first discovery to conversion.
