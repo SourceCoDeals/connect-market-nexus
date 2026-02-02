@@ -107,12 +107,15 @@ export const useInitialSessionTracking = () => {
 
         // Extract ALL cross-domain tracking params (passed from sourcecodeals.com)
         const searchParams = new URLSearchParams(window.location.search);
+        // Support both full URL (legacy) and hostname-only (hardened/recommended)
         const originalReferrer = searchParams.get('original_referrer');
+        const scoRefHost = searchParams.get('sco_ref_host'); // Hardened version - hostname only
         const scoLanding = searchParams.get('sco_landing') || searchParams.get('blog_landing');
         const scoEntryTime = searchParams.get('sco_entry_time');
         const scoGa4Cid = searchParams.get('sco_ga4_cid');
         const gclid = searchParams.get('gclid');
         const fbclid = searchParams.get('fbclid');
+        const liFatId = searchParams.get('li_fat_id'); // LinkedIn ad tracking
 
         // Prepare tracking data for edge function with enhanced journey tracking
         const trackingData = {
@@ -138,12 +141,15 @@ export const useInitialSessionTracking = () => {
           // Initial time on page for accurate session duration from start
           time_on_page: timeOnPage,
           // Cross-domain attribution (passed from sourcecodeals.com)
+          // Prefer hostname-only (sco_ref_host) over full URL for privacy
           original_referrer: originalReferrer || undefined,
+          original_referrer_host: scoRefHost || undefined,
           blog_landing: scoLanding || undefined,
           sco_entry_time: scoEntryTime || undefined,
           // Ad tracking IDs
           gclid: gclid || undefined,
           fbclid: fbclid || undefined,
+          li_fat_id: liFatId || undefined,
           // First-touch attribution for historical analysis
           ...firstTouchData,
         };
