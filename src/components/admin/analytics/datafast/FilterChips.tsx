@@ -1,4 +1,4 @@
-import { X, Filter } from "lucide-react";
+import { X } from "lucide-react";
 import { useAnalyticsFilters, FilterType } from "@/contexts/AnalyticsFiltersContext";
 import { cn } from "@/lib/utils";
 import { ReferrerLogo } from "./ReferrerLogo";
@@ -23,19 +23,14 @@ export function FilterChips() {
   if (filters.length === 0) return null;
 
   return (
-    <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 p-4 bg-background/95 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
-      <div className="flex items-center gap-1.5 text-muted-foreground mr-2">
-        <Filter className="h-3.5 w-3.5" />
-        <span className="text-xs font-medium uppercase tracking-wider">Filtered by</span>
-      </div>
-      
+    <>
       {filters.map((filter) => (
         <div
           key={`${filter.type}-${filter.value}`}
           className={cn(
             "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg",
-            "bg-card border border-border/50",
-            "text-sm font-medium",
+            "bg-muted/80 border border-border/50",
+            "text-sm",
             "transition-all hover:border-border"
           )}
         >
@@ -48,12 +43,12 @@ export function FilterChips() {
           <span className="text-muted-foreground text-xs">
             {FILTER_TYPE_LABELS[filter.type]} is
           </span>
-          <span className="text-foreground">{filter.label}</span>
+          <span className="text-foreground font-medium">{filter.label}</span>
           
           {/* Remove button */}
           <button
             onClick={() => removeFilter(filter.type, filter.value)}
-            className="ml-1 p-0.5 rounded-md hover:bg-muted transition-colors"
+            className="ml-0.5 p-0.5 rounded hover:bg-background/50 transition-colors"
             aria-label={`Remove ${filter.label} filter`}
           >
             <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -64,11 +59,11 @@ export function FilterChips() {
       {filters.length > 1 && (
         <button
           onClick={clearFilters}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-2"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2"
         >
           Clear all
         </button>
       )}
-    </div>
+    </>
   );
 }
