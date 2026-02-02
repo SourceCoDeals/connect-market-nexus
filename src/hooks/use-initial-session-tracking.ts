@@ -105,6 +105,11 @@ export const useInitialSessionTracking = () => {
           ? Math.max(0, Math.floor((Date.now() - performance.timing.navigationStart) / 1000))
           : 0;
 
+        // Extract original referrer from URL params (passed from blog/website)
+        const searchParams = new URLSearchParams(window.location.search);
+        const originalReferrer = searchParams.get('original_referrer');
+        const blogLanding = searchParams.get('blog_landing');
+
         // Prepare tracking data for edge function with enhanced journey tracking
         const trackingData = {
           session_id: sessionId,
@@ -128,6 +133,9 @@ export const useInitialSessionTracking = () => {
           ga4_client_id: ga4ClientId,
           // Initial time on page for accurate session duration from start
           time_on_page: timeOnPage,
+          // Cross-domain attribution (passed from sourcecodeals.com)
+          original_referrer: originalReferrer || undefined,
+          blog_landing: blogLanding || undefined,
           // First-touch attribution for historical analysis
           ...firstTouchData,
         };
