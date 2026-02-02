@@ -1,13 +1,14 @@
 
 # Plan: Fix Data Consistency and Filter Propagation Issues
 
-## Problem Summary
+## ✅ COMPLETED
 
-Two critical issues have been identified:
+Implementation complete. All filters now propagate to:
+- Page Views, Connections, Profiles (Signups)
+- Funnel stages, Top Users, Geography, Tech Stack
+- Channel/Referrer breakdowns
 
-1. **Visitor-Signup Mismatch**: When filtering by "Organic Search" or "Google", the dashboard shows 15 signups but only 1 visitor. This is because signups are attributed from self-reported data (`profiles.referral_source`), while visitors are counted from session `referrer`. Users who reported "Google" often arrived via the main website (`sourcecodeals.com`), so their session referrer doesn't match "google.com".
-
-2. **Filters Not Applying to Some Cards**: The Pages card and ConversionCard (funnel, users, journey) don't respect global filters because:
+## Problem Summary (Resolved)
    - `pageViews` is not filtered to match filtered sessions
    - `topUsers` is built from unfiltered connection and profile data
    - `funnel` stages use unfiltered counts

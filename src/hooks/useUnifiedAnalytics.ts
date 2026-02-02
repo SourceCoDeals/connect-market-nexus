@@ -428,6 +428,98 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         uniqueSessions = uniqueSessions.filter(s => matchingSessionIds.has(s.session_id));
       }
       
+      // === FILTER PROPAGATION: Create filtered versions of all data ===
+      // This ensures ALL cards respect the global filters
+      
+      // Get session IDs from filtered sessions
+      const filteredSessionIds = new Set(uniqueSessions.map(s => s.session_id));
+      
+      // Get user IDs from filtered sessions
+      const filteredUserIds = new Set<string>(
+        uniqueSessions.filter(s => s.user_id).map(s => s.user_id as string)
+      );
+      
+      // Filter page views to only include views from filtered sessions
+      const filteredPageViews = filters.length > 0
+        ? pageViews.filter(pv => pv.session_id && filteredSessionIds.has(pv.session_id))
+        : pageViews;
+      
+      // Filter connections to only users with matching sessions
+      const filteredConnections = filters.length > 0
+        ? connections.filter(c => c.user_id && filteredUserIds.has(c.user_id))
+        : connections;
+      
+      // Filter allConnectionsWithMilestones similarly
+      const filteredConnectionsWithMilestones = filters.length > 0
+        ? allConnectionsWithMilestones.filter(c => c.user_id && filteredUserIds.has(c.user_id))
+        : allConnectionsWithMilestones;
+      
+      // Filter profiles (signups) to match active filters
+      // When a channel/referrer filter is active, only count signups from that source
+      let filteredProfiles = profiles;
+      if (filters.length > 0) {
+        filteredProfiles = profiles.filter(p => {
+          const firstSession = profileToFirstSession.get(p.id);
+          
+          for (const filter of filters) {
+            if (filter.type === 'channel') {
+              // Check if profile's attributed channel matches the filter
+              // Priority 1: Cross-domain tracking
+              if (firstSession?.original_external_referrer) {
+                const channel = categorizeChannel(firstSession.original_external_referrer, firstSession.utm_source, firstSession.utm_medium);
+                if (channel === filter.value) return true;
+              }
+              // Priority 2: Self-reported source
+              const selfReportedChannel = selfReportedSourceToChannel(p.referral_source);
+              if (selfReportedChannel === filter.value) return true;
+              // Priority 3: Session referrer
+              if (firstSession) {
+                const sessionChannel = categorizeChannel(firstSession.referrer, firstSession.utm_source, firstSession.utm_medium);
+                if (sessionChannel === filter.value) return true;
+              }
+              return false;
+            }
+            if (filter.type === 'referrer') {
+              // Check referrer domain match
+              if (firstSession?.original_external_referrer) {
+                if (extractDomain(firstSession.original_external_referrer) === filter.value) return true;
+              }
+              if (firstSession) {
+                if (extractDomain(firstSession.referrer) === filter.value) return true;
+              }
+              // Check self-reported source as domain
+              if (p.referral_source && p.referral_source.toLowerCase() + '.com' === filter.value) return true;
+              return false;
+            }
+            if (filter.type === 'country') {
+              if (firstSession?.country !== filter.value) return false;
+            }
+            if (filter.type === 'city') {
+              if (firstSession?.city !== filter.value) return false;
+            }
+            if (filter.type === 'region') {
+              if ((firstSession as any)?.region !== filter.value) return false;
+            }
+            if (filter.type === 'browser') {
+              if (firstSession?.browser !== filter.value) return false;
+            }
+            if (filter.type === 'os') {
+              if (firstSession?.os !== filter.value) return false;
+            }
+            if (filter.type === 'device') {
+              if (firstSession?.device_type !== filter.value) return false;
+            }
+            if (filter.type === 'campaign') {
+              if (firstSession?.utm_campaign !== filter.value) return false;
+            }
+            if (filter.type === 'keyword') {
+              if (firstSession?.utm_term !== filter.value) return false;
+            }
+          }
+          return true;
+        });
+      }
+      
       // CRITICAL FIX #2: Count unique VISITORS (people), not sessions
       // Only count sessions with identifiable visitors (user_id or visitor_id)
       const currentVisitorSet = new Set<string>();
@@ -459,7 +551,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const visitorsTrend = prevVisitors > 0 ? ((currentVisitors - prevVisitors) / prevVisitors) * 100 : 0;
       const sessionsTrend = prevSessionCount > 0 ? ((currentSessionCount - prevSessionCount) / prevSessionCount) * 100 : 0;
       
-      const currentConnections = connections.length;
+      const currentConnections = filteredConnections.length;
       const prevConnectionsCount = prevConnections.length;
       const connectionsTrend = prevConnectionsCount > 0 ? ((currentConnections - prevConnectionsCount) / prevConnectionsCount) * 100 : 0;
       
@@ -468,9 +560,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const prevConversionRate = prevVisitors > 0 ? (prevConnectionsCount / prevVisitors) * 100 : 0;
       const conversionTrend = prevConversionRate > 0 ? ((conversionRate - prevConversionRate) / prevConversionRate) * 100 : 0;
       
-      // Bounce rate (sessions with 1 page view)
+      // Bounce rate (sessions with 1 page view) - uses filteredPageViews
       const sessionPageCounts = new Map<string, number>();
-      pageViews.forEach(pv => {
+      filteredPageViews.forEach(pv => {
         if (pv.session_id) {
           sessionPageCounts.set(pv.session_id, (sessionPageCounts.get(pv.session_id) || 0) + 1);
         }
@@ -510,7 +602,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         } catch { /* ignore parse errors */ }
       });
       
-      connections.forEach(c => {
+      filteredConnections.forEach(c => {
         try {
           const dateStr = format(parseISO(c.created_at), 'yyyy-MM-dd');
           dailyConnectionCounts.set(dateStr, (dailyConnectionCounts.get(dateStr) || 0) + 1);
@@ -550,7 +642,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       uniqueSessions.forEach(s => {
         if (s.user_id) userSessionMap.set(s.user_id, s);
       });
-      connections.forEach(c => {
+      filteredConnections.forEach(c => {
         if (c.user_id) {
           const session = userSessionMap.get(c.user_id);
           if (session) {
@@ -560,9 +652,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      // Map signups to channels via first session
+      // Map signups to channels via first session - uses filteredProfiles
       // Priority: 1) Cross-domain tracking, 2) User-reported source, 3) Session referrer
-      profiles.forEach(p => {
+      filteredProfiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         
         // Priority 1: Cross-domain tracking (if we have it from blog script)
@@ -615,7 +707,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       });
       
       // Map connections to referrers via user's first-touch referrer
-      connections.forEach(c => {
+      filteredConnections.forEach(c => {
         if (c.user_id) {
           const userSession = userSessionMap.get(c.user_id);
           if (userSession) {
@@ -625,9 +717,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      // Map signups to referrers
+      // Map signups to referrers - uses filteredProfiles
       // Priority: 1) Cross-domain tracking, 2) User-reported source, 3) Session referrer
-      profiles.forEach(p => {
+      filteredProfiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         
         // Priority 1: Cross-domain tracking (if we have it)
@@ -680,7 +772,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       });
       // Map connections to campaigns
       const campaignConnections: Record<string, number> = {};
-      connections.forEach(c => {
+      filteredConnections.forEach(c => {
         if (c.user_id) {
           const userSession = userSessionMap.get(c.user_id);
           if (userSession?.utm_campaign) {
@@ -688,8 +780,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           }
         }
       });
-      // Map signups to campaigns
-      profiles.forEach(p => {
+      // Map signups to campaigns - uses filteredProfiles
+      filteredProfiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         if (firstSession?.utm_campaign) {
           campaignSignups[firstSession.utm_campaign] = (campaignSignups[firstSession.utm_campaign] || 0) + 1;
@@ -723,7 +815,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       });
       // Map connections to keywords
       const keywordConnections: Record<string, number> = {};
-      connections.forEach(c => {
+      filteredConnections.forEach(c => {
         if (c.user_id) {
           const userSession = userSessionMap.get(c.user_id);
           if (userSession?.utm_term) {
@@ -731,8 +823,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           }
         }
       });
-      // Map signups to keywords
-      profiles.forEach(p => {
+      // Map signups to keywords - uses filteredProfiles
+      filteredProfiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         if (firstSession?.utm_term) {
           keywordSignups[firstSession.utm_term] = (keywordSignups[firstSession.utm_term] || 0) + 1;
@@ -795,7 +887,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       });
       
       // Map connections to geography via user's session
-      connections.forEach(c => {
+      filteredConnections.forEach(c => {
         if (c.user_id) {
           const userSession = userSessionMap.get(c.user_id);
           if (userSession) {
@@ -816,8 +908,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      // Map signups to geography
-      profiles.forEach(p => {
+      // Map signups to geography - uses filteredProfiles
+      filteredProfiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         if (firstSession) {
           const country = firstSession.country || 'Unknown';
@@ -878,10 +970,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         ? Math.round((sessionsWithGeo / uniqueSessions.length) * 100) 
         : 0;
       
-      // Pages breakdown - use all page views (they are already real tracked data)
-      // Previous session-matching filter was too aggressive and hid valid data
-      const filteredPageViews = pageViews;
-      
+      // Pages breakdown - uses filteredPageViews (already filtered by session IDs above)
       const pageCounts: Record<string, { visitors: number; views: number }> = {};
       const entryPageCounts: Record<string, { visitors: number; bounces: number }> = {};
       const exitPageCounts: Record<string, number> = {};
@@ -976,8 +1065,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      // Map signups to tech stack
-      profiles.forEach(p => {
+      // Map signups to tech stack - uses filteredProfiles
+      filteredProfiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
         if (firstSession) {
           const browser = firstSession.browser || 'Unknown';
@@ -1007,22 +1096,22 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         .map(([type, visitors]) => ({ type, visitors: visitors.size, signups: deviceSignups[type] || 0, percentage: (visitors.size / totalVisitorsForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
-      // Enhanced 6-stage funnel for M&A marketplace with REAL data
+      // Enhanced 6-stage funnel for M&A marketplace - uses FILTERED data
       const registeredUsers = new Set(uniqueSessions.filter(s => s.user_id).map(s => s.user_id));
-      const connectingUsers = new Set(connections.map(c => c.user_id));
+      const connectingUsers = new Set(filteredConnections.map(c => c.user_id));
       
-      // Count marketplace page views
+      // Count marketplace page views - uses filteredPageViews
       const marketplaceViews = new Set(
-        pageViews.filter(pv => pv.page_path?.includes('/marketplace') || pv.page_path === '/').map(pv => pv.session_id)
+        filteredPageViews.filter(pv => pv.page_path?.includes('/marketplace') || pv.page_path === '/').map(pv => pv.session_id)
       ).size;
       
-      // REAL NDA and Fee Agreement counts from connection_requests
-      const ndaSignedCount = allConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).length;
-      const feeAgreementCount = allConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).length;
+      // REAL NDA and Fee Agreement counts - uses filteredConnectionsWithMilestones
+      const ndaSignedCount = filteredConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).length;
+      const feeAgreementCount = filteredConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).length;
       
       // Get unique users who signed NDA/Fee Agreement
-      const ndaSignedUsers = new Set(allConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).map(c => c.user_id));
-      const feeAgreementUsers = new Set(allConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).map(c => c.user_id));
+      const ndaSignedUsers = new Set(filteredConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).map(c => c.user_id));
+      const feeAgreementUsers = new Set(filteredConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).map(c => c.user_id));
       
       const funnelStages = [
         { name: 'Visitors', count: currentVisitors, dropoff: 0 },
@@ -1033,9 +1122,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         { name: 'Connected', count: connectingUsers.size, dropoff: feeAgreementUsers.size > 0 ? ((feeAgreementUsers.size - connectingUsers.size) / feeAgreementUsers.size) * 100 : 0 },
       ];
       
-      // Top users with enhanced data
+      // Top users with enhanced data - only show users matching the filter
       const userConnectionCounts = new Map<string, number>();
-      allConnectionsWithMilestones.forEach(c => {
+      filteredConnectionsWithMilestones.forEach(c => {
         if (c.user_id) {
           userConnectionCounts.set(c.user_id, (userConnectionCounts.get(c.user_id) || 0) + 1);
         }
@@ -1060,15 +1149,22 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
+      // When filtered, only show users matching the filter (those in filteredUserIds)
       const allUserIds = new Set<string>();
-      userConnectionCounts.forEach((_, id) => allUserIds.add(id));
-      userSessionCounts.forEach((_, id) => allUserIds.add(id));
+      if (filters.length > 0) {
+        // When filtering, only include users from filtered sessions
+        filteredUserIds.forEach(id => allUserIds.add(id));
+      } else {
+        // When not filtering, include all users with connections or sessions
+        userConnectionCounts.forEach((_, id) => allUserIds.add(id));
+        userSessionCounts.forEach((_, id) => allUserIds.add(id));
+      }
       
       const profileMap = new Map(profiles.map(p => [p.id, p]));
       
-      // Compute activity days from page views (last 7 days)
+      // Compute activity days from page views (last 7 days) - uses filteredPageViews
       const userPageViewsByDate = new Map<string, Map<string, number>>();
-      pageViews.forEach(pv => {
+      filteredPageViews.forEach(pv => {
         const session = sessionMap.get(pv.session_id || '');
         if (session?.user_id) {
           const userId = session.user_id;
