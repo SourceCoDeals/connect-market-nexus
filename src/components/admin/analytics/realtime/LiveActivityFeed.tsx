@@ -7,6 +7,7 @@ import type { EnhancedRealTimeData } from "@/hooks/useEnhancedRealTimeAnalytics"
 interface LiveActivityFeedProps {
   events: EnhancedRealTimeData['recentEvents'];
   onUserClick?: (sessionId: string) => void;
+  compact?: boolean;
 }
 
 function SessionStatusIndicator({ status }: { status: 'active' | 'idle' | 'ended' }) {
@@ -32,10 +33,13 @@ function getStatusLabel(status: 'active' | 'idle' | 'ended'): string {
   return 'Session ended';
 }
 
-export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps) {
+export function LiveActivityFeed({ events, onUserClick, compact = false }: LiveActivityFeedProps) {
   if (events.length === 0) {
     return (
-      <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-4">
+      <div className={cn(
+        "rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 p-4",
+        compact && "rounded-xl"
+      )}>
         <div className="flex items-center gap-2 mb-3">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
@@ -52,10 +56,20 @@ export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps)
     );
   }
 
+  // Compact mode - show fewer events, smaller padding
+  const displayCount = compact ? 5 : 15;
+  const maxHeight = compact ? 'max-h-[160px]' : 'max-h-[220px]';
+
   return (
-    <div className="rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 overflow-hidden">
+    <div className={cn(
+      "rounded-2xl bg-black/50 backdrop-blur-xl border border-white/10 overflow-hidden",
+      compact && "rounded-xl"
+    )}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+      <div className={cn(
+        "flex items-center gap-2 px-4 py-3 border-b border-white/10",
+        compact && "px-3 py-2"
+      )}>
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2 w-2 bg-coral-500"></span>
@@ -69,13 +83,14 @@ export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps)
       </div>
 
       {/* Events list */}
-      <div className="max-h-[220px] overflow-y-auto">
-        {events.slice(0, 15).map((event, i) => (
+      <div className={cn("overflow-y-auto", maxHeight)}>
+        {events.slice(0, displayCount).map((event, i) => (
           <ActivityEventRow 
             key={event.id} 
             event={event} 
             isFirst={i === 0}
             onUserClick={onUserClick}
+            compact={compact}
           />
         ))}
       </div>
@@ -86,11 +101,13 @@ export function LiveActivityFeed({ events, onUserClick }: LiveActivityFeedProps)
 function ActivityEventRow({ 
   event, 
   isFirst,
-  onUserClick 
+  onUserClick,
+  compact = false
 }: { 
   event: EnhancedRealTimeData['recentEvents'][0];
   isFirst: boolean;
   onUserClick?: (sessionId: string) => void;
+  compact?: boolean;
 }) {
   const { user, pagePath, timestamp } = event;
   const flag = countryCodeToFlag(user.countryCode);
@@ -103,6 +120,47 @@ function ActivityEventRow({
 
   // Format page path for display
   const displayPath = formatPagePath(pagePath || '/');
+
+  // Compact mode rendering
+  if (compact) {
+    return (
+      <div 
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 hover:bg-white/10 transition-colors cursor-pointer",
+          isFirst && "bg-coral-500/10",
+          sessionStatus === 'ended' && "opacity-70"
+        )}
+        onClick={() => onUserClick?.(user.sessionId)}
+        title="Click to focus on map"
+      >
+        {/* Avatar - smaller */}
+        <div className={cn(
+          "w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold text-white flex-shrink-0",
+          avatarColor
+        )}>
+          {getInitials(user.displayName)}
+        </div>
+
+        {/* Content - single line */}
+        <div className="flex-1 min-w-0 flex items-center gap-1.5">
+          <span className="text-[10px] font-medium text-white/80 truncate max-w-[80px]">
+            {user.displayName}
+          </span>
+          <span className="text-[10px] text-white/40">from</span>
+          <span className="text-[10px]">{flag}</span>
+          <span className="text-[10px] text-white/40">visited</span>
+          <code className="px-1 py-0.5 rounded bg-white/10 text-[9px] font-mono text-white/70 truncate max-w-[60px]">
+            {displayPath}
+          </code>
+        </div>
+
+        {/* Time */}
+        <span className="text-[9px] text-white/40 flex-shrink-0">
+          {timeAgo.replace(' ago', '')}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div 
