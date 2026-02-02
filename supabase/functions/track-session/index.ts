@@ -185,11 +185,15 @@ Deno.serve(async (req) => {
           console.error('Failed to upsert journey for existing session:', journeyError);
         } else {
           // Increment session count
-          await supabase.rpc('increment_journey_sessions', { 
-            p_visitor_id: body.visitor_id,
-            p_session_id: body.session_id,
-            p_page_path: body.landing_path || '/'
-          }).catch(err => console.error('RPC increment error:', err));
+          try {
+            await supabase.rpc('increment_journey_sessions', { 
+              p_visitor_id: body.visitor_id,
+              p_session_id: body.session_id,
+              p_page_path: body.landing_path || '/'
+            });
+          } catch (rpcErr) {
+            console.error('RPC increment error:', rpcErr);
+          }
           
           console.log('Journey upserted for existing session');
         }
@@ -280,11 +284,15 @@ Deno.serve(async (req) => {
         // Don't throw - session was created successfully
       } else {
         // Update journey with incremented session count
-        await supabase.rpc('increment_journey_sessions', { 
-          p_visitor_id: body.visitor_id,
-          p_session_id: body.session_id,
-          p_page_path: body.landing_path || '/'
-        }).catch(err => console.error('RPC error:', err));
+        try {
+          await supabase.rpc('increment_journey_sessions', { 
+            p_visitor_id: body.visitor_id,
+            p_session_id: body.session_id,
+            p_page_path: body.landing_path || '/'
+          });
+        } catch (rpcErr) {
+          console.error('RPC error:', rpcErr);
+        }
         
         console.log('User journey upserted successfully');
       }

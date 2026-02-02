@@ -1,9 +1,18 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserJourneys } from "@/hooks/useUserJourneys";
+import { 
+  calculatePathAnalysis, 
+  calculateSourceCohorts, 
+  calculateMilestoneTimings 
+} from "@/hooks/useJourneyTimeline";
 import { JourneyStageFunnel } from "./JourneyStageFunnel";
 import { JourneyLiveFeed } from "./JourneyLiveFeed";
 import { AttributionTable } from "./AttributionTable";
 import { TopLandingPages } from "./TopLandingPages";
+import { PathAnalysisChart } from "./PathAnalysisChart";
+import { MilestoneVelocityChart } from "./MilestoneVelocityChart";
+import { SourceCohortAnalysis } from "./SourceCohortAnalysis";
 import { Users, UserCheck, Target, TrendingUp, Clock, Layers } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -13,6 +22,28 @@ interface UserJourneysDashboardProps {
 
 export function UserJourneysDashboard({ timeRangeDays }: UserJourneysDashboardProps) {
   const { journeys, stats, isLoading, error } = useUserJourneys(timeRangeDays);
+
+  // Calculate derived analytics
+  const sourceCohorts = useMemo(() => 
+    calculateSourceCohorts(journeys), 
+    [journeys]
+  );
+
+  const milestoneTimings = useMemo(() => 
+    calculateMilestoneTimings(journeys),
+    [journeys]
+  );
+
+  const pathAnalysis = useMemo(() => {
+    // Build a simple path map from first landing page
+    const pageViewsBySession = new Map<string, string[]>();
+    journeys.forEach(j => {
+      if (j.last_session_id && j.first_landing_page) {
+        pageViewsBySession.set(j.last_session_id, [j.first_landing_page, j.last_page_path || '/'].filter(Boolean));
+      }
+    });
+    return calculatePathAnalysis(journeys, pageViewsBySession);
+  }, [journeys]);
 
   if (error) {
     return (
@@ -143,27 +174,26 @@ export function UserJourneysDashboard({ timeRangeDays }: UserJourneysDashboardPr
         </Card>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Funnel - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <JourneyStageFunnel stats={stats} isLoading={isLoading} />
-        </div>
-
-        {/* Attribution Table */}
-        <div>
-          <AttributionTable sources={stats.topSources} isLoading={isLoading} />
-        </div>
-      </div>
-
-      {/* Second Row */}
+      {/* Row 1: Funnel + Source Cohort Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Landing Pages */}
-        <TopLandingPages pages={stats.topLandingPages} isLoading={isLoading} />
-
-        {/* Live Journey Feed */}
-        <JourneyLiveFeed journeys={journeys.slice(0, 10)} isLoading={isLoading} />
+        <JourneyStageFunnel stats={stats} isLoading={isLoading} />
+        <SourceCohortAnalysis cohorts={sourceCohorts} isLoading={isLoading} />
       </div>
+
+      {/* Row 2: Milestone Velocity + Attribution Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MilestoneVelocityChart timings={milestoneTimings} isLoading={isLoading} />
+        <AttributionTable sources={stats.topSources} isLoading={isLoading} />
+      </div>
+
+      {/* Row 3: Path Analysis + Top Landing Pages */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PathAnalysisChart paths={pathAnalysis} isLoading={isLoading} />
+        <TopLandingPages pages={stats.topLandingPages} isLoading={isLoading} />
+      </div>
+
+      {/* Row 4: Live Journey Feed (full width, clickable) */}
+      <JourneyLiveFeed journeys={journeys.slice(0, 15)} isLoading={isLoading} />
     </div>
   );
 }
