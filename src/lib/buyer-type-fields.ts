@@ -122,6 +122,10 @@ export const isFieldRelevantForBuyerType = (fieldKey: string, buyerType: BuyerTy
 
 // Sourcing & Discovery fields (applies to all buyer types)
 export const SOURCING_FIELDS = [
+  'first_external_referrer',
+  'first_blog_landing',
+  'first_seen_at',
+  'first_utm_source',
   'referral_source',
   'referral_source_detail',
   'deal_sourcing_methods',
@@ -195,6 +199,11 @@ export const FIELD_LABELS = {
   referral_source_detail: 'Referral Details',
   deal_sourcing_methods: 'Deal Sourcing Methods',
   target_acquisition_volume: 'Target Acquisitions (12mo)',
+  // First-touch cross-domain attribution labels
+  first_external_referrer: 'Original Discovery Source',
+  first_blog_landing: 'Blog Entry Page',
+  first_seen_at: 'First Seen',
+  first_utm_source: 'First UTM Source',
 } as const;
 
 // Get field categories for organization
