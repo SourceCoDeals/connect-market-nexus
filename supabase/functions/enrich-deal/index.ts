@@ -72,7 +72,7 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the deal/listing with extraction_sources
+    // Fetch the deal/listing with extraction_sources (includes version for optimistic lock)
     const { data: deal, error: dealError } = await supabase
       .from('listings')
       .select('*, extraction_sources')
@@ -85,6 +85,9 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Capture version for optimistic locking
+    const lockVersion = deal.enriched_at || deal.updated_at;
 
     // Get website URL - prefer website field, fallback to extracting from internal_deal_memo_link
     let websiteUrl = deal.website;
@@ -381,15 +384,39 @@ Extract all available business information using the provided tool.`;
       );
     }
 
-    // Update the listing
-    const { error: updateError } = await supabase
+    // Update the listing with optimistic locking
+    let updateQuery = supabase
       .from('listings')
       .update(finalUpdates)
       .eq('id', dealId);
 
+    // Apply optimistic lock: only update if version hasn't changed
+    if (lockVersion) {
+      updateQuery = updateQuery.eq('enriched_at', lockVersion);
+    } else {
+      // If never enriched before, ensure it's still null
+      updateQuery = updateQuery.is('enriched_at', null);
+    }
+
+    const { data: updateResult, error: updateError } = await updateQuery.select('id');
+
     if (updateError) {
       console.error('Error updating listing:', updateError);
       throw updateError;
+    }
+
+    // Check for optimistic lock conflict
+    if (!updateResult || updateResult.length === 0) {
+      console.warn(`Optimistic lock conflict for deal ${dealId} - record was modified by another process`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Record was modified by another process. Please refresh and try again.',
+          error_code: 'concurrent_modification',
+          recoverable: true
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const fieldsUpdated = Object.keys(updates);
