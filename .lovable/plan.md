@@ -1,199 +1,328 @@
 
 
-# Real Marketplace Data Strategy for Globe Visualization
+# Premium Globe Design + Complete Anonymous Journey Tracking
 
-## The Problem
+## Overview
 
-You're absolutely right. The current metrics are borrowed from generic SaaS analytics and don't fit your M&A deal marketplace:
-
-| Current Metric | Why It Doesn't Fit |
-|----------------|-------------------|
-| **Conversion Likelihood (15%)** | Generic algorithmic guess. M&A deals take months, not sessions. A "15%" conversion means nothing for deal flow. |
-| **Estimated Value ($5.00)** | Arbitrary dollar value based on buyer type. Meaningless in a context where deals are worth millions. |
-| **"Est. $2745"** aggregate | Sum of fake per-visitor values. Provides zero actionable insight. |
+This plan addresses two critical issues:
+1. **Design Quality** - Elevate Engagement and Buyer Breakdown sections to world-class "$10M design team" aesthetic
+2. **Anonymous Journey Data** - Fix the broken tracking so "crimson wolf" (and all anonymous visitors) show their complete journey with accurate session times
 
 ---
 
-## Part 1: Real Data Already Available
+## Part 1: Root Cause Analysis
 
-Looking at your `EnhancedActiveUser` type and database schema, you already capture **rich, actionable M&A buyer intelligence**:
+### Why "Crimson Wolf" Shows 0s Session Time and No Journey
 
-### User Profile Data
-- `buyerType`: privateEquity, familyOffice, corporate, searchFund, independentSponsor, individual, advisor
-- `companyName`: Real firm name
-- `jobTitle`: Their role
-- `deal_intent`: platform_only, platform_and_addons, primarily_addons
-- `deploying_capital_now`: Active buyer signal
-- `mandate_blurb`: What they're looking for
+**Problem #1: Missing `visitor_id` in `user_sessions` Table**
+The `user_sessions` table lacks a `visitor_id` column. While we capture `visitor_id` in `user_journeys`, we cannot query historical sessions across multiple visits for anonymous users.
 
-### Engagement Signals (Already Tracked)
-- `listingsViewed`: How many deals they've looked at
-- `listingsSaved`: Deals they've bookmarked (strong intent signal)
-- `connectionsSent`: Connection requests to sellers (highest intent)
-- `searchCount`: How actively they're searching
+| Table | Has `visitor_id`? | Effect |
+|-------|-------------------|--------|
+| `user_journeys` | Yes | Stores first-touch, last-session |
+| `user_sessions` | **No** | Cannot link sessions to visitors |
+| `page_views` | No | Only has `session_id` |
 
-### Trust/Qualification Status
-- `ndaSigned`: NDA completed (qualified buyer)
-- `feeAgreementSigned`: Fee agreement signed (serious buyer)
+**Problem #2: Session Duration Starts at 0**
+Duration is only updated by the heartbeat every 30 seconds. If a user lands and stays on one page for 20 seconds, their session shows "0 sec" because the first heartbeat hasn't fired yet.
+
+**Problem #3: Page Sequence Not Displayed**
+The `EnhancedActiveUser` type already has `pageSequence: string[]` but `MapboxTooltipCard` doesn't display it for anonymous users.
+
+**Problem #4: Referrer Often Shows "Direct"**
+The external referrer (e.g., `sourcecodeals.com/blog`) may be lost if:
+- Cross-origin referrer policy strips it
+- UTM parameters aren't set on inbound links
 
 ---
 
-## Part 2: Proposed Tooltip Card Redesign
+## Part 2: Database Schema Changes
 
-Replace generic metrics with **real M&A buyer intelligence**:
+### Add `visitor_id` to `user_sessions`
 
-```text
-┌─────────────────────────────────────────┐
-│ 🦊 ruby lynx                        ✕   │
-│ 🇳🇱 Amsterdam, The Netherlands          │
-│ 💻 Desktop  •  🌐 Chrome                │
-├─────────────────────────────────────────┤
-│ TRAFFIC SOURCE                          │
-│ Referrer          🔗 Direct             │
-│ Landing page      /marketplace          │
-│ Session time      4 min 32 sec          │
-│ Total visits      12                    │
-├─────────────────────────────────────────┤
-│ ENGAGEMENT  (new section)               │
-│ Listings viewed   ▓▓▓▓▓▓░░░░  6         │
-│ Listings saved    ▓▓░░░░░░░░  2         │
-│ Connections sent  ▓░░░░░░░░░  1         │
-├─────────────────────────────────────────┤
-│ BUYER PROFILE  (for logged-in users)    │
-│ Buyer type        🏢 Private Equity     │
-│ NDA               ✅ Signed             │
-│ Fee Agreement     ⏳ Pending            │
-└─────────────────────────────────────────┘
+```sql
+-- Migration: Add visitor_id to user_sessions for cross-session linking
+ALTER TABLE user_sessions ADD COLUMN visitor_id TEXT;
+
+-- Create index for fast lookups
+CREATE INDEX idx_user_sessions_visitor_id ON user_sessions(visitor_id) WHERE visitor_id IS NOT NULL;
 ```
 
-### Rationale for Each Field
-
-| Field | Why It Matters |
-|-------|----------------|
-| **Listings viewed** | Shows browsing depth. 6+ = actively hunting |
-| **Listings saved** | Strong intent signal. Saved = considering seriously |
-| **Connections sent** | Highest intent. They reached out to a seller |
-| **Buyer type** | Instantly tells you who this person represents |
-| **NDA / Fee Agreement** | Trust qualification status |
-
----
-
-## Part 3: Proposed Floating Panel Redesign
-
-Replace "(est. $2745)" with **actual buyer composition and activity**:
-
-```text
-┌─────────────────────────────────────────────────────┐
-│ ● 28 visitors on marketplace                        │
-│                                                     │
-│ REFERRERS    🔍 Google 8  🔗 Direct 10  💼 LinkedIn 4 │
-│                                                     │
-│ COUNTRIES    🇭🇺 Hungary 19  🇳🇱 Netherlands 3  🇺🇸 USA 2 │
-│                                                     │
-│ DEVICES      💻 Desktop 25  📱 Mobile 3             │
-├─────────────────────────────────────────────────────┤
-│ BUYER BREAKDOWN  (new section)                      │
-│ 🔒 Logged in             12 (43%)                   │
-│ ✅ NDA Signed             8                         │
-│ 📄 Fee Agreement          5                         │
-│ 💬 Connection Requests    3 this hour               │
-└─────────────────────────────────────────────────────┘
+This allows us to query ALL sessions for an anonymous visitor:
+```sql
+SELECT * FROM user_sessions WHERE visitor_id = 'abc123' ORDER BY started_at DESC;
 ```
 
-### Why This Is Better
+### Update `track-session` Edge Function
 
-| New Metric | Actionable Insight |
-|------------|-------------------|
-| **Logged in (%)** | Tells you if visitors are registered buyers vs. anonymous tire-kickers |
-| **NDA Signed** | Qualified buyers currently browsing - high priority |
-| **Fee Agreement** | Most serious buyers on site right now |
-| **Connection Requests this hour** | Real-time deal flow activity happening |
-
----
-
-## Part 4: Implementation Changes
-
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `MapboxTooltipCard.tsx` | Remove ConversionLikelihood and EstimatedValue. Add Engagement section with progress bars. Add Buyer Profile section. |
-| `MapboxFloatingPanel.tsx` | Remove "(est. $X)". Add new "Buyer Breakdown" section showing logged-in %, NDA signed, fee agreements, connections this hour. |
-| `MapboxGlobeMap.tsx` | Remove `calculateConversionLikelihood()` and `calculateEstimatedValue()` functions. Pass real engagement data to tooltip. |
-
-### New Aggregate Metrics to Calculate
+Modify to store `visitor_id` in `user_sessions`:
 
 ```typescript
-// In MapboxGlobeMap.tsx or passed from parent
-const buyerBreakdown = useMemo(() => {
-  const loggedInUsers = users.filter(u => !u.isAnonymous);
-  return {
-    loggedInCount: loggedInUsers.length,
-    loggedInPercent: Math.round((loggedInUsers.length / users.length) * 100),
-    ndaSignedCount: loggedInUsers.filter(u => u.ndaSigned).length,
-    feeAgreementCount: loggedInUsers.filter(u => u.feeAgreementSigned).length,
-    connectionsThisHour: loggedInUsers.reduce((sum, u) => sum + u.connectionsSent, 0),
-  };
-}, [users]);
+// In track-session/index.ts - when inserting new session
+const { error: insertError } = await supabase.from('user_sessions').insert({
+  session_id: body.session_id,
+  visitor_id: body.visitor_id, // NEW: Store visitor identity
+  user_id: body.user_id || null,
+  // ... rest of fields
+});
 ```
 
 ---
 
-## Part 5: Summary of Changes
+## Part 3: Fix 0-Second Session Duration
 
-### Remove (Generic/Fake)
-- ❌ `Conversion likelihood` bar and percentage
-- ❌ `Estimated value` dollar amount  
-- ❌ `(est. $X)` in floating panel header
+### Immediate Duration Calculation
 
-### Add (Real Marketplace Data)
-- ✅ **Engagement Progress Bars**: Listings viewed, saved, connections
-- ✅ **Buyer Profile Section**: Buyer type badge, NDA status, Fee Agreement status
-- ✅ **Buyer Breakdown Panel**: Logged-in %, qualified buyers (NDA/Fee), real-time connections
+Update `track-session` to set initial duration based on time since page load:
 
-### Keep (Already Useful)
-- ✅ Referrer with icon
-- ✅ Current URL / Landing page
-- ✅ Session time
-- ✅ Total visits
-- ✅ Countries, Devices breakdown
+```typescript
+// In track-session - when creating session
+const initialDuration = body.time_on_page || 0;
+
+const { error: insertError } = await supabase.from('user_sessions').insert({
+  // ...existing fields
+  session_duration_seconds: initialDuration, // Start with actual time on page
+});
+```
+
+### Update Frontend to Send Initial Duration
+
+In `use-initial-session-tracking.ts`, capture time since page load:
+
+```typescript
+// Before calling track-session
+const timeOnPage = Math.floor((Date.now() - window.performance.timing.navigationStart) / 1000);
+
+await supabase.functions.invoke('track-session', {
+  body: {
+    ...sessionData,
+    time_on_page: timeOnPage,
+  },
+});
+```
 
 ---
 
-## Technical Notes
+## Part 4: Display Complete Journey for Anonymous Users
 
-### Progress Bar Visual for Engagement
+### Enhanced Tooltip for Anonymous Visitors
 
-Small horizontal bars showing relative engagement:
+Replace the generic "Visitor Journey" section with rich path visualization:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ 🐺 crimson wolf                                             ✕   │
+│ 🇪🇸 Chamartin, Spain                                            │
+│ 💻 Desktop  •  Chrome  •  Windows                               │
+├─────────────────────────────────────────────────────────────────┤
+│ PATH INTELLIGENCE                                               │
+│                                                                 │
+│ Entry point          sourcecodeals.com/blog                     │
+│ Landing page         /welcome                                   │
+│ Current page         /marketplace                               │
+│ Session              4 min 32 sec                               │
+│                                                                 │
+│ Journey this session:                                           │
+│ ○ /welcome → ○ /marketplace → ● /signup   (3 pages)            │
+├─────────────────────────────────────────────────────────────────┤
+│ CROSS-SESSION HISTORY                                           │
+│                                                                 │
+│ Total visits         3 sessions over 5 days                     │
+│ First seen           Jan 28, 2026                               │
+│ Time on marketplace  12 min total                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Visual Journey Path Component
+
+A horizontal path visualization showing the pages visited:
 
 ```tsx
-function EngagementBar({ value, max = 10 }: { value: number; max?: number }) {
-  const percent = Math.min((value / max) * 100, 100);
+function JourneyPath({ pages }: { pages: string[] }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-20 h-1.5 bg-muted/50 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-gradient-to-r from-coral-400 to-coral-500 rounded-full"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-      <span className="text-xs font-medium tabular-nums">{value}</span>
+    <div className="flex items-center gap-1 overflow-x-auto py-2">
+      {pages.map((page, i) => (
+        <React.Fragment key={i}>
+          <div className={cn(
+            "flex-shrink-0 px-2 py-1 rounded-md text-[10px] font-mono",
+            i === pages.length - 1 
+              ? "bg-coral-500/20 text-coral-600 border border-coral-500/30" 
+              : "bg-muted/50 text-muted-foreground"
+          )}>
+            {page}
+          </div>
+          {i < pages.length - 1 && (
+            <span className="text-muted-foreground/40 text-xs">→</span>
+          )}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
 ```
 
-### Buyer Type Badge Colors
+---
+
+## Part 5: Premium Design Overhaul ($10M Aesthetic)
+
+### Design Principles
+- No generic Lucide icons where data should speak
+- Custom micro-visualizations for every metric
+- Subtle gradients and depth through layering
+- Typography hierarchy that guides the eye
+- Coral/Peach/Navy brand palette throughout
+
+### Floating Panel Redesign
+
+**Before (Generic):**
+```
+BUYER BREAKDOWN
+⌂ Logged in         25 (83%)
+📄 NDA Signed        21
+📄 Fee Agreement     21
+○ Connections        0 this hour
+```
+
+**After (Premium):**
+```
+BUYER INTELLIGENCE
+
+┌─ Composition ───────────────────────────┐
+│ Authenticated     ████████████████░░░░  │
+│                   83% (25 of 30)        │
+├─────────────────────────────────────────┤
+│ QUALIFIED BUYERS                        │
+│                                         │
+│ NDA Completed              21           │
+│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░              │
+│                                         │
+│ Fee Agreement              21           │
+│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░              │
+├─────────────────────────────────────────┤
+│ ACTIVITY VELOCITY                       │
+│                                         │
+│ Connections this hour       0           │
+│ Average: 2.4/hr                         │
+└─────────────────────────────────────────┘
+```
+
+### Tooltip Engagement Section Redesign
+
+**Before:**
+```
+ENGAGEMENT
+👁 Listings viewed  ▓▓░░░░░░░░  2
+♥ Listings saved   ░░░░░░░░░░  0
+○ Connections sent ░░░░░░░░░░  0
+```
+
+**After (No icons, pure data visualization):**
+```
+ENGAGEMENT DEPTH
+
+Listings explored   ██████░░░░  6 of ~40
+Intent signals      ██░░░░░░░░  2 saved
+Outreach            ░░░░░░░░░░  0 connections
+
+─────────────────────────────────────────
+Engagement score: Above average
+```
+
+### Color-Coded Progress Bars
+
+Use semantic colors instead of flat coral:
+- **Gray**: 0 (no activity)
+- **Blue gradient**: 1-3 (light engagement)  
+- **Coral gradient**: 4-7 (moderate engagement)
+- **Green gradient**: 8+ (high engagement)
+
+```tsx
+function getEngagementColor(value: number, max: number): string {
+  const ratio = value / max;
+  if (ratio === 0) return 'bg-muted/30';
+  if (ratio < 0.3) return 'bg-gradient-to-r from-blue-400 to-blue-500';
+  if (ratio < 0.7) return 'bg-gradient-to-r from-coral-400 to-coral-500';
+  return 'bg-gradient-to-r from-emerald-400 to-emerald-500';
+}
+```
+
+---
+
+## Part 6: Implementation Files
+
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `supabase/migrations/add_visitor_id_to_sessions.sql` | Schema migration |
+| `src/components/admin/analytics/realtime/JourneyPath.tsx` | Visual path component |
+| `src/components/admin/analytics/realtime/EngagementDepth.tsx` | Premium engagement viz |
+| `src/components/admin/analytics/realtime/BuyerComposition.tsx` | Premium buyer breakdown |
+
+### Files to Modify
+| File | Changes |
+|------|---------|
+| `supabase/functions/track-session/index.ts` | Store `visitor_id` in sessions, set initial duration |
+| `src/hooks/use-initial-session-tracking.ts` | Send `time_on_page` to edge function |
+| `src/hooks/useEnhancedRealTimeAnalytics.ts` | Query sessions by `visitor_id` for history |
+| `src/components/admin/analytics/realtime/MapboxTooltipCard.tsx` | Complete redesign with journey path |
+| `src/components/admin/analytics/realtime/MapboxFloatingPanel.tsx` | Premium buyer intelligence layout |
+
+---
+
+## Part 7: Technical Implementation Details
+
+### Session Query Enhancement
+
+Update `useEnhancedRealTimeAnalytics.ts` to fetch cross-session data:
 
 ```typescript
-const buyerTypeColors: Record<string, string> = {
-  'privateEquity': 'bg-violet-500/20 text-violet-400',
-  'familyOffice': 'bg-emerald-500/20 text-emerald-400', 
-  'corporate': 'bg-blue-500/20 text-blue-400',
-  'searchFund': 'bg-amber-500/20 text-amber-400',
-  'independentSponsor': 'bg-cyan-500/20 text-cyan-400',
-  'individual': 'bg-rose-500/20 text-rose-400',
-  'advisor': 'bg-slate-500/20 text-slate-400',
-};
+// After fetching current sessions, get historical sessions for each visitor
+const visitorIds = sessions.map(s => s.visitor_id).filter(Boolean);
+
+const { data: historicalSessions } = await supabase
+  .from('user_sessions')
+  .select('visitor_id, session_id, started_at, session_duration_seconds')
+  .in('visitor_id', visitorIds)
+  .order('started_at', { ascending: false });
+
+// Build visitor history map
+const visitorHistory: Record<string, {
+  totalSessions: number;
+  firstSeen: string;
+  totalTime: number;
+}> = {};
 ```
+
+### Enhanced User Type
+
+Add new fields to `EnhancedActiveUser`:
+
+```typescript
+interface EnhancedActiveUser {
+  // ...existing fields
+  
+  // Cross-session journey data (NEW)
+  visitorFirstSeen: string | null;       // When they first visited
+  visitorTotalSessions: number;          // Sessions across all time
+  visitorTotalTime: number;              // Total time on site ever
+  externalReferrer: string | null;       // Original external source (e.g., blog)
+}
+```
+
+---
+
+## Summary
+
+| Issue | Root Cause | Solution |
+|-------|------------|----------|
+| 0s session time | Heartbeat hasn't fired | Send initial `time_on_page` with session |
+| No journey history | Sessions not linked by visitor | Add `visitor_id` to `user_sessions` |
+| Missing external referrer | Not displaying first-touch data | Show `first_touch_referrer` from journey |
+| Generic design | Using Lucide icons, flat layout | Custom visualizations, depth, hierarchy |
+
+This plan achieves:
+1. **Complete anonymous journey visibility** - See every page "crimson wolf" visited across all sessions
+2. **Accurate real-time duration** - No more 0s from the moment they land
+3. **Premium $10M aesthetic** - Data-driven visualizations, no generic icons
+4. **Actionable intelligence** - Path visualization shows exactly where visitors go
 
