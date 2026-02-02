@@ -39,6 +39,8 @@ interface SessionData {
   landing_url?: string;
   landing_path?: string;
   landing_search?: string;
+  // Initial time on page for accurate duration from first load
+  time_on_page?: number;
 }
 
 async function getGeoData(ip: string): Promise<GeoData | null> {
@@ -210,9 +212,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create new session with all data including GA4 and first-touch attribution
+    // Create new session with all data including GA4, first-touch attribution, and visitor_id
+    const initialDuration = body.time_on_page || 0;
+    
     const { error: insertError } = await supabase.from('user_sessions').insert({
       session_id: body.session_id,
+      visitor_id: body.visitor_id || null, // NEW: Store visitor identity for cross-session tracking
       user_id: body.user_id || null,
       started_at: new Date().toISOString(),
       user_agent: body.user_agent,
@@ -240,6 +245,8 @@ Deno.serve(async (req) => {
       first_touch_referrer: body.first_touch_referrer || null,
       is_active: true,
       last_active_at: new Date().toISOString(),
+      // Set initial duration based on time since page load
+      session_duration_seconds: initialDuration,
     });
 
     if (insertError) {

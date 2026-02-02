@@ -1,7 +1,10 @@
-import { Monitor, Smartphone, Tablet, X, FileCheck, FileText, Eye, Heart, MessageCircle } from 'lucide-react';
+import { Monitor, Smartphone, Tablet, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { countryCodeToFlag } from '@/lib/flagEmoji';
+import { format } from 'date-fns';
 import type { EnhancedActiveUser } from '@/hooks/useEnhancedRealTimeAnalytics';
+import { JourneyPath } from './JourneyPath';
+import { EngagementDepth } from './EngagementDepth';
 
 interface MapboxTooltipCardProps {
   user: EnhancedActiveUser;
@@ -15,52 +18,54 @@ function getAvatarUrl(user: EnhancedActiveUser): string {
   return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 }
 
-const referrerIcons: Record<string, string> = {
-  'Google': '🔍',
-  'YouTube': '▶️',
-  'Facebook': '📘',
-  'LinkedIn': '💼',
-  'X': '𝕏',
-  'X (Twitter)': '𝕏',
-  'Twitter': '𝕏',
-  'Direct': '🔗',
-  'Lovable': '💜',
-};
-
-function getDisplayReferrer(referrer: string | null, utmSource: string | null): { icon: string; name: string } {
-  const source = (referrer || utmSource || '').toLowerCase();
+function getDisplayReferrer(referrer: string | null, utmSource: string | null, entrySource: string): { icon: string; name: string } {
+  // Use the normalized entrySource from the analytics hook
+  const sourceIcons: Record<string, string> = {
+    'Google': '🔍',
+    'YouTube': '▶️',
+    'Facebook': '📘',
+    'LinkedIn': '💼',
+    'X (Twitter)': '𝕏',
+    'Instagram': '📷',
+    'TikTok': '🎵',
+    'Direct': '→',
+    'Lovable': '💜',
+    'SourceCoDeals': '🏢',
+    'Email (Brevo)': '✉️',
+  };
   
-  if (!source) return { icon: '🔗', name: 'Direct' };
-  if (source.includes('google')) return { icon: '🔍', name: 'Google' };
-  if (source.includes('youtube')) return { icon: '▶️', name: 'YouTube' };
-  if (source.includes('facebook') || source.includes('fb.')) return { icon: '📘', name: 'Facebook' };
-  if (source.includes('linkedin')) return { icon: '💼', name: 'LinkedIn' };
-  if (source.includes('twitter') || source.includes('x.com') || source.includes('t.co')) return { icon: '𝕏', name: 'X' };
-  if (source.includes('instagram')) return { icon: '📷', name: 'Instagram' };
-  if (source.includes('tiktok')) return { icon: '🎵', name: 'TikTok' };
-  if (source.includes('lovable')) return { icon: '💜', name: 'Lovable' };
-  
-  return { icon: '🌐', name: 'Referral' };
+  return {
+    icon: sourceIcons[entrySource] || '🌐',
+    name: entrySource || 'Direct',
+  };
 }
 
 function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds} sec`;
+  if (seconds < 60) return `${seconds}s`;
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  if (mins < 60) return `${mins} min ${secs} sec`;
+  if (mins < 60) return `${mins}m ${secs}s`;
   const hours = Math.floor(mins / 60);
-  return `${hours} hr ${mins % 60} min`;
+  return `${hours}h ${mins % 60}m`;
+}
+
+function formatTotalTime(seconds: number): string {
+  if (seconds < 60) return `${seconds} sec total`;
+  const mins = Math.floor(seconds / 60);
+  if (mins < 60) return `${mins} min total`;
+  const hours = Math.floor(mins / 60);
+  return `${hours}h ${mins % 60}m total`;
 }
 
 // Buyer type display names and colors
 const buyerTypeConfig: Record<string, { label: string; className: string }> = {
-  'privateEquity': { label: 'Private Equity', className: 'bg-violet-500/20 text-violet-600 dark:text-violet-400' },
-  'familyOffice': { label: 'Family Office', className: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
-  'corporate': { label: 'Corporate', className: 'bg-blue-500/20 text-blue-600 dark:text-blue-400' },
-  'searchFund': { label: 'Search Fund', className: 'bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-  'independentSponsor': { label: 'Independent Sponsor', className: 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400' },
-  'individual': { label: 'Individual', className: 'bg-rose-500/20 text-rose-600 dark:text-rose-400' },
-  'advisor': { label: 'Advisor', className: 'bg-slate-500/20 text-slate-600 dark:text-slate-400' },
+  'privateEquity': { label: 'Private Equity', className: 'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/20' },
+  'familyOffice': { label: 'Family Office', className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
+  'corporate': { label: 'Corporate', className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+  'searchFund': { label: 'Search Fund', className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+  'independentSponsor': { label: 'Independent Sponsor', className: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
+  'individual': { label: 'Individual', className: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+  'advisor': { label: 'Advisor', className: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/20' },
 };
 
 export function MapboxTooltipCard({
@@ -70,24 +75,24 @@ export function MapboxTooltipCard({
 }: MapboxTooltipCardProps) {
   const flag = countryCodeToFlag(user.countryCode);
   const location = [user.city, user.country].filter(Boolean).join(', ') || 'Unknown';
-  const referrer = getDisplayReferrer(user.referrer, user.utmSource);
+  const referrer = getDisplayReferrer(user.referrer, user.utmSource, user.entrySource);
   const buyerConfig = user.buyerType ? buyerTypeConfig[user.buyerType] : null;
 
   // Position calculation to keep tooltip on screen
-  const left = Math.min(position.x + 16, window.innerWidth - 340);
-  const top = Math.max(Math.min(position.y - 150, window.innerHeight - 480), 10);
+  const left = Math.min(position.x + 16, window.innerWidth - 360);
+  const top = Math.max(Math.min(position.y - 150, window.innerHeight - 580), 10);
 
   return (
     <div
-      className="fixed z-50 w-80 rounded-2xl bg-white dark:bg-gray-900 shadow-2xl border border-border/50 overflow-hidden"
+      className="fixed z-50 w-[340px] rounded-2xl bg-white dark:bg-gray-900 shadow-2xl border border-border/50 overflow-hidden"
       style={{ left, top }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="p-4 border-b border-border/50 bg-muted/30 relative">
+      <div className="p-4 border-b border-border/30 bg-gradient-to-b from-muted/40 to-transparent relative">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted transition-colors"
+          className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted/80 transition-colors"
           aria-label="Close"
         >
           <X className="w-4 h-4 text-muted-foreground" />
@@ -95,7 +100,7 @@ export function MapboxTooltipCard({
 
         <div className="flex items-start gap-3">
           {/* Avatar */}
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md flex-shrink-0">
+          <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/80 shadow-md flex-shrink-0">
             <img 
               src={getAvatarUrl(user)} 
               alt={user.displayName}
@@ -105,7 +110,7 @@ export function MapboxTooltipCard({
 
           {/* Identity */}
           <div className="flex-1 min-w-0 pr-6">
-            <p className="font-semibold text-foreground truncate text-base">
+            <p className="font-semibold text-foreground truncate text-[15px]">
               {user.displayName}
             </p>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
@@ -113,79 +118,121 @@ export function MapboxTooltipCard({
               <span className="truncate">{location}</span>
             </p>
             
-            {/* Device info row */}
-            <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
+            {/* Device info - minimal */}
+            <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-muted-foreground/70">
               <DeviceIcon type={user.deviceType} />
-              <span>{user.deviceType || 'Desktop'}</span>
-              {user.browser && (
-                <>
-                  <span className="text-muted-foreground/30">•</span>
-                  <span>🌐 {user.browser}</span>
-                </>
-              )}
+              <span>{user.browser || 'Browser'}</span>
+              <span className="opacity-40">•</span>
+              <span>{user.os || 'OS'}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Traffic Source info */}
-      <div className="p-4 border-b border-border/50 space-y-2">
-        <SectionLabel>Traffic Source</SectionLabel>
+      {/* Path Intelligence */}
+      <div className="p-4 border-b border-border/30 space-y-3">
+        <SectionLabel>Path Intelligence</SectionLabel>
+        
+        {/* Entry point - external referrer if available */}
+        {user.externalReferrer && (
+          <InfoRow
+            label="Entry point"
+            value={
+              <span className="font-mono text-[10px] bg-gradient-to-r from-blue-500/10 to-blue-400/5 px-2 py-0.5 rounded border border-blue-500/15 text-blue-600 dark:text-blue-400">
+                {user.externalReferrer}
+              </span>
+            }
+          />
+        )}
+        
         <InfoRow
-          label="Referrer"
+          label="Source"
           value={
             <span className="flex items-center gap-1.5">
-              <span>{referrer.icon}</span>
-              <span>{referrer.name}</span>
+              <span className="text-sm">{referrer.icon}</span>
+              <span className="text-xs">{referrer.name}</span>
             </span>
           }
         />
+        
         <InfoRow
-          label="Current URL"
+          label="Landing"
           value={
-            <span className="font-mono text-xs bg-muted/50 px-1.5 py-0.5 rounded">
+            <span className="font-mono text-[10px] bg-muted/40 px-1.5 py-0.5 rounded">
+              {user.firstPagePath || '/'}
+            </span>
+          }
+        />
+        
+        <InfoRow
+          label="Current"
+          value={
+            <span className="font-mono text-[10px] bg-coral-500/10 text-coral-600 dark:text-coral-400 px-1.5 py-0.5 rounded border border-coral-500/15">
               {user.currentPage || '/'}
             </span>
           }
         />
-        <InfoRow label="Session time" value={formatDuration(user.sessionDurationSeconds)} />
-        <InfoRow label="Total visits" value={user.totalVisits.toString()} />
+        
+        <InfoRow 
+          label="Session" 
+          value={
+            <span className="tabular-nums font-medium">
+              {formatDuration(user.sessionDurationSeconds)}
+            </span>
+          } 
+        />
+
+        {/* Journey path visualization */}
+        {user.pageSequence.length > 0 && (
+          <div className="pt-2">
+            <span className="text-[10px] text-muted-foreground/60 mb-1 block">Journey this session</span>
+            <JourneyPath pages={user.pageSequence} />
+          </div>
+        )}
       </div>
 
-      {/* Engagement metrics */}
-      <div className="p-4 border-b border-border/50 space-y-2">
-        <SectionLabel>Engagement</SectionLabel>
-        <EngagementRow
-          icon={<Eye className="w-3.5 h-3.5 text-muted-foreground" />}
-          label="Listings viewed"
-          value={user.listingsViewed}
-          max={10}
-        />
-        <EngagementRow
-          icon={<Heart className="w-3.5 h-3.5 text-rose-500" />}
-          label="Listings saved"
-          value={user.listingsSaved}
-          max={5}
-        />
-        <EngagementRow
-          icon={<MessageCircle className="w-3.5 h-3.5 text-coral-500" />}
-          label="Connections sent"
-          value={user.connectionsSent}
-          max={3}
+      {/* Cross-Session History - for all users with history */}
+      {user.visitorTotalSessions > 1 && (
+        <div className="px-4 py-3 border-b border-border/30 bg-muted/20 space-y-2">
+          <SectionLabel>Cross-Session History</SectionLabel>
+          <div className="grid grid-cols-3 gap-2">
+            <HistoryStat 
+              label="Total visits" 
+              value={user.visitorTotalSessions.toString()} 
+            />
+            <HistoryStat 
+              label="First seen" 
+              value={user.visitorFirstSeen ? format(new Date(user.visitorFirstSeen), 'MMM d') : '-'} 
+            />
+            <HistoryStat 
+              label="Time spent" 
+              value={formatTotalTime(user.visitorTotalTime)} 
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Engagement Depth - premium visualization */}
+      <div className="p-4 border-b border-border/30 space-y-3">
+        <SectionLabel>Engagement Depth</SectionLabel>
+        <EngagementDepth
+          listingsViewed={user.listingsViewed}
+          listingsSaved={user.listingsSaved}
+          connectionsSent={user.connectionsSent}
         />
       </div>
 
       {/* Buyer Profile - only for logged-in users */}
       {!user.isAnonymous && (
-        <div className="p-4 space-y-2">
+        <div className="p-4 space-y-3">
           <SectionLabel>Buyer Profile</SectionLabel>
           
           {/* Buyer Type Badge */}
           {buyerConfig && (
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Buyer type</span>
+              <span className="text-xs text-muted-foreground">Type</span>
               <span className={cn(
-                "text-xs font-medium px-2 py-0.5 rounded-full",
+                "text-[10px] font-medium px-2.5 py-1 rounded-full border",
                 buyerConfig.className
               )}>
                 {buyerConfig.label}
@@ -193,16 +240,19 @@ export function MapboxTooltipCard({
             </div>
           )}
           
-          {/* NDA Status */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">NDA</span>
-            <StatusBadge signed={user.ndaSigned} />
-          </div>
-          
-          {/* Fee Agreement Status */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Fee Agreement</span>
-            <StatusBadge signed={user.feeAgreementSigned} />
+          {/* Trust status - compact visual badges */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">Qualification</span>
+            <div className="flex items-center gap-1.5">
+              <QualificationBadge 
+                label="NDA" 
+                status={user.ndaSigned ? 'complete' : 'pending'} 
+              />
+              <QualificationBadge 
+                label="Fee" 
+                status={user.feeAgreementSigned ? 'complete' : 'pending'} 
+              />
+            </div>
           </div>
         </div>
       )}
@@ -212,7 +262,7 @@ export function MapboxTooltipCard({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium">
+    <span className="text-muted-foreground/70 text-[10px] uppercase tracking-[0.12em] font-medium">
       {children}
     </span>
   );
@@ -221,65 +271,42 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground/80">{label}</span>
       <span className="text-xs text-foreground">{value}</span>
     </div>
   );
 }
 
-function EngagementRow({ 
-  icon, 
-  label, 
-  value, 
-  max = 10 
-}: { 
-  icon: React.ReactNode;
-  label: string; 
-  value: number; 
-  max?: number;
-}) {
-  const percent = Math.min((value / max) * 100, 100);
-  
+function HistoryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2">
-      {icon}
-      <span className="text-xs text-muted-foreground flex-1">{label}</span>
-      <div className="flex items-center gap-2">
-        <div className="w-16 h-1.5 bg-muted/50 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-coral-400 to-coral-500 rounded-full transition-all"
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-        <span className="text-xs font-semibold text-foreground tabular-nums w-4 text-right">
-          {value}
-        </span>
-      </div>
+    <div className="text-center">
+      <div className="text-sm font-medium text-foreground tabular-nums">{value}</div>
+      <div className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">{label}</div>
     </div>
   );
 }
 
-function StatusBadge({ signed }: { signed: boolean }) {
-  return signed ? (
-    <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-      <FileCheck className="w-3.5 h-3.5" />
-      <span>Signed</span>
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-      <FileText className="w-3.5 h-3.5" />
-      <span>Pending</span>
+function QualificationBadge({ label, status }: { label: string; status: 'complete' | 'pending' }) {
+  return (
+    <span className={cn(
+      "text-[9px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider",
+      status === 'complete' 
+        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+        : "bg-muted/50 text-muted-foreground/60 border border-border/50"
+    )}>
+      {label}
     </span>
   );
 }
 
 function DeviceIcon({ type }: { type: string }) {
+  const className = "w-3 h-3 opacity-60";
   switch (type) {
     case 'mobile':
-      return <Smartphone className="w-3 h-3" />;
+      return <Smartphone className={className} />;
     case 'tablet':
-      return <Tablet className="w-3 h-3" />;
+      return <Tablet className={className} />;
     default:
-      return <Monitor className="w-3 h-3" />;
+      return <Monitor className={className} />;
   }
 }

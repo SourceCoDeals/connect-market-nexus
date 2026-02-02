@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
-import { Monitor, Smartphone, Tablet, Lock, FileCheck, FileText, MessageCircle } from 'lucide-react';
+import { Monitor, Smartphone, Tablet } from 'lucide-react';
 import type { BuyerBreakdown } from './MapboxGlobeMap';
+import { BuyerComposition } from './BuyerComposition';
 
 interface MapboxFloatingPanelProps {
   totalUsers: number;
@@ -17,8 +18,10 @@ const referrerIcons: Record<string, string> = {
   'LinkedIn': '💼',
   'X': '𝕏',
   'X (Twitter)': '𝕏',
-  'Direct': '🔗',
+  'Direct': '→',
   'Lovable': '💜',
+  'SourceCoDeals': '🏢',
+  'Email (Brevo)': '✉️',
   'Other': '🌐',
 };
 
@@ -38,24 +41,26 @@ export function MapboxFloatingPanel({
     .slice(0, 4);
 
   return (
-    <div className="absolute top-4 left-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl p-4 w-80 z-10 border border-white/20">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="relative flex h-2.5 w-2.5">
+    <div className="absolute top-4 left-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-[320px] z-10 border border-white/20">
+      {/* Header - clean and prominent */}
+      <div className="flex items-center gap-2.5 mb-5">
+        <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
         </span>
-        <span className="text-sm font-medium text-foreground">
-          <span className="font-bold">{totalUsers}</span> visitor{totalUsers !== 1 ? 's' : ''} on{' '}
-          <span className="font-semibold">marketplace</span>
-        </span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-light text-foreground tabular-nums">{totalUsers}</span>
+          <span className="text-sm text-muted-foreground">
+            {totalUsers === 1 ? 'visitor' : 'visitors'}
+          </span>
+        </div>
       </div>
 
-      {/* Filter rows */}
-      <div className="space-y-3 text-sm">
+      {/* Traffic breakdown rows - minimal labels */}
+      <div className="space-y-3 text-sm border-b border-border/30 pb-4 mb-4">
         {/* Referrers */}
         <FilterRow
-          label="Referrers"
+          label="Sources"
           items={sortedReferrers.map(([name, count]) => ({
             icon: referrerIcons[name] || '🌐',
             label: name,
@@ -65,68 +70,58 @@ export function MapboxFloatingPanel({
 
         {/* Countries */}
         <FilterRow
-          label="Countries"
+          label="Regions"
           items={sortedCountries.map(([name, data]) => ({
             icon: data.flag,
-            label: name,
+            label: truncateCountry(name),
             count: data.count,
           }))}
         />
 
-        {/* Devices */}
+        {/* Devices - compact visual */}
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-xs uppercase tracking-wider w-20 flex-shrink-0">
+          <span className="text-muted-foreground/60 text-[10px] uppercase tracking-wider w-14 flex-shrink-0">
             Devices
           </span>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex gap-1.5">
             {deviceBreakdown.desktop > 0 && (
-              <DeviceChip icon={<Monitor className="w-3 h-3" />} label="Desktop" count={deviceBreakdown.desktop} />
+              <DeviceChip icon={<Monitor className="w-3 h-3" />} count={deviceBreakdown.desktop} />
             )}
             {deviceBreakdown.mobile > 0 && (
-              <DeviceChip icon={<Smartphone className="w-3 h-3" />} label="Mobile" count={deviceBreakdown.mobile} />
+              <DeviceChip icon={<Smartphone className="w-3 h-3" />} count={deviceBreakdown.mobile} />
             )}
             {deviceBreakdown.tablet > 0 && (
-              <DeviceChip icon={<Tablet className="w-3 h-3" />} label="Tablet" count={deviceBreakdown.tablet} />
+              <DeviceChip icon={<Tablet className="w-3 h-3" />} count={deviceBreakdown.tablet} />
             )}
           </div>
         </div>
       </div>
 
-      {/* Buyer Breakdown Section */}
-      <div className="mt-4 pt-4 border-t border-border/50">
-        <span className="text-muted-foreground text-xs uppercase tracking-wider mb-3 block">
-          Buyer Breakdown
+      {/* Buyer Intelligence Section - premium design */}
+      <div>
+        <span className="text-muted-foreground/60 text-[10px] uppercase tracking-[0.12em] font-medium mb-3 block">
+          Buyer Intelligence
         </span>
-        <div className="space-y-2">
-          <BuyerMetricRow
-            icon={<Lock className="w-3.5 h-3.5" />}
-            label="Logged in"
-            value={buyerBreakdown.loggedInCount}
-            suffix={`(${buyerBreakdown.loggedInPercent}%)`}
-          />
-          <BuyerMetricRow
-            icon={<FileCheck className="w-3.5 h-3.5 text-emerald-500" />}
-            label="NDA Signed"
-            value={buyerBreakdown.ndaSignedCount}
-            highlight={buyerBreakdown.ndaSignedCount > 0}
-          />
-          <BuyerMetricRow
-            icon={<FileText className="w-3.5 h-3.5 text-blue-500" />}
-            label="Fee Agreement"
-            value={buyerBreakdown.feeAgreementCount}
-            highlight={buyerBreakdown.feeAgreementCount > 0}
-          />
-          <BuyerMetricRow
-            icon={<MessageCircle className="w-3.5 h-3.5 text-coral-500" />}
-            label="Connections"
-            value={buyerBreakdown.connectionsThisHour}
-            suffix="this hour"
-            highlight={buyerBreakdown.connectionsThisHour > 0}
-          />
-        </div>
+        <BuyerComposition 
+          breakdown={buyerBreakdown} 
+          totalUsers={totalUsers} 
+        />
       </div>
     </div>
   );
+}
+
+function truncateCountry(name: string): string {
+  if (name.length <= 10) return name;
+  // Common abbreviations
+  const abbrevs: Record<string, string> = {
+    'United States': 'USA',
+    'United Kingdom': 'UK',
+    'Netherlands': 'NL',
+    'Germany': 'DE',
+    'Australia': 'AU',
+  };
+  return abbrevs[name] || name.slice(0, 8);
 }
 
 function FilterRow({
@@ -140,18 +135,18 @@ function FilterRow({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-muted-foreground text-xs uppercase tracking-wider w-20 flex-shrink-0">
+      <span className="text-muted-foreground/60 text-[10px] uppercase tracking-wider w-14 flex-shrink-0">
         {label}
       </span>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1">
         {items.map((item) => (
           <button
             key={item.label}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-xs transition-colors"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/30 hover:bg-muted/50 text-xs transition-colors"
           >
-            <span>{item.icon}</span>
-            <span className="text-muted-foreground">{item.label}</span>
-            <span className="font-semibold text-foreground">{item.count}</span>
+            <span className="text-[11px]">{item.icon}</span>
+            <span className="text-muted-foreground text-[10px]">{item.label}</span>
+            <span className="font-medium text-foreground text-[10px] tabular-nums">{item.count}</span>
           </button>
         ))}
       </div>
@@ -161,48 +156,15 @@ function FilterRow({
 
 function DeviceChip({
   icon,
-  label,
   count,
 }: {
   icon: React.ReactNode;
-  label: string;
   count: number;
 }) {
   return (
-    <button className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-xs transition-colors">
-      {icon}
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-semibold text-foreground">{count}</span>
-    </button>
-  );
-}
-
-function BuyerMetricRow({
-  icon,
-  label,
-  value,
-  suffix,
-  highlight,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  suffix?: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        {icon}
-        <span className="text-xs">{label}</span>
-      </div>
-      <div className={cn(
-        "text-xs font-medium",
-        highlight ? "text-foreground" : "text-muted-foreground"
-      )}>
-        <span className={cn(highlight && "font-bold")}>{value}</span>
-        {suffix && <span className="ml-1 text-muted-foreground font-normal">{suffix}</span>}
-      </div>
+    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/30 text-xs">
+      <span className="text-muted-foreground">{icon}</span>
+      <span className="font-medium text-foreground tabular-nums text-[10px]">{count}</span>
     </div>
   );
 }
