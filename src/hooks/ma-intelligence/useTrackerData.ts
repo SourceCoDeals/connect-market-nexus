@@ -60,34 +60,77 @@ export function useTrackerData(trackerId: string | undefined): UseTrackerDataRes
     try {
       setError(null);
 
-      const [trackerRes, buyersRes, dealsRes] = await Promise.all([
-        supabase.from('industry_trackers').select('*').eq('id', trackerId).single(),
-        supabase.from('buyers').select('*').eq('tracker_id', trackerId).order('pe_firm_name'),
-        supabase.from('deals').select('*').eq('tracker_id', trackerId).order('created_at', { ascending: false }),
-      ]);
+      // Query industry_trackers - the schema may differ, so we adapt
+      const { data: trackerData, error: trackerError } = await supabase
+        .from('industry_trackers')
+        .select('*')
+        .eq('id', trackerId)
+        .single();
 
-      if (trackerRes.error) throw trackerRes.error;
+      if (trackerError) throw trackerError;
 
-      setTracker(trackerRes.data);
-      setBuyers(buyersRes.data || []);
-      setDeals(dealsRes.data || []);
+      // Map to MATracker interface - adapt to actual schema
+      const rawTracker = trackerData as any;
+      const mappedTracker: MATracker = {
+        id: rawTracker.id,
+        user_id: rawTracker.user_id ?? null,
+        industry_name: rawTracker.name || rawTracker.industry_name || 'Unknown',
+        description: rawTracker.description ?? null,
+        is_active: rawTracker.is_active ?? true,
+        is_archived: !rawTracker.is_active, // Derive from is_active
+        created_at: rawTracker.created_at,
+        updated_at: rawTracker.updated_at,
+        ...rawTracker,
+      };
+      setTracker(mappedTracker);
 
-      // Fetch buyer counts for each deal
-      if (dealsRes.data && dealsRes.data.length > 0) {
-        const dealIds = dealsRes.data.map(d => d.id);
+      // Fetch buyers using remarketing_buyers table
+      const { data: buyersData } = await supabase
+        .from('remarketing_buyers')
+        .select('*')
+        .eq('industry_tracker_id', trackerId)
+        .order('company_name');
+
+      // Map to MABuyer interface
+      const mappedBuyers: MABuyer[] = (buyersData || []).map((b: any) => ({
+        id: b.id,
+        tracker_id: b.industry_tracker_id || trackerId,
+        pe_firm_name: b.company_name || b.pe_firm_name || 'Unknown',
+        ...b,
+      }));
+      setBuyers(mappedBuyers);
+
+      // Fetch deals - use listing_id reference
+      const { data: dealsData } = await supabase
+        .from('deals')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // Map to MADeal interface
+      const mappedDeals: MADeal[] = (dealsData || []).map((d: any) => ({
+        id: d.id,
+        tracker_id: d.listing_id || d.tracker_id || '',
+        deal_name: d.contact_name || d.deal_name || 'Unknown Deal',
+        ...d,
+      }));
+      setDeals(mappedDeals);
+
+      // Fetch buyer counts for each deal using remarketing_scores
+      if (dealsData && dealsData.length > 0) {
+        const dealIds = dealsData.map((d: any) => d.id);
         const { data: scores } = await supabase
-          .from('buyer_deal_scores')
-          .select('deal_id, selected_for_outreach, interested, passed_on_deal')
-          .in('deal_id', dealIds);
+          .from('remarketing_scores')
+          .select('listing_id, status')
+          .in('listing_id', dealIds);
 
         if (scores) {
           const counts: Record<string, DealBuyerCounts> = {};
-          dealIds.forEach(dealId => {
-            const dealScores = scores.filter(s => s.deal_id === dealId);
+          dealIds.forEach((dealId: string) => {
+            const dealScores = (scores as any[]).filter(s => s.listing_id === dealId);
             counts[dealId] = {
-              approved: dealScores.filter(s => s.selected_for_outreach).length,
-              interested: dealScores.filter(s => s.interested).length,
-              passed: dealScores.filter(s => s.passed_on_deal).length,
+              approved: dealScores.filter(s => s.status === 'approved').length,
+              interested: dealScores.filter(s => s.status === 'interested').length,
+              passed: dealScores.filter(s => s.status === 'passed').length,
             };
           });
           setDealBuyerCounts(counts);

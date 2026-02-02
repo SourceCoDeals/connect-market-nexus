@@ -63,25 +63,43 @@ export default function MAAllDeals() {
 
   const loadDeals = async () => {
     const [dealsRes, trackersRes, scoresRes] = await Promise.all([
-      supabase.from("deals").select("id, deal_name, tracker_id, company_website, company_overview, geography, revenue, ebitda_amount, ebitda_percentage, deal_score, status, last_enriched_at, created_at").order("created_at", { ascending: false }),
-      supabase.from("industry_trackers").select("id, industry_name"),
-      supabase.from("buyer_deal_scores").select("deal_id, selected_for_outreach, interested, passed_on_deal"),
+      supabase.from("deals").select("*").order("created_at", { ascending: false }),
+      supabase.from("industry_trackers").select("id, name"),
+      supabase.from("remarketing_scores").select("listing_id, status"),
     ]);
 
-    setDeals(dealsRes.data || []);
+    // Map deals to our interface
+    const mappedDeals: DealRow[] = ((dealsRes.data || []) as any[]).map((d) => ({
+      id: d.id,
+      deal_name: d.contact_name || d.deal_name || 'Unknown Deal',
+      tracker_id: d.listing_id || d.tracker_id || '',
+      company_website: d.company_website ?? null,
+      company_overview: d.company_overview ?? null,
+      geography: d.geography ?? null,
+      revenue: d.revenue ?? null,
+      ebitda_amount: d.ebitda_amount ?? null,
+      ebitda_percentage: d.ebitda_percentage ?? null,
+      deal_score: d.deal_score ?? null,
+      status: d.status ?? null,
+      last_enriched_at: d.last_enriched_at ?? null,
+      created_at: d.created_at,
+    }));
+    setDeals(mappedDeals);
 
     const trackerMap: Record<string, TrackerInfo> = {};
-    (trackersRes.data || []).forEach((t) => { trackerMap[t.id] = t; });
+    ((trackersRes.data || []) as any[]).forEach((t) => {
+      trackerMap[t.id] = { id: t.id, industry_name: t.name || t.industry_name || 'Unknown' };
+    });
     setTrackers(trackerMap);
 
     const counts: Record<string, BuyerCounts> = {};
-    (scoresRes.data || []).forEach((score) => {
-      if (!counts[score.deal_id]) {
-        counts[score.deal_id] = { approved: 0, interested: 0, passed: 0 };
+    ((scoresRes.data || []) as any[]).forEach((score) => {
+      if (!counts[score.listing_id]) {
+        counts[score.listing_id] = { approved: 0, interested: 0, passed: 0 };
       }
-      if (score.selected_for_outreach) counts[score.deal_id].approved++;
-      if (score.interested) counts[score.deal_id].interested++;
-      if (score.passed_on_deal) counts[score.deal_id].passed++;
+      if (score.status === 'approved') counts[score.listing_id].approved++;
+      if (score.status === 'interested') counts[score.listing_id].interested++;
+      if (score.status === 'passed') counts[score.listing_id].passed++;
     });
     setBuyerCounts(counts);
 
@@ -92,7 +110,7 @@ export default function MAAllDeals() {
     e.preventDefault();
     e.stopPropagation();
 
-    const { error } = await supabase.from("deals").update({ status: "Archived" }).eq("id", dealId);
+    const { error } = await supabase.from("deals").update({ status: "Archived" } as any).eq("id", dealId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
@@ -416,24 +434,24 @@ export default function MAAllDeals() {
             </Table>
           </div>
         )}
-      </div>
 
-      <AlertDialog open={dealDeleteDialogOpen} onOpenChange={setDealDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {dealToDelete?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete this deal and all associated data. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteDeal} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete permanently
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={dealDeleteDialogOpen} onOpenChange={setDealDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {dealToDelete?.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete this deal and all associated data. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={deleteDeal} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </TooltipProvider>
   );
 }

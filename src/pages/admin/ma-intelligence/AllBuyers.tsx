@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Users, Search, FileCheck, ArrowUp, ArrowDown, ArrowUpDown, Building2 } from "lucide-react";
+import { Loader2, Users, Search, FileCheck, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 type SortColumn = "name" | "pe_firm" | "industry" | "confidence";
 type SortDirection = "asc" | "desc";
@@ -37,16 +37,30 @@ export default function MAAllBuyers() {
 
   const loadData = async () => {
     const [trackersRes, buyersRes] = await Promise.all([
-      supabase.from("industry_trackers").select("id, industry_name"),
-      supabase.from("buyers").select("id, pe_firm_name, platform_company_name, platform_website, thesis_summary, thesis_confidence, industry_vertical, tracker_id, has_fee_agreement, fee_agreement_status").order("pe_firm_name")
+      supabase.from("industry_trackers").select("id, name"),
+      supabase.from("remarketing_buyers").select("*").order("company_name")
     ]);
 
     const trackerMap: Record<string, string> = {};
-    (trackersRes.data || []).forEach((t) => {
-      trackerMap[t.id] = t.industry_name;
+    ((trackersRes.data || []) as any[]).forEach((t) => {
+      trackerMap[t.id] = t.name || t.industry_name || 'Unknown';
     });
     setTrackers(trackerMap);
-    setBuyers(buyersRes.data || []);
+
+    // Map remarketing_buyers to BuyerRow interface
+    const mappedBuyers: BuyerRow[] = ((buyersRes.data || []) as any[]).map((b) => ({
+      id: b.id,
+      pe_firm_name: b.company_name || b.pe_firm_name || 'Unknown',
+      platform_company_name: b.platform_company_name ?? null,
+      platform_website: b.platform_website ?? null,
+      thesis_summary: b.thesis_summary ?? null,
+      thesis_confidence: b.thesis_confidence ?? null,
+      industry_vertical: b.industry_vertical ?? null,
+      tracker_id: b.industry_tracker_id || b.tracker_id || '',
+      has_fee_agreement: b.has_fee_agreement ?? null,
+      fee_agreement_status: b.fee_agreement_status ?? null,
+    }));
+    setBuyers(mappedBuyers);
     setIsLoading(false);
   };
 

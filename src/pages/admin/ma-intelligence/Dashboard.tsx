@@ -37,29 +37,29 @@ export default function MADashboard() {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      const { data: trackersData, error: trackersError } = await supabase
+      const { data: trackersData, error: trackersError } = await (supabase as any)
         .from("industry_trackers")
         .select("*")
-        .eq("archived", false)
+        .eq("is_active", true)
         .order("updated_at", { ascending: false });
 
       if (trackersError) throw trackersError;
 
       const trackersWithStats: TrackerWithStats[] = await Promise.all(
-        (trackersData || []).map(async (tracker) => {
+        (trackersData || []).map(async (tracker: any) => {
           const [buyersResult, dealsResult] = await Promise.all([
-            supabase.from("buyers").select("*").eq("tracker_id", tracker.id),
-            supabase.from("deals").select("id").eq("tracker_id", tracker.id),
+            supabase.from("remarketing_buyers").select("*").eq("industry_tracker_id", tracker.id),
+            supabase.from("deals").select("id").eq("listing_id", tracker.id),
           ]);
 
-          const buyers = buyersResult.data || [];
+          const buyers = (buyersResult.data || []) as any[];
           const intelligentBuyers = buyers.filter(
             (b) => getIntelligenceCoverage(b as unknown as Partial<MABuyer>) !== "low"
           );
 
           return {
             id: tracker.id,
-            industry_name: tracker.industry_name,
+            industry_name: tracker.name || tracker.industry_name || 'Unknown',
             buyer_count: buyers.length,
             deal_count: dealsResult.data?.length || 0,
             intelligent_buyer_count: intelligentBuyers.length,
@@ -69,11 +69,11 @@ export default function MADashboard() {
 
       setTrackers(trackersWithStats);
 
-      // Load total stats
+      // Load total stats using remarketing tables
       const [buyersCount, dealsCount, scoresCount] = await Promise.all([
-        supabase.from("buyers").select("id", { count: "exact", head: true }),
+        supabase.from("remarketing_buyers").select("id", { count: "exact", head: true }),
         supabase.from("deals").select("id", { count: "exact", head: true }),
-        supabase.from("buyer_deal_scores").select("id", { count: "exact", head: true }),
+        supabase.from("remarketing_scores").select("id", { count: "exact", head: true }),
       ]);
 
       setTotalStats({
