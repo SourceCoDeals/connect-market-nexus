@@ -3852,7 +3852,11 @@ export type Database = {
           fee_agreement_signed: boolean | null
           fee_agreement_signed_at: string | null
           financing_plan: Json | null
+          first_blog_landing: string | null
+          first_external_referrer: string | null
           first_name: string
+          first_seen_at: string | null
+          first_utm_source: string | null
           flex_sub2m_ebitda: boolean | null
           flex_subxm_ebitda: boolean | null
           fund_size: string | null
@@ -3937,7 +3941,11 @@ export type Database = {
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
           financing_plan?: Json | null
+          first_blog_landing?: string | null
+          first_external_referrer?: string | null
           first_name?: string
+          first_seen_at?: string | null
+          first_utm_source?: string | null
           flex_sub2m_ebitda?: boolean | null
           flex_subxm_ebitda?: boolean | null
           fund_size?: string | null
@@ -4022,7 +4030,11 @@ export type Database = {
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
           financing_plan?: Json | null
+          first_blog_landing?: string | null
+          first_external_referrer?: string | null
           first_name?: string
+          first_seen_at?: string | null
+          first_utm_source?: string | null
           flex_sub2m_ebitda?: boolean | null
           flex_subxm_ebitda?: boolean | null
           fund_size?: string | null
@@ -5243,10 +5255,12 @@ export type Database = {
       user_journeys: {
         Row: {
           created_at: string | null
+          first_blog_landing: string | null
           first_browser: string | null
           first_city: string | null
           first_country: string | null
           first_device_type: string | null
+          first_external_referrer: string | null
           first_landing_page: string | null
           first_os: string | null
           first_referrer: string | null
@@ -5272,10 +5286,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          first_blog_landing?: string | null
           first_browser?: string | null
           first_city?: string | null
           first_country?: string | null
           first_device_type?: string | null
+          first_external_referrer?: string | null
           first_landing_page?: string | null
           first_os?: string | null
           first_referrer?: string | null
@@ -5301,10 +5317,12 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          first_blog_landing?: string | null
           first_browser?: string | null
           first_city?: string | null
           first_country?: string | null
           first_device_type?: string | null
+          first_external_referrer?: string | null
           first_landing_page?: string | null
           first_os?: string | null
           first_referrer?: string | null

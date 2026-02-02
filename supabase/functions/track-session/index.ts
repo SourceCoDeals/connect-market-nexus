@@ -178,6 +178,10 @@ Deno.serve(async (req) => {
     if (body.visitor_id) {
       console.log('Upserting user journey for visitor:', body.visitor_id);
       
+      // Calculate first_external_referrer from cross-domain tracking params
+      const firstExternalReferrer = body.original_referrer || body.original_referrer_host || null;
+      const firstBlogLanding = body.blog_landing || null;
+      
       const { error: journeyError } = await supabase
         .from('user_journeys')
         .upsert({
@@ -201,6 +205,9 @@ Deno.serve(async (req) => {
           last_session_id: body.session_id,
           last_page_path: body.landing_path || null,
           journey_stage: body.user_id ? 'registered' : 'anonymous',
+          // Cross-domain attribution: store original referrer and blog landing from sco_ params
+          first_external_referrer: firstExternalReferrer,
+          first_blog_landing: firstBlogLanding,
         }, {
           onConflict: 'visitor_id',
           ignoreDuplicates: false,

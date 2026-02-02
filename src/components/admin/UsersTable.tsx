@@ -252,6 +252,36 @@ const UserDetails = ({ user }: { user: User }) => {
                       );
                     }
                     
+                    // Handle first_seen_at timestamp
+                    if (fieldKey === 'first_seen_at' && fieldValue) {
+                      return (
+                        <div key={fieldKey}>
+                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                          {new Date(fieldValue as string).toLocaleString()}
+                        </div>
+                      );
+                    }
+                    
+                    // Handle first_external_referrer - show with external link styling
+                    if (fieldKey === 'first_external_referrer' && fieldValue) {
+                      return (
+                        <div key={fieldKey}>
+                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                          <span className="text-primary">{fieldValue as string}</span>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle first_blog_landing - show the blog path
+                    if (fieldKey === 'first_blog_landing' && fieldValue) {
+                      return (
+                        <div key={fieldKey}>
+                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{fieldValue as string}</span>
+                        </div>
+                      );
+                    }
+                    
                     // Default field rendering with formatting
                     return (
                       <div key={fieldKey}>

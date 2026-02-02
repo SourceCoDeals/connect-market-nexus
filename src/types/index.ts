@@ -115,6 +115,12 @@ export interface User {
   deal_sourcing_methods?: string[] | unknown;
   target_acquisition_volume?: string;
   
+  // First-touch cross-domain attribution (permanent, from user_journeys)
+  first_external_referrer?: string;
+  first_blog_landing?: string;
+  first_seen_at?: string;
+  first_utm_source?: string;
+  
   // Additional investment criteria fields
   company_type?: string;
   years_in_business?: number;
