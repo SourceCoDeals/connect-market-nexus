@@ -217,12 +217,17 @@ export function useNuclearAuth() {
         ? processUrl(userData.website)
         : '';
 
+    // Get visitor_id for attribution linking
+    const visitorId = localStorage.getItem(VISITOR_ID_KEY);
+    
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
+          // Pass visitor_id so trigger can link to user_journeys
+          visitor_id: visitorId || null,
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
           company: userData.company || '',
