@@ -237,11 +237,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           .eq('is_active', true)
           .gte('last_active_at', twoMinutesAgo),
         
-        // Profiles for top users AND signup attribution
+        // Profiles for signups in the time range ONLY (CRITICAL FIX: must filter by date!)
         supabase
           .from('profiles')
           .select('id, first_name, last_name, company, buyer_type, referral_source, referral_source_detail, created_at')
-          .limit(500),
+          .gte('created_at', startDateStr),  // Only signups in the time range!
         
         // Query all connections with NDA/Fee Agreement status for real funnel data
         supabase
@@ -261,15 +261,46 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const allConnectionsWithMilestones = allConnectionsWithMilestonesResult.data || [];
       
       // === SIGNUP ATTRIBUTION: Map signups to their first session data ===
+      // CRITICAL: Only profiles created in the time range should be counted as signups
       const signupProfileMap = new Map<string, typeof profiles[0]>();
       profiles.forEach(p => signupProfileMap.set(p.id, p));
       
+      // Get profile IDs for the filtered signups
+      const profileIds = profiles.map(p => p.id);
+      
+      // Fetch first-ever sessions for these specific profiles (not just 30-day sessions)
+      // This ensures we get the TRUE first session, not just first session in the window
+      type FirstSessionData = {
+        id: string;
+        session_id: string;
+        user_id: string | null;
+        visitor_id: string | null;
+        referrer: string | null;
+        utm_source: string | null;
+        utm_medium: string | null;
+        utm_campaign: string | null;
+        utm_term: string | null;
+        country: string | null;
+        city: string | null;
+        region: string | null;
+        browser: string | null;
+        os: string | null;
+        device_type: string | null;
+        started_at: string;
+      };
+      let firstSessions: FirstSessionData[] = [];
+      if (profileIds.length > 0) {
+        const { data: firstSessionsData } = await supabase
+          .from('user_sessions')
+          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at')
+          .in('user_id', profileIds)
+          .order('started_at', { ascending: true });
+        firstSessions = firstSessionsData || [];
+      }
+      
       // Create profile to first session mapping for signup attribution
-      const profileToFirstSession = new Map<string, typeof rawSessions[0]>();
-      const sortedByTime = [...rawSessions].sort((a, b) => 
-        new Date(a.started_at).getTime() - new Date(b.started_at).getTime()
-      );
-      sortedByTime.forEach(s => {
+      const profileToFirstSession = new Map<string, FirstSessionData>();
+      firstSessions.forEach(s => {
         if (s.user_id && !profileToFirstSession.has(s.user_id)) {
           profileToFirstSession.set(s.user_id, s);
         }

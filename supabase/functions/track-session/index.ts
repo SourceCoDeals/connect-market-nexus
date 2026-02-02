@@ -38,6 +38,9 @@ interface SessionData {
   landing_path?: string;
   landing_search?: string;
   time_on_page?: number;
+  // Cross-domain tracking params (from blog)
+  original_referrer?: string;
+  blog_landing?: string;
 }
 
 async function getGeoData(ip: string): Promise<GeoData | null> {
@@ -149,6 +152,9 @@ Deno.serve(async (req) => {
         is_active: true,
         last_active_at: new Date().toISOString(),
         session_duration_seconds: initialDuration,
+        // Cross-domain tracking: capture original referrer from blog
+        original_external_referrer: body.original_referrer || null,
+        blog_landing_page: body.blog_landing || null,
       }, {
         onConflict: 'session_id',
         ignoreDuplicates: false,
