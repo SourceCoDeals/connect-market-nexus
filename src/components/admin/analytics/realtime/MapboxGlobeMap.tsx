@@ -74,11 +74,39 @@ export function MapboxGlobeMap({
   const [selectedUser, setSelectedUser] = useState<EnhancedActiveUser | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [tokenLoading, setTokenLoading] = useState(true);
   const spinEnabledRef = useRef(true);
   const userInteractingRef = useRef(false);
 
-  // Get Mapbox token from environment - use direct access for Supabase project
-  const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  // Fetch Mapbox token from edge function
+  useEffect(() => {
+    async function fetchToken() {
+      try {
+        const response = await fetch(
+          'https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/get-mapbox-token',
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.token) {
+            setMapboxToken(data.token);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch Mapbox token:', error);
+      } finally {
+        setTokenLoading(false);
+      }
+    }
+    
+    fetchToken();
+  }, []);
 
   // Calculate aggregated stats
   const totalEstimatedValue = users.reduce((sum, user) => sum + calculateEstimatedValue(user), 0);
@@ -287,12 +315,24 @@ export function MapboxGlobeMap({
     }
   }, [users]);
 
+  // Show loading state or error
+  if (tokenLoading) {
+    return (
+      <div className={cn("relative flex items-center justify-center bg-[#0b0b19]", className)}>
+        <div className="text-center p-8">
+          <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-white/50 text-sm">Loading globe...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!mapboxToken) {
     return (
       <div className={cn("relative flex items-center justify-center bg-slate-900", className)}>
         <div className="text-center p-8">
           <p className="text-white/60 text-sm mb-2">Mapbox token not configured</p>
-          <p className="text-white/40 text-xs">Add VITE_MAPBOX_ACCESS_TOKEN to enable the 3D globe</p>
+          <p className="text-white/40 text-xs">Configure the edge function secret to enable the 3D globe</p>
         </div>
       </div>
     );
