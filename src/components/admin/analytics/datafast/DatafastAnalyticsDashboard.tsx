@@ -16,7 +16,7 @@ import { PagesCard } from "./PagesCard";
 import { TechStackCard } from "./TechStackCard";
 import { ConversionCard } from "./ConversionCard";
 import { FloatingGlobeToggle } from "./FloatingGlobeToggle";
-import { FilterChips } from "./FilterChips";
+import { FloatingFilterBar } from "./FloatingFilterBar";
 import { cn } from "@/lib/utils";
 
 export function DatafastAnalyticsDashboard() {
@@ -51,84 +51,74 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* Sticky Header with filters */}
-      <div className="sticky top-0 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border/30">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-lg font-medium tracking-tight text-foreground">
-              Intelligence Center
-            </h1>
-            
-            {/* Filter Chips inline */}
-            <FilterChips />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Select value={isCustomMode ? "custom" : timeRange} onValueChange={handleTimeRangeChange}>
-              <SelectTrigger className="w-[140px] h-9 rounded-lg border-border/50 bg-card text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="custom">Custom range</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* Floating Filter Bar at top */}
+      <FloatingFilterBar />
+      
+      {/* Compact Header - just controls */}
+      <div className="flex items-center justify-end gap-2">
+        <Select value={isCustomMode ? "custom" : timeRange} onValueChange={handleTimeRangeChange}>
+          <SelectTrigger className="w-[140px] h-9 rounded-lg border-border/50 bg-card text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">Last 7 days</SelectItem>
+            <SelectItem value="30">Last 30 days</SelectItem>
+            <SelectItem value="90">Last 90 days</SelectItem>
+            <SelectItem value="custom">Custom range</SelectItem>
+          </SelectContent>
+        </Select>
 
-            {isCustomMode && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "h-9 px-3 rounded-lg border-border/50 bg-card justify-start text-left font-normal text-sm",
-                      !customDateRange && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {customDateRange?.from ? (
-                      customDateRange.to ? (
-                        <>
-                          {format(customDateRange.from, "MMM d")} - {format(customDateRange.to, "MMM d")}
-                        </>
-                      ) : (
-                        format(customDateRange.from, "MMM d, yyyy")
-                      )
-                    ) : (
-                      <span>Pick dates</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={customDateRange?.from}
-                    selected={customDateRange ? { from: customDateRange.from, to: customDateRange.to } : undefined}
-                    onSelect={(range) => {
-                      if (range?.from && range?.to) {
-                        setCustomDateRange({ from: range.from, to: range.to });
-                      }
-                    }}
-                    numberOfMonths={2}
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+        {isCustomMode && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 px-3 rounded-lg border-border/50 bg-card justify-start text-left font-normal text-sm",
+                  !customDateRange && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {customDateRange?.from ? (
+                  customDateRange.to ? (
+                    <>
+                      {format(customDateRange.from, "MMM d")} - {format(customDateRange.to, "MMM d")}
+                    </>
+                  ) : (
+                    format(customDateRange.from, "MMM d, yyyy")
+                  )
+                ) : (
+                  <span>Pick dates</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={customDateRange?.from}
+                selected={customDateRange ? { from: customDateRange.from, to: customDateRange.to } : undefined}
+                onSelect={(range) => {
+                  if (range?.from && range?.to) {
+                    setCustomDateRange({ from: range.from, to: range.to });
+                  }
+                }}
+                numberOfMonths={2}
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        )}
 
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 rounded-lg border-border/50 bg-card"
-              onClick={() => refetch()}
-              disabled={isRefetching}
-            >
-              <RefreshCw className={cn("h-4 w-4", isRefetching && "animate-spin")} />
-            </Button>
-          </div>
-        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 rounded-lg border-border/50 bg-card"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+        >
+          <RefreshCw className={cn("h-4 w-4", isRefetching && "animate-spin")} />
+        </Button>
       </div>
 
       {isLoading ? (
