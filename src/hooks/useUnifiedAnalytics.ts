@@ -87,6 +87,19 @@ function categorizeChannel(referrer: string | null, utmSource: string | null, ut
   const source = (referrer || utmSource || '').toLowerCase();
   const medium = (utmMedium || '').toLowerCase();
   
+  // CRITICAL FIX: Detect email platform domains FIRST (Brevo, Mailchimp, etc.)
+  // These don't always have UTM tags but ARE newsletter traffic
+  if (source.includes('brevo') || source.includes('sendibt') || 
+      source.includes('mailchimp') || source.includes('sendgrid') ||
+      source.includes('hubspot') || source.includes('klaviyo') ||
+      source.includes('campaign-archive') || source.includes('mailchi.mp')) return 'Newsletter';
+  
+  // Newsletter via UTM medium
+  if (medium.includes('email') || medium.includes('newsletter')) return 'Newsletter';
+  
+  // Internal navigation (exclude from meaningful sources)
+  if (source.includes('marketplace.sourcecodeals.com')) return 'Internal';
+  
   // AI Sources
   if (source.includes('chatgpt') || source.includes('openai')) return 'AI';
   if (source.includes('claude') || source.includes('anthropic')) return 'AI';
@@ -107,9 +120,6 @@ function categorizeChannel(referrer: string | null, utmSource: string | null, ut
   
   // Paid
   if (medium.includes('cpc') || medium.includes('paid')) return 'Paid';
-  
-  // Newsletter
-  if (medium.includes('email') || medium.includes('newsletter')) return 'Newsletter';
   
   // Referral
   if (referrer && !source.includes('direct')) return 'Referral';
@@ -141,8 +151,17 @@ function getChannelIcon(channel: string): string {
 }
 
 // Helper to get unique visitor key from a session
-function getVisitorKey(session: { user_id?: string | null; visitor_id?: string | null; session_id: string }): string {
-  return session.user_id || session.visitor_id || session.session_id;
+// CRITICAL FIX: Only return a key if we have a real identifier (user_id or visitor_id)
+// Sessions without these are anonymous/untrackable and should NOT count as unique visitors
+function getVisitorKey(session: { user_id?: string | null; visitor_id?: string | null; session_id: string }): string | null {
+  if (session.user_id) return session.user_id;
+  if (session.visitor_id) return session.visitor_id;
+  return null; // Anonymous session - don't count as unique visitor
+}
+
+// Helper to check if a session has trackable identity
+function hasVisitorIdentity(session: { user_id?: string | null; visitor_id?: string | null }): boolean {
+  return Boolean(session.user_id || session.visitor_id);
 }
 
 export function useUnifiedAnalytics(timeRangeDays: number = 30) {
@@ -252,9 +271,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       const uniqueSessions = Array.from(sessionMap.values());
       
       // CRITICAL FIX #2: Count unique VISITORS (people), not sessions
+      // Only count sessions with identifiable visitors (user_id or visitor_id)
       const currentVisitorSet = new Set<string>();
       uniqueSessions.forEach(s => {
-        currentVisitorSet.add(getVisitorKey(s));
+        const key = getVisitorKey(s);
+        if (key) currentVisitorSet.add(key);
       });
       const currentVisitors = currentVisitorSet.size;
       const currentSessionCount = uniqueSessions.length;
@@ -270,7 +291,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       
       const prevVisitorSet = new Set<string>();
       prevUniqueSessions.forEach(s => {
-        prevVisitorSet.add(getVisitorKey(s));
+        const key = getVisitorKey(s);
+        if (key) prevVisitorSet.add(key);
       });
       const prevVisitors = prevVisitorSet.size;
       const prevSessionCount = prevUniqueSessions.length;
@@ -316,11 +338,14 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         try {
           const dateStr = format(parseISO(s.started_at), 'yyyy-MM-dd');
           
-          // Count unique visitors per day
-          if (!dailyVisitorSets.has(dateStr)) {
-            dailyVisitorSets.set(dateStr, new Set());
+          // Count unique visitors per day (only identifiable ones)
+          const visitorKey = getVisitorKey(s);
+          if (visitorKey) {
+            if (!dailyVisitorSets.has(dateStr)) {
+              dailyVisitorSets.set(dateStr, new Set());
+            }
+            dailyVisitorSets.get(dateStr)!.add(visitorKey);
           }
-          dailyVisitorSets.get(dateStr)!.add(getVisitorKey(s));
           
           // Count sessions per day
           dailySessionCounts.set(dateStr, (dailySessionCounts.get(dateStr) || 0) + 1);
@@ -356,7 +381,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           channelVisitors[channel] = new Set();
           channelSessions[channel] = 0;
         }
-        channelVisitors[channel].add(getVisitorKey(s));
+        const visitorKey = getVisitorKey(s);
+        if (visitorKey) channelVisitors[channel].add(visitorKey);
         channelSessions[channel]++;
       });
       
@@ -394,7 +420,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           referrerVisitors[domain] = new Set();
           referrerSessions[domain] = 0;
         }
-        referrerVisitors[domain].add(getVisitorKey(s));
+        const visitorKey = getVisitorKey(s);
+        if (visitorKey) referrerVisitors[domain].add(visitorKey);
         referrerSessions[domain]++;
       });
       const referrers = Object.keys(referrerVisitors)
@@ -417,7 +444,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
             campaignVisitors[s.utm_campaign] = new Set();
             campaignSessions[s.utm_campaign] = 0;
           }
-          campaignVisitors[s.utm_campaign].add(getVisitorKey(s));
+          const visitorKey = getVisitorKey(s);
+          if (visitorKey) campaignVisitors[s.utm_campaign].add(visitorKey);
           campaignSessions[s.utm_campaign]++;
         }
       });
@@ -439,7 +467,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
             keywordVisitors[s.utm_term] = new Set();
             keywordSessions[s.utm_term] = 0;
           }
-          keywordVisitors[s.utm_term].add(getVisitorKey(s));
+          const visitorKey = getVisitorKey(s);
+          if (visitorKey) keywordVisitors[s.utm_term].add(visitorKey);
           keywordSessions[s.utm_term]++;
         }
       });
@@ -459,11 +488,13 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       
       uniqueSessions.forEach(s => {
         const country = s.country || 'Unknown';
+        const visitorKey = getVisitorKey(s);
+        
         if (!countryVisitors[country]) {
           countryVisitors[country] = new Set();
           countrySessions[country] = 0;
         }
-        countryVisitors[country].add(getVisitorKey(s));
+        if (visitorKey) countryVisitors[country].add(visitorKey);
         countrySessions[country]++;
         
         if (s.city) {
@@ -471,7 +502,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           if (!cityVisitors[cityKey]) {
             cityVisitors[cityKey] = { visitors: new Set(), sessions: 0, country };
           }
-          cityVisitors[cityKey].visitors.add(getVisitorKey(s));
+          if (visitorKey) cityVisitors[cityKey].visitors.add(visitorKey);
           cityVisitors[cityKey].sessions++;
         }
       });
@@ -576,14 +607,17 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         const browser = s.browser || 'Unknown';
         const os = s.os || 'Unknown';
         const device = s.device_type || 'Desktop';
+        const visitorKey = getVisitorKey(s);
         
         if (!browserVisitors[browser]) browserVisitors[browser] = new Set();
         if (!osVisitors[os]) osVisitors[os] = new Set();
         if (!deviceVisitors[device]) deviceVisitors[device] = new Set();
         
-        browserVisitors[browser].add(getVisitorKey(s));
-        osVisitors[os].add(getVisitorKey(s));
-        deviceVisitors[device].add(getVisitorKey(s));
+        if (visitorKey) {
+          browserVisitors[browser].add(visitorKey);
+          osVisitors[os].add(visitorKey);
+          deviceVisitors[device].add(visitorKey);
+        }
       });
       
       const totalVisitorsForPercent = currentVisitors || 1;
