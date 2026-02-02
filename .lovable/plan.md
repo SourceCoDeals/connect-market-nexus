@@ -1,145 +1,128 @@
 
-# Plan: Persist Cross-Domain Attribution Permanently to User Profiles
+# Plan: Complete Attribution Pipeline and Enhance Intelligence Center
 
-## Overview
-Currently, cross-domain attribution data (like `original_external_referrer` and `blog_landing_page`) is captured in the `user_sessions` table during a visitor's session. However, this data doesn't survive across sessions (e.g., when a user returns days later via an email confirmation link). This plan ensures the original attribution data is permanently stored in the user's profile so it's always accessible in the admin panel.
+## Problem Summary
 
-## Current Architecture Gap
+The cross-domain attribution system has a critical gap: the `visitor_id` is not being passed to Supabase Auth during signup. This prevents the `handle_new_user` trigger from finding the visitor's journey and copying their attribution data (original referrer, blog landing, etc.) to their permanent profile.
+
+Additionally, while the Intelligence Center already uses real session data for channels and referrers, it could better highlight the cross-domain attribution data for signups.
+
+---
+
+## Current Data Visibility
+
+Your system already tracks referrers from ALL sources:
+
+| Source | Detection Method | Current Status |
+|--------|-----------------|----------------|
+| LinkedIn | `referrer ILIKE '%linkedin%'` | Working (1 session in last 30 days) |
+| Google | `referrer ILIKE '%google%'` | Working (11 sessions) |
+| Email/Brevo | `referrer ILIKE '%brevo%'` | Working (58 sessions) |
+| ChatGPT | `referrer ILIKE '%chatgpt%'` | Ready (categorized as AI channel) |
+| Perplexity | `referrer ILIKE '%perplexity%'` | Ready (categorized as AI channel) |
+| Direct | No referrer | Working (870 sessions) |
+
+The `categorizeChannel()` function in `useUnifiedAnalytics.ts` already handles all these sources correctly.
+
+---
+
+## Technical Changes Required
+
+### Phase 1: Fix the Visitor ID Gap (Critical)
+
+**File: `src/hooks/use-nuclear-auth.ts`**
+
+Add `visitor_id` to the signup metadata so the trigger can link the user to their pre-registration journey:
 
 ```text
-User Journey:
-  1. User arrives from Google → Blog → Marketplace
-  2. sco_ params captured in user_sessions ✓
-  3. User signs up (account created)
-  4. Days later → User clicks email confirmation link (NEW session)
-  5. New session has NO cross-domain params ✗
-  6. Attribution data is "orphaned" in the original session
+// In the signup options.data object, add:
+visitor_id: localStorage.getItem('sourceco_visitor_id') || null,
 ```
 
-## Solution Summary
-
-1. **Add new columns to `profiles` table** to permanently store first-touch cross-domain attribution
-2. **Update the `track-session` edge function** to write attribution data to `user_journeys`
-3. **Update the `handle_new_user` database trigger** to copy first-touch attribution from `user_journeys` to `profiles` at registration
-4. **Add fallback logic** to copy from `user_sessions` if `user_journeys` is empty
-5. **Update the User type** and **admin UsersTable** to display the new attribution fields
+This single change will enable:
+- Trigger to find the visitor's `user_journeys` record
+- Attribution data to flow to the profile permanently
+- Full journey visibility in the admin Users table
 
 ---
 
-## Technical Implementation
+### Phase 2: Backfill Existing Users
 
-### Phase 1: Database Schema Changes
-
-**Add 4 new columns to `profiles` table:**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `first_external_referrer` | `text` | The original external referrer (e.g., "www.google.com") |
-| `first_blog_landing` | `text` | The blog page they first landed on (e.g., "/blog/best-m-a-news") |
-| `first_seen_at` | `timestamptz` | Timestamp of first discovery (from journey) |
-| `first_utm_source` | `text` | First-touch UTM source for campaign attribution |
-
-**Add 2 new columns to `user_journeys` table:**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `first_external_referrer` | `text` | Cross-domain referrer from blog script |
-| `first_blog_landing` | `text` | Blog landing page from cross-domain tracking |
-
----
-
-### Phase 2: Track-Session Edge Function Update
-
-Modify `supabase/functions/track-session/index.ts` to:
-- Store `original_external_referrer` and `blog_landing` in the `user_journeys` upsert
-- Only set these on first visit (don't overwrite on subsequent sessions)
+Create a one-time migration to retroactively link existing users to their first session's attribution:
 
 ```text
-// In the user_journeys upsert:
-first_external_referrer: body.original_referrer || body.original_referrer_host || null,
-first_blog_landing: body.blog_landing || null,
-```
-
----
-
-### Phase 3: Handle_New_User Trigger Update
-
-Modify the `handle_new_user()` trigger function to:
-1. Look up the visitor's `user_journeys` record using the `visitor_id` from `user_sessions`
-2. Copy `first_external_referrer`, `first_blog_landing`, `first_seen_at`, and `first_utm_source` to the new profile
-3. Fallback to querying `user_sessions` directly if journey is not found
-
-```text
--- Pseudo-logic in trigger:
-1. Find visitor_id from most recent user_session where user_id = NEW.id
-2. Look up user_journeys by visitor_id
-3. Copy first_external_referrer, first_blog_landing, first_seen_at, first_utm_source to profiles
+UPDATE profiles p
+SET 
+  first_external_referrer = us.original_external_referrer,
+  first_blog_landing = us.blog_landing_page,
+  first_seen_at = us.started_at
+FROM user_sessions us
+WHERE us.user_id = p.id
+  AND p.first_external_referrer IS NULL
+  AND us.original_external_referrer IS NOT NULL
+  AND us.started_at = (
+    SELECT MIN(started_at) 
+    FROM user_sessions 
+    WHERE user_id = p.id
+  );
 ```
 
 ---
 
-### Phase 4: Frontend Updates
+### Phase 3: Enhance Intelligence Center (Optional Improvements)
 
-**Update `src/types/index.ts`:**
-Add 4 new optional fields to the `User` interface:
-- `first_external_referrer?: string`
-- `first_blog_landing?: string`
-- `first_seen_at?: string`
-- `first_utm_source?: string`
+The Intelligence Center already displays channel and referrer data correctly. Potential enhancements:
 
-**Update `src/lib/buyer-type-fields.ts`:**
-Add new fields to the "Sourcing & Discovery" category so they display in user profiles.
+1. **Add "Discovery Source" column to Signups breakdown**
+   - Show whether signup came from cross-domain (blog) vs direct marketplace
+   - Highlight `first_external_referrer` when present
 
-**Update `src/components/admin/UsersTable.tsx`:**
-Display the new attribution fields in the user detail panel:
-- Show "Original Discovery Source" (first_external_referrer)
-- Show "Blog Entry Page" (first_blog_landing)
-- Show "First Seen" timestamp
-- Show "First UTM Source" if present
+2. **Add AI Traffic Highlight**
+   - The AI channel (ChatGPT, Claude, Perplexity) is already categorized
+   - Could add a dedicated "AI Sources" sub-breakdown
+
+3. **Cross-Domain Attribution Card**
+   - New card showing "Blog → Marketplace" conversions
+   - Visualize the full journey: Google → Blog Article → Marketplace → Signup
 
 ---
 
-### Phase 5: Backfill Existing Users (Optional)
+## Files to Modify
 
-Create a one-time migration or edge function to backfill attribution data for existing registered users by:
-1. Finding their `visitor_id` from `user_sessions` 
-2. Looking up cross-domain data from their first session
-3. Updating their profile record
-
----
-
-## Data Flow After Implementation
-
-```text
-User Journey:
-  1. User arrives from Google → Blog → Marketplace
-  2. sco_ params captured in user_sessions ✓
-  3. sco_ params copied to user_journeys (first_external_referrer) ✓
-  4. User signs up → handle_new_user trigger fires
-  5. Trigger copies from user_journeys → profiles ✓
-  6. Days later → User clicks email confirmation link
-  7. Attribution is ALREADY in profiles - permanently accessible ✓
-```
-
----
-
-## Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| `supabase/migrations/[new]_add_attribution_to_profiles.sql` | Create: Add columns to profiles and user_journeys |
-| `supabase/functions/track-session/index.ts` | Modify: Store cross-domain data in user_journeys |
-| `supabase/migrations/[new]_update_handle_new_user.sql` | Create: Update trigger to copy attribution |
-| `src/types/index.ts` | Modify: Add new User fields |
-| `src/lib/buyer-type-fields.ts` | Modify: Add fields to Sourcing & Discovery |
-| `src/components/admin/UsersTable.tsx` | Modify: Display attribution in user details |
+| File | Change | Priority |
+|------|--------|----------|
+| `src/hooks/use-nuclear-auth.ts` | Add `visitor_id` to signup metadata | Critical |
+| `src/hooks/auth/use-enhanced-auth-actions.ts` | Same change if using this auth flow | Critical |
+| Migration script | Backfill existing user attribution | High |
+| `src/components/admin/analytics/datafast/SourcesCard.tsx` | Optional: Add discovery source display | Low |
 
 ---
 
 ## Verification Steps
 
-1. Test full flow: Google → Blog → Join Marketplace → /welcome → /signup
-2. Complete registration and verify email
-3. Check profiles table for `first_external_referrer` and `first_blog_landing`
-4. View user in Admin Users table - confirm attribution is displayed
-5. Test return via email link days later - attribution should persist
+After implementation:
+
+1. Complete a test signup flow from the blog (Google → Blog → Marketplace)
+2. Check the `profiles` table for the new user - verify `first_external_referrer` is populated
+3. View the user in Admin Users table - confirm attribution fields display correctly
+4. Test direct marketplace signup - verify immediate referrer is captured
+5. Test LinkedIn/Email link signup - verify those referrers appear correctly
+
+---
+
+## How Referrer Tracking Works for All Sources
+
+When a user arrives at the marketplace from ANY source, the tracking flow is:
+
+```text
+1. User clicks link (LinkedIn post, email, ChatGPT, Google, etc.)
+2. Browser includes HTTP Referer header
+3. SessionContext captures document.referrer
+4. track-session edge function stores in user_sessions.referrer
+5. useUnifiedAnalytics categorizes into channels
+6. Intelligence Center displays in Channels/Referrers tabs
+```
+
+This works for ALL sources - no special handling needed for LinkedIn, Email, ChatGPT, etc. They're all captured via the standard HTTP referrer mechanism.
+
+The only special case is cross-domain tracking (blog → marketplace) where the referrer is "sourcecodeals.com" but we want to know what brought them to the blog originally - that's what the `sco_` parameters handle.
