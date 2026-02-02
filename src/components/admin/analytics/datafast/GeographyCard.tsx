@@ -3,6 +3,7 @@ import { AnalyticsCard, SortToggle } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { cn } from "@/lib/utils";
+import { ProportionalBar } from "./ProportionalBar";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -40,6 +41,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
   'Poland': '🇵🇱',
   'Portugal': '🇵🇹',
   'South Korea': '🇰🇷',
+  'Hungary': '🇭🇺',
+  'Czech Republic': '🇨🇿',
   'Unknown': '🌍',
 };
 
@@ -57,15 +60,22 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
     { id: 'city', label: 'City' },
   ];
 
-  const sortedCountries = [...countries].sort((a, b) => 
+  // Filter out Unknown from display but keep for totals
+  const filteredCountries = countries.filter(c => c.name && c.name !== 'Unknown' && c.name !== 'null');
+  const filteredCities = cities.filter(c => c.name && c.name !== 'Unknown' && c.name !== 'null');
+
+  const sortedCountries = [...filteredCountries].sort((a, b) => 
     sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
   );
   
-  const sortedCities = [...cities].sort((a, b) => 
+  const sortedCities = [...filteredCities].sort((a, b) => 
     sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
   );
 
-  const maxVisitors = Math.max(...countries.map(c => c.visitors), 1);
+  const maxCountryVisitors = Math.max(...filteredCountries.map(c => c.visitors), 1);
+  const maxCountryConnections = Math.max(...filteredCountries.map(c => c.connections), 1);
+  const maxCityVisitors = Math.max(...filteredCities.map(c => c.visitors), 1);
+  const maxCityConnections = Math.max(...filteredCities.map(c => c.connections), 1);
   
   const countryVisitorMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -78,6 +88,7 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
   const getCountryColor = (countryName: string) => {
     const visitors = countryVisitorMap[countryName] || 0;
     if (visitors === 0) return 'hsl(220 15% 95%)';
+    const maxVisitors = Math.max(...Object.values(countryVisitorMap), 1);
     const intensity = Math.min(visitors / maxVisitors, 1);
     // Coral gradient: from light peach to deep coral
     const lightness = 95 - (intensity * 40);
@@ -140,18 +151,32 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                     { label: 'Conv. Rate', value: `${country.visitors > 0 ? ((country.connections / country.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                   ]}
                 >
-                  <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-base">{getFlag(country.name)}</span>
-                      <span className="text-sm">{country.name}</span>
+                  <ProportionalBar 
+                    value={country.visitors} 
+                    maxValue={maxCountryVisitors}
+                    secondaryValue={country.connections}
+                    secondaryMaxValue={maxCountryConnections}
+                  >
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-lg">{getFlag(country.name)}</span>
+                        <span className="text-sm font-medium">{country.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {country.connections > 0 && (
+                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                            {country.connections} conv
+                          </span>
+                        )}
+                        <span className="text-sm font-medium tabular-nums w-10 text-right">
+                          {country.visitors.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium tabular-nums">
-                      {country[sortBy].toLocaleString()}
-                    </span>
-                  </div>
+                  </ProportionalBar>
                 </AnalyticsTooltip>
               ))}
-              {countries.length === 0 && (
+              {sortedCountries.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">No country data</div>
               )}
             </div>
@@ -160,18 +185,17 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
           {activeTab === 'region' && (
             <div className="space-y-1">
               {regions.slice(0, 8).map((region, i) => (
-                <div 
-                  key={`${region.name}-${i}`}
-                  className="flex items-center justify-between py-1.5 hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-base">{getFlag(region.country)}</span>
-                    <span className="text-sm">{region.name}</span>
+                <ProportionalBar key={`${region.name}-${i}`} value={region.visitors} maxValue={maxCountryVisitors}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg">{getFlag(region.country)}</span>
+                      <span className="text-sm font-medium">{region.name}</span>
+                    </div>
+                    <span className="text-sm font-medium tabular-nums">
+                      {region[sortBy].toLocaleString()}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium tabular-nums">
-                    {region[sortBy].toLocaleString()}
-                  </span>
-                </div>
+                </ProportionalBar>
               ))}
               {regions.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">No region data</div>
@@ -191,18 +215,32 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                     { label: 'Connections', value: city.connections },
                   ]}
                 >
-                  <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-base">{getFlag(city.country)}</span>
-                      <span className="text-sm">{city.name}</span>
+                  <ProportionalBar 
+                    value={city.visitors} 
+                    maxValue={maxCityVisitors}
+                    secondaryValue={city.connections}
+                    secondaryMaxValue={maxCityConnections}
+                  >
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-lg">{getFlag(city.country)}</span>
+                        <span className="text-sm font-medium">{city.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {city.connections > 0 && (
+                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                            {city.connections} conv
+                          </span>
+                        )}
+                        <span className="text-sm font-medium tabular-nums w-10 text-right">
+                          {city.visitors.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium tabular-nums">
-                      {city[sortBy].toLocaleString()}
-                    </span>
-                  </div>
+                  </ProportionalBar>
                 </AnalyticsTooltip>
               ))}
-              {cities.length === 0 && (
+              {sortedCities.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">No city data</div>
               )}
             </div>

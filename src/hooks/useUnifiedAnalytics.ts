@@ -54,6 +54,13 @@ export interface UnifiedAnalyticsData {
     sessions: number;
     pagesViewed: number;
     connections: number;
+    country?: string;
+    device?: string;
+    browser?: string;
+    os?: string;
+    source?: string;
+    lastSeen?: string;
+    activityDays?: Array<{ date: string; pageViews: number; level: 'none' | 'low' | 'medium' | 'high' }>;
   }>;
 }
 
@@ -248,16 +255,34 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         ? sessionsWithDuration.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length
         : 0;
       
-      // Sparklines (last 7 days)
+      // Sparklines (last 7 days) - COMPUTE FROM RAW DATA as fallback
       const last7Days = Array.from({ length: 7 }, (_, i) => format(subDays(endDate, 6 - i), 'yyyy-MM-dd'));
-      const visitorSparkline = last7Days.map(date => {
-        const metric = dailyMetrics.find(m => m.date === date);
-        return metric?.total_sessions || 0;
+      
+      // Build daily counts from raw sessions for sparklines
+      const dailySessionCountsForSparkline = new Map<string, number>();
+      const dailyConnectionCountsForSparkline = new Map<string, number>();
+      
+      uniqueSessions.forEach(s => {
+        try {
+          const dateStr = format(parseISO(s.started_at), 'yyyy-MM-dd');
+          dailySessionCountsForSparkline.set(dateStr, (dailySessionCountsForSparkline.get(dateStr) || 0) + 1);
+        } catch { /* ignore parse errors */ }
       });
-      const connectionSparkline = last7Days.map(date => {
-        const metric = dailyMetrics.find(m => m.date === date);
-        return metric?.connection_requests || 0;
+      
+      connections.forEach(c => {
+        try {
+          const dateStr = format(parseISO(c.created_at), 'yyyy-MM-dd');
+          dailyConnectionCountsForSparkline.set(dateStr, (dailyConnectionCountsForSparkline.get(dateStr) || 0) + 1);
+        } catch { /* ignore parse errors */ }
       });
+      
+      // Use raw data for sparklines (more reliable than empty daily_metrics)
+      const visitorSparkline = last7Days.map(date => 
+        dailySessionCountsForSparkline.get(date) || 0
+      );
+      const connectionSparkline = last7Days.map(date => 
+        dailyConnectionCountsForSparkline.get(date) || 0
+      );
       
       // Channel breakdown
       const channelCounts: Record<string, { visitors: number; connections: number }> = {};
@@ -416,7 +441,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         .sort((a, b) => b.exits - a.exits)
         .slice(0, 10);
       
-      // Tech breakdown
+      // Tech breakdown - FILTER OUT NULL/UNKNOWN from top of lists
       const browserCounts: Record<string, number> = {};
       const osCounts: Record<string, number> = {};
       const deviceCounts: Record<string, number> = {};
@@ -433,15 +458,19 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       
       const totalForPercent = uniqueSessions.length || 1;
       
+      // Filter out Unknown/null from top of lists but keep for percentage calculation
       const browsers = Object.entries(browserCounts)
+        .filter(([name]) => name && name !== 'Unknown' && name !== 'null' && name !== 'undefined')
         .map(([name, visitors]) => ({ name, visitors, percentage: (visitors / totalForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
       const operatingSystems = Object.entries(osCounts)
+        .filter(([name]) => name && name !== 'Unknown' && name !== 'null' && name !== 'undefined')
         .map(([name, visitors]) => ({ name, visitors, percentage: (visitors / totalForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
       const devices = Object.entries(deviceCounts)
+        .filter(([type]) => type && type !== 'Unknown' && type !== 'null' && type !== 'undefined')
         .map(([type, visitors]) => ({ type, visitors, percentage: (visitors / totalForPercent) * 100 }))
         .sort((a, b) => b.visitors - a.visitors);
       
@@ -482,14 +511,18 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       });
       
       const userSessionCounts = new Map<string, number>();
-      const userSessionData = new Map<string, { country?: string; device?: string; source?: string; lastSeen?: string }>();
+      const userSessionData = new Map<string, { country?: string; device?: string; browser?: string; os?: string; source?: string; lastSeen?: string }>();
       uniqueSessions.forEach(s => {
         if (s.user_id) {
           userSessionCounts.set(s.user_id, (userSessionCounts.get(s.user_id) || 0) + 1);
-          if (!userSessionData.has(s.user_id)) {
+          // Keep the most recent session data
+          const existing = userSessionData.get(s.user_id);
+          if (!existing || new Date(s.started_at) > new Date(existing.lastSeen || 0)) {
             userSessionData.set(s.user_id, {
               country: s.country,
               device: s.device_type,
+              browser: s.browser,
+              os: s.os,
               source: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
               lastSeen: s.started_at,
             });
@@ -505,12 +538,40 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       // Map profiles by ID for quick lookup
       const profileMap = new Map(profiles.map(p => [p.id, p]));
       
+      // Compute activity days from page views (last 7 days)
+      const userPageViewsByDate = new Map<string, Map<string, number>>();
+      pageViews.forEach(pv => {
+        const session = sessionMap.get(pv.session_id || '');
+        if (session?.user_id) {
+          const userId = session.user_id;
+          if (!userPageViewsByDate.has(userId)) {
+            userPageViewsByDate.set(userId, new Map());
+          }
+          try {
+            const dateStr = format(parseISO(pv.created_at), 'yyyy-MM-dd');
+            const userDates = userPageViewsByDate.get(userId)!;
+            userDates.set(dateStr, (userDates.get(dateStr) || 0) + 1);
+          } catch { /* ignore */ }
+        }
+      });
+      
       const topUsers = Array.from(allUserIds)
         .map(id => {
           const profile = profileMap.get(id);
           const sessionData = userSessionData.get(id);
           const connectionCount = userConnectionCounts.get(id) || 0;
           const sessionCount = userSessionCounts.get(id) || 0;
+          
+          // Build activity days for this user
+          const userDates = userPageViewsByDate.get(id);
+          const activityDays = last7Days.map(date => {
+            const pageViewCount = userDates?.get(date) || 0;
+            let level: 'none' | 'low' | 'medium' | 'high' = 'none';
+            if (pageViewCount > 10) level = 'high';
+            else if (pageViewCount > 3) level = 'medium';
+            else if (pageViewCount > 0) level = 'low';
+            return { date, pageViews: pageViewCount, level };
+          });
           
           return {
             id,
@@ -519,17 +580,20 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
               : 'Anonymous Visitor',
             company: profile?.company || '',
             sessions: sessionCount,
-            pagesViewed: 0,
+            pagesViewed: activityDays.reduce((sum, d) => sum + d.pageViews, 0),
             connections: connectionCount,
             country: sessionData?.country,
             device: sessionData?.device,
+            browser: sessionData?.browser,
+            os: sessionData?.os,
             source: sessionData?.source,
             lastSeen: sessionData?.lastSeen,
+            activityDays,
           };
         })
         .filter(u => u.connections > 0 || u.sessions > 0) // Must have some activity
         .sort((a, b) => b.connections - a.connections || b.sessions - a.sessions)
-        .slice(0, 20);
+        .slice(0, 25);
       
       // Format daily metrics - FALLBACK to computing from raw data if empty
       let formattedDailyMetrics: Array<{ date: string; visitors: number; connections: number; bounceRate: number }>;

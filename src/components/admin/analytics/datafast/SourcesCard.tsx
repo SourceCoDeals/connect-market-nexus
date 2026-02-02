@@ -13,6 +13,7 @@ import {
   ExternalLink 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProportionalBar } from "./ProportionalBar";
 
 interface SourcesCardProps {
   channels: Array<{ name: string; visitors: number; connections: number; icon: string }>;
@@ -56,6 +57,10 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
   );
   
   const totalVisitors = channels.reduce((sum, c) => sum + c.visitors, 0);
+  const maxReferrerVisitors = Math.max(...referrers.map(r => r.visitors), 1);
+  const maxReferrerConnections = Math.max(...referrers.map(r => r.connections), 1);
+  const maxCampaignVisitors = Math.max(...campaigns.map(c => c.visitors), 1);
+  const maxKeywordVisitors = Math.max(...keywords.map(k => k.visitors), 1);
 
   return (
     <AnalyticsCard
@@ -92,7 +97,7 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
               </div>
               
               {/* Legend List */}
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-1">
                 {sortedChannels.slice(0, 6).map((channel) => {
                   const percentage = totalVisitors > 0 
                     ? ((channel[sortBy] / (sortBy === 'visitors' ? totalVisitors : channels.reduce((s, c) => s + c.connections, 0) || 1)) * 100).toFixed(0)
@@ -108,7 +113,7 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                         { label: 'Conv. Rate', value: `${channel.visitors > 0 ? ((channel.connections / channel.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                       ]}
                     >
-                      <div className="flex items-center justify-between py-1 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
+                      <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
                         <div className="flex items-center gap-2">
                           <div 
                             className="w-2.5 h-2.5 rounded-full"
@@ -147,21 +152,35 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                     { label: 'Conv. Rate', value: `${ref.visitors > 0 ? ((ref.connections / ref.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                   ]}
                 >
-                  <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
-                    <div className="flex items-center gap-2.5">
-                      <img 
-                        src={ref.favicon} 
-                        alt="" 
-                        className="w-4 h-4 rounded"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                      <span className="text-sm truncate max-w-[180px]">{ref.domain}</span>
-                      <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                  <ProportionalBar 
+                    value={ref.visitors} 
+                    maxValue={maxReferrerVisitors}
+                    secondaryValue={ref.connections}
+                    secondaryMaxValue={maxReferrerConnections}
+                  >
+                    <div className="flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center gap-2.5">
+                        <img 
+                          src={ref.favicon} 
+                          alt="" 
+                          className="w-4 h-4 rounded"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <span className="text-sm font-medium truncate max-w-[180px]">{ref.domain}</span>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {ref.connections > 0 && (
+                          <span className="text-xs text-[hsl(12_95%_60%)] font-medium tabular-nums">
+                            {ref.connections} conv
+                          </span>
+                        )}
+                        <span className="text-sm font-medium tabular-nums w-10 text-right">
+                          {ref.visitors.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium tabular-nums">
-                      {ref[sortBy].toLocaleString()}
-                    </span>
-                  </div>
+                  </ProportionalBar>
                 </AnalyticsTooltip>
               ))}
               {referrers.length === 0 && (
@@ -181,12 +200,14 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                     { label: 'Connections', value: campaign.connections },
                   ]}
                 >
-                  <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
-                    <span className="text-sm truncate max-w-[200px]">{campaign.name}</span>
-                    <span className="text-sm font-medium tabular-nums">
-                      {campaign[sortBy].toLocaleString()}
-                    </span>
-                  </div>
+                  <ProportionalBar value={campaign.visitors} maxValue={maxCampaignVisitors}>
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm font-medium truncate max-w-[200px]">{campaign.name}</span>
+                      <span className="text-sm font-medium tabular-nums">
+                        {campaign[sortBy].toLocaleString()}
+                      </span>
+                    </div>
+                  </ProportionalBar>
                 </AnalyticsTooltip>
               ))}
               {campaigns.length === 0 && (
@@ -198,15 +219,14 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
           {activeTab === 'keyword' && (
             <div className="space-y-1">
               {keywords.slice(0, 8).map((kw) => (
-                <div 
-                  key={kw.term}
-                  className="flex items-center justify-between py-1.5 hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors"
-                >
-                  <span className="text-sm truncate max-w-[200px]">{kw.term}</span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {kw[sortBy].toLocaleString()}
-                  </span>
-                </div>
+                <ProportionalBar key={kw.term} value={kw.visitors} maxValue={maxKeywordVisitors}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium truncate max-w-[200px]">{kw.term}</span>
+                    <span className="text-sm font-medium tabular-nums">
+                      {kw[sortBy].toLocaleString()}
+                    </span>
+                  </div>
+                </ProportionalBar>
               ))}
               {keywords.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">No keyword data</div>

@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { AnalyticsCard } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
-import { ArrowRight, User, Building2, Clock, MapPin, Monitor, Smartphone, Globe, Check, FileText, Link2, ChevronRight } from "lucide-react";
+import { ArrowRight, User, Building2, Clock, Monitor, Smartphone, Globe, Check, FileText, Link2, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ActivityDots } from "./ActivityDots";
 import { UserDetailPanel } from "./UserDetailPanel";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { BrowserLogo, OSLogo, SourceLogo } from "./BrowserLogo";
+import { ProportionalBar } from "./ProportionalBar";
 
 interface FunnelStage {
   name: string;
@@ -24,8 +26,10 @@ interface TopUser {
   connections: number;
   country?: string;
   device?: string;
-  lastSeen?: string;
+  browser?: string;
+  os?: string;
   source?: string;
+  lastSeen?: string;
   timeToConvert?: number;
   activityDays?: Array<{ date: string; pageViews: number; level: 'none' | 'low' | 'medium' | 'high' }>;
 }
@@ -63,6 +67,7 @@ const COUNTRY_FLAGS: Record<string, string> = {
   'France': '🇫🇷',
   'Hungary': '🇭🇺',
   'Netherlands': '🇳🇱',
+  'Australia': '🇦🇺',
   'Unknown': '🌍',
 };
 
@@ -76,6 +81,26 @@ function formatTimeToConvert(seconds: number | undefined): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} hrs`;
   return `${Math.floor(seconds / 86400)} days`;
+}
+
+function formatLastSeen(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  try {
+    const date = parseISO(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    
+    if (diffHours < 24) {
+      return `Today at ${format(date, 'h:mm a')}`;
+    } else if (diffHours < 48) {
+      return `Yesterday at ${format(date, 'h:mm a')}`;
+    } else {
+      return formatDistanceToNow(date, { addSuffix: true });
+    }
+  } catch {
+    return '';
+  }
 }
 
 // Enhanced Funnel Visualization
@@ -107,16 +132,6 @@ function FunnelVisualization({ stages, overallConversion }: { stages: FunnelStag
                   { label: 'Count', value: stage.count.toLocaleString() },
                   { label: 'Drop-off', value: `${stage.dropoff > 0 ? '-' : ''}${stage.dropoff.toFixed(0)}%` },
                   { label: 'Conv. from start', value: `${maxCount > 0 ? ((stage.count / maxCount) * 100).toFixed(1) : 0}%`, highlight: true },
-                ]}
-                topSources={[
-                  { name: 'Direct', percentage: 45 },
-                  { name: 'Google', percentage: 28 },
-                  { name: 'LinkedIn', percentage: 15 },
-                ]}
-                topCountries={[
-                  { name: 'United States', percentage: 42 },
-                  { name: 'United Kingdom', percentage: 18 },
-                  { name: 'Canada', percentage: 12 },
                 ]}
               >
                 <div 
@@ -164,7 +179,6 @@ function FunnelVisualization({ stages, overallConversion }: { stages: FunnelStag
 
 // Goals tab content
 function GoalsTab({ funnel }: { funnel: { stages: FunnelStage[] } }) {
-  // Calculate goal completions based on funnel data
   const goals = funnel.stages.map((stage, index) => {
     const prevCount = index > 0 ? funnel.stages[index - 1].count : stage.count;
     const conversionRate = prevCount > 0 ? (stage.count / prevCount) * 100 : 0;
@@ -206,7 +220,7 @@ function GoalsTab({ funnel }: { funnel: { stages: FunnelStage[] } }) {
   );
 }
 
-// Users tab content with rich detail
+// Enhanced Users tab with full Datafa.st-style data
 function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: string) => void }) {
   if (users.length === 0) {
     return (
@@ -215,67 +229,109 @@ function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: 
       </div>
     );
   }
+
+  const maxConnections = Math.max(...users.map(u => u.connections), 1);
+  const maxSessions = Math.max(...users.map(u => u.sessions), 1);
   
   return (
     <div className="space-y-1">
-      {users.slice(0, 8).map((user) => (
-        <div
+      {/* Header row */}
+      <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-2">
+        <span className="flex-1">Visitor</span>
+        <div className="flex items-center gap-6">
+          <span className="w-16 text-center">Source</span>
+          <span className="w-10 text-right">Conv</span>
+          <span className="w-24 text-right">Last seen</span>
+          <span className="w-20 text-right">Activity</span>
+        </div>
+      </div>
+      
+      {users.slice(0, 10).map((user) => (
+        <ProportionalBar
           key={user.id}
-          onClick={() => onUserClick(user.id)}
-          className="flex items-center justify-between py-2.5 px-2 -mx-2 rounded-lg hover:bg-muted/30 cursor-pointer transition-colors group"
+          value={user.sessions}
+          maxValue={maxSessions}
+          secondaryValue={user.connections}
+          secondaryMaxValue={maxConnections}
+          className="cursor-pointer"
         >
-          <div className="flex items-center gap-3">
-            {/* Avatar */}
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[hsl(12_95%_77%)] to-[hsl(12_95%_60%)] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-              {user.name.charAt(0).toUpperCase()}
+          <div
+            onClick={() => onUserClick(user.id)}
+            className="flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[hsl(12_95%_77%)] to-[hsl(12_95%_60%)] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium truncate">{user.name}</span>
+                  {user.connections > 0 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-[hsl(145_60%_90%)] text-[hsl(145_60%_40%)] border-0">
+                      Customer
+                    </Badge>
+                  )}
+                </div>
+                
+                {/* Tech stack row */}
+                <div className="flex items-center gap-2 mt-0.5">
+                  {user.country && (
+                    <span className="text-xs">{getFlag(user.country)}</span>
+                  )}
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    {user.device && (
+                      user.device === 'Mobile' ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />
+                    )}
+                    {user.os && <OSLogo os={user.os} className="h-3 w-3 opacity-70" />}
+                    {user.browser && <BrowserLogo browser={user.browser} className="h-3 w-3" />}
+                  </div>
+                </div>
+              </div>
             </div>
             
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{user.name}</span>
-                {user.country && (
-                  <span className="text-sm">{getFlag(user.country)}</span>
+            <div className="flex items-center gap-6">
+              {/* Source */}
+              <div className="w-16 flex items-center justify-center gap-1">
+                {user.source && (
+                  <>
+                    <SourceLogo source={user.source} className="h-3.5 w-3.5" />
+                    <span className="text-xs text-muted-foreground truncate max-w-[50px]">
+                      {user.source === 'Direct' ? 'Direct' : user.source.split(' ')[0]}
+                    </span>
+                  </>
                 )}
               </div>
-              {user.company && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Building2 className="h-3 w-3" />
-                  <span className="truncate max-w-[150px]">{user.company}</span>
-                </div>
-              )}
+              
+              {/* Connections count */}
+              <div className="w-10 text-right">
+                <span className={cn(
+                  "text-sm font-semibold tabular-nums",
+                  user.connections > 0 ? "text-[hsl(12_95%_60%)]" : "text-muted-foreground"
+                )}>
+                  {user.connections}
+                </span>
+              </div>
+              
+              {/* Last seen */}
+              <div className="w-24 text-right">
+                <span className="text-xs text-muted-foreground">
+                  {formatLastSeen(user.lastSeen)}
+                </span>
+              </div>
+              
+              {/* Activity dots */}
+              <div className="w-20 flex justify-end">
+                {user.activityDays && user.activityDays.length > 0 && (
+                  <ActivityDots days={user.activityDays} />
+                )}
+              </div>
+              
+              <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            {/* Device icon */}
-            <div className="text-muted-foreground">
-              {user.device === 'Mobile' ? (
-                <Smartphone className="h-3.5 w-3.5" />
-              ) : (
-                <Monitor className="h-3.5 w-3.5" />
-              )}
-            </div>
-            
-            {/* Activity dots */}
-            {user.activityDays && (
-              <ActivityDots days={user.activityDays} />
-            )}
-            
-            {/* Stats */}
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-sm font-medium tabular-nums">{user.sessions}</div>
-                <div className="text-[10px] text-muted-foreground uppercase">sessions</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-medium tabular-nums text-[hsl(12_95%_60%)]">{user.connections}</div>
-                <div className="text-[10px] text-muted-foreground uppercase">connections</div>
-              </div>
-            </div>
-            
-            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
+        </ProportionalBar>
       ))}
     </div>
   );
@@ -288,7 +344,7 @@ function JourneyTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id
   // Filter users who completed the selected goal
   const filteredUsers = users.filter(u => {
     if (selectedGoal === 'connection_request') return u.connections > 0;
-    return true; // For demo, show all users
+    return true;
   });
 
   return (
@@ -314,7 +370,7 @@ function JourneyTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id
       
       {/* Journey table */}
       <div className="space-y-1">
-        {filteredUsers.slice(0, 6).map((user) => (
+        {filteredUsers.slice(0, 8).map((user) => (
           <div
             key={user.id}
             onClick={() => onUserClick(user.id)}
@@ -329,9 +385,15 @@ function JourneyTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id
                   <span className="text-sm font-medium">{user.name}</span>
                   {user.country && <span className="text-sm">{getFlag(user.country)}</span>}
                 </div>
-                {user.source && (
-                  <div className="text-xs text-muted-foreground">via {user.source}</div>
-                )}
+                <div className="flex items-center gap-1.5 text-muted-foreground mt-0.5">
+                  {user.device && (
+                    user.device === 'Mobile' ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />
+                  )}
+                  {user.browser && <BrowserLogo browser={user.browser} className="h-3 w-3" />}
+                  {user.source && (
+                    <span className="text-xs ml-1">via {user.source}</span>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -379,7 +441,7 @@ export function ConversionCard({ funnel, topUsers }: ConversionCardProps) {
     <>
       <AnalyticsCard
         tabs={tabs}
-        defaultTab="funnel"
+        defaultTab="users"
         className="col-span-full"
       >
         {(activeTab) => (

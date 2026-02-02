@@ -3,6 +3,7 @@ import { AnalyticsCard, SortToggle } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProportionalBar } from "./ProportionalBar";
 
 interface PagesCardProps {
   topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
@@ -57,6 +58,10 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
     { id: 'exit', label: 'Exit page' },
   ];
 
+  const maxPageVisitors = Math.max(...topPages.map(p => p.visitors), 1);
+  const maxEntryVisitors = Math.max(...entryPages.map(p => p.visitors), 1);
+  const maxExitVisitors = Math.max(...exitPages.map(p => p.exits), 1);
+
   return (
     <AnalyticsCard
       tabs={tabs}
@@ -76,17 +81,19 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                     { label: 'Bounce Rate', value: `${page.bounceRate.toFixed(0)}%` },
                   ]}
                 >
-                  <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors group">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <code className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
-                        {formatPath(page.path)}
-                      </code>
-                      <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                  <ProportionalBar value={page.visitors} maxValue={maxPageVisitors}>
+                    <div className="flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
+                          {formatPath(page.path)}
+                        </code>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
+                      </div>
+                      <span className="text-sm font-medium tabular-nums">
+                        {page.visitors.toLocaleString()}
+                      </span>
                     </div>
-                    <span className="text-sm font-medium tabular-nums">
-                      {page.visitors.toLocaleString()}
-                    </span>
-                  </div>
+                  </ProportionalBar>
                 </AnalyticsTooltip>
               ))}
               {topPages.length === 0 && (
@@ -106,19 +113,21 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                     { label: 'Bounce Rate', value: `${page.bounceRate.toFixed(0)}%` },
                   ]}
                 >
-                  <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
-                    <code className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
-                      {formatPath(page.path)}
-                    </code>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {page.bounceRate.toFixed(0)}% bounce
-                      </span>
-                      <span className="text-sm font-medium tabular-nums">
-                        {page.visitors.toLocaleString()}
-                      </span>
+                  <ProportionalBar value={page.visitors} maxValue={maxEntryVisitors}>
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
+                        {formatPath(page.path)}
+                      </code>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {page.bounceRate.toFixed(0)}% bounce
+                        </span>
+                        <span className="text-sm font-medium tabular-nums">
+                          {page.visitors.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </ProportionalBar>
                 </AnalyticsTooltip>
               ))}
               {entryPages.length === 0 && (
@@ -138,19 +147,21 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                     { label: 'Exit Rate', value: `${page.exitRate.toFixed(1)}%` },
                   ]}
                 >
-                  <div className="flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors">
-                    <code className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
-                      {formatPath(page.path)}
-                    </code>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {page.exitRate.toFixed(0)}%
-                      </span>
-                      <span className="text-sm font-medium tabular-nums">
-                        {page.exits.toLocaleString()}
-                      </span>
+                  <ProportionalBar value={page.exits} maxValue={maxExitVisitors}>
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
+                        {formatPath(page.path)}
+                      </code>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {page.exitRate.toFixed(0)}%
+                        </span>
+                        <span className="text-sm font-medium tabular-nums">
+                          {page.exits.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </ProportionalBar>
                 </AnalyticsTooltip>
               ))}
               {exitPages.length === 0 && (
