@@ -187,10 +187,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         profilesResult,
         allConnectionsWithMilestonesResult,
       ] = await Promise.all([
-        // Current period sessions - include visitor_id for proper counting
+        // Current period sessions - include visitor_id and region for proper counting
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, browser, os, device_type, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at')
           .gte('started_at', startDateStr)
           .order('started_at', { ascending: false }),
         
@@ -547,9 +547,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           cityVisitors[cityKey].sessions++;
         }
         
-        // Region aggregation (use city as region fallback since we don't have region field)
-        // In a real setup, you'd have a separate region field
-        const region = (s as any).region || s.city;
+        // Region aggregation - use the actual region field
+        const region = (s as any).region;
         if (region) {
           const regionKey = `${region}, ${country}`;
           if (!regionVisitors[regionKey]) {
@@ -573,7 +572,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
               cityConnections[cityKey] = (cityConnections[cityKey] || 0) + 1;
             }
             
-            const region = (userSession as any).region || userSession.city;
+            const region = (userSession as any).region;
             if (region) {
               const regionKey = `${region}, ${country}`;
               regionConnections[regionKey] = (regionConnections[regionKey] || 0) + 1;
@@ -615,14 +614,17 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
         .sort((a, b) => b.visitors - a.visitors)
         .slice(0, 10);
       
-      // Pages breakdown
+      // Pages breakdown - FILTER by production sessions only
+      const productionSessionIds = new Set(uniqueSessions.map(s => s.session_id));
+      const filteredPageViews = pageViews.filter(pv => productionSessionIds.has(pv.session_id));
+      
       const pageCounts: Record<string, { visitors: number; views: number }> = {};
       const entryPageCounts: Record<string, { visitors: number; bounces: number }> = {};
       const exitPageCounts: Record<string, number> = {};
       
       // Group page views by session
-      const sessionPages: Record<string, typeof pageViews> = {};
-      pageViews.forEach(pv => {
+      const sessionPages: Record<string, typeof filteredPageViews> = {};
+      filteredPageViews.forEach(pv => {
         if (pv.session_id) {
           if (!sessionPages[pv.session_id]) sessionPages[pv.session_id] = [];
           sessionPages[pv.session_id].push(pv);

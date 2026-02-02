@@ -91,8 +91,10 @@ export function useNuclearAuth() {
             const appUser = createUserObject(profile);
             setUser(appUser);
             
-            // Link journey to user on successful auth
+            // Link journey AND session to user on successful auth
             const visitorId = localStorage.getItem(VISITOR_ID_KEY);
+            const currentSessionId = sessionStorage.getItem('session_id');
+            
             if (visitorId) {
               console.log('🔗 Linking journey to authenticated user:', session.user.id);
               supabase.rpc('link_journey_to_user', {
@@ -101,6 +103,23 @@ export function useNuclearAuth() {
               }).then(({ error }) => {
                 if (error) console.error('Failed to link journey:', error);
               });
+            }
+            
+            // Merge anonymous session with auth user (preserves geo data)
+            if (currentSessionId) {
+              console.log('🔗 Merging session with user:', currentSessionId, '->', session.user.id);
+              supabase
+                .from('user_sessions')
+                .update({ 
+                  user_id: session.user.id,
+                  last_active_at: new Date().toISOString(),
+                })
+                .eq('session_id', currentSessionId)
+                .is('user_id', null) // Only update if not already linked
+                .then(({ error }) => {
+                  if (error) console.error('Failed to merge session:', error);
+                  else console.log('✅ Session merged with user');
+                });
             }
           }
         } else {

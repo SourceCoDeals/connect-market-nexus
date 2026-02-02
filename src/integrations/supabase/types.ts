@@ -1103,6 +1103,64 @@ export type Database = {
           },
         ]
       }
+      deal_ranking_history: {
+        Row: {
+          change_reason: string | null
+          changed_by_user_id: string | null
+          created_at: string | null
+          id: string
+          listing_id: string
+          new_rank: number | null
+          new_score: number | null
+          old_rank: number | null
+          old_score: number | null
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          listing_id: string
+          new_rank?: number | null
+          new_score?: number | null
+          old_rank?: number | null
+          old_score?: number | null
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          listing_id?: string
+          new_rank?: number | null
+          new_score?: number | null
+          old_rank?: number | null
+          old_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_ranking_history_changed_by_user_id_fkey"
+            columns: ["changed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_ranking_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_ranking_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_referrals: {
         Row: {
           cc_sender: boolean | null
@@ -2228,6 +2286,54 @@ export type Database = {
           },
         ]
       }
+      industry_classifications: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          industry_name: string
+          industry_tier: number | null
+          is_addon_heavy: boolean | null
+          is_rollup_strategy: boolean | null
+          keywords: string[] | null
+          pe_attractiveness_notes: string | null
+          recurring_revenue_typical: boolean | null
+          tier_name: string | null
+          typical_ebitda_multiple_range: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          industry_name: string
+          industry_tier?: number | null
+          is_addon_heavy?: boolean | null
+          is_rollup_strategy?: boolean | null
+          keywords?: string[] | null
+          pe_attractiveness_notes?: string | null
+          recurring_revenue_typical?: boolean | null
+          tier_name?: string | null
+          typical_ebitda_multiple_range?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          industry_name?: string
+          industry_tier?: number | null
+          is_addon_heavy?: boolean | null
+          is_rollup_strategy?: boolean | null
+          keywords?: string[] | null
+          pe_attractiveness_notes?: string | null
+          recurring_revenue_typical?: boolean | null
+          tier_name?: string | null
+          typical_ebitda_multiple_range?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       industry_trackers: {
         Row: {
           buyer_count: number | null
@@ -2505,6 +2611,7 @@ export type Database = {
           acquisition_type: string | null
           address: string | null
           business_model: string | null
+          calculated_rank: number | null
           categories: string[] | null
           category: string
           competitive_position: string | null
@@ -2517,6 +2624,11 @@ export type Database = {
           customer_geography: string | null
           customer_types: string | null
           deal_identifier: string | null
+          deal_industry_score: number | null
+          deal_motivation_score: number | null
+          deal_quality_score: number | null
+          deal_size_score: number | null
+          deal_total_score: number | null
           deleted_at: string | null
           description: string
           description_html: string | null
@@ -2527,19 +2639,30 @@ export type Database = {
           ebitda_metric_subtitle: string | null
           ebitda_source_quote: string | null
           enriched_at: string | null
+          enrichment_error_message: string | null
+          enrichment_last_attempted_at: string | null
+          enrichment_last_successful_at: string | null
+          enrichment_status: string | null
+          estimated_ebitda: number | null
           executive_summary: string | null
           extraction_sources: Json | null
           files: string[] | null
+          final_rank: number | null
           founded_year: number | null
           full_time_employees: number | null
           general_notes: string | null
           geographic_states: string[] | null
+          google_review_count: number | null
           growth_drivers: Json | null
           growth_trajectory: string | null
+          has_management_team: boolean | null
+          has_multiple_locations: boolean | null
           hero_description: string | null
           id: string
           image_url: string | null
           industry: string | null
+          industry_tier: number | null
+          industry_tier_name: string | null
           internal_company_name: string | null
           internal_contact_info: string | null
           internal_deal_memo_link: string | null
@@ -2547,11 +2670,15 @@ export type Database = {
           internal_primary_owner: string | null
           internal_salesforce_link: string | null
           investment_thesis: string | null
+          is_owner_dependent: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
+          last_ranked_at: string | null
+          linkedin_employee_count: number | null
           location: string
           location_radius_requirement: string | null
           management_depth: string | null
+          manual_rank_override: number | null
           market_position: Json | null
           metric_3_custom_label: string | null
           metric_3_custom_subtitle: string | null
@@ -2572,13 +2699,20 @@ export type Database = {
           primary_contact_name: string | null
           primary_contact_phone: string | null
           primary_owner_id: string | null
+          rank_locked: boolean | null
           real_estate_info: string | null
+          recurring_revenue_percentage: number | null
           revenue: number
           revenue_confidence: string | null
           revenue_is_inferred: boolean | null
           revenue_metric_subtitle: string | null
           revenue_model_breakdown: Json | null
           revenue_source_quote: string | null
+          revenue_trend: string | null
+          seller_interest_analyzed_at: string | null
+          seller_interest_confidence: string | null
+          seller_interest_notes: Json | null
+          seller_interest_score: number | null
           seller_involvement_preference: string | null
           seller_motivation: string | null
           service_mix: string | null
@@ -2587,6 +2721,7 @@ export type Database = {
           status: string
           status_tag: string | null
           tags: string[] | null
+          team_page_employee_count: number | null
           technology_systems: string | null
           timeline_preference: string | null
           title: string
@@ -2599,6 +2734,7 @@ export type Database = {
           acquisition_type?: string | null
           address?: string | null
           business_model?: string | null
+          calculated_rank?: number | null
           categories?: string[] | null
           category: string
           competitive_position?: string | null
@@ -2611,6 +2747,11 @@ export type Database = {
           customer_geography?: string | null
           customer_types?: string | null
           deal_identifier?: string | null
+          deal_industry_score?: number | null
+          deal_motivation_score?: number | null
+          deal_quality_score?: number | null
+          deal_size_score?: number | null
+          deal_total_score?: number | null
           deleted_at?: string | null
           description: string
           description_html?: string | null
@@ -2621,19 +2762,30 @@ export type Database = {
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
           enriched_at?: string | null
+          enrichment_error_message?: string | null
+          enrichment_last_attempted_at?: string | null
+          enrichment_last_successful_at?: string | null
+          enrichment_status?: string | null
+          estimated_ebitda?: number | null
           executive_summary?: string | null
           extraction_sources?: Json | null
           files?: string[] | null
+          final_rank?: number | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
+          google_review_count?: number | null
           growth_drivers?: Json | null
           growth_trajectory?: string | null
+          has_management_team?: boolean | null
+          has_multiple_locations?: boolean | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
           industry?: string | null
+          industry_tier?: number | null
+          industry_tier_name?: string | null
           internal_company_name?: string | null
           internal_contact_info?: string | null
           internal_deal_memo_link?: string | null
@@ -2641,11 +2793,15 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          is_owner_dependent?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
+          last_ranked_at?: string | null
+          linkedin_employee_count?: number | null
           location: string
           location_radius_requirement?: string | null
           management_depth?: string | null
+          manual_rank_override?: number | null
           market_position?: Json | null
           metric_3_custom_label?: string | null
           metric_3_custom_subtitle?: string | null
@@ -2666,13 +2822,20 @@ export type Database = {
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
           primary_owner_id?: string | null
+          rank_locked?: boolean | null
           real_estate_info?: string | null
+          recurring_revenue_percentage?: number | null
           revenue: number
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           revenue_source_quote?: string | null
+          revenue_trend?: string | null
+          seller_interest_analyzed_at?: string | null
+          seller_interest_confidence?: string | null
+          seller_interest_notes?: Json | null
+          seller_interest_score?: number | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           service_mix?: string | null
@@ -2681,6 +2844,7 @@ export type Database = {
           status?: string
           status_tag?: string | null
           tags?: string[] | null
+          team_page_employee_count?: number | null
           technology_systems?: string | null
           timeline_preference?: string | null
           title: string
@@ -2693,6 +2857,7 @@ export type Database = {
           acquisition_type?: string | null
           address?: string | null
           business_model?: string | null
+          calculated_rank?: number | null
           categories?: string[] | null
           category?: string
           competitive_position?: string | null
@@ -2705,6 +2870,11 @@ export type Database = {
           customer_geography?: string | null
           customer_types?: string | null
           deal_identifier?: string | null
+          deal_industry_score?: number | null
+          deal_motivation_score?: number | null
+          deal_quality_score?: number | null
+          deal_size_score?: number | null
+          deal_total_score?: number | null
           deleted_at?: string | null
           description?: string
           description_html?: string | null
@@ -2715,19 +2885,30 @@ export type Database = {
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
           enriched_at?: string | null
+          enrichment_error_message?: string | null
+          enrichment_last_attempted_at?: string | null
+          enrichment_last_successful_at?: string | null
+          enrichment_status?: string | null
+          estimated_ebitda?: number | null
           executive_summary?: string | null
           extraction_sources?: Json | null
           files?: string[] | null
+          final_rank?: number | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
+          google_review_count?: number | null
           growth_drivers?: Json | null
           growth_trajectory?: string | null
+          has_management_team?: boolean | null
+          has_multiple_locations?: boolean | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
           industry?: string | null
+          industry_tier?: number | null
+          industry_tier_name?: string | null
           internal_company_name?: string | null
           internal_contact_info?: string | null
           internal_deal_memo_link?: string | null
@@ -2735,11 +2916,15 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          is_owner_dependent?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
+          last_ranked_at?: string | null
+          linkedin_employee_count?: number | null
           location?: string
           location_radius_requirement?: string | null
           management_depth?: string | null
+          manual_rank_override?: number | null
           market_position?: Json | null
           metric_3_custom_label?: string | null
           metric_3_custom_subtitle?: string | null
@@ -2760,13 +2945,20 @@ export type Database = {
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
           primary_owner_id?: string | null
+          rank_locked?: boolean | null
           real_estate_info?: string | null
+          recurring_revenue_percentage?: number | null
           revenue?: number
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           revenue_source_quote?: string | null
+          revenue_trend?: string | null
+          seller_interest_analyzed_at?: string | null
+          seller_interest_confidence?: string | null
+          seller_interest_notes?: Json | null
+          seller_interest_score?: number | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           service_mix?: string | null
@@ -2775,6 +2967,7 @@ export type Database = {
           status?: string
           status_tag?: string | null
           tags?: string[] | null
+          team_page_employee_count?: number | null
           technology_systems?: string | null
           timeline_preference?: string | null
           title?: string
