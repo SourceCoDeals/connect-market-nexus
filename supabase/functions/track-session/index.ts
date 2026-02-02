@@ -40,11 +40,13 @@ interface SessionData {
   time_on_page?: number;
   // Cross-domain tracking params (from sourcecodeals.com)
   original_referrer?: string;
+  original_referrer_host?: string; // Hardened version - hostname only (privacy-safe)
   blog_landing?: string;
   sco_entry_time?: string;
   // Ad tracking IDs
   gclid?: string;
   fbclid?: string;
+  li_fat_id?: string; // LinkedIn ad tracking
 }
 
 async function getGeoData(ip: string): Promise<GeoData | null> {
