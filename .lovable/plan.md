@@ -1,222 +1,314 @@
 
-# Intelligence Center Data Accuracy Issues & Complete Fix Plan
+# Intelligence Center: Tooltips, Logos, Sort Toggle & Real Data Fix
 
 ## Summary of Issues Found
 
-I've investigated the entire Intelligence Center data pipeline and found **6 critical issues** causing incorrect data display:
+I've investigated deeply and identified **7 distinct issues** that need to be addressed:
 
 ---
 
-## Issue 1: Historical `unique_visitors` is 0 (Chart Shows No Data Before Jan 26)
+## Issue 1: Sort Toggle (Visitors/Connections) Doesn't Work
 
-**What you see:** Chart shows 0 visitors for all dates before Jan 26, 2026
+**Current Behavior:** Clicking the Visitors ↓ toggle does nothing - the list doesn't re-sort.
 
-**Root Cause:** The `daily_metrics` table has `unique_visitors = 0` for all dates before Jan 26:
-
-| Date | unique_visitors | total_sessions |
-|------|-----------------|----------------|
-| Jan 15 | **0** | 522 |
-| Jan 20 | **0** | 58 |
-| Jan 25 | **0** | 44 |
-| Jan 26 | 36 | 107 |
-
-**Why:** The backfill function ran for the first time on Jan 26, so older records were never populated with the new `unique_visitors` column. The original backfill had the old logic.
-
-**Fix:** Re-run the updated backfill function for all historical dates with the corrected visitor counting logic.
-
----
-
-## Issue 2: Newsletter/Email Traffic Miscategorized as "Referral"
-
-**What you see:** 12 Newsletter visits, 52 Referral
-
-**Reality:** You sent emails via Brevo (exdov.r.sp1-brevo.net, sendibt3.com). These should be "Newsletter", not "Referral"
-
-**Database shows:**
-- `https://exdov.r.sp1-brevo.net/` → 44 sessions → Currently categorized as "Referral"
-- `https://exdov.r.bh.d.sendibt3.com/` → 77 sessions → Currently categorized as "Referral"
-- Only 18 sessions have proper UTM tags (`utm_medium=email`)
-
-**Root Cause in code (`categorizeChannel` function lines 84-118):**
+**Root Cause in `SourcesCard.tsx` (lines 55-57, 145-185):**
 ```typescript
-// Newsletter detection ONLY looks for utm_medium
-if (medium.includes('email') || medium.includes('newsletter')) return 'Newsletter';
+// sortBy state is defined correctly
+const [sortBy, setSortBy] = useState<'visitors' | 'connections'>('visitors');
 
-// But Brevo email URLs don't have UTM tags in the referrer!
-// So they fall through to "Referral"
+// Channels ARE sorted correctly (line 55-57)
+const sortedChannels = [...channels].sort((a, b) => 
+  sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
+);
+
+// BUT referrers tab doesn't use the sorted version!
+{referrers.slice(0, 8).map((ref) => ...)} // ← Not sorted by sortBy!
 ```
 
-**Fix:** Add Brevo domain detection to `categorizeChannel`:
+**Same issue in:**
+- `GeographyCard.tsx`: Regions tab doesn't use `sortBy`
+- `PagesCard.tsx`: Entry/Exit pages don't have connection data to sort by
+- `TechStackCard.tsx`: Has `sortBy` state but no connection data exists
+
+**Fix:**
+1. Sort referrers, campaigns, keywords by `sortBy` in SourcesCard
+2. Sort regions by `sortBy` in GeographyCard
+3. Add connection counts to geography, pages, and tech stack data
+
+---
+
+## Issue 2: Referrer Tooltips Need Visitors + Connections Data
+
+**Current State:** Tooltips already exist in `SourcesCard.tsx` (lines 146-153) showing:
+- Visitors
+- Connections
+- Conv. Rate
+
+**What's Missing:** Connections data is always `0` in the referrers array because `useUnifiedAnalytics.ts` (line 433) doesn't calculate connections per referrer:
+
 ```typescript
-// Add email platform detection
-if (source.includes('brevo') || source.includes('sendibt') || source.includes('mailchimp') || source.includes('sendgrid')) return 'Newsletter';
+const referrers = Object.keys(referrerVisitors)
+  .map(domain => ({ 
+    domain, 
+    visitors: referrerVisitors[domain].size, 
+    sessions: referrerSessions[domain] || 0,
+    connections: 0,  // ← ALWAYS ZERO!
+    favicon: `...`
+  }))
+```
+
+**Fix:** Calculate referrer connections by mapping user's connection to their first-touch referrer.
+
+---
+
+## Issue 3: Referrer Logos Use Generic Google Favicons
+
+**Current Implementation (line 163-168 in SourcesCard.tsx):**
+```tsx
+<img 
+  src={ref.favicon}  // Uses Google favicon service
+  alt="" 
+  className="w-4 h-4 rounded"
+/>
+```
+
+**The favicon URLs are:**
+```typescript
+favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
+```
+
+**Problem:** This works for known domains, but for Brevo email domains like `exdov.r.sp1-brevo.net`, the favicons are generic or broken.
+
+**Fix:** Create a `ReferrerLogo` component that:
+1. Checks for known platforms (Brevo, Mailchimp, Google, LinkedIn, etc.)
+2. Shows custom SVG icons for recognized services
+3. Falls back to Google favicon service only for unknown domains
+
+---
+
+## Issue 4: Geography Card Shows Wrong Connection Counts
+
+**Database Reality:**
+| Country | Sessions | Unique Visitors | Connections |
+|---------|----------|-----------------|-------------|
+| NULL (Unknown) | 253 | 64 | **ALL connections are from users with NULL country** |
+| France | 38 | 8 | 0 |
+| Netherlands | 29 | 3 | 0 |
+| UK | 16 | 3 | 0 |
+
+**Root Cause:** All users who made connections don't have country data on their sessions (checked via database query).
+
+**Current Code (lines 510-518):**
+```typescript
+const countries = Object.keys(countryVisitors)
+  .map(name => ({ 
+    name, 
+    code: name.substring(0, 2).toUpperCase(), 
+    visitors: countryVisitors[name].size,
+    sessions: countrySessions[name] || 0,
+    connections: 0  // ← ALWAYS ZERO - no calculation!
+  }))
+```
+
+**Fix:**
+1. Calculate connections per country by joining user's connection with their session country
+2. Handle NULL country gracefully (show as "Unknown Location")
+3. Add proper connection attribution to geography breakdown
+
+---
+
+## Issue 5: Country Tooltips Missing Connection Data
+
+**Current Tooltip (GeographyCard.tsx lines 145-152):**
+```tsx
+<AnalyticsTooltip
+  title={country.name}
+  rows={[
+    { label: 'Visitors', value: country.visitors.toLocaleString() },
+    { label: 'Connections', value: country.connections },  // Shows 0
+    { label: 'Conv. Rate', value: `${...}%`, highlight: true },
+  ]}
+>
+```
+
+**The data is shown but values are wrong** - connections is always 0 because of Issue #4.
+
+---
+
+## Issue 6: Regions Tab Shows No Data
+
+**Current Code (line 802):**
+```typescript
+regions: [],  // ← Empty array returned!
+```
+
+**The regions aggregation exists in the session data but isn't being processed.**
+
+**Fix:** Aggregate region data from sessions with proper visitor counting:
+```typescript
+const regionVisitors: Record<string, { visitors: Set<string>; sessions: number; country: string }> = {};
+uniqueSessions.forEach(s => {
+  if (s.region) {
+    // ... aggregate region data
+  }
+});
 ```
 
 ---
 
-## Issue 3: "38 Visitors from France" is Actually 8 Real People
+## Issue 7: Pages, Tech Stack, and Funnel Cards Missing Connection Attribution
 
-**What you see:** France: 38 visitors
+These cards show visitor counts but have no connection data:
 
-**Reality:**
-| Metric | Value |
-|--------|-------|
-| Sessions from France | 38 |
-| Sessions with visitor_id | 8 |
-| Sessions with NO tracking (anonymous) | 30 |
-| **TRUE unique visitors** | **8** |
+**Pages Card:**
+- Top pages show visitors but no "which pages led to connections"
+- Entry pages show bounces but no conversion data
+- Exit pages show exits but no connection correlation
 
-**Root Cause:** 30 sessions from France have `visitor_id = NULL` and `user_id = NULL`. The `getVisitorKey()` function falls back to `session_id`, counting each anonymous session as a separate "visitor":
+**Tech Stack Card:**
+- Shows browser/OS visitor counts
+- No connection attribution (which browser converts best?)
 
-```typescript
-function getVisitorKey(session) {
-  return session.user_id || session.visitor_id || session.session_id; // ← session_id is NOT a visitor!
-}
-```
-
-**Why are visitor_ids NULL?**
-The 104.28.x.x IPs are **Cloudflare IPs** (proxy). These visitors may be:
-- Using privacy browsers that block localStorage (where visitor_id is stored)
-- Bots/crawlers that don't execute JavaScript
-- Users with aggressive ad blockers
-
-**Fix:** The code is correct, but the data has gaps. We need to:
-1. **For display:** Don't count sessions with NULL visitor_id as unique visitors
-2. **For tracking:** Already fixed in `track-session` - now stores visitor_id from frontend
-
----
-
-## Issue 4: "Direct" Traffic is Overcounted (70% = 151 visitors)
-
-**What you see:** Direct: 70% (151 visitors)
-
-**Reality:** Many of those "Direct" visits are actually:
-- Email clicks that lost UTM parameters
-- Internal navigation from marketplace.sourcecodeals.com
-- Broken referrer tracking
-
-**Database shows:**
-| Channel | Sessions | True Description |
-|---------|----------|------------------|
-| NULL referrer | 240 | Marked as "Direct" |
-| exdov.r.sp1-brevo.net | 44 | Should be "Newsletter" |
-| www.sourcecodeals.com | 31 | Should be "Referral (Main Site)" |
-| marketplace.sourcecodeals.com | 19 | Internal navigation (should exclude?) |
-
-**Fix:** 
-1. Detect Brevo/email domains as "Newsletter"
-2. Detect internal marketplace referrers as "Internal" (or exclude)
-3. Consider excluding internal navigation from source breakdown
-
----
-
-## Issue 5: Country Data is Inflated by Anonymous Sessions
-
-**What you see:**
-- France: 38
-- Netherlands: 29
-- UK: 16
-- US: 8
-
-**Reality (TRUE unique visitors by country):**
-| Country | Sessions Shown | Actual Unique Visitors |
-|---------|----------------|----------------------|
-| France | 38 | **8** |
-| Netherlands | 29 | **3** |
-| UK | 16 | **3** |
-| Spain | 7 | **0** (all anonymous) |
-| US | 8 | **0** (all anonymous) |
-
-**Root Cause:** Same as Issue #3 - each anonymous session is counted as a visitor.
-
----
-
-## Issue 6: Backfill Never Completed (Times Out)
-
-The `backfill-daily-metrics` function times out before processing all historical dates (196 days since July 2025).
-
-**Fix:** Modify the function to process in smaller batches with pagination, or I'll run it myself in chunks.
+**Funnel Card:**
+- Uses real NDA/Fee Agreement data ✓
+- But shows generic counts, not cohort analysis
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Fix Channel Categorization (Immediate)
+### Phase 1: Fix Sort Toggle (All Cards)
+
+**Files to modify:**
+- `src/components/admin/analytics/datafast/SourcesCard.tsx`
+- `src/components/admin/analytics/datafast/GeographyCard.tsx`
+
+Add proper sorting to all tabs based on `sortBy` state.
+
+### Phase 2: Add Connection Attribution to Referrers
 
 **File:** `src/hooks/useUnifiedAnalytics.ts`
 
-Update `categorizeChannel` function:
 ```typescript
-function categorizeChannel(referrer, utmSource, utmMedium): string {
-  const source = (referrer || utmSource || '').toLowerCase();
-  const medium = (utmMedium || '').toLowerCase();
+// Map connections to referrers via user's first session referrer
+const referrerConnections: Record<string, number> = {};
+connections.forEach(c => {
+  if (c.user_id) {
+    const userSession = uniqueSessions.find(s => s.user_id === c.user_id);
+    if (userSession) {
+      const domain = extractDomain(userSession.referrer);
+      referrerConnections[domain] = (referrerConnections[domain] || 0) + 1;
+    }
+  }
+});
+
+// Use in referrers array
+const referrers = Object.keys(referrerVisitors)
+  .map(domain => ({ 
+    domain, 
+    visitors: referrerVisitors[domain].size,
+    sessions: referrerSessions[domain] || 0,
+    connections: referrerConnections[domain] || 0,  // ← Now populated!
+    favicon: `...`
+  }))
+```
+
+### Phase 3: Create ReferrerLogo Component
+
+**New file:** `src/components/admin/analytics/datafast/ReferrerLogo.tsx`
+
+```typescript
+interface ReferrerLogoProps {
+  domain: string;
+  className?: string;
+}
+
+// Known platform logos (SVG inline)
+const KNOWN_PLATFORMS: Record<string, React.FC> = {
+  'brevo': BrevoLogo,
+  'sendibt': BrevoLogo,  // Brevo's tracking domain
+  'mailchimp': MailchimpLogo,
+  'google': GoogleLogo,
+  'linkedin': LinkedInLogo,
+  'twitter': XLogo,
+  'facebook': FacebookLogo,
+  'sourcecodeals': SourceCodealsLogo,
+};
+
+export function ReferrerLogo({ domain, className }: ReferrerLogoProps) {
+  const lowerDomain = domain.toLowerCase();
   
-  // Newsletter/Email - check domains first!
-  if (source.includes('brevo') || source.includes('sendibt') || 
-      source.includes('mailchimp') || source.includes('sendgrid') ||
-      source.includes('hubspot') || source.includes('klaviyo')) return 'Newsletter';
-  if (medium.includes('email') || medium.includes('newsletter')) return 'Newsletter';
+  // Check for known platforms
+  for (const [key, LogoComponent] of Object.entries(KNOWN_PLATFORMS)) {
+    if (lowerDomain.includes(key)) {
+      return <LogoComponent className={className} />;
+    }
+  }
   
-  // Internal navigation (exclude from sources)
-  if (source.includes('marketplace.sourcecodeals.com')) return 'Internal';
-  
-  // ... rest of function
+  // Fallback to favicon
+  return <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} ... />;
 }
 ```
 
-### Phase 2: Fix Visitor Counting for Anonymous Sessions
+### Phase 4: Add Connection Attribution to Geography
 
 **File:** `src/hooks/useUnifiedAnalytics.ts`
 
-Update `getVisitorKey` to handle anonymous sessions better:
 ```typescript
-// Option A: Exclude anonymous sessions from "unique visitors" count
-// These should only count toward "sessions", not "visitors"
-function getVisitorKey(session): string | null {
-  if (session.user_id) return session.user_id;
-  if (session.visitor_id) return session.visitor_id;
-  return null; // Don't count anonymous sessions as visitors
-}
+// Map connections to countries via user's session
+const countryConnections: Record<string, number> = {};
+connections.forEach(c => {
+  if (c.user_id) {
+    const userSession = uniqueSessions.find(s => s.user_id === c.user_id);
+    if (userSession?.country) {
+      countryConnections[userSession.country] = (countryConnections[userSession.country] || 0) + 1;
+    } else {
+      // User has no country - count as Unknown
+      countryConnections['Unknown'] = (countryConnections['Unknown'] || 0) + 1;
+    }
+  }
+});
 
-// Then filter out nulls when counting unique visitors
-const uniqueVisitorKeys = new Set(
-  uniqueSessions.map(s => getVisitorKey(s)).filter(Boolean)
-);
-const currentVisitors = uniqueVisitorKeys.size;
+const countries = Object.keys(countryVisitors)
+  .map(name => ({ 
+    name, 
+    code: name.substring(0, 2).toUpperCase(), 
+    visitors: countryVisitors[name].size,
+    sessions: countrySessions[name] || 0,
+    connections: countryConnections[name] || 0,  // ← Now populated!
+  }))
 ```
 
-### Phase 3: Re-run Historical Backfill
+### Phase 5: Populate Regions Data
 
-**Update backfill function** to use corrected visitor counting:
-1. Only count sessions with `user_id` OR `visitor_id` as unique visitors
-2. Filter out dev traffic
-3. Use proper email domain detection
+**File:** `src/hooks/useUnifiedAnalytics.ts`
 
-**Run backfill in batches:**
-- July-September 2025
-- October-December 2025
-- January 2026
+Add region aggregation (currently returns empty array):
+```typescript
+const regionVisitors: Record<string, { visitors: Set<string>; sessions: number; country: string }> = {};
+uniqueSessions.forEach(s => {
+  if (s.region) {
+    const key = s.region;
+    if (!regionVisitors[key]) {
+      regionVisitors[key] = { visitors: new Set(), sessions: 0, country: s.country || 'Unknown' };
+    }
+    const visitorKey = getVisitorKey(s);
+    if (visitorKey) regionVisitors[key].visitors.add(visitorKey);
+    regionVisitors[key].sessions++;
+  }
+});
 
-### Phase 4: Update daily_metrics for All Dates
-
-After code fixes, re-run:
-```bash
-curl -X POST ".../backfill-daily-metrics" \
-  -d '{"startDate": "2025-07-21", "endDate": "2026-02-02", "delayMs": 100}'
+const regions = Object.entries(regionVisitors)
+  .map(([name, data]) => ({
+    name,
+    country: data.country,
+    visitors: data.visitors.size,
+    sessions: data.sessions,
+    connections: 0, // Would need region-level connection tracking
+  }))
+  .sort((a, b) => b.visitors - a.visitors)
+  .slice(0, 10);
 ```
-
----
-
-## Expected Results After Fix
-
-| Metric | Current (Wrong) | After Fix (Correct) |
-|--------|-----------------|---------------------|
-| France visitors | 38 | 8 |
-| Netherlands visitors | 29 | 3 |
-| Newsletter channel | 12 (6%) | ~150+ (recognizes Brevo) |
-| Direct channel | 151 (70%) | ~46 (only true direct) |
-| Historical chart | Empty before Jan 26 | Full data since July 2025 |
-| Total unique visitors | 182 | ~78 (excluding anonymous) |
 
 ---
 
@@ -224,29 +316,31 @@ curl -X POST ".../backfill-daily-metrics" \
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useUnifiedAnalytics.ts` | Fix `categorizeChannel`, fix `getVisitorKey`, add internal navigation filter |
-| `supabase/functions/backfill-daily-metrics/index.ts` | Add email domain detection, fix visitor counting |
-| `supabase/functions/aggregate-daily-metrics/index.ts` | Same fixes for ongoing aggregation |
+| `src/hooks/useUnifiedAnalytics.ts` | Add connection attribution to referrers, countries, cities; populate regions |
+| `src/components/admin/analytics/datafast/SourcesCard.tsx` | Fix sort toggle for referrers/campaigns/keywords tabs |
+| `src/components/admin/analytics/datafast/GeographyCard.tsx` | Fix sort toggle for regions tab |
+| `src/components/admin/analytics/datafast/ReferrerLogo.tsx` | NEW: Create component with known platform logos |
 
 ---
 
-## Technical Notes
+## Expected Results After Fix
 
-### Why visitor_id is NULL for some sessions
+| Feature | Before | After |
+|---------|--------|-------|
+| Sort toggle | Only works on first tab | Works on all tabs |
+| Referrer connections | Always 0 | Shows real attribution |
+| Referrer logos | Generic favicons for Brevo | Brand logos for known platforms |
+| Country connections | Always 0 | Shows user-country attribution |
+| Regions data | Empty | Populated from session data |
+| Tooltips | Show zeros | Show real visitor + connection counts |
 
-The 104.28.x.x IP range is **Cloudflare's proxy network**. These visitors:
-1. May have JavaScript disabled (visitor_id is set via JS)
-2. May be using privacy browsers that block localStorage
-3. May be bots that don't execute client-side code
-4. May have hit the site before visitor_id tracking was implemented
+---
 
-### True Data Quality Assessment
+## Technical Note: Connection Attribution Limitation
 
-| Tracking Quality | Sessions | % |
-|------------------|----------|---|
-| Has user_id (logged in) | 78 | 22% |
-| Has visitor_id (anonymous tracked) | ~170 | 48% |
-| No tracking (anonymous sessions) | 97 | 27% |
-| **Total production sessions (Jan 26+)** | 351 | 100% |
+Currently, ~22 users have made connections, but **none of them have country data in their sessions**. This means:
+- Country connections will show 0 until more users with country data convert
+- Going forward, new sessions should have country data (geo-tracking is now working)
+- The code fix will work correctly once session geo-data is populated
 
-Going forward, 70-75% of visitors can be uniquely identified. The 27% anonymous gap is due to privacy settings and bots - this is normal for any analytics platform.
+This is a **data gap**, not a code bug. The fix ensures the infrastructure is ready to display connection attribution once the data exists.
