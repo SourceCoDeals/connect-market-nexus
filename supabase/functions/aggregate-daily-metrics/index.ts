@@ -74,10 +74,13 @@ Deno.serve(async (req) => {
     const totalSessions = uniqueSessions.length;
     
     // CRITICAL FIX: Count unique VISITORS (people), not sessions
+    // Only count sessions with identifiable visitors (user_id or visitor_id)
     const uniqueVisitorSet = new Set<string>();
     uniqueSessions.forEach(s => {
-      const visitorKey = s.user_id || s.visitor_id || s.session_id;
-      uniqueVisitorSet.add(visitorKey);
+      // Only count if we have a real user/visitor identifier - NOT session_id fallback
+      if (s.user_id) uniqueVisitorSet.add(s.user_id);
+      else if (s.visitor_id) uniqueVisitorSet.add(s.visitor_id);
+      // Anonymous sessions (no user_id or visitor_id) are NOT counted as unique visitors
     });
     const uniqueVisitors = uniqueVisitorSet.size;
     
