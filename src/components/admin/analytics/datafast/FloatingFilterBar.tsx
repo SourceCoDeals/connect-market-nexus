@@ -1,4 +1,4 @@
-import { X, Heart } from "lucide-react";
+import { X } from "lucide-react";
 import { useAnalyticsFilters, FilterType } from "@/contexts/AnalyticsFiltersContext";
 import { cn } from "@/lib/utils";
 import { ReferrerLogo } from "./ReferrerLogo";
@@ -55,10 +55,6 @@ export function FloatingFilterBar() {
         </div>
       ))}
       
-      {/* Favorite button like datafast */}
-      <button className="p-2.5 rounded-full bg-card/95 backdrop-blur-sm border border-border/50 shadow-lg text-muted-foreground hover:text-foreground transition-colors">
-        <Heart className="h-4 w-4" />
-      </button>
     </div>
   );
 }
