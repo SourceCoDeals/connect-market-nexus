@@ -7,6 +7,7 @@ import { getCountryCode } from "@/lib/flagEmoji";
 export interface EnhancedActiveUser {
   // Identity - REAL DATA
   sessionId: string;
+  visitorId: string | null; // NEW: Persistent visitor identity
   userId: string | null;
   userName: string | null;
   displayName: string;
@@ -37,6 +38,7 @@ export interface EnhancedActiveUser {
   ga4ClientId: string | null;      // For GA4 data stitching
   firstTouchSource: string | null; // Original acquisition source
   firstTouchMedium: string | null; // Original acquisition medium
+  externalReferrer: string | null; // NEW: External referrer (e.g., blog)
   
   // Current Session
   sessionDurationSeconds: number;
@@ -57,6 +59,11 @@ export interface EnhancedActiveUser {
   // Trust Signals
   feeAgreementSigned: boolean;
   ndaSigned: boolean;
+  
+  // Cross-session journey data (NEW)
+  visitorFirstSeen: string | null;       // When they first visited
+  visitorTotalSessions: number;          // Sessions across all time
+  visitorTotalTime: number;              // Total time on site ever
 }
 
 export interface EnhancedRealTimeData {
@@ -164,6 +171,32 @@ function normalizeReferrer(referrer: string | null, utmSource: string | null): s
   return hostname && hostname.length > 0 && hostname.includes('.') ? hostname : 'Referral';
 }
 
+// Extract external referrer domain for display (e.g., sourcecodeals.com/blog -> sourcecodeals.com)
+function extractExternalReferrer(referrer: string | null): string | null {
+  if (!referrer) return null;
+  
+  try {
+    const url = new URL(referrer.startsWith('http') ? referrer : `https://${referrer}`);
+    const hostname = url.hostname.replace('www.', '');
+    
+    // Check if it's an internal/preview domain
+    if (
+      hostname.includes('lovable.') ||
+      hostname.includes('localhost') ||
+      hostname.includes('127.0.0.1') ||
+      hostname.includes('marketplace.sourcecodeals')
+    ) {
+      return null;
+    }
+    
+    // Return the full path for context (e.g., sourcecodeals.com/blog)
+    const path = url.pathname !== '/' ? url.pathname : '';
+    return `${hostname}${path}`;
+  } catch {
+    return null;
+  }
+}
+
 export function useEnhancedRealTimeAnalytics() {
   return useQuery({
     queryKey: ['enhanced-realtime-analytics'],
@@ -171,12 +204,12 @@ export function useEnhancedRealTimeAnalytics() {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       
-      // Fetch active sessions with profile data - include new GA4 and first-touch fields
+      // Fetch active sessions with profile data - include new GA4, first-touch fields, and visitor_id
       const [sessionsResult, pageViewsResult] = await Promise.all([
         supabase
           .from('user_sessions')
           .select(`
-            id, session_id, user_id, country, country_code, city, region,
+            id, session_id, user_id, visitor_id, country, country_code, city, region,
             device_type, browser, os, referrer, utm_source,
             session_duration_seconds, last_active_at, started_at, is_active,
             ga4_client_id, first_touch_source, first_touch_medium, first_touch_campaign,
@@ -277,10 +310,52 @@ export function useEnhancedRealTimeAnalytics() {
         sessionFirstPage[sid] = sessionPageSequence[sid][0] || null;
       });
       
+      // Fetch cross-session visitor history for anonymous users
+      const visitorIds = sessions
+        .map(s => (s as any).visitor_id)
+        .filter(Boolean) as string[];
+      
+      let visitorHistory: Record<string, {
+        totalSessions: number;
+        firstSeen: string;
+        totalTime: number;
+      }> = {};
+      
+      if (visitorIds.length > 0) {
+        const { data: historicalSessions } = await supabase
+          .from('user_sessions')
+          .select('visitor_id, started_at, session_duration_seconds')
+          .in('visitor_id', visitorIds);
+        
+        // Build visitor history map
+        (historicalSessions || []).forEach(hs => {
+          const vid = hs.visitor_id;
+          if (!vid) return;
+          
+          if (!visitorHistory[vid]) {
+            visitorHistory[vid] = {
+              totalSessions: 0,
+              firstSeen: hs.started_at,
+              totalTime: 0,
+            };
+          }
+          
+          visitorHistory[vid].totalSessions++;
+          visitorHistory[vid].totalTime += hs.session_duration_seconds || 0;
+          
+          // Track earliest session
+          if (new Date(hs.started_at) < new Date(visitorHistory[vid].firstSeen)) {
+            visitorHistory[vid].firstSeen = hs.started_at;
+          }
+        });
+      }
+      
       // Build enhanced user objects with REAL data
       const activeUsers: EnhancedActiveUser[] = sessions.map(session => {
         const profile = session.user_id ? profiles[session.user_id] : null;
         const engagement = session.user_id ? engagementData[session.user_id] : null;
+        const visitorId = (session as any).visitor_id || null;
+        const vHistory = visitorId ? visitorHistory[visitorId] : null;
         
         const isAnonymous = !profile;
         const realName = profile 
@@ -307,8 +382,12 @@ export function useEnhancedRealTimeAnalytics() {
         const pageSequence = sessionPageSequence[session.session_id] || [];
         const firstPagePath = (session as any).first_touch_landing_page || sessionFirstPage[session.session_id] || null;
         
+        // External referrer - extract the origin from first_touch_referrer if it's external
+        const externalReferrer = extractExternalReferrer((session as any).first_touch_referrer || session.referrer);
+        
         return {
           sessionId: session.session_id,
+          visitorId,
           userId: session.user_id,
           userName: realName,
           displayName,
@@ -332,6 +411,7 @@ export function useEnhancedRealTimeAnalytics() {
           ga4ClientId: (session as any).ga4_client_id || null,
           firstTouchSource: (session as any).first_touch_source || null,
           firstTouchMedium: (session as any).first_touch_medium || null,
+          externalReferrer,
           // Current session
           sessionDurationSeconds: calculateDuration(session),
           lastActiveAt,
@@ -341,12 +421,16 @@ export function useEnhancedRealTimeAnalytics() {
           listingsViewed: engagement?.listings_viewed || 0,
           listingsSaved: engagement?.listings_saved || 0,
           connectionsSent: engagement?.connections_requested || 0,
-          totalVisits: engagement?.session_count || 1,
-          totalTimeSpent: engagement?.total_session_time || 0,
+          totalVisits: vHistory?.totalSessions || engagement?.session_count || 1,
+          totalTimeSpent: vHistory?.totalTime || engagement?.total_session_time || 0,
           searchCount: engagement?.search_count || 0,
           // Trust signals
           feeAgreementSigned: profile?.fee_agreement_signed || false,
           ndaSigned: profile?.nda_signed || false,
+          // Cross-session journey data
+          visitorFirstSeen: vHistory?.firstSeen || session.started_at,
+          visitorTotalSessions: vHistory?.totalSessions || 1,
+          visitorTotalTime: vHistory?.totalTime || 0,
         };
       });
       
@@ -391,6 +475,7 @@ export function useEnhancedRealTimeAnalytics() {
             
             matchingUser = {
               sessionId: pv.session_id,
+              visitorId: null,
               userId,
               userName: realName || null,
               displayName: realName || generateAnonymousName(pv.session_id),
@@ -414,6 +499,7 @@ export function useEnhancedRealTimeAnalytics() {
               ga4ClientId: null,
               firstTouchSource: null,
               firstTouchMedium: null,
+              externalReferrer: null,
               // Session
               sessionDurationSeconds: 0,
               lastActiveAt: pv.created_at,
@@ -427,6 +513,10 @@ export function useEnhancedRealTimeAnalytics() {
               searchCount: engagement?.search_count || 0,
               feeAgreementSigned: profile.fee_agreement_signed || false,
               ndaSigned: profile.nda_signed || false,
+              // Cross-session journey data
+              visitorFirstSeen: pv.created_at,
+              visitorTotalSessions: 1,
+              visitorTotalTime: 0,
             };
           }
         }
@@ -466,6 +556,7 @@ export function useEnhancedRealTimeAnalytics() {
 function createDefaultUser(sessionId: string, pagePath: string | null, timestamp: string): EnhancedActiveUser {
   return {
     sessionId,
+    visitorId: null,
     userId: null,
     userName: null,
     displayName: generateAnonymousName(sessionId),
@@ -489,6 +580,7 @@ function createDefaultUser(sessionId: string, pagePath: string | null, timestamp
     ga4ClientId: null,
     firstTouchSource: null,
     firstTouchMedium: null,
+    externalReferrer: null,
     // Session
     sessionDurationSeconds: 0,
     lastActiveAt: timestamp,
@@ -502,5 +594,9 @@ function createDefaultUser(sessionId: string, pagePath: string | null, timestamp
     searchCount: 0,
     feeAgreementSigned: false,
     ndaSigned: false,
+    // Cross-session journey data
+    visitorFirstSeen: timestamp,
+    visitorTotalSessions: 1,
+    visitorTotalTime: 0,
   };
 }

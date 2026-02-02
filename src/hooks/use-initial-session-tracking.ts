@@ -100,6 +100,11 @@ export const useInitialSessionTracking = () => {
         // Get first-touch attribution data from localStorage
         const firstTouchData = getFirstTouchAttribution();
 
+        // Calculate time on page since navigation started for accurate initial duration
+        const timeOnPage = typeof performance !== 'undefined' && performance.timing
+          ? Math.max(0, Math.floor((Date.now() - performance.timing.navigationStart) / 1000))
+          : 0;
+
         // Prepare tracking data for edge function with enhanced journey tracking
         const trackingData = {
           session_id: sessionId,
@@ -121,6 +126,8 @@ export const useInitialSessionTracking = () => {
           landing_search: window.location.search,
           // GA4 integration for data stitching
           ga4_client_id: ga4ClientId,
+          // Initial time on page for accurate session duration from start
+          time_on_page: timeOnPage,
           // First-touch attribution for historical analysis
           ...firstTouchData,
         };
