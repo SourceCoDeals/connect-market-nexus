@@ -107,61 +107,71 @@ function getActivityLevel(pageViews: number): 'none' | 'low' | 'medium' | 'high'
   return 'high';
 }
 
-export function useUserDetail(userId: string | null) {
+export function useUserDetail(visitorId: string | null) {
   return useQuery({
-    queryKey: ['user-detail', userId],
+    queryKey: ['user-detail', visitorId],
     queryFn: async (): Promise<UserDetailData | null> => {
-      if (!userId) return null;
+      if (!visitorId) return null;
       
       const sixMonthsAgo = subDays(new Date(), 180).toISOString();
       
-      // Fetch all data in parallel
-      const [
-        profileResult,
-        sessionsResult,
-        pageViewsResult,
-        connectionsResult,
-      ] = await Promise.all([
-        // Profile data
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle(),
-        
-        // User sessions
-        supabase
-          .from('user_sessions')
-          .select('*')
-          .eq('user_id', userId)
-          .gte('started_at', sixMonthsAgo)
-          .order('started_at', { ascending: false }),
-        
-        // Page views
-        supabase
-          .from('page_views')
-          .select('*')
-          .eq('user_id', userId)
-          .gte('created_at', sixMonthsAgo)
-          .order('created_at', { ascending: true }),
-        
-        // Connections
-        supabase
-          .from('connection_requests')
-          .select('id, created_at, listing_id')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: true }),
+      // First, determine if this is a user_id or visitor_id by checking profiles
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', visitorId)
+        .maybeSingle();
+      
+      const isUserId = !!profile;
+      
+      // Fetch sessions based on identifier type
+      const sessionsQuery = isUserId
+        ? supabase
+            .from('user_sessions')
+            .select('*')
+            .eq('user_id', visitorId)
+            .gte('started_at', sixMonthsAgo)
+            .order('started_at', { ascending: false })
+        : supabase
+            .from('user_sessions')
+            .select('*')
+            .eq('visitor_id', visitorId)
+            .gte('started_at', sixMonthsAgo)
+            .order('started_at', { ascending: false });
+      
+      // Fetch page views (need to join through sessions)
+      const pageViewsQuery = isUserId
+        ? supabase
+            .from('page_views')
+            .select('*')
+            .eq('user_id', visitorId)
+            .gte('created_at', sixMonthsAgo)
+            .order('created_at', { ascending: true })
+        : null; // For anonymous, we'll get page views from session_ids
+      
+      // Only fetch connections for registered users
+      const connectionsQuery = isUserId
+        ? supabase
+            .from('connection_requests')
+            .select('id, created_at, listing_id')
+            .eq('user_id', visitorId)
+            .order('created_at', { ascending: true })
+        : null;
+      
+      const [sessionsResult, pageViewsResult, connectionsResult] = await Promise.all([
+        sessionsQuery,
+        pageViewsQuery,
+        connectionsQuery,
       ]);
       
-      const profile = profileResult.data;
       const sessions = sessionsResult.data || [];
-      const pageViews = pageViewsResult.data || [];
-      const connections = connectionsResult.data || [];
+      let pageViews = pageViewsResult?.data || [];
+      const connections = connectionsResult?.data || [];
       
       // Determine if anonymous
       const isAnonymous = !profile || (!profile.first_name && !profile.last_name);
       const name = isAnonymous 
-        ? generateAnimalName(userId) 
+        ? generateAnimalName(visitorId) 
         : [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Anonymous';
       
       // Get latest session for geo/tech data
@@ -244,7 +254,7 @@ export function useUserDetail(userId: string | null) {
       
       return {
         profile: {
-          id: userId,
+          id: visitorId,
           name,
           email: profile?.email,
           company: profile?.company,
@@ -283,7 +293,7 @@ export function useUserDetail(userId: string | null) {
         },
       };
     },
-    enabled: !!userId,
+    enabled: !!visitorId,
     staleTime: 30000,
   });
 }

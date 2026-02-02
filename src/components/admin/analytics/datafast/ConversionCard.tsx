@@ -20,16 +20,20 @@ interface FunnelStage {
 interface TopUser {
   id: string;
   name: string;
+  isAnonymous?: boolean;
   company: string;
   sessions: number;
   pagesViewed: number;
   connections: number;
   country?: string;
+  city?: string;
   device?: string;
   browser?: string;
   os?: string;
   source?: string;
+  referrerDomain?: string;
   lastSeen?: string;
+  timeOnSite?: number;
   timeToConvert?: number;
   activityDays?: Array<{ date: string; pageViews: number; level: 'none' | 'low' | 'medium' | 'high' }>;
 }
@@ -220,6 +224,36 @@ function GoalsTab({ funnel }: { funnel: { stages: FunnelStage[] } }) {
   );
 }
 
+// Format time on site (seconds to readable format)
+function formatTimeOnSite(seconds: number | undefined): string {
+  if (!seconds || seconds === 0) return '-';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+// Get avatar color based on name for anonymous visitors
+function getAvatarColor(name: string): string {
+  const colors = [
+    'from-blue-500 to-blue-600',
+    'from-emerald-500 to-emerald-600',
+    'from-amber-500 to-amber-600',
+    'from-violet-500 to-violet-600',
+    'from-rose-500 to-rose-600',
+    'from-cyan-500 to-cyan-600',
+    'from-orange-500 to-orange-600',
+    'from-indigo-500 to-indigo-600',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
 // Enhanced Users tab with full Datafa.st-style data
 function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: string) => void }) {
   if (users.length === 0) {
@@ -240,13 +274,13 @@ function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: 
         <span className="flex-1">Visitor</span>
         <div className="flex items-center gap-6">
           <span className="w-16 text-center">Source</span>
-          <span className="w-10 text-right">Conv</span>
+          <span className="w-12 text-right">Spent</span>
           <span className="w-24 text-right">Last seen</span>
           <span className="w-20 text-right">Activity</span>
         </div>
       </div>
       
-      {users.slice(0, 10).map((user) => (
+      {users.slice(0, 15).map((user) => (
         <ProportionalBar
           key={user.id}
           value={user.sessions}
@@ -260,9 +294,14 @@ function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: 
             className="flex items-center justify-between group"
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              {/* Avatar */}
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[hsl(12_95%_77%)] to-[hsl(12_95%_60%)] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                {user.name.charAt(0).toUpperCase()}
+              {/* Avatar with dynamic color for anonymous */}
+              <div className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 bg-gradient-to-br",
+                user.isAnonymous 
+                  ? getAvatarColor(user.name)
+                  : "from-[hsl(12_95%_77%)] to-[hsl(12_95%_60%)]"
+              )}>
+                {user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()}
               </div>
               
               <div className="min-w-0 flex-1">
@@ -270,15 +309,18 @@ function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: 
                   <span className="text-sm font-medium truncate">{user.name}</span>
                   {user.connections > 0 && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-[hsl(145_60%_90%)] text-[hsl(145_60%_40%)] border-0">
-                      Customer
+                      {user.connections} {user.connections === 1 ? 'connection' : 'connections'}
                     </Badge>
                   )}
                 </div>
                 
-                {/* Tech stack row */}
+                {/* Tech stack row with country */}
                 <div className="flex items-center gap-2 mt-0.5">
                   {user.country && (
-                    <span className="text-xs">{getFlag(user.country)}</span>
+                    <span className="text-xs flex items-center gap-1">
+                      <span>{getFlag(user.country)}</span>
+                      <span className="text-muted-foreground truncate max-w-[80px]">{user.country}</span>
+                    </span>
                   )}
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     {user.device && (
@@ -304,13 +346,10 @@ function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: 
                 )}
               </div>
               
-              {/* Connections count */}
-              <div className="w-10 text-right">
-                <span className={cn(
-                  "text-sm font-semibold tabular-nums",
-                  user.connections > 0 ? "text-[hsl(12_95%_60%)]" : "text-muted-foreground"
-                )}>
-                  {user.connections}
+              {/* Time on site (Spent) */}
+              <div className="w-12 text-right">
+                <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                  {formatTimeOnSite(user.timeOnSite)}
                 </span>
               </div>
               
