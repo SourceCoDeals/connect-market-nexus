@@ -1,412 +1,320 @@
 
-# Intelligence Center Complete Redesign
+# Intelligence Center Enhancement Plan - Phase 2
 
-## Vision
+## Current State Assessment
 
-Transform the existing tab-based Analytics dashboard into a modern, card-based Intelligence Center inspired by Datafa.st - a single scrollable page with modular cards, each containing 2-5 internal tabs, rich tooltips on hover, and a floating globe toggle at the bottom.
+### What's Implemented from Original Plan
+1. **KPI Strip** - 6 metrics with sparklines and trends
+2. **Daily Visitors Chart** - Dual-axis bar+line chart with tooltips
+3. **Sources Card** - Channel/Referrer/Campaign/Keyword tabs with donut chart
+4. **Geography Card** - Map/Country/Region/City tabs with choropleth
+5. **Pages Card** - Page/Entry/Exit tabs
+6. **Tech Stack Card** - Browser/OS/Device tabs with progress bars
+7. **Conversion Card** - Simplified funnel (3 stages) + basic Top Users list
+8. **Floating Globe Toggle** - Opens fullscreen Mapbox overlay
+
+### Critical Gaps Identified
+
+**1. Conversion Card is severely underpowered:**
+- Only 3 funnel stages (Visitors, Registered, Connected) - missing NDA and Fee Agreement milestones
+- No "Journey" tab with configurable event filtering
+- No rich user detail panel when clicking a user
+- No activity heatmap per user
+- No "time to complete" tracking
+
+**2. Tooltips are basic:**
+- Missing "Top Sources" and "Top Countries" in funnel hover
+- Missing dual-bar visualization (Visitors + Connections side-by-side)
+- No "Step value" equivalent metrics
+
+**3. User Detail Panel missing:**
+- Datafa.st shows: avatar, location, device, OS, browser, pageviews count, time to completion, activity calendar heatmap, chronological event timeline
+- We have none of this - clicking a user should open a rich modal
+
+**4. Journey Tab not implemented:**
+- Should allow selecting a goal event (e.g., "connection_request")
+- Shows all users who completed that journey
+- Displays time to complete, source, completion date
+- Filterable by different goal types
+
+**5. Source/Geography bar visualizations missing:**
+- Each row should have a proportional bar showing relative magnitude
+- Dual-colored bars for Visitors vs Connections comparison
+
+**6. Real data issues:**
+- Funnel needs to query actual NDA signed / Fee Agreement signed counts from connection_requests
+- Time on page data exists but not displayed
+- User pageview counts not calculated
 
 ---
 
-## Layout Architecture
+## Enhancement Plan
 
+### Section 1: Enhanced Funnel with 6 Marketplace Stages
+
+Replace the simplified 3-stage funnel with the complete M&A marketplace journey:
+
+| Stage | Data Source | Description |
+|-------|-------------|-------------|
+| 1. Landing | Total unique sessions | First touchpoint |
+| 2. Marketplace | Sessions with /marketplace page view | Engaged with listings |
+| 3. Registered | Profiles created in period | Created account |
+| 4. NDA Signed | connection_requests.lead_nda_signed = true | Signed NDA |
+| 5. Fee Agreement | connection_requests.lead_fee_agreement_signed = true | Signed fee agreement |
+| 6. Connected | connection_requests.status = any | Sent connection request |
+
+Funnel visualization shows waterfall bars with drop-off percentages between stages.
+
+Hover tooltip shows:
+- Stage name
+- Count
+- Drop-off percentage
+- Top 3 sources at this stage
+- Top 3 countries at this stage
+
+---
+
+### Section 2: Rich User Tab with Detail Panel
+
+**User List Columns:**
+- Avatar (DiceBear cartoon based on name)
+- Name (or animal name for anonymous)
+- Location with flag
+- Device + OS + Browser icons
+- Source (with favicon)
+- Time to Connect (if converted)
+- Last Seen timestamp
+- Activity dots timeline (last 7 days)
+
+**User Detail Modal (slide-up panel on click):**
+
+Left sidebar:
+- Large avatar
+- Full name or generated animal name
+- Country + City with flag
+- Device type + resolution
+- OS name
+- Browser name
+- "Add parameters" link (future: custom tagging)
+
+Center timeline:
+- Chronological event list with timestamps
+- Events: "Viewed page /path", "Triggered event: marketplace_filter_applied", "Found site via referrer Google"
+- Expandable parameters per event
+- Keyword probability breakdown (for organic search visitors)
+
+Right stats panel:
+- Total pageviews
+- Total time on site
+- Time to conversion (if applicable)
+- Activity heatmap calendar (past 6 months)
+- AI Summary (future: "coming soon...")
+
+---
+
+### Section 3: Journey Tab with Event Filtering
+
+**Goal Event Selector:**
+- Dropdown to choose goal: "connection_request", "nda_signed", "fee_agreement_signed", "viewed_listing", etc.
+- Shows only users who completed the selected goal
+
+**Journey Table Columns:**
+- Visitor (avatar + name + location + device icons)
+- Source (with favicon)
+- Time to Complete (formatted as "2 minutes", "17 days", etc.)
+- Completed At (timestamp)
+- Activity dots
+
+**Click row opens User Detail Modal with full timeline**
+
+---
+
+### Section 4: Enhanced Tooltips Across All Cards
+
+**Sources Card (Channel/Referrer) hover:**
 ```text
-+------------------------------------------------------------------+
-|  [Logo]   < Last 30 days v    Daily v    [Refresh]               |
-+------------------------------------------------------------------+
-|                                                                   |
-|  [Visitors]  [Connections]  [Conv Rate]  [Bounce]  [Session]  [Online]
-|    2.4k        47            1.96%        68%       4m 32s       5
-|   +12.3%      +8.2%         -2.1%        +3.4%     -8.2%
-|                                                                   |
-|  +-------------------------------------------------------------+  |
-|  |              DAILY VISITORS BAR CHART                       |  |
-|  |    [Tooltip: Date, Visitors, Connections, Conv Rate]        |  |
-|  |                                                              |  |
-|  +-------------------------------------------------------------+  |
-|                                                                   |
-|  +---------------------------+  +---------------------------+     |
-|  | Channel | Referrer | UTM  |  | Map | Country | Region |      |
-|  |   Keyword      Visitors v |  |   City             Visitors v |
-|  |                           |  |                           |     |
-|  | [Donut Chart / List]      |  | [Choropleth / Flag List] |     |
-|  |   Organic Social   45%    |  |   United States     847  |     |
-|  |   Direct           32%    |  |   United Kingdom    234  |     |
-|  |   Referral         15%    |  |   Canada            189  |     |
-|  |   Organic Search    8%    |  |   Germany           156  |     |
-|  +---------------------------+  +---------------------------+     |
-|                                                                   |
-|  +---------------------------+  +---------------------------+     |
-|  | Hostname | Page | Entry   |  | Browser | OS | Device     |     |
-|  |   Exit Link   Visitors v  |  |             Visitors v    |     |
-|  |                           |  |                           |     |
-|  |   /marketplace      1.2k  |  |   Chrome          68%     |     |
-|  |   /welcome          892   |  |   Safari          21%     |     |
-|  |   /signup           456   |  |   Firefox          6%     |     |
-|  |   /listing/...      234   |  |   Edge             5%     |     |
-|  +---------------------------+  +---------------------------+     |
-|                                                                   |
-|  +-------------------------------------------------------------+  |
-|  | Goals | Funnel | User | Journey                              |  |
-|  |                                                3.2% conv     |  |
-|  |  [Sankey/Funnel Visualization]                               |  |
-|  |  Visit -> Signup -> NDA -> Fee Agreement -> Connection       |  |
-|  |  2.4k     892       234       156              47             |  |
-|  |      -63%      -74%      -33%       -70%                     |  |
-|  +-------------------------------------------------------------+  |
-|                                                                   |
-|                       [Globe] [Lightbulb]                        |
-+------------------------------------------------------------------+
+Referral
+Visitors     3.6k
+Connections  42
+
+TOP SOURCES
+marclou.com    53%
+lovable.dev    15%
+linkedin.com   8%
+
+Conv. Rate: 1.16%
 ```
 
----
-
-## Component Structure
-
-### 1. Global Header Bar
-- Date range selector (Last 7/30/90 days, Custom)
-- Granularity toggle (Daily/Hourly)
-- Refresh button
-- Compact, Stripe-inspired design
-
-### 2. Hero KPI Strip (6 metrics)
-
-| Metric | Data Source | Marketplace Mapping |
-|--------|-------------|---------------------|
-| Visitors | `user_sessions.count` | Total unique sessions |
-| Connections | `connection_requests.count` | Connection requests |
-| Conversion Rate | connections/visitors | Request rate |
-| Bounce Rate | sessions with 1 page view / total | Single-page exits |
-| Session Time | `avg(session_duration_seconds)` | Avg engagement |
-| Online | Real-time active count | Live visitors |
-
-Each KPI shows:
-- Large value
-- Trend arrow with % change vs previous period
-- Small sparkline
-
-### 3. Main Chart Card
-**Daily Visitors Chart with Dual Axis**
-- Bar chart: Daily visitor count (coral bars)
-- Line overlay: Daily connection requests (blue line)
-- Hover tooltip shows:
-  - Date (e.g., "Saturday, 10 January")
-  - Visitors count
-  - Connections count + "New" badge
-  - Connections/visitor ratio
-  - Conversion rate %
-
-### 4. Sources Card (Left Column)
-**Tabs: Channel | Referrer | Campaign | Keyword**
-
-| Tab | Data Source | Visualization |
-|-----|-------------|---------------|
-| Channel | Categorized referrers | Donut chart with icons |
-| Referrer | `user_sessions.referrer` | Ranked list with favicons |
-| Campaign | `utm_campaign` | List with connection counts |
-| Keyword | `utm_term` | List with connection counts |
-
-**Features:**
-- Sort toggle: Visitors / Connections
-- Filter dropdown by channel
-- Hover tooltip: Visitors, Connections, Conv Rate
-- "Details" expand link
-
-**Channel Categories:**
-- Organic Social (X, LinkedIn, Facebook, Instagram)
-- Organic Search (Google, Bing, Brave)
-- Direct
-- Referral (other sites)
-- AI (ChatGPT, Claude, Perplexity)
-- Newsletter
-- Affiliate
-
-### 5. Geography Card (Right Column)
-**Tabs: Map | Country | Region | City**
-
-| Tab | Visualization |
-|-----|---------------|
-| Map | Choropleth world map (intensity by visitors) |
-| Country | Flag + name list, sorted by visitors |
-| Region | State/province list with parent country flag |
-| City | City list with country flag |
-
-**Features:**
-- Sort toggle: Visitors / Connections
-- Hover tooltip: Country/Region/City, Visitors, Connections, Conv Rate
-- Coral intensity gradient based on visitor count
-- "Details" expand link
-
-### 6. Pages Card (Left Column, Row 2)
-**Tabs: Hostname | Page | Entry page | Exit link**
-
-| Tab | Data Source |
-|-----|-------------|
-| Hostname | Domain breakdown (for multi-domain tracking) |
-| Page | `page_views.page_path` ranked by views |
-| Entry page | First page per session |
-| Exit link | `exit_page = true` pages |
-
-**Features:**
-- Sort toggle: Visitors / Connections
-- Hover tooltip with full path, view count, bounce rate
-- Path truncation with ellipsis
-
-### 7. Tech Stack Card (Right Column, Row 2)
-**Tabs: Browser | OS | Device**
-
-| Tab | Data Source |
-|-----|-------------|
-| Browser | `user_sessions.browser` |
-| OS | `user_sessions.os` |
-| Device | `user_sessions.device_type` |
-
-**Features:**
-- Brand icons (Chrome, Safari, Firefox, etc.)
-- Sort toggle: Visitors / Connections
-- Hover tooltip: Name, Visitors, Connections, Conv Rate
-
-### 8. Conversion Card (Full Width, Row 3)
-**Tabs: Goals | Funnel | User | Journey**
-
-| Tab | Visualization | Data Source |
-|-----|---------------|-------------|
-| Goals | Completed milestones list | `user_journeys.milestones` |
-| Funnel | Sankey/waterfall | Journey stage progression |
-| User | Top converting users | Profile + engagement data |
-| Journey | Path sequence analysis | Page view sequences |
-
-**Funnel Stages (Marketplace-specific):**
-1. Visit Landing Page (all visitors)
-2. View Marketplace (saw listings)
-3. Create Account (registered)
-4. Sign NDA
-5. Sign Fee Agreement
-6. Send Connection Request
-
-Drop-off percentages shown between each stage.
-
-### 9. Floating Action Buttons
-**Sticky footer with two circular buttons:**
-- Globe icon: Toggles 3D Mapbox globe overlay (fullscreen)
-- Lightbulb icon: Toggles AI insights panel (future)
-
----
-
-## Data Hooks Architecture
-
-### New Unified Hook: `useUnifiedAnalytics`
-
-```typescript
-interface UnifiedAnalyticsData {
-  // KPI Summary
-  kpis: {
-    visitors: { value: number; trend: number; sparkline: number[] };
-    connections: { value: number; trend: number; sparkline: number[] };
-    conversionRate: { value: number; trend: number };
-    bounceRate: { value: number; trend: number };
-    avgSessionTime: { value: number; trend: number };
-    onlineNow: number;
-  };
-  
-  // Daily chart data
-  dailyMetrics: Array<{
-    date: string;
-    visitors: number;
-    connections: number;
-    bounceRate: number;
-  }>;
-  
-  // Sources breakdown
-  channels: Array<{ name: string; visitors: number; connections: number; icon: string }>;
-  referrers: Array<{ domain: string; visitors: number; connections: number; favicon: string }>;
-  campaigns: Array<{ name: string; visitors: number; connections: number }>;
-  keywords: Array<{ term: string; visitors: number; connections: number }>;
-  
-  // Geography
-  countries: Array<{ name: string; code: string; visitors: number; connections: number }>;
-  regions: Array<{ name: string; country: string; visitors: number; connections: number }>;
-  cities: Array<{ name: string; country: string; visitors: number; connections: number }>;
-  
-  // Pages
-  topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
-  entryPages: Array<{ path: string; visitors: number; bounceRate: number }>;
-  exitPages: Array<{ path: string; exits: number; exitRate: number }>;
-  
-  // Tech
-  browsers: Array<{ name: string; visitors: number; percentage: number }>;
-  operatingSystems: Array<{ name: string; visitors: number; percentage: number }>;
-  devices: Array<{ type: string; visitors: number; percentage: number }>;
-  
-  // Funnel
-  funnel: {
-    stages: Array<{ name: string; count: number; dropoff: number }>;
-    overallConversion: number;
-  };
-  
-  // Top users (for User tab)
-  topUsers: Array<{
-    id: string;
-    name: string;
-    company: string;
-    sessions: number;
-    pagesViewed: number;
-    connections: number;
-  }>;
-}
-```
-
----
-
-## New Components to Create
-
-### Container Component
-- `DatafastAnalyticsDashboard.tsx` - Main container
-
-### Card Components (Reusable)
-- `AnalyticsCard.tsx` - Base card with internal tabs
-- `KPIStrip.tsx` - Hero metrics row
-- `DailyVisitorsChart.tsx` - Main bar+line chart
-- `SourcesCard.tsx` - Channel/Referrer/Campaign/Keyword
-- `GeographyCard.tsx` - Map/Country/Region/City
-- `PagesCard.tsx` - Hostname/Page/Entry/Exit
-- `TechStackCard.tsx` - Browser/OS/Device
-- `ConversionCard.tsx` - Goals/Funnel/User/Journey
-- `FloatingGlobeToggle.tsx` - Sticky bottom buttons
-
-### Tooltip Components
-- `AnalyticsTooltip.tsx` - Rich hover card (dark theme, multi-row)
-
-### Visualization Components
-- `DonutChart.tsx` - For channel breakdown
-- `ChoroplethMap.tsx` - Simple world map with intensity
-- `FunnelSankey.tsx` - Waterfall/sankey funnel
-- `Sparkline.tsx` - Mini inline chart for KPIs
-
----
-
-## Design System
-
-### Colors (Datafa.st-inspired)
-- Primary bars: `hsl(12 95% 77%)` (coral/peach)
-- Secondary line: `hsl(220 70% 55%)` (blue)
-- Background: `hsl(0 0% 99%)` (near-white)
-- Card: `white` with subtle border
-- Tooltip: `hsl(0 0% 15%)` (dark charcoal)
-- Positive trend: `hsl(145 60% 45%)` (green)
-- Negative trend: `hsl(0 65% 55%)` (red)
-
-### Typography
-- KPI values: `text-4xl font-light tabular-nums`
-- Card labels: `text-[10px] uppercase tracking-[0.15em]`
-- Tab triggers: `text-sm font-medium`
-- List items: `text-sm`
-- Tooltips: `text-xs` with tight line-height
-
-### Spacing
-- Card padding: `p-6`
-- Card gap: `gap-6`
-- Section gap: `space-y-6`
-- Tab content gap: `space-y-4`
-
-### Borders & Shadows
-- Cards: `rounded-2xl border border-border/50`
-- Minimal shadows (almost flat design)
-- Subtle hover states
-
----
-
-## Implementation Phases
-
-### Phase 1: Core Infrastructure
-1. Create `useUnifiedAnalytics` hook consolidating all data
-2. Create base `AnalyticsCard` component with tabs
-3. Create `AnalyticsTooltip` component
-4. Create `FloatingGlobeToggle` component
-
-### Phase 2: Top Section
-1. Build `KPIStrip` with all 6 metrics + sparklines
-2. Build `DailyVisitorsChart` with dual axis + tooltips
-
-### Phase 3: Sources & Geography Row
-1. Build `SourcesCard` with all 4 tabs + donut chart
-2. Build `GeographyCard` with choropleth + flag lists
-
-### Phase 4: Pages & Tech Row
-1. Build `PagesCard` with all 4 tabs
-2. Build `TechStackCard` with icons
-
-### Phase 5: Conversion Section
-1. Build `ConversionCard` with funnel visualization
-2. Implement Goals/User/Journey tabs
-
-### Phase 6: Globe Integration
-1. Move existing Mapbox globe to overlay mode
-2. Wire up floating toggle button
-3. Add smooth open/close animations
-
-### Phase 7: Polish
-1. Add all hover tooltips
-2. Implement sort toggles
-3. Add loading skeletons
-4. Mobile responsiveness
-
----
-
-## Files to Create/Modify
-
-### New Files
+**Geography Card hover:**
 ```text
-src/components/admin/analytics/datafast/
-├── DatafastAnalyticsDashboard.tsx    # Main container
-├── AnalyticsCard.tsx                  # Reusable card with tabs
-├── AnalyticsTooltip.tsx               # Dark tooltip component
-├── KPIStrip.tsx                       # Hero metrics
-├── DailyVisitorsChart.tsx             # Main chart
-├── SourcesCard.tsx                    # Sources breakdown
-├── GeographyCard.tsx                  # Geography breakdown
-├── PagesCard.tsx                      # Pages breakdown
-├── TechStackCard.tsx                  # Tech stack breakdown
-├── ConversionCard.tsx                 # Funnel + goals
-├── FloatingGlobeToggle.tsx            # Sticky buttons
-├── DonutChart.tsx                     # Channel donut
-├── ChoroplethMap.tsx                  # Simple world map
-├── FunnelSankey.tsx                   # Conversion funnel
-└── Sparkline.tsx                      # Inline sparkline
+United States
+Visitors     847
+Connections  23
 
-src/hooks/
-└── useUnifiedAnalytics.ts             # Consolidated data hook
+TOP CITIES
+New York       28%
+Los Angeles    19%
+Chicago        12%
+
+Conv. Rate: 2.7%
 ```
 
-### Modified Files
+**Funnel Step hover:**
 ```text
-src/components/admin/analytics/AnalyticsTabContainer.tsx
-  - Replace entire content with new DatafastAnalyticsDashboard
-  - Remove old tab-based structure
+NDA Signed
+Count: 234
+Drop-off: -33%
+
+TOP SOURCES
+Direct        45%
+Google        28%
+LinkedIn      15%
+
+TOP COUNTRIES
+United States  42%
+United Kingdom 18%
+Canada         12%
+
+Conversion from start: 9.8%
 ```
 
 ---
 
-## Technical Considerations
+### Section 5: Visual Enhancements
 
-### Performance
-- Use React Query for caching and deduplication
-- Implement virtual scrolling for long lists
-- Lazy load chart libraries (recharts)
-- Debounce date range changes
+**Dual-bar rows in lists:**
+Each row shows proportional background bars:
+- Blue bar = Visitors (relative to max)
+- Coral bar overlay = Connections (relative to max)
 
-### Data Aggregation
-- Pre-aggregate daily metrics in database when possible
-- Use existing `daily_metrics` table for historical data
-- Calculate bounce rate: sessions with exactly 1 page view
+Example row appearance:
+```text
+[Google favicon] Google           [========coral bar=======][blue bar===] 1.8k
+```
 
-### Responsive Design
-- Stack cards vertically on mobile
-- Collapse KPI strip to 2x3 grid on tablet
-- Full-width charts on all sizes
-- Horizontal scroll for long lists on mobile
+**Progress indicators in Pages/Tech cards:**
+Each row gets a thin progress bar underneath showing relative proportion.
 
-### Accessibility
-- Keyboard navigation for tabs
-- ARIA labels for charts
-- Color-blind friendly palette
-- Screen reader support for tooltips
+**Activity dot timeline:**
+7 dots representing last 7 days, colored by activity level:
+- Gray = no activity
+- Light blue = low activity (1-2 pages)
+- Medium blue = medium (3-5 pages)
+- Coral = high activity (6+ pages)
+
+---
+
+### Section 6: Goals Tab (Milestone Tracking)
+
+Track completed business milestones:
+
+| Goal | Count | Conversion |
+|------|-------|------------|
+| Viewed Marketplace | 892 | 37.2% of visitors |
+| Registered Account | 234 | 26.2% of marketplace viewers |
+| Signed NDA | 56 | 23.9% of registered |
+| Signed Fee Agreement | 34 | 60.7% of NDA signed |
+| Sent Connection | 28 | 82.4% of fee agreement |
+
+Each goal row is clickable to see the list of users who completed it.
+
+---
+
+### Section 7: Real Data Integration
+
+**Fix missing data:**
+
+1. **Funnel Stages** - Add queries for:
+   - Sessions with /marketplace page view
+   - Count of lead_nda_signed = true
+   - Count of lead_fee_agreement_signed = true
+
+2. **User Page View Count** - Calculate from page_views table grouped by user_id
+
+3. **Time to Convert** - Calculate difference between first session and connection_request created_at
+
+4. **Activity Heatmap** - Aggregate page_views by date per user for calendar visualization
+
+5. **Event Timeline** - Combine page_views and user_events into chronological list per user
+
+---
+
+## Technical Implementation
+
+### New/Modified Files
+
+**1. useUnifiedAnalytics.ts enhancements:**
+- Add funnel stages for NDA and Fee Agreement
+- Add user activity data (pageviews, time_on_site)
+- Add journey completion data
+
+**2. New: useUserDetail.ts**
+- Fetches complete user timeline (page_views + events)
+- Returns profile data, geo data, tech stack, activity heatmap
+
+**3. ConversionCard.tsx complete rewrite:**
+- 4 tabs: Goals | Funnel | Users | Journey
+- Goals: milestone achievement list
+- Funnel: 6-stage waterfall with rich tooltips
+- Users: searchable user list with detail panel
+- Journey: goal-filtered user list
+
+**4. New: UserDetailPanel.tsx**
+- Slide-up modal with 3-column layout
+- Chronological event timeline
+- Activity heatmap calendar
+- Stats summary
+
+**5. New: ActivityDots.tsx**
+- 7-dot timeline component showing daily activity
+
+**6. AnalyticsTooltip.tsx enhancements:**
+- Support for "TOP SOURCES" and "TOP COUNTRIES" sections
+- Dual-row value displays
+
+**7. SourcesCard.tsx / GeographyCard.tsx:**
+- Add proportional background bars to each row
+
+---
+
+## Implementation Priority
+
+| Priority | Component | Impact |
+|----------|-----------|--------|
+| P0 | 6-stage funnel with real data | Critical for M&A intelligence |
+| P0 | User list with detail panel | Core Datafa.st feature |
+| P1 | Journey tab with goal filtering | High-value conversion analysis |
+| P1 | Enhanced tooltips everywhere | Polish and data density |
+| P2 | Activity dots timeline | Engagement visualization |
+| P2 | Goals tab | Milestone tracking |
+| P3 | Dual-bar proportional rows | Visual enhancement |
+| P3 | Activity heatmap calendar | Future-forward feature |
+
+---
+
+## Data Schema Requirements
+
+All data is already available:
+- `connection_requests.lead_nda_signed` / `lead_fee_agreement_signed` for funnel stages
+- `page_views` for user timeline events
+- `user_events` for custom events (marketplace_filter_applied, etc.)
+- `user_journeys` for first-touch attribution and milestone tracking
+- `user_sessions` for geo, device, browser, OS data
+- `profiles` for user identity
+
+No database migrations required.
+
+---
+
+## Expected Outcome
+
+After implementation, the Intelligence Center will match and exceed Datafa.st capabilities with:
+
+1. **6-stage M&A funnel** showing complete buyer journey from landing to connection
+2. **Clickable user profiles** with full event timeline and activity heatmap
+3. **Journey analysis** to see exactly which users completed specific goals
+4. **Rich tooltips** with multi-dimensional breakdowns (top sources, countries)
+5. **Visual data density** with proportional bars and activity indicators
+6. **100% real data** - no placeholders, all from live marketplace tables
+
+This transforms the dashboard from a basic analytics view into a true buyer intelligence command center for M&A decision-making.
