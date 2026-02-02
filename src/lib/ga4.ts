@@ -201,13 +201,15 @@ export function initGA4(measurementId: string = GA4_MEASUREMENT_ID): void {
     window.dataLayer.push(arguments);
   };
 
+  // Cross-domain linker (recommended placement: before 'js')
+  // This ensures incoming _gl parameters from sourcecodeals.com are read correctly
+  window.gtag('set', 'linker', {
+    domains: ['sourcecodeals.com', 'marketplace.sourcecodeals.com'],
+    accept_incoming: true,
+  });
+
   window.gtag('js', new Date());
   window.gtag('config', measurementId, {
-    // Enable cross-domain tracking for your domains
-    linker: {
-      domains: ['sourcecodeals.com', 'marketplace.sourcecodeals.com'],
-      accept_incoming: true,
-    },
     // Enhanced measurement features
     send_page_view: false, // We'll send page views manually for SPA
     cookie_domain: '.sourcecodeals.com', // Share cookies across subdomains
