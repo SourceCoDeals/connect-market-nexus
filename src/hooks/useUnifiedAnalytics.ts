@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { subDays, format, parseISO, differenceInDays } from "date-fns";
+import type { AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
 
 export interface KPIMetric {
   value: number;
@@ -185,9 +186,9 @@ function hasVisitorIdentity(session: { user_id?: string | null; visitor_id?: str
   return Boolean(session.user_id || session.visitor_id);
 }
 
-export function useUnifiedAnalytics(timeRangeDays: number = 30) {
+export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: AnalyticsFilter[] = []) {
   return useQuery({
-    queryKey: ['unified-analytics', timeRangeDays],
+    queryKey: ['unified-analytics', timeRangeDays, filters],
     queryFn: async (): Promise<UnifiedAnalyticsData> => {
       const endDate = new Date();
       const startDate = subDays(endDate, timeRangeDays);
@@ -373,7 +374,59 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
           sessionMap.set(s.session_id, s);
         }
       });
-      const uniqueSessions = Array.from(sessionMap.values());
+      let uniqueSessions = Array.from(sessionMap.values());
+      
+      // APPLY GLOBAL FILTERS to sessions
+      if (filters.length > 0) {
+        filters.forEach(filter => {
+          if (filter.type === 'channel') {
+            uniqueSessions = uniqueSessions.filter(s => 
+              categorizeChannel(s.referrer, s.utm_source, s.utm_medium) === filter.value
+            );
+          }
+          if (filter.type === 'referrer') {
+            uniqueSessions = uniqueSessions.filter(s => 
+              extractDomain(s.referrer) === filter.value
+            );
+          }
+          if (filter.type === 'country') {
+            uniqueSessions = uniqueSessions.filter(s => s.country === filter.value);
+          }
+          if (filter.type === 'city') {
+            uniqueSessions = uniqueSessions.filter(s => s.city === filter.value);
+          }
+          if (filter.type === 'region') {
+            uniqueSessions = uniqueSessions.filter(s => (s as any).region === filter.value);
+          }
+          if (filter.type === 'browser') {
+            uniqueSessions = uniqueSessions.filter(s => s.browser === filter.value);
+          }
+          if (filter.type === 'os') {
+            uniqueSessions = uniqueSessions.filter(s => s.os === filter.value);
+          }
+          if (filter.type === 'device') {
+            uniqueSessions = uniqueSessions.filter(s => s.device_type === filter.value);
+          }
+          if (filter.type === 'campaign') {
+            uniqueSessions = uniqueSessions.filter(s => s.utm_campaign === filter.value);
+          }
+          if (filter.type === 'keyword') {
+            uniqueSessions = uniqueSessions.filter(s => s.utm_term === filter.value);
+          }
+        });
+      }
+      
+      // For page filters, we need to filter by sessions that visited that page
+      const pageFilter = filters.find(f => f.type === 'page');
+      if (pageFilter) {
+        // Find all session IDs that have page views matching the filter
+        const matchingSessionIds = new Set(
+          pageViews
+            .filter(pv => pv.page_path === pageFilter.value)
+            .map(pv => pv.session_id)
+        );
+        uniqueSessions = uniqueSessions.filter(s => matchingSessionIds.has(s.session_id));
+      }
       
       // CRITICAL FIX #2: Count unique VISITORS (people), not sessions
       // Only count sessions with identifiable visitors (user_id or visitor_id)

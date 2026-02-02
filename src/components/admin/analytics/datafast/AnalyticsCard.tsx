@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, List } from "lucide-react";
 
 interface Tab {
   id: string;
@@ -13,6 +13,7 @@ interface AnalyticsCardProps {
   rightAction?: ReactNode;
   children: (activeTab: string) => ReactNode;
   className?: string;
+  onDetailsClick?: (activeTab: string) => void;
 }
 
 export function AnalyticsCard({ 
@@ -20,13 +21,14 @@ export function AnalyticsCard({
   defaultTab, 
   rightAction,
   children, 
-  className 
+  className,
+  onDetailsClick
 }: AnalyticsCardProps) {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id || '');
 
   return (
     <div className={cn(
-      "bg-card rounded-2xl border border-border/50 overflow-hidden",
+      "bg-card rounded-2xl border border-border/50 overflow-hidden flex flex-col",
       className
     )}>
       {/* Tab Header */}
@@ -55,9 +57,22 @@ export function AnalyticsCard({
       </div>
       
       {/* Content */}
-      <div className="p-5">
+      <div className="p-5 flex-1">
         {children(activeTab)}
       </div>
+      
+      {/* Details footer */}
+      {onDetailsClick && (
+        <div className="px-5 pb-4 pt-0">
+          <button
+            onClick={() => onDetailsClick(activeTab)}
+            className="flex items-center justify-center gap-1.5 w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors border border-border/30"
+          >
+            <List className="h-3.5 w-3.5" />
+            Details
+          </button>
+        </div>
+      )}
     </div>
   );
 }
