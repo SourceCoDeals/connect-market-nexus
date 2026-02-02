@@ -1,189 +1,197 @@
 
-# Investigation Summary: Why Anonymous Users Show Empty/Default Data
+# Fix Referrer Display, User Count Accuracy, and Missing Globe Markers
 
 ## Root Cause Analysis
 
-I've identified **THREE critical issues** preventing journey data from appearing for anonymous users like "rose lion" and "crimson wolf":
+### Issue #1: 23 "Other" Referrers Should Show "Lovable"
+**Root Cause:** Two different normalization logics are used:
+- `useEnhancedRealTimeAnalytics.ts` has a comprehensive `normalizeReferrer()` function that correctly identifies `lovable.dev` → "Lovable"
+- `MapboxGlobeMap.tsx` (lines 92-101) has its OWN inline normalization that checks for google, youtube, facebook, linkedin, twitter but NOT lovable.dev
+
+The inline code:
+```typescript
+const normalized = source.toLowerCase().includes('google') ? 'Google' :
+  source.toLowerCase().includes('youtube') ? 'YouTube' :
+  // ... no check for lovable.dev!
+  source === 'Direct' || !source ? 'Direct' : 'Other';
+```
+
+**Database Evidence:** 23 sessions have `referrer: https://lovable.dev/`
 
 ---
 
-## Issue #1: Dual Session ID Systems (Primary Cause)
-
-The codebase has **two competing analytics systems** using different session ID formats:
-
-| System | Session ID Format | Used By | Stored In |
-|--------|-------------------|---------|-----------|
-| **SessionContext** | UUID (`45d0257b-345b-4882-bc7e-ff7da11173c4`) | `track-session` edge function, `use-page-engagement.ts` | `user_sessions` table |
-| **AnalyticsContext** | Timestamp (`session_1770035523309_tzpas1l5v`) | `trackPageView()`, `trackListingView()` | `page_views` table |
-
-**The Problem:**
-- Anonymous visitors from the production site (e.g., "rose lion") have their session created by `track-session` with a UUID session ID
-- But when pages are viewed, `AnalyticsContext.tsx` generates its own timestamp-based session ID and inserts page_views with that ID
-- When `useEnhancedRealTimeAnalytics` queries page_views using the UUID from `user_sessions`, it finds **zero matching records**
-- Result: Empty `pageSequence[]` and `currentPage: null`
+### Issue #2: Inflated User Count (29 users shown, but only ~6 unique sessions)
+**Root Cause:** The `user_sessions` table has duplicate rows for the same session_id:
+- Session `1f24867b-8800-47c1-b7a9-39dad47b959a` appears **24 times**
+- The query in `useEnhancedRealTimeAnalytics.ts` doesn't deduplicate by session_id
 
 **Database Evidence:**
-
-```text
-user_sessions table (anonymous users):
-session_id: 45d0257b-345b-4882-bc7e-ff7da11173c4  (UUID format)
-
-page_views table (same time period):
-session_id: session_1770035419278_2o9l7fss9  (timestamp format)
-```
-
-These IDs never match, so journey data cannot be linked.
-
----
-
-## Issue #2: visitor_id NOT Being Stored for Anonymous Users
-
-The database shows that `visitor_id` is only populated for authenticated users:
-
 ```sql
--- Query result: visitor_id only exists for admin user
-session_id: 1f24867b-8800-47c1-b7a9-39dad47b959a
-visitor_id: 61da54fb-f346-4de1-a2fe-62cb1295f450
-user_id: 1d5727f8-2a8c-4600-9a46-bddbb036ea45  -- Admin
-
--- Anonymous sessions:
-session_id: 45d0257b-345b-4882-bc7e-ff7da11173c4
-visitor_id: NULL  -- Missing!
-user_id: NULL
+SELECT session_id, COUNT(*) as count 
+FROM user_sessions WHERE is_active = true
+-- Result: session 1f24867b... has 24 duplicate rows
 ```
-
-**The Problem:**
-The edge function is receiving `visitor_id` from the frontend, but anonymous users aren't getting it stored because:
-1. The `track-session` edge function only stores `visitor_id` on **new session creation**
-2. Many anonymous sessions are **existing sessions** (the `if (existingSession)` branch) that get updated but the UPDATE query does NOT include `visitor_id`
 
 ---
 
-## Issue #3: session_duration_seconds is NULL for Anonymous Users
+### Issue #3: "coral orca" Doesn't Appear on Globe
+**Root Cause:** Users without geo data get `coordinates: null` and are skipped:
+1. `getCoordinates(city, country)` returns `null` when both are missing
+2. `MapboxGlobeMap.tsx` line 214: `if (!user.coordinates) return;` skips these users
 
-```sql
--- Anonymous sessions:
-session_id: 45d0257b-345b-4882-bc7e-ff7da11173c4
-session_duration_seconds: NULL  -- Not 0, completely NULL
-```
-
-**The Problem:**
-- The heartbeat function updates duration, but the initial session creation sets it to `time_on_page` (which may be 0)
-- If no heartbeat runs before the dashboard queries, duration stays NULL
-- The fallback calculation in `useEnhancedRealTimeAnalytics` (`calculateDuration`) tries to compute from timestamps, but if `last_active_at === started_at`, the result is 0s
+**Additional Issue:** Country name mismatch:
+- Database stores: `"The Netherlands"`
+- Lookup table has: `"Netherlands"` (without "The")
+- Result: Amsterdam users get `null` coordinates
 
 ---
 
-## Solution Plan
+## Implementation Plan
 
-### Fix #1: Consolidate Session IDs
+### Step 1: Use Unified Referrer Normalization
 
-Update `AnalyticsContext.tsx` to use the UUID from `SessionContext` instead of generating its own:
+**File:** `src/components/admin/analytics/realtime/MapboxGlobeMap.tsx`
+
+Replace the inline `referrerBreakdown` logic (lines 92-101) to use the user's already-normalized `entrySource` field:
 
 ```typescript
-// BEFORE (line 41-43):
-const generateSessionId = () => {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// BEFORE (inline duplication):
+const referrerBreakdown = users.reduce((acc, user) => {
+  const source = user.referrer || user.utmSource || 'Direct';
+  const normalized = source.toLowerCase().includes('google') ? 'Google' :
+    // ... missing lovable.dev
+    source === 'Direct' || !source ? 'Direct' : 'Other';
+  acc[normalized] = (acc[normalized] || 0) + 1;
+  return acc;
+}, {} as Record<string, number>);
+
+// AFTER (use pre-normalized entrySource):
+const referrerBreakdown = users.reduce((acc, user) => {
+  const source = user.entrySource || 'Direct';
+  acc[source] = (acc[source] || 0) + 1;
+  return acc;
+}, {} as Record<string, number>);
+```
+
+---
+
+### Step 2: Deduplicate Sessions in Query
+
+**File:** `src/hooks/useEnhancedRealTimeAnalytics.ts`
+
+After fetching sessions, deduplicate by session_id to prevent counting the same user multiple times:
+
+```typescript
+// After supabase query, deduplicate:
+const sessionsRaw = sessionsResult.data || [];
+
+// Deduplicate by session_id - keep the one with most geo data
+const sessionMap = new Map<string, typeof sessionsRaw[0]>();
+sessionsRaw.forEach(session => {
+  const existing = sessionMap.get(session.session_id);
+  if (!existing) {
+    sessionMap.set(session.session_id, session);
+  } else if (!existing.country && session.country) {
+    // Prefer the row with geo data
+    sessionMap.set(session.session_id, session);
+  }
+});
+const sessions = Array.from(sessionMap.values());
+```
+
+---
+
+### Step 3: Default Coordinates for Users Without Geo Data
+
+**File:** `src/hooks/useEnhancedRealTimeAnalytics.ts`
+
+Provide fallback coordinates so users without geo data still appear on the globe:
+
+```typescript
+// When getting coordinates:
+let coordinates = getCoordinates(session.city, session.country);
+
+// Fallback: use a random but consistent location if no geo data
+if (!coordinates) {
+  coordinates = getDefaultCoordinates(session.session_id);
+}
+```
+
+New helper function:
+```typescript
+function getDefaultCoordinates(sessionId: string): { lat: number; lng: number } {
+  // Use session ID to generate consistent random position in Atlantic Ocean
+  // This keeps users visible but clearly "unknown location"
+  const hash = sessionId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return {
+    lat: 25 + (hash % 30), // Between 25°N and 55°N
+    lng: -30 + (hash % 20), // Atlantic Ocean area
+  };
+}
+```
+
+---
+
+### Step 4: Fix Country Name Variations
+
+**File:** `src/lib/geoCoordinates.ts`
+
+Add common variations of country names:
+
+```typescript
+const countryCoordinates: Record<string, Coordinates> = {
+  // ... existing entries
+  'Netherlands': { lat: 52.1326, lng: 5.2913 },
+  'The Netherlands': { lat: 52.1326, lng: 5.2913 },  // Add variation
+  // ... other variations as needed
 };
-
-// AFTER:
-// Remove generateSessionId function
-// Import and use SessionContext's sessionId
-import { useSessionContext } from '@/contexts/SessionContext';
 ```
 
-### Fix #2: Store visitor_id on Session Update
-
-In `track-session/index.ts`, update the "existing session" branch to also set `visitor_id`:
+Also add a normalization step in `getCoordinates()`:
 
 ```typescript
-// Line 130-143 - Update to include visitor_id
-const { error: updateError } = await supabase
-  .from('user_sessions')
-  .update({
-    ip_address: clientIP,
-    country: geoData?.country || null,
-    // ...existing fields
-    visitor_id: body.visitor_id || null,  // ADD THIS
-    last_active_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  })
-  .eq('session_id', body.session_id);
-```
-
-### Fix #3: Set Initial Duration on Session Creation
-
-Ensure `session_duration_seconds` starts with the `time_on_page` value from the frontend:
-
-```typescript
-// Already implemented in track-session/index.ts:
-session_duration_seconds: initialDuration,
-
-// But verify use-initial-session-tracking.ts is calculating correctly:
-const timeOnPage = Math.max(0, Math.floor((Date.now() - performance.timing.navigationStart) / 1000));
+export function getCoordinates(city: string | null, country: string | null): Coordinates | null {
+  // Normalize country name
+  const normalizedCountry = country?.replace(/^The /, '') || null;
+  
+  if (city && cityCoordinates[city]) {
+    return cityCoordinates[city];
+  }
+  
+  if (normalizedCountry && countryCoordinates[normalizedCountry]) {
+    return countryCoordinates[normalizedCountry];
+  }
+  if (country && countryCoordinates[country]) {
+    return countryCoordinates[country];
+  }
+  
+  return null;
+}
 ```
 
 ---
 
-## Implementation Steps
-
-### Step 1: Fix AnalyticsContext Session ID (Primary Fix)
-
-Modify `src/context/AnalyticsContext.tsx`:
-- Remove `generateSessionId()` function
-- Import `useSessionContext` from `@/contexts/SessionContext`
-- Use the shared `sessionId` from SessionContext
-- Remove `currentSessionId` module-level variable
-
-### Step 2: Fix track-session Edge Function
-
-Modify `supabase/functions/track-session/index.ts`:
-- Add `visitor_id` to the UPDATE query for existing sessions
-- Ensure `session_duration_seconds` uses the `time_on_page` value
-
-### Step 3: Ensure Page Views Use Correct Session ID
-
-Verify these files use `sessionId` from `SessionContext`:
-- `use-page-engagement.ts` - Already correct
-- `use-analytics-tracking.ts` - Verify and fix if needed
-
-### Step 4: Test Flow
-
-After fixes:
-1. Anonymous visitor lands on site
-2. `track-session` creates session with UUID + visitor_id + initial duration
-3. `AnalyticsContext.trackPageView()` inserts page_view with SAME UUID
-4. `useEnhancedRealTimeAnalytics` joins correctly
-5. Tooltip shows real journey data
-
----
-
-## Files to Modify
+## Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/context/AnalyticsContext.tsx` | Use SessionContext's sessionId instead of generating own |
-| `supabase/functions/track-session/index.ts` | Add visitor_id to UPDATE query for existing sessions |
-| `src/hooks/use-analytics-tracking.ts` | Verify uses SessionContext's sessionId |
+| `MapboxGlobeMap.tsx` | Use `user.entrySource` instead of inline referrer normalization |
+| `useEnhancedRealTimeAnalytics.ts` | Add session deduplication by `session_id`, add fallback coordinates |
+| `geoCoordinates.ts` | Add "The Netherlands" variation, normalize country names |
 
 ---
 
 ## Expected Results After Fix
 
-For "rose lion" (anonymous user from Amsterdam):
+**Referrers Panel:**
+- Shows "Lovable 23" instead of "Other 23"
+- Shows "Direct 6" for null referrers
+- Future: Shows actual sources (ChatGPT, LinkedIn, etc.) as visitors arrive
 
-```text
-PATH INTELLIGENCE
-Source              → Direct (or actual referrer)
-Landing             /welcome
-Current             /marketplace
-Session             4m 32s
+**User Count:**
+- Shows actual unique sessions (~6) instead of inflated count (29)
 
-Journey this session:
-/welcome → /marketplace → /signup
-
-CROSS-SESSION HISTORY
-Total visits        3 sessions
-First seen          Jan 28, 2026
-Time spent          12 min total
-```
+**Globe Markers:**
+- "coral orca" and other users without geo data appear in Atlantic Ocean area
+- All active users visible regardless of geo data availability
+- Click from Live Activity feed navigates to user on map
