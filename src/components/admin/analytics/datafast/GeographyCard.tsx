@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { AnalyticsCard, SortToggle } from "./AnalyticsCard";
+import { AnalyticsCard, SortToggle, SortValue } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { cn } from "@/lib/utils";
@@ -8,9 +8,9 @@ import { ProportionalBar } from "./ProportionalBar";
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 interface GeographyCardProps {
-  countries: Array<{ name: string; code: string; visitors: number; connections: number }>;
-  regions: Array<{ name: string; country: string; visitors: number; connections: number }>;
-  cities: Array<{ name: string; country: string; visitors: number; connections: number }>;
+  countries: Array<{ name: string; code: string; visitors: number; signups: number; connections: number }>;
+  regions: Array<{ name: string; country: string; visitors: number; signups: number; connections: number }>;
+  cities: Array<{ name: string; country: string; visitors: number; signups: number; connections: number }>;
 }
 
 // Map of country names to ISO codes for flag lookup
@@ -51,7 +51,7 @@ function getFlag(country: string): string {
 }
 
 export function GeographyCard({ countries, regions, cities }: GeographyCardProps) {
-  const [sortBy, setSortBy] = useState<'visitors' | 'connections'>('visitors');
+  const [sortBy, setSortBy] = useState<SortValue>('visitors');
   
   const tabs = [
     { id: 'map', label: 'Map' },
@@ -60,30 +60,26 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
     { id: 'city', label: 'City' },
   ];
 
+  // Get sort value for any item
+  const getSortValue = (item: { visitors?: number; signups?: number; connections?: number }) => {
+    if (sortBy === 'visitors') return item.visitors || 0;
+    if (sortBy === 'signups') return item.signups || 0;
+    return item.connections || 0;
+  };
+
   // Filter out Unknown from display but keep for totals
   const filteredCountries = countries.filter(c => c.name && c.name !== 'Unknown' && c.name !== 'null');
   const filteredCities = cities.filter(c => c.name && c.name !== 'Unknown' && c.name !== 'null');
   const filteredRegions = regions.filter(r => r.name && r.name !== 'Unknown' && r.name !== 'null');
 
   // Sort all data by sortBy
-  const sortedCountries = [...filteredCountries].sort((a, b) => 
-    sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
-  );
-  
-  const sortedRegions = [...filteredRegions].sort((a, b) => 
-    sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
-  );
-  
-  const sortedCities = [...filteredCities].sort((a, b) => 
-    sortBy === 'visitors' ? b.visitors - a.visitors : b.connections - a.connections
-  );
+  const sortedCountries = [...filteredCountries].sort((a, b) => getSortValue(b) - getSortValue(a));
+  const sortedRegions = [...filteredRegions].sort((a, b) => getSortValue(b) - getSortValue(a));
+  const sortedCities = [...filteredCities].sort((a, b) => getSortValue(b) - getSortValue(a));
 
-  const maxCountryVisitors = Math.max(...filteredCountries.map(c => c.visitors), 1);
-  const maxCountryConnections = Math.max(...filteredCountries.map(c => c.connections), 1);
-  const maxRegionVisitors = Math.max(...filteredRegions.map(r => r.visitors), 1);
-  const maxRegionConnections = Math.max(...filteredRegions.map(r => r.connections), 1);
-  const maxCityVisitors = Math.max(...filteredCities.map(c => c.visitors), 1);
-  const maxCityConnections = Math.max(...filteredCities.map(c => c.connections), 1);
+  const maxCountryValue = Math.max(...filteredCountries.map(c => getSortValue(c)), 1);
+  const maxRegionValue = Math.max(...filteredRegions.map(r => getSortValue(r)), 1);
+  const maxCityValue = Math.max(...filteredCities.map(c => getSortValue(c)), 1);
   
   const countryVisitorMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -155,15 +151,16 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                   title={country.name}
                   rows={[
                     { label: 'Visitors', value: country.visitors.toLocaleString() },
+                    { label: 'Signups', value: country.signups || 0 },
                     { label: 'Connections', value: country.connections },
                     { label: 'Conv. Rate', value: `${country.visitors > 0 ? ((country.connections / country.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                   ]}
                 >
                   <ProportionalBar 
-                    value={sortBy === 'visitors' ? country.visitors : country.connections} 
-                    maxValue={sortBy === 'visitors' ? maxCountryVisitors : maxCountryConnections}
+                    value={getSortValue(country)} 
+                    maxValue={maxCountryValue}
                     secondaryValue={country.connections}
-                    secondaryMaxValue={maxCountryConnections}
+                    secondaryMaxValue={Math.max(...filteredCountries.map(c => c.connections), 1)}
                   >
                     <div className="flex items-center justify-between cursor-pointer">
                       <div className="flex items-center gap-2.5">
@@ -177,7 +174,7 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                           </span>
                         )}
                         <span className="text-sm font-medium tabular-nums w-10 text-right">
-                          {country[sortBy].toLocaleString()}
+                          {getSortValue(country).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -199,15 +196,16 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                   rows={[
                     { label: 'Country', value: region.country },
                     { label: 'Visitors', value: region.visitors.toLocaleString() },
+                    { label: 'Signups', value: region.signups || 0 },
                     { label: 'Connections', value: region.connections },
                     { label: 'Conv. Rate', value: `${region.visitors > 0 ? ((region.connections / region.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                   ]}
                 >
                   <ProportionalBar 
-                    value={sortBy === 'visitors' ? region.visitors : region.connections} 
-                    maxValue={sortBy === 'visitors' ? maxRegionVisitors : maxRegionConnections}
+                    value={getSortValue(region)} 
+                    maxValue={maxRegionValue}
                     secondaryValue={region.connections}
-                    secondaryMaxValue={maxRegionConnections}
+                    secondaryMaxValue={Math.max(...filteredRegions.map(r => r.connections), 1)}
                   >
                     <div className="flex items-center justify-between cursor-pointer">
                       <div className="flex items-center gap-2.5">
@@ -221,7 +219,7 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                           </span>
                         )}
                         <span className="text-sm font-medium tabular-nums w-10 text-right">
-                          {region[sortBy].toLocaleString()}
+                          {getSortValue(region).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -243,15 +241,16 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                   rows={[
                     { label: 'Country', value: city.country },
                     { label: 'Visitors', value: city.visitors.toLocaleString() },
+                    { label: 'Signups', value: city.signups || 0 },
                     { label: 'Connections', value: city.connections },
                     { label: 'Conv. Rate', value: `${city.visitors > 0 ? ((city.connections / city.visitors) * 100).toFixed(1) : 0}%`, highlight: true },
                   ]}
                 >
                   <ProportionalBar 
-                    value={sortBy === 'visitors' ? city.visitors : city.connections} 
-                    maxValue={sortBy === 'visitors' ? maxCityVisitors : maxCityConnections}
+                    value={getSortValue(city)} 
+                    maxValue={maxCityValue}
                     secondaryValue={city.connections}
-                    secondaryMaxValue={maxCityConnections}
+                    secondaryMaxValue={Math.max(...filteredCities.map(c => c.connections), 1)}
                   >
                     <div className="flex items-center justify-between cursor-pointer">
                       <div className="flex items-center gap-2.5">
@@ -265,7 +264,7 @@ export function GeographyCard({ countries, regions, cities }: GeographyCardProps
                           </span>
                         )}
                         <span className="text-sm font-medium tabular-nums w-10 text-right">
-                          {city[sortBy].toLocaleString()}
+                          {getSortValue(city).toLocaleString()}
                         </span>
                       </div>
                     </div>

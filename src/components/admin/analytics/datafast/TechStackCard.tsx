@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AnalyticsCard, SortToggle } from "./AnalyticsCard";
+import { AnalyticsCard, SortToggle, SortValue } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -7,9 +7,9 @@ import { BrowserLogo, OSLogo } from "./BrowserLogo";
 import { ProportionalBar } from "./ProportionalBar";
 
 interface TechStackCardProps {
-  browsers: Array<{ name: string; visitors: number; percentage: number }>;
-  operatingSystems: Array<{ name: string; visitors: number; percentage: number }>;
-  devices: Array<{ type: string; visitors: number; percentage: number }>;
+  browsers: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
+  operatingSystems: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
+  devices: Array<{ type: string; visitors: number; signups: number; percentage: number }>;
 }
 
 const DEVICE_ICONS: Record<string, React.ReactNode> = {
@@ -19,7 +19,7 @@ const DEVICE_ICONS: Record<string, React.ReactNode> = {
 };
 
 export function TechStackCard({ browsers, operatingSystems, devices }: TechStackCardProps) {
-  const [sortBy, setSortBy] = useState<'visitors' | 'connections'>('visitors');
+  const [sortBy, setSortBy] = useState<SortValue>('visitors');
   
   const tabs = [
     { id: 'browser', label: 'Browser' },
@@ -27,9 +27,20 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
     { id: 'device', label: 'Device' },
   ];
 
-  const maxBrowserVisitors = Math.max(...browsers.map(b => b.visitors), 1);
-  const maxOSVisitors = Math.max(...operatingSystems.map(os => os.visitors), 1);
-  const maxDeviceVisitors = Math.max(...devices.map(d => d.visitors), 1);
+  // Get sort value for any item
+  const getSortValue = (item: { visitors?: number; signups?: number }) => {
+    if (sortBy === 'visitors') return item.visitors || 0;
+    if (sortBy === 'signups') return item.signups || 0;
+    return item.visitors || 0; // Connections not applicable for tech stack
+  };
+
+  const sortedBrowsers = [...browsers].sort((a, b) => getSortValue(b) - getSortValue(a));
+  const sortedOS = [...operatingSystems].sort((a, b) => getSortValue(b) - getSortValue(a));
+  const sortedDevices = [...devices].sort((a, b) => getSortValue(b) - getSortValue(a));
+
+  const maxBrowserValue = Math.max(...browsers.map(b => getSortValue(b)), 1);
+  const maxOSValue = Math.max(...operatingSystems.map(os => getSortValue(os)), 1);
+  const maxDeviceValue = Math.max(...devices.map(d => getSortValue(d)), 1);
 
   return (
     <AnalyticsCard
@@ -41,16 +52,17 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
         <div className="space-y-1">
           {activeTab === 'browser' && (
             <>
-              {browsers.slice(0, 6).map((browser, i) => (
+              {sortedBrowsers.slice(0, 6).map((browser, i) => (
                 <AnalyticsTooltip
                   key={`${browser.name}-${i}`}
                   title={browser.name}
                   rows={[
                     { label: 'Visitors', value: browser.visitors.toLocaleString() },
+                    { label: 'Signups', value: browser.signups || 0 },
                     { label: 'Share', value: `${browser.percentage.toFixed(1)}%`, highlight: true },
                   ]}
                 >
-                  <ProportionalBar value={browser.visitors} maxValue={maxBrowserVisitors}>
+                  <ProportionalBar value={getSortValue(browser)} maxValue={maxBrowserValue}>
                     <div className="flex items-center justify-between cursor-pointer">
                       <div className="flex items-center gap-2.5">
                         <BrowserLogo browser={browser.name} className="h-5 w-5" />
@@ -61,7 +73,7 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                           {browser.percentage.toFixed(0)}%
                         </span>
                         <span className="text-sm font-medium tabular-nums w-12 text-right">
-                          {browser.visitors.toLocaleString()}
+                          {getSortValue(browser).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -76,16 +88,17 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
           
           {activeTab === 'os' && (
             <>
-              {operatingSystems.slice(0, 6).map((os, i) => (
+              {sortedOS.slice(0, 6).map((os, i) => (
                 <AnalyticsTooltip
                   key={`${os.name}-${i}`}
                   title={os.name}
                   rows={[
                     { label: 'Visitors', value: os.visitors.toLocaleString() },
+                    { label: 'Signups', value: os.signups || 0 },
                     { label: 'Share', value: `${os.percentage.toFixed(1)}%`, highlight: true },
                   ]}
                 >
-                  <ProportionalBar value={os.visitors} maxValue={maxOSVisitors}>
+                  <ProportionalBar value={getSortValue(os)} maxValue={maxOSValue}>
                     <div className="flex items-center justify-between cursor-pointer">
                       <div className="flex items-center gap-2.5">
                         <OSLogo os={os.name} className="h-5 w-5" />
@@ -96,7 +109,7 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                           {os.percentage.toFixed(0)}%
                         </span>
                         <span className="text-sm font-medium tabular-nums w-12 text-right">
-                          {os.visitors.toLocaleString()}
+                          {getSortValue(os).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -111,16 +124,17 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
           
           {activeTab === 'device' && (
             <>
-              {devices.map((device, i) => (
+              {sortedDevices.map((device, i) => (
                 <AnalyticsTooltip
                   key={`${device.type}-${i}`}
                   title={device.type}
                   rows={[
                     { label: 'Visitors', value: device.visitors.toLocaleString() },
+                    { label: 'Signups', value: device.signups || 0 },
                     { label: 'Share', value: `${device.percentage.toFixed(1)}%`, highlight: true },
                   ]}
                 >
-                  <ProportionalBar value={device.visitors} maxValue={maxDeviceVisitors}>
+                  <ProportionalBar value={getSortValue(device)} maxValue={maxDeviceValue}>
                     <div className="flex items-center justify-between cursor-pointer">
                       <div className="flex items-center gap-2.5">
                         <span className="text-muted-foreground">
@@ -133,7 +147,7 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                           {device.percentage.toFixed(0)}%
                         </span>
                         <span className="text-sm font-medium tabular-nums w-12 text-right">
-                          {device.visitors.toLocaleString()}
+                          {getSortValue(device).toLocaleString()}
                         </span>
                       </div>
                     </div>

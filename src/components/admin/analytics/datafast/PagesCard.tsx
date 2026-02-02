@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AnalyticsCard, SortToggle } from "./AnalyticsCard";
+import { AnalyticsCard } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,8 +50,6 @@ function getPathName(path: string): string {
 }
 
 export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
-  const [sortBy, setSortBy] = useState<'visitors' | 'connections'>('visitors');
-  
   const tabs = [
     { id: 'page', label: 'Page' },
     { id: 'entry', label: 'Entry page' },
@@ -66,7 +64,6 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
     <AnalyticsCard
       tabs={tabs}
       defaultTab="page"
-      rightAction={<SortToggle value={sortBy} onChange={setSortBy} />}
     >
       {(activeTab) => (
         <div className="space-y-1">
