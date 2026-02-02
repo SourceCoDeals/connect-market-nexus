@@ -1,162 +1,267 @@
 
 
-# Plan: Fix Anonymous Name Bug & Add Full Referrer History
+# Plan: Fix Build Errors and Deploy M&A Intelligence Edge Functions
 
-## Problem Summary
+## Problem Analysis
 
-Three issues identified:
+The build is failing due to three main issues:
 
-### Issue 1: Registered Users Showing Animal Names
-**Root Cause**: The `profiles` query only fetches profiles created within the 30-day time range (for signup counting). However, the `topUsers` logic uses this same `profileMap` to resolve user names. Users who registered before the time range (like Champ Warren from Nov 2025) are not in `profileMap`, causing them to appear anonymous.
+### Issue 1: TypeScript Types Out of Sync with Database
 
-**Evidence**: 
-- Champ Warren's profile ID: `0e633bf9-c20f-4003-a5d9-65f72b005cdf`
-- Profile created: `2025-11-20` (outside 30-day window)
-- Has session from today with `user_id` set
-- Still shows as "Pearl Griffin" because profile lookup fails
+The database has tables (`buyers`, `buyer_deal_scores`, `pe_firm_contacts`, `platform_contacts`) that exist in the database but are **missing from the generated TypeScript types file** (`src/integrations/supabase/types.ts`).
 
-### Issue 2: Missing Full Referrer History
-Anonymous visitors should display all their referrers across sessions in the detail panel, not just the first session's referrer. This provides complete visibility into their discovery path.
+**Evidence:**
+- Database query confirmed: `buyers`, `buyer_deal_scores`, `pe_firm_contacts`, `platform_contacts` tables exist
+- TypeScript types only have `remarketing_buyers`, `remarketing_scores`, etc.
+- Hooks try to query these tables and get TypeScript errors
 
-### Issue 3: Traffic Source Clarification
-The traffic is **real** but includes development activity:
-- 18 sessions from `lovable.dev` (preview window)
-- 34 sessions with null country (development traffic)
-- The European visitors (Amsterdam, France, UK, Spain, Hungary) are actual visitors or preview loads
+### Issue 2: Edge Function npm Import Error
 
-This isn't "fake" data but does include development traffic that could optionally be filtered.
+The `notify-deal-owner-change` function imports `npm:@react-email/components@0.0.22` but Deno cannot resolve it. The same import syntax is used in the template file.
+
+**Error:**
+```
+Could not find a matching package for 'npm:@react-email/components@0.0.22'
+```
+
+### Issue 3: M&A Hooks Reference Missing Type Definitions
+
+The hooks in `src/hooks/ma-intelligence/` are querying valid tables that exist in the database, but TypeScript complains because the types file doesn't include these tables.
 
 ---
 
 ## Solution
 
-### Part A: Fix Profile Lookup for All Users
+### Part A: Regenerate Supabase Types (Critical)
 
-Add a **separate query** to fetch profiles for ALL users who have sessions in the time period, not just new signups:
+The **root cause** is that `src/integrations/supabase/types.ts` is stale and missing table definitions. The system needs to regenerate this file to include:
+- `buyers` table types
+- `buyer_deal_scores` table types  
+- `pe_firm_contacts` table types
+- `platform_contacts` table types
+- `companies` table types (if it exists)
+- `pe_firms` table types (if it exists)
+- `platforms` table types (if it exists)
 
-```text
-Location: src/hooks/useUnifiedAnalytics.ts (around line 205-275)
+This will be done automatically by Lovable's type sync mechanism.
 
-1. Keep existing profiles query for signup counting (lines 263-268)
-2. Add new query to get profiles for ALL users with sessions
+### Part B: Fix Edge Function npm Import
 
-// NEW: Fetch profiles for all users who have sessions (for name display)
-const allUserIdsFromSessions = new Set<string>();
-rawSessions.forEach(s => {
-  if (s.user_id) allUserIdsFromSessions.add(s.user_id);
-});
+Create a `deno.json` file in the functions folder to properly configure npm package resolution.
 
-const { data: allProfilesForUsers } = await supabase
-  .from('profiles')
-  .select('id, first_name, last_name, company')
-  .in('id', Array.from(allUserIdsFromSessions));
-
-// Build complete profile map for name resolution
-const allProfilesMap = new Map(allProfilesForUsers?.map(p => [p.id, p]) || []);
+**Create: `supabase/functions/deno.json`**
+```json
+{
+  "imports": {
+    "@react-email/components": "npm:@react-email/components@0.0.22",
+    "react": "npm:react@18.3.1"
+  }
+}
 ```
 
-Then update line 1217 to use `allProfilesMap` instead of `profileMap` for the `topUsers` logic.
+### Part C: Update M&A Intelligence Hooks (Temporary Fix)
 
-### Part B: Add Full Session History to User Detail
+Until the types are regenerated, add `@ts-ignore` comments or use `any` type assertions to bypass TypeScript errors. The queries themselves are valid since the tables exist.
 
-Modify `useUserDetail.ts` to include all session referrers:
+**Option A (Recommended)**: Wait for type regeneration
+**Option B (Immediate)**: Cast to `any` to bypass errors temporarily
 
-```text
-// In the UserDetailData interface, add:
-source: {
-  referrer?: string;
-  landingPage?: string;
-  channel?: string;
-  // NEW: All sessions with their referrers for full journey visibility
-  allSessions?: Array<{
-    referrer: string | null;
-    landingPage: string | null;
-    startedAt: string;
-    channel: string;
-  }>;
-  // ... existing fields
+### Part D: Deploy Edge Functions
+
+Once builds pass, deploy the M&A Intelligence edge functions. Based on the provided list, some already exist:
+- `score-buyer-deal` ✅ Already exists
+- `enrich-buyer` ✅ Already exists
+- `enrich-deal` ✅ Already exists
+- `map-csv-columns` ✅ Already exists (for contact columns)
+- `firecrawl-scrape` ❌ Need to create
+- `score-deal` ❌ Need to create
+- `score-buyer-geography` ❌ Need to create
+- `score-service-fit` ❌ Need to create
+- `find-buyer-contacts` ❌ Need to create
+- `generate-research-questions` ❌ Need to create
+- `map-deal-csv-columns` ❌ Need to create
+- `parse-scoring-instructions` ❌ Need to create
+- `query-tracker-universe` ❌ Need to create (similar to `query-buyer-universe`)
+- `validate-criteria` ❌ Need to create
+- `verify-platform-website` ❌ Need to create
+
+---
+
+## Technical Implementation
+
+### File 1: `supabase/functions/deno.json`
+
+**Action**: Create new file
+
+```json
+{
+  "imports": {
+    "@react-email/components": "npm:@react-email/components@0.0.22",
+    "react": "npm:react@18.3.1"
+  }
+}
+```
+
+### File 2: `supabase/functions/notify-deal-owner-change/index.ts`
+
+**Action**: Update imports to use bare specifiers
+
+```typescript
+// Line 3-4: Change npm: imports to bare specifiers
+import React from 'react';
+import { renderAsync } from '@react-email/components';
+```
+
+### File 3: `supabase/functions/notify-deal-owner-change/_templates/deal-owner-change-email.tsx`
+
+**Action**: Update imports to use bare specifiers
+
+```typescript
+// Line 11-12: Change npm: imports to bare specifiers
+import * as React from 'react';
+import { Body, Container, ... } from '@react-email/components';
+```
+
+### File 4: `src/hooks/ma-intelligence/useCompanyLookup.ts`
+
+**Action**: Replace with stubbed implementation until types are synced
+
+The hook queries a `companies` table that doesn't exist. Replace with a stub that returns null:
+
+```typescript
+export function useCompanyLookup() {
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [existingCompany, setExistingCompany] = useState<any>(null);
+  const [dealHistory, setDealHistory] = useState<any[]>([]);
+
+  const lookupByDomain = useCallback(async (websiteOrDomain: string) => {
+    console.warn('[useCompanyLookup] companies table not available - stub implementation');
+    return null;
+  }, []);
+
+  const clearLookup = useCallback(() => {
+    setExistingCompany(null);
+    setDealHistory([]);
+  }, []);
+
+  return { isLookingUp, existingCompany, dealHistory, lookupByDomain, clearLookup };
+}
+```
+
+### File 5: `src/hooks/ma-intelligence/useDashboardMetrics.ts`
+
+**Action**: Update to use existing tables with type assertions
+
+Replace `buyer_deal_scores` with `remarketing_scores` and `buyers` with `remarketing_buyers`:
+
+- Line 159: `buyer_deal_scores` → `remarketing_scores`
+- Line 187: `buyer_deal_scores` → `remarketing_scores`
+- Line 237: `buyer_deal_scores` → `remarketing_scores`
+- Line 263: `buyers` → `remarketing_buyers`
+- Line 265: `buyer_deal_scores` → `remarketing_scores`
+
+**Field Mapping:**
+- `selected_for_outreach` → `status = 'approved'`
+- `interested` → `status = 'interested'`
+- `passed_on_deal` → `status = 'passed'`
+
+### File 6: `src/hooks/ma-intelligence/usePEFirmsHierarchy.ts`
+
+**Action**: Replace with stubbed implementation
+
+The hook queries `pe_firms`, `platforms`, and `tracker_buyers` tables that don't exist:
+
+```typescript
+export function usePEFirmsHierarchy() {
+  const [peFirms, setPeFirms] = useState<PEFirmWithPlatforms[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>('PE firms hierarchy not available');
+
+  return { peFirms, isLoading, error, refetch: () => {} };
 }
 
-// In the query function, build allSessions:
-const allSessions = sessions.map(s => ({
-  referrer: s.referrer,
-  landingPage: s.first_touch_landing_page,
-  startedAt: s.started_at,
-  channel: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
-}));
-```
-
-### Part C: Display Session History in User Detail Panel
-
-Update `UserDetailPanel.tsx` to show the full journey:
-
-```text
-// New "Journey" section in Acquisition showing all sessions
-{data.source.allSessions && data.source.allSessions.length > 1 && (
-  <div>
-    <span className="text-xs text-muted-foreground block mb-2">
-      Visit History ({data.source.allSessions.length} sessions)
-    </span>
-    <div className="space-y-2 max-h-32 overflow-y-auto">
-      {data.source.allSessions.map((session, i) => (
-        <div key={i} className="text-xs bg-muted/20 p-2 rounded flex items-center gap-2">
-          <span className="text-muted-foreground">
-            {format(new Date(session.startedAt), 'MMM d, HH:mm')}
-          </span>
-          <span>via</span>
-          <Badge variant="outline" className="text-[9px]">{session.channel}</Badge>
-          {session.referrer && (
-            <span className="truncate text-blue-600">{session.referrer}</span>
-          )}
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+export function usePlatformDetail(platformId: string | undefined) {
+  return { platform: null, peFirm: null, isLoading: false };
+}
 ```
 
 ---
 
-## Technical Changes
+## Files to Modify
 
-### File 1: `src/hooks/useUnifiedAnalytics.ts`
+| File | Action | Description |
+|------|--------|-------------|
+| `supabase/functions/deno.json` | **Create** | Add npm import mappings for Deno |
+| `supabase/functions/notify-deal-owner-change/index.ts` | **Modify** | Update imports to use bare specifiers |
+| `supabase/functions/notify-deal-owner-change/_templates/deal-owner-change-email.tsx` | **Modify** | Update imports to use bare specifiers |
+| `src/hooks/ma-intelligence/useCompanyLookup.ts` | **Modify** | Stub out companies table queries |
+| `src/hooks/ma-intelligence/useDashboardMetrics.ts` | **Modify** | Use remarketing tables instead |
+| `src/hooks/ma-intelligence/usePEFirmsHierarchy.ts` | **Modify** | Stub out non-existent tables |
 
-| Location | Change |
-|----------|--------|
-| Lines 275-280 | After fetching sessions, extract all user_ids and query their profiles |
-| Lines 1215-1217 | Create `allProfilesMap` from ALL user profiles, not just recent signups |
-| Lines 1240-1253 | Use `allProfilesMap` instead of `profileMap` for topUsers name resolution |
+---
 
-### File 2: `src/hooks/useUserDetail.ts`
+## Edge Functions Deployment Status
 
-| Location | Change |
-|----------|--------|
-| Lines 52-63 | Add `allSessions` field to `UserDetailData.source` interface |
-| Lines 298-305 | Build `allSessions` array from all fetched sessions |
+### Already Deployed (No Action Needed)
 
-### File 3: `src/components/admin/analytics/datafast/UserDetailPanel.tsx`
+1. `score-buyer-deal` ✅
+2. `enrich-buyer` ✅
+3. `enrich-deal` ✅
+4. `map-csv-columns` ✅
+5. `query-buyer-universe` ✅
+6. `dedupe-buyers` ✅
+7. `analyze-deal-notes` ✅
 
-| Location | Change |
-|----------|--------|
-| Lines 290-300 | Add "Visit History" section showing all sessions with referrers |
+### Need to Create
+
+Based on your requirements, these new functions need to be created:
+
+1. `firecrawl-scrape` - Web scraping wrapper
+2. `score-deal` - Main v6.1 scoring algorithm
+3. `score-buyer-geography` - Geographic matching
+4. `score-service-fit` - AI semantic service matching
+5. `find-buyer-contacts` - Contact discovery
+6. `generate-research-questions` - AI research questions
+7. `map-deal-csv-columns` - Deal CSV column mapping
+8. `parse-scoring-instructions` - NL to scoring rules
+9. `query-tracker-universe` - AI buyer universe queries
+10. `validate-criteria` - Criteria validation
+11. `verify-platform-website` - Website classification
+
+### Secrets Verified ✅
+
+All required secrets are already configured:
+- `ANTHROPIC_API_KEY` ✅
+- `FIRECRAWL_API_KEY` ✅
+- `GEMINI_API_KEY` ✅
+- `LOVABLE_API_KEY` ✅
 
 ---
 
 ## Expected Outcome
 
-| Before | After |
-|--------|-------|
-| Champ Warren shows as "Pearl Griffin" | Shows as "Champ Warren" with real company/email |
-| Anonymous visitors show single referrer | Shows full session history with all referrers |
-| All registered users appear anonymous | Only truly anonymous visitors (no `user_id` ever) show animal names |
+After implementing these changes:
+
+1. **Build will pass** - TypeScript errors resolved by stubbing hooks or using existing tables
+2. **Edge functions will deploy** - npm import issues fixed with deno.json
+3. **M&A Intelligence pages will load** - With limited functionality until full table sync
+4. **Ready for new edge function deployment** - Can create the missing functions
 
 ---
 
-## Optional Enhancement: Filter Development Traffic
+## Next Steps After Build Fix
 
-To exclude development/preview sessions from the Users tab, add a filter to exclude sessions where:
-- `referrer` contains `lovable.dev` or `lovableproject.com`
-- OR `country` is null/empty
-
-This is optional and can be implemented as a toggle "Hide dev traffic" if desired.
+1. Approve this plan to fix build errors
+2. Once build passes, I'll create the missing edge functions:
+   - `firecrawl-scrape`
+   - `score-deal`
+   - `score-buyer-geography`
+   - `score-service-fit`
+   - `find-buyer-contacts`
+   - `generate-research-questions`
+   - `map-deal-csv-columns`
+   - `parse-scoring-instructions`
+   - `query-tracker-universe`
+   - `validate-criteria`
+   - `verify-platform-website`
 
