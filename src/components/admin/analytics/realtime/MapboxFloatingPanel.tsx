@@ -1,11 +1,7 @@
-import { cn } from '@/lib/utils';
 import { Monitor, Smartphone, Tablet } from 'lucide-react';
-import type { BuyerBreakdown } from './MapboxGlobeMap';
-import { BuyerComposition } from './BuyerComposition';
 
 interface MapboxFloatingPanelProps {
   totalUsers: number;
-  buyerBreakdown: BuyerBreakdown;
   referrerBreakdown: Record<string, number>;
   countryBreakdown: Record<string, { count: number; flag: string }>;
   deviceBreakdown: Record<string, number>;
@@ -17,28 +13,41 @@ const referrerIcons: Record<string, string> = {
   'Facebook': '📘',
   'LinkedIn': '💼',
   'X': '𝕏',
-  'X (Twitter)': '𝕏',
   'Direct': '→',
   'Lovable': '💜',
-  'SourceCoDeals': '🏢',
-  'Email (Brevo)': '✉️',
+  'sourcecodeals.com': '🏢',
+  'Internal': '↻',
+  'Brevo': '✉️',
+  'Mailchimp': '📧',
+  'ChatGPT': '🤖',
+  'Claude': '🧠',
+  'Perplexity': '🔮',
+  'Gemini': '✨',
+  'Reddit': '🟠',
+  'Instagram': '📷',
+  'TikTok': '🎵',
+  'Bing': '🔎',
+  'Teams': '👥',
+  'Slack': '💬',
   'Other': '🌐',
 };
 
 export function MapboxFloatingPanel({
   totalUsers,
-  buyerBreakdown,
   referrerBreakdown,
   countryBreakdown,
   deviceBreakdown,
 }: MapboxFloatingPanelProps) {
   const sortedReferrers = Object.entries(referrerBreakdown)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
+    .slice(0, 5);
 
   const sortedCountries = Object.entries(countryBreakdown)
     .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 4);
+  
+  // Calculate actual device counts
+  const totalDevices = Object.values(deviceBreakdown).reduce((sum, count) => sum + count, 0);
 
   return (
     <div className="absolute top-4 left-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-[320px] z-10 border border-white/20">
@@ -57,10 +66,10 @@ export function MapboxFloatingPanel({
       </div>
 
       {/* Traffic breakdown rows - minimal labels */}
-      <div className="space-y-3 text-sm border-b border-border/30 pb-4 mb-4">
+      <div className="space-y-3 text-sm">
         {/* Referrers */}
         <FilterRow
-          label="Sources"
+          label="Referrers"
           items={sortedReferrers.map(([name, count]) => ({
             icon: referrerIcons[name] || '🌐',
             label: name,
@@ -84,28 +93,20 @@ export function MapboxFloatingPanel({
             Devices
           </span>
           <div className="flex gap-1.5">
-            {deviceBreakdown.desktop > 0 && (
+            {(deviceBreakdown.desktop || 0) > 0 && (
               <DeviceChip icon={<Monitor className="w-3 h-3" />} count={deviceBreakdown.desktop} />
             )}
-            {deviceBreakdown.mobile > 0 && (
+            {(deviceBreakdown.mobile || 0) > 0 && (
               <DeviceChip icon={<Smartphone className="w-3 h-3" />} count={deviceBreakdown.mobile} />
             )}
-            {deviceBreakdown.tablet > 0 && (
+            {(deviceBreakdown.tablet || 0) > 0 && (
               <DeviceChip icon={<Tablet className="w-3 h-3" />} count={deviceBreakdown.tablet} />
+            )}
+            {totalDevices === 0 && (
+              <span className="text-xs text-muted-foreground/50">—</span>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Buyer Intelligence Section - premium design */}
-      <div>
-        <span className="text-muted-foreground/60 text-[10px] uppercase tracking-[0.12em] font-medium mb-3 block">
-          Buyer Intelligence
-        </span>
-        <BuyerComposition 
-          breakdown={buyerBreakdown} 
-          totalUsers={totalUsers} 
-        />
       </div>
     </div>
   );

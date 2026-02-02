@@ -324,7 +324,6 @@ export function MapboxGlobeMap({
       {/* Floating stats panel */}
       <MapboxFloatingPanel
         totalUsers={users.length}
-        buyerBreakdown={buyerBreakdown}
         referrerBreakdown={referrerBreakdown}
         countryBreakdown={countryBreakdown}
         deviceBreakdown={deviceBreakdown}
