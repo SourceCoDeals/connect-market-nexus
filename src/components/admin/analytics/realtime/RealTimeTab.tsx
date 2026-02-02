@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useEnhancedRealTimeAnalytics } from "@/hooks/useEnhancedRealTimeAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MapboxGlobeMap } from "./MapboxGlobeMap";
 import { PremiumGlobeMap } from "./PremiumGlobeMap";
 import { LiveActivityFeed } from "./LiveActivityFeed";
 import { countryCodeToFlag } from "@/lib/flagEmoji";
@@ -53,98 +54,123 @@ export function RealTimeTab() {
     );
   }
 
+  // Check if Mapbox token is available
+  const hasMapboxToken = !!import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+
   return (
     <div className="space-y-0">
-      {/* Stats bar - above the globe */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3 rounded-t-2xl bg-black/30 backdrop-blur-xl border border-white/10 border-b-0">
-        <div className="flex items-center gap-6">
-          {/* Live indicator + count */}
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-coral-500"></span>
+      {/* Stats bar - above the globe (only shown when NOT using Mapbox, since Mapbox has its own panel) */}
+      {!hasMapboxToken && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3 rounded-t-2xl bg-black/30 backdrop-blur-xl border border-white/10 border-b-0">
+            <div className="flex items-center gap-6">
+              {/* Live indicator + count */}
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-coral-500"></span>
+                </span>
+                <span className="text-white text-sm font-medium tabular-nums">
+                  {data.totalActiveUsers} visitor{data.totalActiveUsers !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* Top countries as filter chips */}
+              <div className="hidden sm:flex items-center gap-2">
+                {data.byCountry.slice(0, 4).map(({ country, countryCode, count }) => (
+                  <FilterChip
+                    key={country}
+                    label={`${countryCodeToFlag(countryCode)} ${country}`}
+                    count={count}
+                    isActive={activeFilter?.type === 'country' && activeFilter.value === country}
+                    onClick={() => {
+                      if (activeFilter?.type === 'country' && activeFilter.value === country) {
+                        setActiveFilter(null);
+                      } else {
+                        setActiveFilter({ type: 'country', value: country });
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Device breakdown */}
+              <div className="hidden md:flex items-center gap-2">
+                {data.byDevice.map(({ device, count }) => (
+                  <FilterChip
+                    key={device}
+                    label={<DeviceLabel type={device} />}
+                    count={count}
+                    isActive={activeFilter?.type === 'device' && activeFilter.value === device}
+                    onClick={() => {
+                      if (activeFilter?.type === 'device' && activeFilter.value === device) {
+                        setActiveFilter(null);
+                      } else {
+                        setActiveFilter({ type: 'device', value: device });
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <span className="text-[10px] text-white/50 uppercase tracking-wider">
+              Updated just now
             </span>
-            <span className="text-white text-sm font-medium tabular-nums">
-              {data.totalActiveUsers} visitor{data.totalActiveUsers !== 1 ? 's' : ''}
-            </span>
           </div>
 
-          {/* Top countries as filter chips */}
-          <div className="hidden sm:flex items-center gap-2">
-            {data.byCountry.slice(0, 4).map(({ country, countryCode, count }) => (
-              <FilterChip
-                key={country}
-                label={`${countryCodeToFlag(countryCode)} ${country}`}
-                count={count}
-                isActive={activeFilter?.type === 'country' && activeFilter.value === country}
-                onClick={() => {
-                  if (activeFilter?.type === 'country' && activeFilter.value === country) {
-                    setActiveFilter(null);
-                  } else {
-                    setActiveFilter({ type: 'country', value: country });
-                  }
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Device breakdown */}
-          <div className="hidden md:flex items-center gap-2">
-            {data.byDevice.map(({ device, count }) => (
-              <FilterChip
-                key={device}
-                label={<DeviceLabel type={device} />}
-                count={count}
-                isActive={activeFilter?.type === 'device' && activeFilter.value === device}
-                onClick={() => {
-                  if (activeFilter?.type === 'device' && activeFilter.value === device) {
-                    setActiveFilter(null);
-                  } else {
-                    setActiveFilter({ type: 'device', value: device });
-                  }
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <span className="text-[10px] text-white/50 uppercase tracking-wider">
-          Updated just now
-        </span>
-      </div>
-
-      {/* Filter banner when active */}
-      {activeFilter && (
-        <div className="flex items-center justify-between px-5 py-2 bg-coral-500/10 border-x border-coral-500/20">
-          <span className="text-xs text-coral-400">
-            Showing {filteredUsers.length} users filtered by {activeFilter.type}: <strong>{activeFilter.value}</strong>
-          </span>
-          <button 
-            onClick={() => setActiveFilter(null)}
-            className="text-[10px] text-coral-400 hover:underline uppercase tracking-wider font-medium"
-          >
-            Clear filter
-          </button>
-        </div>
+          {/* Filter banner when active */}
+          {activeFilter && (
+            <div className="flex items-center justify-between px-5 py-2 bg-coral-500/10 border-x border-coral-500/20">
+              <span className="text-xs text-coral-400">
+                Showing {filteredUsers.length} users filtered by {activeFilter.type}: <strong>{activeFilter.value}</strong>
+              </span>
+              <button 
+                onClick={() => setActiveFilter(null)}
+                className="text-[10px] text-coral-400 hover:underline uppercase tracking-wider font-medium"
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Full-height globe - no overlays */}
-      <div className="relative" style={{ height: 'calc(100vh - 280px)', minHeight: '550px' }}>
-        <PremiumGlobeMap 
-          users={filteredUsers}
-          onUserClick={(user) => console.log('User clicked:', user)}
-          focusedSessionId={focusedSessionId}
-          className="absolute inset-0 rounded-none border-x border-white/10"
-        />
+      {/* Globe container - full height */}
+      <div 
+        className={cn(
+          "relative",
+          hasMapboxToken ? "rounded-2xl overflow-hidden" : ""
+        )} 
+        style={{ height: 'calc(100vh - 200px)', minHeight: '600px' }}
+      >
+        {hasMapboxToken ? (
+          <MapboxGlobeMap 
+            users={filteredUsers}
+            events={data.recentEvents}
+            onUserClick={(user) => console.log('User clicked:', user)}
+            focusedSessionId={focusedSessionId}
+            className="absolute inset-0"
+          />
+        ) : (
+          <PremiumGlobeMap 
+            users={filteredUsers}
+            onUserClick={(user) => console.log('User clicked:', user)}
+            focusedSessionId={focusedSessionId}
+            className="absolute inset-0 rounded-none border-x border-white/10"
+          />
+        )}
       </div>
       
-      {/* Activity feed - below the globe */}
-      <div className="rounded-b-2xl overflow-hidden border border-white/10 border-t-0">
-        <LiveActivityFeed 
-          events={data.recentEvents}
-          onUserClick={(sessionId) => setFocusedSessionId(sessionId)}
-        />
-      </div>
+      {/* Activity feed - below the globe (only when NOT using Mapbox) */}
+      {!hasMapboxToken && (
+        <div className="rounded-b-2xl overflow-hidden border border-white/10 border-t-0">
+          <LiveActivityFeed 
+            events={data.recentEvents}
+            onUserClick={(sessionId) => setFocusedSessionId(sessionId)}
+          />
+        </div>
+      )}
     </div>
   );
 }
