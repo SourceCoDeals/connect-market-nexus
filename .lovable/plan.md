@@ -1,109 +1,119 @@
 
 
-# Plan: Fix Users Tab to Show Real Names and Accurate Data
+# Plan: Fix Anonymous Name Bug & Add Full Referrer History
 
-## Problem Analysis
+## Problem Summary
 
-Based on investigation, I found the following issues:
+Three issues identified:
 
-### Issue 1: All Visitors Showing with Animal Names
-The current logic incorrectly determines `isAnonymous` based on the session's `user_id` presence rather than checking if a profile exists. The key line is:
-```typescript
-const isAnonymous = sessionData?.isAnonymous ?? !profile;
-```
+### Issue 1: Registered Users Showing Animal Names
+**Root Cause**: The `profiles` query only fetches profiles created within the 30-day time range (for signup counting). However, the `topUsers` logic uses this same `profileMap` to resolve user names. Users who registered before the time range (like Champ Warren from Nov 2025) are not in `profileMap`, causing them to appear anonymous.
 
-But `sessionData?.isAnonymous` is set from `!s.user_id` on the **latest session**, which can be wrong if:
-1. A registered user's session was tracked before their `user_id` was linked
-2. The `profileMap.get(id)` lookup fails because `id` is a `visitor_id`, not a `user_id`
+**Evidence**: 
+- Champ Warren's profile ID: `0e633bf9-c20f-4003-a5d9-65f72b005cdf`
+- Profile created: `2025-11-20` (outside 30-day window)
+- Has session from today with `user_id` set
+- Still shows as "Pearl Griffin" because profile lookup fails
 
-**Root Cause**: When tracking by unified key (`user_id || visitor_id`), if we use `visitor_id` as the key (even when `user_id` exists), the profile lookup by that `visitor_id` will fail since profiles are keyed by `user_id`.
+### Issue 2: Missing Full Referrer History
+Anonymous visitors should display all their referrers across sessions in the detail panel, not just the first session's referrer. This provides complete visibility into their discovery path.
 
-### Issue 2: User Detail Panel Missing "How They Landed"
-The detail panel shows:
-- "Found site via" for the referrer
-- But doesn't explicitly show the **landing page** (first page visited on marketplace)
+### Issue 3: Traffic Source Clarification
+The traffic is **real** but includes development activity:
+- 18 sessions from `lovable.dev` (preview window)
+- 34 sessions with null country (development traffic)
+- The European visitors (Amsterdam, France, UK, Spain, Hungary) are actual visitors or preview loads
 
-The session table has `first_touch_landing_page` column that should be displayed.
-
-### Issue 3: Anonymous Users Not Being Queried Correctly
-For anonymous users (only `visitor_id`), the `useUserDetail` hook needs to also fetch page views by joining through sessions since `page_views.visitor_id` doesn't exist.
+This isn't "fake" data but does include development traffic that could optionally be filtered.
 
 ---
 
 ## Solution
 
-### Part A: Fix `isAnonymous` Detection
+### Part A: Fix Profile Lookup for All Users
 
-Modify `useUnifiedAnalytics.ts` to properly determine if a visitor is registered:
-
-1. **Always prefer `user_id` as the tracking key** when both exist
-2. **Look up profile by `user_id`**, not by the unified key
-3. **Set `isAnonymous = true` only when there's no `user_id` in any session** for that visitor
+Add a **separate query** to fetch profiles for ALL users who have sessions in the time period, not just new signups:
 
 ```text
-// When processing sessions, track the user_id separately
-const visitorToUserId = new Map<string, string>(); // visitor_id -> user_id
+Location: src/hooks/useUnifiedAnalytics.ts (around line 205-275)
 
-uniqueSessions.forEach(s => {
-  // If session has user_id, map any visitor_id to it
-  if (s.user_id && s.visitor_id) {
-    visitorToUserId.set(s.visitor_id, s.user_id);
-  }
+1. Keep existing profiles query for signup counting (lines 263-268)
+2. Add new query to get profiles for ALL users with sessions
+
+// NEW: Fetch profiles for all users who have sessions (for name display)
+const allUserIdsFromSessions = new Set<string>();
+rawSessions.forEach(s => {
+  if (s.user_id) allUserIdsFromSessions.add(s.user_id);
 });
 
-// When building topUsers:
-const userId = visitorToUserId.get(id) || (profileMap.has(id) ? id : null);
-const profile = userId ? profileMap.get(userId) : null;
-const isAnonymous = !profile;
+const { data: allProfilesForUsers } = await supabase
+  .from('profiles')
+  .select('id, first_name, last_name, company')
+  .in('id', Array.from(allUserIdsFromSessions));
 
-const name = !isAnonymous
-  ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Unknown'
-  : generateAnimalName(id);
+// Build complete profile map for name resolution
+const allProfilesMap = new Map(allProfilesForUsers?.map(p => [p.id, p]) || []);
 ```
 
-### Part B: Add Landing Page to User Detail Panel
+Then update line 1217 to use `allProfilesMap` instead of `profileMap` for the `topUsers` logic.
 
-1. Update `useUserDetail.ts` to include `first_touch_landing_page` from the first session
-2. Update `UserDetailPanel.tsx` to display "Landed on" section showing the first page visited
+### Part B: Add Full Session History to User Detail
+
+Modify `useUserDetail.ts` to include all session referrers:
 
 ```text
-// In source data returned by useUserDetail:
+// In the UserDetailData interface, add:
 source: {
-  referrer: firstSession?.referrer,
-  landingPage: firstSession?.first_touch_landing_page, // NEW
-  channel: categorizeChannel(...),
-  ...
+  referrer?: string;
+  landingPage?: string;
+  channel?: string;
+  // NEW: All sessions with their referrers for full journey visibility
+  allSessions?: Array<{
+    referrer: string | null;
+    landingPage: string | null;
+    startedAt: string;
+    channel: string;
+  }>;
+  // ... existing fields
 }
+
+// In the query function, build allSessions:
+const allSessions = sessions.map(s => ({
+  referrer: s.referrer,
+  landingPage: s.first_touch_landing_page,
+  startedAt: s.started_at,
+  channel: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
+}));
 ```
 
+### Part C: Display Session History in User Detail Panel
+
+Update `UserDetailPanel.tsx` to show the full journey:
+
 ```text
-// In UserDetailPanel acquisition section:
-{data.source.landingPage && (
+// New "Journey" section in Acquisition showing all sessions
+{data.source.allSessions && data.source.allSessions.length > 1 && (
   <div>
-    <span className="text-xs text-muted-foreground block mb-1">Landing Page</span>
-    <code className="text-xs bg-muted px-2 py-1 rounded">
-      {data.source.landingPage}
-    </code>
+    <span className="text-xs text-muted-foreground block mb-2">
+      Visit History ({data.source.allSessions.length} sessions)
+    </span>
+    <div className="space-y-2 max-h-32 overflow-y-auto">
+      {data.source.allSessions.map((session, i) => (
+        <div key={i} className="text-xs bg-muted/20 p-2 rounded flex items-center gap-2">
+          <span className="text-muted-foreground">
+            {format(new Date(session.startedAt), 'MMM d, HH:mm')}
+          </span>
+          <span>via</span>
+          <Badge variant="outline" className="text-[9px]">{session.channel}</Badge>
+          {session.referrer && (
+            <span className="truncate text-blue-600">{session.referrer}</span>
+          )}
+        </div>
+      ))}
+    </div>
   </div>
 )}
 ```
-
-### Part C: Fix Page Views Query for Anonymous Users
-
-For anonymous visitors, fetch page views by joining through sessions:
-
-```typescript
-// In useUserDetail.ts
-const pageViewsQuery = isUserId
-  ? supabase.from('page_views')...
-  : supabase.from('page_views')
-      .select('*')
-      .in('session_id', sessions.map(s => s.session_id))
-      .gte('created_at', sixMonthsAgo)
-      .order('created_at', { ascending: true });
-```
-
-This requires fetching sessions first, then using the session IDs to query page views.
 
 ---
 
@@ -111,53 +121,42 @@ This requires fetching sessions first, then using the session IDs to query page 
 
 ### File 1: `src/hooks/useUnifiedAnalytics.ts`
 
-**Lines ~1154-1270**: Rewrite the visitor tracking logic
-
-1. Create `visitorToUserId` map to link visitor_ids to user_ids
-2. When building `topUsers`, resolve the `user_id` for each visitor
-3. Only mark as `isAnonymous` if no user_id can be found
-4. Use the resolved profile to get real names
+| Location | Change |
+|----------|--------|
+| Lines 275-280 | After fetching sessions, extract all user_ids and query their profiles |
+| Lines 1215-1217 | Create `allProfilesMap` from ALL user profiles, not just recent signups |
+| Lines 1240-1253 | Use `allProfilesMap` instead of `profileMap` for topUsers name resolution |
 
 ### File 2: `src/hooks/useUserDetail.ts`
 
-**Lines ~142-150**: Fix page views query for anonymous users
-- Fetch sessions first
-- Then use session IDs to query page views
-
-**Lines ~255-293**: Add `landingPage` to source data
-- Include `first_touch_landing_page` in the returned source object
+| Location | Change |
+|----------|--------|
+| Lines 52-63 | Add `allSessions` field to `UserDetailData.source` interface |
+| Lines 298-305 | Build `allSessions` array from all fetched sessions |
 
 ### File 3: `src/components/admin/analytics/datafast/UserDetailPanel.tsx`
 
-**Lines ~252-312**: Add landing page display in Acquisition section
-- Display "Landing Page" field showing where the user first landed
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/hooks/useUnifiedAnalytics.ts` | Fix `isAnonymous` detection to use profile lookup; map visitor_id to user_id for registered users |
-| `src/hooks/useUserDetail.ts` | Fix page views query for anonymous users; add `landingPage` to source data |
-| `src/components/admin/analytics/datafast/UserDetailPanel.tsx` | Display landing page in acquisition section |
+| Location | Change |
+|----------|--------|
+| Lines 290-300 | Add "Visit History" section showing all sessions with referrers |
 
 ---
 
 ## Expected Outcome
 
-After these changes:
-
 | Before | After |
 |--------|-------|
-| "Violet Whale" for Admin User | "Admin User" |
-| "Golden Orca" for registered users | Real names from profile |
-| Animal names for everyone | Animal names ONLY for truly anonymous visitors |
-| No landing page shown | Shows "Landed on /marketplace" etc. |
-| Missing page views for anonymous | Complete event timeline for anonymous users |
+| Champ Warren shows as "Pearl Griffin" | Shows as "Champ Warren" with real company/email |
+| Anonymous visitors show single referrer | Shows full session history with all referrers |
+| All registered users appear anonymous | Only truly anonymous visitors (no `user_id` ever) show animal names |
 
-The Users tab will show:
-- Real names for registered users (Adam Haile, Tomos Mughan, Champ Warren, etc.)
-- Animal names only for genuinely anonymous visitors (no user_id in any session)
-- Complete acquisition data including where they landed on the marketplace
+---
+
+## Optional Enhancement: Filter Development Traffic
+
+To exclude development/preview sessions from the Users tab, add a filter to exclude sessions where:
+- `referrer` contains `lovable.dev` or `lovableproject.com`
+- OR `country` is null/empty
+
+This is optional and can be implemented as a toggle "Hide dev traffic" if desired.
 
