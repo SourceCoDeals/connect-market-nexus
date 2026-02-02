@@ -1,241 +1,275 @@
 
-# Intelligence Center Fix Plan
+# Intelligence Center Design Enhancement & Data Accuracy Plan
 
-## Issues Identified
+## Current Issues Identified
 
-### Issue 1: Referrer is Truncated in User Detail Panel
-**Location:** `UserDetailPanel.tsx` lines 219-224
-**Root Cause:** Referrer is truncated with `max-w-[120px]` class and only shows hostname
-```tsx
-<span className="text-xs truncate max-w-[120px]">
-  {new URL(data.source.referrer).hostname}
-</span>
-```
-**Fix:** Show full referrer with proper wrapping, add tooltip for long URLs
+### Data Issues Found
 
-### Issue 2: User Detail Panel Position Should Be Bottom (Not Side)
-**Location:** `UserDetailPanel.tsx` line 133-134
-**Root Cause:** Using Sheet with default `side="right"` behavior
-```tsx
-<SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
-```
-**Fix:** Change to `side="bottom"` and increase height to cover ~80% of viewport like Datafa.st
+1. **Browser data has many NULL values** 
+   - Query shows: `nil: 3518, Chrome: 2644, Firefox: 32, Safari: 3`
+   - 57% of browser data is missing
+   
+2. **OS data has many NULL values**
+   - Query shows: `nil: 3546, Windows: 2285, macOS: 359, Linux: 7`
+   - 57% of OS data is missing
+   
+3. **Country data has many NULL values**  
+   - Query shows: `nil: 5936, United States: 138, France: 40...`
+   - 96% of country data is missing (likely IP geolocation not running)
+   
+4. **daily_metrics table is EMPTY**
+   - No pre-aggregated data exists
+   - Fallback to raw session computation is working but sparklines in KPIs return zeros because they query `daily_metrics`
+   
+5. **Users showing correctly now** - 20 users with connections/sessions are appearing in the data query
 
-### Issue 3: User Detail Panel Needs More Comprehensive Data
-**Current State:** Missing several key elements from Datafa.st example:
-- Resolution/screen size
-- Full referrer with favicon
-- "Found site via" acquisition entry
-- Date grouping in timeline (e.g., "Saturday, Jan 31st 2026")
-- Expandable event parameters
-- Better visual hierarchy
+### Design Issues Found
 
-**Fix:** Enhance the panel layout to match Datafa.st example with two-column design
-
-### Issue 4: Goals Tab Shows No Data (Empty)
-**Location:** `ConversionCard.tsx` GoalsTab function
-**Root Cause:** GoalsTab iterates over `funnel.stages` which has correct data, but the issue is the funnel stages in `useUnifiedAnalytics.ts` lines 450-451 use placeholders:
-```typescript
-const ndaSignedCount = Math.floor(connectingUsers.size * 0.7); // ~70% of connections
-const feeAgreementCount = Math.floor(connectingUsers.size * 0.85); // ~85% of connections
-```
-**Fix:** Query actual NDA/Fee Agreement counts from `connection_requests` table
-
-### Issue 5: Only 2 Users Show in Funnel Despite Having 20+ Users with Connections
-**Location:** `useUnifiedAnalytics.ts` lines 485-502
-**Root Cause:** The topUsers filter only includes users who have BOTH profile AND (sessions OR connections) in the current period. Since sessions are filtered by date range but connections are also date-filtered, users who connected earlier don't appear.
-
-Also, the hook filters profiles that exist in `userConnectionCounts` OR `userSessionCounts` - but these maps are built from current period data only.
-
-**Database Evidence:**
-- 21 unique users made connections in last 30 days
-- There are users like "Dominic Lupo" with 17 connections and 43 sessions
-
-**Fix:** Query connection counts separately without date filter for user display, or include all users who have ever connected
-
-### Issue 6: Globe/Bulb Icons Should Be at Bottom Center (Not Right Side)
-**Location:** `FloatingGlobeToggle.tsx` line 12
-**Current:** `fixed bottom-6 right-6 flex flex-col gap-3`
-**Fix:** Change to `fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-row gap-3`
-
-### Issue 7: Daily Chart Shows No Data
-**Location:** `DailyVisitorsChart.tsx` & `useUnifiedAnalytics.ts`
-**Root Cause:** `daily_metrics` table is empty (query returned `[]`)
-**Fix:** Fall back to computing daily metrics from raw `user_sessions` when `daily_metrics` is empty
+1. **Generic browser icons** - Using Lucide Globe icon for Safari, Firefox, Edge, Opera instead of real brand logos
+2. **Users tab in ConversionCard is too basic** - Missing:
+   - Real browser logos (Chrome, Safari, Firefox)
+   - Full row data like Datafa.st (Source with logo, Spent equivalent, Last seen, Activity dots)
+   - Better visual design with proportional bars
+3. **No "Spent" equivalent column** - Should show connection count or a value metric
+4. **Activity dots missing for most users** - Not computed from real activity data
 
 ---
 
-## Implementation Plan
+## Enhancement Plan
 
-### Part 1: Fix User Detail Panel - Bottom Position & Comprehensive Layout
+### Part 1: Fix Sparklines & KPI Accuracy
 
-**File: `src/components/admin/analytics/datafast/UserDetailPanel.tsx`**
+**Problem:** Sparklines show zeros because they pull from empty `daily_metrics` table while main data computes from raw sessions.
 
-Changes:
-1. Change Sheet to open from bottom with `side="bottom"`
-2. Increase height to `h-[85vh]`
-3. Add two-column layout like Datafa.st:
-   - Left: Avatar, name, email, location (flag), device/resolution, OS, browser, parameters table
-   - Right: Stats grid, "Time to convert" badge, Activity heatmap, Event timeline with date headers
-4. Show full referrer with favicon
-5. Add "Found site via [referrer]" as first timeline event
-6. Group events by date with date headers
-7. Add expandable parameters to events
+**Fix in `useUnifiedAnalytics.ts`:**
+- Compute sparkline data directly from raw sessions when `daily_metrics` is empty
+- Use the same fallback pattern already used for `formattedDailyMetrics`
 
-### Part 2: Fix Data Queries in useUnifiedAnalytics
-
-**File: `src/hooks/useUnifiedAnalytics.ts`**
-
-Changes:
-1. Query actual NDA/Fee Agreement counts:
 ```typescript
-// Add to parallel queries
-supabase
-  .from('connection_requests')
-  .select('id, lead_nda_signed, lead_fee_agreement_signed')
-  .gte('created_at', startDateStr)
-```
+// CURRENT (broken):
+const visitorSparkline = last7Days.map(date => {
+  const metric = dailyMetrics.find(m => m.date === date);
+  return metric?.total_sessions || 0;
+});
 
-2. Compute daily metrics from raw sessions when `daily_metrics` is empty:
-```typescript
-if (dailyMetrics.length === 0) {
-  // Aggregate from sessions by date
-  const dailyMap = new Map<string, { visitors: number; connections: number }>();
-  uniqueSessions.forEach(s => {
-    const date = format(new Date(s.started_at), 'yyyy-MM-dd');
-    // ... aggregate
-  });
-}
-```
-
-3. Fix topUsers to include ALL users with connections (not just current period):
-```typescript
-// Query all connection counts, not just current period
-const allConnectionsResult = await supabase
-  .from('connection_requests')
-  .select('user_id')
-  .not('user_id', 'is', null);
-```
-
-### Part 3: Fix Globe/Bulb Button Position
-
-**File: `src/components/admin/analytics/datafast/FloatingGlobeToggle.tsx`**
-
-Change positioning from right side to bottom center:
-```tsx
-<div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-row gap-3 z-40">
-```
-
-### Part 4: Enhance Funnel Tooltips with Real Breakdown Data
-
-**File: `src/components/admin/analytics/datafast/ConversionCard.tsx`**
-
-Currently using static placeholder data in tooltips:
-```tsx
-topSources={[
-  { name: 'Direct', percentage: 45 },
-  { name: 'Google', percentage: 28 },
-  { name: 'LinkedIn', percentage: 15 },
-]}
-```
-
-Fix: Pass real computed source/country breakdown to each funnel stage
-
----
-
-## Technical Details
-
-### UserDetailPanel Bottom Sheet Layout
-
-```
-+------------------------------------------------------------------+
-|  [Drag Handle]                                              [X]   |
-+------------------------------------------------------------------+
-|                                                                    |
-|   [Avatar]  Name                    |  PAGEVIEWS    SESSIONS      |
-|             Company                 |    8             9          |
-|             email@company.com       |                             |
-|                                     |  TIME ON SITE  CONNECTIONS  |
-|   LOCATION                          |    0s            2          |
-|   [Flag] Country, City              |                             |
-|                                     |  [Time to convert: 171 days]|
-|   TECHNOLOGY                        |                             |
-|   [Icon] Desktop (1728x1000)        |  ACTIVITY (LAST 6 MONTHS)   |
-|   [Icon] Mac OS                     |  [Calendar Heatmap]         |
-|   [Icon] Safari                     |                             |
-|                                     |  EVENT TIMELINE (10 EVENTS) |
-|   ACQUISITION                       |  [Saturday, Jan 31st 2026]  |
-|   Channel        [Referral]         |  [Q] Found codefa.st via... |
-|   Referrer       www.sourcecodeal...|  [Eye] Viewed page /        |
-|   (show full on hover)              |  [Eye] Viewed page /market..|
-|                                     |  [Link] Sent connection...  |
-|   First seen     Aug 11, 2025       |                             |
-|   Last seen      4 days ago         |                             |
-|                                     |                             |
-+------------------------------------------------------------------+
-```
-
-### Daily Metrics Fallback Computation
-
-When `daily_metrics` table is empty, compute from raw data:
-```typescript
+// FIX - compute from sessions:
 const dailySessionCounts = new Map<string, number>();
-const dailyConnectionCounts = new Map<string, number>();
-
 uniqueSessions.forEach(s => {
-  const date = format(new Date(s.started_at), 'yyyy-MM-dd');
-  dailySessionCounts.set(date, (dailySessionCounts.get(date) || 0) + 1);
+  const dateStr = format(parseISO(s.started_at), 'yyyy-MM-dd');
+  dailySessionCounts.set(dateStr, (dailySessionCounts.get(dateStr) || 0) + 1);
 });
 
-connections.forEach(c => {
-  const date = format(new Date(c.created_at), 'yyyy-MM-dd');
-  dailyConnectionCounts.set(date, (dailyConnectionCounts.get(date) || 0) + 1);
-});
+const visitorSparkline = last7Days.map(date => 
+  dailySessionCounts.get(date) || 0
+);
+```
 
-// Generate array for all days in range
-const formattedDailyMetrics = [];
-for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-  const dateStr = format(d, 'yyyy-MM-dd');
-  formattedDailyMetrics.push({
-    date: dateStr,
-    visitors: dailySessionCounts.get(dateStr) || 0,
-    connections: dailyConnectionCounts.get(dateStr) || 0,
-    bounceRate: 0,
-  });
+### Part 2: Real Browser/OS/Source Logos
+
+**Current:** Using generic Lucide icons for all browsers except Chrome
+
+**Fix:** Create real SVG brand logos or use emoji/image sprites for:
+
+| Browser | Current | Fixed |
+|---------|---------|-------|
+| Chrome | Chrome icon | ✅ Keep (Lucide has real Chrome) |
+| Safari | Globe icon | 🧭 Safari compass or SVG |
+| Firefox | Globe icon | 🦊 Firefox emoji or SVG |
+| Edge | Globe icon | 🌊 Edge logo or SVG |
+| Opera | Globe icon | 🔴 Opera O logo or SVG |
+| Instagram | None | 📷 Instagram icon |
+
+**Implementation in `TechStackCard.tsx`:**
+```typescript
+const BROWSER_ICONS: Record<string, React.ReactNode> = {
+  'Chrome': <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/googlechrome.svg" alt="" className="h-4 w-4" />,
+  'Safari': <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/safari.svg" alt="" className="h-4 w-4" />,
+  'Firefox': <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/firefox.svg" alt="" className="h-4 w-4" />,
+  'Edge': <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/microsoftedge.svg" alt="" className="h-4 w-4" />,
+  // ...
+};
+```
+
+### Part 3: Enhanced User Row Design (Like Datafa.st Screenshot)
+
+**Current User Row:**
+```
+[Avatar] Name    [Device Icon] [Activity Dots] Sessions | Connections
+         Company
+```
+
+**Target Design (from Datafa.st):**
+```
+[Avatar] Name [Badge]      [Flag] [Device] [OS] [Browser]    [Source Logo] Source    Connections    Last seen         [Activity Dots]
+         Country                                                                                   Today at 4:36 PM
+```
+
+**Required Changes in `ConversionCard.tsx UsersTab`:**
+
+1. **Add real browser/OS/device icons inline** (like Datafa.st shows: 🇨🇾 Desktop 🍎 Mac OS 🔵 Chrome)
+2. **Add Source column with favicon** (like X logo, Direct icon, Google logo)
+3. **Add "Connections" or value column** (our equivalent of "Spent $169")
+4. **Add "Last seen" timestamp** (format: "Today at 4:36 PM")
+5. **Activity dots as 7 dots on the right**
+
+**Data requirements:**
+- Pull browser, OS from user's session data
+- Pull referrer source with favicon
+- Compute 7-day activity from page_views
+
+### Part 4: Proportional Bars in All List Cards
+
+**Datafa.st shows proportional coral/peach bars behind each row to indicate relative volume.**
+
+**Add to:**
+- `SourcesCard.tsx` - Referrer tab rows
+- `GeographyCard.tsx` - Country/Region/City rows  
+- `PagesCard.tsx` - Page rows
+- `TechStackCard.tsx` - Browser/OS/Device rows
+
+**Implementation pattern:**
+```tsx
+<div className="relative py-2">
+  {/* Background bar */}
+  <div 
+    className="absolute inset-y-0 left-0 bg-[hsl(12_95%_77%/0.15)] rounded"
+    style={{ width: `${(item.visitors / maxVisitors) * 100}%` }}
+  />
+  {/* Content on top */}
+  <div className="relative flex items-center justify-between">
+    <span>{item.name}</span>
+    <span>{item.visitors}</span>
+  </div>
+</div>
+```
+
+### Part 5: User Activity Data in topUsers
+
+**Problem:** `topUsers` in useUnifiedAnalytics doesn't include:
+- Browser name
+- OS name  
+- Last seen timestamp
+- Activity days (last 7 days with page view counts)
+
+**Fix:** Enhance the user data structure:
+
+```typescript
+interface TopUser {
+  id: string;
+  name: string;
+  company: string;
+  sessions: number;
+  pagesViewed: number;
+  connections: number;
+  country?: string;
+  device?: string;
+  browser?: string;    // ADD
+  os?: string;         // ADD
+  lastSeen?: string;   // ADD
+  source?: string;
+  sourceIcon?: string; // ADD (favicon URL)
+  timeToConvert?: number;
+  activityDays?: Array<{ date: string; pageViews: number; level: 'none' | 'low' | 'medium' | 'high' }>;
 }
 ```
 
-### Real Funnel Stage Data
-
-Query NDA and Fee Agreement from connection_requests:
+**Data source for activity days:**
 ```sql
 SELECT 
-  COUNT(*) FILTER (WHERE lead_nda_signed = true) as nda_count,
-  COUNT(*) FILTER (WHERE lead_fee_agreement_signed = true) as fee_count,
-  COUNT(*) as total_connections
-FROM connection_requests
-WHERE created_at >= [startDate]
+  user_id, 
+  DATE(created_at) as date, 
+  COUNT(*) as page_views
+FROM page_views 
+WHERE user_id = ANY([user_ids])
+  AND created_at >= NOW() - INTERVAL '7 days'
+GROUP BY user_id, DATE(created_at)
+```
+
+### Part 6: Handle NULL Browser/OS/Country Data
+
+**Many sessions have NULL for browser, OS, and country** (this is a data collection issue at the session tracking level, not an analytics display issue)
+
+**Display Fix:**
+- Show "Unknown" with a neutral icon instead of hiding
+- Filter out "(null)" or empty values from top lists to avoid showing "Unknown" at top
+
+```typescript
+const browsers = Object.entries(browserCounts)
+  .filter(([name]) => name !== 'Unknown' && name !== 'null' && name)
+  .map(...)
 ```
 
 ---
 
-## Files to Modify
+## Technical Implementation
+
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/admin/analytics/datafast/UserDetailPanel.tsx` | Complete rewrite for bottom sheet with comprehensive layout |
-| `src/hooks/useUnifiedAnalytics.ts` | Fix data queries, add daily metrics fallback, fix topUsers |
-| `src/components/admin/analytics/datafast/FloatingGlobeToggle.tsx` | Center bottom positioning |
-| `src/components/admin/analytics/datafast/ConversionCard.tsx` | Pass real breakdown data to funnel tooltips |
+| `src/hooks/useUnifiedAnalytics.ts` | Fix sparklines, add browser/OS/lastSeen to topUsers, filter null values |
+| `src/components/admin/analytics/datafast/ConversionCard.tsx` | Completely redesign UsersTab to match Datafa.st |
+| `src/components/admin/analytics/datafast/TechStackCard.tsx` | Add real browser logos, proportional bars |
+| `src/components/admin/analytics/datafast/SourcesCard.tsx` | Add proportional bars to referrer rows |
+| `src/components/admin/analytics/datafast/GeographyCard.tsx` | Add proportional bars to country/city rows |
+| `src/components/admin/analytics/datafast/PagesCard.tsx` | Add proportional bars to page rows |
+
+### New Components/Utilities to Create
+
+1. **BrowserLogo component** - Maps browser name to real logo (SVG or SimpleIcons CDN)
+2. **SourceLogo component** - Maps referrer domain to favicon with fallback
+3. **ProportionalBar component** - Reusable background bar for list rows
 
 ---
 
-## Expected Results After Fix
+## Expected Visual Result
 
-1. **User Detail Panel:** Opens from bottom as slide-up sheet covering 85% of viewport, with comprehensive two-column layout matching Datafa.st
-2. **Referrer:** Shows full URL with tooltip for long URLs, includes favicon
-3. **Goals Tab:** Shows real milestone counts from database
-4. **Users Tab:** Shows all 20+ users with connections, not just 2
-5. **Daily Chart:** Shows actual daily visitor/connection data computed from raw sessions
-6. **Globe/Bulb Buttons:** Positioned at bottom center of screen
-7. **Funnel Tooltips:** Show real top sources and countries for each stage
+### Users Tab After Enhancement:
+```
++--------------------------------------------------------------------------------------+
+| Goal   Funnel   User   Journey                                    Q Search           |
++--------------------------------------------------------------------------------------+
+| Visitor                                    Source        Connections  Last seen      |
++--------------------------------------------------------------------------------------+
+| [Avatar] Nicholas Lee    [Customer badge]  [X logo] X        2       Today 4:36 PM  ○○○○●●
+|          🇺🇸 Desktop 🍎 macOS 🔵 Chrome                                              |
++--------------------------------------------------------------------------------------+
+| [Avatar] Nathaniel Kostiw-Gill             [Link] Direct     2       Today 4:34 PM  ○○○○○●
+|          🇨🇦 Desktop 🪟 Windows 🔵 Chrome                                            |
++--------------------------------------------------------------------------------------+
+| [Avatar] Dominic Lupo                      [G] Google        2       Yesterday       ○●○●●●
+|          🇺🇸 Desktop 🍎 macOS 🧭 Safari                                              |
++--------------------------------------------------------------------------------------+
+```
+
+### Browser Tab with Real Logos:
+```
+Browser                                                    Visitors ↓
+[Chrome Logo] Chrome    [=============================]    2,644
+[Safari Logo] Safari    [====]                             512  
+[Firefox Logo] Firefox  [==]                               350
+[Edge Logo] Edge        [=]                                325
+```
+
+---
+
+## Data Quality Recommendations
+
+The NULL data issue is a tracking infrastructure problem, not a display problem. Recommended fixes (separate from this plan):
+
+1. **Browser/OS detection:** Ensure the session tracking code parses User-Agent correctly
+2. **Country detection:** Ensure IP geolocation is running on session creation
+3. **Pre-aggregate daily_metrics:** Create a scheduled function to populate daily_metrics table
+
+---
+
+## Priority Order
+
+| Priority | Task | Impact |
+|----------|------|--------|
+| P0 | Fix sparklines to use raw data | KPIs show real trends |
+| P0 | Redesign Users tab to Datafa.st spec | Core UX improvement |
+| P1 | Add real browser/OS logos | Polish & professionalism |
+| P1 | Add proportional bars to all lists | Visual data density |
+| P2 | Filter out NULL/Unknown from top of lists | Cleaner data display |
+| P2 | Add user activity dots from real page_view data | Engagement visualization |
