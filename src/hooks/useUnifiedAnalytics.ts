@@ -84,6 +84,23 @@ function isDevTraffic(referrer: string | null): boolean {
   return DEV_TRAFFIC_PATTERNS.some(pattern => lowerReferrer.includes(pattern));
 }
 
+// Map self-reported sources (from signup "how did you hear about us") to channels
+function selfReportedSourceToChannel(source: string | null): string | null {
+  if (!source) return null;
+  const s = source.toLowerCase().trim();
+  
+  // Map self-reported sources to standard channels
+  if (s === 'google') return 'Organic Search';
+  if (s === 'linkedin' || s === 'instagram' || s === 'twitter' || s === 'facebook' || s === 'reddit' || s === 'youtube') return 'Organic Social';
+  if (s === 'ai') return 'AI';
+  if (s === 'newsletter' || s === 'podcast') return 'Newsletter';
+  if (s === 'friend') return 'Referral';  // Word of mouth is a referral
+  if (s === 'billboard') return 'Other';
+  if (s === 'other') return null;  // Fall back to session data for "other"
+  
+  return null;  // Unknown - fall back to session data
+}
+
 function categorizeChannel(referrer: string | null, utmSource: string | null, utmMedium: string | null): string {
   if (!referrer && !utmSource) return 'Direct';
   
@@ -490,13 +507,27 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       });
       
       // Map signups to channels via first session
-      // CRITICAL: Use original_external_referrer if available (for cross-domain attribution)
+      // Priority: 1) Cross-domain tracking, 2) User-reported source, 3) Session referrer
       profiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
+        
+        // Priority 1: Cross-domain tracking (if we have it from blog script)
+        if (firstSession?.original_external_referrer) {
+          const channel = categorizeChannel(firstSession.original_external_referrer, firstSession.utm_source, firstSession.utm_medium);
+          channelSignups[channel] = (channelSignups[channel] || 0) + 1;
+          return;
+        }
+        
+        // Priority 2: User-reported discovery source (real self-reported data!)
+        const selfReportedChannel = selfReportedSourceToChannel(p.referral_source);
+        if (selfReportedChannel) {
+          channelSignups[selfReportedChannel] = (channelSignups[selfReportedChannel] || 0) + 1;
+          return;
+        }
+        
+        // Priority 3: Fall back to session referrer
         if (firstSession) {
-          // Prioritize original_external_referrer (true discovery source) over immediate referrer
-          const effectiveReferrer = firstSession.original_external_referrer || firstSession.referrer;
-          const channel = categorizeChannel(effectiveReferrer, firstSession.utm_source, firstSession.utm_medium);
+          const channel = categorizeChannel(firstSession.referrer, firstSession.utm_source, firstSession.utm_medium);
           channelSignups[channel] = (channelSignups[channel] || 0) + 1;
         }
       });
@@ -541,12 +572,27 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30) {
       });
       
       // Map signups to referrers
-      // CRITICAL: Use original_external_referrer if available (for cross-domain attribution)
+      // Priority: 1) Cross-domain tracking, 2) User-reported source, 3) Session referrer
       profiles.forEach(p => {
         const firstSession = profileToFirstSession.get(p.id);
+        
+        // Priority 1: Cross-domain tracking (if we have it)
+        if (firstSession?.original_external_referrer) {
+          const domain = extractDomain(firstSession.original_external_referrer);
+          referrerSignups[domain] = (referrerSignups[domain] || 0) + 1;
+          return;
+        }
+        
+        // Priority 2: Use self-reported source as the referrer domain
+        if (p.referral_source && p.referral_source !== 'other') {
+          const sourceDomain = p.referral_source.toLowerCase() + '.com';
+          referrerSignups[sourceDomain] = (referrerSignups[sourceDomain] || 0) + 1;
+          return;
+        }
+        
+        // Priority 3: Fall back to session referrer
         if (firstSession) {
-          const effectiveReferrer = firstSession.original_external_referrer || firstSession.referrer;
-          const domain = extractDomain(effectiveReferrer);
+          const domain = extractDomain(firstSession.referrer);
           referrerSignups[domain] = (referrerSignups[domain] || 0) + 1;
         }
       });
