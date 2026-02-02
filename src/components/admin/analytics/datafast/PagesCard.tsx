@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { AnalyticsCard } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
-import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
-import { useAnalyticsFilters, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
 import { FilterModal } from "./FilterModal";
 
 interface PagesCardProps {
@@ -24,7 +23,7 @@ function formatPath(path: string): string {
 export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<string>('');
-  const { addFilter, hasFilter } = useAnalyticsFilters();
+  const { hasFilter } = useAnalyticsFilters();
   
   const tabs = [
     { id: 'page', label: 'Page' },
@@ -36,11 +35,7 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
   const maxEntryVisitors = Math.max(...entryPages.map(p => p.visitors), 1);
   const maxExitVisitors = Math.max(...exitPages.map(p => p.exits), 1);
 
-  const handleRowClick = (filter: AnalyticsFilter) => {
-    if (!hasFilter(filter.type, filter.value)) {
-      addFilter(filter);
-    }
-  };
+  // Removed - filtering now only via Details modal
 
   const handleDetailsClick = (activeTab: string) => {
     setModalTab(activeTab);
@@ -105,9 +100,8 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                     >
                       <ProportionalBar value={page.visitors} maxValue={maxPageVisitors}>
                         <div 
-                          onClick={() => handleRowClick({ type: 'page', value: page.path, label: page.path })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer group",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -115,7 +109,6 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                             <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
                               {formatPath(page.path)}
                             </code>
-                            <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
                           </div>
                           <span className="text-sm font-medium tabular-nums">
                             {page.visitors.toLocaleString()}
@@ -146,9 +139,8 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                     >
                       <ProportionalBar value={page.visitors} maxValue={maxEntryVisitors}>
                         <div 
-                          onClick={() => handleRowClick({ type: 'page', value: page.path, label: page.path })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -189,9 +181,8 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                     >
                       <ProportionalBar value={page.exits} maxValue={maxExitVisitors}>
                         <div 
-                          onClick={() => handleRowClick({ type: 'page', value: page.path, label: page.path })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >

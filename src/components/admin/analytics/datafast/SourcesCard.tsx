@@ -10,12 +10,11 @@ import {
   Link2, 
   CreditCard, 
   Mail,
-  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
 import { ReferrerLogo, formatReferrerName } from "./ReferrerLogo";
-import { useAnalyticsFilters, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
 import { FilterModal } from "./FilterModal";
 
 interface SourcesCardProps {
@@ -49,7 +48,7 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
   const [sortBy, setSortBy] = useState<SortValue>('visitors');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<string>('');
-  const { addFilter, hasFilter } = useAnalyticsFilters();
+  const { hasFilter } = useAnalyticsFilters();
   
   const tabs = [
     { id: 'channel', label: 'Channel' },
@@ -83,11 +82,7 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
   const maxCampaignValue = Math.max(...campaigns.map(c => getSortValue(c)), 1);
   const maxKeywordValue = Math.max(...keywords.map(k => getSortValue(k)), 1);
 
-  const handleRowClick = (filter: AnalyticsFilter) => {
-    if (!hasFilter(filter.type, filter.value)) {
-      addFilter(filter);
-    }
-  };
+  // Removed - filtering now only via Details modal
 
   const handleDetailsClick = (activeTab: string) => {
     setModalTab(activeTab);
@@ -205,9 +200,8 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                         ]}
                       >
                         <div 
-                          onClick={() => handleRowClick({ type: 'channel', value: channel.name, label: channel.name })}
                           className={cn(
-                            "flex items-center justify-between py-1.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors group",
+                            "flex items-center justify-between py-1.5 hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors",
                             isActive && "opacity-50"
                           )}
                         >
@@ -259,9 +253,8 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                         secondaryMaxValue={Math.max(...referrers.map(r => r.connections), 1)}
                       >
                         <div 
-                          onClick={() => handleRowClick({ type: 'referrer', value: ref.domain, label: formatReferrerName(ref.domain) })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer group",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -270,7 +263,6 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                             <span className="text-sm font-medium truncate max-w-[180px]">
                               {formatReferrerName(ref.domain)}
                             </span>
-                            <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                           <div className="flex items-center gap-3">
                             {ref.connections > 0 && (
@@ -313,9 +305,8 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                         maxValue={maxCampaignValue}
                       >
                         <div 
-                          onClick={() => handleRowClick({ type: 'campaign', value: campaign.name, label: campaign.name })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
@@ -361,9 +352,8 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                         maxValue={maxKeywordValue}
                       >
                         <div 
-                          onClick={() => handleRowClick({ type: 'keyword', value: kw.term, label: kw.term })}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
+                            "flex items-center justify-between",
                             isActive && "opacity-50"
                           )}
                         >
