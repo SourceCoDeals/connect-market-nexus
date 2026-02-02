@@ -1,11 +1,23 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, Marker, Annotation } from "react-simple-maps";
+import { geoCentroid } from "d3-geo";
 import { cn } from "@/lib/utils";
 import { UserTooltipCard } from "./UserTooltipCard";
 import type { EnhancedActiveUser } from "@/hooks/useEnhancedRealTimeAnalytics";
 import { getAvatarColor, getInitials } from "@/lib/anonymousNames";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+
+// Major countries to show labels for (to avoid clutter)
+const MAJOR_COUNTRIES = new Set([
+  'United States of America', 'Canada', 'Brazil', 'Argentina', 'Mexico',
+  'Russia', 'China', 'India', 'Japan', 'Australia',
+  'Germany', 'France', 'United Kingdom', 'Italy', 'Spain', 'Poland', 'Ukraine',
+  'South Africa', 'Egypt', 'Nigeria', 'Kenya',
+  'Indonesia', 'Thailand', 'Vietnam', 'Philippines',
+  'Saudi Arabia', 'Turkey', 'Iran',
+  'Sweden', 'Norway', 'Finland',
+]);
 
 interface PremiumGlobeMapProps {
   users: EnhancedActiveUser[];
@@ -56,7 +68,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
     }
   }, [focusedSessionId, users]);
   
-  // Drag handlers for rotation
+  // Drag handlers for rotation - FIXED: Natural direction (drag left = rotate left)
   const handleGlobeMouseDown = (e: React.MouseEvent) => {
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     baseRotationOnDragStart.current = rotation;
@@ -69,11 +81,11 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
       setTooltipPos({ x: e.clientX, y: e.clientY });
     }
     
-    // Handle drag-to-rotate
+    // Handle drag-to-rotate - FIXED: Inverted for natural feel
     if (isDragging.current && dragStartPos.current) {
       const dx = e.clientX - dragStartPos.current.x;
-      // Convert pixel delta to rotation degrees (sensitivity factor)
-      setDragOffset(dx * 0.3);
+      // FIXED: Negative multiplier so drag left = rotate left
+      setDragOffset(-dx * 0.3);
     }
   };
   
@@ -113,7 +125,8 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
   const handleTouchMove = (e: React.TouchEvent) => {
     if (isDragging.current && dragStartPos.current && e.touches.length === 1) {
       const dx = e.touches[0].clientX - dragStartPos.current.x;
-      setDragOffset(dx * 0.3);
+      // FIXED: Inverted for natural feel
+      setDragOffset(-dx * 0.3);
     }
   };
   
@@ -196,7 +209,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
       onTouchEnd={handleTouchEnd}
       onClick={handleGlobeBackgroundClick}
       style={{
-        background: 'radial-gradient(ellipse at center, #0a1628 0%, #020617 100%)',
+        background: 'radial-gradient(ellipse at center, #0f1729 0%, #020617 100%)',
       }}
     >
       {/* Star background effect */}
@@ -226,20 +239,20 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
       {/* Ambient glow around globe */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div 
-          className="w-[500px] h-[500px] rounded-full opacity-20"
+          className="w-[600px] h-[600px] rounded-full opacity-25"
           style={{
-            background: 'radial-gradient(circle, rgba(99,102,241,0.3) 0%, rgba(99,102,241,0.1) 40%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(99,102,241,0.4) 0%, rgba(99,102,241,0.15) 40%, transparent 70%)',
           }}
         />
       </div>
       
       {/* Map container */}
-      <div className="relative h-[600px] w-full">
+      <div className="relative h-full w-full min-h-[500px]">
         <ComposableMap
           projection="geoOrthographic"
           projectionConfig={{
-            scale: 280,
-            rotate: [-effectiveRotation, -20, 0],
+            scale: 300,
+            rotate: [-effectiveRotation, -15, 0],
             center: [0, 0],
           }}
           style={{ width: "100%", height: "100%" }}
@@ -248,34 +261,60 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
           <circle 
             cx={400} 
             cy={300} 
-            r={280} 
+            r={300} 
             fill="url(#globeGradient)" 
-            stroke="rgba(99,102,241,0.2)"
+            stroke="rgba(99,102,241,0.15)"
             strokeWidth={1}
           />
           <defs>
-            <radialGradient id="globeGradient" cx="30%" cy="30%">
-              <stop offset="0%" stopColor="#1e3a5f" />
+            <radialGradient id="globeGradient" cx="35%" cy="25%">
+              <stop offset="0%" stopColor="#3a5a7f" />
+              <stop offset="60%" stopColor="#1e3a5f" />
               <stop offset="100%" stopColor="#0f172a" />
             </radialGradient>
           </defs>
           
           <Geographies geography={geoUrl}>
             {({ geographies }) =>
-              geographies.map((geo) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill="#1e3a5f"
-                  stroke="#2d4a6f"
-                  strokeWidth={0.4}
-                  style={{
-                    default: { outline: "none" },
-                    hover: { outline: "none", fill: "#2d4a6f" },
-                    pressed: { outline: "none" },
-                  }}
-                />
-              ))
+              geographies.map((geo) => {
+                const countryName = geo.properties.name;
+                const showLabel = MAJOR_COUNTRIES.has(countryName);
+                const centroid = geoCentroid(geo);
+                
+                return (
+                  <g key={geo.rsmKey}>
+                    <Geography
+                      geography={geo}
+                      fill="#2a4a6a"
+                      stroke="#4a6a8a"
+                      strokeWidth={0.4}
+                      style={{
+                        default: { outline: "none" },
+                        hover: { outline: "none", fill: "#3a5a7a" },
+                        pressed: { outline: "none" },
+                      }}
+                    />
+                    {/* Country label */}
+                    {showLabel && (
+                      <Marker coordinates={centroid}>
+                        <text
+                          textAnchor="middle"
+                          style={{
+                            fontSize: '7px',
+                            fill: 'rgba(255,255,255,0.35)',
+                            fontWeight: 500,
+                            letterSpacing: '0.5px',
+                            textTransform: 'uppercase',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          {getShortName(countryName)}
+                        </text>
+                      </Marker>
+                    )}
+                  </g>
+                );
+              })
             }
           </Geographies>
 
@@ -378,7 +417,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
       )}
 
       {/* Active count badge - top right */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/10">
+      <div className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 rounded-full bg-black/50 backdrop-blur-xl border border-white/10">
         <span className="relative flex h-2.5 w-2.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-coral-500"></span>
@@ -389,7 +428,7 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
       {/* Resume rotation button when paused */}
       {isManuallyPaused && (
         <button
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-xs text-white/80 hover:bg-white/10 transition-colors"
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 text-xs text-white/80 hover:bg-white/10 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             setIsManuallyPaused(false);
@@ -398,41 +437,21 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
           ▶ Resume rotation
         </button>
       )}
-      
-      {/* User legend - bottom */}
-      <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2">
-        {users.slice(0, 8).map((user) => (
-          <div 
-            key={user.sessionId}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border cursor-pointer hover:bg-white/10 transition-colors",
-              pinnedUser?.sessionId === user.sessionId 
-                ? "border-coral-500" 
-                : "border-white/10"
-            )}
-            onMouseEnter={(e) => handleMouseEnter(user, e)}
-            onMouseLeave={handleMouseLeave}
-            onClick={(e) => handleMarkerClick(user, e)}
-          >
-            <div className={cn(
-              "w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white",
-              user.isAnonymous ? getAvatarColor(user.displayName) : getBuyerTypeColorClass(user.buyerType)
-            )}>
-              {getInitials(user.displayName)}
-            </div>
-            <span className="text-xs text-white/90 truncate max-w-[100px]">
-              {user.displayName}
-            </span>
-          </div>
-        ))}
-        {users.length > 8 && (
-          <div className="flex items-center px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-xs text-white/60">
-            +{users.length - 8} more
-          </div>
-        )}
-      </div>
     </div>
   );
+}
+
+// Helper to shorten country names for labels
+function getShortName(name: string): string {
+  const shorts: Record<string, string> = {
+    'United States of America': 'USA',
+    'United Kingdom': 'UK',
+    'Russian Federation': 'Russia',
+    'South Africa': 'S. Africa',
+    'Saudi Arabia': 'Saudi',
+    'New Zealand': 'N. Zealand',
+  };
+  return shorts[name] || name;
 }
 
 function getAvatarFill(user: EnhancedActiveUser): string {
