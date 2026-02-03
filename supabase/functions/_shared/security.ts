@@ -330,6 +330,10 @@ export function rateLimitResponse(result: RateLimitResult): Response {
     {
       status: 429,
       headers: {
+        // IMPORTANT: include CORS headers so browsers can read the 429 response
+        // (otherwise the client just sees a generic "Failed to fetch")
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
         'Content-Type': 'application/json',
         'X-RateLimit-Limit': result.limit.toString(),
         'X-RateLimit-Remaining': result.remaining.toString(),
@@ -352,7 +356,12 @@ export function ssrfErrorResponse(reason: string): Response {
     }),
     {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        // IMPORTANT: include CORS headers so browsers can read the 400 response
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Content-Type': 'application/json',
+      },
     }
   );
 }

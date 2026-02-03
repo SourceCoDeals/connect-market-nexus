@@ -30,8 +30,9 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     onComplete,
     maxRetries = 3,
     retryDelayMs = 2000,
-    // Increase default delay to 3 seconds to respect rate limits (10 per minute = 6s ideally)
-    betweenItemDelayMs = 3000,
+    // Default to 6.5s to comfortably stay under 10 calls/hour per user (server-side limit)
+    // and reduce burstiness when users click repeatedly.
+    betweenItemDelayMs = 6500,
   } = options;
 
   const [isEnriching, setIsEnriching] = useState(false);
@@ -135,8 +136,8 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
           if (result.partial) partialCount++;
           
           // Immediately invalidate queries for real-time UI updates
-          queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-          queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyer.id] });
+          void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'], refetchType: 'active' });
+          void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyer.id], refetchType: 'active' });
         } else {
           // Check if rate limited - stop processing immediately
           if (result.rateLimited) {
@@ -180,7 +181,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
       setProgress({ current: 0, total: 0 });
       
       // Final refresh of data
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+      void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'], refetchType: 'active' });
     }
   }, [enrichBuyer, onComplete, betweenItemDelayMs, toast, queryClient]);
 
