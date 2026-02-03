@@ -115,20 +115,16 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     // For consumer-facing businesses, review volume indicates customer throughput
     notes.push('Size estimated from Google review count');
 
-    if (reviewCount >= 2000) {
+    if (reviewCount >= 1000) {
       sizeScore += 55; // Very high volume - likely $10M+ revenue
-    } else if (reviewCount >= 1000) {
-      sizeScore += 45; // High volume - likely $5-10M revenue
-    } else if (reviewCount >= 500) {
-      sizeScore += 35; // Established - likely $3-5M revenue
-    } else if (reviewCount >= 200) {
-      sizeScore += 25; // Growing - likely $1-3M revenue
+    } else if (reviewCount >= 250) {
+      sizeScore += 40; // High volume - likely $3-10M revenue
     } else if (reviewCount >= 100) {
-      sizeScore += 15; // Small but active - likely $500K-1M revenue
+      sizeScore += 25; // Established - likely $1-3M revenue
     } else if (reviewCount >= 50) {
-      sizeScore += 8;  // Small - likely $250K-500K revenue
+      sizeScore += 15; // Growing - likely $500K-1M revenue
     } else {
-      sizeScore += 3;  // Very small or new
+      sizeScore += 5;  // Under 50 reviews - small/new business
     }
   } else {
     notes.push('No financials, employee, or review data - size unknown');
