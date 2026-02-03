@@ -83,11 +83,10 @@ const DEAL_FIELDS = [
   { value: "owner_goals", label: "Owner Goals" },
   { value: "number_of_locations", label: "Number of Locations" },
   { value: "linkedin_url", label: "LinkedIn URL" },
-  { value: "transcript_url", label: "Transcript/Recording URL" },
+  { value: "fireflies_url", label: "Fireflies/Transcript URL" },
   { value: "google_review_count", label: "Google Review Count" },
   { value: "google_review_score", label: "Google Review Score" },
   { value: "status", label: "Deal Status" },
-  { value: "fit_assessment", label: "Fit Assessment (Yes/No)" },
   { value: "last_contacted_at", label: "Last Contacted Date" },
 ];
 
@@ -275,15 +274,6 @@ export function DealImportDialog({
                   // Invalid date, skip
                 }
               }
-              // Handle fit_assessment as boolean-like
-              else if (field === "fit_assessment") {
-                const lowerVal = value.toLowerCase();
-                if (lowerVal === 'yes' || lowerVal === 'true' || lowerVal === '1' || lowerVal === 'fit') {
-                  listingData.internal_notes = (listingData.internal_notes || '') + '\n[Fit: Yes]';
-                } else if (lowerVal === 'no' || lowerVal === 'false' || lowerVal === '0' || lowerVal === 'not fit') {
-                  listingData.internal_notes = (listingData.internal_notes || '') + '\n[Fit: No]';
-                }
-              }
               // Handle status mapping
               else if (field === "status") {
                 // Map common status values to our schema
@@ -296,10 +286,9 @@ export function DealImportDialog({
                   listingData.status = 'inactive';
                 }
               }
-              // Handle transcript/recording URLs
-              else if (field === "transcript_url") {
-                // Store in internal_notes with a label since we don't have a dedicated column
-                listingData.internal_notes = (listingData.internal_notes || '') + `\n[Transcript: ${value}]`;
+              // Handle Fireflies/transcript URLs - store as fireflies_url field
+              else if (field === "fireflies_url") {
+                listingData.fireflies_url = value;
               }
               // Default: string fields
               else {

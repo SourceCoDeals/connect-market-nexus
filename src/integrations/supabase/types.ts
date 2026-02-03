@@ -3346,6 +3346,7 @@ export type Database = {
           extraction_sources: Json | null
           files: string[] | null
           final_rank: number | null
+          fireflies_url: string | null
           founded_year: number | null
           full_time_employees: number | null
           general_notes: string | null
@@ -3500,6 +3501,7 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null
@@ -3654,6 +3656,7 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null

@@ -72,9 +72,8 @@ const DEAL_FIELDS = [
   { field: 'google_review_count', description: 'Number of Google reviews' },
   { field: 'google_review_score', description: 'Google review score/rating' },
   { field: 'linkedin_url', description: 'LinkedIn company profile URL' },
-  { field: 'transcript_url', description: 'URL to call transcript or recording (e.g., Fireflies, Gong)' },
+  { field: 'fireflies_url', description: 'URL to Fireflies call recording or transcript' },
   { field: 'status', description: 'Deal status (e.g., Active, Evaluation, Closed)' },
-  { field: 'fit_assessment', description: 'Fit/Not Fit assessment (Yes/No)' },
   { field: 'last_contacted_at', description: 'Date of last contact with the company' },
 ];
 
@@ -134,12 +133,11 @@ Be intelligent about variations:
 - "Email", "Contact Email", "Owner Email" → primary_contact_email
 - "Phone", "Phone Number", "Contact Phone", "Mobile" → primary_contact_phone
 - "LinkedIn URL", "LinkedIn", "LI URL", "Company LinkedIn" → linkedin_url
-- "Transcript", "Recording", "Fireflies", "Gong", "Call Recording" → transcript_url
+- "Fireflies", "Fireflies URL", "Recording URL", "Call Recording" → fireflies_url
 - "Google Reviews", "Review Count", "Reviews" → google_review_count
 - "Google Score", "Rating", "Review Score" → google_review_score
 - "Locations", "Location Count", "# of Locations" → number_of_locations
 - "Status", "Stage", "Deal Status", "Pipeline Stage" → status
-- "Fit", "FIT / NOT FIT", "Qualified", "Is Fit" → fit_assessment
 - "Last Contacted", "Last Contact Date", "Last Touch" → last_contacted_at
 - "Marketplace" (if it's a yes/no flag) → ignore (internal only)
 
@@ -334,9 +332,9 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if (lower.includes('linkedin')) {
         targetField = 'linkedin_url';
         confidence = 0.8;
-      } else if (lower.includes('transcript') || lower.includes('fireflies') || lower.includes('gong') || lower.includes('recording')) {
-        targetField = 'transcript_url';
-        confidence = 0.85;
+      } else if (lower.includes('fireflies') || (lower.includes('recording') && lower.includes('url'))) {
+        targetField = 'fireflies_url';
+        confidence = 0.9;
       } else if (lower.includes('google') && lower.includes('review') && lower.includes('count')) {
         targetField = 'google_review_count';
         confidence = 0.9;
@@ -355,14 +353,11 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if (lower.includes('status') || lower.includes('stage') || lower.includes('pipeline')) {
         targetField = 'status';
         confidence = 0.75;
-      } else if (lower.includes('fit') || lower.includes('qualified')) {
-        targetField = 'fit_assessment';
-        confidence = 0.8;
       } else if (lower.includes('last') && lower.includes('contact')) {
         targetField = 'last_contacted_at';
         confidence = 0.8;
-      } else if (lower === 'marketplace') {
-        // Ignore marketplace column - internal only
+      } else if (lower === 'marketplace' || lower.includes('fit') || lower.includes('qualified')) {
+        // Ignore marketplace and fit columns - internal only, never map
         targetField = null;
         confidence = 0;
       }
