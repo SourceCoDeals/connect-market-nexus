@@ -59,6 +59,9 @@ export interface UserDetailData {
     utmSource?: string;
     utmMedium?: string;
     utmCampaign?: string;
+    // Cross-domain journey tracking
+    originalExternalReferrer?: string; // True discovery source (e.g., google.com)
+    blogLandingPage?: string;          // Entry page on main site (e.g., /marketplace)
     // Full session history for complete journey visibility
     allSessions?: Array<{
       referrer: string | null;
@@ -68,6 +71,8 @@ export interface UserDetailData {
       utmSource?: string | null;
       utmMedium?: string | null;
       utmCampaign?: string | null;
+      originalExternalReferrer?: string | null;
+      blogLandingPage?: string | null;
     }>;
   };
 }
@@ -354,6 +359,9 @@ export function useUserDetail(visitorId: string | null) {
           utmSource: attributionSession?.utm_source || actualFirstSession?.utm_source,
           utmMedium: attributionSession?.utm_medium || actualFirstSession?.utm_medium,
           utmCampaign: attributionSession?.utm_campaign || actualFirstSession?.utm_campaign,
+          // Cross-domain journey tracking
+          originalExternalReferrer: attributionSession?.original_external_referrer || actualFirstSession?.original_external_referrer,
+          blogLandingPage: attributionSession?.blog_landing_page || actualFirstSession?.blog_landing_page,
           // Full journey history - all sessions with their referrers
           allSessions: sessions.map(s => ({
             referrer: s.referrer,
@@ -363,6 +371,8 @@ export function useUserDetail(visitorId: string | null) {
             utmSource: s.utm_source,
             utmMedium: s.utm_medium,
             utmCampaign: s.utm_campaign,
+            originalExternalReferrer: s.original_external_referrer,
+            blogLandingPage: s.blog_landing_page,
           })),
         },
       };
