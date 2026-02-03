@@ -204,7 +204,6 @@ export function DealImportDialog({
           // Build final listing object
           const listingData = {
             ...parsedData,
-            is_active: true,
             status: 'active',
           };
 

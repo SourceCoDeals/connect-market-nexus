@@ -158,7 +158,7 @@ export const DealCSVImport = ({
         try {
           // Build listing object dynamically - use Record to support all mapped fields
           const listingData: Record<string, unknown> = {
-            is_active: true,
+            status: "active",
             category: "Other",
           };
 
