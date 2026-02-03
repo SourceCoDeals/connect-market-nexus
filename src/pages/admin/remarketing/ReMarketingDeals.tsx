@@ -34,12 +34,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Search, 
-  MoreHorizontal, 
-  Building2, 
-  ThumbsUp, 
-  ThumbsDown, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Search,
+  MoreHorizontal,
+  Building2,
+  ThumbsUp,
+  ThumbsDown,
   Users,
   ExternalLink,
   Target,
@@ -47,21 +57,96 @@ import {
   TrendingDown,
   Minus,
   Globe,
-  Sparkles
+  Sparkles,
+  Upload,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
 
 const ReMarketingDeals = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [universeFilter, setUniverseFilter] = useState<string>("all");
   const [scoreFilter, setScoreFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
 
+  // State for import dialog
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string>("score");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  // Handle file import
+  const handleImport = async () => {
+    if (!importFile) {
+      toast({ title: "No file selected", description: "Please select a CSV file to import", variant: "destructive" });
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const text = await importFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+      const deals = lines.slice(1).map(line => {
+        const values = line.split(',');
+        const deal: Record<string, any> = {};
+        headers.forEach((header, i) => {
+          const value = values[i]?.trim();
+          if (header === 'revenue' || header === 'ebitda' || header === 'employee_count') {
+            deal[header] = value ? parseFloat(value.replace(/[^0-9.-]/g, '')) : null;
+          } else {
+            deal[header] = value || null;
+          }
+        });
+        return deal;
+      });
+
+      // Call the bulk import function
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('bulk-import-remarketing', {
+        body: { action: 'validate', data: deals },
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
+      });
+
+      if (response.error) throw new Error(response.error.message);
+
+      if (response.data?.valid) {
+        // Perform actual import
+        const importResponse = await supabase.functions.invoke('bulk-import-remarketing', {
+          body: { action: 'import', data: deals },
+          headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
+        });
+
+        if (importResponse.error) throw new Error(importResponse.error.message);
+
+        toast({ title: "Import successful", description: `Imported ${importResponse.data?.imported || deals.length} deals` });
+        setShowImportDialog(false);
+        setImportFile(null);
+        refetchListings();
+      } else {
+        toast({
+          title: "Validation failed",
+          description: response.data?.errors?.join(', ') || "Invalid data format",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Fetch all listings (deals) with their score stats
-  const { data: listings, isLoading: listingsLoading } = useQuery({
+  const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = useQuery({
     queryKey: ['remarketing', 'deals'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -82,7 +167,10 @@ const ReMarketingDeals = () => {
           internal_company_name,
           internal_deal_memo_link,
           geographic_states,
-          enriched_at
+          enriched_at,
+          employee_count,
+          lead_source,
+          ebitda_margin
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -262,13 +350,83 @@ const ReMarketingDeals = () => {
   // Format geography as badges from geographic_states array
   const formatGeographyBadges = (states: string[] | null) => {
     if (!states || states.length === 0) return null;
-    
+
     if (states.length <= 2) {
       return states.join(", ");
     }
-    
+
     return `${states.slice(0, 2).join(", ")} +${states.length - 2}`;
   };
+
+  // Handle sort column click
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
+  // Sort listings
+  const sortedListings = useMemo(() => {
+    if (!filteredListings) return [];
+
+    return [...filteredListings].sort((a, b) => {
+      const stats_a = scoreStats?.[a.id];
+      const stats_b = scoreStats?.[b.id];
+      let aVal: any, bVal: any;
+
+      switch (sortColumn) {
+        case "deal_name":
+          aVal = (a.internal_company_name || a.title || "").toLowerCase();
+          bVal = (b.internal_company_name || b.title || "").toLowerCase();
+          break;
+        case "industry":
+          aVal = (a.category || "").toLowerCase();
+          bVal = (b.category || "").toLowerCase();
+          break;
+        case "revenue":
+          aVal = a.revenue || 0;
+          bVal = b.revenue || 0;
+          break;
+        case "ebitda":
+          aVal = a.ebitda || 0;
+          bVal = b.ebitda || 0;
+          break;
+        case "employees":
+          aVal = a.employee_count || 0;
+          bVal = b.employee_count || 0;
+          break;
+        case "score":
+          aVal = stats_a?.avgScore || 0;
+          bVal = stats_b?.avgScore || 0;
+          break;
+        case "margin":
+          aVal = a.ebitda_margin || 0;
+          bVal = b.ebitda_margin || 0;
+          break;
+        case "engagement":
+          aVal = (stats_a?.totalMatches || 0);
+          bVal = (stats_b?.totalMatches || 0);
+          break;
+        case "added":
+          aVal = new Date(a.created_at).getTime();
+          bVal = new Date(b.created_at).getTime();
+          break;
+        default:
+          aVal = stats_a?.avgScore || 0;
+          bVal = stats_b?.avgScore || 0;
+      }
+
+      if (typeof aVal === "string") {
+        const comparison = aVal.localeCompare(bVal);
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
+
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [filteredListings, sortColumn, sortDirection, scoreStats]);
 
   return (
     <div className="p-6 space-y-6">
@@ -280,17 +438,23 @@ const ReMarketingDeals = () => {
             {listings?.length || 0} deals across {universeCount} buyer universes
           </p>
         </div>
-        <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="All Time" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="7d">Last 7 Days</SelectItem>
-            <SelectItem value="30d">Last 30 Days</SelectItem>
-            <SelectItem value="90d">Last 90 Days</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import Deals
+          </Button>
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="90d">Last 90 Days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Filters */}
@@ -347,6 +511,48 @@ const ReMarketingDeals = () => {
         </CardContent>
       </Card>
 
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Deals</DialogTitle>
+            <DialogDescription>
+              Upload a CSV file with deal data. Required columns: title, location, revenue, ebitda
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="csvFile">CSV File</Label>
+              <Input
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            {importFile && (
+              <p className="text-sm text-muted-foreground">
+                Selected: {importFile.name} ({Math.round(importFile.size / 1024)} KB)
+              </p>
+            )}
+            <div className="bg-muted p-3 rounded text-xs">
+              <p className="font-medium mb-1">Expected CSV format:</p>
+              <code className="text-muted-foreground">
+                title, location, revenue, ebitda, category, employee_count, lead_source
+              </code>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleImport} disabled={!importFile || isImporting}>
+              {isImporting ? "Importing..." : "Import"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Deals Table */}
       <Card>
         <CardContent className="p-0">
@@ -354,15 +560,63 @@ const ReMarketingDeals = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[250px]">Deal Name</TableHead>
-                  <TableHead className="w-[150px]">Buyer Universe</TableHead>
-                  <TableHead className="w-[180px]">Description</TableHead>
-                  <TableHead>Geography</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">EBITDA</TableHead>
-                  <TableHead className="text-center">Score</TableHead>
-                  <TableHead className="text-center">Engagement</TableHead>
-                  <TableHead>Added</TableHead>
+                  <TableHead className="w-[40px]">#</TableHead>
+                  <TableHead className="w-[220px]">
+                    <button onClick={() => handleSort("deal_name")} className="flex items-center gap-1">
+                      Deal Name
+                      {sortColumn === "deal_name" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead className="w-[130px]">
+                    <button onClick={() => handleSort("industry")} className="flex items-center gap-1">
+                      Industry
+                      {sortColumn === "industry" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => handleSort("revenue")} className="flex items-center gap-1 ml-auto">
+                      Revenue
+                      {sortColumn === "revenue" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => handleSort("ebitda")} className="flex items-center gap-1 ml-auto">
+                      EBITDA
+                      {sortColumn === "ebitda" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => handleSort("employees")} className="flex items-center gap-1 ml-auto">
+                      Employees
+                      {sortColumn === "employees" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <button onClick={() => handleSort("score")} className="flex items-center gap-1 mx-auto">
+                      Score
+                      {sortColumn === "score" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => handleSort("margin")} className="flex items-center gap-1 ml-auto">
+                      Margin
+                      {sortColumn === "margin" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <button onClick={() => handleSort("engagement")} className="flex items-center gap-1 mx-auto">
+                      Engagement
+                      {sortColumn === "engagement" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead>Lead Source</TableHead>
+                  <TableHead>
+                    <button onClick={() => handleSort("added")} className="flex items-center gap-1">
+                      Added
+                      {sortColumn === "added" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
@@ -384,16 +638,16 @@ const ReMarketingDeals = () => {
                       <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                     </TableRow>
                   ))
-                ) : filteredListings.length === 0 ? (
+                ) : sortedListings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                       <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>No deals found</p>
                       <p className="text-sm">Try adjusting your search or filters</p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredListings.map((listing) => {
+                  sortedListings.map((listing, index) => {
                     const stats = scoreStats?.[listing.id];
                     const universeName = getFirstUniverseName(listing.id);
                     const effectiveWebsite = getEffectiveWebsite(listing);
@@ -406,11 +660,20 @@ const ReMarketingDeals = () => {
                     const geographyDisplay = formatGeographyBadges(listing.geographic_states);
                     
                     return (
-                      <TableRow 
+                      <TableRow
                         key={listing.id}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
                       >
+                        {/* Row Number */}
+                        <TableCell className="font-medium text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            {index + 1}
+                            <ChevronDown className="h-3 w-3 opacity-50" />
+                          </div>
+                        </TableCell>
+
+                        {/* Deal Name */}
                         <TableCell>
                           <div>
                             <p className="font-medium text-foreground flex items-center gap-1.5">
@@ -428,9 +691,6 @@ const ReMarketingDeals = () => {
                                 </Tooltip>
                               )}
                             </p>
-                            {listedName && (
-                              <p className="text-xs text-muted-foreground">{listedName}</p>
-                            )}
                             {domain && (
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Globe className="h-3 w-3" />
@@ -439,52 +699,74 @@ const ReMarketingDeals = () => {
                             )}
                           </div>
                         </TableCell>
+
+                        {/* Industry */}
                         <TableCell>
-                          {universeName ? (
-                            <Badge variant="outline" className="text-xs font-normal">
-                              {universeName}
-                            </Badge>
+                          {listing.category ? (
+                            <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
+                              {listing.category.length > 18 ? listing.category.substring(0, 18) + '...' : listing.category}
+                            </span>
                           ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-muted-foreground line-clamp-2 max-w-[180px]">
-                            {listing.description?.substring(0, 60) || '—'}
-                            {listing.description && listing.description.length > 60 ? '...' : ''}
-                          </p>
-                        </TableCell>
+
+                        {/* Location */}
                         <TableCell>
                           {geographyDisplay ? (
-                            <Badge variant="secondary" className="text-xs font-normal">
-                              {geographyDisplay}
-                            </Badge>
+                            <span className="text-sm">{geographyDisplay}</span>
                           ) : listing.location ? (
-                            <Badge variant="secondary" className="text-xs font-normal">
+                            <span className="text-sm">
                               {listing.location.substring(0, 15)}{listing.location.length > 15 ? '...' : ''}
-                            </Badge>
+                            </span>
                           ) : (
-                            <span className="text-muted-foreground">-</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
+
+                        {/* Revenue */}
                         <TableCell className="text-right font-medium">
                           {formatCurrency(listing.revenue)}
                         </TableCell>
+
+                        {/* EBITDA */}
                         <TableCell className="text-right font-medium">
                           {formatCurrency(listing.ebitda)}
                         </TableCell>
+
+                        {/* Employees */}
+                        <TableCell className="text-right">
+                          {listing.employee_count ? (
+                            <span className="text-sm">{listing.employee_count}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Score with trend */}
                         <TableCell className="text-center">
                           {stats && stats.avgScore > 0 ? (
                             <div className="flex items-center justify-center gap-1.5">
-                              <span className="font-semibold text-sm">
-                                {Math.round(stats.avgScore)}
-                              </span>
+                              <span className="text-sm">~{Math.round(stats.avgScore)}</span>
                               {getScoreTrendIcon(stats.avgScore)}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
+                            <span className="text-muted-foreground text-sm">?</span>
                           )}
                         </TableCell>
+
+                        {/* Margin */}
+                        <TableCell className="text-right">
+                          {listing.ebitda_margin ? (
+                            <span className="text-sm">{listing.ebitda_margin}%</span>
+                          ) : listing.ebitda && listing.revenue ? (
+                            <span className="text-sm">{Math.round((listing.ebitda / listing.revenue) * 100)}%</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Engagement */}
                         <TableCell>
                           <div className="flex items-center justify-center gap-3 text-sm">
                             <div className="flex items-center gap-1 text-muted-foreground">
@@ -501,17 +783,32 @@ const ReMarketingDeals = () => {
                             </div>
                           </div>
                         </TableCell>
+
+                        {/* Lead Source */}
+                        <TableCell>
+                          {listing.lead_source ? (
+                            <span className="text-sm text-muted-foreground">{listing.lead_source}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Added date */}
                         <TableCell className="text-muted-foreground text-sm">
                           {format(new Date(listing.created_at), 'dd/MM/yyyy')}
                         </TableCell>
+
+                        {/* Status */}
                         <TableCell>
-                          <Badge 
-                            variant={listing.status === 'active' ? 'default' : 'secondary'} 
+                          <Badge
+                            variant={listing.status === 'active' ? 'default' : 'secondary'}
                             className="text-xs capitalize"
                           >
-                            {listing.status}
+                            {listing.status === 'active' ? 'Active' : listing.status}
                           </Badge>
                         </TableCell>
+
+                        {/* Actions */}
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>

@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,6 +51,13 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // SECURITY: Check rate limit before making AI calls
+    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_query', true);
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for admin ${user.id} on ai_query`);
+      return rateLimitResponse(rateLimitResult);
     }
 
     const { query, universeId, limit = 20 } = await req.json();
@@ -107,22 +115,24 @@ serve(async (req) => {
       });
     }
 
-    // Create a summary of buyers for AI context
+    // Create a MINIMAL summary of buyers for AI context
+    // SECURITY: Only send non-sensitive data to external AI service
+    // Avoid sending: thesis details, strategy, competitive info
     const buyerSummary = buyers.map(b => ({
       id: b.id,
       name: b.company_name,
       type: b.buyer_type,
-      thesis: b.thesis_summary?.substring(0, 200) || 'Not documented',
+      // Only send geographic focus, not detailed thesis
       geographies: b.target_geographies?.join(', ') || 'Not specified',
       services: b.target_services?.join(', ') || 'Not specified',
       footprint: b.geographic_footprint?.join(', ') || 'Not specified',
-      revenue_range: b.target_revenue_min || b.target_revenue_max 
+      revenue_range: b.target_revenue_min || b.target_revenue_max
         ? `$${b.target_revenue_min ? (b.target_revenue_min/1000000).toFixed(1) : '?'}M - $${b.target_revenue_max ? (b.target_revenue_max/1000000).toFixed(1) : '?'}M`
         : 'Not specified',
       ebitda_range: b.target_ebitda_min || b.target_ebitda_max
         ? `$${b.target_ebitda_min ? (b.target_ebitda_min/1000000).toFixed(1) : '?'}M - $${b.target_ebitda_max ? (b.target_ebitda_max/1000000).toFixed(1) : '?'}M`
         : 'Not specified',
-      data_quality: b.data_completeness || 'low',
+      // Omit thesis_summary for privacy - use only non-sensitive metadata
     }));
 
     // Use AI to find matching buyers

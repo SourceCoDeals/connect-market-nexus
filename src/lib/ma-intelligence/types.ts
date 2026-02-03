@@ -1,82 +1,39 @@
 // M&A Intelligence Domain Types
+//
+// IMPORTANT: Canonical type definitions are in src/types/remarketing.ts
+// This file re-exports them for backward compatibility and adds
+// M&A Intelligence-specific types that extend the base types.
 
-// ============================================================
-// CORE ENTITY TYPES
-// ============================================================
+// Re-export canonical types from the main types file
+export {
+  type SizeCriteria,
+  type ServiceCriteria,
+  type GeographyCriteria,
+  type BuyerTypesCriteria,
+  type ScoringBehavior,
+  type AcquisitionRecord as BaseAcquisitionRecord,
+  type ExtractionSource,
+  type DataCompleteness,
+  type ThesisConfidence,
+  type ScoreTier,
+  type ScoreStatus,
+} from '@/types/remarketing';
 
-export interface SizeCriteria {
-  min_revenue?: string | number;
-  max_revenue?: string | number;
-  ideal_revenue?: string | number;
-  min_ebitda?: string | number;
-  max_ebitda?: string | number;
-  ideal_ebitda?: string | number;
-  min_locations?: string | number;
-  max_locations?: string | number;
-  notes?: string;
+// Tracker document type (specific to M&A Intelligence)
+export interface TrackerDocument {
+  name: string;
+  url: string;
+  type: string;
+  uploadedAt: string;
 }
 
-export interface ServiceCriteria {
-  primary_focus?: string[];
-  secondary_services?: string[];
-  excluded_services?: string[];
-  service_mix_notes?: string;
-  notes?: string;
-}
-
-export interface GeographyCriteria {
-  target_regions?: string[];
-  target_states?: string[];
-  excluded_regions?: string[];
-  excluded_states?: string[];
-  geographic_strategy?: string;
-  notes?: string;
-}
-
-export interface BuyerTypesCriteria {
-  preferred_types?: BuyerTypeConfig[];
-  excluded_types?: string[];
-  notes?: string;
-}
-
+// Buyer type config for M&A Intelligence preferences
 export interface BuyerTypeConfig {
   type: string;
   min_locations?: number;
   min_revenue?: number;
   min_ebitda?: number;
   description?: string;
-}
-
-export interface ScoringBehavior {
-  size?: {
-    strictness: 'strict' | 'moderate' | 'lenient';
-    below_minimum_behavior: 'disqualify' | 'penalize';
-    single_location_penalty: boolean;
-  };
-  services?: {
-    matching_mode: 'exact' | 'semantic';
-    require_primary_focus_match: boolean;
-    excluded_services_are_dealbreakers: boolean;
-  };
-  geography?: {
-    strictness: 'strict' | 'moderate' | 'lenient';
-    proximity_miles: number;
-    multi_location_rule: 'national' | 'regional' | 'local';
-    single_location_rule: 'same_state' | 'adjacent_states' | 'same_region';
-    allow_national_for_attractive_deals: boolean;
-  };
-  engagement?: {
-    weight_multiplier: number;
-    override_geography: boolean;
-    override_size: boolean;
-  };
-}
-
-export interface TrackerDocument {
-  name: string;
-  url: string;
-  type: string;
-  uploadedAt: string;
 }
 
 // ============================================================

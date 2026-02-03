@@ -125,11 +125,13 @@ serve(async (req) => {
     const tierCounts: Record<string, { approved: number; total: number }> = {};
     for (const h of history) {
       // Determine tier from composite score
+      // FIXED: Use correct thresholds matching scoring algorithm v6.1
+      // See: score-buyer-deal/index.ts calculateTier function
       const score = h.composite_score || 0;
       let tier = 'D';
-      if (score >= 85) tier = 'A';
-      else if (score >= 70) tier = 'B';
-      else if (score >= 55) tier = 'C';
+      if (score >= 80) tier = 'A';      // Was incorrectly 85
+      else if (score >= 60) tier = 'B'; // Was incorrectly 70
+      else if (score >= 40) tier = 'C'; // Was incorrectly 55
       
       if (!tierCounts[tier]) {
         tierCounts[tier] = { approved: 0, total: 0 };

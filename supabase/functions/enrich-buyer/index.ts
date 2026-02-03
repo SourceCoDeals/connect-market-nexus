@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -110,7 +111,23 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    // Fetch buyer
+    // SECURITY: Check rate limit before making expensive AI calls
+    // Default to 'system' identifier if no auth header (service-to-service call)
+    const authHeader = req.headers.get('Authorization');
+    let userId = 'system';
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) userId = user.id;
+    }
+
+    const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', false);
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for user ${userId} on ai_enrichment`);
+      return rateLimitResponse(rateLimitResult);
+    }
+
+    // Fetch buyer with version for optimistic locking
     const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select('*')
@@ -125,6 +142,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Capture version for optimistic locking (use updated_at or data_last_updated)
+    const lockVersion = buyer.data_last_updated || buyer.created_at;
+
     // Get primary website - prefer platform_website, fall back to company_website
     const platformWebsite = buyer.platform_website || buyer.company_website;
     const peFirmWebsite = buyer.pe_firm_website;
@@ -134,6 +154,22 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Buyer has no website URL to scrape' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // SECURITY: Validate URLs to prevent SSRF attacks
+    if (platformWebsite) {
+      const platformUrlValidation = validateUrl(platformWebsite);
+      if (!platformUrlValidation.valid) {
+        console.error(`SSRF blocked for platform website: ${platformWebsite} - ${platformUrlValidation.reason}`);
+        return ssrfErrorResponse(`Platform website: ${platformUrlValidation.reason}`);
+      }
+    }
+    if (peFirmWebsite) {
+      const peFirmUrlValidation = validateUrl(peFirmWebsite);
+      if (!peFirmUrlValidation.valid) {
+        console.error(`SSRF blocked for PE firm website: ${peFirmWebsite} - ${peFirmUrlValidation.reason}`);
+        return ssrfErrorResponse(`PE firm website: ${peFirmUrlValidation.reason}`);
+      }
     }
 
     console.log(`Enriching buyer: ${buyer.company_name}`);
@@ -374,13 +410,19 @@ Deno.serve(async (req) => {
 
     // If billing error occurred, return partial data with error code
     if (billingError) {
-      // Still save any partial data we extracted
+      // Still save any partial data we extracted (with optimistic lock)
       if (Object.keys(extractedData).length > 0) {
         const partialUpdateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
-        await supabase
+        const { data: partialResult, count } = await supabase
           .from('remarketing_buyers')
           .update(partialUpdateData)
-          .eq('id', buyerId);
+          .eq('id', buyerId)
+          .or(`data_last_updated.eq.${lockVersion},data_last_updated.is.null`)
+          .select('id');
+
+        if (!partialResult || partialResult.length === 0) {
+          console.warn('Optimistic lock conflict during partial save - record was modified by another process');
+        }
       }
 
       const statusCode = billingError.code === 'payment_required' ? 402 : 429;
@@ -400,11 +442,22 @@ Deno.serve(async (req) => {
     // Step 4: Apply intelligent merge logic
     const updateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
 
-    // Update buyer record
-    const { error: updateError } = await supabase
+    // Update buyer record with optimistic locking
+    // The lock prevents concurrent enrichment processes from overwriting each other
+    let updateQuery = supabase
       .from('remarketing_buyers')
       .update(updateData)
       .eq('id', buyerId);
+
+    // Apply optimistic lock: only update if version hasn't changed
+    if (lockVersion) {
+      updateQuery = updateQuery.eq('data_last_updated', lockVersion);
+    } else {
+      // If no previous update, ensure it's still null (first enrichment)
+      updateQuery = updateQuery.is('data_last_updated', null);
+    }
+
+    const { data: updateResult, error: updateError } = await updateQuery.select('id');
 
     if (updateError) {
       console.error('Failed to update buyer:', updateError);
@@ -417,10 +470,23 @@ Deno.serve(async (req) => {
             message: (updateError as any)?.message,
             code: (updateError as any)?.code,
             hint: (updateError as any)?.hint,
-            // Note: no raw data payload returned to avoid leaking PII
           }
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check for optimistic lock conflict
+    if (!updateResult || updateResult.length === 0) {
+      console.warn(`Optimistic lock conflict for buyer ${buyerId} - record was modified by another process`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Record was modified by another process. Please refresh and try again.',
+          error_code: 'concurrent_modification',
+          recoverable: true
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk@0.30.1";
+import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
 
 const anthropic = new Anthropic({
   apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
@@ -16,15 +18,67 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get auth token from request
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify the user is an admin
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.is_admin) {
+      return new Response(JSON.stringify({ error: "Admin access required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // SECURITY: Check rate limit before making expensive AI calls
+    const rateLimitResult = await checkRateLimit(supabase, user.id, "ai_document_parse", true);
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for admin ${user.id} on ai_document_parse`);
+      return rateLimitResponse(rateLimitResult);
+    }
+
     const { document_url, document_type, tracker_id } = await req.json();
+
+    // SECURITY: Validate document URL to prevent SSRF
+    const urlValidation = validateUrl(document_url);
+    if (!urlValidation.valid) {
+      console.error(`SSRF blocked for document URL: ${document_url} - ${urlValidation.reason}`);
+      return ssrfErrorResponse(urlValidation.reason || "Invalid URL");
+    }
 
     console.log("[parse-tracker-documents] Processing:", {
       document_type,
       tracker_id,
     });
 
-    // Fetch document content
-    const docResponse = await fetch(document_url);
+    // Fetch document content (using validated URL)
+    const safeDocumentUrl = urlValidation.normalizedUrl || document_url;
+    const docResponse = await fetch(safeDocumentUrl);
     if (!docResponse.ok) {
       throw new Error(\`Failed to fetch document: \${docResponse.statusText}\`);
     }

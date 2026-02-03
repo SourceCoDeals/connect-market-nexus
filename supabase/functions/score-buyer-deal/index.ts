@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { checkRateLimit, checkGlobalRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,6 +56,31 @@ serve(async (req) => {
 
     const body = await req.json();
     const isBulk = body.bulk === true;
+
+    // SECURITY: Check rate limits before making AI calls
+    // For bulk operations, check global limit to prevent cost overruns
+    if (isBulk) {
+      const globalRateLimit = await checkGlobalRateLimit(supabase, 'global_ai_calls');
+      if (!globalRateLimit.allowed) {
+        console.error('Global rate limit exceeded for bulk scoring');
+        return rateLimitResponse(globalRateLimit);
+      }
+    }
+
+    // Get user identity for per-user rate limiting (service calls use 'system')
+    const authHeader = req.headers.get('Authorization');
+    let userId = 'system';
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) userId = user.id;
+    }
+
+    const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_scoring', false);
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for user ${userId} on ai_scoring`);
+      return rateLimitResponse(rateLimitResult);
+    }
 
     if (isBulk) {
       return await handleBulkScore(supabase, body as BulkScoreRequest, GEMINI_API_KEY, corsHeaders);

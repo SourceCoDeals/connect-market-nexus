@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, extractStatesFromText, mergeStates } from "../_shared/geography.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -603,6 +604,13 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // SECURITY: Check rate limit before making expensive AI calls
+    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_transcript', true);
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for admin ${user.id} on ai_transcript`);
+      return rateLimitResponse(rateLimitResult);
     }
 
     const { buyerId, listingId, transcriptText, source = 'call' } = await req.json();
