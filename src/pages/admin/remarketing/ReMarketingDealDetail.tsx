@@ -365,38 +365,6 @@ const ReMarketingDealDetail = () => {
         </div>
       </div>
 
-      {/* Transcripts Section */}
-      <DealTranscriptSection dealId={dealId!} transcripts={transcripts || []} isLoading={transcriptsLoading} />
-
-      {/* General Notes Section */}
-      <GeneralNotesSection
-        notes={deal.general_notes}
-        onSave={async (notes) => {
-          await updateDealMutation.mutateAsync({ general_notes: notes });
-        }}
-        isAnalyzing={isAnalyzingNotes}
-        onAnalyze={async (notes) => {
-          setIsAnalyzingNotes(true);
-          try {
-            const { data, error } = await supabase.functions.invoke('analyze-deal-notes', {
-              body: { dealId, notesText: notes }
-            });
-            
-            if (error) throw error;
-            
-            if (data?.success) {
-              toast.success(`Extracted ${data.fieldsUpdated?.length || 0} fields from notes`);
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
-            } else {
-              toast.error(data?.error || "Failed to analyze notes");
-            }
-          } catch (error: any) {
-            toast.error(error.message || "Failed to analyze notes");
-          } finally {
-            setIsAnalyzingNotes(false);
-          }
-        }}
-      />
 
       {/* Pipeline Summary Card - Shows conversion funnel */}
       {scoreStats && scoreStats.count > 0 && (
@@ -794,6 +762,39 @@ const ReMarketingDealDetail = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Transcripts Section */}
+      <DealTranscriptSection dealId={dealId!} transcripts={transcripts || []} isLoading={transcriptsLoading} />
+
+      {/* General Notes Section */}
+      <GeneralNotesSection
+        notes={deal.general_notes}
+        onSave={async (notes) => {
+          await updateDealMutation.mutateAsync({ general_notes: notes });
+        }}
+        isAnalyzing={isAnalyzingNotes}
+        onAnalyze={async (notes) => {
+          setIsAnalyzingNotes(true);
+          try {
+            const { data, error } = await supabase.functions.invoke('analyze-deal-notes', {
+              body: { dealId, notesText: notes }
+            });
+            
+            if (error) throw error;
+            
+            if (data?.success) {
+              toast.success(`Extracted ${data.fieldsUpdated?.length || 0} fields from notes`);
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+            } else {
+              toast.error(data?.error || "Failed to analyze notes");
+            }
+          } catch (error: any) {
+            toast.error(error.message || "Failed to analyze notes");
+          } finally {
+            setIsAnalyzingNotes(false);
+          }
+        }}
+      />
 
       {/* Timestamps Footer */}
       <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">
