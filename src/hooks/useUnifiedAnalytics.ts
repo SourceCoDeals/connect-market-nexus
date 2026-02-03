@@ -44,6 +44,7 @@ export interface UnifiedAnalyticsData {
   topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
   entryPages: Array<{ path: string; visitors: number; bounceRate: number }>;
   exitPages: Array<{ path: string; exits: number; exitRate: number }>;
+  blogEntryPages: Array<{ path: string; visitors: number; sessions: number }>;
   
   browsers: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
   operatingSystems: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
@@ -257,10 +258,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         profilesResult,
         allConnectionsWithMilestonesResult,
       ] = await Promise.all([
-        // Current period sessions - include visitor_id, region, and original_external_referrer for proper attribution
+        // Current period sessions - include visitor_id, region, blog_landing_page and original_external_referrer for proper attribution
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .gte('started_at', startDateStr)
@@ -1155,6 +1156,30 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         .sort((a, b) => b.exits - a.exits)
         .slice(0, 10);
       
+      // NEW: Aggregate blog_landing_page from user_sessions (cross-domain entry pages)
+      const blogEntryPageCounts: Record<string, { visitors: Set<string>; sessions: number }> = {};
+      uniqueSessions.forEach(s => {
+        if (s.blog_landing_page) {
+          // Format with main site domain prefix for clarity
+          const path = `sourcecodeals.com${s.blog_landing_page}`;
+          if (!blogEntryPageCounts[path]) {
+            blogEntryPageCounts[path] = { visitors: new Set(), sessions: 0 };
+          }
+          const visitorKey = getVisitorKey(s);
+          if (visitorKey) blogEntryPageCounts[path].visitors.add(visitorKey);
+          blogEntryPageCounts[path].sessions++;
+        }
+      });
+      
+      const blogEntryPages = Object.entries(blogEntryPageCounts)
+        .map(([path, data]) => ({
+          path,
+          visitors: data.visitors.size,
+          sessions: data.sessions,
+        }))
+        .sort((a, b) => b.visitors - a.visitors)
+        .slice(0, 20);
+      
       // Tech breakdown - count unique visitors, not sessions
       const browserVisitors: Record<string, Set<string>> = {};
       const browserSignups: Record<string, number> = {};
@@ -1474,6 +1499,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         topPages,
         entryPages,
         exitPages,
+        blogEntryPages,
         browsers,
         operatingSystems,
         devices,

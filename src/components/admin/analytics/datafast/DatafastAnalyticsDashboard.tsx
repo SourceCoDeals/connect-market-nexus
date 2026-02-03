@@ -153,6 +153,7 @@ function DashboardContent() {
               topPages={data.topPages}
               entryPages={data.entryPages}
               exitPages={data.exitPages}
+              blogEntryPages={data.blogEntryPages}
             />
             <TechStackCard 
               browsers={data.browsers}

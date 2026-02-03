@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Globe } from "lucide-react";
 import { AnalyticsCard } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,7 @@ interface PagesCardProps {
   topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
   entryPages: Array<{ path: string; visitors: number; bounceRate: number }>;
   exitPages: Array<{ path: string; exits: number; exitRate: number }>;
+  blogEntryPages: Array<{ path: string; visitors: number; sessions: number }>;
 }
 
 function formatPath(path: string): string {
@@ -20,7 +22,7 @@ function formatPath(path: string): string {
   return path;
 }
 
-export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
+export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: PagesCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<string>('');
   const { hasFilter } = useAnalyticsFilters();
@@ -28,11 +30,13 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
   const tabs = [
     { id: 'page', label: 'Page' },
     { id: 'entry', label: 'Entry page' },
+    { id: 'blog', label: 'Blog Entry' },
     { id: 'exit', label: 'Exit page' },
   ];
 
   const maxPageVisitors = Math.max(...topPages.map(p => p.visitors), 1);
   const maxEntryVisitors = Math.max(...entryPages.map(p => p.visitors), 1);
+  const maxBlogVisitors = Math.max(...blogEntryPages.map(p => p.visitors), 1);
   const maxExitVisitors = Math.max(...exitPages.map(p => p.exits), 1);
 
   // Removed - filtering now only via Details modal
@@ -56,6 +60,12 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
           label: p.path,
           visitors: p.visitors,
         }));
+      case 'blog':
+        return blogEntryPages.map(p => ({
+          id: p.path,
+          label: p.path,
+          visitors: p.visitors,
+        }));
       case 'exit':
         return exitPages.map(p => ({
           id: p.path,
@@ -71,6 +81,7 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
     switch (modalTab) {
       case 'page': return 'Pages';
       case 'entry': return 'Entry Pages';
+      case 'blog': return 'Blog Entry Pages';
       case 'exit': return 'Exit Pages';
       default: return 'Details';
     }
@@ -162,6 +173,46 @@ export function PagesCard({ topPages, entryPages, exitPages }: PagesCardProps) {
                 })}
                 {entryPages.length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-4">No entry page data</div>
+                )}
+              </>
+            )}
+            
+            {activeTab === 'blog' && (
+              <>
+                {blogEntryPages.slice(0, 8).map((page, i) => {
+                  const isActive = hasFilter('page', page.path);
+                  return (
+                    <AnalyticsTooltip
+                      key={`${page.path}-${i}`}
+                      title={page.path}
+                      rows={[
+                        { label: 'Visitors', value: page.visitors.toLocaleString() },
+                        { label: 'Sessions', value: page.sessions.toLocaleString() },
+                      ]}
+                    >
+                      <ProportionalBar value={page.visitors} maxValue={maxBlogVisitors}>
+                        <div 
+                          className={cn(
+                            "flex items-center justify-between",
+                            isActive && "opacity-50"
+                          )}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Globe className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[180px]">
+                              {formatPath(page.path)}
+                            </code>
+                          </div>
+                          <span className="text-sm font-medium tabular-nums">
+                            {page.visitors.toLocaleString()}
+                          </span>
+                        </div>
+                      </ProportionalBar>
+                    </AnalyticsTooltip>
+                  );
+                })}
+                {blogEntryPages.length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-4">No blog entry data</div>
                 )}
               </>
             )}
