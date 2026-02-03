@@ -117,6 +117,8 @@ export const DealCSVImport = ({
     Papa.parse(uploadedFile, {
       header: true,
       skipEmptyLines: true,
+      // Normalize headers (strip BOM + trim) so mapping + row access works reliably
+      transformHeader: (header) => header.replace(/^\uFEFF/, "").trim(),
       complete: async (results) => {
         const data = results.data as Record<string, string>[];
         setCsvData(data);
@@ -130,7 +132,8 @@ export const DealCSVImport = ({
           const { data: mappingResult, error } = await supabase.functions.invoke(
             "map-csv-columns",
             {
-              body: { columns, targetType: "deal" },
+              // Pass a few sample rows to improve mapping quality (disambiguates similar headers)
+              body: { columns, targetType: "deal", sampleData: data.slice(0, 3) },
             }
           );
 
