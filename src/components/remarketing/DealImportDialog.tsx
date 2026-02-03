@@ -276,7 +276,7 @@ export function DealImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-4xl h-[85vh] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
@@ -387,7 +387,7 @@ export function DealImportDialog({
                      )}
                    </div>
 
-                  <ScrollArea className="flex-1 border rounded-lg max-h-[400px]">
+                  <ScrollArea className="flex-1 min-h-0 border rounded-lg">
                     <Table>
                       <TableHeader>
                         <TableRow>
