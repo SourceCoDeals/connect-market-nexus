@@ -157,12 +157,28 @@ function categorizeChannel(referrer: string | null, utmSource: string | null, ut
 function extractDomain(url: string | null): string {
   if (!url) return 'Direct';
   try {
+    let hostname: string;
+    
     // Check if it's already a domain (no protocol) - common for utm_source values like "chatgpt.com"
     if (!url.includes('://') && !url.startsWith('/')) {
-      return url.replace('www.', '').toLowerCase();
+      hostname = url.replace('www.', '').toLowerCase();
+    } else {
+      hostname = new URL(url).hostname.replace('www.', '');
     }
-    const hostname = new URL(url).hostname;
-    return hostname.replace('www.', '');
+    
+    // Normalize known email service tracking domains to a single canonical domain
+    // Brevo uses various subdomains like exdov.r.sp1-brevo.net, sendibt.com, etc.
+    if (hostname.includes('brevo') || hostname.includes('sendibt') || hostname.includes('exdov')) {
+      return 'brevo.com';
+    }
+    if (hostname.includes('mailchimp') || hostname.includes('mailchi.mp')) {
+      return 'mailchimp.com';
+    }
+    if (hostname.includes('sendgrid')) {
+      return 'sendgrid.com';
+    }
+    
+    return hostname;
   } catch {
     // For values like "chatgpt.com" that aren't full URLs
     return url.replace('www.', '').toLowerCase();
