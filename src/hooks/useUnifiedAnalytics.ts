@@ -868,7 +868,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32` 
         }))
         .sort((a, b) => b.visitors - a.visitors)
-        .slice(0, 10);
+        .slice(0, 20); // Show more referrers to include lower-volume sources like LinkedIn
       
       // Campaign breakdown - count unique visitors
       const campaignVisitors: Record<string, Set<string>> = {};
