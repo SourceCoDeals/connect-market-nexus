@@ -432,8 +432,8 @@ const ReMarketingDealDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Two Column Layout - Company & Financial */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Two Column Layout - Company & Financial - with Financial sticky */}
+      <div className="grid gap-6 lg:grid-cols-[1fr,320px]">
         <CompanyOverviewCard
           website={effectiveWebsite}
           location={deal.location}
@@ -480,35 +480,31 @@ const ReMarketingDealDetail = () => {
           }}
         />
 
-        {/* Financial Overview - Enhanced with Confidence Badges */}
-        <Card>
-          <CardHeader className="py-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Financial Overview
-              </CardTitle>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Low Confidence Warning Banner */}
-            {((deal.revenue_confidence === 'low') || (deal.ebitda_confidence === 'low')) && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-                <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium">Financial Data Needs Clarification</p>
-                  <p className="text-xs text-amber-700">
-                    Some extracted values have low confidence. Review source quotes and schedule a follow-up call to confirm.
-                  </p>
-                </div>
+        {/* Financial Overview - Compact sticky card */}
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <Card>
+            <CardHeader className="py-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Financial Overview
+                </CardTitle>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Pencil className="h-4 w-4" />
+                </Button>
               </div>
-            )}
-            
-            {/* Revenue & EBITDA Side by Side */}
-            <div className="grid grid-cols-2 gap-6">
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Low Confidence Warning Banner */}
+              {((deal.revenue_confidence === 'low') || (deal.ebitda_confidence === 'low')) && (
+                <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-medium">Needs Clarification</p>
+                  </div>
+                </div>
+              )}
+              
               {/* Revenue */}
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -526,20 +522,20 @@ const ReMarketingDealDetail = () => {
                           : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
                       }
                     >
-                      {deal.revenue_confidence === 'high' ? '✓ High' : 
-                       deal.revenue_confidence === 'low' ? '△ Low' : '○ Med'}
+                      {deal.revenue_confidence === 'high' ? '✓' : 
+                       deal.revenue_confidence === 'low' ? '△' : '○'}
                     </Badge>
                   )}
                 </div>
-                <span className="text-3xl font-bold">{formatCurrency(deal.revenue)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(deal.revenue)}</span>
                 {deal.revenue_source_quote && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
-                        View source quote
+                        View source
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80">
+                    <PopoverContent className="w-72">
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
                         <p className="text-sm italic">"{deal.revenue_source_quote}"</p>
@@ -566,20 +562,20 @@ const ReMarketingDealDetail = () => {
                           : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
                       }
                     >
-                      {deal.ebitda_confidence === 'high' ? '✓ High' : 
-                       deal.ebitda_confidence === 'low' ? '△ Low' : '○ Med'}
+                      {deal.ebitda_confidence === 'high' ? '✓' : 
+                       deal.ebitda_confidence === 'low' ? '△' : '○'}
                     </Badge>
                   )}
                 </div>
-                <span className="text-3xl font-bold">{formatCurrency(deal.ebitda)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(deal.ebitda)}</span>
                 {deal.ebitda_source_quote && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
-                        View source quote
+                        View source
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80">
+                    <PopoverContent className="w-72">
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
                         <p className="text-sm italic">"{deal.ebitda_source_quote}"</p>
@@ -588,27 +584,27 @@ const ReMarketingDealDetail = () => {
                   </Popover>
                 )}
               </div>
-            </div>
-            
-            {/* EBITDA Margin */}
-            {deal.revenue && deal.ebitda && (
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    EBITDA MARGIN
-                  </p>
-                  <span className="text-lg font-semibold">
-                    {((deal.ebitda / deal.revenue) * 100).toFixed(0)}%
-                  </span>
+              
+              {/* EBITDA Margin */}
+              {deal.revenue && deal.ebitda && (
+                <div className="pt-3 border-t">
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      EBITDA MARGIN
+                    </p>
+                    <span className="text-lg font-semibold">
+                      {((deal.ebitda / deal.revenue) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={Math.min((deal.ebitda / deal.revenue) * 100, 100)} 
+                    className="h-2 mt-2"
+                  />
                 </div>
-                <Progress 
-                  value={Math.min((deal.ebitda / deal.revenue) * 100, 100)} 
-                  className="h-2 mt-2"
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Executive Summary */}
