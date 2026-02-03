@@ -172,7 +172,7 @@ verify_jwt = false
 [functions.process-enrichment-queue]
 verify_jwt = false
 [functions.apify-linkedin-scrape]
-verify_jwt = true
+verify_jwt = false
 [functions.apify-google-reviews]
 verify_jwt = false
 [functions.calculate-deal-quality]

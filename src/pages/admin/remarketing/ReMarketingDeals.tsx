@@ -1247,8 +1247,22 @@ const ReMarketingDeals = () => {
 
       toast({
         title: "Enrichment queued",
-        description: `${dealIds.length} deal${dealIds.length > 1 ? 's' : ''} queued for enrichment. Processing runs every 5 minutes.`,
+        description: `${dealIds.length} deal${dealIds.length > 1 ? 's' : ''} queued for enrichment. Starting processing now...`,
       });
+
+      // Mirror the "Calculate Scores" experience by kicking the worker immediately
+      // (cron is best-effort and can be misconfigured / paused).
+      // Fire-and-forget: the worker is intentionally small-batch to avoid timeouts.
+      void supabase.functions
+        .invoke('process-enrichment-queue', { body: { source: 'ui_enrich_deals' } })
+        .then(({ error }) => {
+          if (error) {
+            console.warn('Failed to trigger enrichment worker:', error);
+          }
+        })
+        .catch((e) => {
+          console.warn('Failed to trigger enrichment worker:', e);
+        });
 
       refetchListings();
     } catch (error: any) {

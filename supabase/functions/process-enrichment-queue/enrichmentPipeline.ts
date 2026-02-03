@@ -29,8 +29,11 @@ async function callFn(
     method: 'POST',
     headers: {
       // Background worker calls: use service role key as apikey.
-      // (Do not pass Authorization; some gateways reject service-role JWTs as "Invalid JWT").
+      // NOTE: Some edge functions validate Authorization themselves.
+      // We include both headers; if a gateway rejects Authorization for service role JWTs,
+      // the apikey header still allows verify_jwt=false functions to run.
       apikey: input.serviceRoleKey,
+      Authorization: `Bearer ${input.serviceRoleKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),

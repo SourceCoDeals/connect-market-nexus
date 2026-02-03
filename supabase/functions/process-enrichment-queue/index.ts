@@ -8,9 +8,14 @@ const corsHeaders = {
 };
 
 // Configuration
-const BATCH_SIZE = 5; // Process up to 5 items per run
+// IMPORTANT: This function is often triggered via cron (every 5 min) AND can be triggered manually from the UI.
+// Keep each run small enough to complete within edge function runtime limits.
+const BATCH_SIZE = 1; // Process a small number of items per run to avoid timeouts
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
-const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes per item
+const PROCESSING_TIMEOUT_MS = 90000; // 90 seconds per item
+
+// Stop early to avoid the platform killing the function mid-item.
+const MAX_FUNCTION_RUNTIME_MS = 110000; // ~110s
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,6 +23,7 @@ serve(async (req) => {
   }
 
   try {
+    const startedAt = Date.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
@@ -123,6 +129,12 @@ serve(async (req) => {
 
     // Process each item sequentially to avoid overwhelming external APIs
     for (const item of queueItems) {
+      // Safety cutoff
+      if (Date.now() - startedAt > MAX_FUNCTION_RUNTIME_MS) {
+        console.log('Stopping early to avoid function timeout');
+        break;
+      }
+
       console.log(`Processing queue item ${item.id} for listing ${item.listing_id} (attempt ${item.attempts + 1})`);
 
       // Mark as processing (skip if already claimed via RPC)
