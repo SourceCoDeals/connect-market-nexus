@@ -334,8 +334,21 @@ serve(async (req) => {
       console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
 
       // If triggerEnrichment is true, queue ALL deals for re-enrichment
+      // AND reset their enriched_at to force full re-processing
       if (triggerEnrichment && listingsToScore.length > 0) {
         const dealIds = listingsToScore.map(l => l.id);
+        
+        // Reset enriched_at to null so the queue processor actually processes them
+        console.log(`Resetting enriched_at for ${dealIds.length} deals to force re-enrichment`);
+        const { error: resetError } = await supabase
+          .from("listings")
+          .update({ enriched_at: null })
+          .in("id", dealIds);
+        
+        if (resetError) {
+          console.error("Failed to reset enriched_at:", resetError);
+        }
+        
         enrichmentQueued = await queueDealsForEnrichment(dealIds, 'force recalculate all');
       }
     } else if (calculateAll) {
