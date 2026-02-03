@@ -97,11 +97,26 @@ export function DealImportDialog({
         setCsvData(data);
 
         // Get column names
-        // IMPORTANT: Use PapaParse meta.fields so we don't miss columns that are blank
-        // in the first row (Object.keys(data[0]) can omit them).
-        const columns = (results.meta.fields || [])
+        // Prefer PapaParse meta.fields (source of truth). If it comes back empty (can happen
+        // with odd CSVs / encoding), fall back to keys on the first parsed row.
+        const metaColumns = (results.meta.fields || [])
           .map((c) => (c ? normalizeHeader(c) : ""))
           .filter((c) => c.trim());
+
+        const fallbackColumns = Object.keys(data?.[0] || {})
+          .map((c) => (c ? normalizeHeader(c) : ""))
+          .filter((c) => c.trim());
+
+        const columns = metaColumns.length > 0 ? metaColumns : fallbackColumns;
+
+        if (columns.length === 0) {
+          console.error('[DealImportDialog] No CSV headers detected (meta.fields empty + row keys empty).');
+          toast.error('Could not detect CSV headers', {
+            description: 'Please verify the file has a header row and is a valid CSV.'
+          });
+          reset();
+          return;
+        }
         
         // Log parsed columns for debugging
         console.log(`[DealImportDialog] Parsed ${columns.length} columns:`, columns);
