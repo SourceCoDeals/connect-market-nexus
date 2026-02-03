@@ -27,7 +27,7 @@ export function AlignmentScoreBadge({ score, reasoning, isScoring }: AlignmentSc
 
   if (score === null || score === undefined) {
     return (
-      <Badge variant="outline" className="text-muted-foreground font-mono">
+      <Badge variant="outline" className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700 font-mono bg-orange-50 dark:bg-orange-950/30">
         Not Scored
       </Badge>
     );
