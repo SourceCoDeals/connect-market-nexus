@@ -588,7 +588,7 @@ const ReMarketingDeals = () => {
   // Clear the ref when listings change significantly (e.g., page change, filter change)
   useEffect(() => {
     enrichingDealsRef.current.clear();
-  }, [sortConfig, statusFilter, universeFilter, searchQuery]);
+  }, [sortColumn, sortDirection, statusFilter, universeFilter, search]);
 
   // DnD sensors
   const sensors = useSensors(

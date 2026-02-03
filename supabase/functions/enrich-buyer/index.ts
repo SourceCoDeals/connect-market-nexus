@@ -429,8 +429,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      const errCode = billingError.code || 'unknown';
-      const errMessage = billingError.message || 'Billing error';
+      const errCode = (billingError as { code: string; message: string }).code || 'unknown';
+      const errMessage = (billingError as { code: string; message: string }).message || 'Billing error';
       const statusCode = errCode === 'payment_required' ? 402 : 429;
       return new Response(
         JSON.stringify({
