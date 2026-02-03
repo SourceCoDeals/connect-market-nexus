@@ -29,6 +29,8 @@ serve(async (req) => {
   try {
     // SECURITY: Verify admin access (or service role for internal calls)
     const authHeader = req.headers.get('Authorization');
+    // Supabase sends this as `apikey` for both browser and service-role internal calls.
+    // (Some clients/proxies may vary casing; Headers.get is case-insensitive.)
     const apiKeyHeader = req.headers.get('apikey');
     
     if (!authHeader && !apiKeyHeader) {
@@ -43,8 +45,9 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Check if this is the service role key (for internal calls from enrich-deal)
-    const token = authHeader?.replace('Bearer ', '') || '';
+    // Check if this is the service role key (for internal calls)
+    // Be tolerant of `bearer` casing to avoid false negatives.
+    const token = (authHeader || '').replace(/^Bearer\s+/i, '').trim();
     const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
     
     console.log(`Auth check: isServiceRole=${isServiceRole}, hasAuthHeader=${!!authHeader}, hasApiKey=${!!apiKeyHeader}`);

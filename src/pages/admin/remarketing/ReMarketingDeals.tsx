@@ -1260,19 +1260,42 @@ const ReMarketingDeals = () => {
         console.warn('Failed to reset enriched_at:', resetError);
       }
 
-      // Queue all deals for enrichment
-      const queueItems = dealIds.map(id => ({
-        listing_id: id,
-        status: 'pending',
-        attempts: 0,
-        queued_at: new Date().toISOString(),
-      }));
+      const nowIso = new Date().toISOString();
 
-      const { error: queueError } = await supabase
+      // IMPORTANT:
+      // Using upsert here previously overwrote existing rows' attempts/status while leaving
+      // started_at/completed_at intact, making items look stuck.
+      // Instead:
+      // 1) Reset existing queue rows to a clean pending state
+      // 2) Insert any missing queue rows (ignore duplicates)
+      const { error: resetQueueError } = await supabase
         .from('enrichment_queue')
-        .upsert(queueItems, { onConflict: 'listing_id', ignoreDuplicates: false });
+        .update({
+          status: 'pending',
+          attempts: 0,
+          started_at: null,
+          completed_at: null,
+          last_error: null,
+          queued_at: nowIso,
+          updated_at: nowIso,
+        })
+        .in('listing_id', dealIds);
 
-      if (queueError) throw queueError;
+      if (resetQueueError) throw resetQueueError;
+
+      const { error: insertMissingError } = await supabase
+        .from('enrichment_queue')
+        .upsert(
+          dealIds.map(id => ({
+            listing_id: id,
+            status: 'pending',
+            attempts: 0,
+            queued_at: nowIso,
+          })),
+          { onConflict: 'listing_id', ignoreDuplicates: true }
+        );
+
+      if (insertMissingError) throw insertMissingError;
 
       toast({
         title: "Enrichment queued",
