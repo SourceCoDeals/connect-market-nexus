@@ -9,6 +9,7 @@
  */
 
 import { normalizeHeader } from './parsers';
+import { DEAL_IMPORT_FIELDS } from './constants';
 import type { ColumnMapping } from './types';
 
 export interface MergeStats {
@@ -31,15 +32,25 @@ export function mergeColumnMappings(
   parsedColumns: string[],
   aiMappings: ColumnMapping[] | undefined | null
 ): [ColumnMapping[], MergeStats] {
+  const allowedTargetFields = new Set(DEAL_IMPORT_FIELDS.map((f) => f.value));
+
   // Build lookup map by normalized csvColumn
   const lookup = new Map<string, ColumnMapping>();
   if (aiMappings && Array.isArray(aiMappings)) {
     for (const m of aiMappings) {
       if (m.csvColumn) {
+        // Defensive: ignore AI suggestions for fields we don't support anymore
+        const sanitizedTargetField =
+          m.targetField && allowedTargetFields.has(m.targetField) ? m.targetField : null;
+
         const key = normalizeHeader(m.csvColumn).toLowerCase();
         // First match wins (handles duplicates)
         if (!lookup.has(key)) {
-          lookup.set(key, m);
+          lookup.set(key, {
+            ...m,
+            targetField: sanitizedTargetField,
+            aiSuggested: Boolean(sanitizedTargetField) && Boolean(m.aiSuggested),
+          });
         }
       }
     }
