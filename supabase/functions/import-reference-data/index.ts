@@ -65,7 +65,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Import error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -116,7 +117,8 @@ async function importUniverses(supabase: any, data: any[], options: any) {
         console.log(`Imported universe: ${row.industry_name} (${row.id} -> ${inserted.id})`);
       }
     } catch (e) {
-      errors.push(`Universe "${row.industry_name}": ${e.message}`);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      errors.push(`Universe "${row.industry_name}": ${msg}`);
     }
   }
 
@@ -196,7 +198,8 @@ async function importBuyers(supabase: any, data: any[], options: any) {
         console.log(`Imported buyer: ${buyer.company_name} (${row.id} -> ${inserted.id})`);
       }
     } catch (e) {
-      errors.push(`Buyer "${row.platform_company_name || row.pe_firm_name}": ${e.message}`);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      errors.push(`Buyer "${row.platform_company_name || row.pe_firm_name}": ${msg}`);
     }
   }
 
@@ -249,7 +252,8 @@ async function importContacts(supabase: any, data: any[], options: any) {
         imported++;
       }
     } catch (e) {
-      errors.push(`Contact "${row.name}": ${e.message}`);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      errors.push(`Contact "${row.name}": ${msg}`);
     }
   }
 
@@ -329,7 +333,8 @@ async function importScores(supabase: any, data: any[], options: any) {
         imported++;
       }
     } catch (e) {
-      errors.push(`Score: ${e.message}`);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      errors.push(`Score: ${msg}`);
     }
   }
 
@@ -368,7 +373,8 @@ async function importTranscripts(supabase: any, data: any[], options: any) {
         imported++;
       }
     } catch (e) {
-      errors.push(`Transcript: ${e.message}`);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      errors.push(`Transcript: ${msg}`);
     }
   }
 
@@ -412,7 +418,8 @@ async function importLearningHistory(supabase: any, data: any[], options: any) {
         imported++;
       }
     } catch (e) {
-      errors.push(`Learning history: ${e.message}`);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      errors.push(`Learning history: ${msg}`);
     }
   }
 

@@ -3196,6 +3196,7 @@ export type Database = {
           lead_source_id: string | null
           lead_source_notes: string | null
           linkedin_employee_count: number | null
+          linkedin_employee_range: string | null
           location: string
           location_radius_requirement: string | null
           management_depth: string | null
@@ -3337,6 +3338,7 @@ export type Database = {
           lead_source_id?: string | null
           lead_source_notes?: string | null
           linkedin_employee_count?: number | null
+          linkedin_employee_range?: string | null
           location: string
           location_radius_requirement?: string | null
           management_depth?: string | null
@@ -3478,6 +3480,7 @@ export type Database = {
           lead_source_id?: string | null
           lead_source_notes?: string | null
           linkedin_employee_count?: number | null
+          linkedin_employee_range?: string | null
           location?: string
           location_radius_requirement?: string | null
           management_depth?: string | null
