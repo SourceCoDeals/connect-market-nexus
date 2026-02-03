@@ -13,6 +13,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -98,6 +103,7 @@ interface CompanyOverviewCardProps {
   linkedinEmployeeRange?: string | null;
   // Deal quality score
   dealQualityScore?: number | null;
+  onScoreChange?: (newScore: number) => Promise<void>;
   onSave: (data: {
     website: string;
     address: string;
@@ -137,9 +143,13 @@ export const CompanyOverviewCard = ({
   linkedinEmployeeCount,
   linkedinEmployeeRange,
   dealQualityScore,
+  onScoreChange,
   onSave,
 }: CompanyOverviewCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [scorePopoverOpen, setScorePopoverOpen] = useState(false);
+  const [editingScore, setEditingScore] = useState("");
+  const [isSavingScore, setIsSavingScore] = useState(false);
   const [formData, setFormData] = useState({
     website: website || "",
     address: address || "",
@@ -155,6 +165,25 @@ export const CompanyOverviewCard = ({
     addressCountry: addressCountry || "US",
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleScoreSave = async () => {
+    if (!onScoreChange) return;
+    const num = parseInt(editingScore);
+    if (isNaN(num) || num < 0 || num > 100) {
+      toast.error("Score must be between 0 and 100");
+      return;
+    }
+    setIsSavingScore(true);
+    try {
+      await onScoreChange(num);
+      setScorePopoverOpen(false);
+      toast.success("Quality score updated");
+    } catch {
+      toast.error("Failed to update score");
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -449,28 +478,88 @@ export const CompanyOverviewCard = ({
                 }
               />
 
-              {/* Deal Quality Score */}
+              {/* Deal Quality Score - Clickable */}
               <div className="flex items-start gap-2 py-2">
                 <Target className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
                     QUALITY SCORE
                   </span>
-                  {dealQualityScore !== null && dealQualityScore !== undefined ? (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`text-lg font-bold ${
-                        dealQualityScore >= 80 ? 'text-green-600' :
-                        dealQualityScore >= 60 ? 'text-amber-600' :
-                        dealQualityScore >= 40 ? 'text-orange-500' :
-                        'text-red-500'
-                      }`}>
-                        {dealQualityScore}
-                      </span>
-                      <span className="text-xs text-muted-foreground">/100</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground mt-0.5 block">–</span>
-                  )}
+                  <Popover 
+                    open={scorePopoverOpen} 
+                    onOpenChange={(open) => {
+                      setScorePopoverOpen(open);
+                      if (open) {
+                        setEditingScore(dealQualityScore?.toString() || "");
+                      }
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 mt-0.5 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors cursor-pointer"
+                        title="Click to edit score"
+                      >
+                        {dealQualityScore !== null && dealQualityScore !== undefined ? (
+                          <>
+                            <span className={`text-lg font-bold ${
+                              dealQualityScore >= 80 ? 'text-green-600' :
+                              dealQualityScore >= 60 ? 'text-amber-600' :
+                              dealQualityScore >= 40 ? 'text-orange-500' :
+                              'text-red-500'
+                            }`}>
+                              {dealQualityScore}
+                            </span>
+                            <span className="text-xs text-muted-foreground">/100</span>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                          </>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Click to set score</span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-3" align="start">
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="quality-score" className="text-xs">Score (0-100)</Label>
+                          <Input
+                            id="quality-score"
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={editingScore}
+                            onChange={(e) => setEditingScore(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleScoreSave();
+                              }
+                            }}
+                            className="mt-1"
+                            placeholder="0-100"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setScorePopoverOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={handleScoreSave}
+                            disabled={isSavingScore}
+                          >
+                            {isSavingScore ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
