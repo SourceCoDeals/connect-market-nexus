@@ -160,6 +160,52 @@ export const formErrorHandler = (error: Error | string, formName = 'form') => {
   errorHandler(error, { component: 'FormValidation', operation: `${formName} submission` }, 'low');
 };
 
+// Enrichment error handler with specific error codes
+export const enrichmentErrorHandler = (
+  error: Error | { message: string; error_code?: string; recoverable?: boolean },
+  entityType: 'buyer' | 'deal',
+  entityId: string
+) => {
+  const errorCode = 'error_code' in error ? error.error_code : undefined;
+  const isRecoverable = 'recoverable' in error ? error.recoverable : false;
+  const message = error instanceof Error ? error.message : error.message;
+
+  // Map error codes to user-friendly messages
+  const userMessages: Record<string, string> = {
+    'concurrent_modification': 'This record was updated by another user. Please refresh and try again.',
+    'rate_limited': 'Too many requests. Please wait a moment and try again.',
+    'payment_required': 'AI credits depleted. Contact administrator.',
+    'db_update_failed': 'Failed to save enrichment data. Please try again.',
+    'ssrf_blocked': 'Invalid URL provided for enrichment.',
+  };
+
+  const userMessage = errorCode ? userMessages[errorCode] || message : message;
+  const severity = errorCode === 'concurrent_modification' ? 'medium' :
+                   errorCode === 'payment_required' ? 'critical' : 'high';
+
+  errorHandler(
+    new Error(userMessage),
+    {
+      component: 'EnrichmentService',
+      operation: `enrich ${entityType}`,
+      metadata: { entityId, errorCode, isRecoverable }
+    },
+    severity
+  );
+
+  return { userMessage, isRecoverable, errorCode };
+};
+
+// Import error handler
+export const importErrorHandler = (error: Error | string, importType = 'deals') => {
+  errorHandler(error, { component: 'ImportService', operation: `import ${importType}` }, 'high');
+};
+
+// Scoring error handler
+export const scoringErrorHandler = (error: Error | string, operation = 'score') => {
+  errorHandler(error, { component: 'ScoringEngine', operation }, 'medium');
+};
+
 // Error boundary helpers
 export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
