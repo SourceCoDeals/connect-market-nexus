@@ -357,24 +357,18 @@ export const CompanyOverviewCard = ({
             }
           />
 
-          {/* LinkedIn Employees */}
+          {/* LinkedIn Employee Count */}
           <InfoRow
             icon={Users}
-            label="LINKEDIN EMPLOYEES"
-            value={
-              linkedinEmployeeCount || linkedinEmployeeRange ? (
-                <span>
-                  {linkedinEmployeeCount?.toLocaleString() || linkedinEmployeeRange}
-                  {linkedinEmployeeRange && linkedinEmployeeCount && (
-                    <span className="text-xs text-muted-foreground ml-1">
-                      ({linkedinEmployeeRange})
-                    </span>
-                  )}
-                </span>
-              ) : (
-                "Not specified"
-              )
-            }
+            label="LINKEDIN EMPLOYEE COUNT"
+            value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : "Not specified"}
+          />
+
+          {/* LinkedIn Employee Range */}
+          <InfoRow
+            icon={Users}
+            label="LINKEDIN EMPLOYEE RANGE"
+            value={linkedinEmployeeRange || "Not specified"}
           />
 
           <InfoRow
