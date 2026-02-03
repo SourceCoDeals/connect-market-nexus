@@ -521,13 +521,13 @@ export const CompanyOverviewCard = ({
                         )}
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-56 p-3" align="start">
-                      <div className="space-y-3">
+                    <PopoverContent className="w-72 p-5" align="start">
+                      <div className="space-y-4">
                         {/* Always show the AI-calculated score */}
                         {aiCalculatedScore !== null && aiCalculatedScore !== undefined && (
-                          <div className="flex items-center justify-between text-xs border-b pb-2">
-                            <span className="text-muted-foreground">AI Calculated</span>
-                            <span className={`font-semibold ${
+                          <div className="flex items-center justify-between text-sm border-b pb-3">
+                            <span className="text-muted-foreground font-medium">AI Calculated</span>
+                            <span className={`text-base font-bold ${
                               aiCalculatedScore >= 80 ? 'text-green-600' :
                               aiCalculatedScore >= 60 ? 'text-amber-600' :
                               aiCalculatedScore >= 40 ? 'text-orange-500' :
@@ -538,7 +538,7 @@ export const CompanyOverviewCard = ({
                           </div>
                         )}
                         <div>
-                          <Label htmlFor="quality-score" className="text-xs">Override Score (0-100)</Label>
+                          <Label htmlFor="quality-score" className="text-sm font-medium">Override Score (0-100)</Label>
                           <Input
                             id="quality-score"
                             type="number"
@@ -552,26 +552,24 @@ export const CompanyOverviewCard = ({
                                 handleScoreSave();
                               }
                             }}
-                            className="mt-1"
+                            className="mt-2 h-11 text-base"
                             placeholder="0-100"
                           />
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3 pt-1">
                           <Button
-                            size="sm"
                             variant="outline"
-                            className="flex-1"
+                            className="flex-1 h-10"
                             onClick={() => setScorePopoverOpen(false)}
                           >
                             Cancel
                           </Button>
                           <Button
-                            size="sm"
-                            className="flex-1"
+                            className="flex-1 h-10"
                             onClick={handleScoreSave}
                             disabled={isSavingScore}
                           >
-                            {isSavingScore ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                            {isSavingScore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                           </Button>
                         </div>
                       </div>
