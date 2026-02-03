@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -144,22 +145,28 @@ serve(async (req) => {
       }
 
       try {
-        // Call enrich-deal function with both Authorization and apikey headers
-        // The service role key works as both a JWT bearer token and an API key
-        const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'apikey': supabaseServiceKey,
-            'Content-Type': 'application/json',
+        // Fetch listing context needed for downstream enrichment steps
+        const { data: listing, error: listingError } = await supabase
+          .from('listings')
+          .select('internal_company_name, title, address_city, address_state, address, linkedin_url')
+          .eq('id', item.listing_id)
+          .single();
+
+        if (listingError || !listing) {
+          throw new Error(`Failed to fetch listing context: ${listingError?.message || 'not found'}`);
+        }
+
+        const pipeline = await runListingEnrichmentPipeline(
+          {
+            supabaseUrl,
+            serviceRoleKey: supabaseServiceKey,
+            listingId: item.listing_id,
+            timeoutMs: PROCESSING_TIMEOUT_MS,
           },
-          body: JSON.stringify({ dealId: item.listing_id }),
-          signal: AbortSignal.timeout(PROCESSING_TIMEOUT_MS),
-        });
+          listing
+        );
 
-        const enrichResult = await enrichResponse.json();
-
-        if (enrichResponse.ok && enrichResult.success) {
+        if (pipeline.ok) {
           // Success - mark as completed
           const { error: completeError } = await supabase
             .from('enrichment_queue')
@@ -175,11 +182,12 @@ serve(async (req) => {
             console.error(`Failed to mark item ${item.id} as completed:`, completeError);
           }
 
-          console.log(`Successfully enriched listing ${item.listing_id}: ${enrichResult.fieldsUpdated?.length || 0} fields updated`);
+          console.log(
+            `Successfully enriched listing ${item.listing_id}: ${pipeline.fieldsUpdated.length} fields updated (${pipeline.fieldsUpdated.join(', ')})`
+          );
           results.succeeded++;
         } else {
-          // Failed - update with error
-          const errorMsg = enrichResult.error || `HTTP ${enrichResponse.status}`;
+          const errorMsg = pipeline.error;
 
           // Check if max attempts reached
           const currentAttempts = claimedItems ? item.attempts : item.attempts + 1;

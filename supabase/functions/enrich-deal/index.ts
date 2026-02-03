@@ -63,7 +63,8 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const apiKeyHeader = req.headers.get('apikey');
+    if (!authHeader && !apiKeyHeader) {
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -76,9 +77,9 @@ serve(async (req) => {
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
-    // Check if this is a service role key (background processing) or user token
-    const token = authHeader.replace('Bearer ', '');
-    const isServiceRole = token === supabaseServiceKey;
+    // Check if this is a service role call (background processing) or user token
+    const token = authHeader ? authHeader.replace('Bearer ', '') : '';
+    const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
 
     let supabase;
     let userId: string;
@@ -92,7 +93,7 @@ serve(async (req) => {
     } else {
       // User-initiated - verify admin access
       supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader || `Bearer ${apiKeyHeader}` } }
       });
 
       const { data: { user }, error: userError } = await supabase.auth.getUser();
