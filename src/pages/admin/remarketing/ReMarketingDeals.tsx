@@ -828,8 +828,8 @@ const ReMarketingDeals = () => {
   const kpiStats = useMemo(() => {
     const totalDeals = listings?.length || 0;
 
-    const hotDeals = listings?.filter(listing =>
-      listing.deal_total_score !== null && listing.deal_total_score >= 80
+    const priorityDeals = listings?.filter(listing =>
+      listing.is_priority_target === true
     ).length || 0;
 
     let totalScore = 0;
@@ -846,7 +846,7 @@ const ReMarketingDeals = () => {
       listing.deal_total_score === null
     ).length || 0;
 
-    return { totalDeals, hotDeals, avgScore, needsScoring };
+    return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [listings]);
 
   // Helper functions
@@ -1391,12 +1391,12 @@ const ReMarketingDeals = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Star className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Hot Deals (80+)</p>
-                <p className="text-2xl font-bold text-green-600">{kpiStats.hotDeals}</p>
+                <p className="text-sm text-muted-foreground">Priority Deals</p>
+                <p className="text-2xl font-bold text-amber-600">{kpiStats.priorityDeals}</p>
               </div>
             </div>
           </CardContent>
