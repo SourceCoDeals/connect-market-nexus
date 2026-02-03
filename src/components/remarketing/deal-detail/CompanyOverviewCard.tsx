@@ -262,20 +262,17 @@ export const CompanyOverviewCard = ({
     label: string; 
     value: React.ReactNode; 
   }) => (
-    <>
-      <div className="flex items-start gap-3">
-        <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-        <div className="flex-1 flex justify-between items-start gap-2">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {label}
-          </span>
-          <span className="font-medium text-sm text-right">
-            {value}
-          </span>
-        </div>
+    <div className="flex items-start gap-2 py-2">
+      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+          {label}
+        </span>
+        <span className="font-medium text-sm mt-0.5 block truncate">
+          {value}
+        </span>
       </div>
-      <Separator />
-    </>
+    </div>
   );
 
   const allStates = [...US_STATES, ...CA_PROVINCES];
@@ -294,167 +291,172 @@ export const CompanyOverviewCard = ({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Website */}
-          <div className="flex items-start gap-3">
-            <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="flex-1 flex justify-between items-start gap-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                WEBSITE
-              </span>
-              {website ? (
-                <a
-                  href={getWebsiteHref(website)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-sm flex items-center gap-1 text-primary hover:underline"
-                >
-                  {formatWebsiteDisplay(website)}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : (
-                <span className="text-sm text-muted-foreground">–</span>
-              )}
-            </div>
-          </div>
-          <Separator />
-
-          <InfoRow 
-            icon={MapPin} 
-            label="HEADQUARTERS" 
-            value={getHeadquartersDisplay()} 
-          />
-
-          <InfoRow 
-            icon={Home} 
-            label="ADDRESS" 
-            value={
-              fullAddress ? (
-                <div className="text-right max-w-[200px]">
-                  {fullAddress.map((line, i) => (
-                    <div key={i}>{line}</div>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-muted-foreground">–</span>
-              )
-            } 
-          />
-
-          <InfoRow 
-            icon={Calendar} 
-            label="FOUNDED" 
-            value={foundedYear || "–"} 
-          />
-
-          <InfoRow 
-            icon={Users} 
-            label="EMPLOYEES" 
-            value={
-              employees.fullTime || employees.partTime
-                ? `${employees.fullTime ? `${employees.fullTime} FT` : ""}${employees.fullTime && employees.partTime ? " + " : ""}${employees.partTime ? `${employees.partTime} PT` : ""}`
-                : "–"
-            } 
-          />
-
-          {/* LinkedIn Profile */}
-          <InfoRow
-            icon={Linkedin}
-            label="LINKEDIN"
-            value={
-              linkedinUrl ? (
-                <a
-                  href={linkedinUrl.startsWith("http") ? linkedinUrl : `https://${linkedinUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline flex items-center gap-1"
-                >
-                  {linkedinUrl.replace(/^https?:\/\/(www\.)?linkedin\.com\/company\//i, "").replace(/\/$/, "")}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : (
-                "–"
-              )
-            }
-          />
-
-          {/* LinkedIn Employee Count */}
-          <InfoRow
-            icon={Users}
-            label="LINKEDIN EMPLOYEE COUNT"
-            value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : "–"}
-          />
-
-          {/* LinkedIn Employee Range */}
-          <InfoRow
-            icon={Users}
-            label="LINKEDIN EMPLOYEE RANGE"
-            value={linkedinEmployeeRange || "–"}
-          />
-
-          <InfoRow
-            icon={Building}
-            label="INDUSTRY"
-            value={industry || category || "–"}
-          />
-
-          <InfoRow
-            icon={Building2}
-            label="NUMBER OF LOCATIONS" 
-            value={
-              numberOfLocations 
-                ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
-                : "–"
-            } 
-          />
-
-          {/* Google Rating - Always show */}
-          <InfoRow
-            icon={Star}
-            label="GOOGLE RATING"
-            value={
-              googleRating ? (
-                <span className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-semibold">{googleRating.toFixed(1)}</span>
-                  {googleMapsUrl && (
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 divide-y lg:divide-y-0 lg:divide-x divide-border">
+            {/* Column 1 */}
+            <div className="space-y-1 lg:pr-6">
+              {/* Website */}
+              <div className="flex items-start gap-2 py-2">
+                <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+                    WEBSITE
+                  </span>
+                  {website ? (
                     <a
-                      href={googleMapsUrl}
+                      href={getWebsiteHref(website)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary hover:underline ml-1"
+                      className="font-medium text-sm flex items-center gap-1 text-primary hover:underline mt-0.5"
                     >
+                      {formatWebsiteDisplay(website)}
                       <ExternalLink className="h-3 w-3" />
                     </a>
+                  ) : (
+                    <span className="text-sm text-muted-foreground mt-0.5 block">–</span>
                   )}
-                </span>
-              ) : (
-                "–"
-              )
-            }
-          />
+                </div>
+              </div>
 
-          {/* Google Review Count - Always show */}
-          <InfoRow
-            icon={Star}
-            label="GOOGLE REVIEWS"
-            value={
-              googleReviewCount !== null && googleReviewCount !== undefined
-                ? `${googleReviewCount.toLocaleString()} review${googleReviewCount !== 1 ? 's' : ''}`
-                : "–"
-            }
-          />
+              <InfoRow 
+                icon={MapPin} 
+                label="HEADQUARTERS" 
+                value={getHeadquartersDisplay()} 
+              />
 
-          {/* Status - without separator after */}
-          <div className="flex items-start gap-3">
-            <MapPinned className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="flex-1 flex justify-between items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                STATUS
-              </span>
-              <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize">
-                {status}
-              </Badge>
+              <InfoRow 
+                icon={Home} 
+                label="ADDRESS" 
+                value={
+                  fullAddress ? (
+                    <div className="max-w-[180px]">
+                      {fullAddress.map((line, i) => (
+                        <div key={i}>{line}</div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">–</span>
+                  )
+                } 
+              />
+
+              <InfoRow 
+                icon={Calendar} 
+                label="FOUNDED" 
+                value={foundedYear || "–"} 
+              />
+
+              <InfoRow 
+                icon={Users} 
+                label="EMPLOYEES" 
+                value={
+                  employees.fullTime || employees.partTime
+                    ? `${employees.fullTime ? `${employees.fullTime} FT` : ""}${employees.fullTime && employees.partTime ? " + " : ""}${employees.partTime ? `${employees.partTime} PT` : ""}`
+                    : "–"
+                } 
+              />
+            </div>
+
+            {/* Column 2 */}
+            <div className="space-y-1 lg:px-6 pt-3 lg:pt-0">
+              <InfoRow
+                icon={Linkedin}
+                label="LINKEDIN"
+                value={
+                  linkedinUrl ? (
+                    <a
+                      href={linkedinUrl.startsWith("http") ? linkedinUrl : `https://${linkedinUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline flex items-center gap-1"
+                    >
+                      {linkedinUrl.replace(/^https?:\/\/(www\.)?linkedin\.com\/company\//i, "").replace(/\/$/, "")}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    "–"
+                  )
+                }
+              />
+
+              <InfoRow
+                icon={Users}
+                label="LINKEDIN EMPLOYEES"
+                value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : "–"}
+              />
+
+              <InfoRow
+                icon={Users}
+                label="EMPLOYEE RANGE"
+                value={linkedinEmployeeRange || "–"}
+              />
+
+              <InfoRow
+                icon={Building}
+                label="INDUSTRY"
+                value={industry || category || "–"}
+              />
+
+              <InfoRow
+                icon={Building2}
+                label="LOCATIONS" 
+                value={
+                  numberOfLocations 
+                    ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
+                    : "–"
+                } 
+              />
+            </div>
+
+            {/* Column 3 */}
+            <div className="space-y-1 lg:pl-6 pt-3 lg:pt-0">
+              <InfoRow
+                icon={Star}
+                label="GOOGLE RATING"
+                value={
+                  googleRating ? (
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      <span className="font-semibold">{googleRating.toFixed(1)}</span>
+                      {googleMapsUrl && (
+                        <a
+                          href={googleMapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline ml-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </span>
+                  ) : (
+                    "–"
+                  )
+                }
+              />
+
+              <InfoRow
+                icon={Star}
+                label="GOOGLE REVIEWS"
+                value={
+                  googleReviewCount !== null && googleReviewCount !== undefined
+                    ? `${googleReviewCount.toLocaleString()} review${googleReviewCount !== 1 ? 's' : ''}`
+                    : "–"
+                }
+              />
+
+              {/* Status */}
+              <div className="flex items-start gap-2 py-2">
+                <MapPinned className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+                    STATUS
+                  </span>
+                  <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize mt-0.5">
+                    {status}
+                  </Badge>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
