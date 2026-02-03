@@ -1,166 +1,200 @@
 
-# Fix Drag-and-Drop Ranking on All Deals Page
+# Plan: LinkedIn Employee Data via Apify + UI Display + Build Error Fixes
 
-## The Problem
+## Problem Summary
 
-When you drag a company from position 3 to position 1, the ranking numbers are not updating correctly. The expected behavior is:
-- The dragged company takes the new rank number (becomes #1)
-- All other companies shift their numbers accordingly (old #1 becomes #2, old #2 becomes #3, etc.)
+1. **Employees column not showing data**: The UI displays `full_time_employees` but doesn't include `linkedin_employee_count` which already exists in the database
+2. **No LinkedIn scraping capability**: Apify is not integrated to automatically scrape LinkedIn company pages for employee count/range
+3. **Build errors**: Multiple TypeScript errors in edge functions need fixing before any deployment
 
-## Root Cause
+---
 
-The current drag-and-drop handler has a "stale closure" bug - a common React issue where callbacks don't see the latest data. It's also only updating some items instead of all affected items.
-
-## Solution Overview
-
-I'll fix the ranking logic so that:
-1. The position numbers (1, 2, 3, 4, 5...) stay in order at all times
-2. When you drag a company to a new spot, it takes that position's number
-3. All other companies automatically adjust their numbers to fill the gap
-
-## Visual Example
+## Solution Architecture
 
 ```text
-BEFORE DRAG:          AFTER DRAGGING #3 TO #1:
-#1 - Company A        #1 - Company C  ← (was #3)
-#2 - Company B        #2 - Company A  ← (was #1, shifted down)
-#3 - Company C        #3 - Company B  ← (was #2, shifted down)
-#4 - Company D        #4 - Company D  ← (unchanged)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DEAL ENRICHMENT FLOW                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. Deal Added → Auto-Enrich Triggered                                       │
+│         │                                                                    │
+│         ▼                                                                    │
+│  ┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐      │
+│  │  enrich-deal    │ --> │ NEW: apify-      │ --> │  listings table  │      │
+│  │  (Firecrawl +   │     │ linkedin-scrape  │     │                  │      │
+│  │   Gemini)       │     │                  │     │ linkedin_employee│      │
+│  └─────────────────┘     └──────────────────┘     │ _count           │      │
+│                                                    │ linkedin_employee│      │
+│                                                    │ _range (NEW)     │      │
+│                                                    └──────────────────┘      │
+│                                                             │                │
+│                                                             ▼                │
+│                                                    ┌──────────────────┐      │
+│                                                    │  All Deals Table │      │
+│                                                    │  Shows: count +  │      │
+│                                                    │  range combined  │      │
+│                                                    └──────────────────┘      │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Technical Implementation
+## Implementation Steps
 
-### File: `src/pages/admin/remarketing/ReMarketingDeals.tsx`
+### Phase 1: Fix Build Errors (Required First)
 
-**Change 1: Add a ref to track current listings**
+Fix TypeScript errors in 6 edge functions:
 
-Add a `useRef` that always holds the latest sorted listings, so the drag handler never uses stale data:
+| File | Error | Fix |
+|------|-------|-----|
+| `analyze-deal-notes/index.ts` | `geographic_states` missing from interface | Add `geographic_states?: string[]` to the extracted interface |
+| `enrich-deal/index.ts` | `geographic_states` on finalUpdates | Add to interface |
+| `enrich-buyer/index.ts` | `billingError` typed as `never` | Type as `{ code?: string; message?: string }` |
+| `enrich-geo-data/index.ts` | `error` is `unknown` | Cast with `error instanceof Error ? error.message : 'Unknown error'` |
+| `enrich-session-metadata/index.ts` | `error` is `unknown` | Same fix |
+| `extract-deal-transcript/index.ts` | `error` is `unknown` | Same fix |
+| `generate-ma-guide/index.ts` | Multiple `error` unknown | Same fix |
+| `import-reference-data/index.ts` | Multiple `e` unknown | Same fix |
+| `generate-buyer-intro/index.ts` | `error` unknown | Same fix |
 
-```typescript
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+### Phase 2: Add Database Column
 
-// Inside component:
-const sortedListingsRef = useRef<DealListing[]>([]);
+Add `linkedin_employee_range` column to `listings` table:
+- Type: `text` (stores ranges like "51-200", "201-500")
+- This complements the existing `linkedin_employee_count` numeric field
 
-// Keep ref in sync with state
-useEffect(() => {
-  sortedListingsRef.current = sortedListings;
-}, [sortedListings]);
-```
+### Phase 3: Create Apify LinkedIn Scraper Edge Function
 
-**Change 2: Add local state for optimistic UI updates**
+New file: `supabase/functions/apify-linkedin-scrape/index.ts`
 
-Track local order so the UI updates instantly without waiting for the database:
-
-```typescript
-const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
-
-useEffect(() => {
-  setLocalOrder(sortedListings);
-}, [sortedListings]);
-```
-
-**Change 3: Rewrite the drag handler**
-
-The new handler will:
-1. Read from the ref (always current data)
-2. Reorder the array using `arrayMove`
-3. Assign sequential ranks (1, 2, 3, 4...) to ALL items
-4. Update the UI immediately (optimistic update)
-5. Persist all new ranks to the database
+This function will:
+1. Accept a company name or website URL
+2. Search LinkedIn for the company page (or use a provided LinkedIn URL)
+3. Call Apify's LinkedIn Company Scraper actor
+4. Extract employee count and employee range
+5. Return structured data for the enrichment pipeline
 
 ```typescript
-const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-  const { active, over } = event;
-  if (!over || active.id === over.id) return;
-
-  const currentListings = sortedListingsRef.current;
-  const oldIndex = currentListings.findIndex((l) => l.id === active.id);
-  const newIndex = currentListings.findIndex((l) => l.id === over.id);
-
-  if (oldIndex === -1 || newIndex === -1) return;
-
-  // Reorder the array
-  const reordered = arrayMove(currentListings, oldIndex, newIndex);
-  
-  // Assign sequential ranks to ALL items (1, 2, 3, 4, ...)
-  const updatedListings = reordered.map((listing, idx) => ({
-    ...listing,
-    manual_rank_override: idx + 1,
-  }));
-
-  // Optimistically update UI immediately
-  setLocalOrder(updatedListings);
-
-  // Persist ALL ranks to database
-  const updates = updatedListings.map((listing) => ({
-    id: listing.id,
-    manual_rank_override: listing.manual_rank_override,
-  }));
-
-  try {
-    for (const update of updates) {
-      await supabase
-        .from('listings')
-        .update({ manual_rank_override: update.manual_rank_override })
-        .eq('id', update.id);
-    }
-    
-    queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-    toast({ title: "Rank updated", description: `Deal moved to position ${newIndex + 1}` });
-  } catch (error) {
-    // Revert on failure
-    setLocalOrder(currentListings);
-    toast({ title: "Failed to update rank", variant: "destructive" });
+// Key API call structure
+const response = await fetch(
+  `https://api.apify.com/v2/acts/logical_scrapers~linkedin-company-scraper/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: [linkedInCompanyUrl] })
   }
-}, [queryClient, toast]);
+);
 ```
 
-**Change 4: Update the displayed list source**
+Expected response includes:
+- `employeeCount`: Number (e.g., 150)
+- `employeeCountRange`: String (e.g., "51-200")
 
-The DndContext and table should use `localOrder` instead of `sortedListings` for immediate visual feedback:
+### Phase 4: Integrate into Enrichment Pipeline
+
+Modify `supabase/functions/enrich-deal/index.ts`:
+
+1. After Firecrawl scraping, check if AI extracted a LinkedIn company URL
+2. If found (or if `linkedin_url` exists on the deal), call the new Apify function
+3. Update `linkedin_employee_count` and `linkedin_employee_range` fields
+4. This runs automatically during auto-enrichment on deal creation
+
+### Phase 5: Update UI to Display LinkedIn Data
+
+Modify `src/pages/admin/remarketing/ReMarketingDeals.tsx`:
+
+1. **Update interface**: Add `linkedin_employee_count` and `linkedin_employee_range`
+2. **Update query**: Fetch both fields from Supabase
+3. **Update display logic**: Show LinkedIn data with fallback to `full_time_employees`:
 
 ```typescript
-<SortableContext items={localOrder.map(l => l.id)} strategy={verticalListSortingStrategy}>
-  {localOrder.map((listing, index) => (
-    <SortableTableRow
-      key={listing.id}
-      listing={listing}
-      index={index}
-      // ... other props
-    />
-  ))}
-</SortableContext>
+// In SortableTableRow
+{listing.linkedin_employee_count || listing.linkedin_employee_range ? (
+  <div className="text-sm">
+    <span>{listing.linkedin_employee_count?.toLocaleString() || listing.linkedin_employee_range}</span>
+    <span className="text-xs text-blue-500 ml-1">LI</span>
+  </div>
+) : listing.full_time_employees ? (
+  <span className="text-sm">{listing.full_time_employees}</span>
+) : (
+  <span className="text-muted-foreground">—</span>
+)}
 ```
 
-**Change 5: Update rank display in SortableTableRow**
+### Phase 6: Add Apify API Key Configuration
 
-Always show the position-based rank (index + 1), which now comes from the correctly-ordered local state:
-
-```typescript
-<span className="font-medium text-muted-foreground w-5 text-center">
-  {index + 1}
-</span>
-```
+1. Add APIFY_API_TOKEN as a secret (you'll need to provide this)
+2. The edge function will read it via `Deno.env.get('APIFY_API_TOKEN')`
 
 ---
 
-## Summary of Changes
+## Technical Details
 
-| What | Why |
-|------|-----|
-| Add `useRef` for listings | Prevents stale closure bug in drag handler |
-| Add `localOrder` state | Enables instant UI updates before database confirms |
-| Update ALL ranks on drag | Ensures sequential numbering (1, 2, 3, 4...) |
-| Use `index + 1` for display | Shows actual position, not stored value |
+### Apify API Call (Synchronous Pattern)
 
-## Testing Checklist
+```typescript
+// Use run-sync-get-dataset-items for immediate results
+const APIFY_ACTOR = 'logical_scrapers~linkedin-company-scraper';
+const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items`;
 
-After implementation, verify:
-- [ ] Drag item #3 to position #1 → it becomes #1, others shift down
-- [ ] Drag item #1 to position #5 → it becomes #5, items 2-5 shift up to become 1-4
-- [ ] Numbers always remain 1, 2, 3, 4, 5... (no gaps or duplicates)
-- [ ] Page refresh preserves the new order
-- [ ] Sorting by other columns still works
+const response = await fetch(`${url}?token=${apiKey}`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    url: [linkedInCompanyUrl]
+  }),
+  signal: AbortSignal.timeout(60000) // 60s timeout for LinkedIn scrape
+});
+
+const items = await response.json();
+// items[0] contains company data including employeeCount, employeeCountRange
+```
+
+### Data Flow on Deal Creation
+
+1. User imports deal via CSV or creates manually
+2. `ReMarketingDeals.tsx` auto-enrichment effect triggers
+3. Calls `enrich-deal` edge function
+4. `enrich-deal` scrapes website, extracts data with AI
+5. If LinkedIn URL found, chains call to `apify-linkedin-scrape`
+6. Updates `listings` table with all enriched fields
+7. UI refreshes via React Query invalidation
+
+### Rate Limiting Considerations
+
+- Apify has usage-based pricing
+- Implement skip logic if `linkedin_employee_count` already populated
+- Batch processing with delays to avoid hitting rate limits
+
+---
+
+## Files to Create/Modify
+
+| Action | File | Description |
+|--------|------|-------------|
+| CREATE | `supabase/functions/apify-linkedin-scrape/index.ts` | New Apify LinkedIn scraper |
+| MODIFY | `supabase/functions/analyze-deal-notes/index.ts` | Fix TypeScript errors |
+| MODIFY | `supabase/functions/enrich-deal/index.ts` | Fix errors + integrate LinkedIn |
+| MODIFY | `supabase/functions/enrich-buyer/index.ts` | Fix TypeScript errors |
+| MODIFY | `supabase/functions/enrich-geo-data/index.ts` | Fix TypeScript errors |
+| MODIFY | `supabase/functions/enrich-session-metadata/index.ts` | Fix TypeScript errors |
+| MODIFY | `supabase/functions/extract-deal-transcript/index.ts` | Fix TypeScript errors |
+| MODIFY | `supabase/functions/generate-ma-guide/index.ts` | Fix TypeScript errors |
+| MODIFY | `supabase/functions/import-reference-data/index.ts` | Fix TypeScript errors |
+| MODIFY | `supabase/functions/generate-buyer-intro/index.ts` | Fix TypeScript errors |
+| MODIFY | `src/pages/admin/remarketing/ReMarketingDeals.tsx` | Display LinkedIn data |
+| SQL | Add `linkedin_employee_range` column to `listings` | Database schema change |
+
+---
+
+## Prerequisites
+
+Before implementation:
+1. **Apify API Token**: You'll need to provide an Apify API key
+2. **LinkedIn Company URLs**: Deals should have LinkedIn company URLs (can be extracted from websites or added manually)
+
+---
+
+## Summary
+
+This plan adds LinkedIn employee data scraping via Apify, displays both LinkedIn and manual employee counts in the All Deals table, and fixes all the TypeScript build errors that are currently blocking deployment. The LinkedIn data will be fetched automatically during deal enrichment when a company LinkedIn URL is available.
