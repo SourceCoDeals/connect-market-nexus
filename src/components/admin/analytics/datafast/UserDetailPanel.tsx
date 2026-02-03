@@ -58,10 +58,31 @@ function formatTimeToConvert(firstSeen: string, converted?: string): string {
 
 function getFavicon(url: string): string {
   try {
+    // Handle both full URLs and simple domains (e.g., "chatgpt.com")
+    if (!url.includes('://')) {
+      // Simple domain - extract it directly
+      const domain = url.replace('www.', '').split('/')[0];
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    }
     const domain = new URL(url).hostname.replace('www.', '');
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
   } catch {
     return '';
+  }
+}
+
+// Safely extract hostname from a URL or domain string
+function safeGetHostname(urlOrDomain: string): string {
+  if (!urlOrDomain) return '';
+  try {
+    // Handle simple domains like "chatgpt.com" (no protocol)
+    if (!urlOrDomain.includes('://')) {
+      return urlOrDomain.replace('www.', '').split('/')[0];
+    }
+    return new URL(urlOrDomain).hostname.replace('www.', '');
+  } catch {
+    // Fallback: return the original value cleaned up
+    return urlOrDomain.replace('www.', '').split('/')[0];
   }
 }
 
@@ -448,7 +469,7 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                               <span className="text-sm text-[hsl(145_60%_35%)] font-medium truncate">
-                                {new URL(data.source.referrer).hostname.replace('www.', '')}
+                                {safeGetHostname(data.source.referrer)}
                               </span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">
