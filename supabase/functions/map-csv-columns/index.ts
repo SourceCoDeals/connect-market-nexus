@@ -190,6 +190,7 @@ Be intelligent about variations:
 
 Return null for columns that don't match any field.
 Location can be city+state combined or just a general location string.`;
+    }
 
     const userPrompt = `Map these CSV columns to target fields:
 
