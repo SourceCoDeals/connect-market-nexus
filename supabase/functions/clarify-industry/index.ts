@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { 
+  ANTHROPIC_API_URL, 
+  getAnthropicHeaders, 
+  DEFAULT_CLAUDE_FAST_MODEL,
+  toAnthropicTool,
+  parseAnthropicToolResponse
+} from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,9 +35,9 @@ serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not configured');
     }
 
     const systemPrompt = `You are an M&A industry expert helping clarify the scope of an industry research guide.
@@ -49,60 +55,63 @@ DO NOT ask about regulatory or licensing considerations - keep it general.
 
 Return questions as JSON matching this schema exactly.`;
 
-    const response = await fetch(GEMINI_API_URL, {
+    const tool = toAnthropicTool({
+      type: "function",
+      function: {
+        name: "generate_questions",
+        description: "Generate clarifying questions for industry research",
+        parameters: {
+          type: "object",
+          properties: {
+            questions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { 
+                    type: "string",
+                    description: "Unique identifier like 'segment', 'examples', 'geography', 'size'" 
+                  },
+                  question: { 
+                    type: "string",
+                    description: "The question text to display"
+                  },
+                  type: { 
+                    type: "string", 
+                    enum: ["select", "multiSelect", "text"],
+                    description: "select for single choice, multiSelect for multiple, text for free-form"
+                  },
+                  options: { 
+                    type: "array", 
+                    items: { type: "string" },
+                    description: "Options for select/multiSelect types"
+                  },
+                  placeholder: {
+                    type: "string",
+                    description: "Placeholder text for text inputs"
+                  }
+                },
+                required: ["id", "question", "type"]
+              }
+            }
+          },
+          required: ["questions"]
+        }
+      }
+    });
+
+    const response = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
-      headers: getGeminiHeaders(GEMINI_API_KEY),
+      headers: getAnthropicHeaders(ANTHROPIC_API_KEY),
       body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
+        model: DEFAULT_CLAUDE_FAST_MODEL,
+        max_tokens: 4096,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: `Generate clarifying questions for the industry: "${industry_name}"` }
         ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "generate_questions",
-            description: "Generate clarifying questions for industry research",
-            parameters: {
-              type: "object",
-              properties: {
-                questions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: { 
-                        type: "string",
-                        description: "Unique identifier like 'segment', 'examples', 'geography', 'size'" 
-                      },
-                      question: { 
-                        type: "string",
-                        description: "The question text to display"
-                      },
-                      type: { 
-                        type: "string", 
-                        enum: ["select", "multiSelect", "text"],
-                        description: "select for single choice, multiSelect for multiple, text for free-form"
-                      },
-                      options: { 
-                        type: "array", 
-                        items: { type: "string" },
-                        description: "Options for select/multiSelect types"
-                      },
-                      placeholder: {
-                        type: "string",
-                        description: "Placeholder text for text inputs"
-                      }
-                    },
-                    required: ["id", "question", "type"]
-                  }
-                }
-              },
-              required: ["questions"]
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "generate_questions" } }
+        tools: [tool],
+        tool_choice: { type: "tool", name: "generate_questions" }
       }),
     });
 
@@ -113,6 +122,12 @@ Return questions as JSON matching this schema exactly.`;
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      if (response.status === 529) {
+        return new Response(
+          JSON.stringify({ error: "AI service overloaded. Please try again in a moment." }),
+          { status: 529, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }),
@@ -120,23 +135,14 @@ Return questions as JSON matching this schema exactly.`;
         );
       }
       const text = await response.text();
-      console.error("AI gateway error:", response.status, text);
-      throw new Error(`AI gateway error: ${response.status}`);
+      console.error("AI API error:", response.status, text);
+      throw new Error(`AI API error: ${response.status}`);
     }
 
     const result = await response.json();
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+    const extracted = parseAnthropicToolResponse(result) as { questions?: ClarifyQuestion[] } | null;
     
-    let questions: ClarifyQuestion[] = [];
-    
-    if (toolCall?.function?.arguments) {
-      try {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        questions = parsed.questions || [];
-      } catch (e) {
-        console.error("Failed to parse tool response:", e);
-      }
-    }
+    let questions: ClarifyQuestion[] = extracted?.questions || [];
 
     // Ensure we always have meaningful questions
     if (questions.length === 0) {
