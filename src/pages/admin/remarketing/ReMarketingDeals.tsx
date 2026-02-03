@@ -123,6 +123,7 @@ interface DealListing {
   linkedin_employee_range: string | null;
   deal_quality_score: number | null;
   deal_total_score: number | null;
+  seller_interest_score: number | null;
   manual_rank_override: number | null;
   // Structured address fields
   address_city: string | null;
@@ -140,7 +141,7 @@ interface ColumnWidths {
   ebitda: number;
   employees: number;
   quality: number;
-  margin: number;
+  sellerInterest: number;
   engagement: number;
   added: number;
   actions: number;
@@ -154,9 +155,9 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   location: 100,
   revenue: 90,
   ebitda: 90,
-  employees: 80,
+  employees: 100,
   quality: 80,
-  margin: 70,
+  sellerInterest: 90,
   engagement: 130,
   added: 90,
   actions: 50,
@@ -451,10 +452,18 @@ const SortableTableRow = ({
         )}
       </TableCell>
 
-      {/* Margin */}
-      <TableCell className="text-right" style={{ width: columnWidths.margin, minWidth: 50 }}>
-        {listing.ebitda && listing.revenue ? (
-          <span className="text-sm">{Math.round((listing.ebitda / listing.revenue) * 100)}%</span>
+      {/* Seller Interest Score (0-100, from transcript/notes analysis) */}
+      <TableCell className="text-center" style={{ width: columnWidths.sellerInterest, minWidth: 60 }}>
+        {listing.seller_interest_score !== null ? (
+          <span className={cn(
+            "text-sm font-medium px-2 py-0.5 rounded",
+            listing.seller_interest_score >= 80 ? "bg-green-100 text-green-700" :
+            listing.seller_interest_score >= 60 ? "bg-blue-100 text-blue-700" :
+            listing.seller_interest_score >= 40 ? "bg-yellow-100 text-yellow-700" :
+            "bg-gray-100 text-gray-600"
+          )}>
+            {listing.seller_interest_score}
+          </span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -681,6 +690,7 @@ const ReMarketingDeals = () => {
           linkedin_employee_range,
           deal_quality_score,
           deal_total_score,
+          seller_interest_score,
           manual_rank_override,
           address_city,
           address_state
@@ -969,9 +979,9 @@ const ReMarketingDeals = () => {
           aVal = a.deal_quality_score ?? a.deal_total_score ?? 0;
           bVal = b.deal_quality_score ?? b.deal_total_score ?? 0;
           break;
-        case "margin":
-          aVal = a.ebitda && a.revenue ? (a.ebitda / a.revenue) * 100 : 0;
-          bVal = b.ebitda && b.revenue ? (b.ebitda / b.revenue) * 100 : 0;
+        case "sellerInterest":
+          aVal = a.seller_interest_score ?? 0;
+          bVal = b.seller_interest_score ?? 0;
           break;
         case "engagement":
           aVal = (stats_a?.totalMatches || 0);
@@ -1505,8 +1515,8 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.quality} onResize={(w) => handleColumnResize('quality', w)} minWidth={50} className="text-center">
                       <SortableHeader column="score" label="Quality" className="mx-auto" />
                     </ResizableHeader>
-                    <ResizableHeader width={columnWidths.margin} onResize={(w) => handleColumnResize('margin', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="margin" label="Margin" className="ml-auto" />
+                    <ResizableHeader width={columnWidths.sellerInterest} onResize={(w) => handleColumnResize('sellerInterest', w)} minWidth={60} className="text-center">
+                      <SortableHeader column="sellerInterest" label="Seller Interest" className="mx-auto" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.engagement} onResize={(w) => handleColumnResize('engagement', w)} minWidth={80} className="text-center">
                       <SortableHeader column="engagement" label="Engagement" className="mx-auto" />

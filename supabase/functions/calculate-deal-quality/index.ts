@@ -12,7 +12,6 @@ interface DealQualityScores {
   deal_total_score: number;
   deal_quality_score: number;
   deal_size_score: number;
-  deal_motivation_score: number;
   scoring_notes?: string;
 }
 
@@ -271,7 +270,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     deal_total_score: totalScore,
     deal_quality_score: qualityScore,
     deal_size_score: sizeScore,
-    deal_motivation_score: motivationScore,
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
@@ -371,14 +369,13 @@ serve(async (req) => {
         // Calculate scores based on deal data
         const scores = calculateScoresFromData(listing);
 
-        // Update the listing
+        // Update the listing (seller_interest_score comes from analyze-seller-interest function)
         const { error: updateError } = await supabase
           .from("listings")
           .update({
             deal_total_score: scores.deal_total_score,
             deal_quality_score: scores.deal_quality_score,
             deal_size_score: scores.deal_size_score,
-            deal_motivation_score: scores.deal_motivation_score,
           })
           .eq("id", listing.id);
 
