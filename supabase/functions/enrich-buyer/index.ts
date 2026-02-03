@@ -335,6 +335,40 @@ Deno.serve(async (req) => {
       }
     }
 
+    // FALLBACK: If no platform content, extract platform company info from PE firm website
+    // The PE firm's portfolio page often contains descriptions of their platform companies
+    if (!platformContent && peFirmContent && !billingError) {
+      console.log(`No platform website content - extracting platform info from PE firm website for: ${buyer.company_name}`);
+      
+      // Run business overview prompt against PE firm content, specifically looking for the platform company
+      promptsRun++;
+      const fallbackOverviewResult = await callAIWithRetry(
+        getPlatformFromPEPrompt().system,
+        getPlatformFromPEPrompt().user(peFirmContent, buyer.company_name),
+        getPlatformFromPEPrompt().tool,
+        geminiApiKey
+      );
+      if (checkBillingError(fallbackOverviewResult)) {
+        console.error('Billing error during PE fallback platform extraction');
+      } else if (fallbackOverviewResult.data) {
+        Object.assign(extractedData, fallbackOverviewResult.data);
+        promptsSuccessful++;
+        console.log('Extracted platform info from PE website:', Object.keys(fallbackOverviewResult.data));
+        
+        // Track that this came from PE website (not direct platform)
+        if (Object.keys(fallbackOverviewResult.data).length > 0) {
+          evidenceRecords.push({
+            type: 'website',
+            url: peFirmWebsite!,
+            extracted_at: new Date().toISOString(),
+            fields_extracted: Object.keys(fallbackOverviewResult.data)
+          });
+        }
+      }
+      
+      await delay(INTER_PROMPT_DELAY_MS);
+    }
+
     // Prompts 4-6: PE Firm website extractions
     const preExtractionFieldCount = Object.keys(extractedData).length;
     if (peFirmContent && !billingError) {
@@ -860,6 +894,67 @@ function getPlatformAcquisitionsPrompt() {
 Look for press releases, news, or lists of acquired brands. Be specific with dates and locations.`,
     user: (content: string) => 
       `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract acquisition history.`
+  };
+}
+
+// NEW: Extract platform company info from PE firm website when no direct platform website exists
+function getPlatformFromPEPrompt() {
+  return {
+    tool: {
+      type: 'function',
+      function: {
+        name: 'extract_platform_from_pe',
+        description: 'Extract platform company information from PE firm portfolio description',
+        parameters: {
+          type: 'object',
+          properties: {
+            business_summary: { 
+              type: 'string', 
+              description: 'Brief summary of what the PLATFORM COMPANY does (NOT the PE firm). Must describe the specific portfolio company.' 
+            },
+            services_offered: { 
+              type: 'string', 
+              description: 'Primary services or products offered by the PLATFORM COMPANY' 
+            },
+            industry_vertical: { 
+              type: 'string', 
+              description: 'Primary industry vertical of the PLATFORM COMPANY' 
+            },
+            hq_city: { 
+              type: 'string', 
+              description: 'Headquarters city of the platform company if mentioned (actual city name only)' 
+            },
+            hq_state: { 
+              type: 'string', 
+              description: 'Headquarters state as 2-letter code if mentioned' 
+            },
+            geographic_footprint: { 
+              type: 'array', 
+              items: { type: 'string' }, 
+              description: 'US states where the platform operates (2-letter codes)' 
+            },
+            platform_website: {
+              type: 'string',
+              description: 'URL of the platform company website if found in the PE portfolio page'
+            }
+          }
+        }
+      }
+    },
+    system: `You are extracting information about a SPECIFIC platform/portfolio company from a PE firm's website.
+
+CRITICAL: The user will give you a company name. Search the PE firm content for mentions of that company name and extract information ONLY about that specific company - NOT about the PE firm itself.
+
+RULES:
+1. business_summary must describe what the PLATFORM COMPANY does, not the PE firm
+2. If the company name appears in a portfolio list with a description, extract that description
+3. If you find a website URL for the platform company, include it in platform_website
+4. Only extract info that is clearly about the named company
+5. If you cannot find the specific company mentioned, return empty object
+6. hq_city must be a real city name, never a region like "Southeast"
+7. hq_state must be a 2-letter state code`,
+    user: (peContent: string, companyName: string) => 
+      `PE Firm Website Content:\n\n${peContent.substring(0, 15000)}\n\nFind and extract information about the portfolio company named: "${companyName}"\n\nIMPORTANT: Only extract information about "${companyName}" specifically, NOT about the PE firm or other portfolio companies.`
   };
 }
 
