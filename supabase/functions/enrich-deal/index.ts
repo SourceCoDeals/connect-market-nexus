@@ -268,22 +268,42 @@ CRITICAL - COMPANY NAME EXTRACTION:
 - Examples of BAD names: "Performance Marketing Agency", "Home Services Company", "Leading Provider"
 - If you find a generic placeholder title, look harder for the real company name
 
-CRITICAL ADDRESS EXTRACTION RULE:
-Extract the company's physical address into STRUCTURED COMPONENTS:
+CRITICAL ADDRESS EXTRACTION RULE - THIS IS A REQUIRED FIELD:
+You MUST extract the company's physical address into STRUCTURED COMPONENTS:
 - street_address: Just the street number and name (e.g., "123 Main Street")
-- address_city: City name only (e.g., "Dallas")
-- address_state: 2-letter state code only (e.g., "TX")
+- address_city: City name only (e.g., "Dallas") - THIS IS REQUIRED
+- address_state: 2-letter state code only (e.g., "TX") - THIS IS REQUIRED
 - address_zip: 5-digit ZIP code (e.g., "75201")
 - address_country: Country code, default "US"
 
-WHERE TO FIND ADDRESS:
-- Website footer
-- Contact page
-- About Us page
-- Legal/privacy pages
+WHERE TO FIND ADDRESS (check ALL of these locations):
+1. Website footer - Most common location for address
+2. Contact page/Contact Us - Look for physical address, not just email
+3. About Us/About page - Company history often mentions headquarters
+4. Legal/privacy pages - Required to list business address
+5. Google Maps embed - Extract address from map iframe or link
+6. Phone number area code - Use to infer city/state (e.g., 214 = Dallas, TX; 312 = Chicago, IL)
+7. Service area mentions - "Serving the Dallas-Fort Worth area" = Dallas, TX
+8. License/certification info - State licenses reveal location
+9. Job postings/Careers page - Job locations reveal office locations
+10. Press releases/News - Often mention headquarters location
+11. Social media links - Check for location in embedded feeds
+12. BBB accreditation - Always includes city/state
 
-DO NOT extract vague regions like "Midwest", "Southeast", "Texas area".
-If you cannot find a specific street address, at minimum try to find the city and state.
+INFERENCE RULES (use when explicit address not found):
+- "Serving Dallas-Fort Worth" → Dallas, TX
+- "Greater Houston area" → Houston, TX
+- "Bay Area" or "Silicon Valley" → San Francisco, CA or San Jose, CA
+- "DMV area" → Washington, DC
+- "Tri-State area" → New York, NY
+- Phone area code 214/972 → Dallas, TX
+- Phone area code 713/281 → Houston, TX
+- Phone area code 312/773 → Chicago, IL
+- Phone area code 404/770 → Atlanta, GA
+- Phone area code 305/786 → Miami, FL
+
+DO NOT extract vague regions like "Midwest", "Southeast", "Texas area" without a specific city.
+If you cannot find a street address, you MUST still find the city and state using inference rules above.
 
 Focus on extracting:
 1. Company name - The REAL business name (not a generic description)
