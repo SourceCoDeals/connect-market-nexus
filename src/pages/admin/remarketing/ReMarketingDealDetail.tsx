@@ -51,6 +51,7 @@ import {
   CompanyOverviewCard,
   AdditionalInfoCard,
   KeyQuotesCard,
+  UniverseAssignmentButton,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -406,12 +407,11 @@ const ReMarketingDealDetail = () => {
               )}
               Enrich from Website
             </Button>
-            <Button className="gap-2" asChild>
-              <Link to={`/admin/remarketing/matching/${dealId}`}>
-                <Target className="h-4 w-4" />
-                View Buyer Matches ({scoreStats?.count || 0})
-              </Link>
-            </Button>
+            <UniverseAssignmentButton
+              dealId={dealId!}
+              dealCategory={deal?.category}
+              scoreCount={scoreStats?.count || 0}
+            />
             <Button variant="outline" className="gap-2">
               <History className="h-4 w-4" />
               Buyer History
