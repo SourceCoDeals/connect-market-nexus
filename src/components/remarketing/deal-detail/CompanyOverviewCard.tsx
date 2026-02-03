@@ -210,7 +210,7 @@ export const CompanyOverviewCard = ({
     if (addressCity && addressState) {
       return `${addressCity}, ${addressState}`;
     }
-    return location || "Not specified";
+    return location || "–";
   };
 
   // Format full address display - include zip and country
@@ -313,7 +313,7 @@ export const CompanyOverviewCard = ({
                   <ExternalLink className="h-3 w-3" />
                 </a>
               ) : (
-                <span className="text-sm text-muted-foreground italic">Not specified</span>
+                <span className="text-sm text-muted-foreground">–</span>
               )}
             </div>
           </div>
@@ -336,7 +336,7 @@ export const CompanyOverviewCard = ({
                   ))}
                 </div>
               ) : (
-                <span className="text-muted-foreground italic">Not specified</span>
+                <span className="text-muted-foreground">–</span>
               )
             } 
           />
@@ -344,7 +344,7 @@ export const CompanyOverviewCard = ({
           <InfoRow 
             icon={Calendar} 
             label="FOUNDED" 
-            value={foundedYear || "Not specified"} 
+            value={foundedYear || "–"} 
           />
 
           <InfoRow 
@@ -353,7 +353,7 @@ export const CompanyOverviewCard = ({
             value={
               employees.fullTime || employees.partTime
                 ? `${employees.fullTime ? `${employees.fullTime} FT` : ""}${employees.fullTime && employees.partTime ? " + " : ""}${employees.partTime ? `${employees.partTime} PT` : ""}`
-                : "Not specified"
+                : "–"
             } 
           />
 
@@ -373,7 +373,7 @@ export const CompanyOverviewCard = ({
                   <ExternalLink className="h-3 w-3" />
                 </a>
               ) : (
-                "Not specified"
+                "–"
               )
             }
           />
@@ -382,20 +382,20 @@ export const CompanyOverviewCard = ({
           <InfoRow
             icon={Users}
             label="LINKEDIN EMPLOYEE COUNT"
-            value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : "Not specified"}
+            value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : "–"}
           />
 
           {/* LinkedIn Employee Range */}
           <InfoRow
             icon={Users}
             label="LINKEDIN EMPLOYEE RANGE"
-            value={linkedinEmployeeRange || "Not specified"}
+            value={linkedinEmployeeRange || "–"}
           />
 
           <InfoRow
             icon={Building}
             label="INDUSTRY"
-            value={industry || category || "Not specified"}
+            value={industry || category || "–"}
           />
 
           <InfoRow
@@ -404,7 +404,7 @@ export const CompanyOverviewCard = ({
             value={
               numberOfLocations 
                 ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
-                : "Not specified"
+                : "–"
             } 
           />
 
@@ -429,7 +429,7 @@ export const CompanyOverviewCard = ({
                   )}
                 </span>
               ) : (
-                "Not specified"
+                "–"
               )
             }
           />
@@ -441,7 +441,7 @@ export const CompanyOverviewCard = ({
             value={
               googleReviewCount !== null && googleReviewCount !== undefined
                 ? `${googleReviewCount.toLocaleString()} review${googleReviewCount !== 1 ? 's' : ''}`
-                : "Not specified"
+                : "–"
             }
           />
 
