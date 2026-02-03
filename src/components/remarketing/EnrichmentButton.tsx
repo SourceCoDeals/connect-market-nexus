@@ -50,8 +50,9 @@ export const EnrichmentButton = ({
       toast.success(`Enriched ${buyerName}`, {
         description: `Updated ${data.data.fieldsUpdated} fields with ${data.data.dataCompleteness} confidence`
       });
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyerId] });
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+      // Force an immediate refetch for active queries so the UI updates right away
+      void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyerId], refetchType: 'active' });
+      void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'], refetchType: 'active' });
       onSuccess?.();
       
       // Reset status after 3 seconds
