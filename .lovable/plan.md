@@ -1,275 +1,128 @@
 
 
-# Structured Address System for Remarketing Intelligence
+# Enrichment Pipeline Fix: Complete Implementation Plan
 
-## Problem Statement
+## Executive Summary
 
-The current system has a fundamental architecture conflict:
-- **Marketplace (public)**: Intentionally uses anonymous region-based locations ("Southeast US", "Midwest US") for deal privacy
-- **Remarketing (internal)**: Needs accurate address data for buyer matching, geography scoring, and outreach
+The enrichment system has several critical issues that prevent deals from being automatically enriched with website and LinkedIn data:
 
-Currently, there's only a single `address` TEXT column and a `location` TEXT column. The enrichment function tries to enforce "City, ST" format on `location`, but this conflicts with the marketplace's need for anonymous regions.
+| Requirement | Status | Issue |
+|-------------|--------|-------|
+| Website Required | PARTIAL FAIL | UI enforces, but DB allows NULL; websites stored in wrong column |
+| Website Scraping | PARTIAL PASS | Works but not triggered automatically on deal creation |
+| Apify LinkedIn | FAIL | Function exists but is never called from enrichment pipeline |
+| Auto-Enrichment Trigger | FAIL | Database trigger migration was never applied |
+| Scoring Uses Enriched Data | PASS | Score-buyer-deal uses enriched fields in AI prompt |
 
-## Solution Architecture
-
-**Keep `location` as-is for marketplace** (anonymous regions like "Southeast US")  
-**Add new structured address columns** for internal remarketing use:
-- `street_address` - Street number and name
-- `address_city` - City name
-- `address_state` - 2-letter state code
-- `address_zip` - ZIP/postal code  
-- `address_country` - Country (defaults to "US")
-
-The remarketing UI will display `address_city, address_state` as the "Headquarters" instead of `location`, while marketplace continues showing the anonymous `location` field.
+### Root Causes
+1. **31 deals have websites in `internal_deal_memo_link` but not in `website` column** - The enrichment function reads from either field, but data is inconsistent
+2. **Migration file `20260203_auto_enrich_trigger.sql` was not applied** - It lacks the UUID format, so database trigger doesn't exist
+3. **Auto-enrichment only runs when admin visits the Deals page** - No background worker processes the queue
+4. **Apify function is orphaned** - Never integrated into the `enrich-deal` flow
 
 ---
 
-## Data Flow
+## Implementation Steps
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ADDRESS DATA FLOW                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   MARKETPLACE (Public View)          REMARKETING (Internal View)            │
-│   ─────────────────────────          ──────────────────────────             │
-│                                                                              │
-│   Shows: location column             Shows: address_city + address_state    │
-│   Example: "Southeast US"            Example: "Dallas, TX"                  │
-│                                                                              │
-│   ✓ Anonymous for privacy            ✓ Accurate for matching                │
-│   ✓ Region-based                     ✓ City/State granularity              │
-│                                                                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   Website Scraper (enrich-deal)                                              │
-│         │                                                                    │
-│         ├──► Scrapes address from website footer/contact page               │
-│         │                                                                    │
-│         ├──► Parses into components:                                        │
-│         │    • street_address: "123 Main Street"                            │
-│         │    • address_city: "Dallas"                                        │
-│         │    • address_state: "TX"                                           │
-│         │    • address_zip: "75201"                                          │
-│         │    • address_country: "US"                                         │
-│         │                                                                    │
-│         └──► DOES NOT modify 'location' column (keeps marketplace value)   │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+### Phase 1: Database Migration
 
----
+**New Migration: Create enrichment queue and triggers**
 
-## Implementation Phases
+1. Add columns to `listings`:
+   - `enrichment_scheduled_at` (TIMESTAMPTZ)
+   - `enrichment_refresh_due_at` (TIMESTAMPTZ)
 
-### Phase 1: Database Schema Migration
+2. Create `enrichment_queue` table with:
+   - `listing_id` (FK to listings)
+   - `status` (pending, processing, completed, failed)
+   - `attempts` (counter for retries)
+   - `last_error` (text for debugging)
 
-**File: `supabase/migrations/[timestamp]_structured_address_columns.sql`**
+3. Create DB triggers:
+   - `auto_enrich_new_listing`: fires on INSERT
+   - `auto_enrich_updated_listing`: fires when website/internal_deal_memo_link changes
 
-Add new columns to the `listings` table:
+4. Create view `listings_needing_enrichment` for monitoring
+
+### Phase 2: Backfill Websites from internal_deal_memo_link
+
+**One-time migration to normalize data:**
 
 ```sql
--- Add structured address columns for remarketing accuracy
-ALTER TABLE listings
-  ADD COLUMN IF NOT EXISTS street_address TEXT,
-  ADD COLUMN IF NOT EXISTS address_city TEXT,
-  ADD COLUMN IF NOT EXISTS address_state TEXT,
-  ADD COLUMN IF NOT EXISTS address_zip TEXT,
-  ADD COLUMN IF NOT EXISTS address_country TEXT DEFAULT 'US';
-
--- Add index for geographic queries
-CREATE INDEX IF NOT EXISTS idx_listings_address_state ON listings(address_state);
-
--- Migrate existing address data where parseable
 UPDATE listings
-SET 
-  address_city = TRIM(SPLIT_PART(address, ',', 1)),
-  address_state = UPPER(TRIM(REGEXP_REPLACE(SPLIT_PART(address, ',', 2), '\s*\d{5}.*', '')))
-WHERE address IS NOT NULL
-  AND address ~ '^[^,]+,\s*[A-Za-z]{2}';
+SET website = internal_deal_memo_link
+WHERE website IS NULL
+  AND internal_deal_memo_link IS NOT NULL
+  AND internal_deal_memo_link NOT LIKE '%sharepoint%'
+  AND internal_deal_memo_link NOT LIKE '%onedrive%'
+  AND (internal_deal_memo_link LIKE 'http%' 
+       OR internal_deal_memo_link ~ '^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}');
 ```
 
-### Phase 2: Update enrich-deal Edge Function
+### Phase 3: Integrate Apify into enrich-deal Pipeline
 
-**File: `supabase/functions/enrich-deal/index.ts`**
+**Update `supabase/functions/enrich-deal/index.ts`:**
 
-Modify the AI extraction schema to return structured address components:
+1. Add `linkedin_url` to AI extraction schema
+2. After successful Firecrawl+Gemini extraction, check for LinkedIn URL
+3. If LinkedIn URL found (or derivable from company name), call `apify-linkedin-scrape`
+4. Persist `linkedin_employee_count` and `linkedin_employee_range` to listings
+5. Add `linkedin_employee_count` and `linkedin_employee_range` to `VALID_LISTING_UPDATE_KEYS`
 
-1. **Update AI prompt** to extract address as components:
-   - `street_address`: Street number and name only
-   - `address_city`: City name
-   - `address_state`: 2-letter state code
-   - `address_zip`: ZIP code
-   - `address_country`: Country (default "US")
+### Phase 4: Create Queue Processor Edge Function
 
-2. **Update tool schema** with new fields:
-```typescript
-street_address: {
-  type: 'string',
-  description: 'Street address only (e.g., "123 Main Street")'
-},
-address_city: {
-  type: 'string',
-  description: 'City name only (e.g., "Dallas")'
-},
-address_state: {
-  type: 'string',
-  description: '2-letter US state code (e.g., "TX")'
-},
-address_zip: {
-  type: 'string',
-  description: '5-digit ZIP code (e.g., "75201")'
-},
-address_country: {
-  type: 'string',
-  description: 'Country code (default: "US")'
-}
-```
+**New edge function: `supabase/functions/process-enrichment-queue/index.ts`**
 
-3. **Add validation** for each component:
-   - `address_state`: Must be valid 2-letter code
-   - `address_zip`: Must be 5 digits (US) or valid postal format
-   - Reject invalid values, don't write nulls
+This function:
+1. Queries `enrichment_queue` for pending items (oldest first, max 5 per batch)
+2. Marks items as `processing`
+3. Calls `enrich-deal` for each listing
+4. Updates queue status to `completed` or `failed`
+5. Implements retry logic (max 3 attempts)
+6. Rate limits to avoid API overload
 
-4. **Remove `location` from enrichment updates** - never overwrite the marketplace's anonymous location
+### Phase 5: Create Cron Job for Queue Processing
 
-5. **Update VALID_LISTING_UPDATE_KEYS**:
-```typescript
-// Remove 'location' - keep marketplace value untouched
-// Add new structured fields
-'street_address',
-'address_city', 
-'address_state',
-'address_zip',
-'address_country',
-```
+Use pg_cron to call the queue processor every 5 minutes.
 
-### Phase 3: Update Remarketing UI Components
+### Phase 6: Trigger Enrichment After Deal Creation
 
-**File: `src/components/remarketing/deal-detail/CompanyOverviewCard.tsx`**
+1. `AddDealToUniverseDialog.tsx`: After creating deal, immediately call `enrich-deal`
+2. `DealCSVImport.tsx`: After importing batch, trigger enrichment for all new deals
+3. Add toast notification showing enrichment progress
 
-Update the card to display structured address:
+### Phase 7: Display Enrichment Status in UI
 
-1. **Add new props**:
-```typescript
-interface CompanyOverviewCardProps {
-  // ... existing props
-  streetAddress: string | null;
-  addressCity: string | null;
-  addressState: string | null;
-  addressZip: string | null;
-  addressCountry: string | null;
-}
-```
-
-2. **Update HEADQUARTERS display** to show `addressCity, addressState` instead of `location`
-
-3. **Update ADDRESS display** to show full structured address:
-```
-123 Main Street
-Dallas, TX 75201
-```
-
-4. **Update Edit Dialog** with structured address fields:
-   - Street Address input
-   - City input
-   - State dropdown (2-letter codes)
-   - ZIP input
-   - Country dropdown
-
-### Phase 4: Update Remarketing Deal Detail Page
-
-**File: `src/pages/admin/remarketing/ReMarketingDealDetail.tsx`**
-
-1. **Pass new props** to CompanyOverviewCard:
-```typescript
-<CompanyOverviewCard
-  streetAddress={deal.street_address}
-  addressCity={deal.address_city}
-  addressState={deal.address_state}
-  addressZip={deal.address_zip}
-  addressCountry={deal.address_country}
-  // Keep location for reference but don't display as HQ
-  marketplaceLocation={deal.location}
-/>
-```
-
-2. **Update header location display**:
-   - Show `address_city, address_state` instead of `location`
-   - Only if structured address exists, otherwise show "Location TBD"
-
-3. **Update onSave handler** to save structured address fields
-
-### Phase 5: Update Remarketing Deals Table
-
-**File: `src/pages/admin/remarketing/ReMarketingDeals.tsx`**
-
-1. **Update geography display logic** to prefer structured address:
-```typescript
-const geographyDisplay = deal.address_city && deal.address_state
-  ? `${deal.address_city}, ${deal.address_state}`
-  : deal.geographic_states?.length 
-    ? deal.geographic_states.join(', ')
-    : null;
-```
-
-2. **Update search** to include new address fields
-
-### Phase 6: Update CSV Import
-
-**File: `src/components/remarketing/DealCSVImport.tsx`**
-
-1. **Add column mappings** for structured address:
-   - `street_address` / `street` / `address_line_1`
-   - `city` / `address_city`
-   - `state` / `address_state` 
-   - `zip` / `zip_code` / `postal_code`
-   - `country` / `address_country`
-
-2. **Validate state codes** during import
-
-3. **Do NOT touch `location` column** - let marketplace handle it
+Add enrichment status badge to `ReMarketingDeals.tsx` showing:
+- Never enriched (no icon)
+- Enriching... (spinner)
+- Enriched (sparkles icon with date tooltip)
+- Failed (warning icon)
 
 ---
 
-## Technical Summary
+## Files to Create/Modify
 
-| File | Changes |
-|------|---------|
-| **CREATE** `supabase/migrations/[timestamp]_structured_address_columns.sql` | Add 5 new address columns |
-| **MODIFY** `supabase/functions/enrich-deal/index.ts` | Extract structured address, remove location updates |
-| **MODIFY** `src/components/remarketing/deal-detail/CompanyOverviewCard.tsx` | Display & edit structured address |
-| **MODIFY** `src/pages/admin/remarketing/ReMarketingDealDetail.tsx` | Pass new props, update header |
-| **MODIFY** `src/pages/admin/remarketing/ReMarketingDeals.tsx` | Display city/state in table |
-| **MODIFY** `src/components/remarketing/DealCSVImport.tsx` | Map structured address columns |
-| **MODIFY** `src/components/remarketing/AddDealToUniverseDialog.tsx` | Structured address inputs |
-
----
-
-## Key Benefits
-
-1. **Privacy Preserved**: Marketplace continues showing anonymous regions
-2. **Accuracy for Matching**: Remarketing has exact city/state for buyer geography scoring
-3. **Data Quality**: Structured fields enable validation (valid state codes, ZIP format)
-4. **No Data Loss**: Existing `address` and `location` columns remain unchanged
-5. **Future Proof**: Structured data enables distance calculations, maps, etc.
+| Action | File | Description |
+|--------|------|-------------|
+| **CREATE** | `supabase/migrations/[timestamp]_enrichment_infrastructure.sql` | Queue table, triggers, columns |
+| **CREATE** | `supabase/functions/process-enrichment-queue/index.ts` | Background queue processor |
+| **MODIFY** | `supabase/functions/enrich-deal/index.ts` | Add linkedin_url extraction, call Apify |
+| **MODIFY** | `src/components/remarketing/AddDealToUniverseDialog.tsx` | Trigger enrichment after creation |
+| **MODIFY** | `src/components/remarketing/DealCSVImport.tsx` | Trigger enrichment after import |
+| **MODIFY** | `src/pages/admin/remarketing/ReMarketingDeals.tsx` | Better enrichment status display |
+| **DELETE** | `supabase/migrations/20260203_auto_enrich_trigger.sql` | Remove malformed migration file |
 
 ---
 
-## Validation Rules
+## Success Criteria
 
-| Field | Validation |
-|-------|------------|
-| `address_state` | Must be valid 2-letter US/CA code from known set |
-| `address_zip` | 5 digits for US, alphanumeric for CA |
-| `address_city` | Non-empty string, letters/spaces/hyphens only |
-| `address_country` | "US" or "CA" (expandable later) |
+After implementation:
 
----
-
-## Data Migration Strategy
-
-1. **Existing `address` data**: Parse where possible (City, ST format → split)
-2. **Existing `location` data**: Leave untouched (marketplace needs it)
-3. **Re-enrichment**: Running enrichment on deals with websites will populate new fields
+1. **100% of new deals** are automatically enriched within 5 minutes of creation
+2. **Website column** is populated for all deals (required field)
+3. **LinkedIn employee data** is fetched for deals with findable company pages
+4. **Real company names** are extracted (no more "Performance Marketing Agency")
+5. **Structured address** extracted (using new address_city, address_state fields)
+6. **Enrichment queue table exists** for audit trail and debugging
 
