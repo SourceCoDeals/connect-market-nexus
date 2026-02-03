@@ -103,6 +103,8 @@ interface CompanyOverviewCardProps {
   linkedinEmployeeRange?: string | null;
   // Deal quality score
   dealQualityScore?: number | null;
+  /** The AI-calculated score (read-only, for reference) */
+  aiCalculatedScore?: number | null;
   onScoreChange?: (newScore: number) => Promise<void>;
   onSave: (data: {
     website: string;
@@ -143,6 +145,7 @@ export const CompanyOverviewCard = ({
   linkedinEmployeeCount,
   linkedinEmployeeRange,
   dealQualityScore,
+  aiCalculatedScore,
   onScoreChange,
   onSave,
 }: CompanyOverviewCardProps) => {
@@ -518,10 +521,24 @@ export const CompanyOverviewCard = ({
                         )}
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-48 p-3" align="start">
+                    <PopoverContent className="w-56 p-3" align="start">
                       <div className="space-y-3">
+                        {/* Always show the AI-calculated score */}
+                        {aiCalculatedScore !== null && aiCalculatedScore !== undefined && (
+                          <div className="flex items-center justify-between text-xs border-b pb-2">
+                            <span className="text-muted-foreground">AI Calculated</span>
+                            <span className={`font-semibold ${
+                              aiCalculatedScore >= 80 ? 'text-green-600' :
+                              aiCalculatedScore >= 60 ? 'text-amber-600' :
+                              aiCalculatedScore >= 40 ? 'text-orange-500' :
+                              'text-red-500'
+                            }`}>
+                              {aiCalculatedScore}/100
+                            </span>
+                          </div>
+                        )}
                         <div>
-                          <Label htmlFor="quality-score" className="text-xs">Score (0-100)</Label>
+                          <Label htmlFor="quality-score" className="text-xs">Override Score (0-100)</Label>
                           <Input
                             id="quality-score"
                             type="number"

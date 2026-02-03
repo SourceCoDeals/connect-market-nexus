@@ -449,8 +449,10 @@ const ReMarketingDealDetail = () => {
         linkedinUrl={deal.linkedin_url ?? undefined}
         linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
         linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
-        // Deal quality score
+        // Deal quality score (editable)
         dealQualityScore={deal.deal_total_score ?? undefined}
+        // AI-calculated score (read-only reference)
+        aiCalculatedScore={deal.deal_quality_score ?? undefined}
         onScoreChange={async (newScore) => {
           await updateDealMutation.mutateAsync({
             deal_total_score: newScore,
