@@ -53,7 +53,7 @@ export default function DealDetail() {
 
     try {
       await supabase.functions.invoke("enrich-deal", {
-        body: { deal_id: deal.id },
+        body: { dealId: deal.id },
       });
 
       toast({

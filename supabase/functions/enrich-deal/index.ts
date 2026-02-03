@@ -10,6 +10,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as any).message === 'string') {
+    return String((error as any).message);
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown error';
+  }
+};
+
+// Only allow updates to real listings columns (prevents schema-cache 500s)
+const VALID_LISTING_UPDATE_KEYS = new Set([
+  'executive_summary',
+  'service_mix',
+  'business_model',
+  'industry',
+  'geographic_states',
+  'number_of_locations',
+  'location', // must be City, ST
+  'address',
+  'founded_year',
+  'customer_types',
+  'owner_goals',
+  'key_risks',
+  'competitive_position',
+  'technology_systems',
+  'real_estate_info',
+  'growth_trajectory',
+ ]);
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -220,14 +253,16 @@ serve(async (req) => {
 
     const systemPrompt = `You are a business analyst. Extract comprehensive company information from website content.
 
-CRITICAL LOCATION RULE: The "location" field MUST be in strict "City, ST" format (e.g., "Dallas, TX", "Chicago, IL", "Miami, FL"). 
+CRITICAL LOCATION RULE: The "location" field MUST be in strict "City, ST" format (e.g., "Dallas, TX", "Chicago, IL").
 - Extract the actual city and 2-letter state code from the company's physical address on their website
 - Look in footer, contact page, about us, or header for address information
 - NEVER use region names like "Midwest", "Southeast", "Texas area"
 - NEVER use just a state name or just a city name
 - If you cannot find a specific city, leave location empty rather than guessing
-- Examples of CORRECT format: "Austin, TX", "Phoenix, AZ", "Denver, CO"
-- Examples of WRONG format: "Texas", "Southwest US", "Greater Chicago area", "Nationwide"
+
+Also extract "address" if available:
+- "address" may be a full street address (street/city/state/zip)
+- If you only find city/state, set "location" and leave "address" empty
 
 Focus on extracting:
 1. Executive summary - A clear 2-3 paragraph description of the business
@@ -236,11 +271,11 @@ Focus on extracting:
 4. Industry/sector - Primary industry classification
 5. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
 6. Number of locations - Physical office/branch count
-7. Location/headquarters - MUST be "City, ST" format (e.g., "Dallas, TX") - extract from address on website
-8. Founded year - When the company was established
-9. Customer types - Who they serve (commercial, residential, government, etc.)
-10. Key differentiators - What makes them unique
-11. Key risks - Any potential risk factors visible (single customer, aging tech, etc.)
+7. Location/headquarters - MUST be "City, ST" format (e.g., "Dallas, TX")
+8. Address/headquarters - Full address if present (street/city/state/zip)
+9. Founded year - When the company was established
+10. Customer types - Who they serve (commercial, residential, government, etc.)
+11. Key risks - Any potential risk factors visible (one per line)
 12. Competitive position - Market positioning information
 13. Technology/systems - Software, tools, or technology mentioned
 14. Real estate - Information about facilities (owned vs leased)
@@ -300,6 +335,10 @@ Extract all available business information using the provided tool.`;
                     type: 'string',
                     description: 'Company headquarters in strict "City, ST" format only (e.g., "Dallas, TX", "Chicago, IL"). Extract from physical address on website. Leave empty if specific city cannot be determined.'
                   },
+                  address: {
+                    type: 'string',
+                    description: 'Full headquarters address if available (may include street, city, state, zip). Leave empty if not found.'
+                  },
                   founded_year: {
                     type: 'number',
                     description: 'Year the company was founded (e.g., 2005)'
@@ -307,10 +346,6 @@ Extract all available business information using the provided tool.`;
                   customer_types: {
                     type: 'string',
                     description: 'Types of customers served (e.g., Commercial, Residential, Government, Industrial)'
-                  },
-                  key_differentiators: {
-                    type: 'string',
-                    description: 'What makes this company unique or competitive advantages'
                   },
                   owner_goals: {
                     type: 'string',
@@ -372,6 +407,13 @@ Extract all available business information using the provided tool.`;
 
     console.log('Extracted data:', extracted);
 
+    // Drop any unexpected keys so we never attempt to write missing columns
+    for (const key of Object.keys(extracted)) {
+      if (!VALID_LISTING_UPDATE_KEYS.has(key)) {
+        delete (extracted as Record<string, unknown>)[key];
+      }
+    }
+
     // Normalize geographic_states using shared module
     if (extracted.geographic_states) {
       extracted.geographic_states = normalizeStates(extracted.geographic_states as string[]);
@@ -429,7 +471,14 @@ Extract all available business information using the provided tool.`;
 
     if (updateError) {
       console.error('Error updating listing:', updateError);
-      throw updateError;
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: getErrorMessage(updateError),
+          error_code: (updateError as any)?.code,
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Check for optimistic lock conflict
@@ -461,9 +510,9 @@ Extract all available business information using the provided tool.`;
 
   } catch (error) {
     console.error('Error in enrich-deal:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = getErrorMessage(error);
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ success: false, error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
