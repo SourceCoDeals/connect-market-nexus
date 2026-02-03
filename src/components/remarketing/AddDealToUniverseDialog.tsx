@@ -262,6 +262,23 @@ export const AddDealToUniverseDialog = ({
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       toast.success(`Created "${listing.title}" and added to universe`);
       
+      // Trigger AI enrichment immediately if website provided
+      if (listing.website) {
+        toast.info("Enriching deal with AI...", { id: `enrich-${listing.id}` });
+        supabase.functions.invoke("enrich-deal", {
+          body: { dealId: listing.id },
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error("Enrichment error:", error);
+            toast.error("Enrichment failed", { id: `enrich-${listing.id}` });
+          } else if (data?.success) {
+            toast.success(`Enriched with ${data.fieldsUpdated?.length || 0} fields`, { id: `enrich-${listing.id}` });
+            queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+            queryClient.invalidateQueries({ queryKey: ["listings"] });
+          }
+        });
+      }
+      
       // Trigger background scoring
       toast.info("Scoring buyers in the background...");
       supabase.functions.invoke("score-buyer-deal", {
