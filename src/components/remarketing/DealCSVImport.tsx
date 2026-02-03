@@ -67,6 +67,7 @@ export const DealCSVImport = ({
   const [mappingStats, setMappingStats] = useState<MergeStats | null>(null);
   const [isMapping, setIsMapping] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [columnFilter, setColumnFilter] = useState("");
   const [importResults, setImportResults] = useState<{
     imported: number;
     errors: string[];
@@ -362,6 +363,12 @@ export const DealCSVImport = ({
   const getMappedFieldCount = () =>
     columnMappings.filter((m) => m.targetField).length;
 
+  const filteredColumnMappings = columnMappings.filter((m) => {
+    const q = columnFilter.trim().toLowerCase();
+    if (!q) return true;
+    return m.csvColumn.toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-4">
 
@@ -408,17 +415,17 @@ export const DealCSVImport = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="secondary">{csvData.length} rows</Badge>
                     {mappingStats && (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      <Badge variant="secondary">
                         Parsed: {mappingStats.parsedCount} cols
                       </Badge>
                     )}
                     {mappingStats && mappingStats.aiReturnedCount > 0 && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      <Badge variant="secondary">
                         AI: {mappingStats.aiReturnedCount}
                       </Badge>
                     )}
                     {mappingStats && mappingStats.filledCount > 0 && (
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                      <Badge variant="secondary">
                         Filled: {mappingStats.filledCount}
                       </Badge>
                     )}
@@ -431,6 +438,24 @@ export const DealCSVImport = ({
                   </p>
                 </div>
 
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-1">
+                    <Input
+                      value={columnFilter}
+                      onChange={(e) => setColumnFilter(e.target.value)}
+                      placeholder='Search columns (e.g. "Website", "EBITDA")'
+                    />
+                  </div>
+                  <div className="text-sm text-muted-foreground shrink-0">
+                    Showing {filteredColumnMappings.length} of {columnMappings.length}
+                  </div>
+                  {columnFilter.trim() && (
+                    <Button variant="outline" onClick={() => setColumnFilter("")}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
                 <ScrollArea className="flex-1 border rounded-lg">
                   <Table>
                     <TableHeader>
@@ -441,7 +466,7 @@ export const DealCSVImport = ({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {columnMappings.map((mapping) => (
+                      {filteredColumnMappings.map((mapping) => (
                         <TableRow key={mapping.csvColumn}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -578,9 +603,9 @@ export const DealCSVImport = ({
         {step === "complete" && importResults && (
           <div className="flex-1 flex flex-col items-center justify-center py-12">
             {importResults.errors.length === 0 ? (
-              <Check className="h-12 w-12 mb-4 text-emerald-500" />
+              <Check className="h-12 w-12 mb-4 text-primary" />
             ) : (
-              <AlertCircle className="h-12 w-12 mb-4 text-amber-500" />
+              <AlertCircle className="h-12 w-12 mb-4 text-destructive" />
             )}
             <p className="font-medium mb-2">
               Imported {importResults.imported} of {csvData.length} deals
