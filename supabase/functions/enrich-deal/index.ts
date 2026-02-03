@@ -263,7 +263,7 @@ serve(async (req) => {
     // Step 2: Use AI to extract structured data
     console.log('Extracting deal intelligence with AI...');
 
-const systemPrompt = `You are a business analyst. Extract comprehensive company information from website content.
+const systemPrompt = `You are a business analyst specializing in M&A due diligence. Extract comprehensive company information from website content.
 
 CRITICAL - COMPANY NAME EXTRACTION:
 - Extract the REAL company name from the website (look in header, logo, footer, about page, legal notices)
@@ -272,35 +272,51 @@ CRITICAL - COMPANY NAME EXTRACTION:
 - Examples of BAD names: "Performance Marketing Agency", "Home Services Company", "Leading Provider"
 - If you find a generic placeholder title, look harder for the real company name
 
-CRITICAL ADDRESS EXTRACTION RULE:
-Extract the company's physical address into STRUCTURED COMPONENTS:
+CRITICAL - ADDRESS EXTRACTION (HIGHEST PRIORITY):
+You MUST extract a physical address. This is required for deal matching. Search AGGRESSIVELY for address information.
+
+WHERE TO FIND ADDRESS (search ALL of these):
+1. **Footer** - Most common location, look for city/state near copyright or contact info
+2. **Contact page** - "Contact Us", "Locations", "Get in Touch" sections
+3. **About page** - "About Us", "Our Story", company history sections
+4. **Header** - Sometimes addresses appear in top navigation
+5. **Google Maps embed** - Look for embedded map with address
+6. **Phone numbers** - Area codes can indicate location (e.g., 214 = Dallas, TX)
+7. **Service area mentions** - "Serving the Dallas-Fort Worth area", "Based in Chicago"
+8. **License/certification info** - Often includes state (e.g., "Licensed in Texas")
+9. **Job postings** - Often mention office location
+10. **Press releases** - Often include headquarters location
+11. **Copyright notices** - May include city/state
+
+EXTRACT INTO STRUCTURED COMPONENTS:
 - street_address: Just the street number and name (e.g., "123 Main Street")
-- address_city: City name only (e.g., "Dallas")
-- address_state: 2-letter state code only (e.g., "TX")
+- address_city: City name ONLY (e.g., "Dallas", "Chicago", "Phoenix")
+- address_state: 2-letter US state code ONLY (e.g., "TX", "IL", "AZ")
 - address_zip: 5-digit ZIP code (e.g., "75201")
 - address_country: Country code, default "US"
 
-WHERE TO FIND ADDRESS:
-- Website footer
-- Contact page
-- About Us page
-- Legal/privacy pages
+INFERENCE RULES (if explicit address not found):
+- If you see "Serving Dallas-Fort Worth" → address_city: "Dallas", address_state: "TX"
+- If you see "Chicago-based" → address_city: "Chicago", address_state: "IL"  
+- If you see "Headquartered in Phoenix, Arizona" → address_city: "Phoenix", address_state: "AZ"
+- If you see a phone area code, infer the city/state from it
+- If you see state licensing info, use that state
 
-DO NOT extract vague regions like "Midwest", "Southeast", "Texas area".
-If you cannot find a specific street address, at minimum try to find the city and state.
+DO NOT extract vague regions like "Midwest", "Southeast", "Texas area" for address fields.
+The address_city and address_state fields must be specific - a real city name and 2-letter state code.
 
 Focus on extracting:
 1. Company name - The REAL business name (not a generic description)
-2. Executive summary - A clear 2-3 paragraph description of the business
-3. Services offered - List of services/products they provide
-4. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
-5. Industry/sector - Primary industry classification
-6. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
-7. Number of locations - Physical office/branch count
-8. Structured address - Extract into components: street_address, address_city, address_state, address_zip
+2. **Structured address** - REQUIRED: Extract city and state at minimum
+3. Executive summary - A clear 2-3 paragraph description of the business
+4. Services offered - List of services/products they provide
+5. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
+6. Industry/sector - Primary industry classification
+7. Geographic coverage - States/regions they operate in (use 2-letter US state codes)
+8. Number of locations - Physical office/branch count
 9. Founded year - When the company was established
 10. Customer types - Who they serve (commercial, residential, government, etc.)
-11. Key risks - Any potential risk factors visible (one per line)
+11. Key risks - Any potential risk factors visible
 12. Competitive position - Market positioning information
 13. Technology/systems - Software, tools, or technology mentioned
 14. Real estate - Information about facilities (owned vs leased)
@@ -308,10 +324,13 @@ Focus on extracting:
 
     const userPrompt = `Analyze this website content from "${deal.title}" and extract business information.
 
+IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
+
 Website Content:
 ${websiteContent.substring(0, 15000)}
 
-Extract all available business information using the provided tool.`;
+Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.`;
+
 
     const aiResponse = await fetch(GEMINI_API_URL, {
       method: 'POST',
