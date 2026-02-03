@@ -1,7 +1,10 @@
 /**
  * Source Priority System for Deal Enrichment
- * Implements field-level source tracking per spec:
- * Priority: Transcript > Notes > Website > CSV (highest to lowest)
+ * Implements field-level source tracking per Whispers spec:
+ * Priority: Transcript (100) > Notes (80) > Website (60) > CSV (40) > Manual (20)
+ *
+ * Higher priority sources can overwrite lower priority sources.
+ * Prevents low-quality data from corrupting high-quality extractions.
  */
 
 export type ExtractionSource = 'transcript' | 'notes' | 'website' | 'csv' | 'manual';
@@ -15,13 +18,14 @@ export interface FieldSource {
 
 export type ExtractionSources = Record<string, FieldSource>;
 
-// Source priority (lower number = higher priority)
+// Source priority scores (higher number = higher priority)
+// Whispers spec: transcript:100 > notes:80 > website:60 > csv:40 > manual:20
 const SOURCE_PRIORITY: Record<ExtractionSource, number> = {
-  'transcript': 1,
-  'notes': 2,
-  'website': 3,
-  'csv': 4,
-  'manual': 0, // Manual always wins
+  'transcript': 100, // Highest - call transcripts are most authoritative
+  'notes': 80,       // Broker notes and internal memos
+  'website': 60,     // Website scraping
+  'csv': 40,         // CSV imports
+  'manual': 20,      // Manual entry (lowest priority, can be overridden)
 };
 
 // Fields that should never be overwritten once set from transcripts
@@ -36,6 +40,7 @@ const PROTECTED_FIELDS = new Set([
 
 /**
  * Check if a new source can overwrite an existing field value
+ * Returns true if new source has higher or equal priority
  */
 export function canOverwriteField(
   fieldName: string,
@@ -47,28 +52,31 @@ export function canOverwriteField(
   if (existingValue === null || existingValue === undefined || existingValue === '') {
     return true;
   }
-  
+
   // If empty array, allow
   if (Array.isArray(existingValue) && existingValue.length === 0) {
     return true;
   }
-  
-  // If no existing source tracked, allow if new source is high priority
+
+  // If no existing source tracked, allow any new source
   if (!existingSource) {
     return true;
   }
-  
-  // For protected fields, only transcript or manual can overwrite
+
+  // For protected fields (revenue, ebitda, owner_goals), only equal or higher priority can overwrite
   if (PROTECTED_FIELDS.has(fieldName)) {
-    return newSource === 'manual' || 
-           (newSource === 'transcript' && existingSource !== 'transcript' && existingSource !== 'manual');
+    const existingPriority = SOURCE_PRIORITY[existingSource] ?? 0;
+    const newPriority = SOURCE_PRIORITY[newSource];
+    // Protected fields require higher or equal priority
+    return newPriority >= existingPriority;
   }
-  
-  // Compare priorities (lower number = higher priority)
-  const existingPriority = SOURCE_PRIORITY[existingSource] ?? 999;
+
+  // Compare priorities (higher number = higher priority per Whispers spec)
+  const existingPriority = SOURCE_PRIORITY[existingSource] ?? 0;
   const newPriority = SOURCE_PRIORITY[newSource];
-  
-  return newPriority < existingPriority;
+
+  // Allow overwrite if new source has higher priority
+  return newPriority > existingPriority;
 }
 
 /**
@@ -123,17 +131,18 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
   newData: Partial<T>,
   newSource: ExtractionSource,
   transcriptId?: string
-): { updates: Partial<T>; sourceUpdates: ExtractionSources } {
+): { updates: Partial<T>; sourceUpdates: ExtractionSources; rejected: string[] } {
   const updates: Partial<T> = {};
   const sourceUpdates: ExtractionSources = {};
-  
+  const rejected: string[] = [];
+
   for (const [key, value] of Object.entries(newData)) {
     if (value === null || value === undefined) continue;
-    
+
     const existingFieldSource = getFieldSource(extractionSources, key);
     const existingSourceType = existingFieldSource?.source;
     const existingValue = existingData[key as keyof T];
-    
+
     if (canOverwriteField(key, existingSourceType, newSource, existingValue)) {
       (updates as Record<string, unknown>)[key] = value;
       sourceUpdates[key] = createFieldSource(
@@ -142,8 +151,20 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
         // Add confidence for financial fields if available
         key === 'revenue' || key === 'ebitda' ? 'high' : undefined
       );
+    } else {
+      // Track rejected updates for logging
+      const existingPriority = SOURCE_PRIORITY[existingSourceType || 'manual'] || 0;
+      const newPriority = SOURCE_PRIORITY[newSource];
+      rejected.push(
+        `${key}: ${newSource}(${newPriority}) blocked by ${existingSourceType}(${existingPriority})`
+      );
     }
   }
-  
-  return { updates, sourceUpdates };
+
+  // Log rejected updates if any
+  if (rejected.length > 0) {
+    console.log(`[SourcePriority] Rejected ${rejected.length} lower-priority updates:`, rejected);
+  }
+
+  return { updates, sourceUpdates, rejected };
 }
