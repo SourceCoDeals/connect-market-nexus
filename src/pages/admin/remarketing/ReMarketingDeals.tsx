@@ -321,8 +321,8 @@ const SortableTableRow = ({
   
   const geographyDisplay = getLocationDisplay();
   
-  // Use deal quality score (the custom algorithm score)
-  const qualityScore = listing.deal_quality_score ?? listing.deal_total_score ?? null;
+  // Use deal_total_score (0-100 comprehensive score from edge function)
+  const qualityScore = listing.deal_total_score ?? null;
 
   return (
     <TableRow
@@ -419,15 +419,13 @@ const SortableTableRow = ({
         {formatCurrency(listing.ebitda)}
       </TableCell>
 
-      {/* Employees - LinkedIn data with fallback */}
+      {/* Employees - LinkedIn data only */}
       <TableCell className="text-right" style={{ width: columnWidths.employees, minWidth: 50 }}>
         {listing.linkedin_employee_count || listing.linkedin_employee_range ? (
           <div className="text-sm flex items-center justify-end gap-1">
             <span>{listing.linkedin_employee_count?.toLocaleString() || listing.linkedin_employee_range}</span>
             <span className="text-xs text-blue-500 font-medium">LI</span>
           </div>
-        ) : listing.full_time_employees ? (
-          <span className="text-sm">{listing.full_time_employees.toLocaleString()}</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -583,9 +581,8 @@ const ReMarketingDeals = () => {
     setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
   }, []);
 
-  // Track which deals are currently being enriched to prevent duplicate calls
+  // Track which deals have been queued for enrichment to prevent duplicate queue entries
   const enrichingDealsRef = useRef<Set<string>>(new Set());
-  const [enrichmentProgress, setEnrichmentProgress] = useState<{ current: number; total: number } | null>(null);
 
   // DnD sensors
   const sensors = useSensors(
@@ -697,7 +694,7 @@ const ReMarketingDeals = () => {
         `)
         .eq('status', 'active')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
-        .order('deal_quality_score', { ascending: false, nullsFirst: true })
+        .order('deal_total_score', { ascending: false, nullsFirst: true })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -705,62 +702,53 @@ const ReMarketingDeals = () => {
     }
   });
 
-  // Auto-enrich deals that don't have enriched_at set
+  // Queue deals for enrichment instead of direct calls (respects rate limits and provides tracking)
   useEffect(() => {
-    const autoEnrichDeals = async () => {
+    const queueDealsForEnrichment = async () => {
       if (!listings) return;
 
       // Find deals that need enrichment (no enriched_at and have a website)
-      const dealsToEnrich = listings.filter(deal => {
+      const dealsToQueue = listings.filter(deal => {
         const website = deal.website || (deal.internal_deal_memo_link && !deal.internal_deal_memo_link.includes('sharepoint'));
         return !deal.enriched_at && website && !enrichingDealsRef.current.has(deal.id);
       });
 
-      if (dealsToEnrich.length === 0) return;
+      if (dealsToQueue.length === 0) return;
 
-      // Mark all as being enriched to prevent duplicate calls
-      dealsToEnrich.forEach(deal => enrichingDealsRef.current.add(deal.id));
-      
-      setEnrichmentProgress({ current: 0, total: dealsToEnrich.length });
-      
-      // Enrich in batches of 3 to avoid overwhelming the API
-      const batchSize = 3;
-      let enriched = 0;
-      
-      for (let i = 0; i < dealsToEnrich.length; i += batchSize) {
-        const batch = dealsToEnrich.slice(i, i + batchSize);
-        
-        await Promise.all(batch.map(async (deal) => {
-          try {
-            await supabase.functions.invoke('enrich-deal', {
-              body: { dealId: deal.id, onlyFillEmpty: true }
-            });
-            enriched++;
-            setEnrichmentProgress({ current: enriched, total: dealsToEnrich.length });
-          } catch (err) {
-            console.error(`Failed to auto-enrich deal ${deal.id}:`, err);
-          }
+      // Mark all as being queued to prevent duplicate entries
+      dealsToQueue.forEach(deal => enrichingDealsRef.current.add(deal.id));
+
+      try {
+        // Add deals to enrichment queue (upsert to avoid duplicates)
+        const queueEntries = dealsToQueue.map(deal => ({
+          listing_id: deal.id,
+          status: 'pending',
+          attempts: 0,
+          queued_at: new Date().toISOString(),
         }));
-        
-        // Small delay between batches
-        if (i + batchSize < dealsToEnrich.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
 
-      // Clear progress and refetch
-      setEnrichmentProgress(null);
-      if (enriched > 0) {
-        toast({
-          title: "Auto-enrichment complete",
-          description: `Enriched ${enriched} deal${enriched !== 1 ? 's' : ''} with company data`
-        });
-        refetchListings();
+        const { error } = await supabase
+          .from('enrichment_queue')
+          .upsert(queueEntries, { onConflict: 'listing_id', ignoreDuplicates: true });
+
+        if (error) {
+          console.error('Failed to queue deals for enrichment:', error);
+          return;
+        }
+
+        if (dealsToQueue.length > 0) {
+          toast({
+            title: "Deals queued for enrichment",
+            description: `${dealsToQueue.length} deal${dealsToQueue.length !== 1 ? 's' : ''} added to enrichment queue`
+          });
+        }
+      } catch (err) {
+        console.error('Failed to queue deals:', err);
       }
     };
 
-    autoEnrichDeals();
-  }, [listings, toast, refetchListings]);
+    queueDealsForEnrichment();
+  }, [listings, toast]);
 
   // Fetch universes for the filter
   const { data: universes } = useQuery({
@@ -828,25 +816,25 @@ const ReMarketingDeals = () => {
   // KPI Stats
   const kpiStats = useMemo(() => {
     const totalDeals = listings?.length || 0;
-    
-    const hotDeals = listings?.filter(listing => 
-      listing.deal_quality_score !== null && listing.deal_quality_score >= 80
+
+    const hotDeals = listings?.filter(listing =>
+      listing.deal_total_score !== null && listing.deal_total_score >= 80
     ).length || 0;
-    
+
     let totalScore = 0;
     let scoredDeals = 0;
     listings?.forEach(listing => {
-      if (listing.deal_quality_score !== null) {
-        totalScore += listing.deal_quality_score;
+      if (listing.deal_total_score !== null) {
+        totalScore += listing.deal_total_score;
         scoredDeals++;
       }
     });
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-    
-    const needsScoring = listings?.filter(listing => 
-      listing.deal_quality_score === null
+
+    const needsScoring = listings?.filter(listing =>
+      listing.deal_total_score === null
     ).length || 0;
-    
+
     return { totalDeals, hotDeals, avgScore, needsScoring };
   }, [listings]);
 
@@ -894,7 +882,7 @@ const ReMarketingDeals = () => {
       }
 
       if (scoreFilter !== "all") {
-        const score = listing.deal_quality_score ?? 0;
+        const score = listing.deal_total_score ?? 0;
         const tier = getTierFromScore(score);
         if (scoreFilter !== tier) return false;
       }
@@ -972,12 +960,12 @@ const ReMarketingDeals = () => {
           bVal = b.ebitda || 0;
           break;
         case "employees":
-          aVal = a.full_time_employees || 0;
-          bVal = b.full_time_employees || 0;
+          aVal = a.linkedin_employee_count || 0;
+          bVal = b.linkedin_employee_count || 0;
           break;
         case "score":
-          aVal = a.deal_quality_score ?? a.deal_total_score ?? 0;
-          bVal = b.deal_quality_score ?? b.deal_total_score ?? 0;
+          aVal = a.deal_total_score ?? 0;
+          bVal = b.deal_total_score ?? 0;
           break;
         case "sellerInterest":
           aVal = a.seller_interest_score ?? 0;
@@ -1129,69 +1117,28 @@ const ReMarketingDeals = () => {
     }
   }, [selectedDeals, toast, refetchListings]);
 
-  // Handle calculate scores - uses a simple formula-based scoring
+  // Handle calculate scores - calls edge function for comprehensive scoring
   const handleCalculateScores = async () => {
     setIsCalculating(true);
     try {
-      const dealsToScore = listings?.filter(listing => 
-        listing.deal_quality_score === null
-      ) || [];
-
-      if (dealsToScore.length === 0) {
-        toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
-        setIsCalculating(false);
-        return;
-      }
-
-      let scored = 0;
-      for (const deal of dealsToScore.slice(0, 50)) {
-        try {
-          // Calculate a deal quality score based on available data
-          let score = 50; // Base score
-          
-          // Revenue scoring (0-20 points)
-          if (deal.revenue) {
-            if (deal.revenue >= 5000000) score += 20;
-            else if (deal.revenue >= 2000000) score += 15;
-            else if (deal.revenue >= 1000000) score += 10;
-            else if (deal.revenue >= 500000) score += 5;
-          }
-          
-          // EBITDA margin scoring (0-15 points)
-          if (deal.ebitda && deal.revenue) {
-            const margin = (deal.ebitda / deal.revenue) * 100;
-            if (margin >= 25) score += 15;
-            else if (margin >= 20) score += 12;
-            else if (margin >= 15) score += 8;
-            else if (margin >= 10) score += 4;
-          }
-          
-          // Data completeness scoring (0-15 points)
-          if (deal.category) score += 3;
-          if (deal.location || (deal.geographic_states && deal.geographic_states.length > 0)) score += 3;
-          if (deal.full_time_employees) score += 3;
-          if (deal.website) score += 3;
-          if (deal.enriched_at) score += 3;
-          
-          // Cap at 100
-          score = Math.min(100, Math.max(0, score));
-          
-          // Update the listing with the calculated score
-          await supabase
-            .from('listings')
-            .update({ deal_quality_score: score })
-            .eq('id', deal.id);
-          
-          scored++;
-        } catch (err) {
-          console.error(`Failed to score deal ${deal.id}:`, err);
-        }
-      }
-
-      toast({ 
-        title: "Scoring complete", 
-        description: `Calculated quality scores for ${scored} deals` 
+      // Call edge function to calculate scores for all unscored deals
+      const { data, error } = await supabase.functions.invoke('calculate-deal-quality', {
+        body: { calculateAll: true }
       });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to calculate scores');
+      }
+
+      if (data?.scored === 0) {
+        toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
+      } else {
+        toast({
+          title: "Scoring complete",
+          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}`
+        });
+      }
+
       refetchListings();
     } catch (error: any) {
       console.error('Calculate scores error:', error);
@@ -1253,30 +1200,6 @@ const ReMarketingDeals = () => {
         </div>
       </div>
 
-      {/* Auto-enrichment progress indicator */}
-      {enrichmentProgress && (
-        <Card className="border-blue-200 bg-blue-50/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <Sparkles className="h-5 w-5 text-blue-600 animate-pulse" />
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-blue-900">
-                    Auto-enriching deals with company data...
-                  </span>
-                  <span className="text-sm text-blue-700">
-                    {enrichmentProgress.current} / {enrichmentProgress.total}
-                  </span>
-                </div>
-                <Progress 
-                  value={(enrichmentProgress.current / enrichmentProgress.total) * 100} 
-                  className="h-2"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-4 gap-4">
