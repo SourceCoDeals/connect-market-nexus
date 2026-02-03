@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { checkRateLimit, checkGlobalRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
@@ -14,6 +13,15 @@ interface DealQualityScores {
   deal_size_score: number;
   deal_motivation_score: number;
   scoring_notes?: string;
+  industry_adjustment?: number;
+}
+
+interface IndustryAdjustment {
+  industry: string;
+  score_adjustment: number;
+  margin_threshold_adjustment: number;
+  size_multiplier: number;
+  confidence: string;
 }
 
 /**
@@ -50,12 +58,19 @@ interface DealQualityScores {
  *    - Some indication: +2 pts
  *    - No data: +0 pts (no penalty)
  *
+ * 5. Industry Adjustment (learned from manual overrides):
+ *    - Applied after base calculation
+ *    - Can be +/- based on historical override patterns
+ *
  * Example scores:
  *   - $3M EBITDA, 20% margin, no motivation data: 58 + 15 + 8 + 0 = 81
  *   - $1M EBITDA, 25% margin, motivated seller: 34 + 17 + 8 + 4 = 63
  *   - $500K EBITDA, 15% margin, no data: 20 + 11 + 6 + 0 = 37
  */
-function calculateScoresFromData(deal: any): DealQualityScores {
+function calculateScoresFromData(
+  deal: any,
+  industryAdjustment: IndustryAdjustment | null = null
+): DealQualityScores {
   let sizeScore = 0;
   let qualityScore = 0;
   let completenessScore = 0;
@@ -91,20 +106,30 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     notes.push("No EBITDA data");
   }
 
+  // Apply industry size multiplier if learned
+  if (industryAdjustment && industryAdjustment.size_multiplier !== 1.0) {
+    sizeScore = Math.round(sizeScore * industryAdjustment.size_multiplier);
+    sizeScore = Math.min(65, Math.max(0, sizeScore)); // Keep within bounds
+  }
+
   // ===== 2. DEAL QUALITY/MARGINS (0-20 pts) =====
 
-  // Margin scoring (0-12 pts)
+  // Margin scoring (0-12 pts) - adjusted by industry if learned
+  const marginAdjustment = industryAdjustment?.margin_threshold_adjustment || 0;
+
   if (revenue > 0 && ebitda > 0) {
     const margin = ebitda / revenue;
-    if (margin >= 0.30) {
+    const adjustedMargin = margin - marginAdjustment; // Lower threshold for industries with typically lower margins
+
+    if (adjustedMargin >= 0.30) {
       qualityScore += 12;
-    } else if (margin >= 0.25) {
+    } else if (adjustedMargin >= 0.25) {
       qualityScore += 10;
-    } else if (margin >= 0.20) {
+    } else if (adjustedMargin >= 0.20) {
       qualityScore += 8;
-    } else if (margin >= 0.15) {
+    } else if (adjustedMargin >= 0.15) {
       qualityScore += 6;
-    } else if (margin >= 0.10) {
+    } else if (adjustedMargin >= 0.10) {
       qualityScore += 4;
     } else if (margin > 0) {
       qualityScore += 2;
@@ -186,6 +211,19 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   // Size (65) + Quality (20) + Completeness (8) + Motivation Bonus (7) = 100 max
   let totalScore = sizeScore + qualityScore + completenessScore + motivationBonus;
 
+  // ===== 5. APPLY INDUSTRY ADJUSTMENT (learned from overrides) =====
+  let appliedAdjustment = 0;
+  if (industryAdjustment && industryAdjustment.score_adjustment !== 0) {
+    appliedAdjustment = industryAdjustment.score_adjustment;
+    totalScore += appliedAdjustment;
+
+    if (industryAdjustment.confidence === 'high') {
+      notes.push(`Industry adjustment: ${appliedAdjustment > 0 ? '+' : ''}${appliedAdjustment} (high confidence)`);
+    } else {
+      notes.push(`Industry adjustment: ${appliedAdjustment > 0 ? '+' : ''}${appliedAdjustment} (${industryAdjustment.confidence})`);
+    }
+  }
+
   // Ensure scores are within bounds (no hard caps - let size drive the score)
   totalScore = Math.min(100, Math.max(0, totalScore));
 
@@ -195,6 +233,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     deal_size_score: sizeScore,
     deal_motivation_score: motivationBonus,
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
+    industry_adjustment: appliedAdjustment !== 0 ? appliedAdjustment : undefined,
   };
 }
 
@@ -296,14 +335,57 @@ serve(async (req) => {
 
     console.log(`Scoring ${listingsToScore.length} listings...`);
 
+    // ===== FETCH LEARNED INDUSTRY ADJUSTMENTS =====
+    const { data: industryAdjustments } = await supabase
+      .from('industry_score_adjustments')
+      .select('industry, score_adjustment, margin_threshold_adjustment, size_multiplier, confidence');
+
+    // Build lookup map for quick access
+    const industryAdjustmentMap = new Map<string, IndustryAdjustment>();
+    for (const adj of (industryAdjustments || [])) {
+      // Normalize industry name for matching
+      const normalizedIndustry = adj.industry.toLowerCase().trim();
+      industryAdjustmentMap.set(normalizedIndustry, adj);
+    }
+
+    // Helper to find industry adjustment (fuzzy match)
+    const findIndustryAdjustment = (category: string | null): IndustryAdjustment | null => {
+      if (!category) return null;
+      const normalized = category.toLowerCase().trim();
+
+      // Direct match
+      if (industryAdjustmentMap.has(normalized)) {
+        return industryAdjustmentMap.get(normalized)!;
+      }
+
+      // Partial match (e.g., "Home Services - HVAC" matches "Home Services")
+      for (const [key, value] of industryAdjustmentMap) {
+        if (normalized.includes(key) || key.includes(normalized)) {
+          return value;
+        }
+      }
+
+      return null;
+    };
+
     let scored = 0;
     let errors = 0;
+    let skippedOverrides = 0;
     const results: any[] = [];
 
     for (const listing of listingsToScore) {
       try {
-        // Calculate scores based on deal data
-        const scores = calculateScoresFromData(listing);
+        // Skip if listing has a manual override (respect human judgment)
+        if (listing.manual_score_override !== null && listing.manual_score_override !== undefined) {
+          skippedOverrides++;
+          continue;
+        }
+
+        // Find industry adjustment for this listing
+        const industryAdjustment = findIndustryAdjustment(listing.category);
+
+        // Calculate scores based on deal data with learned adjustments
+        const scores = calculateScoresFromData(listing, industryAdjustment);
 
         // Update the listing
         const { error: updateError } = await supabase
@@ -325,6 +407,7 @@ serve(async (req) => {
             id: listing.id,
             title: listing.title,
             scores,
+            industryAdjustment: industryAdjustment?.score_adjustment || 0,
           });
         }
       } catch (e) {
@@ -333,14 +416,16 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Scored ${scored} listings, ${errors} errors`);
+    console.log(`Scored ${scored} listings, ${errors} errors, ${skippedOverrides} skipped (manual overrides)`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}`,
+        message: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}${skippedOverrides > 0 ? `, ${skippedOverrides} skipped (manual overrides)` : ''}`,
         scored,
         errors,
+        skippedOverrides,
+        industryAdjustmentsApplied: results.filter(r => r.industryAdjustment !== 0).length,
         results: results.slice(0, 10), // Return first 10 for reference
         remaining: listingsToScore.length > 50 ? "More deals available, run again" : undefined,
       }),
