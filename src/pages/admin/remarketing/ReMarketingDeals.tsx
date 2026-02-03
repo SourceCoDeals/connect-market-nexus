@@ -160,7 +160,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   rank: 60,
   dealName: 200,
   industry: 120,
-  description: 180,
+  description: 240,
   location: 100,
   revenue: 90,
   ebitda: 90,
@@ -415,12 +415,12 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Description */}
-      <TableCell style={{ width: columnWidths.description, minWidth: 100 }}>
+      <TableCell style={{ width: columnWidths.description, minWidth: 120 }}>
         {listing.description ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-sm text-muted-foreground truncate max-w-[170px] block cursor-default">
-                {listing.description.length > 35 ? listing.description.substring(0, 35) + '...' : listing.description}
+              <span className="text-sm text-muted-foreground leading-tight line-clamp-3 cursor-default" style={{ maxWidth: columnWidths.description - 16 }}>
+                {listing.description}
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
