@@ -161,6 +161,9 @@ export const DealCSVImport = ({
           const listingData: Record<string, unknown> = {
             status: "active",
             category: "Other",
+            // revenue and ebitda are NOT NULL in database - provide defaults
+            revenue: 0,
+            ebitda: 0,
           };
 
           // Numeric fields that need parsing

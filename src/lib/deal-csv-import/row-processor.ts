@@ -160,6 +160,14 @@ export function processRow(
   if (!data.address_country && (data.address_city || data.address_state)) {
     data.address_country = 'US';
   }
-  
+
+  // revenue and ebitda are NOT NULL in the database - provide defaults
+  if (data.revenue === undefined || data.revenue === null) {
+    data.revenue = 0;
+  }
+  if (data.ebitda === undefined || data.ebitda === null) {
+    data.ebitda = 0;
+  }
+
   return { data: data as unknown as ParsedDealData, errors };
 }
