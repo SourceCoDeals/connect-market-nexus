@@ -1,335 +1,275 @@
 
-# Fix Location Format: Strict "City, ST" Enforcement
+
+# Structured Address System for Remarketing Intelligence
 
 ## Problem Statement
 
-**100% of deal locations are in invalid formats.** Current data shows:
-- 29 deals: "United States"
-- 19 deals: "Southeast US"  
-- 9 deals: "Midwest US"
-- 5 deals: "Northeast US"
-- 4 deals: "Southwest US"
-- 4 deals: "Western US"
-- Others: "Canada", "Minnesota", "North America", "Global/International"
+The current system has a fundamental architecture conflict:
+- **Marketplace (public)**: Intentionally uses anonymous region-based locations ("Southeast US", "Midwest US") for deal privacy
+- **Remarketing (internal)**: Needs accurate address data for buyer matching, geography scoring, and outreach
 
-**None** match the required "City, ST" format (e.g., "Dallas, TX").
+Currently, there's only a single `address` TEXT column and a `location` TEXT column. The enrichment function tries to enforce "City, ST" format on `location`, but this conflicts with the marketplace's need for anonymous regions.
 
-### Root Causes
+## Solution Architecture
 
-1. **CSV Import**: No validation - accepts any text
-2. **Manual Entry**: UI has placeholder "City, State" but no enforcement
-3. **Existing Data**: Pre-validation data was never migrated
-4. **AI Enrichment**: Validation exists but deals often lack websites to scrape addresses from
-5. **Transcript Extraction**: Location extracted but never applied to listings table
+**Keep `location` as-is for marketplace** (anonymous regions like "Southeast US")  
+**Add new structured address columns** for internal remarketing use:
+- `street_address` - Street number and name
+- `address_city` - City name
+- `address_state` - 2-letter state code
+- `address_zip` - ZIP/postal code  
+- `address_country` - Country (defaults to "US")
+
+The remarketing UI will display `address_city, address_state` as the "Headquarters" instead of `location`, while marketplace continues showing the anonymous `location` field.
 
 ---
 
-## Architecture: Location Data Flow
+## Data Flow
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         LOCATION DATA ENTRY POINTS                          │
+│                           ADDRESS DATA FLOW                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  1. CSV Import (DealCSVImport.tsx)                                          │
-│     └─► Currently: No validation                                            │
-│     └─► FIX: Validate format or clear invalid values                        │
-│                                                                             │
-│  2. Manual Entry (AddDealToUniverseDialog.tsx)                              │
-│     └─► Currently: Placeholder hint only                                    │
-│     └─► FIX: Input mask + live validation with error message                │
-│                                                                             │
-│  3. AI Enrichment (enrich-deal/index.ts)                                    │
-│     └─► Currently: Regex validation EXISTS but AI often returns bad format │
-│     └─► FIX: Stronger prompt + fallback parsing                             │
-│                                                                             │
-│  4. Transcript Extraction (extract-deal-transcript/index.ts)                │
-│     └─► Currently: Extracts but doesn't apply to listing                    │
-│     └─► FIX: Add location to flatExtracted + validate                       │
-│                                                                             │
+│                                                                              │
+│   MARKETPLACE (Public View)          REMARKETING (Internal View)            │
+│   ─────────────────────────          ──────────────────────────             │
+│                                                                              │
+│   Shows: location column             Shows: address_city + address_state    │
+│   Example: "Southeast US"            Example: "Dallas, TX"                  │
+│                                                                              │
+│   ✓ Anonymous for privacy            ✓ Accurate for matching                │
+│   ✓ Region-based                     ✓ City/State granularity              │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   Website Scraper (enrich-deal)                                              │
+│         │                                                                    │
+│         ├──► Scrapes address from website footer/contact page               │
+│         │                                                                    │
+│         ├──► Parses into components:                                        │
+│         │    • street_address: "123 Main Street"                            │
+│         │    • address_city: "Dallas"                                        │
+│         │    • address_state: "TX"                                           │
+│         │    • address_zip: "75201"                                          │
+│         │    • address_country: "US"                                         │
+│         │                                                                    │
+│         └──► DOES NOT modify 'location' column (keeps marketplace value)   │
+│                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Implementation Steps
+## Implementation Phases
 
-### Phase 1: Create Shared Location Validation Utility
+### Phase 1: Database Schema Migration
 
-**File: `src/lib/location-validation.ts`**
+**File: `supabase/migrations/[timestamp]_structured_address_columns.sql`**
 
-Create a client-side utility for consistent location validation:
+Add new columns to the `listings` table:
 
-```typescript
-// Regex: "City, ST" where ST is 2-letter state code
-const CITY_STATE_PATTERN = /^[A-Za-z\s.\-']+,\s*[A-Z]{2}$/;
+```sql
+-- Add structured address columns for remarketing accuracy
+ALTER TABLE listings
+  ADD COLUMN IF NOT EXISTS street_address TEXT,
+  ADD COLUMN IF NOT EXISTS address_city TEXT,
+  ADD COLUMN IF NOT EXISTS address_state TEXT,
+  ADD COLUMN IF NOT EXISTS address_zip TEXT,
+  ADD COLUMN IF NOT EXISTS address_country TEXT DEFAULT 'US';
 
-// US state codes for validation
-const US_STATE_CODES = new Set([
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-  'DC', 'PR' // Include DC and Puerto Rico
-]);
+-- Add index for geographic queries
+CREATE INDEX IF NOT EXISTS idx_listings_address_state ON listings(address_state);
 
-// Canadian province codes
-const CA_PROVINCE_CODES = new Set([
-  'AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
-]);
-
-export function isValidCityStateFormat(location: string): boolean {
-  if (!location) return false;
-  const trimmed = location.trim();
-  
-  if (!CITY_STATE_PATTERN.test(trimmed)) return false;
-  
-  // Extract state code and verify it's valid
-  const parts = trimmed.split(',');
-  if (parts.length !== 2) return false;
-  
-  const stateCode = parts[1].trim().toUpperCase();
-  return US_STATE_CODES.has(stateCode) || CA_PROVINCE_CODES.has(stateCode);
-}
-
-export function formatCityState(city: string, state: string): string {
-  const cleanCity = city.trim().replace(/\s+/g, ' ');
-  const cleanState = state.trim().toUpperCase();
-  return `${cleanCity}, ${cleanState}`;
-}
-
-export function parseCityState(location: string): { city: string; state: string } | null {
-  if (!isValidCityStateFormat(location)) return null;
-  const parts = location.split(',');
-  return {
-    city: parts[0].trim(),
-    state: parts[1].trim().toUpperCase()
-  };
-}
+-- Migrate existing address data where parseable
+UPDATE listings
+SET 
+  address_city = TRIM(SPLIT_PART(address, ',', 1)),
+  address_state = UPPER(TRIM(REGEXP_REPLACE(SPLIT_PART(address, ',', 2), '\s*\d{5}.*', '')))
+WHERE address IS NOT NULL
+  AND address ~ '^[^,]+,\s*[A-Za-z]{2}';
 ```
 
-**File: `supabase/functions/_shared/location-validation.ts`**
-
-Create the same utility for edge functions (Deno-compatible):
-
-```typescript
-// Same validation logic for server-side use
-export const CITY_STATE_PATTERN = /^[A-Za-z\s.\-']+,\s*[A-Z]{2}$/;
-
-export function isValidCityStateFormat(location: string): boolean {
-  // Same implementation as client
-}
-
-export function rejectInvalidLocation(location: unknown): string | null {
-  if (!location || typeof location !== 'string') return null;
-  const trimmed = location.trim();
-  return isValidCityStateFormat(trimmed) ? trimmed : null;
-}
-```
-
----
-
-### Phase 2: Enhance AI Enrichment Prompt & Validation
+### Phase 2: Update enrich-deal Edge Function
 
 **File: `supabase/functions/enrich-deal/index.ts`**
 
-1. **Strengthen the system prompt** to be more explicit about what's NOT allowed:
+Modify the AI extraction schema to return structured address components:
 
+1. **Update AI prompt** to extract address as components:
+   - `street_address`: Street number and name only
+   - `address_city`: City name
+   - `address_state`: 2-letter state code
+   - `address_zip`: ZIP code
+   - `address_country`: Country (default "US")
+
+2. **Update tool schema** with new fields:
 ```typescript
-const systemPrompt = `...
-CRITICAL LOCATION RULE - READ CAREFULLY:
-The "location" field MUST be in strict "City, ST" format.
-
-REQUIRED FORMAT: "CityName, XX" where XX is a 2-letter US state code or Canadian province code.
-
-EXAMPLES OF VALID LOCATIONS:
-- "Dallas, TX"
-- "Chicago, IL"  
-- "Toronto, ON"
-- "San Francisco, CA"
-
-EXAMPLES OF INVALID LOCATIONS (DO NOT USE THESE):
-- "United States" ❌
-- "Midwest US" ❌
-- "Southeast" ❌
-- "Texas" ❌
-- "California" ❌
-- "North America" ❌
-
-HOW TO FIND THE LOCATION:
-1. Look in the website footer for a physical address
-2. Check the "Contact Us" or "About" page
-3. Look for a full address like "123 Main St, Dallas, TX 75201"
-4. Extract ONLY the city and 2-letter state code
-
-If you cannot find a specific city and state, leave the location field EMPTY.
-Never guess or use a region name.
-...`;
-```
-
-2. **Add address-to-city-state parsing** as a fallback:
-
-```typescript
-// After AI extraction, try to parse address if location is invalid
-if (!rejectInvalidLocation(extracted.location) && extracted.address) {
-  const parsed = parseAddressToCityState(extracted.address);
-  if (parsed) {
-    extracted.location = `${parsed.city}, ${parsed.state}`;
-  }
-}
-
-function parseAddressToCityState(address: string): { city: string; state: string } | null {
-  // Pattern: "...City, ST ZIP" or "...City, State ZIP"
-  const patterns = [
-    /([A-Za-z\s.\-']+),\s*([A-Z]{2})\s*\d{5}/,  // City, ST 12345
-    /([A-Za-z\s.\-']+),\s*([A-Z]{2})(?:\s|$)/,   // City, ST (at end)
-  ];
-  
-  for (const pattern of patterns) {
-    const match = address.match(pattern);
-    if (match) {
-      return { city: match[1].trim(), state: match[2] };
-    }
-  }
-  return null;
+street_address: {
+  type: 'string',
+  description: 'Street address only (e.g., "123 Main Street")'
+},
+address_city: {
+  type: 'string',
+  description: 'City name only (e.g., "Dallas")'
+},
+address_state: {
+  type: 'string',
+  description: '2-letter US state code (e.g., "TX")'
+},
+address_zip: {
+  type: 'string',
+  description: '5-digit ZIP code (e.g., "75201")'
+},
+address_country: {
+  type: 'string',
+  description: 'Country code (default: "US")'
 }
 ```
 
----
+3. **Add validation** for each component:
+   - `address_state`: Must be valid 2-letter code
+   - `address_zip`: Must be 5 digits (US) or valid postal format
+   - Reject invalid values, don't write nulls
 
-### Phase 3: Add Validation to Manual Deal Entry
+4. **Remove `location` from enrichment updates** - never overwrite the marketplace's anonymous location
 
-**File: `src/components/remarketing/AddDealToUniverseDialog.tsx`**
-
-Add real-time validation to the location input:
-
+5. **Update VALID_LISTING_UPDATE_KEYS**:
 ```typescript
-// Add validation state
-const [locationError, setLocationError] = useState<string | null>(null);
-
-// Validate on change
-const handleLocationChange = (value: string) => {
-  setNewDealForm(prev => ({ ...prev, location: value }));
-  
-  if (value && !isValidCityStateFormat(value)) {
-    setLocationError('Format must be "City, ST" (e.g., Dallas, TX)');
-  } else {
-    setLocationError(null);
-  }
-};
-
-// In JSX:
-<div className="space-y-2">
-  <Label htmlFor="location">Location</Label>
-  <Input
-    id="location"
-    placeholder="Dallas, TX"
-    value={newDealForm.location}
-    onChange={(e) => handleLocationChange(e.target.value)}
-    className={locationError ? 'border-destructive' : ''}
-  />
-  {locationError && (
-    <p className="text-xs text-destructive">{locationError}</p>
-  )}
-  <p className="text-xs text-muted-foreground">
-    Must be City, ST format (e.g., Chicago, IL)
-  </p>
-</div>
+// Remove 'location' - keep marketplace value untouched
+// Add new structured fields
+'street_address',
+'address_city', 
+'address_state',
+'address_zip',
+'address_country',
 ```
 
----
+### Phase 3: Update Remarketing UI Components
 
-### Phase 4: Add Validation to CSV Import
+**File: `src/components/remarketing/deal-detail/CompanyOverviewCard.tsx`**
+
+Update the card to display structured address:
+
+1. **Add new props**:
+```typescript
+interface CompanyOverviewCardProps {
+  // ... existing props
+  streetAddress: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressZip: string | null;
+  addressCountry: string | null;
+}
+```
+
+2. **Update HEADQUARTERS display** to show `addressCity, addressState` instead of `location`
+
+3. **Update ADDRESS display** to show full structured address:
+```
+123 Main Street
+Dallas, TX 75201
+```
+
+4. **Update Edit Dialog** with structured address fields:
+   - Street Address input
+   - City input
+   - State dropdown (2-letter codes)
+   - ZIP input
+   - Country dropdown
+
+### Phase 4: Update Remarketing Deal Detail Page
+
+**File: `src/pages/admin/remarketing/ReMarketingDealDetail.tsx`**
+
+1. **Pass new props** to CompanyOverviewCard:
+```typescript
+<CompanyOverviewCard
+  streetAddress={deal.street_address}
+  addressCity={deal.address_city}
+  addressState={deal.address_state}
+  addressZip={deal.address_zip}
+  addressCountry={deal.address_country}
+  // Keep location for reference but don't display as HQ
+  marketplaceLocation={deal.location}
+/>
+```
+
+2. **Update header location display**:
+   - Show `address_city, address_state` instead of `location`
+   - Only if structured address exists, otherwise show "Location TBD"
+
+3. **Update onSave handler** to save structured address fields
+
+### Phase 5: Update Remarketing Deals Table
+
+**File: `src/pages/admin/remarketing/ReMarketingDeals.tsx`**
+
+1. **Update geography display logic** to prefer structured address:
+```typescript
+const geographyDisplay = deal.address_city && deal.address_state
+  ? `${deal.address_city}, ${deal.address_state}`
+  : deal.geographic_states?.length 
+    ? deal.geographic_states.join(', ')
+    : null;
+```
+
+2. **Update search** to include new address fields
+
+### Phase 6: Update CSV Import
 
 **File: `src/components/remarketing/DealCSVImport.tsx`**
 
-Validate locations during import and either:
-- Accept only valid "City, ST" formats
-- Clear invalid values (let enrichment fill them later)
+1. **Add column mappings** for structured address:
+   - `street_address` / `street` / `address_line_1`
+   - `city` / `address_city`
+   - `state` / `address_state` 
+   - `zip` / `zip_code` / `postal_code`
+   - `country` / `address_country`
 
-```typescript
-// In the import mutation, after building listingData:
-if (listingData.location && !isValidCityStateFormat(listingData.location)) {
-  console.log(`Clearing invalid location "${listingData.location}" - will be enriched from website`);
-  delete listingData.location; // Let AI enrichment fill this
-}
-```
+2. **Validate state codes** during import
 
----
-
-### Phase 5: Fix Transcript Extraction to Apply Location
-
-**File: `supabase/functions/extract-deal-transcript/index.ts`**
-
-Add location to the fields that get applied to the listing (with validation):
-
-```typescript
-// After line 423, add:
-if (extracted.location) {
-  const validLocation = rejectInvalidLocation(extracted.location);
-  if (validLocation) {
-    flatExtracted.location = validLocation;
-  }
-}
-if (extracted.headquarters_address) {
-  flatExtracted.address = extracted.headquarters_address;
-}
-```
-
----
-
-### Phase 6: Data Migration - Clear Invalid Locations
-
-**One-time SQL migration** to clear all invalid location data:
-
-```sql
--- Clear invalid locations so enrichment can repopulate them
-UPDATE listings
-SET location = NULL
-WHERE location IS NOT NULL
-  AND location !~ '^[A-Za-z\s.\-'']+,\s*[A-Z]{2}$';
-
--- Verify
-SELECT location, COUNT(*) 
-FROM listings 
-WHERE location IS NOT NULL
-GROUP BY location;
-```
-
-This allows re-enrichment to populate correct "City, ST" values from website scraping.
+3. **Do NOT touch `location` column** - let marketplace handle it
 
 ---
 
 ## Technical Summary
 
-| File | Change |
-|------|--------|
-| **CREATE** `src/lib/location-validation.ts` | Client-side validation utilities |
-| **CREATE** `supabase/functions/_shared/location-validation.ts` | Server-side validation utilities |
-| **MODIFY** `supabase/functions/enrich-deal/index.ts` | Stronger prompt, address parsing fallback |
-| **MODIFY** `src/components/remarketing/AddDealToUniverseDialog.tsx` | Input validation with error message |
-| **MODIFY** `src/components/remarketing/DealCSVImport.tsx` | Clear invalid locations on import |
-| **MODIFY** `supabase/functions/extract-deal-transcript/index.ts` | Apply validated location to listings |
-| **SQL** | One-time migration to clear invalid location data |
+| File | Changes |
+|------|---------|
+| **CREATE** `supabase/migrations/[timestamp]_structured_address_columns.sql` | Add 5 new address columns |
+| **MODIFY** `supabase/functions/enrich-deal/index.ts` | Extract structured address, remove location updates |
+| **MODIFY** `src/components/remarketing/deal-detail/CompanyOverviewCard.tsx` | Display & edit structured address |
+| **MODIFY** `src/pages/admin/remarketing/ReMarketingDealDetail.tsx` | Pass new props, update header |
+| **MODIFY** `src/pages/admin/remarketing/ReMarketingDeals.tsx` | Display city/state in table |
+| **MODIFY** `src/components/remarketing/DealCSVImport.tsx` | Map structured address columns |
+| **MODIFY** `src/components/remarketing/AddDealToUniverseDialog.tsx` | Structured address inputs |
 
 ---
 
-## Validation Test Cases
+## Key Benefits
 
-After implementation, verify:
-
-1. **Manual Entry**: Cannot submit "Texas" or "Southeast US" - shows error
-2. **CSV Import**: Invalid locations are cleared, deal still imports
-3. **AI Enrichment**: Scrapes address from website footer, extracts "City, ST"
-4. **Transcript**: Valid "City, ST" from transcript gets applied to listing
-5. **Data Migration**: Query confirms no invalid formats remain
+1. **Privacy Preserved**: Marketplace continues showing anonymous regions
+2. **Accuracy for Matching**: Remarketing has exact city/state for buyer geography scoring
+3. **Data Quality**: Structured fields enable validation (valid state codes, ZIP format)
+4. **No Data Loss**: Existing `address` and `location` columns remain unchanged
+5. **Future Proof**: Structured data enables distance calculations, maps, etc.
 
 ---
 
-## Success Criteria
+## Validation Rules
 
-- 0 deals with location = "United States", "Southeast US", "Midwest US", etc.
-- All locations match pattern `^[A-Za-z\s.\-']+,\s*[A-Z]{2}$`
-- New deals cannot be created with invalid locations
-- AI enrichment reliably extracts city/state from website addresses
+| Field | Validation |
+|-------|------------|
+| `address_state` | Must be valid 2-letter US/CA code from known set |
+| `address_zip` | 5 digits for US, alphanumeric for CA |
+| `address_city` | Non-empty string, letters/spaces/hyphens only |
+| `address_country` | "US" or "CA" (expandable later) |
+
+---
+
+## Data Migration Strategy
+
+1. **Existing `address` data**: Parse where possible (City, ST format → split)
+2. **Existing `location` data**: Leave untouched (marketplace needs it)
+3. **Re-enrichment**: Running enrichment on deals with websites will populate new fields
+
