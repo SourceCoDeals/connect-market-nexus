@@ -33,6 +33,7 @@ import {
   MapPinned,
   Star,
   Linkedin,
+  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -95,6 +96,8 @@ interface CompanyOverviewCardProps {
   linkedinUrl?: string | null;
   linkedinEmployeeCount?: number | null;
   linkedinEmployeeRange?: string | null;
+  // Deal quality score
+  dealQualityScore?: number | null;
   onSave: (data: {
     website: string;
     address: string;
@@ -133,6 +136,7 @@ export const CompanyOverviewCard = ({
   linkedinUrl,
   linkedinEmployeeCount,
   linkedinEmployeeRange,
+  dealQualityScore,
   onSave,
 }: CompanyOverviewCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -444,6 +448,31 @@ export const CompanyOverviewCard = ({
                     : "–"
                 }
               />
+
+              {/* Deal Quality Score */}
+              <div className="flex items-start gap-2 py-2">
+                <Target className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+                    QUALITY SCORE
+                  </span>
+                  {dealQualityScore !== null && dealQualityScore !== undefined ? (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-lg font-bold ${
+                        dealQualityScore >= 80 ? 'text-green-600' :
+                        dealQualityScore >= 60 ? 'text-amber-600' :
+                        dealQualityScore >= 40 ? 'text-orange-500' :
+                        'text-red-500'
+                      }`}>
+                        {dealQualityScore}
+                      </span>
+                      <span className="text-xs text-muted-foreground">/100</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground mt-0.5 block">–</span>
+                  )}
+                </div>
+              </div>
 
               {/* Status */}
               <div className="flex items-start gap-2 py-2">
