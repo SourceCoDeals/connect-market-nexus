@@ -1,170 +1,205 @@
 
-# Universal Bot & Production Filtering Plan
+
+# Accurate Attribution Data Plan
 
 ## Problem Summary
 
-The Intelligence Center dashboard shows **polluted data** because the main analytics hook (`useUnifiedAnalytics`) does not filter out:
-- **259 bot sessions** (Chrome/119 bots with 1.8s durations)
-- **919 dev/preview traffic sessions**
+The Sources card (Channel/Referrer/Campaign/Keyword) is showing **incorrect attribution data** because it only uses the immediate `referrer` field, ignoring the TRUE discovery source stored in `utm_source` and `original_external_referrer`.
 
-This affects ALL cards in the dashboard:
-- Geography (Country/Region/City)
-- Sources (Channel/Referrer/Campaign/Keyword)
-- Pages (Page/Entry page/Exit page)
-- Tech Stack (Browser/OS/Device)
-- Conversion (Goals/Funnel/Users/Journey)
-- KPI Strip metrics
+### Specific Example
+**Violet Fox** (session `7c66aa59-...`):
+- Shows as coming from `sourcecodeals.com` in the Referrer card
+- But the TRUE discovery source is `chatgpt.com` (stored in `utm_source`)
+- The user's journey was: ChatGPT → Blog → Marketplace
 
----
+### Data Hierarchy in Database
 
-## Root Cause
-
-The `useUnifiedAnalytics.ts` hook queries `user_sessions` without filtering:
-```text
-supabase
-  .from('user_sessions')
-  .select('...')
-  .gte('started_at', startDateStr)
-  // MISSING: .eq('is_bot', false)
-  // MISSING: .eq('is_production', true)
-```
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `original_external_referrer` | First external discovery source (cross-domain tracking) | `www.google.com` |
+| `utm_source` | Explicit attribution parameter | `chatgpt.com`, `brevo` |
+| `referrer` | Immediate HTTP referrer | `https://www.sourcecodeals.com/` |
 
 ---
 
-## Solution
+## Root Cause Analysis
 
-### Single Point of Change
+### Current Code (useUnifiedAnalytics.ts, lines 741-750)
 
-Add two filters to the main session queries in `useUnifiedAnalytics.ts`:
-
-```text
-.eq('is_bot', false)
-.eq('is_production', true)
+```
+uniqueSessions.forEach(s => {
+  const domain = extractDomain(s.referrer);  // PROBLEM: Only uses immediate referrer!
+  // ...counts visitors by this domain...
+});
 ```
 
-This will cascade to:
-- KPI metrics (visitors, sessions, bounce rate, conversion rate)
-- Geography aggregations (countries, regions, cities)
-- Source aggregations (channels, referrers, campaigns, keywords)
-- Page aggregations (top pages, entry pages, exit pages)
-- Tech stack aggregations (browsers, OS, devices)
-- Funnel stages
-- Top users list
+This logic ignores:
+1. `utm_source` - The ChatGPT visitor has `utm_source='chatgpt.com'` but it's never checked
+2. `original_external_referrer` - Cross-domain tracking data is ignored for visitor aggregation
 
-### File Changes
+### Same issue in Channel aggregation (line 673)
 
-**1. `src/hooks/useUnifiedAnalytics.ts`**
-
-Add filters to all session queries:
-
-**Query 1: Current period sessions (line ~217-221)**
-```text
-supabase
-  .from('user_sessions')
-  .select('...')
-  .eq('is_bot', false)           // ADD
-  .eq('is_production', true)     // ADD
-  .gte('started_at', startDateStr)
-  .order('started_at', { ascending: false })
+```
+const channel = categorizeChannel(s.referrer, s.utm_source, s.utm_medium);
 ```
 
-**Query 2: Previous period sessions (line ~224-228)**
-```text
-supabase
-  .from('user_sessions')
-  .select('...')
-  .eq('is_bot', false)           // ADD
-  .eq('is_production', true)     // ADD
-  .gte('started_at', prevStartDateStr)
-  .lt('started_at', startDateStr)
-```
-
-**Query 3: Active sessions for "online now" (line ~257-261)**
-```text
-supabase
-  .from('user_sessions')
-  .select('id')
-  .eq('is_active', true)
-  .eq('is_bot', false)           // ADD
-  .eq('is_production', true)     // ADD
-  .gte('last_active_at', twoMinutesAgo)
-```
-
-**Query 4: First sessions for signup attribution (line ~337-342)**
-```text
-supabase
-  .from('user_sessions')
-  .select('...')
-  .eq('is_bot', false)           // ADD
-  .eq('is_production', true)     // ADD
-  .in('user_id', profileIds)
-  .order('started_at', { ascending: true })
-```
-
-### Client-Side Fallback (Defense in Depth)
-
-Also add a client-side filter after fetching (in case any bots slip through):
-
-```text
-// After line ~390, enhance the existing dev traffic filter:
-const sessions = rawSessions.filter(s => 
-  !isDevTraffic(s.referrer) &&
-  !s.user_agent?.includes('Chrome/119.') &&
-  !s.user_agent?.includes('Chrome/118.') &&
-  !s.user_agent?.includes('Chrome/117.') &&
-  !s.user_agent?.includes('HeadlessChrome')
-);
-```
+The `categorizeChannel` function receives `utm_source` but for referrer extraction, we only use `s.referrer`.
 
 ---
 
-## Expected Impact
+## Solution: "Discovery Source" Priority System
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Session count (30d) | ~2,204 | ~1,285 (production only) |
-| Bot sessions included | 259 | 0 |
-| Dev traffic included | 919 | 0 |
-| Data accuracy | ~60% | ~100% |
+Implement a consistent priority system for determining the TRUE discovery source:
 
-### Visual Changes
+```
+Priority 1: original_external_referrer (most accurate cross-domain tracking)
+Priority 2: utm_source (explicit attribution from URL params)
+Priority 3: referrer (immediate HTTP referrer - fallback)
+```
 
-**Geography Card:**
-- France: 35 → ~15 (removes bot traffic)
-- Netherlands: 30 → ~12 (removes bot traffic)
-- More accurate country distribution
+### Implementation
 
-**Sources Card:**
-- Direct: 135 → ~75 (removes bot direct visits)
-- More accurate channel attribution
+**1. Create helper function: `getDiscoverySource(session)`**
 
-**Users Card:**
-- Removes all 2s anonymous sessions like "Jade Eagle", "Amber Serpent"
-- Only shows real human visitors
+```text
+function getDiscoverySource(session: SessionData): string | null {
+  // Priority 1: Cross-domain tracking (most accurate)
+  if (session.original_external_referrer) {
+    return session.original_external_referrer;
+  }
+  
+  // Priority 2: Explicit UTM source (e.g., chatgpt.com, brevo)
+  if (session.utm_source) {
+    return session.utm_source;
+  }
+  
+  // Priority 3: Immediate referrer (fallback)
+  return session.referrer;
+}
+```
 
----
+**2. Update Referrer aggregation**
 
-## Technical Notes
+Change from:
+```text
+const domain = extractDomain(s.referrer);
+```
 
-1. **No UI changes needed** - All cards already consume data from `useUnifiedAnalytics`
-2. **No component changes needed** - Cards are pure display components
-3. **Query-level filtering is efficient** - Supabase handles this at the database level
-4. **Backward compatible** - Existing filters and global filtering still work
+To:
+```text
+const discoverySource = getDiscoverySource(s);
+const domain = extractDomain(discoverySource);
+```
+
+**3. Update Channel aggregation**
+
+Already uses `categorizeChannel(s.referrer, s.utm_source, s.utm_medium)` which checks `utm_source`, but the priority order needs adjustment to check `original_external_referrer` first.
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useUnifiedAnalytics.ts` | Add `.eq('is_bot', false).eq('is_production', true)` to 4 session queries + enhance client-side filter |
+### 1. `src/hooks/useUnifiedAnalytics.ts`
+
+**Add new helper function (~line 155):**
+```text
+function getDiscoverySource(session: {
+  original_external_referrer?: string | null;
+  utm_source?: string | null;
+  referrer?: string | null;
+}): string | null {
+  if (session.original_external_referrer) return session.original_external_referrer;
+  if (session.utm_source) return session.utm_source;
+  return session.referrer || null;
+}
+```
+
+**Update Referrer aggregation (~line 741-750):**
+```text
+uniqueSessions.forEach(s => {
+  const discoverySource = getDiscoverySource(s);
+  const domain = extractDomain(discoverySource);
+  // ... rest of aggregation logic
+});
+```
+
+**Update Referrer signup attribution (~line 765-787):**
+Apply same discovery source priority.
+
+**Update Referrer connections attribution (~line 753-761):**
+Apply same discovery source priority.
+
+**Update Channel aggregation for visitor counting (~line 672-681):**
+```text
+const channel = categorizeChannel(
+  getDiscoverySource(s),  // Use discovery source instead of just referrer
+  s.utm_source, 
+  s.utm_medium
+);
+```
+
+**Add `original_external_referrer` to session query (~line 219):**
+Currently the query doesn't fetch this field for all sessions.
+
+### 2. `src/hooks/useUserDetail.ts`
+
+**Update `categorizeChannel` function (~line 98-112):**
+```text
+function categorizeChannel(
+  discoverySource: string | null,  // Already has priority applied
+  utmSource: string | null, 
+  utmMedium: string | null
+): string {
+  // Use discoverySource as primary, fall back to utmSource
+  const source = (discoverySource || utmSource || '').toLowerCase();
+  // ... rest of categorization logic
+}
+```
 
 ---
 
-## Verification
+## Expected Results
 
-After implementation:
-1. Geography card should show fewer visitors but more accurate data
-2. Users tab should no longer show 2s anonymous sessions
-3. Channel distribution should be more meaningful (less "Direct")
-4. KPI strip totals will decrease but represent real traffic
+### Before Fix (Current)
+
+| Referrer | Visitors |
+|----------|----------|
+| Direct Traffic | 71 |
+| sourcecodeals.com | 56 |
+| Brevo (Email) | 27 |
+| Google | 2 |
+
+ChatGPT doesn't appear even though `utm_source=chatgpt.com` exists in the data.
+
+### After Fix
+
+| Referrer | Visitors |
+|----------|----------|
+| Direct Traffic | 71 |
+| sourcecodeals.com | 55 |
+| Brevo | 27 |
+| Google | 6 |
+| ChatGPT | 1 |
+
+ChatGPT and other sources with `utm_source` attribution will now appear correctly.
+
+---
+
+## Technical Notes
+
+1. **Backward Compatible**: Sessions without `utm_source` or `original_external_referrer` will fall back to `referrer` as before
+
+2. **No Database Changes**: All required fields already exist in `user_sessions`
+
+3. **Query Update Needed**: Add `original_external_referrer` to the main session select query
+
+4. **Affects All Cards**: This fix will cascade to Channel, Referrer, Campaign aggregations consistently
+
+---
+
+## Summary
+
+The core issue is that the referrer aggregation only looks at `s.referrer` (immediate HTTP referrer) instead of the TRUE discovery source which may be stored in `utm_source` or `original_external_referrer`. 
+
+The fix is to implement a consistent `getDiscoverySource()` helper that applies priority-based source resolution across all attribution logic.
+
