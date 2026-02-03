@@ -83,7 +83,7 @@ import {
   Zap,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getTierFromScore } from "@/components/remarketing";
+import { getTierFromScore, DealImportDialog } from "@/components/remarketing";
 import {
   DndContext,
   closestCenter,
@@ -598,8 +598,6 @@ const ReMarketingDeals = () => {
 
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
@@ -645,68 +643,6 @@ const ReMarketingDeals = () => {
     })
   );
 
-
-  // Handle file import
-  const handleImport = async () => {
-    if (!importFile) {
-      toast({ title: "No file selected", description: "Please select a CSV file to import", variant: "destructive" });
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      const text = await importFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-      const deals = lines.slice(1).map(line => {
-        const values = line.split(',');
-        const deal: Record<string, any> = {};
-        headers.forEach((header, i) => {
-          const value = values[i]?.trim();
-          if (header === 'revenue' || header === 'ebitda' || header === 'employee_count') {
-            deal[header] = value ? parseFloat(value.replace(/[^0-9.-]/g, '')) : null;
-          } else {
-            deal[header] = value || null;
-          }
-        });
-        return deal;
-      });
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke('bulk-import-remarketing', {
-        body: { action: 'validate', data: deals },
-        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
-      });
-
-      if (response.error) throw new Error(response.error.message);
-
-      if (response.data?.valid) {
-        const importResponse = await supabase.functions.invoke('bulk-import-remarketing', {
-          body: { action: 'import', data: deals },
-          headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
-        });
-
-        if (importResponse.error) throw new Error(importResponse.error.message);
-
-        toast({ title: "Import successful", description: `Imported ${importResponse.data?.imported || deals.length} deals` });
-        setShowImportDialog(false);
-        setImportFile(null);
-        refetchListings();
-      } else {
-        toast({
-          title: "Validation failed",
-          description: response.data?.errors?.join(', ') || "Invalid data format",
-          variant: "destructive"
-        });
-      }
-    } catch (error: any) {
-      console.error('Import error:', error);
-      toast({ title: "Import failed", description: error.message, variant: "destructive" });
-    } finally {
-      setIsImporting(false);
-    }
-  };
 
   // Fetch all listings (deals)
   const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = useQuery({
@@ -1513,46 +1449,11 @@ const ReMarketingDeals = () => {
       )}
 
       {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import Deals</DialogTitle>
-            <DialogDescription>
-              Upload a CSV file with deal data. Required columns: title, location, revenue, ebitda
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="csvFile">CSV File</Label>
-              <Input
-                id="csvFile"
-                type="file"
-                accept=".csv"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              />
-            </div>
-            {importFile && (
-              <p className="text-sm text-muted-foreground">
-                Selected: {importFile.name} ({Math.round(importFile.size / 1024)} KB)
-              </p>
-            )}
-            <div className="bg-muted p-3 rounded text-xs">
-              <p className="font-medium mb-1">Expected CSV format:</p>
-              <code className="text-muted-foreground">
-                title, location, revenue, ebitda, category, employee_count, lead_source
-              </code>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleImport} disabled={!importFile || isImporting}>
-              {isImporting ? "Importing..." : "Import"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DealImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onImportComplete={() => refetchListings()}
+      />
 
       {/* Archive Confirmation Dialog */}
       <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>

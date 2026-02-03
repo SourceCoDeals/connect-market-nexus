@@ -61,6 +61,7 @@ export { ReMarketingBadge } from './ReMarketingBadge';
 // Import Components
 export { default as BuyerCSVImport } from './BuyerCSVImport';
 export { ImportValidationPanel } from './ImportValidationPanel';
+export { DealImportDialog } from './DealImportDialog';
 export type { DealIdMapping } from './DealMergePanel';
 
 // Transcript Components
