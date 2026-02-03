@@ -80,6 +80,7 @@ const ReMarketingDeals = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>("score");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // Handle file import
   const handleImport = async () => {
@@ -427,6 +428,81 @@ const ReMarketingDeals = () => {
     });
   }, [filteredListings, sortColumn, sortDirection, scoreStats]);
 
+  // Calculate KPI stats
+  const kpiStats = useMemo(() => {
+    const totalDeals = listings?.length || 0;
+    
+    // Hot deals = deals with avg score >= 85
+    const hotDeals = listings?.filter(listing => {
+      const stats = scoreStats?.[listing.id];
+      return stats && stats.avgScore >= 85;
+    }).length || 0;
+    
+    // Calculate average score across all deals that have scores
+    let totalScore = 0;
+    let scoredDeals = 0;
+    listings?.forEach(listing => {
+      const stats = scoreStats?.[listing.id];
+      if (stats && stats.totalMatches > 0) {
+        totalScore += stats.avgScore;
+        scoredDeals++;
+      }
+    });
+    const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
+    
+    // Needs analysis = deals with no scores
+    const needsAnalysis = listings?.filter(listing => {
+      const stats = scoreStats?.[listing.id];
+      return !stats || stats.totalMatches === 0;
+    }).length || 0;
+    
+    return { totalDeals, hotDeals, avgScore, needsAnalysis };
+  }, [listings, scoreStats]);
+
+  // Handle calculate scores
+  const handleCalculateScores = async () => {
+    setIsCalculating(true);
+    try {
+      // Get all listings that need scoring
+      const dealsToScore = listings?.filter(listing => {
+        const stats = scoreStats?.[listing.id];
+        return !stats || stats.totalMatches === 0;
+      }) || [];
+
+      if (dealsToScore.length === 0) {
+        toast({ title: "All deals scored", description: "All deals already have scores calculated" });
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      // Score each deal
+      let scored = 0;
+      for (const deal of dealsToScore.slice(0, 10)) { // Limit to 10 at a time
+        try {
+          await supabase.functions.invoke('score-buyer-deal', {
+            body: { listing_id: deal.id },
+            headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
+          });
+          scored++;
+        } catch (err) {
+          console.error(`Failed to score deal ${deal.id}:`, err);
+        }
+      }
+
+      toast({ 
+        title: "Scoring complete", 
+        description: `Calculated scores for ${scored} deals` 
+      });
+      refetchListings();
+    } catch (error: any) {
+      console.error('Calculate scores error:', error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -440,7 +516,11 @@ const ReMarketingDeals = () => {
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => setShowImportDialog(true)}>
             <Upload className="h-4 w-4 mr-2" />
-            Import Deals
+            Import CSV
+          </Button>
+          <Button onClick={handleCalculateScores} disabled={isCalculating}>
+            <Target className="h-4 w-4 mr-2" />
+            {isCalculating ? "Calculating..." : "Calculate Scores"}
           </Button>
           <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="w-[140px]">
@@ -454,6 +534,65 @@ const ReMarketingDeals = () => {
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      {/* KPI Stats Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Building2 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Deals</p>
+                <p className="text-2xl font-bold">{kpiStats.totalDeals}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Hot Deals (85+)</p>
+                <p className="text-2xl font-bold text-green-600">{kpiStats.hotDeals}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Target className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Avg Score</p>
+                <p className="text-2xl font-bold">{kpiStats.avgScore}<span className="text-base font-normal text-muted-foreground">/100</span></p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Users className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Needs Analysis</p>
+                <p className="text-2xl font-bold text-orange-600">{kpiStats.needsAnalysis}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
