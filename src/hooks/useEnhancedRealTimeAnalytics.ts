@@ -605,8 +605,11 @@ export function useEnhancedRealTimeAnalytics() {
         recentEvents,
       };
     },
-    staleTime: 5000,
-    refetchInterval: 10000,
+    // Long staleTime ensures instant cache hits when toggling globe
+    // Background refetch keeps data fresh without blocking UI
+    staleTime: 30000, // 30 seconds - serve cached data instantly
+    refetchInterval: 10000, // Background refresh every 10s
+    refetchOnMount: 'always', // Always refetch on mount but use stale data immediately
   });
 }
 
