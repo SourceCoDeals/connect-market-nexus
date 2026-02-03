@@ -42,55 +42,20 @@ import {
 import { toast } from "sonner";
 import Papa from "papaparse";
 
+// Import from unified import engine
+import {
+  type ColumnMapping,
+  type ImportValidationError,
+  DEAL_IMPORT_FIELDS,
+  normalizeHeader,
+  processRow,
+} from "@/lib/deal-csv-import";
+
 interface DealImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImportComplete: () => void;
 }
-
-interface ColumnMapping {
-  csvColumn: string;
-  targetField: string | null;
-  confidence: number;
-  aiSuggested: boolean;
-}
-
-// Target fields for listings table
-const DEAL_FIELDS = [
-  { value: "title", label: "Company Name", required: true },
-  { value: "website", label: "Website" },
-  { value: "category", label: "Industry/Category" },
-  { value: "revenue", label: "Revenue" },
-  { value: "ebitda", label: "EBITDA" },
-  { value: "description", label: "Description" },
-  { value: "executive_summary", label: "Executive Summary" },
-  { value: "general_notes", label: "Notes" },
-  { value: "services", label: "Services Offered" },
-  { value: "geographic_states", label: "States/Geography" },
-  { value: "full_time_employees", label: "Employee Count" },
-  { value: "address", label: "Full Address" },
-  { value: "address_city", label: "City" },
-  { value: "address_state", label: "State (2-letter)" },
-  { value: "address_zip", label: "ZIP Code" },
-  { value: "primary_contact_name", label: "Contact Name" },
-  { value: "primary_contact_first_name", label: "Contact First Name" },
-  { value: "primary_contact_last_name", label: "Contact Last Name" },
-  { value: "primary_contact_email", label: "Contact Email" },
-  { value: "primary_contact_phone", label: "Contact Phone" },
-  { value: "primary_contact_title", label: "Contact Title/Role" },
-  { value: "internal_company_name", label: "Internal Company Name" },
-  { value: "internal_notes", label: "Internal Notes" },
-  { value: "owner_goals", label: "Owner Goals" },
-  { value: "number_of_locations", label: "Number of Locations" },
-  { value: "linkedin_url", label: "LinkedIn URL" },
-  { value: "fireflies_url", label: "Fireflies/Transcript URL" },
-  { value: "google_review_count", label: "Google Review Count" },
-  { value: "google_review_score", label: "Google Review Score" },
-  // status is intentionally omitted - it should never be imported from CSV
-  { value: "last_contacted_at", label: "Last Contacted Date" },
-];
-
-const normalizeHeader = (header: string) => header.replace(/^\uFEFF/, "").trim();
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
 
@@ -188,59 +153,12 @@ export function DealImportDialog({
     );
   };
 
-  const parseNumericValue = (value: string | null | undefined): number | null => {
-    if (!value) return null;
-    // Handle $ / commas and M/K suffixes like "$3,000,000" or "2.5M" or "450K"
-    let cleaned = value.trim();
-    let multiplier = 1;
-    if (/\bM\b/i.test(cleaned) || cleaned.toUpperCase().endsWith("M")) {
-      multiplier = 1_000_000;
-      cleaned = cleaned.replace(/M/gi, "");
-    } else if (/\bK\b/i.test(cleaned) || cleaned.toUpperCase().endsWith("K")) {
-      multiplier = 1_000;
-      cleaned = cleaned.replace(/K/gi, "");
-    }
-    cleaned = cleaned.replace(/[$,]/g, "");
-    // Remove other non-numeric characters except . and -
-    cleaned = cleaned.replace(/[^0-9.\-]/g, "");
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? null : num;
-  };
-
-  const tryExtractCityStateZip = (rawAddress: string): { city?: string; state?: string; zip?: string } => {
-    const lines = rawAddress
-      .split(/[\n\r]+/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    const lastLine = lines[lines.length - 1] || rawAddress;
-
-    const match = lastLine.match(/([^,]+),\s*([A-Z]{2})\s*(\d{5})?/i);
-    if (!match) return {};
-
-    const potentialCity = match[1].trim();
-    const state = match[2].toUpperCase();
-    const zip = match[3];
-
-    // Avoid treating street as city
-    const streetIndicators = /\b(rd\.?|road|st\.?|street|ave\.?|avenue|blvd\.?|boulevard|ln\.?|lane|dr\.?|drive|ct\.?|court|pl\.?|place|way|pkwy|park)\b/i;
-    const city = streetIndicators.test(potentialCity) ? undefined : potentialCity;
-
-    return { city, state, zip: zip || undefined };
-  };
-
-  const parseArrayValue = (value: string | null | undefined): string[] => {
-    if (!value) return [];
-    // Split by common delimiters
-    return value.split(/[,;|]/).map(s => s.trim()).filter(Boolean);
-  };
-
   const handleImport = async () => {
     setStep("importing");
     setIsImporting(true);
     setImportProgress(0);
 
     const results = { imported: 0, errors: [] as string[] };
-    const { data: { user } } = await supabase.auth.getUser();
 
     try {
       for (let i = 0; i < csvData.length; i++) {
@@ -248,107 +166,37 @@ export function DealImportDialog({
         setImportProgress(Math.round(((i + 1) / csvData.length) * 100));
 
         try {
-          // Build listing object from mappings
-          const listingData: Record<string, any> = {
+          // Use unified row processor
+          const { data: parsedData, errors: rowErrors } = processRow(row, columnMappings, i + 2);
+          
+          // Collect validation errors
+          if (rowErrors.length > 0) {
+            rowErrors.forEach(err => {
+              results.errors.push(`Row ${err.row}: ${err.message}`);
+            });
+          }
+          
+          // Skip if no valid data
+          if (!parsedData) {
+            continue;
+          }
+
+          // Build final listing object
+          const listingData = {
+            ...parsedData,
             is_active: true,
             status: 'active',
           };
 
-          // Track first/last name separately to combine later
-          let firstName = '';
-          let lastName = '';
-
-          columnMappings.forEach((mapping) => {
-            if (!mapping.targetField) return;
-
-            // Robust column access (trimmed keys)
-            const raw = row[mapping.csvColumn] ?? row[normalizeHeader(mapping.csvColumn)];
-            if (!raw) return;
-
-            const value = String(raw).trim();
-              if (!value) return;
-              
-              const field = mapping.targetField;
-              
-              // Handle numeric fields
-              if (field === "revenue" || field === "ebitda" || field === "google_review_score") {
-                listingData[field] = parseNumericValue(value);
-              }
-              // Handle integer fields
-              else if (field === "full_time_employees" || field === "number_of_locations" || field === "google_review_count") {
-                const num = parseNumericValue(value);
-                listingData[field] = num ? Math.round(num) : null;
-              }
-              // Handle array fields
-              else if (field === "services" || field === "geographic_states") {
-                listingData[field] = parseArrayValue(value);
-              }
-              // Handle full address parsing to also populate city/state/zip when possible
-              else if (field === "address") {
-                listingData.address = value;
-                const extracted = tryExtractCityStateZip(value);
-                if (extracted.city && !listingData.address_city) listingData.address_city = extracted.city;
-                if (extracted.state && !listingData.address_state) listingData.address_state = extracted.state;
-                if (extracted.zip && !listingData.address_zip) listingData.address_zip = extracted.zip;
-              }
-              // Handle state code normalization
-              else if (field === "address_state") {
-                const stateCode = value.toUpperCase().trim();
-                // Accept 2-letter codes or try to extract from longer strings
-                if (stateCode.length === 2) {
-                  listingData[field] = stateCode;
-                } else {
-                  // Try to find a 2-letter code at the end
-                  const match = stateCode.match(/\b([A-Z]{2})\s*$/);
-                  if (match) listingData[field] = match[1];
-                }
-              }
-              // Handle first/last name separately for combining
-              else if (field === "primary_contact_first_name") {
-                firstName = value;
-              }
-              else if (field === "primary_contact_last_name") {
-                lastName = value;
-              }
-              // Handle date fields
-              else if (field === "last_contacted_at") {
-                try {
-                  const parsed = new Date(value);
-                  if (!isNaN(parsed.getTime())) {
-                    listingData[field] = parsed.toISOString();
-                  }
-                } catch {
-                  // Invalid date, skip
-                }
-              }
-              // Handle Fireflies/transcript URLs - store as fireflies_url field
-              else if (field === "fireflies_url") {
-                listingData.fireflies_url = value;
-              }
-              // Default: string fields
-              else {
-                listingData[field] = value;
-              }
+          // Log what we're importing for debugging
+          console.log(`Row ${i + 2} import data:`, {
+            title: listingData.title,
+            website: listingData.website,
+            address_city: listingData.address_city,
+            address_state: listingData.address_state,
+            revenue: listingData.revenue,
+            ebitda: listingData.ebitda,
           });
-
-          // Combine first + last name into primary_contact_name
-          if (firstName || lastName) {
-            const fullName = `${firstName} ${lastName}`.trim();
-            if (fullName) {
-              listingData.primary_contact_name = fullName;
-            }
-          }
-
-          // Must have a title
-          if (!listingData.title) {
-            results.errors.push(`Row ${i + 2}: Missing company name`);
-            continue;
-          }
-
-          // Set default category if not mapped
-          if (!listingData.category) {
-            listingData.category = "Other";
-          }
 
           // Insert the listing
           const { error: insertError } = await supabase
@@ -519,7 +367,7 @@ export function DealImportDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">Don't import</SelectItem>
-                                  {DEAL_FIELDS.map((field) => (
+                                  {DEAL_IMPORT_FIELDS.map((field) => (
                                     <SelectItem key={field.value} value={field.value}>
                                       {field.label}
                                       {field.required && " *"}
@@ -559,7 +407,7 @@ export function DealImportDialog({
                 <p className="font-medium">Ready to import {csvData.length} deals</p>
                 <p className="text-sm text-muted-foreground">
                   Mapped fields: {columnMappings.filter((m) => m.targetField).map((m) => 
-                    DEAL_FIELDS.find((f) => f.value === m.targetField)?.label
+                    DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label
                   ).join(", ")}
                 </p>
               </div>
@@ -574,7 +422,7 @@ export function DealImportDialog({
                         .slice(0, 6)
                         .map((m) => (
                           <TableHead key={m.csvColumn}>
-                            {DEAL_FIELDS.find((f) => f.value === m.targetField)?.label}
+                            {DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label}
                           </TableHead>
                         ))}
                     </TableRow>
