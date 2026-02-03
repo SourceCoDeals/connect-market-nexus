@@ -46,9 +46,11 @@ import Papa from "papaparse";
 import {
   type ColumnMapping,
   type ImportValidationError,
+  type MergeStats,
   DEAL_IMPORT_FIELDS,
   normalizeHeader,
   processRow,
+  mergeColumnMappings,
 } from "@/lib/deal-csv-import";
 
 interface DealImportDialogProps {
@@ -68,6 +70,7 @@ export function DealImportDialog({
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
+  const [mappingStats, setMappingStats] = useState<MergeStats | null>(null);
   const [isMapping, setIsMapping] = useState(false);
   const [mappingVersion, setMappingVersion] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
@@ -98,6 +101,9 @@ export function DealImportDialog({
           .map((c) => (c ? normalizeHeader(c) : ""))
           .filter((c) => c.trim());
         
+        // Log parsed columns for debugging
+        console.log(`[DealImportDialog] Parsed ${columns.length} columns:`, columns);
+        
         // Get sample data for context
         const sampleData = data.slice(0, 3);
         
@@ -125,25 +131,27 @@ export function DealImportDialog({
             console.log("map-csv-columns version:", mappingResult._version);
           }
 
-          setColumnMappings(
-            mappingResult.mappings || columns.map((col) => ({
-              csvColumn: col,
-              targetField: null,
-              confidence: 0,
-              aiSuggested: false,
-            }))
-          );
+          // CRITICAL: Merge AI mappings with full column list
+          // This ensures all parsed columns are visible even if AI returns partial list
+          const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
+          
+          console.log(`[DealImportDialog] Merge stats: AI returned ${stats.aiReturnedCount}, filled ${stats.filledCount}`);
+          
+          // Warn if AI returned incomplete mappings
+          if (stats.filledCount > 0) {
+            console.warn(
+              `[DealImportDialog] AI mapping incomplete: ${stats.filledCount} columns were not mapped by AI`
+            );
+          }
+          
+          setColumnMappings(merged);
+          setMappingStats(stats);
         } catch (error) {
           console.error("AI mapping failed:", error);
-          // Fallback to empty mapping
-          setColumnMappings(
-            columns.map((col) => ({
-              csvColumn: col,
-              targetField: null,
-              confidence: 0,
-              aiSuggested: false,
-            }))
-          );
+          // Fallback to empty mapping - still use merge to ensure all columns present
+          const [merged, stats] = mergeColumnMappings(columns, []);
+          setColumnMappings(merged);
+          setMappingStats(stats);
         } finally {
           setIsMapping(false);
         }
@@ -244,6 +252,7 @@ export function DealImportDialog({
     setFile(null);
     setCsvData([]);
     setColumnMappings([]);
+    setMappingStats(null);
     setImportProgress(0);
     setImportResults(null);
   };
@@ -316,8 +325,23 @@ export function DealImportDialog({
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary">{csvData.length} rows</Badge>
+                      {mappingStats && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          Parsed: {mappingStats.parsedCount} cols
+                        </Badge>
+                      )}
+                      {mappingStats && mappingStats.aiReturnedCount > 0 && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          AI: {mappingStats.aiReturnedCount}
+                        </Badge>
+                      )}
+                      {mappingStats && mappingStats.filledCount > 0 && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          Filled: {mappingStats.filledCount}
+                        </Badge>
+                      )}
                       <Badge variant="outline">
                         {getMappedFieldCount()}/{columnMappings.length} mapped
                       </Badge>
