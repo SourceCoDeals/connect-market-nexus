@@ -79,6 +79,7 @@ export function DealImportDialog({
     errors: string[];
   } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [columnFilter, setColumnFilter] = useState("");
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -265,6 +266,12 @@ export function DealImportDialog({
   const getMappedFieldCount = () =>
     columnMappings.filter((m) => m.targetField).length;
 
+  const filteredColumnMappings = columnMappings.filter((m) => {
+    const q = columnFilter.trim().toLowerCase();
+    if (!q) return true;
+    return m.csvColumn.toLowerCase().includes(q);
+  });
+
   const hasRequiredField = columnMappings.some(m => m.targetField === "title");
 
   return (
@@ -328,17 +335,17 @@ export function DealImportDialog({
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary">{csvData.length} rows</Badge>
                       {mappingStats && (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        <Badge variant="secondary">
                           Parsed: {mappingStats.parsedCount} cols
                         </Badge>
                       )}
                       {mappingStats && mappingStats.aiReturnedCount > 0 && (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <Badge variant="secondary">
                           AI: {mappingStats.aiReturnedCount}
                         </Badge>
                       )}
                       {mappingStats && mappingStats.filledCount > 0 && (
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                        <Badge variant="secondary">
                           Filled: {mappingStats.filledCount}
                         </Badge>
                       )}
@@ -362,6 +369,24 @@ export function DealImportDialog({
                     </p>
                   </div>
 
+                   <div className="flex items-center gap-3 mb-3">
+                     <div className="flex-1">
+                       <Input
+                         value={columnFilter}
+                         onChange={(e) => setColumnFilter(e.target.value)}
+                         placeholder='Search columns (e.g. "Website", "EBITDA")'
+                       />
+                     </div>
+                     <div className="text-sm text-muted-foreground shrink-0">
+                       Showing {filteredColumnMappings.length} of {columnMappings.length}
+                     </div>
+                     {columnFilter.trim() && (
+                       <Button variant="outline" onClick={() => setColumnFilter("")}>
+                         Clear
+                       </Button>
+                     )}
+                   </div>
+
                   <ScrollArea className="flex-1 border rounded-lg">
                     <Table>
                       <TableHeader>
@@ -372,7 +397,7 @@ export function DealImportDialog({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {columnMappings.map((mapping) => (
+                         {filteredColumnMappings.map((mapping) => (
                           <TableRow key={mapping.csvColumn}>
                             <TableCell>
                               <div className="flex items-center gap-2">
