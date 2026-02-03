@@ -74,38 +74,38 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     }
 
     // EBITDA-based bonus (0-25 pts)
-    if (ebitda >= 2000000) {
-      sizeScore += 25; // $2M+ EBITDA
+    // Below $300K EBITDA = 0 points (too small)
+    if (ebitda >= 5000000) {
+      sizeScore += 25; // $5M+ EBITDA - top tier
+    } else if (ebitda >= 2000000) {
+      sizeScore += 22; // $2M-5M EBITDA
     } else if (ebitda >= 1000000) {
-      sizeScore += 20; // $1-2M EBITDA
+      sizeScore += 18; // $1M-2M EBITDA
     } else if (ebitda >= 500000) {
-      sizeScore += 15; // $500K-1M EBITDA
-    } else if (ebitda >= 250000) {
-      sizeScore += 10; // $250-500K EBITDA
-    } else if (ebitda >= 100000) {
-      sizeScore += 5;  // $100-250K EBITDA
-    } else if (ebitda > 0) {
-      sizeScore += 2;  // Under $100K EBITDA
+      sizeScore += 14; // $500K-1M EBITDA
+    } else if (ebitda >= 300000) {
+      sizeScore += 10; // $300K-600K EBITDA
     }
+    // Below $300K EBITDA gets 0 points
   } else if (employeeCount > 0) {
     // PROXY PATH: Estimate size from LinkedIn employee count when no financials
-    // Industry average: ~$200K-400K revenue per employee for services businesses
+    // Industry average: ~$400K-800K revenue per employee for services businesses (doubled estimate)
     notes.push('Size estimated from LinkedIn employee count');
 
     if (employeeCount >= 200) {
-      sizeScore += 70; // Likely $40M+ revenue - top tier
+      sizeScore += 70; // Likely $80M+ revenue - top tier
     } else if (employeeCount >= 100) {
-      sizeScore += 58; // Likely $20-40M revenue
+      sizeScore += 58; // Likely $40-80M revenue
     } else if (employeeCount >= 50) {
-      sizeScore += 48; // Likely $10-20M revenue
+      sizeScore += 48; // Likely $20-40M revenue
     } else if (employeeCount >= 25) {
-      sizeScore += 38; // Likely $5-10M revenue
+      sizeScore += 38; // Likely $10-20M revenue
     } else if (employeeCount >= 15) {
-      sizeScore += 28; // Likely $3-5M revenue
+      sizeScore += 28; // Likely $6-10M revenue
     } else if (employeeCount >= 10) {
-      sizeScore += 20; // Likely $2-3M revenue
+      sizeScore += 20; // Likely $4-6M revenue
     } else if (employeeCount >= 5) {
-      sizeScore += 12; // Likely $1-2M revenue
+      sizeScore += 12; // Likely $2-4M revenue
     } else {
       sizeScore += 5;  // Small business
     }
