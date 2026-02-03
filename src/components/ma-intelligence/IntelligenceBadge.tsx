@@ -10,15 +10,16 @@ import {
 } from "@/components/ui/tooltip";
 
 interface IntelligenceBadgeProps {
-  buyer: Partial<MABuyer>;
+  buyer?: Partial<MABuyer>;
+  coverage?: IntelligenceCoverage;
   showPercentage?: boolean;
   size?: "sm" | "md";
   className?: string;
 }
 
-export function IntelligenceBadge({ buyer, showPercentage = false, size = "md", className }: IntelligenceBadgeProps) {
-  const coverage = getIntelligenceCoverage(buyer);
-  const percentage = calculateIntelligencePercentage(buyer);
+export function IntelligenceBadge({ buyer, coverage: propCoverage, showPercentage = false, size = "md", className }: IntelligenceBadgeProps) {
+  const coverage = propCoverage ?? (buyer ? getIntelligenceCoverage(buyer) : 'low');
+  const percentage = buyer ? calculateIntelligencePercentage(buyer) : 0;
 
   const variants: Record<IntelligenceCoverage, "default" | "secondary" | "outline"> = {
     high: "default",

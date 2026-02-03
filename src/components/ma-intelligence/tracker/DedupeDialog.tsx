@@ -7,11 +7,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, GitMerge } from "lucide-react";
-import type { MABuyer } from "@/lib/ma-intelligence/types";
+
+// Simplified buyer type for dedupe operations (matches DB response)
+interface BuyerRecord {
+  id: string;
+  pe_firm_name: string | null;
+  pe_firm_website: string | null;
+  company_name: string | null;
+  created_at: string;
+}
 
 interface DuplicateGroup {
   id: string;
-  buyers: MABuyer[];
+  buyers: BuyerRecord[];
   reason: string;
   similarity: number;
 }
@@ -41,8 +49,8 @@ export function DedupeDialog({ open, onOpenChange, trackerId, onDedupeComplete }
     try {
       const { data: buyers, error } = await supabase
         .from("remarketing_buyers")
-        .select("*")
-        .eq("industry_tracker_id", trackerId);
+        .select("id, pe_firm_name, pe_firm_website, company_name, created_at")
+        .eq("universe_id", trackerId);
 
       if (error) throw error;
 
@@ -76,14 +84,14 @@ export function DedupeDialog({ open, onOpenChange, trackerId, onDedupeComplete }
         if (similar.length > 0) {
           const group: DuplicateGroup = {
             id: `group-${groups.length}`,
-            buyers: [buyer, ...similar],
+            buyers: [buyer, ...similar] as BuyerRecord[],
             reason: "Similar PE firm name or website",
             similarity: 85,
           };
 
           groups.push(group);
           processed.add(buyer.id);
-          similar.forEach(s => processed.add(s.id));
+          similar.forEach((s: BuyerRecord) => processed.add(s.id));
         }
       });
 
@@ -238,12 +246,7 @@ export function DedupeDialog({ open, onOpenChange, trackerId, onDedupeComplete }
                           onCheckedChange={() => handleSelectPrimary(group.id, buyer.id)}
                         />
                         <div className="flex-1">
-                          <div className="font-medium">{buyer.pe_firm_name}</div>
-                          {buyer.platform_company_name && (
-                            <div className="text-sm text-muted-foreground">
-                              Platform: {buyer.platform_company_name}
-                            </div>
-                          )}
+                          <div className="font-medium">{buyer.pe_firm_name || buyer.company_name}</div>
                           {buyer.pe_firm_website && (
                             <div className="text-sm text-muted-foreground">
                               {buyer.pe_firm_website}

@@ -217,8 +217,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in dedupe-buyers:', error);
+    const message = error instanceof Error ? error.message : 'Failed to check for duplicates';
     return new Response(JSON.stringify({ 
-      error: error.message || 'Failed to check for duplicates',
+      error: message,
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

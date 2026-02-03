@@ -227,12 +227,7 @@ const ReMarketingDeals = () => {
           internal_deal_memo_link,
           geographic_states,
           enriched_at,
-          linkedin_employee_count,
-          full_time_employees,
-          lead_source_id,
-          lead_sources (
-            name
-          )
+          full_time_employees
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -511,16 +506,17 @@ const ReMarketingDeals = () => {
           bVal = b.ebitda || 0;
           break;
         case "employees":
-          aVal = a.linkedin_employee_count || a.full_time_employees || 0;
-          bVal = b.linkedin_employee_count || b.full_time_employees || 0;
+          aVal = a.full_time_employees || 0;
+          bVal = b.full_time_employees || 0;
           break;
         case "score":
           aVal = stats_a?.avgScore || 0;
           bVal = stats_b?.avgScore || 0;
           break;
         case "margin":
-          aVal = (a.ebitda && a.revenue) ? (a.ebitda / a.revenue) * 100 : 0;
-          bVal = (b.ebitda && b.revenue) ? (b.ebitda / b.revenue) * 100 : 0;
+          // Calculate margin from ebitda/revenue if available
+          aVal = a.ebitda && a.revenue ? (a.ebitda / a.revenue) * 100 : 0;
+          bVal = b.ebitda && b.revenue ? (b.ebitda / b.revenue) * 100 : 0;
           break;
         case "engagement":
           aVal = (stats_a?.totalMatches || 0);
@@ -792,7 +788,6 @@ const ReMarketingDeals = () => {
                       {sortColumn === "engagement" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
                     </button>
                   </TableHead>
-                  <TableHead>Lead Source</TableHead>
                   <TableHead>
                     <button onClick={() => handleSort("added")} className="flex items-center gap-1">
                       Added
@@ -914,8 +909,8 @@ const ReMarketingDeals = () => {
 
                         {/* Employees */}
                         <TableCell className="text-right">
-                          {(listing.linkedin_employee_count || listing.full_time_employees) ? (
-                            <span className="text-sm">{listing.linkedin_employee_count || listing.full_time_employees}</span>
+                          {listing.full_time_employees ? (
+                            <span className="text-sm">{listing.full_time_employees}</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -958,15 +953,6 @@ const ReMarketingDeals = () => {
                               <span>{stats?.passed || 0}</span>
                             </div>
                           </div>
-                        </TableCell>
-
-                        {/* Lead Source */}
-                        <TableCell>
-                          {listing.lead_sources?.name ? (
-                            <span className="text-sm text-muted-foreground">{listing.lead_sources.name}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
                         </TableCell>
 
                         {/* Added date */}
