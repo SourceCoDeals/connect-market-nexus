@@ -52,13 +52,19 @@ interface ColumnMapping {
 const DEAL_FIELDS = [
   { value: "title", label: "Company Name" },
   { value: "website", label: "Website" },
-  { value: "location", label: "Location" },
+  { value: "location", label: "Location (Marketplace)" },
   { value: "revenue", label: "Revenue" },
   { value: "ebitda", label: "EBITDA" },
   { value: "description", label: "Description" },
   { value: "geographic_states", label: "States" },
   { value: "services", label: "Services" },
   { value: "notes", label: "Notes" },
+  // Structured address fields
+  { value: "street_address", label: "Street Address" },
+  { value: "address_city", label: "City" },
+  { value: "address_state", label: "State (2-letter)" },
+  { value: "address_zip", label: "ZIP Code" },
+  { value: "address_country", label: "Country" },
 ];
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
@@ -172,6 +178,12 @@ export const DealCSVImport = ({
             is_active: boolean;
             created_by?: string;
             category: string;
+            // Structured address
+            street_address?: string;
+            address_city?: string;
+            address_state?: string;
+            address_zip?: string;
+            address_country?: string;
           } = {
             is_active: true,
             created_by: user?.id,
@@ -193,11 +205,26 @@ export const DealCSVImport = ({
                 (listingData as Record<string, unknown>)[mapping.targetField] = value.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
               } else if (mapping.targetField === "notes") {
                 listingData.general_notes = value;
+              } else if (mapping.targetField === "address_state") {
+                // Validate and uppercase state code
+                const stateCode = value.toUpperCase().trim();
+                if (stateCode.length === 2) {
+                  listingData.address_state = stateCode;
+                }
+              } else if (mapping.targetField === "address_country") {
+                // Default to US if not specified
+                const country = value.toUpperCase().trim();
+                listingData.address_country = country === "CA" || country === "CANADA" ? "CA" : "US";
               } else {
                 (listingData as Record<string, unknown>)[mapping.targetField] = value;
               }
             }
           });
+          
+          // Set default country if we have address fields but no country
+          if ((listingData.address_city || listingData.address_state) && !listingData.address_country) {
+            listingData.address_country = "US";
+          }
 
           // Must have a title
           if (!listingData.title) {

@@ -12,6 +12,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Pencil, 
   Loader2, 
@@ -27,10 +34,41 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+// US state codes for dropdown
+const US_STATES = [
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'DC', name: 'Washington DC' },
+  { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
+  { code: 'PR', name: 'Puerto Rico' }, { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' },
+  { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' },
+  { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' },
+  { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' },
+  { code: 'WY', name: 'Wyoming' },
+];
+
+// Canadian province codes
+const CA_PROVINCES = [
+  { code: 'AB', name: 'Alberta' }, { code: 'BC', name: 'British Columbia' }, { code: 'MB', name: 'Manitoba' },
+  { code: 'NB', name: 'New Brunswick' }, { code: 'NL', name: 'Newfoundland' }, { code: 'NS', name: 'Nova Scotia' },
+  { code: 'NT', name: 'Northwest Territories' }, { code: 'NU', name: 'Nunavut' }, { code: 'ON', name: 'Ontario' },
+  { code: 'PE', name: 'Prince Edward Island' }, { code: 'QC', name: 'Quebec' }, { code: 'SK', name: 'Saskatchewan' },
+  { code: 'YT', name: 'Yukon' },
+];
+
 interface CompanyOverviewCardProps {
   website: string | null;
-  location: string | null;
-  address: string | null;
+  location: string | null; // Legacy marketplace location
+  address: string | null; // Legacy full address
   foundedYear: number | null;
   employees: {
     fullTime: number | null;
@@ -41,6 +79,12 @@ interface CompanyOverviewCardProps {
   locationRadiusRequirement: string | null;
   category: string | null;
   status: string;
+  // New structured address fields
+  streetAddress?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressZip?: string | null;
+  addressCountry?: string | null;
   onSave: (data: {
     website: string;
     address: string;
@@ -48,6 +92,12 @@ interface CompanyOverviewCardProps {
     industry: string;
     numberOfLocations: number | null;
     locationRadiusRequirement: string;
+    // Structured address
+    streetAddress: string;
+    addressCity: string;
+    addressState: string;
+    addressZip: string;
+    addressCountry: string;
   }) => Promise<void>;
 }
 
@@ -62,6 +112,11 @@ export const CompanyOverviewCard = ({
   locationRadiusRequirement,
   category,
   status,
+  streetAddress,
+  addressCity,
+  addressState,
+  addressZip,
+  addressCountry,
   onSave,
 }: CompanyOverviewCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -72,6 +127,12 @@ export const CompanyOverviewCard = ({
     industry: industry || "",
     numberOfLocations: numberOfLocations?.toString() || "",
     locationRadiusRequirement: locationRadiusRequirement || "",
+    // Structured address
+    streetAddress: streetAddress || "",
+    addressCity: addressCity || "",
+    addressState: addressState || "",
+    addressZip: addressZip || "",
+    addressCountry: addressCountry || "US",
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -85,6 +146,11 @@ export const CompanyOverviewCard = ({
         industry: formData.industry,
         numberOfLocations: formData.numberOfLocations ? parseInt(formData.numberOfLocations) : null,
         locationRadiusRequirement: formData.locationRadiusRequirement,
+        streetAddress: formData.streetAddress,
+        addressCity: formData.addressCity,
+        addressState: formData.addressState,
+        addressZip: formData.addressZip,
+        addressCountry: formData.addressCountry,
       });
       setIsEditOpen(false);
       toast.success("Company overview updated");
@@ -103,6 +169,11 @@ export const CompanyOverviewCard = ({
       industry: industry || "",
       numberOfLocations: numberOfLocations?.toString() || "",
       locationRadiusRequirement: locationRadiusRequirement || "",
+      streetAddress: streetAddress || "",
+      addressCity: addressCity || "",
+      addressState: addressState || "",
+      addressZip: addressZip || "",
+      addressCountry: addressCountry || "US",
     });
     setIsEditOpen(true);
   };
@@ -118,16 +189,41 @@ export const CompanyOverviewCard = ({
     return `https://${url}`;
   };
 
+  // Format headquarters display - prefer structured address over legacy location
+  const getHeadquartersDisplay = () => {
+    if (addressCity && addressState) {
+      return `${addressCity}, ${addressState}`;
+    }
+    return location || "Not specified";
+  };
+
+  // Format full address display
+  const getFullAddressDisplay = () => {
+    const parts: string[] = [];
+    if (streetAddress) parts.push(streetAddress);
+    if (addressCity || addressState || addressZip) {
+      const cityStateZip = [
+        addressCity,
+        addressState,
+        addressZip
+      ].filter(Boolean).join(addressState && addressZip ? " " : ", ");
+      if (cityStateZip) parts.push(cityStateZip);
+    }
+    if (parts.length > 0) return parts;
+    if (address) return [address];
+    return null;
+  };
+
+  const fullAddress = getFullAddressDisplay();
+
   const InfoRow = ({ 
     icon: Icon, 
     label, 
     value, 
-    isLink = false 
   }: { 
     icon: React.ElementType; 
     label: string; 
     value: React.ReactNode; 
-    isLink?: boolean;
   }) => (
     <>
       <div className="flex items-start gap-3">
@@ -144,6 +240,8 @@ export const CompanyOverviewCard = ({
       <Separator />
     </>
   );
+
+  const allStates = [...US_STATES, ...CA_PROVINCES];
 
   return (
     <>
@@ -187,16 +285,22 @@ export const CompanyOverviewCard = ({
           <InfoRow 
             icon={MapPin} 
             label="HEADQUARTERS" 
-            value={location || "Not specified"} 
+            value={getHeadquartersDisplay()} 
           />
 
           <InfoRow 
             icon={Home} 
             label="ADDRESS" 
             value={
-              <span className="max-w-[200px] text-right">
-                {address || "Not specified"}
-              </span>
+              fullAddress ? (
+                <div className="text-right max-w-[200px]">
+                  {fullAddress.map((line, i) => (
+                    <div key={i}>{line}</div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-muted-foreground italic">Not specified</span>
+              )
             } 
           />
 
@@ -248,7 +352,7 @@ export const CompanyOverviewCard = ({
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Company Overview</DialogTitle>
           </DialogHeader>
@@ -263,16 +367,82 @@ export const CompanyOverviewCard = ({
                 className="mt-1.5"
               />
             </div>
-            <div>
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                placeholder="123 Main St, City, State"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="mt-1.5"
-              />
+
+            {/* Structured Address Section */}
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+              <Label className="text-sm font-medium">Headquarters Address</Label>
+              
+              <div>
+                <Label htmlFor="streetAddress" className="text-xs text-muted-foreground">Street Address</Label>
+                <Input
+                  id="streetAddress"
+                  placeholder="123 Main Street, Suite 100"
+                  value={formData.streetAddress}
+                  onChange={(e) => setFormData({ ...formData, streetAddress: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="addressCity" className="text-xs text-muted-foreground">City</Label>
+                  <Input
+                    id="addressCity"
+                    placeholder="Dallas"
+                    value={formData.addressCity}
+                    onChange={(e) => setFormData({ ...formData, addressCity: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="addressState" className="text-xs text-muted-foreground">State</Label>
+                  <Select
+                    value={formData.addressState}
+                    onValueChange={(value) => setFormData({ ...formData, addressState: value })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allStates.map((state) => (
+                        <SelectItem key={state.code} value={state.code}>
+                          {state.code} - {state.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="addressZip" className="text-xs text-muted-foreground">ZIP Code</Label>
+                  <Input
+                    id="addressZip"
+                    placeholder="75201"
+                    value={formData.addressZip}
+                    onChange={(e) => setFormData({ ...formData, addressZip: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="addressCountry" className="text-xs text-muted-foreground">Country</Label>
+                  <Select
+                    value={formData.addressCountry}
+                    onValueChange={(value) => setFormData({ ...formData, addressCountry: value })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="US">United States</SelectItem>
+                      <SelectItem value="CA">Canada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="foundedYear">Founded Year</Label>
