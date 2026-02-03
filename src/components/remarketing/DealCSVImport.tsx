@@ -51,19 +51,19 @@ interface ColumnMapping {
 
 const DEAL_FIELDS = [
   // Core fields (REQUIRED)
-  { value: "title", label: "Company Name" },
-  { value: "website", label: "Website" },
+  { value: "title", label: "Company Name *" },
+  { value: "website", label: "Website URL" },
   // Financial data
   { value: "revenue", label: "Revenue" },
   { value: "ebitda", label: "EBITDA" },
   // Business info
   { value: "category", label: "Industry/Category" },
-  { value: "description", label: "Description" },
+  { value: "description", label: "Description / AI Summary" },
   { value: "executive_summary", label: "Executive Summary" },
   { value: "general_notes", label: "Notes" },
   { value: "services", label: "Services" },
   { value: "geographic_states", label: "States" },
-  { value: "full_time_employees", label: "Employees" },
+  { value: "full_time_employees", label: "Employee Count" },
   { value: "number_of_locations", label: "Number of Locations" },
   // Address fields
   { value: "address", label: "Full Address" },
