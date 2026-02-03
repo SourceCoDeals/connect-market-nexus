@@ -31,9 +31,10 @@ interface DealQualityScores {
  * 3. SERVICES/BUSINESS TYPE (0-5 pts) - 5% weight
  *    - Recurring revenue and essential services score higher
  *
- * 4. SELLER INTEREST (0-15 pts) - 15% weight
+ * 4. SELLER INTEREST (0-15 pts) - 15% weight (bonus when available)
  *    - Pulled from seller_interest_score (AI-analyzed separately)
- *    - If no seller interest score, max possible is 85 pts
+ *    - If no seller interest score, base score is scaled to 100
+ *    - Great deals without seller interest data can still score 100
  *
  * NOTE: Data completeness does NOT affect score. A great deal with little
  * data is still a great deal - we just need to get more info on it.
@@ -177,19 +178,27 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     servicesScore = 3;
   }
 
-  // ===== SELLER INTEREST SCORE (0-15 pts) =====
-  // This comes from the AI-analyzed seller_interest_score (0-100)
-  // Scale it to 0-15 pts for the total score
+  // ===== CALCULATE TOTAL =====
+  // Base score from size + geography + services (max 85 pts)
+  const baseScore = sizeScore + geographyScore + servicesScore;
+
+  // If we have seller interest score, add it (max 15 pts)
+  // If we don't have it, scale the base score to 100 so great deals aren't penalized
+  let totalScore: number;
+
   if (deal.seller_interest_score !== null && deal.seller_interest_score !== undefined) {
+    // We have seller interest - add it to the base (0-15 pts)
     sellerInterestScore = Math.round((deal.seller_interest_score / 100) * 15);
+    totalScore = baseScore + sellerInterestScore;
+
     if (deal.seller_interest_score >= 70) {
       notes.push('High seller motivation');
     }
+  } else {
+    // No seller interest score - scale base score (0-85) to (0-100)
+    // This way a great deal without seller interest data can still score 100
+    totalScore = Math.round((baseScore / 85) * 100);
   }
-  // If no seller interest score yet, max possible is 85 pts (70 + 10 + 5)
-
-  // ===== CALCULATE TOTAL =====
-  const totalScore = sizeScore + geographyScore + servicesScore + sellerInterestScore;
 
   return {
     deal_total_score: Math.min(100, Math.max(0, totalScore)),
