@@ -89,37 +89,98 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   // ===== FINANCIAL QUALITY / SIZE SCORE (0-30 pts) =====
   const revenue = deal.revenue || 0;
   const ebitda = deal.ebitda || 0;
+  const employeeCount = deal.full_time_employees || deal.linkedin_employee_count || 0;
+  const hasFinancials = revenue > 0 || ebitda > 0;
 
-  // Revenue scoring
-  if (revenue >= 5000000) {
-    sizeScore += 15;
-  } else if (revenue >= 2000000) {
-    sizeScore += 10;
-  } else if (revenue >= 1000000) {
-    sizeScore += 5;
-  } else if (revenue > 0) {
-    sizeScore += 2;
-  }
+  if (hasFinancials) {
+    // PRIMARY PATH: Use actual financials when available
 
-  // EBITDA margin scoring
-  if (revenue > 0 && ebitda > 0) {
-    const margin = ebitda / revenue;
-    if (margin >= 0.20) {
+    // Revenue scoring
+    if (revenue >= 5000000) {
+      sizeScore += 15;
+    } else if (revenue >= 2000000) {
       sizeScore += 10;
-    } else if (margin >= 0.15) {
-      sizeScore += 7;
-    } else if (margin >= 0.10) {
-      sizeScore += 4;
-    } else if (margin > 0) {
+    } else if (revenue >= 1000000) {
+      sizeScore += 5;
+    } else if (revenue > 0) {
       sizeScore += 2;
     }
+
+    // EBITDA margin scoring
+    if (revenue > 0 && ebitda > 0) {
+      const margin = ebitda / revenue;
+      if (margin >= 0.20) {
+        sizeScore += 10;
+      } else if (margin >= 0.15) {
+        sizeScore += 7;
+      } else if (margin >= 0.10) {
+        sizeScore += 4;
+      } else if (margin > 0) {
+        sizeScore += 2;
+      }
+    }
+
+    // Absolute EBITDA scoring
+    if (ebitda >= 500000) {
+      sizeScore += 5;
+    } else if (ebitda >= 200000) {
+      sizeScore += 3;
+    }
+  } else if (employeeCount > 0) {
+    // PROXY PATH: Estimate size from employee count when no financials
+    // Industry average: ~$150K-250K revenue per employee for services
+    // Conservative estimate for scoring purposes
+    notes.push('Size estimated from employee count (no financials)');
+
+    if (employeeCount >= 100) {
+      sizeScore += 20; // Likely $15M+ revenue
+    } else if (employeeCount >= 50) {
+      sizeScore += 15; // Likely $7-15M revenue
+    } else if (employeeCount >= 25) {
+      sizeScore += 10; // Likely $3-7M revenue
+    } else if (employeeCount >= 10) {
+      sizeScore += 6;  // Likely $1.5-3M revenue
+    } else if (employeeCount >= 5) {
+      sizeScore += 3;  // Likely $750K-1.5M revenue
+    } else {
+      sizeScore += 1;  // Small business
+    }
+  } else {
+    notes.push('No financials or employee data - size cannot be scored');
   }
 
-  // Absolute EBITDA scoring
-  if (ebitda >= 500000) {
-    sizeScore += 5;
-  } else if (ebitda >= 200000) {
-    sizeScore += 3;
+  // ===== REVIEWS & RATINGS AS QUALITY INDICATORS =====
+  // These add bonus points regardless of whether we have financials
+  const reviewCount = deal.google_review_count || deal.review_count || 0;
+  const rating = deal.google_rating || deal.avg_rating || 0;
+
+  if (reviewCount > 0 || rating > 0) {
+    // Review count indicates established business presence
+    if (reviewCount >= 500) {
+      qualityScore += 8;
+      notes.push(`Strong review presence: ${reviewCount} reviews`);
+    } else if (reviewCount >= 200) {
+      qualityScore += 6;
+    } else if (reviewCount >= 100) {
+      qualityScore += 4;
+    } else if (reviewCount >= 50) {
+      qualityScore += 2;
+    } else if (reviewCount > 0) {
+      qualityScore += 1;
+    }
+
+    // High ratings indicate quality service
+    if (rating >= 4.8) {
+      qualityScore += 5;
+      notes.push(`Excellent rating: ${rating}/5`);
+    } else if (rating >= 4.5) {
+      qualityScore += 4;
+    } else if (rating >= 4.0) {
+      qualityScore += 2;
+    } else if (rating >= 3.5) {
+      qualityScore += 1;
+    }
+    // Below 3.5 rating = no bonus (could even be negative)
   }
 
   // ===== BUSINESS QUALITY (0-25 pts) =====
