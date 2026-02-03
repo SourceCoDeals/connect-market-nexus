@@ -313,6 +313,33 @@ const ReMarketingDealDetail = () => {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            {/* Seller Interest Score Badge */}
+            {deal.seller_interest_score !== null && deal.seller_interest_score !== undefined && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className={
+                        deal.seller_interest_score >= 70
+                          ? "bg-green-50 text-green-700 border-green-200"
+                          : deal.seller_interest_score >= 40
+                          ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                          : "bg-gray-50 text-gray-600 border-gray-200"
+                      }
+                    >
+                      {deal.seller_interest_score} Seller Interest
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium">Seller Interest Score: {deal.seller_interest_score}/100</p>
+                    <p className="text-xs text-muted-foreground">
+                      AI-analyzed from call transcripts and notes to indicate seller motivation level.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <Badge variant={deal.status === 'active' ? 'default' : 'secondary'} className="capitalize">
               {deal.status}
             </Badge>
