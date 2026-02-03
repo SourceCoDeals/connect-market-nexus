@@ -182,7 +182,7 @@ export function SourcesCard({ channels, referrers, campaigns, keywords }: Source
                 
                 {/* Legend List */}
                 <div className="flex-1 space-y-1">
-                  {sortedChannels.slice(0, 6).map((channel) => {
+                  {sortedChannels.map((channel) => {
                     const total = getTotal();
                     const value = getSortValue(channel);
                     const percentage = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
