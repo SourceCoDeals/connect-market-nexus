@@ -627,16 +627,70 @@ Extract all available business information using the provided tool. The address_
       }
     }
 
-    // Clean address_city (remove trailing commas, state codes, reject placeholders)
+    // Clean address_city - AI sometimes puts full address in city field
+    // We need to extract just the city name
     if (extracted.address_city) {
       let cityStr = String(extracted.address_city).trim();
-      // Remove trailing ", ST" if accidentally included
+      
+      // Common patterns where AI puts full address in city field:
+      // "123 Main St. Dallas" -> extract "Dallas"
+      // "23 Westbrook Industrial Park Rd. Westbrook" -> extract "Westbrook"
+      // "456 Oak Ave, Chicago, IL 60601" -> extract "Chicago"
+      
+      // Pattern 1: Full address with comma-separated city,state,zip at end
+      // e.g., "123 Main St, Dallas, TX 75201"
+      const fullAddressPattern = /^(.+?),\s*([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?$/;
+      const fullMatch = cityStr.match(fullAddressPattern);
+      if (fullMatch) {
+        // Extract just the city from the match
+        cityStr = fullMatch[2].trim();
+        // If we don't have street_address, save the street part
+        if (!extracted.street_address && fullMatch[1]) {
+          extracted.street_address = fullMatch[1].trim();
+        }
+        console.log(`Extracted city "${cityStr}" from full address, street: "${fullMatch[1]}"`);
+      }
+      
+      // Pattern 2: Street address followed by city name without proper separators
+      // Look for common street indicators and take what follows
+      // e.g., "23 Westbrook Industrial Park Rd. Westbrook" -> "Westbrook"
+      // e.g., "456 Oak Avenue Suite 200 Chicago" -> "Chicago"
+      if (!fullMatch) {
+        const streetIndicators = /(St\.?|Street|Ave\.?|Avenue|Rd\.?|Road|Dr\.?|Drive|Blvd\.?|Boulevard|Ln\.?|Lane|Way|Ct\.?|Court|Pkwy\.?|Parkway|Pl\.?|Place|Cir\.?|Circle|Park)\s+/i;
+        const streetMatch = cityStr.match(streetIndicators);
+        if (streetMatch && streetMatch.index !== undefined) {
+          // Find the last occurrence of street indicator
+          const lastStreetIndex = cityStr.lastIndexOf(streetMatch[0]);
+          if (lastStreetIndex > 0) {
+            const afterStreet = cityStr.substring(lastStreetIndex + streetMatch[0].length).trim();
+            // Remove trailing state code or zip
+            const cleanedCity = afterStreet.replace(/,?\s*[A-Z]{2}\s*(\d{5})?$/, '').trim();
+            
+            // Only use this if it looks like a city name (1-3 words, no numbers)
+            if (cleanedCity.length > 0 && cleanedCity.length < 50 && !/\d/.test(cleanedCity)) {
+              // Save the street address part
+              if (!extracted.street_address) {
+                extracted.street_address = cityStr.substring(0, lastStreetIndex + streetMatch[0].length - 1).trim();
+              }
+              cityStr = cleanedCity;
+              console.log(`Parsed city "${cityStr}" from combined address, street: "${extracted.street_address}"`);
+            }
+          }
+        }
+      }
+      
+      // Pattern 3: Simple trailing ", ST" pattern
       cityStr = cityStr.replace(/,\s*[A-Z]{2}$/, '').trim();
+      
+      // Pattern 4: Remove trailing ZIP code
+      cityStr = cityStr.replace(/\s+\d{5}(-\d{4})?$/, '').trim();
+      
       // Reject placeholder values
       const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available'];
-      if (cityStr.length > 0 && !placeholders.includes(cityStr.toLowerCase())) {
+      if (cityStr.length > 0 && cityStr.length < 50 && !placeholders.includes(cityStr.toLowerCase())) {
         extracted.address_city = cityStr;
       } else {
+        console.log(`Rejecting invalid/placeholder address_city: "${extracted.address_city}"`);
         delete extracted.address_city;
       }
     }
