@@ -442,14 +442,22 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       if (filters.length > 0) {
         filters.forEach(filter => {
           if (filter.type === 'channel') {
-            uniqueSessions = uniqueSessions.filter(s => 
-              categorizeChannel(s.referrer, s.utm_source, s.utm_medium) === filter.value
-            );
+            uniqueSessions = uniqueSessions.filter(s => {
+              // Use discovery source priority for consistent filtering
+              const discoverySource = getDiscoverySource(s);
+              return categorizeChannel(discoverySource, s.utm_source, s.utm_medium) === filter.value;
+            });
           }
           if (filter.type === 'referrer') {
-            uniqueSessions = uniqueSessions.filter(s => 
-              extractDomain(s.referrer) === filter.value
-            );
+            uniqueSessions = uniqueSessions.filter(s => {
+              // Use discovery source priority - same logic used in Referrer card display
+              const discoverySource = getDiscoverySource(s);
+              const domain = extractDomain(discoverySource);
+              // Match if domain equals filter, or if one contains the other (handles chatgpt vs chatgpt.com)
+              return domain === filter.value || 
+                     domain.includes(filter.value) || 
+                     filter.value.includes(domain);
+            });
           }
           if (filter.type === 'country') {
             uniqueSessions = uniqueSessions.filter(s => s.country === filter.value);
@@ -1356,20 +1364,38 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         })
         .slice(0, 50);
       
-      // Format daily metrics - FALLBACK to computing from raw data if empty
-      // Use unique_visitors column if available, otherwise compute
+      // Format daily metrics
+      // CRITICAL FIX: When filters are active, ALWAYS compute from filtered session data
+      // The pre-aggregated daily_metrics table is NOT filtered, so it would show wrong data
       let formattedDailyMetrics: Array<{ date: string; visitors: number; sessions: number; connections: number; bounceRate: number }>;
       
-      if (dailyMetrics.length > 0) {
+      if (filters.length > 0) {
+        // FILTERS ACTIVE: Compute from filtered uniqueSessions (which respects all filters)
+        formattedDailyMetrics = [];
+        const currentDate = new Date(startDate);
+        const end = new Date(endDate);
+        while (currentDate <= end) {
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          formattedDailyMetrics.push({
+            date: dateStr,
+            visitors: dailyVisitorSets.get(dateStr)?.size || 0,
+            sessions: dailySessionCounts.get(dateStr) || 0,
+            connections: dailyConnectionCounts.get(dateStr) || 0,
+            bounceRate: 0,
+          });
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else if (dailyMetrics.length > 0) {
+        // NO FILTERS: Use pre-aggregated data from daily_metrics table for performance
         formattedDailyMetrics = dailyMetrics.map(m => ({
           date: m.date,
-          visitors: (m as any).unique_visitors || 0, // Use unique_visitors if backfilled
+          visitors: (m as any).unique_visitors || 0,
           sessions: m.total_sessions || 0,
           connections: m.connection_requests || 0,
           bounceRate: m.bounce_rate || 0,
         }));
       } else {
-        // FALLBACK: Compute from raw sessions and connections
+        // FALLBACK: Compute from session data when no aggregated data exists
         formattedDailyMetrics = [];
         const currentDate = new Date(startDate);
         const end = new Date(endDate);
