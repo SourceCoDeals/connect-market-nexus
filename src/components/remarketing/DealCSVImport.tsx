@@ -84,7 +84,7 @@ const DEAL_FIELDS = [
   { value: "google_review_count", label: "Google Review Count" },
   { value: "google_review_score", label: "Google Review Score" },
   { value: "owner_goals", label: "Owner Goals" },
-  { value: "status", label: "Deal Status" },
+  // status is intentionally omitted - it should never be imported from CSV
   { value: "last_contacted_at", label: "Last Contacted Date" },
   { value: "internal_notes", label: "Internal Notes" },
 ];
