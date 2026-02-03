@@ -142,7 +142,8 @@ interface ColumnWidths {
   location: number;
   revenue: number;
   ebitda: number;
-  linkedin: number;
+  linkedinCount: number;
+  linkedinRange: number;
   googleReviews: number;
   quality: number;
   sellerInterest: number;
@@ -159,8 +160,9 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   location: 100,
   revenue: 90,
   ebitda: 90,
-  linkedin: 90,
-  googleReviews: 80,
+  linkedinCount: 70,
+  linkedinRange: 80,
+  googleReviews: 70,
   quality: 80,
   sellerInterest: 90,
   engagement: 130,
@@ -427,13 +429,22 @@ const SortableTableRow = ({
         {formatCurrency(listing.ebitda)}
       </TableCell>
 
-      {/* LinkedIn Employees */}
-      <TableCell className="text-right" style={{ width: columnWidths.linkedin, minWidth: 50 }}>
-        {listing.linkedin_employee_count || listing.linkedin_employee_range ? (
+      {/* LinkedIn Employee Count */}
+      <TableCell className="text-right" style={{ width: columnWidths.linkedinCount, minWidth: 50 }}>
+        {listing.linkedin_employee_count ? (
           <div className="text-sm flex items-center justify-end gap-1">
-            <span>{listing.linkedin_employee_count?.toLocaleString() || listing.linkedin_employee_range}</span>
+            <span>{listing.linkedin_employee_count.toLocaleString()}</span>
             <span className="text-xs text-blue-500 font-medium">LI</span>
           </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      {/* LinkedIn Employee Range */}
+      <TableCell className="text-right" style={{ width: columnWidths.linkedinRange, minWidth: 50 }}>
+        {listing.linkedin_employee_range ? (
+          <span className="text-sm text-muted-foreground">{listing.linkedin_employee_range}</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -1502,8 +1513,11 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.ebitda} onResize={(w) => handleColumnResize('ebitda', w)} minWidth={60} className="text-right">
                       <SortableHeader column="ebitda" label="EBITDA" className="ml-auto" />
                     </ResizableHeader>
-                    <ResizableHeader width={columnWidths.linkedin} onResize={(w) => handleColumnResize('linkedin', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="linkedin" label="LinkedIn" className="ml-auto" />
+                    <ResizableHeader width={columnWidths.linkedinCount} onResize={(w) => handleColumnResize('linkedinCount', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="linkedinCount" label="LI Count" className="ml-auto" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.linkedinRange} onResize={(w) => handleColumnResize('linkedinRange', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="linkedinRange" label="LI Range" className="ml-auto" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.googleReviews} onResize={(w) => handleColumnResize('googleReviews', w)} minWidth={50} className="text-right">
                       <SortableHeader column="googleReviews" label="Reviews" className="ml-auto" />
@@ -1543,7 +1557,7 @@ const ReMarketingDeals = () => {
                     ))
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
