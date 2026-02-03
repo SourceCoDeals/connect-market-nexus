@@ -218,6 +218,11 @@ export function useDealEnrichment(universeId?: string) {
         skipped,
       }));
 
+      // Refresh table after each batch so data appears incrementally
+      if (universeId) {
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-deals', universeId] });
+      }
+
       // Delay between batches (not after last batch)
       if (i + BATCH_SIZE < enrichableDeals.length && !cancelledRef.current) {
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
