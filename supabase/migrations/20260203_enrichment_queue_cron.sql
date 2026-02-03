@@ -38,6 +38,53 @@ CREATE TABLE IF NOT EXISTS public.cron_job_logs (
 CREATE INDEX IF NOT EXISTS idx_cron_job_logs_job_name ON public.cron_job_logs(job_name, created_at DESC);
 
 -- =============================================================
+-- ATOMIC CLAIM FUNCTION (Prevents Race Conditions)
+-- =============================================================
+
+-- This function atomically claims queue items for processing.
+-- It updates the status to 'processing' and returns the claimed items.
+-- Uses FOR UPDATE SKIP LOCKED to prevent multiple workers from claiming the same items.
+CREATE OR REPLACE FUNCTION claim_enrichment_queue_items(
+  batch_size INTEGER DEFAULT 5,
+  max_attempts INTEGER DEFAULT 3
+)
+RETURNS TABLE (
+  id UUID,
+  listing_id UUID,
+  status TEXT,
+  attempts INTEGER,
+  queued_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH claimed AS (
+    SELECT eq.id
+    FROM public.enrichment_queue eq
+    WHERE eq.status = 'pending'
+      AND eq.attempts < max_attempts
+    ORDER BY eq.queued_at ASC
+    LIMIT batch_size
+    FOR UPDATE SKIP LOCKED
+  )
+  UPDATE public.enrichment_queue eq
+  SET
+    status = 'processing',
+    attempts = eq.attempts + 1,
+    started_at = NOW(),
+    updated_at = NOW()
+  FROM claimed
+  WHERE eq.id = claimed.id
+  RETURNING eq.id, eq.listing_id, eq.status, eq.attempts, eq.queued_at;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION claim_enrichment_queue_items(INTEGER, INTEGER) TO service_role;
+COMMENT ON FUNCTION claim_enrichment_queue_items IS 'Atomically claims enrichment queue items for processing (prevents race conditions)';
+
+-- =============================================================
 -- CREATE FUNCTION TO CALL ENRICHMENT QUEUE PROCESSOR
 -- =============================================================
 

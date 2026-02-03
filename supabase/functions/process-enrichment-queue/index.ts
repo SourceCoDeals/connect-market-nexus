@@ -25,24 +25,36 @@ serve(async (req) => {
 
     console.log('Processing enrichment queue...');
 
-    // Fetch pending queue items (oldest first, respecting max attempts)
-    const { data: queueItems, error: fetchError } = await supabase
-      .from('enrichment_queue')
-      .select(`
-        id,
-        listing_id,
-        status,
-        attempts,
-        queued_at
-      `)
-      .eq('status', 'pending')
-      .lt('attempts', MAX_ATTEMPTS)
-      .order('queued_at', { ascending: true })
-      .limit(BATCH_SIZE);
+    // Use RPC to atomically claim items (prevents race conditions)
+    // This updates status to 'processing' and returns the items in one atomic operation
+    const { data: claimedItems, error: claimError } = await supabase.rpc(
+      'claim_enrichment_queue_items',
+      { batch_size: BATCH_SIZE, max_attempts: MAX_ATTEMPTS }
+    );
 
-    if (fetchError) {
-      console.error('Error fetching queue items:', fetchError);
-      throw fetchError;
+    // Fallback to regular query if RPC doesn't exist yet
+    let queueItems = claimedItems;
+    if (claimError?.code === 'PGRST202') {
+      // RPC doesn't exist, use regular query with immediate status update
+      console.log('Using fallback queue fetch (RPC not available)');
+
+      const { data: pendingItems, error: fetchError } = await supabase
+        .from('enrichment_queue')
+        .select(`id, listing_id, status, attempts, queued_at`)
+        .eq('status', 'pending')
+        .lt('attempts', MAX_ATTEMPTS)
+        .order('queued_at', { ascending: true })
+        .limit(BATCH_SIZE);
+
+      if (fetchError) {
+        console.error('Error fetching queue items:', fetchError);
+        throw fetchError;
+      }
+
+      queueItems = pendingItems;
+    } else if (claimError) {
+      console.error('Error claiming queue items:', claimError);
+      throw claimError;
     }
 
     if (!queueItems || queueItems.length === 0) {
@@ -53,7 +65,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${queueItems.length} pending items to process`);
+    console.log(`Found ${queueItems.length} items to process`);
 
     const results = {
       processed: 0,
@@ -66,16 +78,24 @@ serve(async (req) => {
     for (const item of queueItems) {
       console.log(`Processing queue item ${item.id} for listing ${item.listing_id} (attempt ${item.attempts + 1})`);
 
-      // Mark as processing
-      await supabase
-        .from('enrichment_queue')
-        .update({
-          status: 'processing',
-          attempts: item.attempts + 1,
-          started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', item.id);
+      // Mark as processing (skip if already claimed via RPC)
+      if (!claimedItems) {
+        const { error: markError } = await supabase
+          .from('enrichment_queue')
+          .update({
+            status: 'processing',
+            attempts: item.attempts + 1,
+            started_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', item.id)
+          .eq('status', 'pending'); // Only update if still pending (prevents race)
+
+        if (markError) {
+          console.warn(`Failed to mark item ${item.id} as processing:`, markError);
+          continue; // Skip this item, likely picked up by another worker
+        }
+      }
 
       try {
         // Call enrich-deal function
@@ -93,7 +113,7 @@ serve(async (req) => {
 
         if (enrichResponse.ok && enrichResult.success) {
           // Success - mark as completed
-          await supabase
+          const { error: completeError } = await supabase
             .from('enrichment_queue')
             .update({
               status: 'completed',
@@ -103,16 +123,21 @@ serve(async (req) => {
             })
             .eq('id', item.id);
 
+          if (completeError) {
+            console.error(`Failed to mark item ${item.id} as completed:`, completeError);
+          }
+
           console.log(`Successfully enriched listing ${item.listing_id}: ${enrichResult.fieldsUpdated?.length || 0} fields updated`);
           results.succeeded++;
         } else {
           // Failed - update with error
           const errorMsg = enrichResult.error || `HTTP ${enrichResponse.status}`;
-          
+
           // Check if max attempts reached
-          const newStatus = item.attempts + 1 >= MAX_ATTEMPTS ? 'failed' : 'pending';
-          
-          await supabase
+          const currentAttempts = claimedItems ? item.attempts : item.attempts + 1;
+          const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+
+          const { error: failError } = await supabase
             .from('enrichment_queue')
             .update({
               status: newStatus,
@@ -121,6 +146,10 @@ serve(async (req) => {
             })
             .eq('id', item.id);
 
+          if (failError) {
+            console.error(`Failed to update item ${item.id} status:`, failError);
+          }
+
           console.error(`Enrichment failed for listing ${item.listing_id}: ${errorMsg}`);
           results.failed++;
           results.errors.push(`${item.listing_id}: ${errorMsg}`);
@@ -128,9 +157,10 @@ serve(async (req) => {
       } catch (error) {
         // Network/timeout error
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        const newStatus = item.attempts + 1 >= MAX_ATTEMPTS ? 'failed' : 'pending';
-        
-        await supabase
+        const currentAttempts = claimedItems ? item.attempts : item.attempts + 1;
+        const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+
+        const { error: catchError } = await supabase
           .from('enrichment_queue')
           .update({
             status: newStatus,
@@ -138,6 +168,10 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq('id', item.id);
+
+        if (catchError) {
+          console.error(`Failed to update item ${item.id} after error:`, catchError);
+        }
 
         console.error(`Error processing ${item.listing_id}:`, error);
         results.failed++;
