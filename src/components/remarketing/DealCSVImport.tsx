@@ -50,21 +50,43 @@ interface ColumnMapping {
 }
 
 const DEAL_FIELDS = [
+  // Core fields (REQUIRED)
   { value: "title", label: "Company Name" },
   { value: "website", label: "Website" },
-  { value: "location", label: "Location (Marketplace)" },
+  // Financial data
   { value: "revenue", label: "Revenue" },
   { value: "ebitda", label: "EBITDA" },
+  // Business info
+  { value: "category", label: "Industry/Category" },
   { value: "description", label: "Description" },
-  { value: "geographic_states", label: "States" },
+  { value: "executive_summary", label: "Executive Summary" },
+  { value: "general_notes", label: "Notes" },
   { value: "services", label: "Services" },
-  { value: "notes", label: "Notes" },
-  // Structured address fields
-  { value: "street_address", label: "Street Address" },
+  { value: "geographic_states", label: "States" },
+  { value: "full_time_employees", label: "Employees" },
+  { value: "number_of_locations", label: "Number of Locations" },
+  // Address fields
+  { value: "address", label: "Full Address" },
   { value: "address_city", label: "City" },
   { value: "address_state", label: "State (2-letter)" },
   { value: "address_zip", label: "ZIP Code" },
   { value: "address_country", label: "Country" },
+  // Contact info
+  { value: "primary_contact_name", label: "Contact Name" },
+  { value: "primary_contact_first_name", label: "Contact First Name" },
+  { value: "primary_contact_last_name", label: "Contact Last Name" },
+  { value: "primary_contact_email", label: "Contact Email" },
+  { value: "primary_contact_phone", label: "Contact Phone" },
+  { value: "primary_contact_title", label: "Contact Title/Role" },
+  // Links & metadata
+  { value: "linkedin_url", label: "LinkedIn URL" },
+  { value: "fireflies_url", label: "Fireflies/Recording URL" },
+  { value: "google_review_count", label: "Google Review Count" },
+  { value: "google_review_score", label: "Google Review Score" },
+  { value: "owner_goals", label: "Owner Goals" },
+  { value: "status", label: "Deal Status" },
+  { value: "last_contacted_at", label: "Last Contacted Date" },
+  { value: "internal_notes", label: "Internal Notes" },
 ];
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
@@ -164,45 +186,31 @@ export const DealCSVImport = ({
         setImportProgress(Math.round(((i + 1) / csvData.length) * 100));
 
         try {
-          // Build listing object from mappings with proper typing
-          const listingData: {
-            title?: string;
-            website?: string;
-            location?: string;
-            revenue?: number;
-            ebitda?: number;
-            description?: string;
-            geographic_states?: string[];
-            services?: string[];
-            general_notes?: string;
-            is_active: boolean;
-            category: string;
-            // Structured address
-            street_address?: string;
-            address_city?: string;
-            address_state?: string;
-            address_zip?: string;
-            address_country?: string;
-          } = {
+          // Build listing object dynamically - use Record to support all mapped fields
+          const listingData: Record<string, unknown> = {
             is_active: true,
             category: "Other",
           };
 
+          // Numeric fields that need parsing
+          const numericFields = ["revenue", "ebitda", "full_time_employees", "number_of_locations", "google_review_count", "google_review_score"];
+          // Array fields that need splitting
+          const arrayFields = ["geographic_states", "services"];
+
           columnMappings.forEach((mapping) => {
             if (mapping.targetField && row[mapping.csvColumn]) {
               const value = row[mapping.csvColumn].trim();
+              if (!value) return;
               
-              if (mapping.targetField === "revenue" || mapping.targetField === "ebitda") {
-                // Parse currency values
+              if (numericFields.includes(mapping.targetField)) {
+                // Parse numeric values (remove $, commas, etc.)
                 const numValue = parseFloat(value.replace(/[$,]/g, ""));
                 if (!isNaN(numValue)) {
-                  (listingData as Record<string, unknown>)[mapping.targetField] = numValue;
+                  listingData[mapping.targetField] = numValue;
                 }
-              } else if (mapping.targetField === "geographic_states" || mapping.targetField === "services") {
+              } else if (arrayFields.includes(mapping.targetField)) {
                 // Parse as array
-                (listingData as Record<string, unknown>)[mapping.targetField] = value.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
-              } else if (mapping.targetField === "notes") {
-                listingData.general_notes = value;
+                listingData[mapping.targetField] = value.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
               } else if (mapping.targetField === "address_state") {
                 // Validate and uppercase state code
                 const stateCode = value.toUpperCase().trim();
@@ -213,8 +221,15 @@ export const DealCSVImport = ({
                 // Default to US if not specified
                 const country = value.toUpperCase().trim();
                 listingData.address_country = country === "CA" || country === "CANADA" ? "CA" : "US";
+              } else if (mapping.targetField === "last_contacted_at") {
+                // Parse date
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                  listingData.last_contacted_at = date.toISOString();
+                }
               } else {
-                (listingData as Record<string, unknown>)[mapping.targetField] = value;
+                // String fields - direct assignment
+                listingData[mapping.targetField] = value;
               }
             }
           });
