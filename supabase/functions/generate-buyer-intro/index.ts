@@ -151,8 +151,9 @@ Respond with JSON in this exact format:
 
   } catch (error) {
     console.error('Error generating buyer intro email:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: message,
       subject: 'Introduction: Acquisition Opportunity',
       body: 'An error occurred generating the email. Please try again.',
     }), {
