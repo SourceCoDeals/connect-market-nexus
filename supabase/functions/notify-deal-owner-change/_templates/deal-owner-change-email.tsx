@@ -8,8 +8,10 @@ import {
   Preview,
   Section,
   Text,
-} from '@react-email/components';
-import * as React from 'react';
+  Row,
+  Column,
+} from 'npm:@react-email/components@0.0.22';
+import * as React from 'npm:react@18.3.1';
 
 interface DealOwnerChangeEmailProps {
   previousOwnerName: string;
@@ -62,62 +64,69 @@ export const DealOwnerChangeEmail = ({
           <Heading style={infoHeading}>Deal Information</Heading>
           
           {companyName && (
-            <table style={infoTable}>
-              <tr>
-                <td style={infoLabel}>Company</td>
-                <td style={infoValue}>{companyName}</td>
-              </tr>
-            </table>
+            <Row style={infoRow}>
+              <Column style={infoLabelColumn}>
+                <Text style={infoLabelText}>Company</Text>
+              </Column>
+              <Column style={infoValueColumn}>
+                <Text style={infoValueText}>{companyName}</Text>
+              </Column>
+            </Row>
           )}
           
-          <table style={infoTable}>
-            <tr>
-              <td style={infoLabel}>Contact</td>
-              <td style={infoValue}>{dealTitle}</td>
-            </tr>
-          </table>
+          <Row style={infoRow}>
+            <Column style={infoLabelColumn}>
+              <Text style={infoLabelText}>Contact</Text>
+            </Column>
+            <Column style={infoValueColumn}>
+              <Text style={infoValueText}>{dealTitle}</Text>
+            </Column>
+          </Row>
 
           {listingTitle && (
-            <table style={infoTable}>
-              <tr>
-                <td style={infoLabel}>Listing</td>
-                <td style={infoValue}>{listingTitle}</td>
-              </tr>
-            </table>
+            <Row style={infoRow}>
+              <Column style={infoLabelColumn}>
+                <Text style={infoLabelText}>Listing</Text>
+              </Column>
+              <Column style={infoValueColumn}>
+                <Text style={infoValueText}>{listingTitle}</Text>
+              </Column>
+            </Row>
           )}
 
-          <table style={infoTable}>
-            <tr>
-              <td style={infoLabel}>Modified By</td>
-              <td style={infoValue}>
-                {modifyingAdminName}
-                {modifyingAdminEmail && (
-                  <span style={infoValueSecondary}> • {modifyingAdminEmail}</span>
-                )}
-              </td>
-            </tr>
-          </table>
+          <Row style={infoRow}>
+            <Column style={infoLabelColumn}>
+              <Text style={infoLabelText}>Modified By</Text>
+            </Column>
+            <Column style={infoValueColumn}>
+              <Text style={infoValueText}>
+                {modifyingAdminName}{modifyingAdminEmail ? ` • ${modifyingAdminEmail}` : ''}
+              </Text>
+            </Column>
+          </Row>
 
           {oldStageName !== newStageName ? (
-            <table style={infoTable}>
-              <tr>
-                <td style={infoLabel}>Stage Change</td>
-                <td style={infoValue}>
-                  <span style={stageOld}>{oldStageName}</span>
-                  <span style={stageArrow}> → </span>
-                  <span style={stageNew}>{newStageName}</span>
-                </td>
-              </tr>
-            </table>
+            <Row style={infoRow}>
+              <Column style={infoLabelColumn}>
+                <Text style={infoLabelText}>Stage Change</Text>
+              </Column>
+              <Column style={infoValueColumn}>
+                <Text style={infoValueText}>
+                  <Text style={stageOld}>{oldStageName}</Text>
+                  <Text style={stageArrow}> → </Text>
+                  <Text style={stageNew}>{newStageName}</Text>
+                </Text>
+              </Column>
+            </Row>
           ) : (
-            <table style={infoTable}>
-              <tr>
-                <td style={infoLabel}>Change Type</td>
-                <td style={infoValue}>
-                  <span style={stageNew}>Owner Reassignment</span>
-                </td>
-              </tr>
-            </table>
+            <Row style={infoRow}>
+              <Column style={infoLabelColumn}>
+                <Text style={infoLabelText}>Change Type</Text>
+              </Column>
+              <Column style={infoValueColumn}>
+                <Text style={stageNew}>Owner Reassignment</Text>
+              </Column>
+            </Row>
           )}
         </Section>
 
@@ -142,11 +151,12 @@ export const DealOwnerChangeEmail = ({
         </Section>
 
         {/* Footer */}
-        <Text style={footer}>
-          This is an automated notification from SourceCo Pipeline
-          <br />
-          <span style={footerMuted}>Deal ID: {dealId}</span>
-        </Text>
+        <Section style={footerSection}>
+          <Text style={footerText}>
+            This is an automated notification from SourceCo Pipeline
+          </Text>
+          <Text style={footerMuted}>Deal ID: {dealId}</Text>
+        </Section>
       </Container>
     </Body>
   </Html>
@@ -226,29 +236,31 @@ const infoHeading = {
   fontWeight: '700',
 };
 
-const infoTable = {
-  width: '100%',
+const infoRow = {
   marginBottom: '12px',
 };
 
-const infoLabel = {
+const infoLabelColumn = {
+  width: '120px',
+  verticalAlign: 'top' as const,
+};
+
+const infoValueColumn = {
+  verticalAlign: 'top' as const,
+};
+
+const infoLabelText = {
   color: '#64748b',
   fontSize: '13px',
   fontWeight: '500',
-  paddingRight: '16px',
-  verticalAlign: 'top',
-  width: '120px',
+  margin: '0',
 };
 
-const infoValue = {
+const infoValueText = {
   color: '#0f172a',
   fontSize: '14px',
   fontWeight: '600',
-};
-
-const infoValueSecondary = {
-  color: '#64748b',
-  fontWeight: '400',
+  margin: '0',
 };
 
 const stageOld = {
@@ -257,11 +269,14 @@ const stageOld = {
   padding: '4px 8px',
   borderRadius: '4px',
   fontSize: '13px',
+  margin: '0',
+  display: 'inline' as const,
 };
 
 const stageArrow = {
   color: '#94a3b8',
   margin: '0 8px',
+  display: 'inline' as const,
 };
 
 const stageNew = {
@@ -271,6 +286,8 @@ const stageNew = {
   borderRadius: '4px',
   fontSize: '13px',
   fontWeight: '600',
+  margin: '0',
+  display: 'inline' as const,
 };
 
 const buttonContainer = {
@@ -288,7 +305,6 @@ const button = {
   display: 'inline-block',
   padding: '12px 32px',
   borderRadius: '6px',
-  transition: 'background-color 0.2s ease',
 };
 
 const infoBox = {
@@ -313,15 +329,22 @@ const infoBoxText = {
   lineHeight: '1.6',
 };
 
-const footer = {
+const footerSection = {
+  textAlign: 'center' as const,
+  marginTop: '24px',
+  borderTop: '1px solid #e2e8f0',
+  paddingTop: '24px',
+};
+
+const footerText = {
   color: '#94a3b8',
   fontSize: '12px',
   lineHeight: '20px',
-  textAlign: 'center' as const,
-  marginTop: '24px',
+  margin: '0 0 4px 0',
 };
 
 const footerMuted = {
   color: '#cbd5e1',
   fontSize: '11px',
+  margin: '0',
 };
