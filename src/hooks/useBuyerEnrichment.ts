@@ -22,8 +22,9 @@ export interface EnrichmentProgress {
   creditsDepleted: boolean;
 }
 
-const BATCH_SIZE = 2; // Reduced from 5 to avoid Gemini rate limits (each buyer makes 6 API calls)
-const BATCH_DELAY_MS = 2000; // Increased from 1000ms for better rate limit handling
+// Claude has much higher rate limits than Gemini - can process more buyers in parallel
+const BATCH_SIZE = 3; // Increased from 2 now that we use Claude (only 2 AI calls per buyer instead of 6)
+const BATCH_DELAY_MS = 1500; // Reduced delay since Claude has ~100 RPM vs Gemini's 15 RPM
 
 export function useBuyerEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
