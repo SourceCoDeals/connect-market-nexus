@@ -14,6 +14,7 @@ interface DealQualityScores {
   deal_motivation_score: number;
   scoring_notes?: string;
   industry_adjustment?: number;
+  universe_bonus?: number;
 }
 
 interface IndustryAdjustment {
@@ -22,6 +23,31 @@ interface IndustryAdjustment {
   margin_threshold_adjustment: number;
   size_multiplier: number;
   confidence: string;
+}
+
+interface UniverseCriteria {
+  size_criteria?: {
+    ebitda_min?: number;
+    ebitda_max?: number;
+    revenue_min?: number;
+    revenue_max?: number;
+    ebitda_multiple_min?: number;
+    ebitda_multiple_max?: number;
+  };
+  geography_criteria?: {
+    target_states?: string[];
+    exclude_states?: string[];
+    coverage?: string;
+  };
+  service_criteria?: {
+    primary_focus?: string[];
+    required_services?: string[];
+    preferred_services?: string[];
+    excluded_services?: string[];
+    business_model?: string;
+  };
+  ma_guide_content?: string;
+  name?: string;
 }
 
 /**
@@ -237,6 +263,215 @@ function calculateScoresFromData(
   };
 }
 
+/**
+ * Calculate universe-specific scoring bonuses when buyer universe context is provided.
+ * This adds bonuses when deals match the target criteria from buyer criteria and AI industry guides.
+ *
+ * Bonuses (0-15 pts total):
+ * - Sweet Spot Match (0-8 pts): Deal EBITDA/revenue falls within target range
+ * - Geography Match (0-4 pts): Deal location matches target states
+ * - Service/Industry Match (0-3 pts): Deal services match primary focus areas
+ */
+function calculateUniverseBonuses(
+  deal: any,
+  universe: UniverseCriteria
+): { bonus: number; notes: string[] } {
+  let totalBonus = 0;
+  const notes: string[] = [];
+
+  const ebitda = deal.ebitda || 0;
+  const revenue = deal.revenue || 0;
+  const dealStates = deal.geographic_states || [];
+  const dealLocation = (deal.location || '').toLowerCase();
+  const dealCategory = (deal.category || '').toLowerCase();
+  const dealServices = (deal.service_mix || '').toLowerCase();
+
+  // ===== 1. SWEET SPOT MATCH (0-8 pts) =====
+  // Strong bonus when deal falls perfectly within buyer's target size range
+  const sizeCriteria = universe.size_criteria;
+  if (sizeCriteria && ebitda > 0) {
+    const ebitdaMin = sizeCriteria.ebitda_min || 0;
+    const ebitdaMax = sizeCriteria.ebitda_max || Number.MAX_SAFE_INTEGER;
+    const revenueMin = sizeCriteria.revenue_min || 0;
+    const revenueMax = sizeCriteria.revenue_max || Number.MAX_SAFE_INTEGER;
+
+    // Check if within EBITDA sweet spot
+    const inEbitdaRange = ebitda >= ebitdaMin && ebitda <= ebitdaMax;
+    // Check if within revenue sweet spot (if we have revenue data)
+    const inRevenueRange = revenue === 0 || (revenue >= revenueMin && revenue <= revenueMax);
+
+    if (inEbitdaRange && inRevenueRange) {
+      // Perfect sweet spot - full bonus
+      totalBonus += 8;
+      notes.push(`Sweet spot match: EBITDA ${formatCurrency(ebitda)} within target range`);
+    } else if (inEbitdaRange || inRevenueRange) {
+      // Partial match - reduced bonus
+      totalBonus += 4;
+      notes.push('Partial size match with target criteria');
+    } else if (ebitda > 0 && ebitdaMin > 0) {
+      // Check if close to range (within 20%)
+      const lowerBound = ebitdaMin * 0.8;
+      const upperBound = ebitdaMax * 1.2;
+      if (ebitda >= lowerBound && ebitda <= upperBound) {
+        totalBonus += 2;
+        notes.push('Near target size range');
+      }
+    }
+  }
+
+  // ===== 2. GEOGRAPHY MATCH (0-4 pts) =====
+  // Bonus when deal location aligns with target geography
+  const geoCriteria = universe.geography_criteria;
+  if (geoCriteria) {
+    const targetStates = (geoCriteria.target_states || []).map(s => s.toLowerCase());
+    const excludeStates = (geoCriteria.exclude_states || []).map(s => s.toLowerCase());
+
+    // Check if deal is in an excluded state (no bonus, add warning)
+    const dealStatesLower = dealStates.map((s: string) => s.toLowerCase());
+    const inExcludedState = dealStatesLower.some((s: string) => excludeStates.includes(s));
+
+    if (inExcludedState) {
+      notes.push('Warning: Deal in excluded geographic region');
+    } else if (targetStates.length > 0) {
+      // Check if deal matches target states
+      const matchingStates = dealStatesLower.filter((s: string) => targetStates.includes(s));
+
+      if (matchingStates.length > 0) {
+        totalBonus += 4;
+        notes.push(`Geography match: ${matchingStates.join(', ').toUpperCase()}`);
+      } else if (dealLocation) {
+        // Try to match location string against target states
+        const locationMatch = targetStates.some(state =>
+          dealLocation.includes(state) || dealLocation.includes(getStateName(state))
+        );
+        if (locationMatch) {
+          totalBonus += 3;
+          notes.push('Location matches target geography');
+        }
+      }
+    } else if (geoCriteria.coverage === 'national') {
+      // National coverage - small bonus for any US deal
+      totalBonus += 2;
+      notes.push('National coverage criteria');
+    }
+  }
+
+  // ===== 3. SERVICE/INDUSTRY MATCH (0-3 pts) =====
+  // Bonus when deal services/industry match buyer's primary focus
+  const serviceCriteria = universe.service_criteria;
+  if (serviceCriteria) {
+    const primaryFocus = (serviceCriteria.primary_focus || []).map(s => s.toLowerCase());
+    const requiredServices = (serviceCriteria.required_services || []).map(s => s.toLowerCase());
+    const preferredServices = (serviceCriteria.preferred_services || []).map(s => s.toLowerCase());
+    const excludedServices = (serviceCriteria.excluded_services || []).map(s => s.toLowerCase());
+
+    // Check for excluded services (warning, no bonus)
+    const hasExcluded = excludedServices.some(excl =>
+      dealCategory.includes(excl) || dealServices.includes(excl)
+    );
+
+    if (hasExcluded) {
+      notes.push('Warning: Deal has excluded service type');
+    } else {
+      // Check primary focus match (strongest)
+      const matchesPrimary = primaryFocus.some(focus =>
+        dealCategory.includes(focus) || dealServices.includes(focus) || focus.includes(dealCategory)
+      );
+
+      // Check required services match
+      const matchesRequired = requiredServices.some(req =>
+        dealCategory.includes(req) || dealServices.includes(req)
+      );
+
+      // Check preferred services match
+      const matchesPreferred = preferredServices.some(pref =>
+        dealCategory.includes(pref) || dealServices.includes(pref)
+      );
+
+      if (matchesPrimary) {
+        totalBonus += 3;
+        notes.push('Primary focus match');
+      } else if (matchesRequired) {
+        totalBonus += 2;
+        notes.push('Required service match');
+      } else if (matchesPreferred) {
+        totalBonus += 1;
+        notes.push('Preferred service match');
+      }
+
+      // Check business model alignment
+      if (serviceCriteria.business_model) {
+        const dealDesc = (deal.description || deal.executive_summary || '').toLowerCase();
+        const targetModel = serviceCriteria.business_model.toLowerCase();
+
+        if (targetModel.includes('recurring') && (dealDesc.includes('recurring') || dealDesc.includes('subscription') || dealDesc.includes('contract'))) {
+          totalBonus += 1;
+          notes.push('Recurring revenue model match');
+        } else if (targetModel.includes('b2b') && dealDesc.includes('commercial')) {
+          totalBonus += 1;
+          notes.push('B2B business model match');
+        }
+      }
+    }
+  }
+
+  // ===== 4. AI INDUSTRY GUIDE INSIGHTS =====
+  // Extract relevant insights from the M&A guide if available
+  if (universe.ma_guide_content && universe.ma_guide_content.length > 1000) {
+    const guideContent = universe.ma_guide_content.toLowerCase();
+
+    // Check if the guide mentions this industry as attractive
+    if (dealCategory && guideContent.includes(dealCategory)) {
+      // Look for positive indicators near the industry mention
+      const attractiveKeywords = ['attractive', 'desirable', 'strong demand', 'active buyer', 'consolidation'];
+      const hasPositive = attractiveKeywords.some(kw => guideContent.includes(kw));
+
+      if (hasPositive) {
+        notes.push(`Industry guide: ${dealCategory} noted as attractive`);
+      }
+    }
+
+    // Add note that universe context was used
+    notes.unshift(`Scored with ${universe.name || 'buyer universe'} criteria`);
+  }
+
+  // Cap total bonus at 15 points
+  totalBonus = Math.min(15, totalBonus);
+
+  return { bonus: totalBonus, notes };
+}
+
+/**
+ * Helper to format currency for notes
+ */
+function formatCurrency(amount: number): string {
+  if (amount >= 1000000) {
+    return `$${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+    return `$${(amount / 1000).toFixed(0)}K`;
+  }
+  return `$${amount}`;
+}
+
+/**
+ * Helper to get state name from abbreviation
+ */
+function getStateName(abbrev: string): string {
+  const states: Record<string, string> = {
+    'al': 'alabama', 'ak': 'alaska', 'az': 'arizona', 'ar': 'arkansas', 'ca': 'california',
+    'co': 'colorado', 'ct': 'connecticut', 'de': 'delaware', 'fl': 'florida', 'ga': 'georgia',
+    'hi': 'hawaii', 'id': 'idaho', 'il': 'illinois', 'in': 'indiana', 'ia': 'iowa',
+    'ks': 'kansas', 'ky': 'kentucky', 'la': 'louisiana', 'me': 'maine', 'md': 'maryland',
+    'ma': 'massachusetts', 'mi': 'michigan', 'mn': 'minnesota', 'ms': 'mississippi', 'mo': 'missouri',
+    'mt': 'montana', 'ne': 'nebraska', 'nv': 'nevada', 'nh': 'new hampshire', 'nj': 'new jersey',
+    'nm': 'new mexico', 'ny': 'new york', 'nc': 'north carolina', 'nd': 'north dakota', 'oh': 'ohio',
+    'ok': 'oklahoma', 'or': 'oregon', 'pa': 'pennsylvania', 'ri': 'rhode island', 'sc': 'south carolina',
+    'sd': 'south dakota', 'tn': 'tennessee', 'tx': 'texas', 'ut': 'utah', 'vt': 'vermont',
+    'va': 'virginia', 'wa': 'washington', 'wv': 'west virginia', 'wi': 'wisconsin', 'wy': 'wyoming'
+  };
+  return states[abbrev.toLowerCase()] || abbrev;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -257,7 +492,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { listingId, calculateAll, rescoreAll } = body;
+    const { listingId, calculateAll, rescoreAll, universeId } = body;
 
     // Rate limit check
     const rateLimitResult = await checkRateLimit(supabase, userId, 'deal_scoring', false);
@@ -335,6 +570,39 @@ serve(async (req) => {
 
     console.log(`Scoring ${listingsToScore.length} listings...`);
 
+    // ===== FETCH BUYER UNIVERSE CRITERIA (if provided) =====
+    let universeCriteria: UniverseCriteria | null = null;
+
+    if (universeId) {
+      console.log(`Fetching buyer universe criteria for: ${universeId}`);
+
+      const { data: universe, error: universeError } = await supabase
+        .from('remarketing_buyer_universes')
+        .select('name, size_criteria, geography_criteria, service_criteria, ma_guide_content')
+        .eq('id', universeId)
+        .single();
+
+      if (universeError) {
+        console.warn(`Failed to fetch universe ${universeId}:`, universeError);
+      } else if (universe) {
+        universeCriteria = {
+          name: universe.name,
+          size_criteria: universe.size_criteria as UniverseCriteria['size_criteria'],
+          geography_criteria: universe.geography_criteria as UniverseCriteria['geography_criteria'],
+          service_criteria: universe.service_criteria as UniverseCriteria['service_criteria'],
+          ma_guide_content: universe.ma_guide_content || undefined,
+        };
+
+        console.log(`Using universe criteria from: ${universe.name}`);
+        if (universeCriteria.size_criteria) {
+          console.log('Size criteria:', JSON.stringify(universeCriteria.size_criteria));
+        }
+        if (universeCriteria.service_criteria?.primary_focus) {
+          console.log('Primary focus:', universeCriteria.service_criteria.primary_focus);
+        }
+      }
+    }
+
     // ===== FETCH LEARNED INDUSTRY ADJUSTMENTS =====
     const { data: industryAdjustments } = await supabase
       .from('industry_score_adjustments')
@@ -384,8 +652,34 @@ serve(async (req) => {
         // Find industry adjustment for this listing
         const industryAdjustment = findIndustryAdjustment(listing.category);
 
-        // Calculate scores based on deal data with learned adjustments
+        // Calculate base scores from deal data with learned adjustments
         const scores = calculateScoresFromData(listing, industryAdjustment);
+
+        // Apply universe-specific bonuses if universe context provided
+        let universeBonus = 0;
+        let allNotes: string[] = [];
+
+        if (scores.scoring_notes) {
+          allNotes.push(scores.scoring_notes);
+        }
+
+        if (universeCriteria) {
+          const { bonus, notes: universeNotes } = calculateUniverseBonuses(listing, universeCriteria);
+          universeBonus = bonus;
+
+          if (universeNotes.length > 0) {
+            allNotes = [...universeNotes, ...allNotes];
+          }
+
+          // Add bonus to total score (capped at 100)
+          scores.deal_total_score = Math.min(100, scores.deal_total_score + universeBonus);
+          scores.universe_bonus = universeBonus;
+        }
+
+        // Combine all scoring notes
+        if (allNotes.length > 0) {
+          scores.scoring_notes = allNotes.join("; ");
+        }
 
         // Update the listing
         const { error: updateError } = await supabase
@@ -408,6 +702,8 @@ serve(async (req) => {
             title: listing.title,
             scores,
             industryAdjustment: industryAdjustment?.score_adjustment || 0,
+            universeBonus: universeBonus,
+            scoringNotes: scores.scoring_notes,
           });
         }
       } catch (e) {
@@ -426,6 +722,8 @@ serve(async (req) => {
         errors,
         skippedOverrides,
         industryAdjustmentsApplied: results.filter(r => r.industryAdjustment !== 0).length,
+        universeBonusesApplied: universeCriteria ? results.filter(r => r.universeBonus > 0).length : 0,
+        universeUsed: universeCriteria ? universeCriteria.name : null,
         results: results.slice(0, 10), // Return first 10 for reference
         remaining: listingsToScore.length > 50 ? "More deals available, run again" : undefined,
       }),

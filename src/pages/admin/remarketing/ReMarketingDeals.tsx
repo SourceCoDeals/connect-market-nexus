@@ -456,6 +456,7 @@ const ReMarketingDeals = () => {
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
+  const [scoringUniverseId, setScoringUniverseId] = useState<string>("none");
   
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
@@ -947,14 +948,21 @@ const ReMarketingDeals = () => {
   }, [queryClient, toast]);
 
   // Handle calculate scores - uses edge function for realistic scoring algorithm
+  // Optionally uses buyer universe criteria for contextual scoring
   const handleCalculateScores = async () => {
     setIsCalculating(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
 
+      // Build request body - include universeId for contextual scoring if selected
+      const requestBody: { rescoreAll: boolean; universeId?: string } = { rescoreAll: true };
+      if (scoringUniverseId && scoringUniverseId !== "none") {
+        requestBody.universeId = scoringUniverseId;
+      }
+
       // Call the calculate-deal-quality edge function with rescoreAll to recalculate all scores
       const response = await supabase.functions.invoke('calculate-deal-quality', {
-        body: { rescoreAll: true },
+        body: requestBody,
         headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
       });
 
@@ -964,9 +972,18 @@ const ReMarketingDeals = () => {
 
       const result = response.data;
 
+      // Build description with universe context info
+      let description = result.message || `Scored ${result.scored || 0} deals`;
+      if (result.universeUsed) {
+        description += ` with ${result.universeUsed} criteria`;
+      }
+      if (result.universeBonusesApplied > 0) {
+        description += ` (${result.universeBonusesApplied} got universe bonuses)`;
+      }
+
       toast({
         title: "Scoring complete",
-        description: result.message || `Scored ${result.scored || 0} deals`
+        description
       });
 
       // Refetch listings to show updated scores
@@ -1009,14 +1026,37 @@ const ReMarketingDeals = () => {
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
           </Button>
-          <Button 
-            onClick={handleCalculateScores} 
-            disabled={isCalculating}
-            className="bg-slate-800 hover:bg-slate-700 text-white"
-          >
-            <Calculator className="h-4 w-4 mr-2" />
-            {isCalculating ? "Calculating..." : "Calculate Scores"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={scoringUniverseId} onValueChange={setScoringUniverseId}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="No Universe Context" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Universe Context</SelectItem>
+                {universes?.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleCalculateScores}
+                  disabled={isCalculating}
+                  className="bg-slate-800 hover:bg-slate-700 text-white"
+                >
+                  <Calculator className="h-4 w-4 mr-2" />
+                  {isCalculating ? "Calculating..." : "Calculate Scores"}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Score deals using buyer criteria and AI industry guides</p>
+                {scoringUniverseId !== "none" && (
+                  <p className="text-xs text-muted-foreground">Using universe criteria for bonuses</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="All Time" />
