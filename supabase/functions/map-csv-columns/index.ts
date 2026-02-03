@@ -42,6 +42,24 @@ const BUYER_FIELDS = [
   { field: 'notes', description: 'Additional notes' },
 ];
 
+// Deal/listing fields for importing companies for sale
+const DEAL_FIELDS = [
+  { field: 'title', description: 'Company name (REQUIRED)' },
+  { field: 'website', description: 'Company website URL' },
+  { field: 'location', description: 'Primary location (city, state or just state)' },
+  { field: 'revenue', description: 'Annual revenue in dollars' },
+  { field: 'ebitda', description: 'Annual EBITDA in dollars' },
+  { field: 'description', description: 'Company description or overview' },
+  { field: 'geographic_states', description: 'States where company operates (comma-separated)' },
+  { field: 'services', description: 'Services offered or industry sectors (comma-separated)' },
+  { field: 'notes', description: 'Additional notes or comments' },
+  { field: 'street_address', description: 'Street address' },
+  { field: 'address_city', description: 'City name' },
+  { field: 'address_state', description: 'State (2-letter code like TX, CA)' },
+  { field: 'address_zip', description: 'ZIP or postal code' },
+  { field: 'address_country', description: 'Country code (US, CA, etc.)' },
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,7 +80,7 @@ serve(async (req) => {
       );
     }
 
-    const fields = targetType === 'buyer' ? BUYER_FIELDS : BUYER_FIELDS;
+    const fields = targetType === 'buyer' ? BUYER_FIELDS : DEAL_FIELDS;
 
     // Build sample data string for context
     let sampleDataStr = '';
@@ -73,7 +91,8 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `You are a data mapping expert for M&A buyer data imports.
+    const systemPrompt = targetType === 'buyer'
+      ? `You are a data mapping expert for M&A buyer data imports.
 Given CSV column names and sample data, map them to target database fields.
 
 Be intelligent about variations:
@@ -86,7 +105,27 @@ Be intelligent about variations:
 - Columns with 2-letter codes (TX, CA) likely map to hq_state
 
 Return null for columns that don't match any field.
-Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.`;
+Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.`
+      : `You are a data mapping expert for M&A deal/company listings imports.
+Given CSV column names and sample data, map them to target database fields.
+
+Be intelligent about variations:
+- "Company Name", "Business Name", "Name", "Title" → title
+- "Website", "URL", "Site" → website
+- "Location", "City", "Address" → location (or address_city if specifically city)
+- "Revenue", "Sales", "Annual Revenue" → revenue
+- "EBITDA", "Earnings", "Profit" → ebitda
+- "Description", "About", "Overview", "Summary" → description
+- "States", "Regions", "Operating States" → geographic_states
+- "Services", "Industries", "Sectors" → services
+- "Street", "Address Line 1" → street_address
+- "City" → address_city
+- "State", "ST" → address_state
+- "ZIP", "Zip Code", "Postal Code" → address_zip
+- "Country" → address_country
+
+Return null for columns that don't match any field.
+Location can be city+state combined or just a general location string.`;
 
     const userPrompt = `Map these CSV columns to target fields:
 
@@ -141,14 +180,14 @@ Consider the sample data to make better decisions.`;
       if (response.status === 429) {
         console.log("Rate limited, falling back to heuristic mapping");
         return new Response(
-          JSON.stringify({ mappings: heuristicMapping(columns) }),
+          JSON.stringify({ mappings: heuristicMapping(columns, targetType) }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         console.log("Payment required, falling back to heuristic mapping");
         return new Response(
-          JSON.stringify({ mappings: heuristicMapping(columns) }),
+          JSON.stringify({ mappings: heuristicMapping(columns, targetType) }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -161,7 +200,7 @@ Consider the sample data to make better decisions.`;
     if (!toolCall) {
       console.log("No tool call, falling back to heuristic");
       return new Response(
-        JSON.stringify({ mappings: heuristicMapping(columns) }),
+        JSON.stringify({ mappings: heuristicMapping(columns, targetType) }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -175,7 +214,7 @@ Consider the sample data to make better decisions.`;
       }));
     } catch (e) {
       console.error("Failed to parse AI response, using heuristic");
-      mappings = heuristicMapping(columns);
+      mappings = heuristicMapping(columns, targetType);
     }
 
     return new Response(
@@ -191,106 +230,175 @@ Consider the sample data to make better decisions.`;
   }
 });
 
-function heuristicMapping(columns: string[]): ColumnMapping[] {
+function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal'): ColumnMapping[] {
   return columns.map(col => {
     const lower = col.toLowerCase();
     let targetField: string | null = null;
     let confidence = 0.5;
 
-    // Platform/Company name - most specific first
-    if (lower.includes('platform') && (lower.includes('company') || lower.includes('name'))) {
-      targetField = 'company_name';
-      confidence = 0.9;
-    } else if (lower.includes('company') || lower.includes('name') || lower.includes('firm')) {
-      targetField = 'company_name';
-      confidence = 0.8;
-    }
-    
-    // Websites - be specific about platform vs PE firm
-    else if (lower.includes('platform') && (lower.includes('website') || lower.includes('url') || lower.includes('site'))) {
-      targetField = 'platform_website';
-      confidence = 0.9;
-    } else if ((lower.includes('pe') || lower.includes('sponsor') || lower.includes('firm')) && 
-               (lower.includes('website') || lower.includes('url') || lower.includes('site'))) {
-      targetField = 'pe_firm_website';
-      confidence = 0.9;
-    } else if (lower.includes('website') || lower.includes('url') || lower.includes('site')) {
-      targetField = 'company_website';
-      confidence = 0.8;
-    }
-    
-    // PE Firm name
-    else if ((lower.includes('pe') || lower.includes('private equity') || lower.includes('sponsor')) && 
-             (lower.includes('name') || lower === 'pe firm' || lower === 'sponsor')) {
-      targetField = 'pe_firm_name';
-      confidence = 0.85;
-    }
-    
-    // Location - combined city/state
-    else if ((lower.includes('hq') || lower.includes('headquarters')) && 
-             (lower.includes('city') || lower.includes('state') || lower.includes('location'))) {
-      targetField = 'hq_city_state';
-      confidence = 0.8;
-    } else if (lower.includes('city') && lower.includes('state')) {
-      targetField = 'hq_city_state';
-      confidence = 0.85;
-    } else if (lower.includes('city') && !lower.includes('state')) {
-      targetField = 'hq_city';
-      confidence = 0.8;
-    } else if (lower.includes('state') && !lower.includes('city') && !lower.includes('target')) {
-      targetField = 'hq_state';
-      confidence = 0.75;
-    } else if (lower.includes('country')) {
-      targetField = 'hq_country';
-      confidence = 0.8;
-    }
-    
-    // Type
-    else if (lower.includes('type') || lower.includes('category')) {
-      targetField = 'buyer_type';
-      confidence = 0.7;
-    }
-    
-    // Thesis/Strategy
-    else if (lower.includes('thesis') || lower.includes('focus') || lower.includes('strategy')) {
-      targetField = 'thesis_summary';
-      confidence = 0.8;
-    }
-    
-    // Financial criteria
-    else if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('min')) {
-      targetField = 'target_revenue_min';
-      confidence = 0.9;
-    } else if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('max')) {
-      targetField = 'target_revenue_max';
-      confidence = 0.9;
-    } else if (lower.includes('ebitda') && lower.includes('min')) {
-      targetField = 'target_ebitda_min';
-      confidence = 0.9;
-    } else if (lower.includes('ebitda') && lower.includes('max')) {
-      targetField = 'target_ebitda_max';
-      confidence = 0.9;
-    }
-    
-    // Geography and services
-    else if (lower.includes('target') && (lower.includes('geography') || lower.includes('state') || lower.includes('region'))) {
-      targetField = 'target_geographies';
-      confidence = 0.75;
-    } else if (lower.includes('geography') || lower.includes('region')) {
-      targetField = 'target_geographies';
-      confidence = 0.6;
-    } else if (lower.includes('service') || lower.includes('industry') || lower.includes('sector')) {
-      targetField = 'target_services';
-      confidence = 0.7;
-    } else if (lower.includes('footprint') || lower.includes('location') || lower.includes('presence') || lower.includes('current')) {
-      targetField = 'geographic_footprint';
-      confidence = 0.6;
-    }
-    
-    // Notes
-    else if (lower.includes('note')) {
-      targetField = 'notes';
-      confidence = 0.8;
+    if (targetType === 'deal') {
+      // Deal-specific mapping logic
+      // Company name/title
+      if (lower.includes('company') || lower.includes('business') || lower.includes('name') || lower === 'title') {
+        targetField = 'title';
+        confidence = 0.9;
+      }
+      // Website
+      else if (lower.includes('website') || lower.includes('url') || lower.includes('site')) {
+        targetField = 'website';
+        confidence = 0.8;
+      }
+      // Location and address fields
+      else if (lower.includes('location') || lower === 'address') {
+        targetField = 'location';
+        confidence = 0.85;
+      }
+      else if (lower.includes('street') || lower.includes('address line')) {
+        targetField = 'street_address';
+        confidence = 0.8;
+      }
+      else if (lower === 'city' || (lower.includes('city') && !lower.includes('state'))) {
+        targetField = 'address_city';
+        confidence = 0.9;
+      }
+      else if (lower === 'state' || lower === 'st' || (lower.includes('state') && !lower.includes('city'))) {
+        targetField = 'address_state';
+        confidence = 0.85;
+      }
+      else if (lower.includes('zip') || lower.includes('postal')) {
+        targetField = 'address_zip';
+        confidence = 0.9;
+      }
+      else if (lower === 'country') {
+        targetField = 'address_country';
+        confidence = 0.8;
+      }
+      // Financial fields
+      else if (lower.includes('revenue') || lower.includes('sales')) {
+        targetField = 'revenue';
+        confidence = 0.85;
+      }
+      else if (lower.includes('ebitda') || lower.includes('earnings') || lower.includes('profit')) {
+        targetField = 'ebitda';
+        confidence = 0.85;
+      }
+      // Description
+      else if (lower.includes('description') || lower.includes('about') || lower.includes('overview') || lower.includes('summary')) {
+        targetField = 'description';
+        confidence = 0.8;
+      }
+      // Geographic states
+      else if (lower.includes('states') || lower.includes('regions') || lower.includes('operating')) {
+        targetField = 'geographic_states';
+        confidence = 0.7;
+      }
+      // Services/Industries
+      else if (lower.includes('service') || lower.includes('industry') || lower.includes('sector')) {
+        targetField = 'services';
+        confidence = 0.75;
+      }
+      // Notes
+      else if (lower.includes('note') || lower.includes('comment')) {
+        targetField = 'notes';
+        confidence = 0.7;
+      }
+    } else {
+      // Buyer-specific mapping logic (original)
+      // Platform/Company name - most specific first
+      if (lower.includes('platform') && (lower.includes('company') || lower.includes('name'))) {
+        targetField = 'company_name';
+        confidence = 0.9;
+      } else if (lower.includes('company') || lower.includes('name') || lower.includes('firm')) {
+        targetField = 'company_name';
+        confidence = 0.8;
+      }
+
+      // Websites - be specific about platform vs PE firm
+      else if (lower.includes('platform') && (lower.includes('website') || lower.includes('url') || lower.includes('site'))) {
+        targetField = 'platform_website';
+        confidence = 0.9;
+      } else if ((lower.includes('pe') || lower.includes('sponsor') || lower.includes('firm')) &&
+                 (lower.includes('website') || lower.includes('url') || lower.includes('site'))) {
+        targetField = 'pe_firm_website';
+        confidence = 0.9;
+      } else if (lower.includes('website') || lower.includes('url') || lower.includes('site')) {
+        targetField = 'company_website';
+        confidence = 0.8;
+      }
+
+      // PE Firm name
+      else if ((lower.includes('pe') || lower.includes('private equity') || lower.includes('sponsor')) &&
+               (lower.includes('name') || lower === 'pe firm' || lower === 'sponsor')) {
+        targetField = 'pe_firm_name';
+        confidence = 0.85;
+      }
+
+      // Location - combined city/state
+      else if ((lower.includes('hq') || lower.includes('headquarters')) &&
+               (lower.includes('city') || lower.includes('state') || lower.includes('location'))) {
+        targetField = 'hq_city_state';
+        confidence = 0.8;
+      } else if (lower.includes('city') && lower.includes('state')) {
+        targetField = 'hq_city_state';
+        confidence = 0.85;
+      } else if (lower.includes('city') && !lower.includes('state')) {
+        targetField = 'hq_city';
+        confidence = 0.8;
+      } else if (lower.includes('state') && !lower.includes('city') && !lower.includes('target')) {
+        targetField = 'hq_state';
+        confidence = 0.75;
+      } else if (lower.includes('country')) {
+        targetField = 'hq_country';
+        confidence = 0.8;
+      }
+
+      // Type
+      else if (lower.includes('type') || lower.includes('category')) {
+        targetField = 'buyer_type';
+        confidence = 0.7;
+      }
+
+      // Thesis/Strategy
+      else if (lower.includes('thesis') || lower.includes('focus') || lower.includes('strategy')) {
+        targetField = 'thesis_summary';
+        confidence = 0.8;
+      }
+
+      // Financial criteria
+      else if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('min')) {
+        targetField = 'target_revenue_min';
+        confidence = 0.9;
+      } else if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('max')) {
+        targetField = 'target_revenue_max';
+        confidence = 0.9;
+      } else if (lower.includes('ebitda') && lower.includes('min')) {
+        targetField = 'target_ebitda_min';
+        confidence = 0.9;
+      } else if (lower.includes('ebitda') && lower.includes('max')) {
+        targetField = 'target_ebitda_max';
+        confidence = 0.9;
+      }
+
+      // Geography and services
+      else if (lower.includes('target') && (lower.includes('geography') || lower.includes('state') || lower.includes('region'))) {
+        targetField = 'target_geographies';
+        confidence = 0.75;
+      } else if (lower.includes('geography') || lower.includes('region')) {
+        targetField = 'target_geographies';
+        confidence = 0.6;
+      } else if (lower.includes('service') || lower.includes('industry') || lower.includes('sector')) {
+        targetField = 'target_services';
+        confidence = 0.7;
+      } else if (lower.includes('footprint') || lower.includes('location') || lower.includes('presence') || lower.includes('current')) {
+        targetField = 'geographic_footprint';
+        confidence = 0.6;
+      }
+
+      // Notes
+      else if (lower.includes('note')) {
+        targetField = 'notes';
+        confidence = 0.8;
+      }
     }
 
     return {

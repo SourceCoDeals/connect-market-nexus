@@ -188,6 +188,11 @@ export const DealCSVImport = ({
             is_active: true,
             created_by: user?.id,
             category: "Other",
+            // Required field defaults
+            description: "",
+            revenue: 0,
+            ebitda: 0,
+            location: "Unknown",
           };
 
           columnMappings.forEach((mapping) => {
@@ -220,10 +225,26 @@ export const DealCSVImport = ({
               }
             }
           });
-          
+
           // Set default country if we have address fields but no country
           if ((listingData.address_city || listingData.address_state) && !listingData.address_country) {
             listingData.address_country = "US";
+          }
+
+          // Construct location from city/state if not provided
+          if (listingData.location === "Unknown") {
+            if (listingData.address_city && listingData.address_state) {
+              listingData.location = `${listingData.address_city}, ${listingData.address_state}`;
+            } else if (listingData.address_city) {
+              listingData.location = listingData.address_city;
+            } else if (listingData.address_state) {
+              listingData.location = listingData.address_state;
+            }
+          }
+
+          // Set description default to title if not provided
+          if (!listingData.description && listingData.title) {
+            listingData.description = listingData.title;
           }
 
           // Must have a title
