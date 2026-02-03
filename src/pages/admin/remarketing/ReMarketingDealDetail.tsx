@@ -52,6 +52,7 @@ import {
   AdditionalInfoCard,
   KeyQuotesCard,
   UniverseAssignmentButton,
+  BuyerHistoryDialog,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -61,6 +62,7 @@ const ReMarketingDealDetail = () => {
   
   const [isEnriching, setIsEnriching] = useState(false);
   const [isAnalyzingNotes, setIsAnalyzingNotes] = useState(false);
+  const [buyerHistoryOpen, setBuyerHistoryOpen] = useState(false);
 
   // Fetch deal/listing data
   const { data: deal, isLoading: dealLoading } = useQuery({
@@ -412,13 +414,24 @@ const ReMarketingDealDetail = () => {
               dealCategory={deal?.category}
               scoreCount={scoreStats?.count || 0}
             />
-            <Button variant="outline" className="gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => setBuyerHistoryOpen(true)}
+            >
               <History className="h-4 w-4" />
               Buyer History
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Buyer History Dialog */}
+      <BuyerHistoryDialog
+        open={buyerHistoryOpen}
+        onOpenChange={setBuyerHistoryOpen}
+        dealId={dealId!}
+      />
 
       {/* Company Overview - Full width with 3 columns */}
       <CompanyOverviewCard
