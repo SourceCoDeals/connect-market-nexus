@@ -203,15 +203,10 @@ export function DealImportDialog({
           }
 
           // listings.location is NOT NULL in schema; set a safe default.
-          // Use structured city/state when available; otherwise fall back.
-          const computedLocation =
-            parsedData.address_city && parsedData.address_state
-              ? `${parsedData.address_city}, ${parsedData.address_state}`
-              : parsedData.address_state
-                ? parsedData.address_state
-                : parsedData.address_city
-                  ? parsedData.address_city
-                  : "Unknown";
+          // Guard against any non-string values coming from incorrect mappings.
+          const city = typeof parsedData.address_city === 'string' ? parsedData.address_city : '';
+          const state = typeof parsedData.address_state === 'string' ? parsedData.address_state : '';
+          const computedLocation = city && state ? `${city}, ${state}` : state || city || "Unknown";
 
           // Build final listing object
           const listingData = sanitizeListingInsert({
@@ -220,14 +215,17 @@ export function DealImportDialog({
             location: computedLocation,
           });
 
-          // Hard requirements enforced by DB schema (avoid opaque NOT NULL failures)
+          // Hard requirements enforced by DB schema.
+          // Revenue/EBITDA/Description are NOT NULL in `listings`, but CSVs often omit them.
+          // Default them safely instead of failing the entire row.
           if (typeof listingData.revenue !== 'number' || Number.isNaN(listingData.revenue)) {
-            results.errors.push(`Row ${i + 2}: Missing required field: Revenue (map the correct column or provide a value)`);
-            continue;
+            (listingData as any).revenue = 0;
           }
           if (typeof listingData.ebitda !== 'number' || Number.isNaN(listingData.ebitda)) {
-            results.errors.push(`Row ${i + 2}: Missing required field: EBITDA (map the correct column or provide a value)`);
-            continue;
+            (listingData as any).ebitda = 0;
+          }
+          if (typeof listingData.description !== 'string') {
+            (listingData as any).description = '';
           }
 
           // Log what we're importing for debugging
