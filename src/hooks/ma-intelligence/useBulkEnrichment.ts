@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface EnrichmentProgress {
   current: number;
@@ -12,6 +13,7 @@ export interface BulkEnrichmentResult {
   enrichedCount: number;
   failedCount: number;
   partialCount: number;
+  rateLimited?: boolean;
 }
 
 interface UseBulkEnrichmentOptions {
@@ -23,11 +25,13 @@ interface UseBulkEnrichmentOptions {
 
 export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const {
     onComplete,
     maxRetries = 3,
     retryDelayMs = 2000,
-    betweenItemDelayMs = 500,
+    // Increase default delay to 3 seconds to respect rate limits (10 per minute = 6s ideally)
+    betweenItemDelayMs = 3000,
   } = options;
 
   const [isEnriching, setIsEnriching] = useState(false);
@@ -36,18 +40,23 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
 
   const enrichBuyer = useCallback(async (
     buyerId: string
-  ): Promise<{ success: boolean; partial?: boolean; reason?: string }> => {
+  ): Promise<{ success: boolean; partial?: boolean; reason?: string; rateLimited?: boolean }> => {
     try {
       const { data, error } = await supabase.functions.invoke('enrich-buyer', {
         body: { buyerId },
       });
 
       if (error) {
-        return { success: false, reason: error.message };
+        // Check for rate limit error
+        const isRateLimited = error.message?.includes('429') || 
+                              error.message?.toLowerCase().includes('rate limit');
+        return { success: false, reason: error.message, rateLimited: isRateLimited };
       }
 
       if (!data?.success) {
-        return { success: false, reason: data?.error || 'Unknown error' };
+        const isRateLimited = data?.error?.includes('rate limit') || 
+                              data?.error?.includes('429');
+        return { success: false, reason: data?.error || 'Unknown error', rateLimited: isRateLimited };
       }
 
       return { success: true, partial: !!data.warning };
@@ -111,6 +120,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     let enrichedCount = 0;
     let failedCount = 0;
     let partialCount = 0;
+    let rateLimited = false;
 
     try {
       for (let i = 0; i < unenrichedBuyers.length; i++) {
@@ -123,7 +133,21 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
         if (result.success) {
           enrichedCount++;
           if (result.partial) partialCount++;
+          
+          // Immediately invalidate queries for real-time UI updates
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyer.id] });
         } else {
+          // Check if rate limited - stop processing immediately
+          if (result.rateLimited) {
+            rateLimited = true;
+            toast({
+              title: 'Rate limit reached',
+              description: `Enriched ${enrichedCount} buyers. Please wait a minute before continuing.`,
+              variant: 'destructive',
+            });
+            break;
+          }
           failedCount++;
         }
 
@@ -133,26 +157,32 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
           return next;
         });
 
-        if (i < unenrichedBuyers.length - 1) {
+        // Wait between items to respect rate limits
+        if (i < unenrichedBuyers.length - 1 && !rateLimited) {
           await new Promise(resolve => setTimeout(resolve, betweenItemDelayMs));
         }
       }
 
-      const result = { success: true, enrichedCount, failedCount, partialCount };
+      const result = { success: !rateLimited, enrichedCount, failedCount, partialCount, rateLimited };
       onComplete?.(result);
 
-      toast({
-        title: 'Bulk enrichment complete',
-        description: `${enrichedCount} enriched${partialCount > 0 ? ` (${partialCount} partial)` : ''}${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
-      });
+      if (!rateLimited) {
+        toast({
+          title: 'Bulk enrichment complete',
+          description: `${enrichedCount} enriched${partialCount > 0 ? ` (${partialCount} partial)` : ''}${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+        });
+      }
 
       return result;
     } finally {
       setIsEnriching(false);
       setEnrichingIds(new Set());
       setProgress({ current: 0, total: 0 });
+      
+      // Final refresh of data
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
     }
-  }, [enrichBuyer, onComplete, betweenItemDelayMs, toast]);
+  }, [enrichBuyer, onComplete, betweenItemDelayMs, toast, queryClient]);
 
   const enrichAllDeals = useCallback(async (
     deals: Array<{ id: string; deal_name: string; transcript_link?: string; additional_info?: string; company_website?: string }>
