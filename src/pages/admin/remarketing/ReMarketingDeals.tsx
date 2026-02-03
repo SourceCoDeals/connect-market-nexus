@@ -168,9 +168,12 @@ const ReMarketingDeals = () => {
           internal_deal_memo_link,
           geographic_states,
           enriched_at,
-          employee_count,
-          lead_source,
-          ebitda_margin
+          linkedin_employee_count,
+          full_time_employees,
+          lead_source_id,
+          lead_sources (
+            name
+          )
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -395,16 +398,16 @@ const ReMarketingDeals = () => {
           bVal = b.ebitda || 0;
           break;
         case "employees":
-          aVal = a.employee_count || 0;
-          bVal = b.employee_count || 0;
+          aVal = a.linkedin_employee_count || a.full_time_employees || 0;
+          bVal = b.linkedin_employee_count || b.full_time_employees || 0;
           break;
         case "score":
           aVal = stats_a?.avgScore || 0;
           bVal = stats_b?.avgScore || 0;
           break;
         case "margin":
-          aVal = a.ebitda_margin || 0;
-          bVal = b.ebitda_margin || 0;
+          aVal = (a.ebitda && a.revenue) ? (a.ebitda / a.revenue) * 100 : 0;
+          bVal = (b.ebitda && b.revenue) ? (b.ebitda / b.revenue) * 100 : 0;
           break;
         case "engagement":
           aVal = (stats_a?.totalMatches || 0);
@@ -736,8 +739,8 @@ const ReMarketingDeals = () => {
 
                         {/* Employees */}
                         <TableCell className="text-right">
-                          {listing.employee_count ? (
-                            <span className="text-sm">{listing.employee_count}</span>
+                          {(listing.linkedin_employee_count || listing.full_time_employees) ? (
+                            <span className="text-sm">{listing.linkedin_employee_count || listing.full_time_employees}</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -757,9 +760,7 @@ const ReMarketingDeals = () => {
 
                         {/* Margin */}
                         <TableCell className="text-right">
-                          {listing.ebitda_margin ? (
-                            <span className="text-sm">{listing.ebitda_margin}%</span>
-                          ) : listing.ebitda && listing.revenue ? (
+                          {listing.ebitda && listing.revenue ? (
                             <span className="text-sm">{Math.round((listing.ebitda / listing.revenue) * 100)}%</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -786,8 +787,8 @@ const ReMarketingDeals = () => {
 
                         {/* Lead Source */}
                         <TableCell>
-                          {listing.lead_source ? (
-                            <span className="text-sm text-muted-foreground">{listing.lead_source}</span>
+                          {listing.lead_sources?.name ? (
+                            <span className="text-sm text-muted-foreground">{listing.lead_sources.name}</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
