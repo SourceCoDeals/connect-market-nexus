@@ -10,8 +10,8 @@ const corsHeaders = {
 
 interface DealQualityScores {
   deal_total_score: number;
-  deal_quality_score: number;
   deal_size_score: number;
+  deal_services_score: number;
   scoring_notes?: string;
 }
 
@@ -19,257 +19,149 @@ interface DealQualityScores {
  * Calculate deal quality score based on deal attributes.
  * This is the overall quality of the deal, NOT how well it fits a specific buyer.
  *
- * Scoring methodology (0-100):
+ * SIMPLIFIED SCORING METHODOLOGY (0-100):
  *
- * 1. Data Completeness (0-20 pts):
- *    - Has revenue: +5
- *    - Has EBITDA: +5
- *    - Has location: +3
- *    - Has description/summary: +3
- *    - Has services/industry: +2
- *    - Has employee count: +2
+ * 1. SIZE (0-65 pts) - 65% weight - This is what matters most
+ *    - Based on revenue, EBITDA, or LinkedIn employee count as proxy
+ *    - Larger deals = higher scores
  *
- * 2. Financial Quality (0-30 pts):
- *    - Revenue > $5M: +15, > $2M: +10, > $1M: +5
- *    - EBITDA margin > 20%: +10, > 15%: +7, > 10%: +4
- *    - EBITDA > $500K: +5
+ * 2. SERVICES/BUSINESS TYPE (0-15 pts) - 15% weight
+ *    - Industry attractiveness for M&A
+ *    - Recurring revenue models score higher
  *
- * 3. Business Quality (0-25 pts):
- *    - Clear business model: +8
- *    - Multiple service lines: +5
- *    - Established (>10 years): +5, (>5 years): +3
- *    - Multiple locations: +7
+ * 3. SELLER INTEREST (0-20 pts) - 20% weight
+ *    - Pulled from seller_interest_score (AI-analyzed separately)
+ *    - Indicates how motivated the seller is
  *
- * 4. Deal Readiness (0-25 pts):
- *    - Has asking price: +5
- *    - Has seller motivation: +5
- *    - Has financials shared: +5
- *    - Has CIM/deal memo: +5
- *    - Recent engagement: +5
+ * NOTE: Data completeness does NOT affect score. A great deal with little
+ * data is still a great deal - we just need to get more info on it.
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
-  let totalScore = 0;
-  let qualityScore = 0;
   let sizeScore = 0;
-  let motivationScore = 0;
+  let servicesScore = 0;
+  let sellerInterestScore = 0;
   const notes: string[] = [];
 
-  // ===== DATA COMPLETENESS (0-20 pts) =====
-  let completenessScore = 0;
-
-  if (deal.revenue && deal.revenue > 0) {
-    completenessScore += 5;
-  } else {
-    notes.push("Missing revenue data");
-  }
-
-  if (deal.ebitda && deal.ebitda > 0) {
-    completenessScore += 5;
-  } else {
-    notes.push("Missing EBITDA data");
-  }
-
-  if (deal.location || deal.address) {
-    completenessScore += 3;
-  }
-
-  if (deal.description || deal.executive_summary) {
-    completenessScore += 3;
-  }
-
-  if (deal.category || deal.service_mix) {
-    completenessScore += 2;
-  }
-
-  if (deal.full_time_employees || deal.linkedin_employee_count) {
-    completenessScore += 2;
-  }
-
-  // ===== FINANCIAL QUALITY / SIZE SCORE (0-30 pts) =====
+  // ===== SIZE SCORE (0-65 pts) =====
+  // Size is 65% of what matters in deal quality
   const revenue = deal.revenue || 0;
   const ebitda = deal.ebitda || 0;
-  const employeeCount = deal.full_time_employees || deal.linkedin_employee_count || 0;
+  const employeeCount = deal.linkedin_employee_count || 0;
   const hasFinancials = revenue > 0 || ebitda > 0;
 
   if (hasFinancials) {
     // PRIMARY PATH: Use actual financials when available
 
-    // Revenue scoring
-    if (revenue >= 5000000) {
-      sizeScore += 15;
+    // Revenue-based scoring (0-40 pts)
+    if (revenue >= 10000000) {
+      sizeScore += 40; // $10M+ revenue
+    } else if (revenue >= 5000000) {
+      sizeScore += 35; // $5-10M revenue
+    } else if (revenue >= 3000000) {
+      sizeScore += 28; // $3-5M revenue
     } else if (revenue >= 2000000) {
-      sizeScore += 10;
+      sizeScore += 22; // $2-3M revenue
     } else if (revenue >= 1000000) {
-      sizeScore += 5;
+      sizeScore += 15; // $1-2M revenue
+    } else if (revenue >= 500000) {
+      sizeScore += 8;  // $500K-1M revenue
     } else if (revenue > 0) {
-      sizeScore += 2;
+      sizeScore += 3;  // Under $500K
     }
 
-    // EBITDA margin scoring
-    if (revenue > 0 && ebitda > 0) {
-      const margin = ebitda / revenue;
-      if (margin >= 0.20) {
-        sizeScore += 10;
-      } else if (margin >= 0.15) {
-        sizeScore += 7;
-      } else if (margin >= 0.10) {
-        sizeScore += 4;
-      } else if (margin > 0) {
-        sizeScore += 2;
-      }
-    }
-
-    // Absolute EBITDA scoring
-    if (ebitda >= 500000) {
-      sizeScore += 5;
-    } else if (ebitda >= 200000) {
-      sizeScore += 3;
+    // EBITDA-based bonus (0-25 pts)
+    if (ebitda >= 2000000) {
+      sizeScore += 25; // $2M+ EBITDA
+    } else if (ebitda >= 1000000) {
+      sizeScore += 20; // $1-2M EBITDA
+    } else if (ebitda >= 500000) {
+      sizeScore += 15; // $500K-1M EBITDA
+    } else if (ebitda >= 250000) {
+      sizeScore += 10; // $250-500K EBITDA
+    } else if (ebitda >= 100000) {
+      sizeScore += 5;  // $100-250K EBITDA
+    } else if (ebitda > 0) {
+      sizeScore += 2;  // Under $100K EBITDA
     }
   } else if (employeeCount > 0) {
-    // PROXY PATH: Estimate size from employee count when no financials
-    // Industry average: ~$300K-500K revenue per employee for services
-    notes.push('Size estimated from employee count (no financials)');
+    // PROXY PATH: Estimate size from LinkedIn employee count when no financials
+    // Industry average: ~$200K-400K revenue per employee for services businesses
+    notes.push('Size estimated from LinkedIn employee count');
 
-    if (employeeCount >= 100) {
-      sizeScore += 20; // Likely $30M+ revenue
+    if (employeeCount >= 200) {
+      sizeScore += 65; // Likely $40M+ revenue - top tier
+    } else if (employeeCount >= 100) {
+      sizeScore += 55; // Likely $20-40M revenue
     } else if (employeeCount >= 50) {
-      sizeScore += 15; // Likely $15-30M revenue
+      sizeScore += 45; // Likely $10-20M revenue
     } else if (employeeCount >= 25) {
-      sizeScore += 10; // Likely $7-15M revenue
+      sizeScore += 35; // Likely $5-10M revenue
+    } else if (employeeCount >= 15) {
+      sizeScore += 25; // Likely $3-5M revenue
     } else if (employeeCount >= 10) {
-      sizeScore += 6;  // Likely $3-6M revenue
+      sizeScore += 18; // Likely $2-3M revenue
     } else if (employeeCount >= 5) {
-      sizeScore += 3;  // Likely $1.5-3M revenue
+      sizeScore += 10; // Likely $1-2M revenue
     } else {
-      sizeScore += 1;  // Small business
+      sizeScore += 4;  // Small business
     }
   } else {
-    notes.push('No financials or employee data - size cannot be scored');
+    notes.push('No financials or employee data - size unknown');
+    // No penalty - just can't score size yet
   }
 
-  // ===== REVIEWS AS QUALITY INDICATOR (Consumer/Residential businesses only) =====
-  // Only apply review scoring for consumer-facing businesses, not B2B
-  const reviewCount = deal.google_review_count || deal.review_count || 0;
+  // Cap size score at 65
+  sizeScore = Math.min(65, sizeScore);
+
+  // ===== SERVICES/BUSINESS TYPE SCORE (0-15 pts) =====
+  // Certain industries/business models are more attractive for M&A
   const category = (deal.category || '').toLowerCase();
+  const serviceMix = (deal.service_mix || '').toLowerCase();
+  const businessModel = (deal.business_model || '').toLowerCase();
   const description = (deal.description || deal.executive_summary || '').toLowerCase();
-  const title = (deal.title || '').toLowerCase();
+  const allText = `${category} ${serviceMix} ${businessModel} ${description}`;
 
-  // Identify if this is a consumer/residential business vs B2B
-  const consumerKeywords = [
-    'residential', 'home', 'hvac', 'plumbing', 'roofing', 'landscaping',
-    'pest', 'cleaning', 'restoration', 'moving', 'storage', 'automotive',
-    'collision', 'auto body', 'dental', 'veterinary', 'medical', 'healthcare',
-    'fitness', 'salon', 'spa', 'restaurant', 'retail', 'consumer'
-  ];
-  const b2bKeywords = [
-    'commercial', 'industrial', 'manufacturing', 'b2b', 'enterprise',
-    'consulting', 'staffing', 'wholesale', 'distribution', 'logistics',
-    'professional services', 'software', 'saas', 'technology'
-  ];
+  // High-value recurring revenue businesses (15 pts)
+  const recurringKeywords = ['recurring', 'subscription', 'contract', 'maintenance', 'managed services', 'saas', 'membership'];
+  if (recurringKeywords.some(kw => allText.includes(kw))) {
+    servicesScore += 15;
+    notes.push('Recurring revenue model');
+  }
+  // Essential services / recession-resistant (12 pts)
+  else if (['hvac', 'plumbing', 'electrical', 'roofing', 'pest control', 'waste', 'healthcare', 'dental', 'veterinary'].some(kw => allText.includes(kw))) {
+    servicesScore += 12;
+  }
+  // Professional services / B2B (10 pts)
+  else if (['staffing', 'consulting', 'engineering', 'it services', 'accounting', 'legal'].some(kw => allText.includes(kw))) {
+    servicesScore += 10;
+  }
+  // General services (8 pts)
+  else if (['landscaping', 'cleaning', 'restoration', 'construction', 'manufacturing'].some(kw => allText.includes(kw))) {
+    servicesScore += 8;
+  }
+  // Has category but not a high-value one (5 pts)
+  else if (category) {
+    servicesScore += 5;
+  }
 
-  const isConsumerBusiness = consumerKeywords.some(kw =>
-    category.includes(kw) || description.includes(kw) || title.includes(kw)
-  );
-  const isB2B = b2bKeywords.some(kw =>
-    category.includes(kw) || description.includes(kw) || title.includes(kw)
-  );
-
-  // Only apply review scoring for consumer businesses (not B2B)
-  if (reviewCount > 0 && isConsumerBusiness && !isB2B) {
-    if (reviewCount >= 500) {
-      qualityScore += 8;
-      notes.push(`Strong consumer presence: ${reviewCount} reviews`);
-    } else if (reviewCount >= 200) {
-      qualityScore += 6;
-    } else if (reviewCount >= 100) {
-      qualityScore += 4;
-    } else if (reviewCount >= 50) {
-      qualityScore += 2;
-    } else if (reviewCount > 0) {
-      qualityScore += 1;
+  // ===== SELLER INTEREST SCORE (0-20 pts) =====
+  // This comes from the AI-analyzed seller_interest_score (0-100)
+  // Scale it to 0-20 pts for the total score
+  if (deal.seller_interest_score !== null && deal.seller_interest_score !== undefined) {
+    sellerInterestScore = Math.round((deal.seller_interest_score / 100) * 20);
+    if (deal.seller_interest_score >= 70) {
+      notes.push('High seller motivation');
     }
   }
-
-  // ===== BUSINESS QUALITY (0-25 pts) =====
-
-  // Business model clarity
-  if (deal.business_model || deal.service_mix) {
-    qualityScore += 8;
-  }
-
-  // Multiple service lines
-  const services = deal.service_mix?.split(',') || [];
-  if (services.length >= 3) {
-    qualityScore += 5;
-  } else if (services.length >= 2) {
-    qualityScore += 3;
-  }
-
-  // Company age/establishment
-  if (deal.founded_year) {
-    const age = new Date().getFullYear() - deal.founded_year;
-    if (age >= 10) {
-      qualityScore += 5;
-    } else if (age >= 5) {
-      qualityScore += 3;
-    } else if (age >= 2) {
-      qualityScore += 1;
-    }
-  }
-
-  // Multiple locations
-  const locationCount = deal.number_of_locations || deal.location_count || 1;
-  if (locationCount >= 3) {
-    qualityScore += 7;
-  } else if (locationCount >= 2) {
-    qualityScore += 4;
-  }
-
-  // ===== DEAL READINESS / MOTIVATION SCORE (0-25 pts) =====
-
-  // Has asking price
-  if (deal.asking_price && deal.asking_price > 0) {
-    motivationScore += 5;
-  }
-
-  // Has seller motivation
-  if (deal.seller_motivation || deal.owner_goals) {
-    motivationScore += 5;
-  }
-
-  // Has financials/docs shared
-  if (deal.financials_shared || deal.has_cim) {
-    motivationScore += 5;
-  }
-
-  // Has deal memo/CIM link
-  if (deal.internal_deal_memo_link) {
-    motivationScore += 5;
-  }
-
-  // Recent engagement (enriched or updated recently)
-  const enrichedAt = deal.enriched_at ? new Date(deal.enriched_at) : null;
-  const updatedAt = deal.updated_at ? new Date(deal.updated_at) : null;
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  if ((enrichedAt && enrichedAt > thirtyDaysAgo) || (updatedAt && updatedAt > thirtyDaysAgo)) {
-    motivationScore += 5;
-  }
+  // If no seller interest score yet, don't penalize - just can't contribute
 
   // ===== CALCULATE TOTAL =====
-  totalScore = completenessScore + sizeScore + qualityScore + motivationScore;
-
-  // Ensure scores are within bounds
-  totalScore = Math.min(100, Math.max(0, totalScore));
-  qualityScore = Math.min(25, Math.max(0, qualityScore));
-  sizeScore = Math.min(30, Math.max(0, sizeScore));
-  motivationScore = Math.min(25, Math.max(0, motivationScore));
+  const totalScore = sizeScore + servicesScore + sellerInterestScore;
 
   return {
-    deal_total_score: totalScore,
-    deal_quality_score: qualityScore,
+    deal_total_score: Math.min(100, Math.max(0, totalScore)),
     deal_size_score: sizeScore,
+    deal_services_score: servicesScore,
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
@@ -369,12 +261,12 @@ serve(async (req) => {
         // Calculate scores based on deal data
         const scores = calculateScoresFromData(listing);
 
-        // Update the listing (seller_interest_score comes from analyze-seller-interest function)
+        // Update the listing
+        // Note: deal_quality_score field stores the services score (repurposed)
         const { error: updateError } = await supabase
           .from("listings")
           .update({
             deal_total_score: scores.deal_total_score,
-            deal_quality_score: scores.deal_quality_score,
             deal_size_score: scores.deal_size_score,
           })
           .eq("id", listing.id);
