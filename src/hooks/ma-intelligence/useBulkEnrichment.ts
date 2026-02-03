@@ -39,6 +39,8 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<EnrichmentProgress>({ current: 0, total: 0 });
 
+  // NOTE: parseInvokeError is defined once in this hook (kept below) to avoid duplicate const declarations.
+
   const parseInvokeError = (err: unknown): {
     message: string;
     status?: number;

@@ -28,6 +28,26 @@ const BATCH_DELAY_MS = 2000; // Increased from 1000ms for better rate limit hand
 export function useBuyerEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
   const cancelledRef = useRef(false);
+
+  const parseInvokeError = (err: unknown): {
+    message: string;
+    status?: number;
+    code?: string;
+    resetTime?: string;
+  } => {
+    const anyErr = err as any;
+    const status = anyErr?.context?.status as number | undefined;
+    const json = anyErr?.context?.json as any | undefined;
+    return {
+      message:
+        json?.error ||
+        anyErr?.message ||
+        (status ? `Request failed (HTTP ${status})` : 'Request failed'),
+      status,
+      code: json?.code,
+      resetTime: json?.resetTime,
+    };
+  };
   
   const [progress, setProgress] = useState<EnrichmentProgress>({
     current: 0,
@@ -108,12 +128,23 @@ export function useBuyerEnrichment(universeId?: string) {
             body: { buyerId: buyer.id }
           });
           
-          if (error) throw error;
+          if (error) {
+            // Preserve status/code/resetTime for downstream fail-fast handling
+            const parsed = parseInvokeError(error);
+            const e = new Error(parsed.message);
+            (e as any).status = parsed.status;
+            (e as any).code = parsed.code;
+            (e as any).resetTime = parsed.resetTime;
+            throw e;
+          }
           
           // Check for error in response body (edge function may return 200 with error in body)
           if (data && !data.success) {
             const errorObj = new Error(data.error || 'Enrichment failed');
             (errorObj as any).errorCode = data.error_code;
+            (errorObj as any).status = data?.status;
+            (errorObj as any).code = data?.code;
+            (errorObj as any).resetTime = data?.resetTime;
             throw errorObj;
           }
           
@@ -151,19 +182,25 @@ export function useBuyerEnrichment(universeId?: string) {
         } else {
           failed++;
           const error = result.reason;
-          const errorMessage = error?.message || 'Unknown error';
-          const errorCode = (error as any)?.errorCode;
+          const parsed = parseInvokeError(error);
+          const status = (error as any)?.status as number | undefined;
+          const code = (error as any)?.code as string | undefined;
+          const resetTime = (error as any)?.resetTime as string | undefined;
+          const errorMessage = parsed.message || 'Unknown error';
+          const errorCode = (error as any)?.errorCode || code;
+          const extra = resetTime ? ` (reset: ${new Date(resetTime).toLocaleTimeString()})` : '';
           
           updateStatus(buyer.id, { 
             buyerId: buyer.id, 
             status: 'error', 
-            error: errorMessage,
+            error: `${errorMessage}${extra}`,
             errorCode 
           });
 
           // Check for payment/credits error - fail fast
           if (
             errorCode === 'payment_required' ||
+            status === 402 ||
             errorMessage.includes('402') ||
             errorMessage.includes('credits') ||
             errorMessage.includes('payment')
@@ -195,6 +232,7 @@ export function useBuyerEnrichment(universeId?: string) {
           // Check for rate limit error - fail fast (avoid hammering the API)
           if (
             errorCode === 'rate_limited' ||
+            status === 429 ||
             errorMessage.includes('429') ||
             errorMessage.toLowerCase().includes('rate limit')
           ) {
@@ -209,7 +247,9 @@ export function useBuyerEnrichment(universeId?: string) {
             }));
 
             toast.warning(
-              'Rate limit reached. Please wait ~1–2 minutes and run enrichment again.',
+              resetTime
+                ? `Rate limit reached. Try again after ${new Date(resetTime).toLocaleTimeString()}.`
+                : 'Rate limit reached. Please wait ~1–2 minutes and run enrichment again.',
               { duration: 10000 }
             );
 
