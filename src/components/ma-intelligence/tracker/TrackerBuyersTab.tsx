@@ -8,6 +8,7 @@ import { AddBuyerDialog } from "./AddBuyerDialog";
 import { DedupeDialog } from "./DedupeDialog";
 import { useToast } from "@/hooks/use-toast";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
+import { useRealtimeTrackerBuyers } from "@/hooks/ma-intelligence/useRealtimeTrackerBuyers";
 
 interface TrackerBuyersTabProps {
   trackerId: string;
@@ -56,6 +57,14 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       setIsLoading(false);
     }
   };
+
+  useRealtimeTrackerBuyers({
+    trackerId,
+    enabled: !!trackerId && trackerId !== "new",
+    buyers,
+    onChange: setBuyers,
+    onRefresh: loadBuyers,
+  });
 
   const handleBulkEnrich = async () => {
     if (selectedBuyers.size === 0) {
