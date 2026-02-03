@@ -11,7 +11,6 @@ const corsHeaders = {
 interface DealQualityScores {
   deal_total_score: number;
   deal_size_score: number;
-  deal_services_score: number;
   scoring_notes?: string;
 }
 
@@ -19,31 +18,35 @@ interface DealQualityScores {
  * Calculate deal quality score based on deal attributes.
  * This is the overall quality of the deal, NOT how well it fits a specific buyer.
  *
- * SIMPLIFIED SCORING METHODOLOGY (0-100):
+ * SCORING METHODOLOGY (0-100):
  *
- * 1. SIZE (0-65 pts) - 65% weight - This is what matters most
+ * 1. SIZE (0-70 pts) - 70% weight - This is what matters most
  *    - Based on revenue, EBITDA, or LinkedIn employee count as proxy
  *    - Larger deals = higher scores
  *
- * 2. SERVICES/BUSINESS TYPE (0-15 pts) - 15% weight
- *    - Industry attractiveness for M&A
- *    - Recurring revenue models score higher
+ * 2. GEOGRAPHY (0-10 pts) - 10% weight
+ *    - Urban/metro areas score higher than rural
+ *    - Major cities get bonus points
  *
- * 3. SELLER INTEREST (0-20 pts) - 20% weight
+ * 3. SERVICES/BUSINESS TYPE (0-5 pts) - 5% weight
+ *    - Recurring revenue and essential services score higher
+ *
+ * 4. SELLER INTEREST (0-15 pts) - 15% weight
  *    - Pulled from seller_interest_score (AI-analyzed separately)
- *    - Indicates how motivated the seller is
+ *    - If no seller interest score, max possible is 85 pts
  *
  * NOTE: Data completeness does NOT affect score. A great deal with little
  * data is still a great deal - we just need to get more info on it.
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
   let sizeScore = 0;
+  let geographyScore = 0;
   let servicesScore = 0;
   let sellerInterestScore = 0;
   const notes: string[] = [];
 
-  // ===== SIZE SCORE (0-65 pts) =====
-  // Size is 65% of what matters in deal quality
+  // ===== SIZE SCORE (0-70 pts) =====
+  // Size is 70% of what matters in deal quality
   const revenue = deal.revenue || 0;
   const ebitda = deal.ebitda || 0;
   const employeeCount = deal.linkedin_employee_count || 0;
@@ -52,17 +55,17 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   if (hasFinancials) {
     // PRIMARY PATH: Use actual financials when available
 
-    // Revenue-based scoring (0-40 pts)
+    // Revenue-based scoring (0-45 pts)
     if (revenue >= 10000000) {
-      sizeScore += 40; // $10M+ revenue
+      sizeScore += 45; // $10M+ revenue
     } else if (revenue >= 5000000) {
-      sizeScore += 35; // $5-10M revenue
+      sizeScore += 38; // $5-10M revenue
     } else if (revenue >= 3000000) {
-      sizeScore += 28; // $3-5M revenue
+      sizeScore += 30; // $3-5M revenue
     } else if (revenue >= 2000000) {
-      sizeScore += 22; // $2-3M revenue
+      sizeScore += 24; // $2-3M revenue
     } else if (revenue >= 1000000) {
-      sizeScore += 15; // $1-2M revenue
+      sizeScore += 16; // $1-2M revenue
     } else if (revenue >= 500000) {
       sizeScore += 8;  // $500K-1M revenue
     } else if (revenue > 0) {
@@ -89,79 +92,108 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     notes.push('Size estimated from LinkedIn employee count');
 
     if (employeeCount >= 200) {
-      sizeScore += 65; // Likely $40M+ revenue - top tier
+      sizeScore += 70; // Likely $40M+ revenue - top tier
     } else if (employeeCount >= 100) {
-      sizeScore += 55; // Likely $20-40M revenue
+      sizeScore += 58; // Likely $20-40M revenue
     } else if (employeeCount >= 50) {
-      sizeScore += 45; // Likely $10-20M revenue
+      sizeScore += 48; // Likely $10-20M revenue
     } else if (employeeCount >= 25) {
-      sizeScore += 35; // Likely $5-10M revenue
+      sizeScore += 38; // Likely $5-10M revenue
     } else if (employeeCount >= 15) {
-      sizeScore += 25; // Likely $3-5M revenue
+      sizeScore += 28; // Likely $3-5M revenue
     } else if (employeeCount >= 10) {
-      sizeScore += 18; // Likely $2-3M revenue
+      sizeScore += 20; // Likely $2-3M revenue
     } else if (employeeCount >= 5) {
-      sizeScore += 10; // Likely $1-2M revenue
+      sizeScore += 12; // Likely $1-2M revenue
     } else {
-      sizeScore += 4;  // Small business
+      sizeScore += 5;  // Small business
     }
   } else {
     notes.push('No financials or employee data - size unknown');
     // No penalty - just can't score size yet
   }
 
-  // Cap size score at 65
-  sizeScore = Math.min(65, sizeScore);
+  // Cap size score at 70
+  sizeScore = Math.min(70, sizeScore);
 
-  // ===== SERVICES/BUSINESS TYPE SCORE (0-15 pts) =====
-  // Certain industries/business models are more attractive for M&A
+  // ===== GEOGRAPHY SCORE (0-10 pts) =====
+  // Urban/metro areas are more valuable than rural
+  const city = (deal.address_city || '').toLowerCase();
+  const state = (deal.address_state || '').toUpperCase();
+  const location = (deal.location || '').toLowerCase();
+
+  // Major metro areas (10 pts)
+  const majorMetros = [
+    'new york', 'los angeles', 'chicago', 'houston', 'phoenix', 'philadelphia',
+    'san antonio', 'san diego', 'dallas', 'austin', 'san jose', 'san francisco',
+    'seattle', 'denver', 'boston', 'atlanta', 'miami', 'washington', 'dc',
+    'minneapolis', 'tampa', 'orlando', 'detroit', 'portland', 'charlotte',
+    'nashville', 'las vegas', 'baltimore', 'indianapolis', 'columbus', 'jacksonville'
+  ];
+
+  // Secondary cities (7 pts)
+  const secondaryCities = [
+    'raleigh', 'richmond', 'sacramento', 'kansas city', 'st louis', 'pittsburgh',
+    'cincinnati', 'milwaukee', 'oklahoma city', 'memphis', 'louisville', 'tucson',
+    'albuquerque', 'fresno', 'mesa', 'omaha', 'colorado springs', 'tulsa',
+    'arlington', 'bakersfield', 'wichita', 'boise', 'salt lake'
+  ];
+
+  // High-value states for services businesses (bonus for being in these states at all)
+  const highValueStates = ['TX', 'FL', 'CA', 'AZ', 'NC', 'GA', 'TN', 'CO', 'WA'];
+
+  const locationText = `${city} ${location}`;
+
+  if (majorMetros.some(metro => locationText.includes(metro))) {
+    geographyScore = 10;
+    notes.push('Major metro area');
+  } else if (secondaryCities.some(c => locationText.includes(c))) {
+    geographyScore = 7;
+  } else if (highValueStates.includes(state)) {
+    geographyScore = 5; // In a good state but not a major city
+  } else if (city || state) {
+    geographyScore = 3; // Has location but not premium
+  }
+  // No geography info = 0 pts (not penalized, just can't contribute)
+
+  // ===== SERVICES/BUSINESS TYPE SCORE (0-5 pts) =====
   const category = (deal.category || '').toLowerCase();
   const serviceMix = (deal.service_mix || '').toLowerCase();
   const businessModel = (deal.business_model || '').toLowerCase();
   const description = (deal.description || deal.executive_summary || '').toLowerCase();
   const allText = `${category} ${serviceMix} ${businessModel} ${description}`;
 
-  // High-value recurring revenue businesses (15 pts)
-  const recurringKeywords = ['recurring', 'subscription', 'contract', 'maintenance', 'managed services', 'saas', 'membership'];
-  if (recurringKeywords.some(kw => allText.includes(kw))) {
-    servicesScore += 15;
-    notes.push('Recurring revenue model');
+  // High-value recurring revenue or essential services (5 pts)
+  const highValueKeywords = [
+    'recurring', 'subscription', 'contract', 'maintenance', 'managed services',
+    'hvac', 'plumbing', 'electrical', 'roofing', 'pest control', 'waste',
+    'healthcare', 'dental', 'veterinary'
+  ];
+  if (highValueKeywords.some(kw => allText.includes(kw))) {
+    servicesScore = 5;
   }
-  // Essential services / recession-resistant (12 pts)
-  else if (['hvac', 'plumbing', 'electrical', 'roofing', 'pest control', 'waste', 'healthcare', 'dental', 'veterinary'].some(kw => allText.includes(kw))) {
-    servicesScore += 12;
-  }
-  // Professional services / B2B (10 pts)
-  else if (['staffing', 'consulting', 'engineering', 'it services', 'accounting', 'legal'].some(kw => allText.includes(kw))) {
-    servicesScore += 10;
-  }
-  // General services (8 pts)
-  else if (['landscaping', 'cleaning', 'restoration', 'construction', 'manufacturing'].some(kw => allText.includes(kw))) {
-    servicesScore += 8;
-  }
-  // Has category but not a high-value one (5 pts)
+  // Other services (3 pts)
   else if (category) {
-    servicesScore += 5;
+    servicesScore = 3;
   }
 
-  // ===== SELLER INTEREST SCORE (0-20 pts) =====
+  // ===== SELLER INTEREST SCORE (0-15 pts) =====
   // This comes from the AI-analyzed seller_interest_score (0-100)
-  // Scale it to 0-20 pts for the total score
+  // Scale it to 0-15 pts for the total score
   if (deal.seller_interest_score !== null && deal.seller_interest_score !== undefined) {
-    sellerInterestScore = Math.round((deal.seller_interest_score / 100) * 20);
+    sellerInterestScore = Math.round((deal.seller_interest_score / 100) * 15);
     if (deal.seller_interest_score >= 70) {
       notes.push('High seller motivation');
     }
   }
-  // If no seller interest score yet, don't penalize - just can't contribute
+  // If no seller interest score yet, max possible is 85 pts (70 + 10 + 5)
 
   // ===== CALCULATE TOTAL =====
-  const totalScore = sizeScore + servicesScore + sellerInterestScore;
+  const totalScore = sizeScore + geographyScore + servicesScore + sellerInterestScore;
 
   return {
     deal_total_score: Math.min(100, Math.max(0, totalScore)),
     deal_size_score: sizeScore,
-    deal_services_score: servicesScore,
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
