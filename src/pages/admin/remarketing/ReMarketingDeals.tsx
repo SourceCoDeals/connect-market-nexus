@@ -168,9 +168,7 @@ const ReMarketingDeals = () => {
           internal_deal_memo_link,
           geographic_states,
           enriched_at,
-          employee_count,
-          lead_source,
-          ebitda_margin
+          full_time_employees
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -395,16 +393,17 @@ const ReMarketingDeals = () => {
           bVal = b.ebitda || 0;
           break;
         case "employees":
-          aVal = a.employee_count || 0;
-          bVal = b.employee_count || 0;
+          aVal = a.full_time_employees || 0;
+          bVal = b.full_time_employees || 0;
           break;
         case "score":
           aVal = stats_a?.avgScore || 0;
           bVal = stats_b?.avgScore || 0;
           break;
         case "margin":
-          aVal = a.ebitda_margin || 0;
-          bVal = b.ebitda_margin || 0;
+          // Calculate margin from ebitda/revenue if available
+          aVal = a.ebitda && a.revenue ? (a.ebitda / a.revenue) * 100 : 0;
+          bVal = b.ebitda && b.revenue ? (b.ebitda / b.revenue) * 100 : 0;
           break;
         case "engagement":
           aVal = (stats_a?.totalMatches || 0);
@@ -610,7 +609,6 @@ const ReMarketingDeals = () => {
                       {sortColumn === "engagement" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
                     </button>
                   </TableHead>
-                  <TableHead>Lead Source</TableHead>
                   <TableHead>
                     <button onClick={() => handleSort("added")} className="flex items-center gap-1">
                       Added
@@ -736,8 +734,8 @@ const ReMarketingDeals = () => {
 
                         {/* Employees */}
                         <TableCell className="text-right">
-                          {listing.employee_count ? (
-                            <span className="text-sm">{listing.employee_count}</span>
+                          {listing.full_time_employees ? (
+                            <span className="text-sm">{listing.full_time_employees}</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -757,9 +755,7 @@ const ReMarketingDeals = () => {
 
                         {/* Margin */}
                         <TableCell className="text-right">
-                          {listing.ebitda_margin ? (
-                            <span className="text-sm">{listing.ebitda_margin}%</span>
-                          ) : listing.ebitda && listing.revenue ? (
+                          {listing.ebitda && listing.revenue ? (
                             <span className="text-sm">{Math.round((listing.ebitda / listing.revenue) * 100)}%</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -782,15 +778,6 @@ const ReMarketingDeals = () => {
                               <span>{stats?.passed || 0}</span>
                             </div>
                           </div>
-                        </TableCell>
-
-                        {/* Lead Source */}
-                        <TableCell>
-                          {listing.lead_source ? (
-                            <span className="text-sm text-muted-foreground">{listing.lead_source}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
                         </TableCell>
 
                         {/* Added date */}

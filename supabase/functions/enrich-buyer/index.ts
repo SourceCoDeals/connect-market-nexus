@@ -191,8 +191,10 @@ Deno.serve(async (req) => {
     if (platformWebsite) {
       const platformResult = await scrapeWebsite(platformWebsite, firecrawlApiKey);
       if (platformResult.success) {
-        platformContent = platformResult.content;
-        console.log(`Scraped platform website: ${platformContent.length} chars`);
+        platformContent = platformResult.content ?? null;
+        if (platformContent) {
+          console.log(`Scraped platform website: ${platformContent.length} chars`);
+        }
       } else {
         warnings.push(`Platform website could not be scraped: ${platformResult.error}`);
         console.warn(`Platform scrape failed: ${platformResult.error}`);
@@ -203,8 +205,10 @@ Deno.serve(async (req) => {
     if (peFirmWebsite && peFirmWebsite !== platformWebsite) {
       const peFirmResult = await scrapeWebsite(peFirmWebsite, firecrawlApiKey);
       if (peFirmResult.success) {
-        peFirmContent = peFirmResult.content;
-        console.log(`Scraped PE firm website: ${peFirmContent.length} chars`);
+        peFirmContent = peFirmResult.content ?? null;
+        if (peFirmContent) {
+          console.log(`Scraped PE firm website: ${peFirmContent.length} chars`);
+        }
       } else {
         warnings.push(`PE firm website could not be scraped: ${peFirmResult.error}`);
         console.warn(`PE firm scrape failed: ${peFirmResult.error}`);
@@ -425,15 +429,17 @@ Deno.serve(async (req) => {
         }
       }
 
-      const statusCode = billingError.code === 'payment_required' ? 402 : 429;
+      const errCode = billingError?.code || 'unknown';
+      const errMessage = billingError?.message || 'Billing error';
+      const statusCode = errCode === 'payment_required' ? 402 : 429;
       return new Response(
         JSON.stringify({
           success: false,
-          error: billingError.message,
-          error_code: billingError.code,
+          error: errMessage,
+          error_code: errCode,
           partial_data: extractedData,
           fields_extracted: Object.keys(extractedData).length,
-          recoverable: billingError.code === 'rate_limited'
+          recoverable: errCode === 'rate_limited'
         }),
         { status: statusCode, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

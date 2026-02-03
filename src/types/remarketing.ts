@@ -28,37 +28,51 @@ export interface ReMarketingBuyerUniverse {
 export interface SizeCriteria {
   revenue_min?: number;
   revenue_max?: number;
+  min_revenue?: number | string;
+  max_revenue?: number | string;
+  ideal_revenue?: number | string;
   ebitda_min?: number;
   ebitda_max?: number;
+  min_ebitda?: number | string;
+  max_ebitda?: number | string;
+  ideal_ebitda?: number | string;
   employee_min?: number;
   employee_max?: number;
   // New fields from Whispers
   locations_min?: number;
   locations_max?: number;
+  min_locations?: number | string;
+  max_locations?: number | string;
   total_sqft_min?: number;
   total_sqft_max?: number;
   other_notes?: string;
+  notes?: string;
 }
 
 export interface GeographyCriteria {
   target_states?: string[];
   target_regions?: string[];
   exclude_states?: string[];
+  excluded_regions?: string[];
   adjacency_preference?: boolean;
   // New fields from Whispers
   coverage?: 'local' | 'regional' | 'national';
   hq_requirements?: string;
+  geographic_strategy?: string;
   other_notes?: string;
+  notes?: string;
 }
 
 export interface ServiceCriteria {
   primary_focus?: string[];
   required_services?: string[];
   preferred_services?: string[];
+  secondary_services?: string[];
   excluded_services?: string[];
   // New fields from Whispers
   business_model?: string;
   customer_profile?: string;
+  notes?: string;
 }
 
 export interface BuyerTypesCriteria {
@@ -66,6 +80,33 @@ export interface BuyerTypesCriteria {
   include_platforms?: boolean;
   include_strategic?: boolean;
   include_family_office?: boolean;
+}
+
+// Nested scoring behavior sub-interfaces
+export interface SizeScoringBehavior {
+  strictness?: 'strict' | 'moderate' | 'lenient';
+  below_minimum_behavior?: 'disqualify' | 'penalize';
+  single_location_penalty?: boolean;
+}
+
+export interface ServiceScoringBehavior {
+  matching_mode?: 'exact' | 'semantic';
+  require_primary_focus_match?: boolean;
+  excluded_services_are_dealbreakers?: boolean;
+}
+
+export interface GeographyScoringBehavior {
+  strictness?: 'strict' | 'moderate' | 'lenient';
+  proximity_miles?: number;
+  multi_location_rule?: 'regional' | 'national';
+  single_location_rule?: 'same_state' | 'adjacent' | 'regional';
+  allow_national_for_attractive_deals?: boolean;
+}
+
+export interface EngagementScoringBehavior {
+  weight_multiplier?: number;
+  override_geography?: boolean;
+  override_size?: boolean;
 }
 
 // Extended scoring behavior with all Whispers features
@@ -99,6 +140,12 @@ export interface ScoringBehavior {
   can_override_geography?: boolean;
   can_override_size?: boolean;
   engagement_weight_multiplier?: number;
+
+  // Nested behavior objects (used by ScoringBehaviorPanel)
+  size?: SizeScoringBehavior;
+  services?: ServiceScoringBehavior;
+  geography?: GeographyScoringBehavior;
+  engagement?: EngagementScoringBehavior;
 }
 
 // Target buyer type for ranked cards

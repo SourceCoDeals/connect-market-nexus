@@ -248,8 +248,9 @@ Extract all available criteria using the extract_criteria function. Be thorough 
 
   } catch (error) {
     console.error('Error analyzing notes:', error);
+    const message = error instanceof Error ? error.message : 'Failed to analyze notes';
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to analyze notes' }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
