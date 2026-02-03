@@ -80,6 +80,7 @@ import {
   Archive,
   XCircle,
   Star,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore } from "@/components/remarketing";
@@ -602,6 +603,7 @@ const ReMarketingDeals = () => {
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isEnrichingAll, setIsEnrichingAll] = useState(false);
   
   // Multi-select and archive state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
@@ -1237,6 +1239,55 @@ const ReMarketingDeals = () => {
     }
   };
 
+  // Handle enrich all deals - queues all deals for enrichment
+  const handleEnrichAll = async () => {
+    if (!listings || listings.length === 0) {
+      toast({ title: "No deals", description: "No deals available to enrich", variant: "destructive" });
+      return;
+    }
+
+    setIsEnrichingAll(true);
+    try {
+      const dealIds = listings.map(l => l.id);
+      
+      // Reset enriched_at for all deals to force re-enrichment
+      const { error: resetError } = await supabase
+        .from('listings')
+        .update({ enriched_at: null })
+        .in('id', dealIds);
+
+      if (resetError) {
+        console.warn('Failed to reset enriched_at:', resetError);
+      }
+
+      // Queue all deals for enrichment
+      const queueItems = dealIds.map(id => ({
+        listing_id: id,
+        status: 'pending',
+        attempts: 0,
+        queued_at: new Date().toISOString(),
+      }));
+
+      const { error: queueError } = await supabase
+        .from('enrichment_queue')
+        .upsert(queueItems, { onConflict: 'listing_id', ignoreDuplicates: false });
+
+      if (queueError) throw queueError;
+
+      toast({
+        title: "Enrichment queued",
+        description: `${dealIds.length} deals queued for enrichment. Processing runs every 5 minutes.`,
+      });
+
+      refetchListings();
+    } catch (error: any) {
+      console.error('Enrich all error:', error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsEnrichingAll(false);
+    }
+  };
+
   // Sortable header component
   const SortableHeader = ({ column, label, className = "" }: { column: string; label: string; className?: string }) => (
     <button 
@@ -1266,6 +1317,15 @@ const ReMarketingDeals = () => {
           <Button variant="outline" onClick={() => setShowImportDialog(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
+          </Button>
+          <Button 
+            onClick={handleEnrichAll} 
+            disabled={isEnrichingAll}
+            variant="outline"
+            className="border-primary text-primary hover:bg-primary/10"
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            {isEnrichingAll ? "Queueing..." : "Enrich All"}
           </Button>
           <Button 
             onClick={() => setShowCalculateDialog(true)} 
