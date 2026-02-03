@@ -3372,6 +3372,7 @@ export type Database = {
           internal_salesforce_link: string | null
           investment_thesis: string | null
           is_owner_dependent: boolean | null
+          is_priority_target: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           last_ranked_at: string | null
@@ -3525,6 +3526,7 @@ export type Database = {
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
           is_owner_dependent?: boolean | null
+          is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           last_ranked_at?: string | null
@@ -3678,6 +3680,7 @@ export type Database = {
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
           is_owner_dependent?: boolean | null
+          is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           last_ranked_at?: string | null
