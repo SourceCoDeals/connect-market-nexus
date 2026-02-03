@@ -213,18 +213,39 @@ export const CompanyOverviewCard = ({
     return location || "Not specified";
   };
 
-  // Format full address display
+  // Format full address display - include zip and country
   const getFullAddressDisplay = () => {
     const parts: string[] = [];
+    
+    // Line 1: Street address
     if (streetAddress) parts.push(streetAddress);
-    if (addressCity || addressState || addressZip) {
-      const cityStateZip = [
-        addressCity,
-        addressState,
-        addressZip
-      ].filter(Boolean).join(addressState && addressZip ? " " : ", ");
-      if (cityStateZip) parts.push(cityStateZip);
+    
+    // Line 2: City, State ZIP
+    const cityStateZip: string[] = [];
+    if (addressCity) cityStateZip.push(addressCity);
+    if (addressState) {
+      if (cityStateZip.length > 0) {
+        // Append state to city with comma
+        cityStateZip[cityStateZip.length - 1] += `, ${addressState}`;
+      } else {
+        cityStateZip.push(addressState);
+      }
     }
+    if (addressZip) {
+      if (cityStateZip.length > 0) {
+        cityStateZip[cityStateZip.length - 1] += ` ${addressZip}`;
+      } else {
+        cityStateZip.push(addressZip);
+      }
+    }
+    if (cityStateZip.length > 0) parts.push(cityStateZip.join(''));
+    
+    // Line 3: Country (if not US, or always show for completeness)
+    if (addressCountry) {
+      const countryDisplay = addressCountry === 'US' ? 'United States' : addressCountry === 'CA' ? 'Canada' : addressCountry;
+      parts.push(countryDisplay);
+    }
+    
     if (parts.length > 0) return parts;
     if (address) return [address];
     return null;
