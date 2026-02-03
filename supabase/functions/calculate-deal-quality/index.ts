@@ -305,6 +305,54 @@ serve(async (req) => {
       }
 
       listingsToScore = listings || [];
+
+      // Also queue enrichment for stale deals (not enriched in 30+ days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+
+      const { data: staleDeals, error: staleError } = await supabase
+        .from("listings")
+        .select("id, enriched_at")
+        .eq("status", "active")
+        .is("deleted_at", null)
+        .or(`enriched_at.is.null,enriched_at.lt.${thirtyDaysAgoISO}`)
+        .limit(20);
+
+      if (!staleError && staleDeals && staleDeals.length > 0) {
+        console.log(`Found ${staleDeals.length} deals needing enrichment (stale or never enriched)`);
+        
+        // Queue them for enrichment
+        let queuedCount = 0;
+        for (const deal of staleDeals) {
+          // Check if already in queue (pending or processing)
+          const { data: existing } = await supabase
+            .from("enrichment_queue")
+            .select("id")
+            .eq("listing_id", deal.id)
+            .in("status", ["pending", "processing"])
+            .maybeSingle();
+
+          if (!existing) {
+            const { error: queueError } = await supabase
+              .from("enrichment_queue")
+              .insert({
+                listing_id: deal.id,
+                status: "pending",
+                attempts: 0,
+                queued_at: new Date().toISOString(),
+              });
+
+            if (!queueError) {
+              queuedCount++;
+            }
+          }
+        }
+        
+        if (queuedCount > 0) {
+          console.log(`Queued ${queuedCount} stale deals for enrichment`);
+        }
+      }
     } else {
       return new Response(
         JSON.stringify({ error: "Must provide listingId, calculateAll: true, or forceRecalculate: true" }),
@@ -363,12 +411,28 @@ serve(async (req) => {
 
     console.log(`Scored ${scored} listings, ${errors} errors`);
 
+    // Count how many deals were queued for enrichment
+    let enrichmentQueued = 0;
+    if (calculateAll) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { count } = await supabase
+        .from("enrichment_queue")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending")
+        .gte("queued_at", thirtyDaysAgo.toISOString());
+      
+      enrichmentQueued = count || 0;
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         message: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}`,
         scored,
         errors,
+        enrichmentQueued,
         results: results.slice(0, 10), // Return first 10 for reference
         remaining: listingsToScore.length > 50 ? "More deals available, run again" : undefined,
       }),

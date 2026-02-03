@@ -1136,12 +1136,15 @@ const ReMarketingDeals = () => {
         throw new Error(error.message || 'Failed to calculate scores');
       }
 
-      if (data?.scored === 0) {
+      if (data?.scored === 0 && !data?.enrichmentQueued) {
         toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
       } else {
+        const enrichmentMsg = data?.enrichmentQueued > 0 
+          ? `. Queued ${data.enrichmentQueued} stale deals for enrichment.`
+          : '';
         toast({
           title: "Scoring complete",
-          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}`
+          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}${enrichmentMsg}`
         });
       }
 
