@@ -141,6 +141,7 @@ interface ColumnWidths {
   rank: number;
   dealName: number;
   industry: number;
+  description: number;
   location: number;
   revenue: number;
   ebitda: number;
@@ -159,6 +160,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   rank: 60,
   dealName: 200,
   industry: 120,
+  description: 180,
   location: 100,
   revenue: 90,
   ebitda: 90,
@@ -407,6 +409,24 @@ const SortableTableRow = ({
           <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
             {listing.category.length > 18 ? listing.category.substring(0, 18) + '...' : listing.category}
           </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      {/* Description */}
+      <TableCell style={{ width: columnWidths.description, minWidth: 100 }}>
+        {listing.description ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-sm text-muted-foreground truncate max-w-[170px] block cursor-default">
+                {listing.description.length > 35 ? listing.description.substring(0, 35) + '...' : listing.description}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="text-xs">{listing.description}</p>
+            </TooltipContent>
+          </Tooltip>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -1536,6 +1556,9 @@ const ReMarketingDeals = () => {
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.industry} onResize={(w) => handleColumnResize('industry', w)} minWidth={60}>
                       <SortableHeader column="industry" label="Industry" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.description} onResize={(w) => handleColumnResize('description', w)} minWidth={100}>
+                      <span className="text-muted-foreground font-medium">Description</span>
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.location} onResize={(w) => handleColumnResize('location', w)} minWidth={60}>
                       <span className="text-muted-foreground font-medium">Location</span>
