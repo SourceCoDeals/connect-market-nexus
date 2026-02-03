@@ -300,8 +300,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
               const { error: assocError } = await supabase
                 .from('connection_request_contacts')
                 .upsert(associations, { 
-                  onConflict: 'primary_request_id,related_request_id',
-                  ignoreDuplicates: true 
+                  onConflict: 'primary_request_id,related_request_id'
                 });
               
               if (assocError) {
