@@ -489,7 +489,7 @@ export const AddDealToUniverseDialog = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
+                <Label htmlFor="website">Website *</Label>
                 <Input
                   id="website"
                   placeholder="https://example.com"
@@ -497,7 +497,11 @@ export const AddDealToUniverseDialog = ({
                   onChange={(e) =>
                     setNewDealForm((prev) => ({ ...prev, website: e.target.value }))
                   }
+                  required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Required for AI enrichment to extract company data
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -552,7 +556,7 @@ export const AddDealToUniverseDialog = ({
 
               <Button
                 onClick={() => createDealMutation.mutate()}
-                disabled={!newDealForm.title || createDealMutation.isPending}
+                disabled={!newDealForm.title || !newDealForm.website || createDealMutation.isPending}
                 className="w-full"
               >
                 {createDealMutation.isPending ? (
