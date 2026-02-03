@@ -6,12 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Apify LinkedIn Company Scraper actor - requires direct URL
-const LINKEDIN_SCRAPER_ACTOR = 'logical_scrapers~linkedin-company-scraper';
-
-// Google Search actor to find LinkedIn URLs
-const GOOGLE_SEARCH_ACTOR = 'apify/google-search-scraper';
-
 interface LinkedInCompanyData {
   employeeCount?: number;
   employeeCountRange?: string;
@@ -20,14 +14,14 @@ interface LinkedInCompanyData {
   headquarters?: string;
   website?: string;
   description?: string;
-  specialties?: string[];
-  url?: string; // The actual LinkedIn URL
+  linkedinUrl?: string;
 }
 
-interface GoogleSearchResult {
+interface FirecrawlSearchResult {
   url?: string;
   title?: string;
   description?: string;
+  markdown?: string;
 }
 
 serve(async (req) => {
@@ -38,7 +32,10 @@ serve(async (req) => {
   try {
     // SECURITY: Verify admin access (or service role for internal calls)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const apiKeyHeader = req.headers.get('apikey');
+    
+    if (!authHeader && !apiKeyHeader) {
+      console.error('No authorization header or apikey provided');
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -50,17 +47,21 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // Check if this is the service role key (for internal calls from enrich-deal)
-    const token = authHeader.replace('Bearer ', '');
-    const isServiceRole = token === supabaseServiceKey;
+    // Accept it in either Authorization header or apikey header
+    const token = authHeader?.replace('Bearer ', '') || '';
+    const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
+    
+    console.log(`Auth check: isServiceRole=${isServiceRole}, hasAuthHeader=${!!authHeader}, hasApiKey=${!!apiKeyHeader}`);
 
     if (!isServiceRole) {
       // Verify admin access for manual calls
       const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader || `Bearer ${apiKeyHeader}` } }
       });
 
       const { data: { user }, error: userError } = await authClient.auth.getUser();
       if (userError || !user) {
+        console.error('User auth failed:', userError?.message);
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -74,19 +75,21 @@ serve(async (req) => {
         .single();
 
       if (!profile?.is_admin) {
+        console.log(`User ${user.id} is not admin`);
         return new Response(JSON.stringify({ error: 'Admin access required' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      console.log(`Admin access verified for user ${user.id}`);
     }
 
-    const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
+    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
 
-    if (!APIFY_API_TOKEN) {
-      console.error('APIFY_API_TOKEN not configured');
+    if (!FIRECRAWL_API_KEY) {
+      console.error('FIRECRAWL_API_KEY not configured');
       return new Response(
-        JSON.stringify({ success: false, error: 'Apify API token not configured' }),
+        JSON.stringify({ success: false, error: 'Firecrawl API key not configured' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -103,33 +106,32 @@ serve(async (req) => {
     let targetUrl = linkedinUrl;
     let foundViaSearch = false;
 
-    // If we don't have a direct LinkedIn URL, search Google to find it
+    // If we don't have a direct LinkedIn URL, search using Firecrawl
     if (!targetUrl && companyName) {
-      console.log(`No LinkedIn URL provided, searching Google for: ${companyName}`);
+      console.log(`No LinkedIn URL provided, searching for: ${companyName}`);
 
       // Build search query - company name + location + "linkedin"
       const locationPart = city && state ? ` ${city} ${state}` : (state ? ` ${state}` : '');
-      const searchQuery = `"${companyName}"${locationPart} linkedin company`;
+      const searchQuery = `site:linkedin.com/company "${companyName}"${locationPart}`;
 
       try {
-        const searchResult = await searchGoogleForLinkedIn(APIFY_API_TOKEN, searchQuery);
-        if (searchResult) {
-          targetUrl = searchResult;
+        targetUrl = await searchForLinkedIn(FIRECRAWL_API_KEY, searchQuery, companyName);
+        if (targetUrl) {
           foundViaSearch = true;
-          console.log(`Found LinkedIn URL via Google search: ${targetUrl}`);
+          console.log(`Found LinkedIn URL via Firecrawl search: ${targetUrl}`);
         }
       } catch (searchError) {
-        console.warn('Google search for LinkedIn failed:', searchError);
+        console.warn('Firecrawl search for LinkedIn failed:', searchError);
       }
 
-      // If Google search didn't work, try intelligent URL guessing as fallback
+      // If search didn't work, try intelligent URL guessing as fallback
       if (!targetUrl) {
         const guessedUrls = generateLinkedInUrlVariations(companyName);
-        console.log(`Google search failed, trying ${guessedUrls.length} URL variations`);
+        console.log(`Search failed, trying ${guessedUrls.length} URL variations`);
 
         for (const guessUrl of guessedUrls) {
-          const result = await tryLinkedInUrl(APIFY_API_TOKEN, guessUrl);
-          if (result) {
+          const isValid = await verifyLinkedInUrl(FIRECRAWL_API_KEY, guessUrl);
+          if (isValid) {
             targetUrl = guessUrl;
             console.log(`Found valid LinkedIn URL via guessing: ${targetUrl}`);
             break;
@@ -153,8 +155,8 @@ serve(async (req) => {
 
     console.log(`Scraping LinkedIn: ${targetUrl}`);
 
-    // Scrape the LinkedIn company page
-    const companyData = await scrapeLinkedInCompany(APIFY_API_TOKEN, targetUrl);
+    // Scrape the LinkedIn company page using Firecrawl
+    const companyData = await scrapeLinkedInCompany(FIRECRAWL_API_KEY, targetUrl);
 
     if (!companyData) {
       return new Response(
@@ -178,13 +180,10 @@ serve(async (req) => {
       linkedin_headquarters: companyData.headquarters || null,
       linkedin_website: companyData.website || null,
       linkedin_description: companyData.description?.substring(0, 1000) || null,
-      linkedin_specialties: companyData.specialties || null,
     };
 
     // If dealId is provided, update the listing directly
     if (dealId) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       const updateData: Record<string, unknown> = {
@@ -206,7 +205,7 @@ serve(async (req) => {
       if (updateError) {
         console.error('Error updating listing with LinkedIn data:', updateError);
       } else {
-        console.log(`Updated deal ${dealId} with LinkedIn data (employee count: ${result.linkedin_employee_count})`);
+        console.log(`Updated deal ${dealId} with LinkedIn data (employee count: ${result.linkedin_employee_count}, range: ${result.linkedin_employee_range})`);
       }
     }
 
@@ -226,45 +225,108 @@ serve(async (req) => {
 });
 
 /**
- * Search Google for the LinkedIn company page
+ * Search for LinkedIn company page using Firecrawl
  */
-async function searchGoogleForLinkedIn(
-  apiToken: string,
-  searchQuery: string
+async function searchForLinkedIn(
+  apiKey: string,
+  searchQuery: string,
+  companyName: string
 ): Promise<string | null> {
-  const apifyUrl = `https://api.apify.com/v2/acts/${GOOGLE_SEARCH_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
-
   try {
-    const response = await fetch(apifyUrl, {
+    const response = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        queries: searchQuery,
-        maxPagesPerQuery: 1,
-        resultsPerPage: 5,
-        mobileResults: false,
+        query: searchQuery,
+        limit: 5,
       }),
-      signal: AbortSignal.timeout(30000) // 30 second timeout for search
+      signal: AbortSignal.timeout(30000)
     });
 
     if (!response.ok) {
-      console.error('Google search API error:', response.status);
+      console.error('Firecrawl search API error:', response.status);
       return null;
     }
 
-    const results = await response.json() as GoogleSearchResult[];
+    const data = await response.json();
+    const results = data.data || data || [];
 
     // Find the first result that's a LinkedIn company page
-    for (const result of results) {
+    for (const result of results as FirecrawlSearchResult[]) {
       if (result.url && isLinkedInCompanyUrl(result.url)) {
         return normalizeLinkedInUrl(result.url);
       }
     }
 
+    // Secondary search without site: restriction if first search fails
+    console.log('First search found no results, trying broader search...');
+    const broaderResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: `"${companyName}" linkedin company`,
+        limit: 10,
+      }),
+      signal: AbortSignal.timeout(30000)
+    });
+
+    if (broaderResponse.ok) {
+      const broaderData = await broaderResponse.json();
+      const broaderResults = broaderData.data || broaderData || [];
+      
+      for (const result of broaderResults as FirecrawlSearchResult[]) {
+        if (result.url && isLinkedInCompanyUrl(result.url)) {
+          return normalizeLinkedInUrl(result.url);
+        }
+      }
+    }
+
     return null;
   } catch (error) {
-    console.error('Error searching Google:', error);
+    console.error('Error searching with Firecrawl:', error);
     return null;
+  }
+}
+
+/**
+ * Verify a LinkedIn URL exists by scraping it
+ */
+async function verifyLinkedInUrl(apiKey: string, url: string): Promise<boolean> {
+  try {
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        waitFor: 3000,
+      }),
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    const markdown = data.data?.markdown || data.markdown || '';
+    
+    // Check if it looks like a real company page (not 404 or redirect)
+    return markdown.length > 500 && 
+           !markdown.includes('Page not found') &&
+           !markdown.includes('This page doesn\'t exist');
+  } catch {
+    return false;
   }
 }
 
@@ -350,34 +412,26 @@ function generateLinkedInUrlVariations(companyName: string): string[] {
 }
 
 /**
- * Try a LinkedIn URL and return true if it's valid
- */
-async function tryLinkedInUrl(apiToken: string, url: string): Promise<boolean> {
-  try {
-    const result = await scrapeLinkedInCompany(apiToken, url);
-    return result !== null && (result.employeeCount !== undefined || result.name !== undefined);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Scrape a LinkedIn company page
+ * Scrape a LinkedIn company page using Firecrawl and extract employee data
  */
 async function scrapeLinkedInCompany(
-  apiToken: string,
+  apiKey: string,
   url: string
 ): Promise<LinkedInCompanyData | null> {
-  const apifyUrl = `https://api.apify.com/v2/acts/${LINKEDIN_SCRAPER_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
-
   try {
-    const response = await fetch(apifyUrl, {
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        url: [url]
+        url,
+        formats: ['markdown', 'html'],
+        onlyMainContent: false, // Get full page to find employee info
+        waitFor: 5000, // Wait for dynamic content
       }),
-      signal: AbortSignal.timeout(60000) // 60 second timeout
+      signal: AbortSignal.timeout(60000)
     });
 
     if (!response.ok) {
@@ -386,17 +440,24 @@ async function scrapeLinkedInCompany(
       return null;
     }
 
-    const items = await response.json();
+    const data = await response.json();
+    const markdown = data.data?.markdown || data.markdown || '';
+    const html = data.data?.html || data.html || '';
 
-    if (!items || items.length === 0) {
-      console.log(`No data found for LinkedIn URL: ${url}`);
+    if (!markdown && !html) {
+      console.log(`No content found for LinkedIn URL: ${url}`);
       return null;
     }
 
-    const companyData = items[0] as LinkedInCompanyData;
-    console.log('LinkedIn company data:', JSON.stringify({
+    console.log(`Scraped LinkedIn page, content length: ${markdown.length} chars`);
+
+    // Extract employee information from the content
+    const companyData = extractLinkedInData(markdown, html, url);
+    
+    console.log('Extracted LinkedIn company data:', JSON.stringify({
       name: companyData.name,
       employeeCount: companyData.employeeCount,
+      employeeCountRange: companyData.employeeCountRange,
       industry: companyData.industry
     }));
 
@@ -405,4 +466,119 @@ async function scrapeLinkedInCompany(
     console.error('Error scraping LinkedIn:', error);
     return null;
   }
+}
+
+/**
+ * Extract LinkedIn company data from scraped content
+ */
+function extractLinkedInData(markdown: string, html: string, url: string): LinkedInCompanyData {
+  const data: LinkedInCompanyData = {
+    linkedinUrl: url
+  };
+
+  const content = markdown + ' ' + html;
+
+  // Extract employee count - LinkedIn shows formats like:
+  // "11-50 employees" or "1,001-5,000 employees" or "10,001+ employees"
+  // Also: "11-50 employees · Marketing Services"
+  const employeePatterns = [
+    // Standard LinkedIn format: "X-Y employees"
+    /(\d{1,3}(?:,\d{3})*)\s*[-–]\s*(\d{1,3}(?:,\d{3})*)\s*employees/i,
+    // Plus format: "10,001+ employees"
+    /(\d{1,3}(?:,\d{3})*)\+\s*employees/i,
+    // Exact count: "500 employees"
+    /(\d{1,3}(?:,\d{3})*)\s*employees\b/i,
+    // Range with "to": "11 to 50 employees"
+    /(\d{1,3}(?:,\d{3})*)\s*to\s*(\d{1,3}(?:,\d{3})*)\s*employees/i,
+  ];
+
+  for (const pattern of employeePatterns) {
+    const match = content.match(pattern);
+    if (match) {
+      // Parse the numbers (remove commas)
+      const num1 = parseInt(match[1].replace(/,/g, ''), 10);
+      const num2 = match[2] ? parseInt(match[2].replace(/,/g, ''), 10) : null;
+
+      if (num2) {
+        // Range format
+        data.employeeCountRange = `${num1.toLocaleString()}-${num2.toLocaleString()}`;
+        data.employeeCount = Math.round((num1 + num2) / 2); // Midpoint
+      } else if (match[0].includes('+')) {
+        // Plus format (e.g., "10,001+")
+        data.employeeCountRange = `${num1.toLocaleString()}+`;
+        data.employeeCount = num1;
+      } else {
+        // Exact count
+        data.employeeCount = num1;
+        data.employeeCountRange = num1.toLocaleString();
+      }
+      break;
+    }
+  }
+
+  // Extract industry - usually near "Company size" or at start of description
+  const industryPatterns = [
+    /·\s*([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*)\s*$/m, // "· Marketing Services"
+    /Industry[:\s]+([A-Z][a-z]+(?:\s+[A-Za-z]+)*)/i,
+    /Specialties[:\s]+([^·\n]+)/i,
+  ];
+
+  for (const pattern of industryPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1] && match[1].length < 100) {
+      data.industry = match[1].trim();
+      break;
+    }
+  }
+
+  // Extract headquarters location
+  const hqPatterns = [
+    /Headquarters[:\s]+([^\n·]+)/i,
+    /(?:Based in|Located in|HQ:?)\s+([^\n·]+)/i,
+  ];
+
+  for (const pattern of hqPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) {
+      data.headquarters = match[1].trim().substring(0, 200);
+      break;
+    }
+  }
+
+  // Extract company name from URL or content
+  const urlMatch = url.match(/linkedin\.com\/company\/([^\/\?]+)/);
+  if (urlMatch) {
+    // Convert URL slug to title case
+    data.name = urlMatch[1]
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // Try to find actual company name in content
+  const namePatterns = [
+    /^#\s*(.+?)(?:\s*\||\s*-|\s*·|\n)/m,
+    /<h1[^>]*>([^<]+)</i,
+  ];
+
+  for (const pattern of namePatterns) {
+    const match = content.match(pattern);
+    if (match && match[1] && match[1].length < 100) {
+      data.name = match[1].trim();
+      break;
+    }
+  }
+
+  // Extract website if present
+  const websiteMatch = content.match(/(?:Website|Site)[:\s]+(https?:\/\/[^\s\n]+)/i);
+  if (websiteMatch) {
+    data.website = websiteMatch[1];
+  }
+
+  // Extract description (first paragraph-like content)
+  const descMatch = markdown.match(/\n\n(.{50,500}?)\n\n/);
+  if (descMatch) {
+    data.description = descMatch[1].trim();
+  }
+
+  return data;
 }

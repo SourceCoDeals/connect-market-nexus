@@ -664,9 +664,11 @@ Extract all available business information using the provided tool. The address_
           body: JSON.stringify({
             linkedinUrl,
             companyName,
+            city: extracted.address_city || deal.address_city,
+            state: extracted.address_state || deal.address_state,
             dealId: dealId, // Let the function update directly too as backup
           }),
-          signal: AbortSignal.timeout(65000), // Slightly longer than Apify's 60s timeout
+          signal: AbortSignal.timeout(90000), // 90 seconds for Firecrawl search + scrape
         });
 
         if (linkedinResponse.ok) {
