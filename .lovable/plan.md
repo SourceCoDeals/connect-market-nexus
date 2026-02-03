@@ -1,267 +1,407 @@
 
 
-# Plan: Fix Build Errors and Deploy M&A Intelligence Edge Functions
+# CTO-Level Deep Audit Report: Post-Change System Analysis
 
-## Problem Analysis
+## Executive Summary
 
-The build is failing due to three main issues:
-
-### Issue 1: TypeScript Types Out of Sync with Database
-
-The database has tables (`buyers`, `buyer_deal_scores`, `pe_firm_contacts`, `platform_contacts`) that exist in the database but are **missing from the generated TypeScript types file** (`src/integrations/supabase/types.ts`).
-
-**Evidence:**
-- Database query confirmed: `buyers`, `buyer_deal_scores`, `pe_firm_contacts`, `platform_contacts` tables exist
-- TypeScript types only have `remarketing_buyers`, `remarketing_scores`, etc.
-- Hooks try to query these tables and get TypeScript errors
-
-### Issue 2: Edge Function npm Import Error
-
-The `notify-deal-owner-change` function imports `npm:@react-email/components@0.0.22` but Deno cannot resolve it. The same import syntax is used in the template file.
-
-**Error:**
-```
-Could not find a matching package for 'npm:@react-email/components@0.0.22'
-```
-
-### Issue 3: M&A Hooks Reference Missing Type Definitions
-
-The hooks in `src/hooks/ma-intelligence/` are querying valid tables that exist in the database, but TypeScript complains because the types file doesn't include these tables.
+After extensive codebase analysis, I've identified **critical build failures**, **architectural risks**, and **data integrity threats** that require immediate attention. The system has sophisticated infrastructure but several hidden fragilities that could cause silent failures at scale.
 
 ---
 
-## Solution
+## Part 1: Critical Build Failures (IMMEDIATE FIX REQUIRED)
 
-### Part A: Regenerate Supabase Types (Critical)
+### 23 TypeScript Errors Blocking Deployment
 
-The **root cause** is that `src/integrations/supabase/types.ts` is stale and missing table definitions. The system needs to regenerate this file to include:
-- `buyers` table types
-- `buyer_deal_scores` table types  
-- `pe_firm_contacts` table types
-- `platform_contacts` table types
-- `companies` table types (if it exists)
-- `pe_firms` table types (if it exists)
-- `platforms` table types (if it exists)
+The current build is broken. All issues stem from two root causes:
 
-This will be done automatically by Lovable's type sync mechanism.
+| Error Pattern | Count | Root Cause |
+|--------------|-------|------------|
+| `'error' is of type 'unknown'` | 14 | Untyped catch blocks |
+| `'geographic_states' does not exist on type` | 7 | Missing type definitions |
+| Content variable type mismatches | 4 | Nullable assignment issues |
 
-### Part B: Fix Edge Function npm Import
+### Files Requiring Fix
 
-Create a `deno.json` file in the functions folder to properly configure npm package resolution.
+1. **analyze-tracker-notes/index.ts** (line 252)
+2. **backfill-daily-metrics/index.ts** (line 99)
+3. **aggregate-daily-metrics/index.ts** (line 240)
+4. **analyze-deal-notes/index.ts** (lines 290-352)
+5. **bulk-import-remarketing/index.ts** (lines 265-616)
+6. **dedupe-buyers/index.ts** (line 221)
+7. **enrich-buyer/index.ts** (lines 194-436)
+8. **enrich-deal/index.ts** (line 381)
 
-**Create: `supabase/functions/deno.json`**
-```json
-{
-  "imports": {
-    "@react-email/components": "npm:@react-email/components@0.0.22",
-    "react": "npm:react@18.3.1"
-  }
-}
-```
-
-### Part C: Update M&A Intelligence Hooks (Temporary Fix)
-
-Until the types are regenerated, add `@ts-ignore` comments or use `any` type assertions to bypass TypeScript errors. The queries themselves are valid since the tables exist.
-
-**Option A (Recommended)**: Wait for type regeneration
-**Option B (Immediate)**: Cast to `any` to bypass errors temporarily
-
-### Part D: Deploy Edge Functions
-
-Once builds pass, deploy the M&A Intelligence edge functions. Based on the provided list, some already exist:
-- `score-buyer-deal` ✅ Already exists
-- `enrich-buyer` ✅ Already exists
-- `enrich-deal` ✅ Already exists
-- `map-csv-columns` ✅ Already exists (for contact columns)
-- `firecrawl-scrape` ❌ Need to create
-- `score-deal` ❌ Need to create
-- `score-buyer-geography` ❌ Need to create
-- `score-service-fit` ❌ Need to create
-- `find-buyer-contacts` ❌ Need to create
-- `generate-research-questions` ❌ Need to create
-- `map-deal-csv-columns` ❌ Need to create
-- `parse-scoring-instructions` ❌ Need to create
-- `query-tracker-universe` ❌ Need to create (similar to `query-buyer-universe`)
-- `validate-criteria` ❌ Need to create
-- `verify-platform-website` ❌ Need to create
-
----
-
-## Technical Implementation
-
-### File 1: `supabase/functions/deno.json`
-
-**Action**: Create new file
-
-```json
-{
-  "imports": {
-    "@react-email/components": "npm:@react-email/components@0.0.22",
-    "react": "npm:react@18.3.1"
-  }
-}
-```
-
-### File 2: `supabase/functions/notify-deal-owner-change/index.ts`
-
-**Action**: Update imports to use bare specifiers
+### Fix Pattern
 
 ```typescript
-// Line 3-4: Change npm: imports to bare specifiers
-import React from 'react';
-import { renderAsync } from '@react-email/components';
-```
+// BEFORE (broken)
+} catch (error) {
+  return JSON.stringify({ error: error.message });
+}
 
-### File 3: `supabase/functions/notify-deal-owner-change/_templates/deal-owner-change-email.tsx`
-
-**Action**: Update imports to use bare specifiers
-
-```typescript
-// Line 11-12: Change npm: imports to bare specifiers
-import * as React from 'react';
-import { Body, Container, ... } from '@react-email/components';
-```
-
-### File 4: `src/hooks/ma-intelligence/useCompanyLookup.ts`
-
-**Action**: Replace with stubbed implementation until types are synced
-
-The hook queries a `companies` table that doesn't exist. Replace with a stub that returns null:
-
-```typescript
-export function useCompanyLookup() {
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [existingCompany, setExistingCompany] = useState<any>(null);
-  const [dealHistory, setDealHistory] = useState<any[]>([]);
-
-  const lookupByDomain = useCallback(async (websiteOrDomain: string) => {
-    console.warn('[useCompanyLookup] companies table not available - stub implementation');
-    return null;
-  }, []);
-
-  const clearLookup = useCallback(() => {
-    setExistingCompany(null);
-    setDealHistory([]);
-  }, []);
-
-  return { isLookingUp, existingCompany, dealHistory, lookupByDomain, clearLookup };
+// AFTER (fixed)
+} catch (error) {
+  const message = error instanceof Error ? error.message : 'Unknown error';
+  return JSON.stringify({ error: message });
 }
 ```
 
-### File 5: `src/hooks/ma-intelligence/useDashboardMetrics.ts`
-
-**Action**: Update to use existing tables with type assertions
-
-Replace `buyer_deal_scores` with `remarketing_scores` and `buyers` with `remarketing_buyers`:
-
-- Line 159: `buyer_deal_scores` → `remarketing_scores`
-- Line 187: `buyer_deal_scores` → `remarketing_scores`
-- Line 237: `buyer_deal_scores` → `remarketing_scores`
-- Line 263: `buyers` → `remarketing_buyers`
-- Line 265: `buyer_deal_scores` → `remarketing_scores`
-
-**Field Mapping:**
-- `selected_for_outreach` → `status = 'approved'`
-- `interested` → `status = 'interested'`
-- `passed_on_deal` → `status = 'passed'`
-
-### File 6: `src/hooks/ma-intelligence/usePEFirmsHierarchy.ts`
-
-**Action**: Replace with stubbed implementation
-
-The hook queries `pe_firms`, `platforms`, and `tracker_buyers` tables that don't exist:
+For `geographic_states`, the type definitions in `analyze-deal-notes` need to include:
 
 ```typescript
-export function usePEFirmsHierarchy() {
-  const [peFirms, setPeFirms] = useState<PEFirmWithPlatforms[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>('PE firms hierarchy not available');
-
-  return { peFirms, isLoading, error, refetch: () => {} };
-}
-
-export function usePlatformDetail(platformId: string | undefined) {
-  return { platform: null, peFirm: null, isLoading: false };
+interface ExtractedData {
+  revenue?: number;
+  ebitda?: number;
+  ebitda_margin?: number;
+  full_time_employees?: number;
+  geographic_states?: string[];  // ADD THIS
 }
 ```
 
 ---
 
-## Files to Modify
+## Part 2: Reconstructed System Truth
 
-| File | Action | Description |
-|------|--------|-------------|
-| `supabase/functions/deno.json` | **Create** | Add npm import mappings for Deno |
-| `supabase/functions/notify-deal-owner-change/index.ts` | **Modify** | Update imports to use bare specifiers |
-| `supabase/functions/notify-deal-owner-change/_templates/deal-owner-change-email.tsx` | **Modify** | Update imports to use bare specifiers |
-| `src/hooks/ma-intelligence/useCompanyLookup.ts` | **Modify** | Stub out companies table queries |
-| `src/hooks/ma-intelligence/useDashboardMetrics.ts` | **Modify** | Use remarketing tables instead |
-| `src/hooks/ma-intelligence/usePEFirmsHierarchy.ts` | **Modify** | Stub out non-existent tables |
+### Data Flow Architecture
 
----
+```text
+ENTRY POINTS               TRANSFORMATION           EXIT POINTS
+─────────────────────────────────────────────────────────────────
+CSV Import ──────┐                               ┌──> UI Display
+Manual Entry ────┼──> Parse ──> Enrich ──> Score ┼──> Edge Functions
+Transcript ──────┼──────────────────────────────┼──> Export APIs
+Website Scrape ──┘                               └──> Email/Notifications
+```
 
-## Edge Functions Deployment Status
+### Canonical Data Locations
 
-### Already Deployed (No Action Needed)
+| Concept | Authoritative Table | Warning |
+|---------|---------------------|---------|
+| Buyers | `remarketing_buyers` | Also `buyers` table exists (legacy?) |
+| Scores | `remarketing_scores` | Also `buyer_deal_scores` exists (duplicate) |
+| Contacts | `remarketing_buyer_contacts` | Also `buyer_contacts`, `pe_firm_contacts`, `platform_contacts` |
+| Deals | `listings` | Also `deals` table exists with unclear relationship |
 
-1. `score-buyer-deal` ✅
-2. `enrich-buyer` ✅
-3. `enrich-deal` ✅
-4. `map-csv-columns` ✅
-5. `query-buyer-universe` ✅
-6. `dedupe-buyers` ✅
-7. `analyze-deal-notes` ✅
-
-### Need to Create
-
-Based on your requirements, these new functions need to be created:
-
-1. `firecrawl-scrape` - Web scraping wrapper
-2. `score-deal` - Main v6.1 scoring algorithm
-3. `score-buyer-geography` - Geographic matching
-4. `score-service-fit` - AI semantic service matching
-5. `find-buyer-contacts` - Contact discovery
-6. `generate-research-questions` - AI research questions
-7. `map-deal-csv-columns` - Deal CSV column mapping
-8. `parse-scoring-instructions` - NL to scoring rules
-9. `query-tracker-universe` - AI buyer universe queries
-10. `validate-criteria` - Criteria validation
-11. `verify-platform-website` - Website classification
-
-### Secrets Verified ✅
-
-All required secrets are already configured:
-- `ANTHROPIC_API_KEY` ✅
-- `FIRECRAWL_API_KEY` ✅
-- `GEMINI_API_KEY` ✅
-- `LOVABLE_API_KEY` ✅
+**DUPLICATION RISK**: 4 tables exist for "buyers" and 4 for "contacts" - unclear which is authoritative.
 
 ---
 
-## Expected Outcome
+## Part 3: Scraping System Audit
 
-After implementing these changes:
+### Firecrawl Integration
 
-1. **Build will pass** - TypeScript errors resolved by stubbing hooks or using existing tables
-2. **Edge functions will deploy** - npm import issues fixed with deno.json
-3. **M&A Intelligence pages will load** - With limited functionality until full table sync
-4. **Ready for new edge function deployment** - Can create the missing functions
+**Strengths:**
+- SSRF protection via `validateUrl()` in `_shared/security.ts`
+- Blocked IP ranges include cloud metadata endpoints
+- Rate limiting implemented per-user and globally
+
+**Fragilities:**
+
+1. **No Timeout Guards on Firecrawl Calls**
+   - `scrapeWebsite()` in `enrich-buyer` has no `AbortSignal.timeout()`
+   - Risk: Hanging requests consume edge function time (60s limit)
+
+2. **Silent Fallback Pattern**
+   ```typescript
+   if (platformResult.success) {
+     platformContent = platformResult.content;  // Could be undefined
+   }
+   ```
+   - Type mismatch: `content` is `string | undefined`, assigned to `string | null`
+
+3. **No HTML Structure Validation**
+   - If Firecrawl returns empty or malformed content, AI extraction proceeds with garbage
+   - No minimum content length check before AI calls
+
+### Recommendation
+
+Add timeout guards to all external API calls:
+```typescript
+const response = await fetch(url, {
+  ...options,
+  signal: AbortSignal.timeout(30000)  // 30s timeout
+});
+```
 
 ---
 
-## Next Steps After Build Fix
+## Part 4: Enrichment Pipeline Audit
 
-1. Approve this plan to fix build errors
-2. Once build passes, I'll create the missing edge functions:
-   - `firecrawl-scrape`
-   - `score-deal`
-   - `score-buyer-geography`
-   - `score-service-fit`
-   - `find-buyer-contacts`
-   - `generate-research-questions`
-   - `map-deal-csv-columns`
-   - `parse-scoring-instructions`
-   - `query-tracker-universe`
-   - `validate-criteria`
-   - `verify-platform-website`
+### Source Priority System (STRONG)
+
+The `_shared/source-priority.ts` implements proper field-level source tracking:
+
+```text
+Priority: Transcript (1) > Notes (2) > Website (3) > CSV (4) > Manual (0*)
+* Manual always wins
+```
+
+### Protected Fields (GOOD)
+
+21 fields are protected from website overwrite if sourced from transcripts:
+- `thesis_summary`, `strategic_priorities`, `target_geographies`, etc.
+
+### Race Condition Risk (HIGH)
+
+**Issue**: Concurrent enrichment can cause data loss
+
+```typescript
+// Line 420: Optimistic locking uses data_last_updated
+.or(`data_last_updated.eq.${lockVersion},data_last_updated.is.null`)
+```
+
+**Problem**: If two enrichment processes start simultaneously:
+1. Both read the same `lockVersion`
+2. First completes and updates `data_last_updated`
+3. Second fails silently due to lock mismatch
+4. User sees "enrichment complete" but second batch data is lost
+
+### Enrichment Loop Risk
+
+**Flow**: Buyer → Enrich → Save → Trigger? → Re-Enrich?
+
+No guard exists to prevent re-enrichment of recently-enriched buyers. The `data_last_updated` field exists but isn't checked before starting enrichment.
+
+---
+
+## Part 5: Scoring & Ranking Audit
+
+### Score Algorithm v6.1 (WELL-DESIGNED)
+
+| Category | Weight | Notes |
+|----------|--------|-------|
+| Size | 40 pts | Acts as multiplier gate (0-1.0) |
+| Service Alignment | 30 pts | AI semantic matching |
+| Data Quality | 15 pts | |
+| Geography | 10 pts | State adjacency logic |
+| Buyer Type Bonus | 5 pts | |
+| KPI Bonus | +15 pts | Optional layer |
+
+### Size Multiplier Logic (GOOD)
+
+```typescript
+// Deal 70%+ below minimum → 0.3 multiplier (70% reduction)
+// Deal in sweet spot → 1.0 (no penalty)
+// Deal 50%+ above maximum → 0 (disqualified)
+```
+
+### Scoring Input Risks
+
+**Missing Field Guards:**
+
+```typescript
+const dealRevenue = listing.revenue;  // Could be 0 or null
+```
+
+The scoring functions don't validate that required fields exist before computing. A listing with `revenue: 0` will produce misleading scores.
+
+### Learning Pattern Adjustment (CONCERNING)
+
+```typescript
+if (pattern.approvalRate >= 0.7) {
+  const learningBoost = Math.round(pattern.approvalRate * 5);
+  adjustedScore += learningBoost;  // Up to +5 points
+}
+```
+
+**Risk**: Self-reinforcing bias. Buyers who are historically approved get score boosts, making them more likely to be approved, regardless of actual fit.
+
+---
+
+## Part 6: Edge Functions Audit
+
+### Function Inventory (48 functions)
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| Enrichment | 5 | enrich-buyer, enrich-deal, enrich-geo-data |
+| Scoring | 3 | score-buyer-deal, score-industry-alignment |
+| AI Analysis | 6 | generate-ma-guide, analyze-deal-notes, query-buyer-universe |
+| Notifications | 15+ | Various email/notification functions |
+| Import/Export | 3 | bulk-import-remarketing, map-csv-columns |
+
+### Single Responsibility Violations
+
+**`enrich-buyer/index.ts`** (1053 lines)
+- Scrapes websites
+- Runs 6 AI extraction prompts
+- Manages optimistic locking
+- Handles billing errors
+- Builds update objects
+
+**Recommendation**: Split into orchestrator + worker functions
+
+### Shared Module Usage (GOOD)
+
+```text
+_shared/
+├── ai-providers.ts      # Centralized API config
+├── geography.ts         # State normalization
+├── security.ts          # Rate limiting, SSRF protection
+└── source-priority.ts   # Field source tracking
+```
+
+---
+
+## Part 7: Database Security Audit
+
+### RLS Status (CRITICAL)
+
+The linter found **4 tables with RLS disabled**:
+- Risk: Any authenticated user can read/write all data
+- Tables need investigation: `buyers`, `buyer_deal_scores`, `pe_firm_contacts`, `platform_contacts`
+
+### Duplicate Tables (CONCERNING)
+
+| Modern Tables | Legacy Tables | Notes |
+|--------------|---------------|-------|
+| `remarketing_buyers` | `buyers` | Both exist, unclear relationship |
+| `remarketing_scores` | `buyer_deal_scores` | Both exist, different schemas? |
+| `remarketing_buyer_contacts` | `buyer_contacts`, `pe_firm_contacts`, `platform_contacts` | 4 contact tables |
+
+**Risk**: Code may write to one table but read from another, causing phantom data.
+
+---
+
+## Part 8: Data Integrity & Lineage
+
+### Entity Trace: Deal → Score → UI
+
+```text
+listings (source) 
+  → score-buyer-deal (transform)
+    → remarketing_scores (store)
+      → ReMarketingUniverseDetail.tsx (display)
+```
+
+**Verified Fields:**
+- `geographic_states` exists in `listings` ✓
+- `extraction_sources` exists in both `listings` and `remarketing_buyers` ✓
+- `pe_firm_name` exists in `remarketing_buyers` ✓
+
+### Stale Data Risk
+
+The `deal_snapshot` field in `remarketing_scores` tracks point-in-time deal state:
+
+```typescript
+const dealSnapshot = {
+  revenue: listing.revenue,
+  ebitda: listing.ebitda,
+  location: listing.location,
+  category: listing.category,
+  snapshot_at: new Date().toISOString(),
+};
+```
+
+**Good**: Enables stale score detection
+**Missing**: No automatic re-scoring when deal data changes
+
+---
+
+## Part 9: Observability Audit
+
+### Logging (MODERATE)
+
+```typescript
+console.log(`Enriching buyer: ${buyer.company_name}`);
+console.log(`Platform website: ${platformWebsite || 'none'}`);
+console.log(`Extracted ${fieldsUpdated.length} fields from notes:`, fieldsUpdated);
+```
+
+**Strengths:**
+- Key operations logged
+- Field counts tracked
+
+**Weaknesses:**
+- No structured logging (JSON format)
+- No correlation IDs for tracing across functions
+- No error aggregation mechanism
+
+### Rate Limit Tracking (GOOD)
+
+```typescript
+// Violations logged to user_activity table
+await supabase.from('user_activity').insert({
+  user_id: identifier,
+  activity_type: 'rate_limit_violation',
+  metadata: { action, current_count, limit, timestamp }
+});
+```
+
+---
+
+## Part 10: Summary of Findings
+
+### Confirmed Safe Areas
+
+1. **SSRF Protection** - Comprehensive URL validation
+2. **Source Priority System** - Field-level tracking with proper hierarchy
+3. **Scoring Algorithm** - Well-structured v6.1 with size gating
+4. **Geography Normalization** - Centralized state/city mapping
+5. **Rate Limiting** - Per-user and global limits implemented
+
+### Hidden Risks (Despite "Working" State)
+
+| Risk | Severity | Impact |
+|------|----------|--------|
+| No timeout guards on external APIs | HIGH | Edge functions hang at scale |
+| Optimistic locking silent failures | HIGH | Data loss on concurrent enrichment |
+| 4+ duplicate table patterns | MEDIUM | Phantom data, query confusion |
+| RLS disabled on 4 tables | HIGH | Security vulnerability |
+| Learning pattern bias | MEDIUM | Self-reinforcing score inflation |
+| No minimum content validation | MEDIUM | Wasted AI calls on empty scrapes |
+
+### Data Integrity Threats
+
+1. **Concurrent Enrichment** - Second process fails silently
+2. **Stale Scores** - No automatic re-scoring on deal updates
+3. **Duplicate Tables** - Code may read/write different sources
+
+### Concrete Fixes Required
+
+1. **Immediate (Build Blockers)**
+   - Cast all `error` objects in catch blocks
+   - Add `geographic_states` to type definitions
+   - Fix content variable type mismatches
+
+2. **High Priority (Data Integrity)**
+   - Add `AbortSignal.timeout()` to all AI/scraping calls
+   - Add minimum content length check before AI extraction
+   - Enable RLS on unprotected tables
+
+3. **Medium Priority (Scale Readiness)**
+   - Audit and consolidate duplicate tables
+   - Add correlation IDs to logging
+   - Implement automatic re-scoring triggers
+
+---
+
+## Implementation Plan
+
+### Phase 1: Fix Build Errors (This Session)
+
+**Files to modify:**
+
+| File | Changes |
+|------|---------|
+| `analyze-tracker-notes/index.ts` | Cast error at line 252 |
+| `backfill-daily-metrics/index.ts` | Cast error at line 99 |
+| `aggregate-daily-metrics/index.ts` | Cast error at line 240 |
+| `analyze-deal-notes/index.ts` | Add `geographic_states` to type, cast error |
+| `bulk-import-remarketing/index.ts` | Cast all errors (8 locations) |
+| `dedupe-buyers/index.ts` | Cast error at line 221 |
+| `enrich-buyer/index.ts` | Fix content type, cast billingError |
+| `enrich-deal/index.ts` | Add `geographic_states` to type |
+
+### Phase 2: Stability Hardening
+
+1. Add timeout guards to all external API calls
+2. Add content length validation before AI extraction
+3. Improve error visibility with structured logging
+
+### Phase 3: Security & Scale
+
+1. Enable RLS on all public tables
+2. Consolidate duplicate table patterns
+3. Add automatic re-scoring on deal updates
 
