@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 // Bump this when deploying to verify the active function version
-const VERSION = "map-csv-columns@2026-02-03.1";
+const VERSION = "map-csv-columns@2026-02-03.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -219,15 +219,19 @@ Consider the sample data to make better decisions.`;
     if (!response.ok) {
       if (response.status === 429) {
         console.log("Rate limited, falling back to heuristic mapping");
+        const heuristic = heuristicMapping(columns, targetType);
+        const complete = ensureCompleteMappings(columns, heuristic);
         return new Response(
-          JSON.stringify({ mappings: heuristicMapping(columns, targetType), _version: VERSION }),
+          JSON.stringify({ mappings: complete, _version: VERSION }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         console.log("Payment required, falling back to heuristic mapping");
+        const heuristic = heuristicMapping(columns, targetType);
+        const complete = ensureCompleteMappings(columns, heuristic);
         return new Response(
-          JSON.stringify({ mappings: heuristicMapping(columns, targetType), _version: VERSION }),
+          JSON.stringify({ mappings: complete, _version: VERSION }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -239,26 +243,33 @@ Consider the sample data to make better decisions.`;
     
     if (!toolCall) {
       console.log("No tool call, falling back to heuristic");
+      const heuristic = heuristicMapping(columns, targetType);
+      const complete = ensureCompleteMappings(columns, heuristic);
       return new Response(
-        JSON.stringify({ mappings: heuristicMapping(columns, targetType), _version: VERSION }),
+        JSON.stringify({ mappings: complete, _version: VERSION }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    let mappings: ColumnMapping[];
+    let aiMappings: ColumnMapping[];
     try {
       const parsed = JSON.parse(toolCall.function.arguments);
-      mappings = parsed.mappings.map((m: any) => ({
+      aiMappings = parsed.mappings.map((m: any) => ({
         ...m,
         aiSuggested: true
       }));
     } catch (e) {
       console.error("Failed to parse AI response, using heuristic");
-      mappings = heuristicMapping(columns, targetType);
+      aiMappings = heuristicMapping(columns, targetType);
     }
 
+    // CRITICAL: Ensure we return a complete mapping for every input column
+    const completeMappings = ensureCompleteMappings(columns, aiMappings);
+    
+    console.log(`[${VERSION}] Mapping stats: requested=${columns.length}, ai_returned=${aiMappings.length}, final=${completeMappings.length}`);
+
     return new Response(
-      JSON.stringify({ mappings, _version: VERSION }),
+      JSON.stringify({ mappings: completeMappings, _version: VERSION }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
@@ -511,4 +522,50 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       aiSuggested: false
     };
   });
+}
+
+/**
+ * Ensure all input columns are represented in the mappings array.
+ * This is CRITICAL: AI may return a partial list, but we must always
+ * return one mapping per input column, in order.
+ */
+function ensureCompleteMappings(inputColumns: string[], partialMappings: ColumnMapping[]): ColumnMapping[] {
+  // Build lookup by normalized column name
+  const lookup = new Map<string, ColumnMapping>();
+  for (const m of partialMappings) {
+    if (m.csvColumn) {
+      const key = m.csvColumn.toLowerCase().trim();
+      if (!lookup.has(key)) {
+        lookup.set(key, m);
+      }
+    }
+  }
+
+  // Build complete array in input column order
+  const complete: ColumnMapping[] = inputColumns.map((col) => {
+    const key = col.toLowerCase().trim();
+    const existing = lookup.get(key);
+    if (existing) {
+      return {
+        ...existing,
+        csvColumn: col, // Preserve original casing
+      };
+    }
+    // Column not in AI response - return unmapped
+    return {
+      csvColumn: col,
+      targetField: null,
+      confidence: 0,
+      aiSuggested: false,
+    };
+  });
+
+  // Log any missing columns for debugging
+  const missingCount = inputColumns.length - partialMappings.filter(m => m.csvColumn).length;
+  if (missingCount > 0) {
+    const missing = inputColumns.filter(col => !lookup.has(col.toLowerCase().trim()));
+    console.log(`[ensureCompleteMappings] Filled ${missingCount} missing columns. First 10:`, missing.slice(0, 10));
+  }
+
+  return complete;
 }

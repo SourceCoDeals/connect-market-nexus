@@ -10,3 +10,4 @@ export * from './types';
 export * from './constants';
 export * from './parsers';
 export { processRow } from './row-processor';
+export { mergeColumnMappings, type MergeStats } from './merge-mappings';
