@@ -1,159 +1,170 @@
 
-# Bot Filtering & Geographic Accuracy Plan
+# Universal Bot & Production Filtering Plan
 
 ## Problem Summary
 
-Your real-time globe is polluted with **38% bot traffic** disguised as anonymous visitors. These appear as "jade eagle", "amber fox", etc. with 2-3 second sessions. Additionally, geographic placement is inaccurate for smaller cities not in the coordinate lookup table.
+The Intelligence Center dashboard shows **polluted data** because the main analytics hook (`useUnifiedAnalytics`) does not filter out:
+- **259 bot sessions** (Chrome/119 bots with 1.8s durations)
+- **919 dev/preview traffic sessions**
 
-## Issues Identified
-
-### Issue 1: Bot Traffic Polluting Analytics
-- 148 bot sessions in the last 7 days (38% of production traffic)
-- All share identical signature: `Chrome/119.0.0.0` (outdated by 2+ years)
-- All originate from Cloudflare proxy IPs (`104.28.x.x`)
-- Sessions last exactly 2-3 seconds with no referrer
-- Page path: always `/` → `/welcome` only
-
-### Issue 2: Inaccurate Globe Placement
-- Cities like "Chamartin" (Madrid suburb), "Aulnay-sous-Bois" (Paris suburb) are not in the coordinate map
-- These fall back to country center coordinates instead of accurate city positions
-- The IP geolocation service returns accurate data, but the frontend lookup is limited
-
-## Solution Architecture
-
-### Part 1: Server-Side Bot Detection & Filtering
-
-Add bot detection to the `track-session` edge function with a new `is_bot` flag:
-
-**Detection Signals:**
-1. Outdated browser version (Chrome/119 when current is 142+)
-2. Session duration < 5 seconds with only 1-2 page views
-3. Known bot user agent strings (HeadlessChrome, GoogleOther)
-4. No referrer + landing on root path only
-5. IP patterns from known proxy/datacenter ranges
-
-**Implementation:**
-- Add `is_bot` boolean column to `user_sessions` table
-- Update `track-session` function to detect bots on initial request
-- Create background job to flag sessions that complete with bot patterns
-
-### Part 2: Real-Time Dashboard Filtering
-
-Update `useEnhancedRealTimeAnalytics` to filter out detected bots:
-
-```text
-.eq('is_bot', false)  // Add to session query
-```
-
-Also add UI toggle to optionally show/hide bot traffic for debugging.
-
-### Part 3: Dynamic Geocoding via API
-
-Replace static city coordinate map with API-based geocoding:
-
-**Option A: Use IP-API coordinates directly**
-The `ip-api.com` service returns `lat` and `lon` fields. We should capture and store these in `user_sessions`.
-
-**Option B: Forward geocoding fallback**
-For cities not in the static map, use a geocoding API (MapTiler, Mapbox, or free Nominatim) to look up coordinates.
-
-### Part 4: Backfill & Cleanup
-
-1. Mark existing bot sessions with SQL:
-```sql
-UPDATE user_sessions 
-SET is_bot = true 
-WHERE user_agent LIKE '%Chrome/119.0%' 
-   OR user_agent LIKE '%HeadlessChrome%'
-   OR user_agent LIKE '%GoogleOther%';
-```
-
-2. Add coordinates to `user_sessions` table for accurate placement
+This affects ALL cards in the dashboard:
+- Geography (Country/Region/City)
+- Sources (Channel/Referrer/Campaign/Keyword)
+- Pages (Page/Entry page/Exit page)
+- Tech Stack (Browser/OS/Device)
+- Conversion (Goals/Funnel/Users/Journey)
+- KPI Strip metrics
 
 ---
 
-## Technical Implementation
+## Root Cause
 
-### Database Changes
-
-**Migration: Add bot detection and coordinate columns**
+The `useUnifiedAnalytics.ts` hook queries `user_sessions` without filtering:
 ```text
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT false;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS lon DOUBLE PRECISION;
+supabase
+  .from('user_sessions')
+  .select('...')
+  .gte('started_at', startDateStr)
+  // MISSING: .eq('is_bot', false)
+  // MISSING: .eq('is_production', true)
 ```
+
+---
+
+## Solution
+
+### Single Point of Change
+
+Add two filters to the main session queries in `useUnifiedAnalytics.ts`:
+
+```text
+.eq('is_bot', false)
+.eq('is_production', true)
+```
+
+This will cascade to:
+- KPI metrics (visitors, sessions, bounce rate, conversion rate)
+- Geography aggregations (countries, regions, cities)
+- Source aggregations (channels, referrers, campaigns, keywords)
+- Page aggregations (top pages, entry pages, exit pages)
+- Tech stack aggregations (browsers, OS, devices)
+- Funnel stages
+- Top users list
 
 ### File Changes
 
-**1. `supabase/functions/track-session/index.ts`**
-- Parse IP-API response to extract `lat` and `lon`
-- Add `detectBot()` function checking:
-  - User agent patterns (Chrome/119, HeadlessChrome)
-  - Known bot strings (GoogleOther, Googlebot, etc.)
-- Store `is_bot`, `lat`, `lon` in session record
+**1. `src/hooks/useUnifiedAnalytics.ts`**
 
-**2. `src/hooks/useEnhancedRealTimeAnalytics.ts`**
-- Add `.eq('is_bot', false)` filter to session query
-- Update coordinate logic to prefer stored lat/lon over lookup
+Add filters to all session queries:
 
-**3. `src/components/admin/analytics/realtime/MapboxGlobeMap.tsx`**
-- Use session's stored coordinates when available
-- Fall back to city lookup only when lat/lon missing
-
-**4. Create new migration file**
-- Add `is_bot`, `lat`, `lon` columns
-- Backfill existing bot sessions
-
-**5. `src/integrations/supabase/types.ts`**
-- Regenerate to include new columns
-
----
-
-## Bot Detection Rules
-
-| Signal | Confidence | Action |
-|--------|------------|--------|
-| Chrome/119 user agent | High | Flag as bot |
-| HeadlessChrome | Definite | Flag as bot |
-| GoogleOther/Googlebot | Definite | Flag as bot |
-| Session < 3s + 2 pages only | Medium | Flag if combined with above |
-| No referrer + root landing | Low | Only flag if combined |
-
----
-
-## Immediate Quick Fix (Recommended First Step)
-
-Before implementing the full solution, add a client-side filter to hide obvious bots:
-
-In `useEnhancedRealTimeAnalytics.ts`:
+**Query 1: Current period sessions (line ~217-221)**
 ```text
-// Filter out likely bot sessions on the client
-const filteredSessions = sessions.filter(s => 
-  !s.user_agent?.includes('Chrome/119.0') &&
-  !s.user_agent?.includes('HeadlessChrome') &&
-  (s.session_duration_seconds || 0) > 3
+supabase
+  .from('user_sessions')
+  .select('...')
+  .eq('is_bot', false)           // ADD
+  .eq('is_production', true)     // ADD
+  .gte('started_at', startDateStr)
+  .order('started_at', { ascending: false })
+```
+
+**Query 2: Previous period sessions (line ~224-228)**
+```text
+supabase
+  .from('user_sessions')
+  .select('...')
+  .eq('is_bot', false)           // ADD
+  .eq('is_production', true)     // ADD
+  .gte('started_at', prevStartDateStr)
+  .lt('started_at', startDateStr)
+```
+
+**Query 3: Active sessions for "online now" (line ~257-261)**
+```text
+supabase
+  .from('user_sessions')
+  .select('id')
+  .eq('is_active', true)
+  .eq('is_bot', false)           // ADD
+  .eq('is_production', true)     // ADD
+  .gte('last_active_at', twoMinutesAgo)
+```
+
+**Query 4: First sessions for signup attribution (line ~337-342)**
+```text
+supabase
+  .from('user_sessions')
+  .select('...')
+  .eq('is_bot', false)           // ADD
+  .eq('is_production', true)     // ADD
+  .in('user_id', profileIds)
+  .order('started_at', { ascending: true })
+```
+
+### Client-Side Fallback (Defense in Depth)
+
+Also add a client-side filter after fetching (in case any bots slip through):
+
+```text
+// After line ~390, enhance the existing dev traffic filter:
+const sessions = rawSessions.filter(s => 
+  !isDevTraffic(s.referrer) &&
+  !s.user_agent?.includes('Chrome/119.') &&
+  !s.user_agent?.includes('Chrome/118.') &&
+  !s.user_agent?.includes('Chrome/117.') &&
+  !s.user_agent?.includes('HeadlessChrome')
 );
 ```
 
-This immediately cleans up the globe while the full server-side solution is implemented.
-
 ---
 
-## Expected Results
+## Expected Impact
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Bot traffic visible | 38% | 0% |
-| Location accuracy | ~40% (city lookup) | ~95% (lat/lon from IP) |
-| False positives | N/A | <1% (Chrome 119 is definitively outdated) |
-| Real-time globe quality | Polluted | Clean, accurate |
+| Session count (30d) | ~2,204 | ~1,285 (production only) |
+| Bot sessions included | 259 | 0 |
+| Dev traffic included | 919 | 0 |
+| Data accuracy | ~60% | ~100% |
+
+### Visual Changes
+
+**Geography Card:**
+- France: 35 → ~15 (removes bot traffic)
+- Netherlands: 30 → ~12 (removes bot traffic)
+- More accurate country distribution
+
+**Sources Card:**
+- Direct: 135 → ~75 (removes bot direct visits)
+- More accurate channel attribution
+
+**Users Card:**
+- Removes all 2s anonymous sessions like "Jade Eagle", "Amber Serpent"
+- Only shows real human visitors
 
 ---
 
-## Summary
+## Technical Notes
 
-1. **Quick fix**: Add client-side filtering for Chrome/119 bots immediately
-2. **Database**: Add `is_bot`, `lat`, `lon` columns to `user_sessions`
-3. **Edge function**: Capture lat/lon from IP-API, detect bots on ingest
-4. **Dashboard**: Filter to show only non-bot traffic
-5. **Backfill**: Mark existing Chrome/119 sessions as bots
+1. **No UI changes needed** - All cards already consume data from `useUnifiedAnalytics`
+2. **No component changes needed** - Cards are pure display components
+3. **Query-level filtering is efficient** - Supabase handles this at the database level
+4. **Backward compatible** - Existing filters and global filtering still work
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useUnifiedAnalytics.ts` | Add `.eq('is_bot', false).eq('is_production', true)` to 4 session queries + enhance client-side filter |
+
+---
+
+## Verification
+
+After implementation:
+1. Geography card should show fewer visitors but more accurate data
+2. Users tab should no longer show 2s anonymous sessions
+3. Channel distribution should be more meaningful (less "Direct")
+4. KPI strip totals will decrease but represent real traffic
