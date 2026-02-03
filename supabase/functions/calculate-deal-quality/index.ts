@@ -21,7 +21,7 @@ interface DealQualityScores {
  * SCORING METHODOLOGY (0-100):
  *
  * 1. SIZE (0-70 pts) - 70% weight - This is what matters most
- *    - Based on revenue, EBITDA, or LinkedIn employee count as proxy
+ *    - Based on revenue, EBITDA, or proxies (LinkedIn employees, Google reviews)
  *    - Larger deals = higher scores
  *
  * 2. GEOGRAPHY (0-10 pts) - 10% weight
@@ -51,6 +51,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const revenue = deal.revenue || 0;
   const ebitda = deal.ebitda || 0;
   const employeeCount = deal.linkedin_employee_count || 0;
+  const reviewCount = deal.google_review_count || 0;
   const hasFinancials = revenue > 0 || ebitda > 0;
 
   if (hasFinancials) {
@@ -109,8 +110,28 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     } else {
       sizeScore += 5;  // Small business
     }
+  } else if (reviewCount > 0) {
+    // TERTIARY PROXY: Estimate size from Google review count when no financials or employees
+    // For consumer-facing businesses, review volume indicates customer throughput
+    notes.push('Size estimated from Google review count');
+
+    if (reviewCount >= 2000) {
+      sizeScore += 55; // Very high volume - likely $10M+ revenue
+    } else if (reviewCount >= 1000) {
+      sizeScore += 45; // High volume - likely $5-10M revenue
+    } else if (reviewCount >= 500) {
+      sizeScore += 35; // Established - likely $3-5M revenue
+    } else if (reviewCount >= 200) {
+      sizeScore += 25; // Growing - likely $1-3M revenue
+    } else if (reviewCount >= 100) {
+      sizeScore += 15; // Small but active - likely $500K-1M revenue
+    } else if (reviewCount >= 50) {
+      sizeScore += 8;  // Small - likely $250K-500K revenue
+    } else {
+      sizeScore += 3;  // Very small or new
+    }
   } else {
-    notes.push('No financials or employee data - size unknown');
+    notes.push('No financials, employee, or review data - size unknown');
     // No penalty - just can't score size yet
   }
 
