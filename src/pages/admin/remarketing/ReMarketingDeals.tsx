@@ -79,6 +79,7 @@ import {
   ArrowUpDown,
   Archive,
   XCircle,
+  Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore } from "@/components/remarketing";
@@ -122,6 +123,7 @@ interface DealListing {
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
   google_review_count: number | null;
+  is_priority_target: boolean | null;
   deal_quality_score: number | null;
   deal_total_score: number | null;
   seller_interest_score: number | null;
@@ -242,6 +244,7 @@ const SortableTableRow = ({
   isSelected,
   onToggleSelect,
   onArchive,
+  onTogglePriority,
 }: {
   listing: DealListing;
   index: number;
@@ -256,6 +259,7 @@ const SortableTableRow = ({
   isSelected: boolean;
   onToggleSelect: (dealId: string) => void;
   onArchive: (dealId: string, dealName: string) => void;
+  onTogglePriority: (dealId: string, currentStatus: boolean) => void;
 }) => {
   const {
     attributes,
@@ -333,7 +337,8 @@ const SortableTableRow = ({
       style={style}
       className={cn(
         "cursor-pointer hover:bg-muted/50",
-        isDragging && "bg-muted/80 opacity-80 shadow-lg z-50"
+        isDragging && "bg-muted/80 opacity-80 shadow-lg z-50",
+        listing.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
       )}
       onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
     >
@@ -545,6 +550,16 @@ const SortableTableRow = ({
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
+                onTogglePriority(listing.id, listing.is_priority_target || false);
+              }}
+              className={listing.is_priority_target ? "text-amber-600" : ""}
+            >
+              <Star className={cn("h-4 w-4 mr-2", listing.is_priority_target && "fill-amber-500")} />
+              {listing.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
                 onArchive(listing.id, displayName || 'Unknown Deal');
               }}
               className="text-red-600 focus:text-red-600"
@@ -707,6 +722,7 @@ const ReMarketingDeals = () => {
           linkedin_employee_count,
           linkedin_employee_range,
           google_review_count,
+          is_priority_target,
           deal_quality_score,
           deal_total_score,
           seller_interest_score,
@@ -1113,6 +1129,35 @@ const ReMarketingDeals = () => {
     toast({ title: "Deal archived", description: `${dealName} has been archived` });
     refetchListings();
   }, [toast, refetchListings]);
+
+  // Priority target handler
+  const handleTogglePriority = useCallback(async (dealId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    
+    // Optimistic update
+    setLocalOrder(prev => prev.map(deal => 
+      deal.id === dealId ? { ...deal, is_priority_target: newStatus } : deal
+    ));
+    
+    const { error } = await supabase
+      .from('listings')
+      .update({ is_priority_target: newStatus })
+      .eq('id', dealId);
+    
+    if (error) {
+      // Revert on error
+      setLocalOrder(prev => prev.map(deal => 
+        deal.id === dealId ? { ...deal, is_priority_target: currentStatus } : deal
+      ));
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    
+    toast({ 
+      title: newStatus ? "Priority target set" : "Priority removed", 
+      description: newStatus ? "Deal marked as priority target" : "Deal is no longer a priority target" 
+    });
+  }, [toast]);
 
   const handleBulkArchive = useCallback(async () => {
     setIsArchiving(true);
@@ -1525,6 +1570,7 @@ const ReMarketingDeals = () => {
                           isSelected={selectedDeals.has(listing.id)}
                           onToggleSelect={handleToggleSelect}
                           onArchive={handleArchiveDeal}
+                          onTogglePriority={handleTogglePriority}
                         />
                       ))}
                     </SortableContext>
