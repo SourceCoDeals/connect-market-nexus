@@ -33,7 +33,8 @@ serve(async (req) => {
   try {
     // SECURITY: Verify admin access (or service role for internal calls)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const apiKeyHeader = req.headers.get('apikey');
+    if (!authHeader && !apiKeyHeader) {
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -45,13 +46,13 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // Check if this is the service role key (for internal calls from enrich-deal)
-    const token = authHeader.replace('Bearer ', '');
-    const isServiceRole = token === supabaseServiceKey;
+    const token = authHeader ? authHeader.replace('Bearer ', '') : '';
+    const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
 
     if (!isServiceRole) {
       // Verify admin access for manual calls
       const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader || `Bearer ${apiKeyHeader}` } }
       });
 
       const { data: { user }, error: userError } = await authClient.auth.getUser();
