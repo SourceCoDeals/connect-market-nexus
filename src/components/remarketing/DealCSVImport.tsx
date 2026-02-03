@@ -198,39 +198,65 @@ export const DealCSVImport = ({
           const arrayFields = ["geographic_states", "services"];
 
           columnMappings.forEach((mapping) => {
-            if (mapping.targetField && row[mapping.csvColumn]) {
-              const value = row[mapping.csvColumn].trim();
-              if (!value) return;
-              
-              if (numericFields.includes(mapping.targetField)) {
-                // Parse numeric values (remove $, commas, etc.)
-                const numValue = parseFloat(value.replace(/[$,]/g, ""));
-                if (!isNaN(numValue)) {
-                  listingData[mapping.targetField] = numValue;
-                }
-              } else if (arrayFields.includes(mapping.targetField)) {
-                // Parse as array
-                listingData[mapping.targetField] = value.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
-              } else if (mapping.targetField === "address_state") {
-                // Validate and uppercase state code
-                const stateCode = value.toUpperCase().trim();
-                if (stateCode.length === 2) {
-                  listingData.address_state = stateCode;
-                }
-              } else if (mapping.targetField === "address_country") {
-                // Default to US if not specified
-                const country = value.toUpperCase().trim();
-                listingData.address_country = country === "CA" || country === "CANADA" ? "CA" : "US";
-              } else if (mapping.targetField === "last_contacted_at") {
-                // Parse date
-                const date = new Date(value);
-                if (!isNaN(date.getTime())) {
-                  listingData.last_contacted_at = date.toISOString();
-                }
-              } else {
-                // String fields - direct assignment
-                listingData[mapping.targetField] = value;
+            if (!mapping.targetField) return;
+            
+            // Get the value - handle potential whitespace in column names
+            const csvColumn = mapping.csvColumn;
+            let value = row[csvColumn];
+            
+            // If direct access fails, try finding by trimmed key
+            if (value === undefined) {
+              const rowKeys = Object.keys(row);
+              const matchingKey = rowKeys.find(k => k.trim() === csvColumn.trim());
+              if (matchingKey) {
+                value = row[matchingKey];
               }
+            }
+            
+            if (!value || typeof value !== 'string') return;
+            
+            const trimmedValue = value.trim();
+            if (!trimmedValue) return;
+            
+            console.log(`Mapping: ${csvColumn} -> ${mapping.targetField} = "${trimmedValue}"`);
+            
+            if (numericFields.includes(mapping.targetField)) {
+              // Parse numeric values (remove $, commas, M/K suffixes, etc.)
+              let numStr = trimmedValue.replace(/[$,]/g, "");
+              let multiplier = 1;
+              if (numStr.toUpperCase().endsWith('M')) {
+                multiplier = 1000000;
+                numStr = numStr.slice(0, -1);
+              } else if (numStr.toUpperCase().endsWith('K')) {
+                multiplier = 1000;
+                numStr = numStr.slice(0, -1);
+              }
+              const numValue = parseFloat(numStr) * multiplier;
+              if (!isNaN(numValue)) {
+                listingData[mapping.targetField] = numValue;
+              }
+            } else if (arrayFields.includes(mapping.targetField)) {
+              // Parse as array
+              listingData[mapping.targetField] = trimmedValue.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+            } else if (mapping.targetField === "address_state") {
+              // Validate and uppercase state code
+              const stateCode = trimmedValue.toUpperCase().trim();
+              if (stateCode.length === 2) {
+                listingData.address_state = stateCode;
+              }
+            } else if (mapping.targetField === "address_country") {
+              // Default to US if not specified
+              const country = trimmedValue.toUpperCase().trim();
+              listingData.address_country = country === "CA" || country === "CANADA" ? "CA" : "US";
+            } else if (mapping.targetField === "last_contacted_at") {
+              // Parse date
+              const date = new Date(trimmedValue);
+              if (!isNaN(date.getTime())) {
+                listingData.last_contacted_at = date.toISOString();
+              }
+            } else {
+              // String fields - direct assignment
+              listingData[mapping.targetField] = trimmedValue;
             }
           });
           
@@ -239,16 +265,18 @@ export const DealCSVImport = ({
             listingData.address_country = "US";
           }
 
+          // Log what we're about to insert for debugging
+          console.log(`Row ${i + 1} listingData:`, JSON.stringify(listingData, null, 2));
+
           // Must have a title
           if (!listingData.title) {
-            results.errors.push(`Row ${i + 1}: Missing company name`);
+            results.errors.push(`Row ${i + 1}: Missing company name (check CSV column mapping)`);
             continue;
           }
 
-          // Must have a website for AI enrichment
+          // Website is optional - deals without website won't get AI enrichment
           if (!listingData.website) {
-            results.errors.push(`Row ${i + 1}: Missing website (required for AI enrichment)`);
-            continue;
+            console.log(`Row ${i + 1}: No website - deal will be imported but won't receive AI enrichment`);
           }
 
           // Create listing - use any to bypass strict typing
