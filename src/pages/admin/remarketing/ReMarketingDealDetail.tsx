@@ -486,10 +486,10 @@ const ReMarketingDealDetail = () => {
           addressState={deal.address_state}
           addressZip={deal.address_zip}
           addressCountry={deal.address_country}
-          // Google reviews data (new columns - type assertion while types regenerate)
-          googleReviewCount={(deal as any).google_review_count}
-          googleRating={(deal as any).google_rating}
-          googleMapsUrl={(deal as any).google_maps_url}
+          // Google reviews data
+          googleReviewCount={deal.google_review_count ?? undefined}
+          googleRating={deal.google_rating ?? undefined}
+          googleMapsUrl={deal.google_maps_url ?? undefined}
           onSave={async (data) => {
             await updateDealMutation.mutateAsync({
               website: data.website,
@@ -706,12 +706,12 @@ const ReMarketingDealDetail = () => {
       {/* End Market / Customers - Enhanced with 3 fields */}
       <CustomerTypesCard
         customerTypes={deal.customer_types}
-        customerConcentration={(deal as any).customer_concentration ?? undefined}
-        customerGeography={(deal as any).customer_geography ?? undefined}
+        customerConcentration={deal.customer_concentration != null ? String(deal.customer_concentration) : undefined}
+        customerGeography={deal.customer_geography ?? undefined}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({ 
             customer_types: data.customerTypes,
-            customer_concentration: data.customerConcentration,
+            customer_concentration: data.customerConcentration ? parseFloat(data.customerConcentration) : null,
             customer_geography: data.customerGeography,
           });
         }}
