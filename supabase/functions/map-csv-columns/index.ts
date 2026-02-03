@@ -165,7 +165,27 @@ Be intelligent about variations:
 - Columns with 2-letter codes (TX, CA) likely map to hq_state
 
 Return null for columns that don't match any field.
-Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.`;
+Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.`
+      : `You are a data mapping expert for M&A deal/company listings imports.
+Given CSV column names and sample data, map them to target database fields.
+
+Be intelligent about variations:
+- "Company Name", "Business Name", "Name", "Title" → title
+- "Website", "URL", "Site" → website
+- "Location", "City", "Address" → location (or address_city if specifically city)
+- "Revenue", "Sales", "Annual Revenue" → revenue
+- "EBITDA", "Earnings", "Profit" → ebitda
+- "Description", "About", "Overview", "Summary" → description
+- "States", "Regions", "Operating States" → geographic_states
+- "Services", "Industries", "Sectors" → services
+- "Street", "Address Line 1" → street_address
+- "City" → address_city
+- "State", "ST" → address_state
+- "ZIP", "Zip Code", "Postal Code" → address_zip
+- "Country" → address_country
+
+Return null for columns that don't match any field.
+Location can be city+state combined or just a general location string.`;
 
     const userPrompt = `Map these CSV columns to target fields:
 

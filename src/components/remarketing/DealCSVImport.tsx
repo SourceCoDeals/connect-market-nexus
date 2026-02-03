@@ -161,6 +161,11 @@ export const DealCSVImport = ({
           const listingData: Record<string, unknown> = {
             status: "active",
             category: "Other",
+            // Required field defaults
+            description: "",
+            revenue: 0,
+            ebitda: 0,
+            location: "Unknown",
           };
 
           // Numeric fields that need parsing
@@ -266,7 +271,7 @@ export const DealCSVImport = ({
               listingData[mapping.targetField] = trimmedValue;
             }
           });
-          
+
           // Set default country if we have address fields but no country
           if ((listingData.address_city || listingData.address_state) && !listingData.address_country) {
             listingData.address_country = "US";
