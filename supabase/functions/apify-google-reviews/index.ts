@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 // Apify Google Maps Scraper actor - extracts reviews, ratings, and business info
-const APIFY_ACTOR = 'compass/crawler-google-places';
+// Using ai-scraper-labs~google-maps-places-scraper (verified working actor)
+const APIFY_ACTOR = 'ai-scraper-labs~google-maps-places-scraper';
 
 interface GooglePlaceData {
   title?: string;
@@ -314,25 +315,20 @@ async function scrapeGooglePlace(
 
   const apifyUrl = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
 
-  // Configure the actor input
+  // Configure the actor input for ai-scraper-labs~google-maps-places-scraper
   const actorInput: Record<string, unknown> = {
-    maxCrawledPlacesPerSearch: 1,  // We only need the first/best match
+    maxPlacesPerSearch: 1,  // We only need the first/best match
     language: 'en',
-    deeperCityScrape: false,
-    scrapeReviewerName: false,     // Don't need individual reviews
-    scrapeReviewerId: false,
-    scrapeReviewerUrl: false,
-    scrapeReviewId: false,
-    scrapeReviewUrl: false,
-    scrapeResponseFromOwnerText: false,
+    maxReviews: 0,           // We don't need individual reviews, just the count
+    oneReviewPerRow: false,
   };
 
   if (directUrl) {
     // If we have a direct Google Maps URL, use it
     actorInput.startUrls = [{ url: directUrl }];
   } else if (searchQuery) {
-    // Otherwise search by query
-    actorInput.searchStringsArray = [searchQuery];
+    // Otherwise search by query - this actor uses 'queries' not 'searchStringsArray'
+    actorInput.queries = searchQuery;
   }
 
   try {

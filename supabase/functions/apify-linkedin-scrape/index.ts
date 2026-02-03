@@ -276,24 +276,42 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
     // The actor returns an array of company profiles
     const companyProfile = results[0];
     console.log('Apify raw result keys:', Object.keys(companyProfile || {}));
-    console.log('Apify companySize:', companyProfile?.companySize);
-    console.log('Apify employeeCount:', companyProfile?.employeeCount);
-    console.log('Apify staffCount:', companyProfile?.staffCount);
-    console.log('Apify staffCountRange:', companyProfile?.staffCountRange);
+    
+    // The actor uses different field names than expected:
+    // - numberOfEmployees (number or string like "37 on LinkedIn")
+    // - "Company size" (note the space!) for the range like "11-50 employees"
+    console.log('Apify numberOfEmployees:', companyProfile?.numberOfEmployees);
+    console.log('Apify Company size:', companyProfile?.['Company size']);
+    console.log('Apify Industry:', companyProfile?.Industry);
+
+    // Parse numberOfEmployees - can be number or string like "37 on LinkedIn" or "2,500 on LinkedIn"
+    let rawEmployeeCount: number | null = null;
+    if (companyProfile?.numberOfEmployees) {
+      const empValue = companyProfile.numberOfEmployees;
+      if (typeof empValue === 'number') {
+        rawEmployeeCount = empValue;
+      } else if (typeof empValue === 'string') {
+        // Extract number from strings like "37 on LinkedIn" or "2,500 on LinkedIn"
+        const match = empValue.match(/^([\d,]+)/);
+        if (match) {
+          rawEmployeeCount = parseInt(match[1].replace(/,/g, ''), 10);
+        }
+      }
+    }
 
     return {
       name: companyProfile.name,
-      tagline: companyProfile.tagline,
+      tagline: companyProfile.slogan,
       description: companyProfile.description,
       website: companyProfile.website,
-      industry: companyProfile.industry,
-      companySize: companyProfile.companySize || companyProfile.staffCountRange,
-      employeeCount: companyProfile.employeeCount || companyProfile.staffCount,
-      headquarters: companyProfile.headquarters,
-      foundedYear: companyProfile.foundedYear,
-      specialties: companyProfile.specialties,
-      logoUrl: companyProfile.logoUrl,
-      linkedinUrl: companyProfile.linkedinUrl || linkedinUrl,
+      industry: companyProfile.Industry,
+      companySize: companyProfile['Company size'],  // Note: key has space
+      employeeCount: rawEmployeeCount,
+      headquarters: companyProfile.Headquarters || companyProfile.mainAddress,
+      foundedYear: companyProfile.Founded ? parseInt(companyProfile.Founded, 10) : undefined,
+      specialties: companyProfile.Specialties?.split(',').map((s: string) => s.trim()),
+      logoUrl: companyProfile.logo,
+      linkedinUrl: companyProfile.url || linkedinUrl,
     };
 
   } catch (error) {
