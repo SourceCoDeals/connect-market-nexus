@@ -216,7 +216,6 @@ export function DealImportDialog({
           // Build listing object from mappings
           const listingData: Record<string, any> = {
             is_active: true,
-            created_by: user?.id,
             status: 'active',
           };
 

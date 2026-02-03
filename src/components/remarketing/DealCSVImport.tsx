@@ -176,7 +176,6 @@ export const DealCSVImport = ({
             services?: string[];
             general_notes?: string;
             is_active: boolean;
-            created_by?: string;
             category: string;
             // Structured address
             street_address?: string;
@@ -186,7 +185,6 @@ export const DealCSVImport = ({
             address_country?: string;
           } = {
             is_active: true,
-            created_by: user?.id,
             category: "Other",
           };
 
