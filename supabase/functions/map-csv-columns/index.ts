@@ -47,11 +47,11 @@ const DEAL_FIELDS = [
   { field: 'title', description: 'Company name (REQUIRED)' },
   { field: 'website', description: 'Company website URL' },
   { field: 'category', description: 'Industry or business category (e.g., Collision, HVAC, Roofing)' },
-  { field: 'revenue', description: 'Annual revenue amount' },
-  { field: 'ebitda', description: 'EBITDA amount' },
+  { field: 'revenue', description: 'Annual revenue amount (numeric)' },
+  { field: 'ebitda', description: 'EBITDA amount (numeric)' },
   { field: 'description', description: 'Business description or AI-generated summary' },
   { field: 'executive_summary', description: 'Executive summary of the deal' },
-  { field: 'general_notes', description: 'General notes or comments about the deal' },
+  { field: 'general_notes', description: 'General notes, Bill Notes, or comments about the deal' },
   { field: 'services', description: 'Services offered by the company' },
   { field: 'geographic_states', description: 'States where the company operates' },
   { field: 'full_time_employees', description: 'Number of employees' },
@@ -59,9 +59,12 @@ const DEAL_FIELDS = [
   { field: 'address_city', description: 'City name' },
   { field: 'address_state', description: 'State (2-letter code)' },
   { field: 'address_zip', description: 'ZIP code' },
-  { field: 'primary_contact_name', description: 'Primary contact name (first and/or last name)' },
+  { field: 'primary_contact_name', description: 'Full name of primary contact or owner' },
+  { field: 'primary_contact_first_name', description: 'First name only of primary contact' },
+  { field: 'primary_contact_last_name', description: 'Last name only of primary contact' },
   { field: 'primary_contact_email', description: 'Primary contact email address' },
   { field: 'primary_contact_phone', description: 'Primary contact phone number' },
+  { field: 'primary_contact_title', description: 'Job title or role of primary contact (e.g., Owner, CEO)' },
   { field: 'internal_company_name', description: 'Internal name for the company' },
   { field: 'internal_notes', description: 'Internal notes (not shown to buyers)' },
   { field: 'owner_goals', description: 'Owner goals or seller motivation' },
@@ -69,6 +72,10 @@ const DEAL_FIELDS = [
   { field: 'google_review_count', description: 'Number of Google reviews' },
   { field: 'google_review_score', description: 'Google review score/rating' },
   { field: 'linkedin_url', description: 'LinkedIn company profile URL' },
+  { field: 'transcript_url', description: 'URL to call transcript or recording (e.g., Fireflies, Gong)' },
+  { field: 'status', description: 'Deal status (e.g., Active, Evaluation, Closed)' },
+  { field: 'fit_assessment', description: 'Fit/Not Fit assessment (Yes/No)' },
+  { field: 'last_contacted_at', description: 'Date of last contact with the company' },
 ];
 
 serve(async (req) => {
@@ -109,27 +116,35 @@ Given CSV column names and sample data, map them to target database fields for c
 Be intelligent about variations:
 - "Company Name", "Business Name", "Name", "Account" → title
 - "Website URL", "Site", "URL", "Web" → website
-- "Industry", "Category", "Sector", "Type" → category
-- "Revenue", "Annual Revenue", "Sales" → revenue (numeric financial data)
-- "EBITDA", "Earnings" → ebitda (numeric financial data)
+- "Industry", "Category", "Sector", "Type", "Vertical" → category
+- "Revenue", "Annual Revenue", "Sales", "Top Line" → revenue (numeric financial data)
+- "EBITDA", "Earnings", "EBIDA" → ebitda (numeric financial data)
 - "Description", "Summary", "About", "AI Description" → description
-- "Notes", "Comments", "Bill Notes", "Internal Notes" → general_notes or internal_notes
-- "Services", "Main Services", "Offerings" → services
-- "States", "Geography", "Locations" → geographic_states
-- "Employees", "Employee Count", "Headcount", "Staff" → full_time_employees
-- "Address", "Location", "Street" → address
+- "Notes", "Comments", "Bill Notes", "General Notes", "Internal Notes", "Deal Notes" → general_notes
+- "Services", "Main Services", "Offerings", "Products" → services
+- "States", "Geography", "Locations", "Service Area" → geographic_states
+- "Employees", "Employee Count", "Headcount", "Staff", "FTE" → full_time_employees
+- "Address", "Location", "Street Address" → address
 - "City" → address_city
 - "State" (2-letter codes like TX, CA) → address_state
-- "First Name", "Last Name", "Contact Name", "Owner Name" → primary_contact_name
-- "Email", "Contact Email" → primary_contact_email
-- "Phone", "Phone Number", "Contact Phone" → primary_contact_phone
-- "LinkedIn URL", "LinkedIn" → linkedin_url
-- "Google Reviews", "Review Count" → google_review_count
-- "Google Score", "Rating" → google_review_score
-- "Locations", "Location Count" → number_of_locations
+- "First Name" (contact's first name only) → primary_contact_first_name
+- "Last Name" (contact's last name only) → primary_contact_last_name  
+- "Contact Name", "Owner Name", "Full Name" → primary_contact_name
+- "Title", "Role", "Position", "Job Title" (if about a person) → primary_contact_title
+- "Email", "Contact Email", "Owner Email" → primary_contact_email
+- "Phone", "Phone Number", "Contact Phone", "Mobile" → primary_contact_phone
+- "LinkedIn URL", "LinkedIn", "LI URL", "Company LinkedIn" → linkedin_url
+- "Transcript", "Recording", "Fireflies", "Gong", "Call Recording" → transcript_url
+- "Google Reviews", "Review Count", "Reviews" → google_review_count
+- "Google Score", "Rating", "Review Score" → google_review_score
+- "Locations", "Location Count", "# of Locations" → number_of_locations
+- "Status", "Stage", "Deal Status", "Pipeline Stage" → status
+- "Fit", "FIT / NOT FIT", "Qualified", "Is Fit" → fit_assessment
+- "Last Contacted", "Last Contact Date", "Last Touch" → last_contacted_at
+- "Marketplace" (if it's a yes/no flag) → ignore (internal only)
 
 Return null for columns that don't match any field.
-Look at sample data to disambiguate - e.g., if a column contains URLs, map to website.`
+Look at sample data to disambiguate - e.g., if a column contains URLs, map to website; if it contains names, check if first or full name.`
       : `You are a data mapping expert for M&A buyer data imports.
 Given CSV column names and sample data, map them to target database fields.
 
@@ -259,28 +274,31 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       if (lower.includes('company') && lower.includes('name') || lower === 'company name' || lower === 'name') {
         targetField = 'title';
         confidence = 0.9;
-      } else if (lower.includes('website') || lower.includes('url') || lower.includes('site')) {
+      } else if ((lower.includes('website') || lower.includes('url') || lower.includes('site')) && !lower.includes('linkedin') && !lower.includes('transcript') && !lower.includes('fireflies') && !lower.includes('recording')) {
         targetField = 'website';
         confidence = 0.85;
-      } else if (lower.includes('industry') || lower.includes('category') || lower.includes('sector')) {
+      } else if (lower.includes('industry') || lower.includes('category') || lower.includes('sector') || lower.includes('vertical')) {
         targetField = 'category';
         confidence = 0.8;
       } else if (lower.includes('revenue') && !lower.includes('model')) {
         targetField = 'revenue';
         confidence = 0.9;
-      } else if (lower.includes('ebitda')) {
+      } else if (lower.includes('ebitda') || lower.includes('ebida')) {
         targetField = 'ebitda';
         confidence = 0.9;
       } else if (lower.includes('description') || lower.includes('summary') || lower.includes('about')) {
         targetField = 'description';
         confidence = 0.8;
+      } else if (lower.includes('bill') && lower.includes('note')) {
+        targetField = 'general_notes';
+        confidence = 0.9;
       } else if (lower.includes('notes') || lower.includes('comment')) {
         targetField = 'general_notes';
         confidence = 0.75;
       } else if (lower.includes('service') && (lower.includes('main') || lower.includes('offer'))) {
         targetField = 'services';
         confidence = 0.8;
-      } else if (lower.includes('employee') || lower.includes('staff') || lower.includes('headcount')) {
+      } else if (lower.includes('employee') || lower.includes('staff') || lower.includes('headcount') || lower.includes('fte')) {
         targetField = 'full_time_employees';
         confidence = 0.85;
       } else if (lower.includes('address') && !lower.includes('email')) {
@@ -293,20 +311,32 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
         targetField = 'address_state';
         confidence = 0.75;
       } else if (lower.includes('first') && lower.includes('name')) {
-        targetField = 'primary_contact_name';
-        confidence = 0.7;
+        targetField = 'primary_contact_first_name';
+        confidence = 0.85;
       } else if (lower.includes('last') && lower.includes('name')) {
+        targetField = 'primary_contact_last_name';
+        confidence = 0.85;
+      } else if ((lower.includes('contact') || lower.includes('owner')) && lower.includes('name')) {
         targetField = 'primary_contact_name';
-        confidence = 0.7;
+        confidence = 0.8;
+      } else if (lower === 'title' || lower.includes('job title') || lower.includes('role') || lower.includes('position')) {
+        // "Title" by itself or job-related terms → contact title (not company name)
+        if (!lower.includes('company') && !lower.includes('deal')) {
+          targetField = 'primary_contact_title';
+          confidence = 0.7;
+        }
       } else if (lower.includes('email') && !lower.includes('sent')) {
         targetField = 'primary_contact_email';
         confidence = 0.85;
-      } else if (lower.includes('phone')) {
+      } else if (lower.includes('phone') || lower.includes('mobile') || lower.includes('cell')) {
         targetField = 'primary_contact_phone';
         confidence = 0.85;
       } else if (lower.includes('linkedin')) {
         targetField = 'linkedin_url';
         confidence = 0.8;
+      } else if (lower.includes('transcript') || lower.includes('fireflies') || lower.includes('gong') || lower.includes('recording')) {
+        targetField = 'transcript_url';
+        confidence = 0.85;
       } else if (lower.includes('google') && lower.includes('review') && lower.includes('count')) {
         targetField = 'google_review_count';
         confidence = 0.9;
@@ -316,12 +346,25 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if (lower.includes('location') && lower.includes('count')) {
         targetField = 'number_of_locations';
         confidence = 0.85;
-      } else if (lower === 'locations') {
+      } else if (lower === 'locations' || lower === '# of locations') {
         targetField = 'number_of_locations';
         confidence = 0.7;
       } else if (lower.includes('owner') && lower.includes('goal')) {
         targetField = 'owner_goals';
         confidence = 0.8;
+      } else if (lower.includes('status') || lower.includes('stage') || lower.includes('pipeline')) {
+        targetField = 'status';
+        confidence = 0.75;
+      } else if (lower.includes('fit') || lower.includes('qualified')) {
+        targetField = 'fit_assessment';
+        confidence = 0.8;
+      } else if (lower.includes('last') && lower.includes('contact')) {
+        targetField = 'last_contacted_at';
+        confidence = 0.8;
+      } else if (lower === 'marketplace') {
+        // Ignore marketplace column - internal only
+        targetField = null;
+        confidence = 0;
       }
     } else {
       // Buyer mappings (original logic)

@@ -73,12 +73,22 @@ const DEAL_FIELDS = [
   { value: "address_state", label: "State (2-letter)" },
   { value: "address_zip", label: "ZIP Code" },
   { value: "primary_contact_name", label: "Contact Name" },
+  { value: "primary_contact_first_name", label: "Contact First Name" },
+  { value: "primary_contact_last_name", label: "Contact Last Name" },
   { value: "primary_contact_email", label: "Contact Email" },
   { value: "primary_contact_phone", label: "Contact Phone" },
+  { value: "primary_contact_title", label: "Contact Title/Role" },
   { value: "internal_company_name", label: "Internal Company Name" },
   { value: "internal_notes", label: "Internal Notes" },
   { value: "owner_goals", label: "Owner Goals" },
   { value: "number_of_locations", label: "Number of Locations" },
+  { value: "linkedin_url", label: "LinkedIn URL" },
+  { value: "transcript_url", label: "Transcript/Recording URL" },
+  { value: "google_review_count", label: "Google Review Count" },
+  { value: "google_review_score", label: "Google Review Score" },
+  { value: "status", label: "Deal Status" },
+  { value: "fit_assessment", label: "Fit Assessment (Yes/No)" },
+  { value: "last_contacted_at", label: "Last Contacted Date" },
 ];
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
@@ -211,6 +221,10 @@ export function DealImportDialog({
             status: 'active',
           };
 
+          // Track first/last name separately to combine later
+          let firstName = '';
+          let lastName = '';
+
           columnMappings.forEach((mapping) => {
             if (mapping.targetField && row[mapping.csvColumn]) {
               const value = row[mapping.csvColumn]?.trim();
@@ -219,11 +233,11 @@ export function DealImportDialog({
               const field = mapping.targetField;
               
               // Handle numeric fields
-              if (field === "revenue" || field === "ebitda") {
+              if (field === "revenue" || field === "ebitda" || field === "google_review_score") {
                 listingData[field] = parseNumericValue(value);
               }
               // Handle integer fields
-              else if (field === "full_time_employees" || field === "number_of_locations") {
+              else if (field === "full_time_employees" || field === "number_of_locations" || field === "google_review_count") {
                 const num = parseNumericValue(value);
                 listingData[field] = num ? Math.round(num) : null;
               }
@@ -243,12 +257,64 @@ export function DealImportDialog({
                   if (match) listingData[field] = match[1];
                 }
               }
+              // Handle first/last name separately for combining
+              else if (field === "primary_contact_first_name") {
+                firstName = value;
+              }
+              else if (field === "primary_contact_last_name") {
+                lastName = value;
+              }
+              // Handle date fields
+              else if (field === "last_contacted_at") {
+                try {
+                  const parsed = new Date(value);
+                  if (!isNaN(parsed.getTime())) {
+                    listingData[field] = parsed.toISOString();
+                  }
+                } catch {
+                  // Invalid date, skip
+                }
+              }
+              // Handle fit_assessment as boolean-like
+              else if (field === "fit_assessment") {
+                const lowerVal = value.toLowerCase();
+                if (lowerVal === 'yes' || lowerVal === 'true' || lowerVal === '1' || lowerVal === 'fit') {
+                  listingData.internal_notes = (listingData.internal_notes || '') + '\n[Fit: Yes]';
+                } else if (lowerVal === 'no' || lowerVal === 'false' || lowerVal === '0' || lowerVal === 'not fit') {
+                  listingData.internal_notes = (listingData.internal_notes || '') + '\n[Fit: No]';
+                }
+              }
+              // Handle status mapping
+              else if (field === "status") {
+                // Map common status values to our schema
+                const lowerVal = value.toLowerCase();
+                if (lowerVal.includes('active') || lowerVal.includes('evaluation')) {
+                  listingData.status = 'active';
+                } else if (lowerVal.includes('closed') || lowerVal.includes('sold')) {
+                  listingData.status = 'sold';
+                } else if (lowerVal.includes('inactive') || lowerVal.includes('archived')) {
+                  listingData.status = 'inactive';
+                }
+              }
+              // Handle transcript/recording URLs
+              else if (field === "transcript_url") {
+                // Store in internal_notes with a label since we don't have a dedicated column
+                listingData.internal_notes = (listingData.internal_notes || '') + `\n[Transcript: ${value}]`;
+              }
               // Default: string fields
               else {
                 listingData[field] = value;
               }
             }
           });
+
+          // Combine first + last name into primary_contact_name
+          if (firstName || lastName) {
+            const fullName = `${firstName} ${lastName}`.trim();
+            if (fullName) {
+              listingData.primary_contact_name = fullName;
+            }
+          }
 
           // Must have a title
           if (!listingData.title) {
