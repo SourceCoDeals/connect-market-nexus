@@ -5,11 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
 // Apify Google Maps Scraper actor - extracts reviews, ratings, and business info
-// Using ai-scraper-labs~google-maps-places-scraper (verified working actor)
-const APIFY_ACTOR = 'ai-scraper-labs~google-maps-places-scraper';
-
+// Using compass~crawler-google-places (the original working actor with tilde separator)
+const APIFY_ACTOR = 'compass~crawler-google-places';
 interface GooglePlaceData {
   title?: string;
   totalScore?: number;        // Google rating (e.g., 4.5)
@@ -315,20 +313,26 @@ async function scrapeGooglePlace(
 
   const apifyUrl = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
 
-  // Configure the actor input for ai-scraper-labs~google-maps-places-scraper
+  // Configure the actor input for compass~crawler-google-places
   const actorInput: Record<string, unknown> = {
-    maxPlacesPerSearch: 1,  // We only need the first/best match
+    maxCrawledPlacesPerSearch: 1,  // We only need the first/best match
     language: 'en',
-    maxReviews: 0,           // We don't need individual reviews, just the count
-    oneReviewPerRow: false,
+    deeperCityScrape: false,
+    scrapeReviewerName: false,     // Don't need individual reviews
+    scrapeReviewerId: false,
+    scrapeReviewerUrl: false,
+    scrapeReviewId: false,
+    scrapeReviewUrl: false,
+    scrapeResponseFromOwnerText: false,
+    maxImages: 0,
   };
 
   if (directUrl) {
     // If we have a direct Google Maps URL, use it
     actorInput.startUrls = [{ url: directUrl }];
   } else if (searchQuery) {
-    // Otherwise search by query - this actor uses 'queries' not 'searchStringsArray'
-    actorInput.queries = searchQuery;
+    // Search by query - compass actor uses 'searchStringsArray'
+    actorInput.searchStringsArray = [searchQuery];
   }
 
   try {
