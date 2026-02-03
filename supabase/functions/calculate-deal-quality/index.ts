@@ -244,7 +244,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { listingId, calculateAll, forceRecalculate } = body;
+    const { listingId, calculateAll, forceRecalculate, triggerEnrichment } = body;
 
     // Rate limit check
     const rateLimitResult = await checkRateLimit(supabase, userId, 'deal_scoring', false);
@@ -263,6 +263,43 @@ serve(async (req) => {
     }
 
     let listingsToScore: any[] = [];
+    let enrichmentQueued = 0;
+
+    // Helper function to queue deals for enrichment
+    const queueDealsForEnrichment = async (dealIds: string[], reason: string) => {
+      console.log(`Queueing ${dealIds.length} deals for enrichment (${reason})`);
+      let queuedCount = 0;
+      
+      for (const dealId of dealIds) {
+        // Check if already in queue (pending or processing)
+        const { data: existing } = await supabase
+          .from("enrichment_queue")
+          .select("id")
+          .eq("listing_id", dealId)
+          .in("status", ["pending", "processing"])
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: queueError } = await supabase
+            .from("enrichment_queue")
+            .upsert({
+              listing_id: dealId,
+              status: "pending",
+              attempts: 0,
+              queued_at: new Date().toISOString(),
+            }, { onConflict: 'listing_id' });
+
+          if (!queueError) {
+            queuedCount++;
+          }
+        }
+      }
+      
+      if (queuedCount > 0) {
+        console.log(`Queued ${queuedCount} deals for enrichment`);
+      }
+      return queuedCount;
+    };
 
     if (listingId) {
       // Score single listing
@@ -277,6 +314,9 @@ serve(async (req) => {
       }
 
       listingsToScore = [listing];
+      
+      // Always queue single listing for enrichment when scoring
+      enrichmentQueued = await queueDealsForEnrichment([listingId], 'single deal score');
     } else if (forceRecalculate) {
       // Force recalculate ALL active listings (even if already scored)
       const { data: listings, error: listingsError } = await supabase
@@ -292,6 +332,12 @@ serve(async (req) => {
 
       listingsToScore = listings || [];
       console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
+
+      // If triggerEnrichment is true, queue ALL deals for re-enrichment
+      if (triggerEnrichment && listingsToScore.length > 0) {
+        const dealIds = listingsToScore.map(l => l.id);
+        enrichmentQueued = await queueDealsForEnrichment(dealIds, 'force recalculate all');
+      }
     } else if (calculateAll) {
       // Score all listings that don't have a score yet
       const { data: listings, error: listingsError } = await supabase
@@ -305,6 +351,17 @@ serve(async (req) => {
       }
 
       listingsToScore = listings || [];
+
+      // Queue unscored deals for enrichment (they likely need it)
+      if (listingsToScore.length > 0) {
+        const unscoredIds = listingsToScore
+          .filter(l => !l.enriched_at) // Only those not enriched
+          .map(l => l.id);
+        
+        if (unscoredIds.length > 0) {
+          enrichmentQueued = await queueDealsForEnrichment(unscoredIds, 'unscored deals');
+        }
+      }
 
       // Also queue enrichment for stale deals (not enriched in 30+ days)
       const thirtyDaysAgo = new Date();
@@ -321,37 +378,9 @@ serve(async (req) => {
 
       if (!staleError && staleDeals && staleDeals.length > 0) {
         console.log(`Found ${staleDeals.length} deals needing enrichment (stale or never enriched)`);
-        
-        // Queue them for enrichment
-        let queuedCount = 0;
-        for (const deal of staleDeals) {
-          // Check if already in queue (pending or processing)
-          const { data: existing } = await supabase
-            .from("enrichment_queue")
-            .select("id")
-            .eq("listing_id", deal.id)
-            .in("status", ["pending", "processing"])
-            .maybeSingle();
-
-          if (!existing) {
-            const { error: queueError } = await supabase
-              .from("enrichment_queue")
-              .insert({
-                listing_id: deal.id,
-                status: "pending",
-                attempts: 0,
-                queued_at: new Date().toISOString(),
-              });
-
-            if (!queueError) {
-              queuedCount++;
-            }
-          }
-        }
-        
-        if (queuedCount > 0) {
-          console.log(`Queued ${queuedCount} stale deals for enrichment`);
-        }
+        const staleIds = staleDeals.map(d => d.id);
+        const staleQueued = await queueDealsForEnrichment(staleIds, 'stale deals');
+        enrichmentQueued += staleQueued;
       }
     } else {
       return new Response(
@@ -409,22 +438,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Scored ${scored} listings, ${errors} errors`);
-
-    // Count how many deals were queued for enrichment
-    let enrichmentQueued = 0;
-    if (calculateAll) {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const { count } = await supabase
-        .from("enrichment_queue")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending")
-        .gte("queued_at", thirtyDaysAgo.toISOString());
-      
-      enrichmentQueued = count || 0;
-    }
+    console.log(`Scored ${scored} listings, ${errors} errors, ${enrichmentQueued} queued for enrichment`);
 
     return new Response(
       JSON.stringify({

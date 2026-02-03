@@ -1195,13 +1195,21 @@ const ReMarketingDeals = () => {
     }
   }, [selectedDeals, toast, refetchListings]);
 
+  // Calculate scores dialog state
+  const [showCalculateDialog, setShowCalculateDialog] = useState(false);
+
   // Handle calculate scores - calls edge function for comprehensive scoring
-  const handleCalculateScores = async () => {
+  const handleCalculateScores = async (mode: 'all' | 'unscored') => {
+    setShowCalculateDialog(false);
     setIsCalculating(true);
     try {
-      // Call edge function to calculate scores for all unscored deals
+      // Call edge function to calculate scores
+      // mode 'all' = forceRecalculate (re-enrich and rescore everything)
+      // mode 'unscored' = calculateAll (only score unscored, enrich those without enrichment)
       const { data, error } = await supabase.functions.invoke('calculate-deal-quality', {
-        body: { calculateAll: true }
+        body: mode === 'all' 
+          ? { forceRecalculate: true, triggerEnrichment: true }
+          : { calculateAll: true }
       });
 
       if (error) {
@@ -1212,7 +1220,7 @@ const ReMarketingDeals = () => {
         toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
       } else {
         const enrichmentMsg = data?.enrichmentQueued > 0 
-          ? `. Queued ${data.enrichmentQueued} stale deals for enrichment.`
+          ? `. Queued ${data.enrichmentQueued} deals for enrichment.`
           : '';
         toast({
           title: "Scoring complete",
@@ -1260,7 +1268,7 @@ const ReMarketingDeals = () => {
             Import CSV
           </Button>
           <Button 
-            onClick={handleCalculateScores} 
+            onClick={() => setShowCalculateDialog(true)} 
             disabled={isCalculating}
             className="bg-slate-800 hover:bg-slate-700 text-white"
           >
@@ -1595,6 +1603,54 @@ const ReMarketingDeals = () => {
           </TooltipProvider>
         </CardContent>
       </Card>
+
+      {/* Calculate Scores Dialog */}
+      <Dialog open={showCalculateDialog} onOpenChange={setShowCalculateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Calculate Deal Scores
+            </DialogTitle>
+            <DialogDescription>
+              Choose how you want to calculate quality scores. Both options will trigger website enrichment for accurate data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              variant="default"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleCalculateScores('all')}
+              disabled={isCalculating}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Calculate All</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Re-enrich all websites and recalculate all scores
+                </span>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleCalculateScores('unscored')}
+              disabled={isCalculating}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Just Those Without a Score</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Only enrich and score deals that don't have a score yet
+                </span>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowCalculateDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
