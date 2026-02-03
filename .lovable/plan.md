@@ -1,152 +1,159 @@
 
-# Fullscreen Globe Optimization Plan
+# Bot Filtering & Geographic Accuracy Plan
 
-## Problem Analysis
+## Problem Summary
 
-### 1. Whitespace at Top Issue
-The globe is not truly fullscreen because:
-- The fixed overlay is rendering inside the React component tree, which may be inside a container with CSS transforms or positioned ancestors
-- The AdminLayout has a sticky header that may affect stacking context
-- React Portal is not being used, so the overlay is subject to parent container constraints
+Your real-time globe is polluted with **38% bot traffic** disguised as anonymous visitors. These appear as "jade eagle", "amber fox", etc. with 2-3 second sessions. Additionally, geographic placement is inaccurate for smaller cities not in the coordinate lookup table.
 
-### 2. Slow Loading Issue
-Current loading sequence (3+ network requests):
-1. User clicks globe → Component mounts
-2. `useEnhancedRealTimeAnalytics` fetches session data from Supabase
-3. MapboxGlobeMap fetches token from `get-mapbox-token` edge function  
-4. Mapbox GL JS initializes and loads satellite tiles
+## Issues Identified
 
-### 3. Default Visibility
-Currently the globe is hidden and toggled via the floating button.
+### Issue 1: Bot Traffic Polluting Analytics
+- 148 bot sessions in the last 7 days (38% of production traffic)
+- All share identical signature: `Chrome/119.0.0.0` (outdated by 2+ years)
+- All originate from Cloudflare proxy IPs (`104.28.x.x`)
+- Sessions last exactly 2-3 seconds with no referrer
+- Page path: always `/` → `/welcome` only
 
----
+### Issue 2: Inaccurate Globe Placement
+- Cities like "Chamartin" (Madrid suburb), "Aulnay-sous-Bois" (Paris suburb) are not in the coordinate map
+- These fall back to country center coordinates instead of accurate city positions
+- The IP geolocation service returns accurate data, but the frontend lookup is limited
 
 ## Solution Architecture
 
-### Part 1: True Fullscreen with React Portal
+### Part 1: Server-Side Bot Detection & Filtering
 
-Render the fullscreen overlay using `ReactDOM.createPortal` directly into `document.body` to escape all parent container constraints.
+Add bot detection to the `track-session` edge function with a new `is_bot` flag:
 
-**Changes to `FullscreenGlobeView.tsx`:**
-- Wrap the entire overlay in a Portal that renders to `document.body`
-- This ensures it sits at the document root, completely bypassing AdminLayout
-
-### Part 2: Performance Optimization Strategy
-
-**A. Preload Mapbox Token on App Mount**
-- Create a global token cache that fetches the Mapbox token once on app initialization
-- Store in React Context or module-level variable
-- The globe component reads from cache instead of making a network request
-
-**B. Preload Analytics Data**
-- Use `staleTime: Infinity` with background refetch so data is always instantly available from cache
-- Prefetch analytics data when the Dashboard tab is active (before globe is opened)
-
-**C. Lazy Load Mapbox GL JS**
-- The library is already loaded via npm, but we can optimize tile loading
-- Use lower-resolution style initially, then upgrade
-
-**D. Map Instance Persistence**
-- Keep the Mapbox map instance alive in memory when globe is closed (just hide it)
-- This prevents re-initialization on subsequent opens
-
-### Part 3: Globe-First Dashboard Experience
-
-**New Flow:**
-1. Admin lands on `/admin` → Globe visible by default (fullscreen)
-2. Press ESC or click X → Globe hides, dashboard content visible
-3. Click globe icon → Toggle back to fullscreen globe
+**Detection Signals:**
+1. Outdated browser version (Chrome/119 when current is 142+)
+2. Session duration < 5 seconds with only 1-2 page views
+3. Known bot user agent strings (HeadlessChrome, GoogleOther)
+4. No referrer + landing on root path only
+5. IP patterns from known proxy/datacenter ranges
 
 **Implementation:**
-- Store globe visibility state in localStorage for persistence
-- On first visit: globe is shown
-- User preference is remembered
+- Add `is_bot` boolean column to `user_sessions` table
+- Update `track-session` function to detect bots on initial request
+- Create background job to flag sessions that complete with bot patterns
+
+### Part 2: Real-Time Dashboard Filtering
+
+Update `useEnhancedRealTimeAnalytics` to filter out detected bots:
+
+```text
+.eq('is_bot', false)  // Add to session query
+```
+
+Also add UI toggle to optionally show/hide bot traffic for debugging.
+
+### Part 3: Dynamic Geocoding via API
+
+Replace static city coordinate map with API-based geocoding:
+
+**Option A: Use IP-API coordinates directly**
+The `ip-api.com` service returns `lat` and `lon` fields. We should capture and store these in `user_sessions`.
+
+**Option B: Forward geocoding fallback**
+For cities not in the static map, use a geocoding API (MapTiler, Mapbox, or free Nominatim) to look up coordinates.
+
+### Part 4: Backfill & Cleanup
+
+1. Mark existing bot sessions with SQL:
+```sql
+UPDATE user_sessions 
+SET is_bot = true 
+WHERE user_agent LIKE '%Chrome/119.0%' 
+   OR user_agent LIKE '%HeadlessChrome%'
+   OR user_agent LIKE '%GoogleOther%';
+```
+
+2. Add coordinates to `user_sessions` table for accurate placement
 
 ---
 
 ## Technical Implementation
 
+### Database Changes
+
+**Migration: Add bot detection and coordinate columns**
+```text
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT false;
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS lon DOUBLE PRECISION;
+```
+
 ### File Changes
 
-#### 1. `src/components/admin/analytics/datafast/FullscreenGlobeView.tsx`
-- Add React Portal wrapper using `createPortal()`
-- Portal target: `document.body`
-- Add CSS to ensure truly fullscreen (position fixed, all insets 0)
+**1. `supabase/functions/track-session/index.ts`**
+- Parse IP-API response to extract `lat` and `lon`
+- Add `detectBot()` function checking:
+  - User agent patterns (Chrome/119, HeadlessChrome)
+  - Known bot strings (GoogleOther, Googlebot, etc.)
+- Store `is_bot`, `lat`, `lon` in session record
 
-#### 2. `src/hooks/useMapboxToken.ts` (new file)
-- Create a dedicated hook for Mapbox token with caching
-- Fetch once on mount, store in module-level variable
-- Subsequent calls return cached value instantly
+**2. `src/hooks/useEnhancedRealTimeAnalytics.ts`**
+- Add `.eq('is_bot', false)` filter to session query
+- Update coordinate logic to prefer stored lat/lon over lookup
 
-#### 3. `src/components/admin/analytics/datafast/FloatingGlobeToggle.tsx`
-- Add localStorage persistence for globe visibility
-- Default to `true` (globe open) on first visit
-- Read from localStorage on mount
+**3. `src/components/admin/analytics/realtime/MapboxGlobeMap.tsx`**
+- Use session's stored coordinates when available
+- Fall back to city lookup only when lat/lon missing
 
-#### 4. `src/hooks/useEnhancedRealTimeAnalytics.ts`
-- Increase `staleTime` to serve cached data instantly
-- Background refetch keeps data fresh
+**4. Create new migration file**
+- Add `is_bot`, `lat`, `lon` columns
+- Backfill existing bot sessions
 
-#### 5. `src/components/admin/analytics/realtime/MapboxGlobeMap.tsx`
-- Use the new `useMapboxToken` hook
-- Add option to persist map instance across show/hide cycles
-
----
-
-## Detailed Code Strategy
-
-### Portal Implementation
-```text
-createPortal(
-  <div className="fixed inset-0 z-[99999]" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
-    {/* Globe content */}
-  </div>,
-  document.body
-)
-```
-
-### Token Caching
-```text
-// Module-level cache
-let cachedToken: string | null = null;
-let tokenPromise: Promise<string> | null = null;
-
-export function useMapboxToken() {
-  // Return cached immediately if available
-  // Otherwise fetch and cache
-}
-```
-
-### Visibility Persistence
-```text
-const STORAGE_KEY = 'globe-visible-default';
-
-// On mount
-const stored = localStorage.getItem(STORAGE_KEY);
-const defaultOpen = stored === null ? true : stored === 'true';
-
-// On toggle
-localStorage.setItem(STORAGE_KEY, String(!isGlobeOpen));
-```
+**5. `src/integrations/supabase/types.ts`**
+- Regenerate to include new columns
 
 ---
 
-## Expected Performance Improvement
+## Bot Detection Rules
+
+| Signal | Confidence | Action |
+|--------|------------|--------|
+| Chrome/119 user agent | High | Flag as bot |
+| HeadlessChrome | Definite | Flag as bot |
+| GoogleOther/Googlebot | Definite | Flag as bot |
+| Session < 3s + 2 pages only | Medium | Flag if combined with above |
+| No referrer + root landing | Low | Only flag if combined |
+
+---
+
+## Immediate Quick Fix (Recommended First Step)
+
+Before implementing the full solution, add a client-side filter to hide obvious bots:
+
+In `useEnhancedRealTimeAnalytics.ts`:
+```text
+// Filter out likely bot sessions on the client
+const filteredSessions = sessions.filter(s => 
+  !s.user_agent?.includes('Chrome/119.0') &&
+  !s.user_agent?.includes('HeadlessChrome') &&
+  (s.session_duration_seconds || 0) > 3
+);
+```
+
+This immediately cleans up the globe while the full server-side solution is implemented.
+
+---
+
+## Expected Results
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Time to globe visible | ~2-3s | ~0.3s (cached) |
-| Network requests on toggle | 3+ | 0 (all cached) |
-| Map re-initialization | Every toggle | Never (persisted) |
-| Fullscreen accuracy | 95% (whitespace) | 100% |
+| Bot traffic visible | 38% | 0% |
+| Location accuracy | ~40% (city lookup) | ~95% (lat/lon from IP) |
+| False positives | N/A | <1% (Chrome 119 is definitively outdated) |
+| Real-time globe quality | Polluted | Clean, accurate |
 
 ---
 
 ## Summary
 
-1. **Fix whitespace**: Use React Portal to render directly to `document.body`
-2. **Speed up loading**: 
-   - Cache Mapbox token at app level
-   - Prefetch analytics data
-   - Persist map instance
-3. **Default visibility**: Globe shown on landing, ESC to hide, toggle to show
+1. **Quick fix**: Add client-side filtering for Chrome/119 bots immediately
+2. **Database**: Add `is_bot`, `lat`, `lon` columns to `user_sessions`
+3. **Edge function**: Capture lat/lon from IP-API, detect bots on ingest
+4. **Dashboard**: Filter to show only non-bot traffic
+5. **Backfill**: Mark existing Chrome/119 sessions as bots
