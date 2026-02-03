@@ -58,6 +58,7 @@ import {
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
+import { useDealEnrichment } from "@/hooks/useDealEnrichment";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
 
 // Default buyer types configuration (industry-agnostic, will be replaced by AI Research)
@@ -105,7 +106,6 @@ const ReMarketingUniverseDetail = () => {
   const [addDealDefaultTab, setAddDealDefaultTab] = useState<'existing' | 'new'>('existing');
   const [importDealsDialogOpen, setImportDealsDialogOpen] = useState(false);
   const [isScoringAllDeals, setIsScoringAllDeals] = useState(false);
-  const [isEnrichingAllDeals, setIsEnrichingAllDeals] = useState(false);
   const [showCriteriaEdit, setShowCriteriaEdit] = useState(false);
   const [buyerProfilesOpen, setBuyerProfilesOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
@@ -121,6 +121,14 @@ const ReMarketingUniverseDetail = () => {
     cancel: cancelEnrichment, 
     reset: resetEnrichment 
   } = useBuyerEnrichment(id);
+
+  // Use the deal enrichment hook for proper batch processing with progress tracking
+  const { 
+    progress: dealEnrichmentProgress, 
+    enrichDeals, 
+    cancel: cancelDealEnrichment, 
+    reset: resetDealEnrichment 
+  } = useDealEnrichment(id);
 
   // Use the alignment scoring hook
   const {
@@ -591,6 +599,20 @@ const ReMarketingUniverseDetail = () => {
               </TabsContent>
 
               <TabsContent value="deals">
+                {/* Deal Enrichment Progress Bar */}
+                {dealEnrichmentProgress.isRunning && (
+                  <div className="mb-4">
+                    <EnrichmentProgressIndicator
+                      completedCount={dealEnrichmentProgress.current}
+                      totalCount={dealEnrichmentProgress.total}
+                      progress={dealEnrichmentProgress.total > 0 ? (dealEnrichmentProgress.current / dealEnrichmentProgress.total) * 100 : 0}
+                      estimatedTimeRemaining={dealEnrichmentProgress.total > 0 
+                        ? `~${Math.ceil((dealEnrichmentProgress.total - dealEnrichmentProgress.current) * 2 / 60)} min` 
+                        : undefined}
+                      processingRate={dealEnrichmentProgress.current > 0 ? 30 : 0}
+                    />
+                  </div>
+                )}
                 <Card>
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between gap-4">
@@ -634,42 +656,45 @@ const ReMarketingUniverseDetail = () => {
                           )}
                           Score All Deals
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={async () => {
-                            if (!universeDeals?.length) {
-                              toast.error('No deals to enrich');
-                              return;
-                            }
-                            setIsEnrichingAllDeals(true);
-                            try {
-                              let enriched = 0;
-                              for (const deal of universeDeals) {
-                                if (deal.listing?.id && !deal.listing.enriched_at) {
-                                  await supabase.functions.invoke('enrich-deal', {
-                                    body: { dealId: deal.listing.id }
-                                  });
-                                  enriched++;
-                                }
+                        {dealEnrichmentProgress.isRunning ? (
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={cancelDealEnrichment}
+                          >
+                            Cancel Enrichment
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={async () => {
+                              if (!universeDeals?.length) {
+                                toast.error('No deals to enrich');
+                                return;
                               }
-                              toast.success(`Enriched ${enriched} deals`);
+                              
+                              // Reset any previous state
+                              resetDealEnrichment();
+                              
+                              // Map deals to the format expected by the hook
+                              const dealsToEnrich = universeDeals
+                                .filter((d: any) => d.listing?.id)
+                                .map((d: any) => ({
+                                  id: d.id,
+                                  listingId: d.listing.id,
+                                  enrichedAt: d.listing.enriched_at
+                                }));
+                              
+                              await enrichDeals(dealsToEnrich);
                               refetchDeals();
-                            } catch (error) {
-                              toast.error('Failed to enrich deals');
-                            } finally {
-                              setIsEnrichingAllDeals(false);
-                            }
-                          }}
-                          disabled={isEnrichingAllDeals || !universeDeals?.length}
-                        >
-                          {isEnrichingAllDeals ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          ) : (
+                            }}
+                            disabled={!universeDeals?.length}
+                          >
                             <Sparkles className="h-4 w-4 mr-1" />
-                          )}
-                          Enrich All Deals
-                        </Button>
+                            Enrich All Deals
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
                           size="sm"
