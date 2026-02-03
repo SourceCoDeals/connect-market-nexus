@@ -83,7 +83,8 @@ import {
   Zap,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getTierFromScore, DealImportDialog } from "@/components/remarketing";
+import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator } from "@/components/remarketing";
+import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import {
   DndContext,
   closestCenter,
@@ -602,6 +603,9 @@ const ReMarketingDeals = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
+  
+  // Enrichment progress tracking
+  const enrichmentProgress = useEnrichmentProgress();
   
   // Multi-select and archive state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
@@ -1393,6 +1397,17 @@ const ReMarketingDeals = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Enrichment Progress Indicator */}
+      {enrichmentProgress.isEnriching && (
+        <EnrichmentProgressIndicator
+          completedCount={enrichmentProgress.completedCount}
+          totalCount={enrichmentProgress.totalCount}
+          progress={enrichmentProgress.progress}
+          estimatedTimeRemaining={enrichmentProgress.estimatedTimeRemaining}
+          processingRate={enrichmentProgress.processingRate}
+        />
+      )}
 
       {/* Filters */}
       <Card>

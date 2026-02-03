@@ -89,6 +89,7 @@ export { ScoringInsightsSidebar } from './ScoringInsightsSidebar';
 // Bulk Actions & Progress
 export { BulkActionsToolbar } from './BulkActionsToolbar';
 export { ScoringProgressIndicator } from './ScoringProgressIndicator';
+export { EnrichmentProgressIndicator } from './EnrichmentProgressIndicator';
 
 // Email Generation
 export { EmailPreviewDialog } from './EmailPreviewDialog';
