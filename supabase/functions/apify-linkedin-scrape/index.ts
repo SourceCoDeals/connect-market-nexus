@@ -6,22 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface LinkedInCompanyData {
-  employeeCount?: number;
-  employeeCountRange?: string;
+interface ApifyLinkedInResult {
   name?: string;
-  industry?: string;
-  headquarters?: string;
+  tagline?: string;
+  description?: string;
   website?: string;
-  description?: string;
+  industry?: string;
+  companySize?: string;       // e.g., "11-50 employees"
+  employeeCount?: number;     // e.g., 25
+  headquarters?: string;
+  foundedYear?: number;
+  specialties?: string[];
+  logoUrl?: string;
   linkedinUrl?: string;
-}
-
-interface FirecrawlSearchResult {
-  url?: string;
-  title?: string;
-  description?: string;
-  markdown?: string;
 }
 
 serve(async (req) => {
@@ -47,7 +44,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // Check if this is the service role key (for internal calls from enrich-deal)
-    // Accept it in either Authorization header or apikey header
     const token = authHeader?.replace('Bearer ', '') || '';
     const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
     
@@ -84,12 +80,13 @@ serve(async (req) => {
       console.log(`Admin access verified for user ${user.id}`);
     }
 
+    const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
 
-    if (!FIRECRAWL_API_KEY) {
-      console.error('FIRECRAWL_API_KEY not configured');
+    if (!APIFY_API_TOKEN) {
+      console.error('APIFY_API_TOKEN not configured');
       return new Response(
-        JSON.stringify({ success: false, error: 'Firecrawl API key not configured' }),
+        JSON.stringify({ success: false, error: 'Apify API token not configured' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -107,10 +104,9 @@ serve(async (req) => {
     let foundViaSearch = false;
 
     // If we don't have a direct LinkedIn URL, search using Firecrawl
-    if (!targetUrl && companyName) {
+    if (!targetUrl && companyName && FIRECRAWL_API_KEY) {
       console.log(`No LinkedIn URL provided, searching for: ${companyName}`);
 
-      // Build search query - company name + location + "linkedin"
       const locationPart = city && state ? ` ${city} ${state}` : (state ? ` ${state}` : '');
       const searchQuery = `site:linkedin.com/company "${companyName}"${locationPart}`;
 
@@ -124,13 +120,13 @@ serve(async (req) => {
         console.warn('Firecrawl search for LinkedIn failed:', searchError);
       }
 
-      // If search didn't work, try intelligent URL guessing as fallback
+      // If search didn't work, try intelligent URL guessing
       if (!targetUrl) {
         const guessedUrls = generateLinkedInUrlVariations(companyName);
         console.log(`Search failed, trying ${guessedUrls.length} URL variations`);
 
         for (const guessUrl of guessedUrls) {
-          const isValid = await verifyLinkedInUrl(FIRECRAWL_API_KEY, guessUrl);
+          const isValid = await verifyLinkedInUrl(guessUrl);
           if (isValid) {
             targetUrl = guessUrl;
             console.log(`Found valid LinkedIn URL via guessing: ${targetUrl}`);
@@ -153,41 +149,46 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Scraping LinkedIn: ${targetUrl}`);
+    console.log(`Scraping LinkedIn using Apify actor: ${targetUrl}`);
 
-    // Scrape the LinkedIn company page using Firecrawl
-    const companyData = await scrapeLinkedInCompany(FIRECRAWL_API_KEY, targetUrl);
+    // Use Apify's logical_scrapers/linkedin-company-scraper actor
+    const companyData = await scrapeWithApify(APIFY_API_TOKEN, targetUrl);
 
     if (!companyData) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Failed to scrape LinkedIn company data',
+          error: 'Failed to scrape LinkedIn company data via Apify',
           scraped: false
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Parse employee data from Apify result
+    const { employeeCount, employeeRange } = parseEmployeeData(companyData);
+
     const result = {
       success: true,
       scraped: true,
       foundViaSearch,
       linkedin_url: targetUrl,
-      linkedin_employee_count: companyData.employeeCount || null,
-      linkedin_employee_range: companyData.employeeCountRange || null,
+      linkedin_employee_count: employeeCount,
+      linkedin_employee_range: employeeRange,
       linkedin_industry: companyData.industry || null,
       linkedin_headquarters: companyData.headquarters || null,
       linkedin_website: companyData.website || null,
       linkedin_description: companyData.description?.substring(0, 1000) || null,
     };
 
+    console.log(`Apify scrape result: employeeCount=${employeeCount}, employeeRange=${employeeRange}`);
+
     // If dealId is provided, update the listing directly
     if (dealId) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       const updateData: Record<string, unknown> = {
-        linkedin_url: targetUrl, // Always save the URL we found
+        linkedin_url: targetUrl,
       };
 
       if (result.linkedin_employee_count) {
@@ -225,6 +226,116 @@ serve(async (req) => {
 });
 
 /**
+ * Scrape LinkedIn company page using Apify's logical_scrapers/linkedin-company-scraper
+ */
+async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<ApifyLinkedInResult | null> {
+  const ACTOR_ID = 'logical_scrapers~linkedin-company-scraper';
+  const API_BASE = 'https://api.apify.com/v2';
+
+  try {
+    // Start the actor run synchronously (wait for results)
+    const runUrl = `${API_BASE}/acts/${ACTOR_ID}/run-sync-get-dataset-items?token=${apiToken}`;
+    
+    console.log(`Starting Apify actor run for: ${linkedinUrl}`);
+
+    const response = await fetch(runUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: [linkedinUrl]  // Apify actor expects "url" field (array)
+      }),
+      signal: AbortSignal.timeout(120000) // 2 minute timeout for actor run
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Apify actor error [${response.status}]:`, errorText.substring(0, 500));
+      
+      if (response.status === 402) {
+        throw new Error('Apify credits depleted - please add credits to your Apify account');
+      }
+      if (response.status === 403) {
+        throw new Error('Apify actor access denied - check your API token and actor subscription');
+      }
+      
+      return null;
+    }
+
+    const results = await response.json();
+    
+    if (!results || results.length === 0) {
+      console.log('Apify actor returned no results');
+      return null;
+    }
+
+    // The actor returns an array of company profiles
+    const companyProfile = results[0];
+    console.log('Apify raw result keys:', Object.keys(companyProfile || {}));
+    console.log('Apify companySize:', companyProfile?.companySize);
+    console.log('Apify employeeCount:', companyProfile?.employeeCount);
+    console.log('Apify staffCount:', companyProfile?.staffCount);
+    console.log('Apify staffCountRange:', companyProfile?.staffCountRange);
+
+    return {
+      name: companyProfile.name,
+      tagline: companyProfile.tagline,
+      description: companyProfile.description,
+      website: companyProfile.website,
+      industry: companyProfile.industry,
+      companySize: companyProfile.companySize || companyProfile.staffCountRange,
+      employeeCount: companyProfile.employeeCount || companyProfile.staffCount,
+      headquarters: companyProfile.headquarters,
+      foundedYear: companyProfile.foundedYear,
+      specialties: companyProfile.specialties,
+      logoUrl: companyProfile.logoUrl,
+      linkedinUrl: companyProfile.linkedinUrl || linkedinUrl,
+    };
+
+  } catch (error) {
+    console.error('Apify actor execution error:', error);
+    return null;
+  }
+}
+
+/**
+ * Parse employee count and range from Apify result
+ */
+function parseEmployeeData(data: ApifyLinkedInResult): { employeeCount: number | null; employeeRange: string | null } {
+  let employeeCount: number | null = null;
+  let employeeRange: string | null = null;
+
+  // Direct employee count from Apify
+  if (data.employeeCount && typeof data.employeeCount === 'number') {
+    employeeCount = data.employeeCount;
+  }
+
+  // Company size string (e.g., "11-50 employees" or "1,001-5,000 employees")
+  if (data.companySize) {
+    employeeRange = data.companySize;
+    
+    // Try to extract midpoint if we don't have exact count
+    if (!employeeCount) {
+      const rangeMatch = data.companySize.match(/(\d{1,3}(?:,\d{3})*)\s*[-–]\s*(\d{1,3}(?:,\d{3})*)/);
+      if (rangeMatch) {
+        const low = parseInt(rangeMatch[1].replace(/,/g, ''), 10);
+        const high = parseInt(rangeMatch[2].replace(/,/g, ''), 10);
+        employeeCount = Math.round((low + high) / 2);
+      } else {
+        // Check for "10,001+ employees" format
+        const plusMatch = data.companySize.match(/(\d{1,3}(?:,\d{3})*)\+/);
+        if (plusMatch) {
+          employeeCount = parseInt(plusMatch[1].replace(/,/g, ''), 10);
+        }
+      }
+    }
+  }
+
+  return { employeeCount, employeeRange };
+}
+
+/**
  * Search for LinkedIn company page using Firecrawl
  */
 async function searchForLinkedIn(
@@ -254,14 +365,13 @@ async function searchForLinkedIn(
     const data = await response.json();
     const results = data.data || data || [];
 
-    // Find the first result that's a LinkedIn company page
-    for (const result of results as FirecrawlSearchResult[]) {
+    for (const result of results) {
       if (result.url && isLinkedInCompanyUrl(result.url)) {
         return normalizeLinkedInUrl(result.url);
       }
     }
 
-    // Secondary search without site: restriction if first search fails
+    // Broader search fallback
     console.log('First search found no results, trying broader search...');
     const broaderResponse = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
@@ -280,7 +390,7 @@ async function searchForLinkedIn(
       const broaderData = await broaderResponse.json();
       const broaderResults = broaderData.data || broaderData || [];
       
-      for (const result of broaderResults as FirecrawlSearchResult[]) {
+      for (const result of broaderResults) {
         if (result.url && isLinkedInCompanyUrl(result.url)) {
           return normalizeLinkedInUrl(result.url);
         }
@@ -295,44 +405,22 @@ async function searchForLinkedIn(
 }
 
 /**
- * Verify a LinkedIn URL exists by scraping it
+ * Verify a LinkedIn URL exists (simple HEAD check)
  */
-async function verifyLinkedInUrl(apiKey: string, url: string): Promise<boolean> {
+async function verifyLinkedInUrl(url: string): Promise<boolean> {
   try {
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown'],
-        onlyMainContent: true,
-        waitFor: 3000,
-      }),
-      signal: AbortSignal.timeout(15000)
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(5000),
+      redirect: 'manual'
     });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const data = await response.json();
-    const markdown = data.data?.markdown || data.markdown || '';
-    
-    // Check if it looks like a real company page (not 404 or redirect)
-    return markdown.length > 500 && 
-           !markdown.includes('Page not found') &&
-           !markdown.includes('This page doesn\'t exist');
+    // LinkedIn returns 200 for valid pages, 999 for rate limiting, 302 for invalid
+    return response.status === 200;
   } catch {
     return false;
   }
 }
 
-/**
- * Check if a URL is a LinkedIn company page
- */
 function isLinkedInCompanyUrl(url: string): boolean {
   return url.includes('linkedin.com/company/') &&
          !url.includes('/jobs') &&
@@ -340,11 +428,7 @@ function isLinkedInCompanyUrl(url: string): boolean {
          !url.includes('/people');
 }
 
-/**
- * Normalize LinkedIn URL to standard format
- */
 function normalizeLinkedInUrl(url: string): string {
-  // Extract just the company slug part
   const match = url.match(/linkedin\.com\/company\/([^\/\?]+)/);
   if (match) {
     return `https://www.linkedin.com/company/${match[1]}`;
@@ -352,34 +436,26 @@ function normalizeLinkedInUrl(url: string): string {
   return url;
 }
 
-/**
- * Generate multiple URL variations to try
- */
 function generateLinkedInUrlVariations(companyName: string): string[] {
   const variations: string[] = [];
   const baseUrl = 'https://www.linkedin.com/company/';
 
-  // Clean the company name
   let cleanName = companyName.toLowerCase()
     .trim()
-    // Remove common suffixes
     .replace(/\s*(inc\.?|llc\.?|ltd\.?|corp\.?|corporation|company|co\.?|limited|plc|group)$/gi, '')
     .trim();
 
-  // Variation 1: Simple hyphenation
-  const simple = cleanName
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, '-');
+  // Simple hyphenation
+  const simple = cleanName.replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-');
   variations.push(baseUrl + simple);
 
-  // Variation 2: No hyphens, just concatenated
-  const noHyphens = cleanName
-    .replace(/[^a-z0-9]/g, '');
+  // No hyphens
+  const noHyphens = cleanName.replace(/[^a-z0-9]/g, '');
   if (noHyphens !== simple.replace(/-/g, '')) {
     variations.push(baseUrl + noHyphens);
   }
 
-  // Variation 3: With common words removed
+  // Without common words
   const withoutCommonWords = cleanName
     .replace(/\b(the|and|of|for|a|an)\b/gi, '')
     .replace(/[^a-z0-9\s]/g, '')
@@ -390,195 +466,11 @@ function generateLinkedInUrlVariations(companyName: string): string[] {
     variations.push(baseUrl + withoutCommonWords);
   }
 
-  // Variation 4: First word only (for "Acme Services" -> "acme")
+  // First word only
   const firstWord = cleanName.split(/\s+/)[0].replace(/[^a-z0-9]/g, '');
   if (firstWord.length > 3 && !variations.some(v => v.endsWith('/' + firstWord))) {
     variations.push(baseUrl + firstWord);
   }
 
-  // Variation 5: First two words
-  const words = cleanName.split(/\s+/);
-  if (words.length >= 2) {
-    const firstTwo = words.slice(0, 2)
-      .join('-')
-      .replace(/[^a-z0-9-]/g, '');
-    if (!variations.includes(baseUrl + firstTwo)) {
-      variations.push(baseUrl + firstTwo);
-    }
-  }
-
-  // Remove duplicates and limit to 5 attempts
   return [...new Set(variations)].slice(0, 5);
-}
-
-/**
- * Scrape a LinkedIn company page using Firecrawl and extract employee data
- */
-async function scrapeLinkedInCompany(
-  apiKey: string,
-  url: string
-): Promise<LinkedInCompanyData | null> {
-  try {
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown', 'html'],
-        onlyMainContent: false, // Get full page to find employee info
-        waitFor: 5000, // Wait for dynamic content
-      }),
-      signal: AbortSignal.timeout(60000)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('LinkedIn scrape API error:', response.status, errorText.substring(0, 200));
-      return null;
-    }
-
-    const data = await response.json();
-    const markdown = data.data?.markdown || data.markdown || '';
-    const html = data.data?.html || data.html || '';
-
-    if (!markdown && !html) {
-      console.log(`No content found for LinkedIn URL: ${url}`);
-      return null;
-    }
-
-    console.log(`Scraped LinkedIn page, content length: ${markdown.length} chars`);
-
-    // Extract employee information from the content
-    const companyData = extractLinkedInData(markdown, html, url);
-    
-    console.log('Extracted LinkedIn company data:', JSON.stringify({
-      name: companyData.name,
-      employeeCount: companyData.employeeCount,
-      employeeCountRange: companyData.employeeCountRange,
-      industry: companyData.industry
-    }));
-
-    return companyData;
-  } catch (error) {
-    console.error('Error scraping LinkedIn:', error);
-    return null;
-  }
-}
-
-/**
- * Extract LinkedIn company data from scraped content
- */
-function extractLinkedInData(markdown: string, html: string, url: string): LinkedInCompanyData {
-  const data: LinkedInCompanyData = {
-    linkedinUrl: url
-  };
-
-  const content = markdown + ' ' + html;
-
-  // Extract employee count - LinkedIn shows formats like:
-  // "11-50 employees" or "1,001-5,000 employees" or "10,001+ employees"
-  // Also: "11-50 employees · Marketing Services"
-  const employeePatterns = [
-    // Standard LinkedIn format: "X-Y employees"
-    /(\d{1,3}(?:,\d{3})*)\s*[-–]\s*(\d{1,3}(?:,\d{3})*)\s*employees/i,
-    // Plus format: "10,001+ employees"
-    /(\d{1,3}(?:,\d{3})*)\+\s*employees/i,
-    // Exact count: "500 employees"
-    /(\d{1,3}(?:,\d{3})*)\s*employees\b/i,
-    // Range with "to": "11 to 50 employees"
-    /(\d{1,3}(?:,\d{3})*)\s*to\s*(\d{1,3}(?:,\d{3})*)\s*employees/i,
-  ];
-
-  for (const pattern of employeePatterns) {
-    const match = content.match(pattern);
-    if (match) {
-      // Parse the numbers (remove commas)
-      const num1 = parseInt(match[1].replace(/,/g, ''), 10);
-      const num2 = match[2] ? parseInt(match[2].replace(/,/g, ''), 10) : null;
-
-      if (num2) {
-        // Range format
-        data.employeeCountRange = `${num1.toLocaleString()}-${num2.toLocaleString()}`;
-        data.employeeCount = Math.round((num1 + num2) / 2); // Midpoint
-      } else if (match[0].includes('+')) {
-        // Plus format (e.g., "10,001+")
-        data.employeeCountRange = `${num1.toLocaleString()}+`;
-        data.employeeCount = num1;
-      } else {
-        // Exact count
-        data.employeeCount = num1;
-        data.employeeCountRange = num1.toLocaleString();
-      }
-      break;
-    }
-  }
-
-  // Extract industry - usually near "Company size" or at start of description
-  const industryPatterns = [
-    /·\s*([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*)\s*$/m, // "· Marketing Services"
-    /Industry[:\s]+([A-Z][a-z]+(?:\s+[A-Za-z]+)*)/i,
-    /Specialties[:\s]+([^·\n]+)/i,
-  ];
-
-  for (const pattern of industryPatterns) {
-    const match = content.match(pattern);
-    if (match && match[1] && match[1].length < 100) {
-      data.industry = match[1].trim();
-      break;
-    }
-  }
-
-  // Extract headquarters location
-  const hqPatterns = [
-    /Headquarters[:\s]+([^\n·]+)/i,
-    /(?:Based in|Located in|HQ:?)\s+([^\n·]+)/i,
-  ];
-
-  for (const pattern of hqPatterns) {
-    const match = content.match(pattern);
-    if (match && match[1]) {
-      data.headquarters = match[1].trim().substring(0, 200);
-      break;
-    }
-  }
-
-  // Extract company name from URL or content
-  const urlMatch = url.match(/linkedin\.com\/company\/([^\/\?]+)/);
-  if (urlMatch) {
-    // Convert URL slug to title case
-    data.name = urlMatch[1]
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  // Try to find actual company name in content
-  const namePatterns = [
-    /^#\s*(.+?)(?:\s*\||\s*-|\s*·|\n)/m,
-    /<h1[^>]*>([^<]+)</i,
-  ];
-
-  for (const pattern of namePatterns) {
-    const match = content.match(pattern);
-    if (match && match[1] && match[1].length < 100) {
-      data.name = match[1].trim();
-      break;
-    }
-  }
-
-  // Extract website if present
-  const websiteMatch = content.match(/(?:Website|Site)[:\s]+(https?:\/\/[^\s\n]+)/i);
-  if (websiteMatch) {
-    data.website = websiteMatch[1];
-  }
-
-  // Extract description (first paragraph-like content)
-  const descMatch = markdown.match(/\n\n(.{50,500}?)\n\n/);
-  if (descMatch) {
-    data.description = descMatch[1].trim();
-  }
-
-  return data;
 }
