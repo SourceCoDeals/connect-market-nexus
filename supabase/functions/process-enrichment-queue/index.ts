@@ -67,6 +67,52 @@ serve(async (req) => {
 
     console.log(`Found ${queueItems.length} items to process`);
 
+    // PRE-CHECK: Mark items as completed if their listings are already enriched
+    // This handles the case where enrichment succeeded but queue status wasn't updated
+    const listingIds = queueItems.map((item: { listing_id: string }) => item.listing_id);
+    const { data: enrichedListings } = await supabase
+      .from('listings')
+      .select('id, enriched_at')
+      .in('id', listingIds)
+      .not('enriched_at', 'is', null);
+
+    const alreadyEnrichedIds = new Set(enrichedListings?.map(l => l.id) || []);
+    
+    if (alreadyEnrichedIds.size > 0) {
+      console.log(`Found ${alreadyEnrichedIds.size} listings already enriched - marking queue items as completed`);
+      
+      // Mark these queue items as completed
+      const itemsToComplete = queueItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
+      for (const item of itemsToComplete) {
+        await supabase
+          .from('enrichment_queue')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            last_error: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', item.id);
+        console.log(`Synced queue item ${item.id} to completed (listing ${item.listing_id} was already enriched)`);
+      }
+      
+      // Filter out already-completed items from processing
+      queueItems = queueItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
+      
+      if (queueItems.length === 0) {
+        console.log('All items were already enriched - nothing to process');
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`, 
+            processed: 0,
+            synced: alreadyEnrichedIds.size 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const results = {
       processed: 0,
       succeeded: 0,
