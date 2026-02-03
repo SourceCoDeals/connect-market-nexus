@@ -336,35 +336,46 @@ export const CompanyOverviewCard = ({
             } 
           />
 
-          {/* LinkedIn Employee Data */}
-          {(linkedinEmployeeCount || linkedinEmployeeRange) && (
-            <InfoRow
-              icon={Linkedin}
-              label="LINKEDIN EMPLOYEES"
-              value={
-                <div className="flex items-center gap-2">
-                  <span>
-                    {linkedinEmployeeCount?.toLocaleString() || linkedinEmployeeRange}
-                  </span>
+          {/* LinkedIn Profile */}
+          <InfoRow
+            icon={Linkedin}
+            label="LINKEDIN"
+            value={
+              linkedinUrl ? (
+                <a
+                  href={linkedinUrl.startsWith("http") ? linkedinUrl : `https://${linkedinUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline flex items-center gap-1"
+                >
+                  {linkedinUrl.replace(/^https?:\/\/(www\.)?linkedin\.com\/company\//i, "").replace(/\/$/, "")}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                "Not specified"
+              )
+            }
+          />
+
+          {/* LinkedIn Employees */}
+          <InfoRow
+            icon={Users}
+            label="LINKEDIN EMPLOYEES"
+            value={
+              linkedinEmployeeCount || linkedinEmployeeRange ? (
+                <span>
+                  {linkedinEmployeeCount?.toLocaleString() || linkedinEmployeeRange}
                   {linkedinEmployeeRange && linkedinEmployeeCount && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground ml-1">
                       ({linkedinEmployeeRange})
                     </span>
                   )}
-                  {linkedinUrl && (
-                    <a
-                      href={linkedinUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
-              }
-            />
-          )}
+                </span>
+              ) : (
+                "Not specified"
+              )
+            }
+          />
 
           <InfoRow
             icon={Building}
