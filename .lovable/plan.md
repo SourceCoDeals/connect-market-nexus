@@ -1,272 +1,168 @@
 
 
-# Analytics Dashboard Comprehensive Audit & Fix Plan
+# Fix Analytics Dashboard Global Filtering
 
-## Summary
+## Problem Summary
 
-After a thorough audit of all analytics hooks and components, I've identified **7 hooks and 1 table** that still query `user_sessions` without proper bot/production filtering or attribution logic. The main Intelligence Center (powered by `useUnifiedAnalytics`) is correctly filtered, but several secondary dashboards and hooks remain unfiltered.
+When filtering by a referrer (e.g., "chatgpt"), the dashboard shows incorrect data:
+- **KPI Strip**: Shows 0 visitors instead of 1
+- **Cards (Geography, Pages, Tech)**: Show "No data" instead of the filtered visitor's data
+- **Users tab**: Empty instead of showing the visitor from ChatGPT
+- **Chart**: Shows all visitors, not just filtered ones
 
----
+## Root Cause
 
-## Current Status
+**The filter matching logic doesn't use the same discovery source priority as the display logic.**
 
-### Already Fixed (Correct Filtering)
-| Hook/Component | Filters Applied |
-|----------------|-----------------|
-| `useUnifiedAnalytics.ts` | `is_bot=false`, `is_production=true`, discovery source priority |
-| `useEnhancedRealTimeAnalytics.ts` | `is_bot=false`, lat/lon coordinates |
-| `useRealTimeAnalytics.ts` | `is_bot=false` |
+| Component | Display Logic | Filter Logic (Bug) |
+|-----------|--------------|-------------------|
+| Referrer card | `getDiscoverySource(s)` | `s.referrer` only |
+| Channel card | `getDiscoverySource(s)` | `s.referrer` only |
 
-### Needs Fixing (Missing Filters)
+When a user clicks "chatgpt" in the Referrer card:
+- The value "chatgpt" was extracted from `utm_source` via `getDiscoverySource()`
+- But the filter matches against `extractDomain(s.referrer)` which returns "sourcecodeals.com"
+- Result: **Zero sessions match** = all cards show empty
 
-| Hook | Used By | Issue |
-|------|---------|-------|
-| `useUserJourneys.ts` | User Journeys Dashboard | Queries `user_journeys` table - no bot/production filter |
-| `useJourneyTimeline.ts` | Journey Detail Dialog | Queries `user_sessions` - no bot filter |
-| `useTrafficAnalytics.ts` | Traffic Analytics Tab | Queries `user_sessions` - **no filters at all** |
-| `useCampaignAttribution.ts` | Campaign Attribution Tab | Queries `user_sessions` - **no filters at all** |
-| `useUserDetail.ts` | User Detail Panel | Queries `user_sessions` - no bot filter |
-| `use-predictive-user-intelligence.ts` | Predictive Intelligence | Queries `user_sessions` - no filters |
-| `usePremiumAnalytics.ts` | Premium Analytics Dashboard | Queries `profiles` & `connection_requests` (OK, but could use session attribution) |
+## Solution
 
----
+### 1. Fix Referrer Filter Matching (Critical)
 
-## Detailed Fixes Required
+**File: `src/hooks/useUnifiedAnalytics.ts` (lines 449-452)**
 
-### 1. `useTrafficAnalytics.ts` (HIGH PRIORITY)
-**Problem**: No filtering at all - includes all bots and dev traffic.
-
-**Current code (line 74-78):**
+Current:
 ```typescript
-const { data: sessions, error } = await supabase
-  .from('user_sessions')
-  .select('id, user_id, device_type, browser, referrer, created_at, country, session_duration_seconds')
-  .gte('created_at', startDate.toISOString())
-  .order('created_at', { ascending: true });
-```
-
-**Fix**: Add bot and production filters:
-```typescript
-const { data: sessions, error } = await supabase
-  .from('user_sessions')
-  .select('id, user_id, device_type, browser, referrer, created_at, country, session_duration_seconds')
-  .eq('is_bot', false)
-  .eq('is_production', true)
-  .gte('created_at', startDate.toISOString())
-  .order('created_at', { ascending: true });
-```
-
----
-
-### 2. `useCampaignAttribution.ts` (HIGH PRIORITY)
-**Problem**: No filtering - campaign metrics include bot sessions.
-
-**Current code (line 57-60):**
-```typescript
-const { data: sessions, error: sessionsError } = await supabase
-  .from('user_sessions')
-  .select('session_id, user_id, utm_source, utm_medium, utm_campaign, utm_content, created_at')
-  .gte('created_at', startDate.toISOString());
-```
-
-**Fix**: Add filters:
-```typescript
-const { data: sessions, error: sessionsError } = await supabase
-  .from('user_sessions')
-  .select('session_id, user_id, utm_source, utm_medium, utm_campaign, utm_content, created_at')
-  .eq('is_bot', false)
-  .eq('is_production', true)
-  .gte('created_at', startDate.toISOString());
-```
-
----
-
-### 3. `useUserJourneys.ts` (MEDIUM PRIORITY)
-**Problem**: The `user_journeys` table doesn't have `is_bot`/`is_production` flags - it aggregates from sessions.
-
-**Options:**
-1. Add `is_bot` and `is_production` columns to `user_journeys` table
-2. Filter client-side by joining with sessions data
-
-**Recommended Fix**: Add database columns and backfill. Create migration:
-```sql
-ALTER TABLE user_journeys 
-ADD COLUMN is_bot BOOLEAN DEFAULT false,
-ADD COLUMN is_production BOOLEAN DEFAULT true;
-
--- Backfill from user_sessions using the visitor's first session
-UPDATE user_journeys uj
-SET 
-  is_bot = COALESCE((
-    SELECT us.is_bot 
-    FROM user_sessions us 
-    WHERE us.visitor_id = uj.visitor_id 
-    ORDER BY us.started_at ASC 
-    LIMIT 1
-  ), false),
-  is_production = COALESCE((
-    SELECT us.is_production 
-    FROM user_sessions us 
-    WHERE us.visitor_id = uj.visitor_id 
-    ORDER BY us.started_at ASC 
-    LIMIT 1
-  ), true);
-```
-
-Then update the hook query (line 53-58):
-```typescript
-const { data, error } = await supabase
-  .from('user_journeys')
-  .select('*')
-  .eq('is_bot', false)
-  .eq('is_production', true)
-  .gte('first_seen_at', startDateStr)
-  .order('last_seen_at', { ascending: false })
-  .limit(500);
-```
-
----
-
-### 4. `useJourneyTimeline.ts` (MEDIUM PRIORITY)
-**Problem**: Session queries in `useJourneyTimeline` don't filter bots.
-
-**Current code (line 92-95):**
-```typescript
-let sessionsQuery = supabase
-  .from('user_sessions')
-  .select('*')
-  .order('started_at', { ascending: true });
-```
-
-**Fix**: Add filter:
-```typescript
-let sessionsQuery = supabase
-  .from('user_sessions')
-  .select('*')
-  .eq('is_bot', false)
-  .order('started_at', { ascending: true });
-```
-
----
-
-### 5. `useUserDetail.ts` (MEDIUM PRIORITY)
-**Problem**: User detail panel queries don't filter bots.
-
-**Current code (lines 139-151):**
-```typescript
-const sessionsQuery = isUserId
-  ? supabase
-      .from('user_sessions')
-      .select('*')
-      .eq('user_id', visitorId)
-      .gte('started_at', sixMonthsAgo)
-      .order('started_at', { ascending: false })
-  : supabase
-      .from('user_sessions')
-      .select('*')
-      .eq('visitor_id', visitorId)
-      .gte('started_at', sixMonthsAgo)
-      .order('started_at', { ascending: false });
-```
-
-**Fix**: Add bot filter to both branches:
-```typescript
-const sessionsQuery = isUserId
-  ? supabase
-      .from('user_sessions')
-      .select('*')
-      .eq('user_id', visitorId)
-      .eq('is_bot', false)
-      .gte('started_at', sixMonthsAgo)
-      .order('started_at', { ascending: false })
-  : supabase
-      .from('user_sessions')
-      .select('*')
-      .eq('visitor_id', visitorId)
-      .eq('is_bot', false)
-      .gte('started_at', sixMonthsAgo)
-      .order('started_at', { ascending: false });
-```
-
-Also update the `categorizeChannel` function to use discovery source priority:
-```typescript
-// Add getDiscoverySource helper at top of file
-function getDiscoverySource(session: {
-  original_external_referrer?: string | null;
-  utm_source?: string | null;
-  referrer?: string | null;
-}): string | null {
-  if (session.original_external_referrer) return session.original_external_referrer;
-  if (session.utm_source) return session.utm_source;
-  return session.referrer || null;
+if (filter.type === 'referrer') {
+  uniqueSessions = uniqueSessions.filter(s => 
+    extractDomain(s.referrer) === filter.value
+  );
 }
-
-// Update channel categorization to use discovery source
-channel: categorizeChannel(
-  getDiscoverySource(firstSession) || firstSession?.referrer,
-  firstSession?.utm_source, 
-  firstSession?.utm_medium
-),
 ```
 
----
-
-### 6. `use-predictive-user-intelligence.ts` (LOW PRIORITY)
-**Problem**: Session queries don't filter bots.
-
-**Current code (line 67-69):**
+Fixed:
 ```typescript
-const { data: sessions } = await supabase
-  .from('user_sessions')
-  .select('user_id, started_at, ended_at')
-  .gte('started_at', startDate.toISOString());
+if (filter.type === 'referrer') {
+  uniqueSessions = uniqueSessions.filter(s => {
+    const discoverySource = getDiscoverySource(s);
+    const domain = extractDomain(discoverySource);
+    return domain === filter.value || 
+           domain.includes(filter.value) || 
+           filter.value.includes(domain);
+  });
+}
 ```
 
-**Fix**:
+### 2. Fix Channel Filter Matching
+
+**File: `src/hooks/useUnifiedAnalytics.ts` (lines 444-447)**
+
+Current:
 ```typescript
-const { data: sessions } = await supabase
-  .from('user_sessions')
-  .select('user_id, started_at, ended_at')
-  .eq('is_bot', false)
-  .eq('is_production', true)
-  .gte('started_at', startDate.toISOString());
+if (filter.type === 'channel') {
+  uniqueSessions = uniqueSessions.filter(s => 
+    categorizeChannel(s.referrer, s.utm_source, s.utm_medium) === filter.value
+  );
+}
 ```
 
----
+Fixed:
+```typescript
+if (filter.type === 'channel') {
+  uniqueSessions = uniqueSessions.filter(s => {
+    const discoverySource = getDiscoverySource(s);
+    return categorizeChannel(discoverySource, s.utm_source, s.utm_medium) === filter.value;
+  });
+}
+```
+
+### 3. Fix Daily Metrics Chart Filtering
+
+**File: `src/hooks/useUnifiedAnalytics.ts` (lines 1359-1387)**
+
+When filters are active, the chart should use computed data from filtered sessions, not pre-aggregated `daily_metrics` table:
+
+```typescript
+// Format daily metrics - ALWAYS compute from filtered sessions when filters are active
+let formattedDailyMetrics: Array<...>;
+
+// When filters are active, always compute from session data (filtered)
+if (filters.length > 0) {
+  // Compute from filtered uniqueSessions
+  formattedDailyMetrics = [];
+  const currentDate = new Date(startDate);
+  const end = new Date(endDate);
+  while (currentDate <= end) {
+    const dateStr = format(currentDate, 'yyyy-MM-dd');
+    formattedDailyMetrics.push({
+      date: dateStr,
+      visitors: dailyVisitorSets.get(dateStr)?.size || 0,
+      sessions: dailySessionCounts.get(dateStr) || 0,
+      connections: dailyConnectionCounts.get(dateStr) || 0,
+      bounceRate: 0,
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+} else if (dailyMetrics.length > 0) {
+  // Use pre-aggregated data only when no filters
+  formattedDailyMetrics = dailyMetrics.map(m => ({...}));
+} else {
+  // Fallback
+  formattedDailyMetrics = [...];
+}
+```
+
+### 4. Add Scrollable Users Tab with Fixed Height
+
+**File: `src/components/admin/analytics/datafast/ConversionCard.tsx`**
+
+Update UsersTab to have a scrollable container with max height:
+
+```typescript
+function UsersTab({ users, onUserClick }: {...}) {
+  return (
+    <div className="relative">
+      {/* Scrollable container with fixed height */}
+      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-1">
+        {/* Header row - sticky at top */}
+        <div className="sticky top-0 bg-card z-10 ...">
+          {...header...}
+        </div>
+        
+        {/* All users, not just first 15 */}
+        {users.map((user) => (
+          <ProportionalBar key={user.id} {...} />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+Also increase the limit from 15 to show more users (50 is already fetched).
 
 ## Files to Modify
 
-| File | Priority | Changes |
-|------|----------|---------|
-| `src/hooks/useTrafficAnalytics.ts` | HIGH | Add `.eq('is_bot', false).eq('is_production', true)` |
-| `src/hooks/useCampaignAttribution.ts` | HIGH | Add `.eq('is_bot', false).eq('is_production', true)` |
-| `src/hooks/useUserJourneys.ts` | MEDIUM | Add filters after DB migration |
-| `src/hooks/useJourneyTimeline.ts` | MEDIUM | Add `.eq('is_bot', false)` |
-| `src/hooks/useUserDetail.ts` | MEDIUM | Add bot filter + discovery source logic |
-| `src/hooks/use-predictive-user-intelligence.ts` | LOW | Add filters |
-| `supabase/migrations/` | MEDIUM | Add `is_bot`, `is_production` to `user_journeys` |
-
----
+| File | Changes |
+|------|---------|
+| `src/hooks/useUnifiedAnalytics.ts` | Fix referrer/channel filter matching + daily metrics filtering |
+| `src/components/admin/analytics/datafast/ConversionCard.tsx` | Add scrollable users container |
 
 ## Expected Results
 
-After implementing these fixes:
+After this fix, when filtering by "chatgpt":
+- **KPI Strip**: Will show 1 visitor, 0 connections (correct data for that visitor)
+- **Chart**: Will show activity bars only for days when the ChatGPT visitor was active
+- **Geography card**: Will show the country of that single visitor
+- **Tech card**: Will show Chrome/Windows (or whatever that visitor used)
+- **Users tab**: Will show "Violet Fox" (or the actual visitor's name) with ChatGPT as source
 
-| Dashboard Area | Before | After |
-|----------------|--------|-------|
-| Traffic Analytics | Includes bot sessions | Clean production data only |
-| Campaign Attribution | Inflated session counts | Accurate UTM tracking |
-| User Journeys | Shows bot visitors | Real human journeys only |
-| User Detail Panel | May show bot sessions | Filtered to real visits |
-| Journey Timeline | Unfiltered history | Clean session history |
+## Visual Reference from datafast.st
 
----
+When filtered by ChatGPT in datafast.st:
+- Shows 21 visitors in KPI
+- Chart shows only those 21 visitors' activity pattern
+- Countries show distribution of those 21 visitors
+- Users tab shows scrollable list with all matching visitors
 
-## Implementation Order
+This is exactly what we're fixing - making our filtering work the same way.
 
-1. **Phase 1 (Quick Wins)**: Fix `useTrafficAnalytics.ts` and `useCampaignAttribution.ts` - just add 2 lines each
-2. **Phase 2 (Core Journey)**: Create migration for `user_journeys`, then update `useUserJourneys.ts`
-3. **Phase 3 (Detail Views)**: Fix `useJourneyTimeline.ts` and `useUserDetail.ts`
-4. **Phase 4 (Cleanup)**: Fix `use-predictive-user-intelligence.ts`
-
-This ensures the most visible dashboards are fixed first, with progressively less critical areas addressed afterward.
