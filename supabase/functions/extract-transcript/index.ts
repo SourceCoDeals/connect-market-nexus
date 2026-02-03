@@ -59,7 +59,7 @@ serve(async (req) => {
     // Detect CEO involvement
     const ceoDetected = detectCEOInvolvement(transcriptText);
     if (ceoDetected) {
-      console.log(\`[TranscriptExtraction] CEO detected in transcript \${transcript_id}\`);
+      console.log(`[TranscriptExtraction] CEO detected in transcript ${transcript_id}`);
       insights.ceo_detected = true;
 
       // Create engagement signal if buyer_id is present
@@ -76,7 +76,7 @@ serve(async (req) => {
 
     // Extract based on entity type
     if ((entity_type === 'deal' || entity_type === 'both') && transcript.listing_id) {
-      console.log(\`[TranscriptExtraction] Extracting deal insights from transcript \${transcript_id}\`);
+      console.log(`[TranscriptExtraction] Extracting deal insights from transcript ${transcript_id}`);
       const dealInsights = await extractDealInsights(transcriptText, GEMINI_API_KEY);
       insights.deal = dealInsights;
 
@@ -94,7 +94,7 @@ serve(async (req) => {
     }
 
     if ((entity_type === 'buyer' || entity_type === 'both') && transcript.buyer_id) {
-      console.log(\`[TranscriptExtraction] Extracting buyer insights from transcript \${transcript_id}\`);
+      console.log(`[TranscriptExtraction] Extracting buyer insights from transcript ${transcript_id}`);
       const buyerInsights = await extractBuyerInsights(transcriptText, GEMINI_API_KEY);
       insights.buyer = buyerInsights;
 
@@ -204,6 +204,6 @@ async function createEngagementSignal(
   if (error) {
     console.error("Failed to create engagement signal:", error);
   } else {
-    console.log(\`[EngagementSignal] Created \${signalType} signal (+\${signalValue} pts)\`);
+    console.log(`[EngagementSignal] Created ${signalType} signal (+${signalValue} pts)`);
   }
 }

@@ -117,8 +117,10 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = targetType === 'deal' 
-      ? `You are a data mapping expert for M&A deal/company data imports.
+    let systemPrompt: string;
+    
+    if (targetType === 'deal') {
+      systemPrompt = `You are a data mapping expert for M&A deal/company data imports.
 Given CSV column names and sample data, map them to target database fields for company listings.
 
 Be intelligent about variations:
@@ -151,8 +153,9 @@ Be intelligent about variations:
 - "Marketplace" (if it's a yes/no flag) → ignore (internal only)
 
 Return null for columns that don't match any field.
-Look at sample data to disambiguate - e.g., if a column contains URLs, map to website; if it contains names, check if first or full name.`
-      : `You are a data mapping expert for M&A buyer data imports.
+Look at sample data to disambiguate - e.g., if a column contains URLs, map to website; if it contains names, check if first or full name.`;
+    } else if (targetType === 'buyer') {
+      systemPrompt = `You are a data mapping expert for M&A buyer data imports.
 Given CSV column names and sample data, map them to target database fields.
 
 Be intelligent about variations:
@@ -165,8 +168,9 @@ Be intelligent about variations:
 - Columns with 2-letter codes (TX, CA) likely map to hq_state
 
 Return null for columns that don't match any field.
-Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.`
-      : `You are a data mapping expert for M&A deal/company listings imports.
+Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.`;
+    } else {
+      systemPrompt = `You are a data mapping expert for M&A deal/company listings imports.
 Given CSV column names and sample data, map them to target database fields.
 
 Be intelligent about variations:

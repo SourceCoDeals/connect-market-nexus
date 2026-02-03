@@ -317,7 +317,7 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
     console.log('Apify Industry:', companyProfile?.Industry);
 
     // Parse numberOfEmployees - can be number or string like "37 on LinkedIn" or "2,500 on LinkedIn"
-    let rawEmployeeCount: number | null = null;
+    let rawEmployeeCount: number | undefined = undefined;
     if (companyProfile?.numberOfEmployees) {
       const empValue = companyProfile.numberOfEmployees;
       if (typeof empValue === 'number') {

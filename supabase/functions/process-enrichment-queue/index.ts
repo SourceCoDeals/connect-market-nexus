@@ -65,8 +65,11 @@ serve(async (req) => {
       { batch_size: BATCH_SIZE, max_attempts: MAX_ATTEMPTS }
     );
 
+    // Define type for queue items
+    type QueueItem = { id: string; listing_id: string; status: string; attempts: number; queued_at: string };
+    
     // Fallback to regular query if RPC doesn't exist yet
-    let queueItems = claimedItems;
+    let queueItems: QueueItem[] = claimedItems as QueueItem[] || [];
     if (claimError?.code === 'PGRST202') {
       console.log('Using fallback queue fetch (RPC not available)');
 

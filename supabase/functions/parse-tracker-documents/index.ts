@@ -106,6 +106,8 @@ Extract and structure:
 
 Return a JSON object with the extracted information.`;
 
+    // Note: The Anthropic SDK 0.30.1 doesn't support the 'document' content type directly.
+    // We use type assertion to bypass the type check since the API does support it.
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
@@ -121,7 +123,7 @@ Return a JSON object with the extracted information.`;
                 media_type: "application/pdf",
                 data: base64Doc,
               },
-            },
+            } as unknown as { type: "text"; text: string },
             {
               type: "text",
               text: "Please analyze this document and extract all relevant M&A intelligence information. Return the extracted data as a structured JSON object.",
