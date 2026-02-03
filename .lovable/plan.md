@@ -1,201 +1,109 @@
 
+# Fix: Connection Attribution Inconsistency
 
-# Analytics Dashboard Enhancement: Cross-Domain Entry Pages & Improved Attribution Display
+## Problem Identified
 
-## Overview
+When viewing Campaign > Connections, the Newsletter_deal_digest_1 campaign shows **0 connections** but should show **7**.
 
-This plan addresses the gap in visualizing cross-domain user journeys, specifically showing blog entry pages (like `/blog/deal-sourcing-companies`) that currently aren't visible in the Pages card despite being captured in the database.
+### Root Cause
 
-## Current State vs. Desired State
+The code uses two different attribution strategies:
 
-| Feature | Current | Proposed |
-|---------|---------|----------|
-| Pages Card | Shows only marketplace `page_views` | Add "Blog Entry" tab showing cross-domain paths |
-| Entry Pages | Shows `/signup`, `/welcome`, etc. | Include blog paths when cross-domain data exists |
-| Referrer Filtering | Shows visitors/signups/connections | Also updates entry pages to show that referrer's landing pages |
-| Discovery Path | Shown in User Detail only | Surfaced in aggregate in Pages card |
+| Metric | Attribution Method | Status |
+|--------|-------------------|--------|
+| **Signups** | `getFirstMeaningfulSession()` - finds best session with campaign data | ✅ Correct |
+| **Connections** | `userSessionMap` - stores random session per user (overwrites) | ❌ Broken |
+
+The `userSessionMap` just runs `Map.set(user_id, session)` for each session, so the **last session in iteration order** wins—even if it has no campaign data.
+
+### Database Evidence
+
+```
+User 054c4b9f: 2 connections, has Newsletter_deal_digest_1 campaign
+User 32d426c7: 2 connections, has Newsletter_deal_digest_1 campaign  
+User e969ca3e: 2 connections, has Newsletter_deal_digest_1 campaign
+User f2d02aac: 1 connection, has Newsletter_deal_digest_1 campaign
+Total: 7 connections should be attributed to newsletter
+```
+
+---
+
+## Solution
+
+Apply the same "smart first-touch" attribution logic to connections that already works for signups.
+
+### Strategy
+
+1. Build a `userToAttributionSession` map that stores each user's **best attribution session** (using `getFirstMeaningfulSession()` logic)
+2. Use this map for ALL connection attribution: channels, referrers, campaigns, keywords, and geography
+3. This ensures connections are attributed to the session with the best tracking data, not a random session
+
+---
 
 ## Technical Implementation
 
-### Phase 1: Add Blog Entry Pages to Data Hook
+### File: `src/hooks/useUnifiedAnalytics.ts`
 
-**File: `src/hooks/useUnifiedAnalytics.ts`**
+**Step 1: Build Smart Attribution Map for Connection Users**
 
-Add new data structure for blog landing pages:
+After fetching connections, query ALL sessions for users who have connections (not just sessions in the time window), then find their first meaningful session:
 
-```text
-// New: Aggregate blog_landing_page data from user_sessions
-const blogEntryPages: Record<string, { visitors: Set<string>; sessions: number }> = {};
+```typescript
+// Get all user IDs from connections
+const connectionUserIds = new Set<string>();
+filteredConnections.forEach(c => {
+  if (c.user_id) connectionUserIds.add(c.user_id);
+});
 
-uniqueSessions.forEach(s => {
-  if (s.blog_landing_page) {
-    const path = `sourcecodeals.com${s.blog_landing_page}`;
-    if (!blogEntryPages[path]) {
-      blogEntryPages[path] = { visitors: new Set(), sessions: 0 };
-    }
-    const visitorKey = getVisitorKey(s);
-    if (visitorKey) blogEntryPages[path].visitors.add(visitorKey);
-    blogEntryPages[path].sessions++;
+// Fetch ALL sessions for these users (not just in time range)
+let connectionUserSessions: SessionType[] = [];
+if (connectionUserIds.size > 0) {
+  const { data } = await supabase
+    .from('user_sessions')
+    .select('...')
+    .eq('is_bot', false)
+    .eq('is_production', true)
+    .in('user_id', Array.from(connectionUserIds))
+    .order('started_at', { ascending: false });
+  connectionUserSessions = data || [];
+}
+
+// Group sessions by user
+const userSessionGroups = new Map<string, SessionType[]>();
+connectionUserSessions.forEach(s => {
+  if (!userSessionGroups.has(s.user_id)) {
+    userSessionGroups.set(s.user_id, []);
   }
+  userSessionGroups.get(s.user_id)!.push(s);
+});
+
+// Build attribution map using smart first-touch
+const userToAttributionSession = new Map<string, SessionType>();
+userSessionGroups.forEach((sessions, userId) => {
+  const best = getFirstMeaningfulSession(sessions);
+  if (best) userToAttributionSession.set(userId, best);
 });
 ```
 
-Update return type to include:
-```text
-blogEntryPages: Array<{ path: string; visitors: number; isExternal: boolean }>;
+**Step 2: Replace `userSessionMap` with `userToAttributionSession`**
+
+Update ALL places where connections are mapped:
+
+- Channel attribution (line ~775)
+- Referrer attribution (line ~843)
+- Campaign attribution (line ~909)
+- Keyword attribution (line ~952)
+- Geography attribution (line ~1023)
+
+Before:
+```typescript
+const userSession = userSessionMap.get(c.user_id);
 ```
 
----
-
-### Phase 2: Update PagesCard Component
-
-**File: `src/components/admin/analytics/datafast/PagesCard.tsx`**
-
-Add new "Blog Entry" tab to show cross-domain paths:
-
-```text
-const tabs = [
-  { id: 'page', label: 'Page' },
-  { id: 'entry', label: 'Entry page' },
-  { id: 'blog', label: 'Blog Entry' },  // NEW
-  { id: 'exit', label: 'Exit page' },
-];
+After:
+```typescript
+const userSession = userToAttributionSession.get(c.user_id);
 ```
-
-Render blog entry pages with external indicator:
-```text
-{activeTab === 'blog' && (
-  <>
-    {blogEntryPages.map((page) => (
-      <ProportionalBar value={page.visitors} maxValue={maxBlogVisitors}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-            <code className="text-xs font-mono truncate">
-              {page.path}
-            </code>
-          </div>
-          <span className="text-sm font-medium tabular-nums">
-            {page.visitors}
-          </span>
-        </div>
-      </ProportionalBar>
-    ))}
-  </>
-)}
-```
-
----
-
-### Phase 3: Add Hostname Tab (Optional, Datafast-style)
-
-Add "Hostname" tab to show traffic distribution by domain:
-
-| Hostname | Visitors |
-|----------|----------|
-| marketplace.sourcecodeals.com | 1,523 |
-| sourcecodeals.com (blog entry) | 7 |
-
----
-
-### Phase 4: Enhance Filter Propagation
-
-When a referrer filter is active (e.g., "Google"), ensure the Entry Pages tab shows:
-- Which pages Google visitors actually landed on
-- Includes both marketplace entry (`/signup`) and blog paths if they came through the blog
-
-**File: `src/hooks/useUnifiedAnalytics.ts`**
-
-Update entry page calculation to be filter-aware:
-```text
-// When filters are active, recalculate entry pages from filtered sessions
-const filteredEntryPages = calculateEntryPages(
-  filteredPageViews, 
-  uniqueSessions // Already filtered by referrer/channel
-);
-```
-
----
-
-## Data Flow Diagram
-
-```text
-User Journey:
-┌─────────────────┐     ┌─────────────────────────────┐     ┌──────────────────┐
-│  Google Search  │ ──► │  sourcecodeals.com/blog/... │ ──► │  marketplace/    │
-└─────────────────┘     └─────────────────────────────┘     │   - /signup      │
-                                    │                        │   - /welcome     │
-                                    ▼                        └──────────────────┘
-                        user_sessions captures:                      │
-                        • original_external_referrer: google.com     ▼
-                        • blog_landing_page: /blog/...         page_views captures:
-                        • first_touch_landing_page: /signup    • page_path: /signup
-                                                               • page_path: /marketplace
-```
-
----
-
-## Interface Types Update
-
-**File: `src/hooks/useUnifiedAnalytics.ts`**
-
-```text
-interface UnifiedAnalyticsData {
-  // ... existing fields
-  
-  // NEW: Blog/external entry pages
-  blogEntryPages: Array<{
-    path: string;           // e.g., "sourcecodeals.com/blog/deal-sourcing"
-    visitors: number;
-    sessions: number;
-    originalReferrer?: string;  // e.g., "google.com"
-  }>;
-}
-```
-
----
-
-## Props Update for PagesCard
-
-**File: `src/components/admin/analytics/datafast/PagesCard.tsx`**
-
-```text
-interface PagesCardProps {
-  topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
-  entryPages: Array<{ path: string; visitors: number; bounceRate: number }>;
-  exitPages: Array<{ path: string; exits: number; exitRate: number }>;
-  blogEntryPages: Array<{ path: string; visitors: number; sessions: number }>;  // NEW
-}
-```
-
----
-
-## Dashboard Integration
-
-**File: `src/components/admin/analytics/datafast/DatafastAnalyticsDashboard.tsx`**
-
-Pass the new data to PagesCard:
-```text
-<PagesCard 
-  topPages={data.topPages}
-  entryPages={data.entryPages}
-  exitPages={data.exitPages}
-  blogEntryPages={data.blogEntryPages}  // NEW
-/>
-```
-
----
-
-## Expected Results
-
-### Before
-- Pages card only shows: `/`, `/signup`, `/welcome`, `/marketplace`
-- No visibility into blog paths that drive traffic
-
-### After
-- New "Blog Entry" tab shows: `sourcecodeals.com/blog/deal-sourcing-companies`, `sourcecodeals.com/marketplace`, etc.
-- When filtering by Google, entry pages update to show which pages Google visitors landed on
-- Full cross-domain journey is visible in aggregate form
 
 ---
 
@@ -203,13 +111,33 @@ Pass the new data to PagesCard:
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useUnifiedAnalytics.ts` | Add `blogEntryPages` aggregation and return field |
-| `src/components/admin/analytics/datafast/PagesCard.tsx` | Add "Blog Entry" tab with external path display |
-| `src/components/admin/analytics/datafast/DatafastAnalyticsDashboard.tsx` | Pass `blogEntryPages` prop |
+| `src/hooks/useUnifiedAnalytics.ts` | Build smart attribution map for connection users; replace `userSessionMap` usage |
 
 ---
 
-## Summary
+## Expected Results
 
-This enhancement surfaces the cross-domain journey data that's already being captured, making it visible in the Pages card alongside marketplace pages. The "Blog Entry" tab will show exactly which main site pages (blog posts, /marketplace, /our-team, etc.) are driving traffic to the marketplace, providing actionable content performance insights.
+### Before
+- Campaign → Newsletter_deal_digest_1 → 0 connections
+- Channel → Newsletter → incorrect count
+- Referrer → brevo.com → incorrect count
 
+### After
+- Campaign → Newsletter_deal_digest_1 → 7 connections
+- Channel → Newsletter → correct count including these 7
+- Referrer → brevo.com → correct count
+- All attribution metrics consistent across channels, referrers, campaigns, keywords, and geography
+
+---
+
+## Impact Analysis
+
+This fix affects ALL connection attribution across:
+- Channels tab (Newsletter, Organic Search, etc.)
+- Referrers tab (brevo.com, google.com, etc.)
+- Campaigns tab (Newsletter_deal_digest_1, etc.)
+- Keywords tab
+- Geography cards (countries, cities, regions)
+- User detail panels
+
+All of these will now show correct connection counts based on the user's first meaningful session, not a random session.
