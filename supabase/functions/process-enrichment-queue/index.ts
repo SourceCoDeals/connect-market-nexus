@@ -8,9 +8,9 @@ const corsHeaders = {
 };
 
 // Configuration
-// IMPORTANT: This function is often triggered via cron (every 5 min) AND can be triggered manually from the UI.
-// Keep each run small enough to complete within edge function runtime limits.
-const BATCH_SIZE = 1; // Process a small number of items per run to avoid timeouts
+// IMPORTANT: This function is often triggered via cron AND can be triggered manually from the UI.
+// Increase batch size to process queue faster while staying within edge function limits.
+const BATCH_SIZE = 5; // Process 5 items per run (~30-40s each = ~3min total)
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
 const PROCESSING_TIMEOUT_MS = 90000; // 90 seconds per item
 
@@ -248,8 +248,9 @@ serve(async (req) => {
 
       results.processed++;
 
-      // Small delay between items to be nice to external APIs
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Delay between items to respect external API rate limits (AI, LinkedIn, Google)
+      // Each item can take 30-40s, but we add spacing to avoid quota bursts
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
     console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed`);

@@ -438,126 +438,158 @@ ${websiteContent.substring(0, 20000)}
 Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.`;
 
 
-    const aiResponse = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(geminiApiKey),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'extract_deal_intelligence',
-              description: 'Extract comprehensive business/deal intelligence from website content',
-              parameters: {
-                type: 'object',
-                properties: {
-                  internal_company_name: {
-                    type: 'string',
-                    description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
-                  },
-                  executive_summary: {
-                    type: 'string',
-                    description: 'A 2-3 paragraph executive summary describing the business, its services, market position, and value proposition'
-                  },
-                  service_mix: {
-                    type: 'string',
-                    description: 'Comma-separated list of services or products offered'
-                  },
-                  business_model: {
-                    type: 'string',
-                    description: 'Description of how the business generates revenue (e.g., B2B services, recurring contracts, project-based)'
-                  },
-                  industry: {
-                    type: 'string',
-                    description: 'Primary industry classification (e.g., HVAC, Plumbing, IT Services, Healthcare)'
-                  },
-                  geographic_states: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Two-letter US state codes where they operate (e.g., ["CA", "TX", "FL"])'
-                  },
-                  number_of_locations: {
-                    type: 'number',
-                    description: 'Number of physical locations/offices/branches'
-                  },
-                  street_address: {
-                    type: 'string',
-                    description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip. Leave empty/null if not found - do NOT use placeholder values like "Not Found", "N/A", or "Unknown".'
-                  },
-                  address_city: {
-                    type: 'string',
-                    description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
-                  },
-                  address_state: {
-                    type: 'string',
-                    description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
-                  },
-                  address_zip: {
-                    type: 'string',
-                    description: '5-digit US ZIP code (e.g., "75201") or Canadian postal code (e.g., "M5V 1J2").'
-                  },
-                  address_country: {
-                    type: 'string',
-                    description: 'Country code. Use "US" for United States, "CA" for Canada. Default to "US" if not specified.'
-                  },
-                  address: {
-                    type: 'string',
-                    description: 'Full headquarters address as a single string (legacy field). Include street, city, state, zip if available.'
-                  },
-                  founded_year: {
-                    type: 'number',
-                    description: 'Year the company was founded (e.g., 2005)'
-                  },
-                  customer_types: {
-                    type: 'string',
-                    description: 'Types of customers served (e.g., Commercial, Residential, Government, Industrial)'
-                  },
-                  owner_goals: {
-                    type: 'string',
-                    description: 'Owner/seller goals for the transaction (exit, retirement, growth capital, partnership, etc.)'
-                  },
-                  key_risks: {
-                    type: 'string',
-                    description: 'Potential risk factors identified (one per line)'
-                  },
-                  competitive_position: {
-                    type: 'string',
-                    description: 'Market positioning, competitive advantages, market share information'
-                  },
-                  technology_systems: {
-                    type: 'string',
-                    description: 'Software, tools, or technology systems mentioned'
-                  },
-                  real_estate_info: {
-                    type: 'string',
-                    description: 'Information about facilities, whether owned or leased, square footage'
-                  },
-                  growth_trajectory: {
-                    type: 'string',
-                    description: 'Growth indicators, expansion history, or trajectory information'
-                  },
-                  linkedin_url: {
-                    type: 'string',
-                    description: 'DIRECT LinkedIn company page URL only. Must be in the format "https://www.linkedin.com/company/company-name". Do NOT use Google search links or redirects. Only extract if you find a direct linkedin.com/company/ URL.'
+    // Retry logic for AI calls (handles 429 rate limits)
+    const MAX_AI_RETRIES = 3;
+    const AI_RETRY_DELAYS = [2000, 5000, 10000]; // exponential backoff
+    
+    let aiResponse: Response | null = null;
+    let lastAiError = '';
+    
+    for (let attempt = 0; attempt < MAX_AI_RETRIES; attempt++) {
+      try {
+        aiResponse = await fetch(GEMINI_API_URL, {
+          method: 'POST',
+          headers: getGeminiHeaders(geminiApiKey),
+          body: JSON.stringify({
+            model: DEFAULT_GEMINI_MODEL,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            tools: [
+              {
+                type: 'function',
+                function: {
+                  name: 'extract_deal_intelligence',
+                  description: 'Extract comprehensive business/deal intelligence from website content',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      internal_company_name: {
+                        type: 'string',
+                        description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
+                      },
+                      executive_summary: {
+                        type: 'string',
+                        description: 'A 2-3 paragraph executive summary describing the business, its services, market position, and value proposition'
+                      },
+                      service_mix: {
+                        type: 'string',
+                        description: 'Comma-separated list of services or products offered'
+                      },
+                      business_model: {
+                        type: 'string',
+                        description: 'Description of how the business generates revenue (e.g., B2B services, recurring contracts, project-based)'
+                      },
+                      industry: {
+                        type: 'string',
+                        description: 'Primary industry classification (e.g., HVAC, Plumbing, IT Services, Healthcare)'
+                      },
+                      geographic_states: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Two-letter US state codes where they operate (e.g., ["CA", "TX", "FL"])'
+                      },
+                      number_of_locations: {
+                        type: 'number',
+                        description: 'Number of physical locations/offices/branches'
+                      },
+                      street_address: {
+                        type: 'string',
+                        description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip. Leave empty/null if not found - do NOT use placeholder values like "Not Found", "N/A", or "Unknown".'
+                      },
+                      address_city: {
+                        type: 'string',
+                        description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
+                      },
+                      address_state: {
+                        type: 'string',
+                        description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
+                      },
+                      address_zip: {
+                        type: 'string',
+                        description: 'ZIP code (e.g., "75201", "90210")'
+                      },
+                      address_country: {
+                        type: 'string',
+                        description: 'Country code, typically "US" or "CA"'
+                      },
+                      founded_year: {
+                        type: 'number',
+                        description: 'Year the company was founded'
+                      },
+                      customer_types: {
+                        type: 'string',
+                        description: 'Types of customers served (e.g., "Residential, Commercial, Government")'
+                      },
+                      owner_goals: {
+                        type: 'string',
+                        description: 'Any mentioned goals from the owner (exit, growth, succession, etc.)'
+                      },
+                      key_risks: {
+                        type: 'string',
+                        description: 'Potential risk factors identified'
+                      },
+                      competitive_position: {
+                        type: 'string',
+                        description: 'Market positioning and competitive advantages'
+                      },
+                      technology_systems: {
+                        type: 'string',
+                        description: 'Software, tools, or technology platforms used'
+                      },
+                      real_estate_info: {
+                        type: 'string',
+                        description: 'Information about facilities (owned vs leased, size, etc.)'
+                      },
+                      growth_trajectory: {
+                        type: 'string',
+                        description: 'Growth history and indicators'
+                      },
+                      linkedin_url: {
+                        type: 'string',
+                        description: 'LinkedIn company page URL if found on the website'
+                      }
+                    },
+                    required: []
                   }
                 }
               }
-            }
-          }
-        ],
-        tool_choice: { type: 'function', function: { name: 'extract_deal_intelligence' } }
-      }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
+            ],
+            tool_choice: { type: 'function', function: { name: 'extract_deal_intelligence' } }
+          }),
+          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+        });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI extraction error:', errorText);
+        // Check for rate limit (429)
+        if (aiResponse.status === 429) {
+          const retryAfter = aiResponse.headers.get('Retry-After');
+          const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : AI_RETRY_DELAYS[attempt];
+          console.log(`AI rate limited (429), retrying in ${waitMs}ms (attempt ${attempt + 1}/${MAX_AI_RETRIES})`);
+          await new Promise(r => setTimeout(r, waitMs));
+          continue;
+        }
+
+        // If successful, break out of retry loop
+        if (aiResponse.ok) {
+          break;
+        }
+
+        // Non-429 error - log and continue
+        lastAiError = await aiResponse.text();
+        console.error(`AI extraction error (attempt ${attempt + 1}):`, lastAiError);
+        
+      } catch (err) {
+        lastAiError = getErrorMessage(err);
+        console.error(`AI call exception (attempt ${attempt + 1}):`, lastAiError);
+        if (attempt < MAX_AI_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, AI_RETRY_DELAYS[attempt]));
+        }
+      }
+    }
+
+    if (!aiResponse || !aiResponse.ok) {
+      console.error('AI extraction failed after retries:', lastAiError);
       return new Response(
         JSON.stringify({ success: false, error: 'AI extraction failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
