@@ -398,48 +398,40 @@ const ReMarketingDeals = () => {
     })
   );
 
-  // Handle Calculate Scores for all deals
+  // Handle Calculate Scores for all deals - calculates deal quality scores
   const handleCalculateScores = async () => {
     setIsCalculatingScores(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
 
-      // Get all active listings that need scoring
-      const dealsToScore = listings?.filter(l => {
-        const stats = scoreStats?.[l.id];
-        return !stats || stats.totalMatches === 0;
-      }) || [];
+      // Get deals that need scoring (no deal_total_score)
+      const dealsToScore = listings?.filter(l => !l.deal_total_score || l.deal_total_score === 0) || [];
 
       if (dealsToScore.length === 0) {
-        toast({ title: "All deals scored", description: "All deals already have scores calculated" });
+        toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
         setIsCalculatingScores(false);
         return;
       }
 
-      let scored = 0;
-      let errors = 0;
+      // Call the calculate-deal-quality function with calculateAll flag
+      const response = await supabase.functions.invoke('calculate-deal-quality', {
+        body: { calculateAll: true },
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
+      });
 
-      // Score in batches
-      for (const deal of dealsToScore.slice(0, 10)) { // Limit to 10 at a time
-        try {
-          const response = await supabase.functions.invoke('score-buyer-deal', {
-            body: { dealId: deal.id, scoreAll: true },
-            headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
-          });
-          if (response.error) throw response.error;
-          scored++;
-        } catch (e) {
-          console.error(`Failed to score deal ${deal.id}:`, e);
-          errors++;
-        }
+      if (response.error) {
+        throw response.error;
       }
+
+      const result = response.data;
 
       toast({
         title: "Scoring complete",
-        description: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}. ${dealsToScore.length > 10 ? `${dealsToScore.length - 10} remaining.` : ''}`
+        description: result.message || `Scored ${result.scored || 0} deals`
       });
 
-      // Refetch score stats
+      // Refetch listings to show updated scores
+      refetch();
       refetchScoreStats();
     } catch (error: any) {
       console.error('Calculate scores error:', error);
