@@ -765,14 +765,51 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         channelSessions[channel]++;
       });
       
-      // Map connections to channels
-      const userSessionMap = new Map<string, typeof sessions[0]>();
-      uniqueSessions.forEach(s => {
-        if (s.user_id) userSessionMap.set(s.user_id, s);
+      // === SMART ATTRIBUTION FOR CONNECTION USERS ===
+      // Build a map of each connection user's BEST attribution session using first-touch logic
+      // This ensures connections are attributed to the session with the best tracking data,
+      // not a random session (which was the bug - userSessionMap just overwrote with last session)
+      const connectionUserIds = new Set<string>();
+      filteredConnections.forEach(c => {
+        if (c.user_id) connectionUserIds.add(c.user_id);
       });
+      
+      // Fetch ALL sessions for these users (not just in time range) to find true first-touch
+      type ConnectionSessionType = typeof sessions[0];
+      let connectionUserSessions: ConnectionSessionType[] = [];
+      if (connectionUserIds.size > 0) {
+        const { data } = await supabase
+          .from('user_sessions')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
+          .in('user_id', Array.from(connectionUserIds))
+          .order('started_at', { ascending: false });
+        connectionUserSessions = (data || []) as ConnectionSessionType[];
+      }
+      
+      // Group sessions by user
+      const userSessionGroups = new Map<string, ConnectionSessionType[]>();
+      connectionUserSessions.forEach(s => {
+        if (s.user_id) {
+          if (!userSessionGroups.has(s.user_id)) {
+            userSessionGroups.set(s.user_id, []);
+          }
+          userSessionGroups.get(s.user_id)!.push(s);
+        }
+      });
+      
+      // Build attribution map using smart first-touch logic
+      const userToAttributionSession = new Map<string, ConnectionSessionType>();
+      userSessionGroups.forEach((sessions, userId) => {
+        const best = getFirstMeaningfulSession(sessions);
+        if (best) userToAttributionSession.set(userId, best as ConnectionSessionType);
+      });
+      
+      // Map connections to channels using smart attribution
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const session = userSessionMap.get(c.user_id);
+          const session = userToAttributionSession.get(c.user_id);
           if (session) {
             const discoverySource = getDiscoverySource(session);
             const channel = categorizeChannel(discoverySource, session.utm_source, session.utm_medium);
@@ -840,7 +877,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       // Map connections to referrers via user's first-touch referrer using discovery source priority
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession) {
             const discoverySource = getDiscoverySource(userSession);
             const domain = extractDomain(discoverySource);
@@ -902,11 +939,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           campaignSessions[s.utm_campaign]++;
         }
       });
-      // Map connections to campaigns
+      // Map connections to campaigns using smart attribution
       const campaignConnections: Record<string, number> = {};
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession?.utm_campaign) {
             campaignConnections[userSession.utm_campaign] = (campaignConnections[userSession.utm_campaign] || 0) + 1;
           }
@@ -945,11 +982,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           keywordSessions[s.utm_term]++;
         }
       });
-      // Map connections to keywords
+      // Map connections to keywords using smart attribution
       const keywordConnections: Record<string, number> = {};
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession?.utm_term) {
             keywordConnections[userSession.utm_term] = (keywordConnections[userSession.utm_term] || 0) + 1;
           }
@@ -1018,10 +1055,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      // Map connections to geography via user's session
+      // Map connections to geography via user's smart attribution session
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession) {
             const country = userSession.country || 'Unknown';
             countryConnections[country] = (countryConnections[country] || 0) + 1;
