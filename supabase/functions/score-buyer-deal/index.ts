@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { checkRateLimit, checkGlobalRateLimit, rateLimitResponse } from "../_shared/security.ts";
+import { calculateProximityScore, getProximityTier } from "../_shared/geography-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -110,10 +111,84 @@ async function fetchScoringAdjustments(supabase: any, listingId: string): Promis
   return data || [];
 }
 
+// Fetch engagement signals for a listing-buyer pair
+async function fetchEngagementBonus(
+  supabase: any,
+  listingId: string,
+  buyerId: string
+): Promise<{ bonus: number; signals: any[]; reasoning: string }> {
+  const { data: signals, error } = await supabase
+    .from('engagement_signals')
+    .select('*')
+    .eq('listing_id', listingId)
+    .eq('buyer_id', buyerId)
+    .order('signal_date', { ascending: false });
+
+  if (error || !signals || signals.length === 0) {
+    return { bonus: 0, signals: [], reasoning: '' };
+  }
+
+  // Calculate total bonus (capped at 100 per spec)
+  const totalBonus = Math.min(100, signals.reduce((sum: number, s: any) => sum + (s.signal_value || 0), 0));
+
+  // Build reasoning string
+  const signalSummary = signals.map((s: any) =>
+    `${s.signal_type.replace('_', ' ')} (+${s.signal_value})`
+  ).join(', ');
+
+  const reasoning = `Engagement signals: ${signalSummary} = +${totalBonus} pts`;
+
+  return { bonus: totalBonus, signals, reasoning };
+}
+
+// Fetch engagement signals for multiple buyers (bulk scoring optimization)
+async function fetchBulkEngagementBonuses(
+  supabase: any,
+  listingId: string,
+  buyerIds: string[]
+): Promise<Map<string, { bonus: number; reasoning: string }>> {
+  const bonuses = new Map<string, { bonus: number; reasoning: string }>();
+
+  if (buyerIds.length === 0) return bonuses;
+
+  const { data: signals, error } = await supabase
+    .from('engagement_signals')
+    .select('*')
+    .eq('listing_id', listingId)
+    .in('buyer_id', buyerIds);
+
+  if (error || !signals) {
+    console.warn("Failed to fetch engagement signals:", error);
+    return bonuses;
+  }
+
+  // Group signals by buyer_id
+  const signalsByBuyer = new Map<string, any[]>();
+  for (const signal of signals) {
+    if (!signalsByBuyer.has(signal.buyer_id)) {
+      signalsByBuyer.set(signal.buyer_id, []);
+    }
+    signalsByBuyer.get(signal.buyer_id)!.push(signal);
+  }
+
+  // Calculate bonus for each buyer
+  for (const [buyerId, buyerSignals] of signalsByBuyer) {
+    const totalBonus = Math.min(100, buyerSignals.reduce((sum, s) => sum + (s.signal_value || 0), 0));
+    const signalSummary = buyerSignals.map(s =>
+      `${s.signal_type.replace('_', ' ')} (+${s.signal_value})`
+    ).join(', ');
+    const reasoning = `Engagement signals: ${signalSummary} = +${totalBonus} pts`;
+
+    bonuses.set(buyerId, { bonus: totalBonus, reasoning });
+  }
+
+  return bonuses;
+}
+
 // Fetch learning patterns from buyer history
 async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise<Map<string, LearningPattern>> {
   const patterns = new Map<string, LearningPattern>();
-  
+
   if (buyerIds.length === 0) return patterns;
 
   const { data: history, error } = await supabase
@@ -159,6 +234,59 @@ async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise
   return patterns;
 }
 
+// Calculate geography score using adjacency intelligence
+async function calculateGeographyScore(
+  listing: any,
+  buyer: any,
+  supabaseUrl: string,
+  supabaseKey: string
+): Promise<{ score: number; reasoning: string; tier: string }> {
+  // Extract deal state from location
+  const dealLocation = listing.location || "";
+  const dealState = dealLocation.match(/,\s*([A-Z]{2})\s*$/i)?.[1]?.toUpperCase();
+
+  // Get buyer target states (from target_geographies or geographic_footprint)
+  const buyerStates = [
+    ...(buyer.target_geographies || []),
+    ...(buyer.geographic_footprint || [])
+  ].filter(Boolean).map((s: string) => s.toUpperCase().trim());
+
+  if (!dealState || buyerStates.length === 0) {
+    return {
+      score: 50,
+      reasoning: "Limited geography data available",
+      tier: 'regional'
+    };
+  }
+
+  // Use adjacency intelligence to calculate proximity score
+  const { score: baseScore, reasoning: baseReasoning } = await calculateProximityScore(
+    dealState,
+    buyerStates,
+    supabaseUrl,
+    supabaseKey
+  );
+
+  // Apply deal attractiveness modifier
+  const attractiveness = calculateAttractivenessMultiplier(listing);
+  const adjustedScore = Math.round(Math.min(100, baseScore * attractiveness.multiplier));
+
+  // Get tier classification
+  const tier = await getProximityTier(
+    dealState,
+    buyerStates,
+    supabaseUrl,
+    supabaseKey
+  );
+
+  // Combine reasoning
+  const fullReasoning = attractiveness.multiplier !== 1.0
+    ? `${baseReasoning}. ${attractiveness.reasoning} (${baseScore} → ${adjustedScore})`
+    : baseReasoning;
+
+  return { score: adjustedScore, reasoning: fullReasoning, tier };
+}
+
 // Calculate service overlap percentage for context
 function calculateServiceOverlap(
   listing: any,
@@ -167,18 +295,18 @@ function calculateServiceOverlap(
   const dealServices = (listing.categories || [listing.category])
     .filter(Boolean)
     .map((s: string) => s?.toLowerCase().trim());
-  
+
   const buyerServices = (buyer.target_services || [])
     .filter(Boolean)
     .map((s: string) => s?.toLowerCase().trim());
-  
+
   if (buyerServices.length === 0 || dealServices.length === 0) {
     return { percentage: 0, matchingServices: [], allDealServices: dealServices };
   }
-  
+
   const matching = dealServices.filter((ds: string) =>
-    buyerServices.some((bs: string) => 
-      ds?.includes(bs) || bs?.includes(ds) || 
+    buyerServices.some((bs: string) =>
+      ds?.includes(bs) || bs?.includes(ds) ||
       // Semantic matches for common industry terms
       (ds?.includes('collision') && bs?.includes('body')) ||
       (ds?.includes('body') && bs?.includes('collision')) ||
@@ -186,7 +314,7 @@ function calculateServiceOverlap(
       (ds?.includes('auto') && bs?.includes('automotive'))
     )
   );
-  
+
   const percentage = Math.round((matching.length / Math.max(dealServices.length, buyerServices.length)) * 100);
   return { percentage, matchingServices: matching, allDealServices: dealServices };
 }
@@ -342,16 +470,133 @@ function calculateSizeMultiplier(
   return 1.0;
 }
 
+// Calculate deal attractiveness multiplier based on overall deal quality
+// High-quality deals get geography boost, low-quality deals get penalty
+function calculateAttractivenessMultiplier(listing: any): { multiplier: number; reasoning: string } {
+  const dealScore = listing.deal_total_score || 0;
+
+  if (dealScore >= 90) {
+    return {
+      multiplier: 1.3,
+      reasoning: "Exceptional deal quality (90+) - 30% geography boost"
+    };
+  } else if (dealScore >= 70) {
+    return {
+      multiplier: 1.15,
+      reasoning: "High deal quality (70-89) - 15% geography boost"
+    };
+  } else if (dealScore >= 50) {
+    return {
+      multiplier: 1.0,
+      reasoning: "Standard deal quality (50-69) - neutral"
+    };
+  } else if (dealScore > 0) {
+    return {
+      multiplier: 0.85,
+      reasoning: "Below-average deal quality (<50) - 15% geography penalty"
+    };
+  } else {
+    // No deal score available
+    return {
+      multiplier: 1.0,
+      reasoning: "No deal quality score - neutral"
+    };
+  }
+}
+
+// Calculate thesis bonus by comparing buyer's investment thesis with deal characteristics
+function calculateThesisBonus(
+  listing: any,
+  buyer: any
+): { bonus: number; reasoning: string } {
+  const thesisSummary = (buyer.thesis_summary || '').toLowerCase().trim();
+
+  if (!thesisSummary || thesisSummary.length < 10) {
+    return { bonus: 0, reasoning: '' };
+  }
+
+  let bonusPoints = 0;
+  const matches: string[] = [];
+
+  // Extract deal text for analysis
+  const dealDescription = [
+    listing.description || '',
+    listing.executive_summary || '',
+    listing.general_notes || '',
+    (listing.services || []).join(' '),
+    (listing.categories || [listing.category]).join(' ')
+  ].join(' ').toLowerCase();
+
+  // Thesis keyword categories with point values
+  const thesisPatterns = [
+    // Business model patterns (5 points each)
+    { pattern: /recurring\s+revenue/i, value: 5, label: 'recurring revenue model' },
+    { pattern: /subscription/i, value: 5, label: 'subscription model' },
+    { pattern: /saas/i, value: 5, label: 'SaaS business' },
+    { pattern: /contract\s+revenue/i, value: 5, label: 'contract-based revenue' },
+
+    // Growth patterns (5 points each)
+    { pattern: /high\s+growth/i, value: 5, label: 'high growth' },
+    { pattern: /organic\s+growth/i, value: 5, label: 'organic growth' },
+    { pattern: /rapid\s+expansion/i, value: 5, label: 'rapid expansion' },
+
+    // Strategy patterns (7 points each)
+    { pattern: /roll[\s-]?up/i, value: 7, label: 'roll-up strategy' },
+    { pattern: /platform/i, value: 7, label: 'platform acquisition' },
+    { pattern: /add[\s-]?on/i, value: 7, label: 'add-on acquisition' },
+    { pattern: /bolt[\s-]?on/i, value: 7, label: 'bolt-on acquisition' },
+    { pattern: /tuck[\s-]?in/i, value: 7, label: 'tuck-in acquisition' },
+
+    // Owner alignment patterns (5 points each)
+    { pattern: /equity\s+rollover/i, value: 5, label: 'equity rollover alignment' },
+    { pattern: /owner\s+transition/i, value: 5, label: 'owner transition support' },
+    { pattern: /management\s+retention/i, value: 5, label: 'management retention' },
+
+    // Industry-specific patterns (3 points each)
+    { pattern: /automotive/i, value: 3, label: 'automotive focus' },
+    { pattern: /collision/i, value: 3, label: 'collision repair focus' },
+    { pattern: /multi[\s-]?location/i, value: 3, label: 'multi-location preference' },
+    { pattern: /branded/i, value: 3, label: 'branded locations' },
+  ];
+
+  // Check thesis against deal characteristics
+  for (const { pattern, value, label } of thesisPatterns) {
+    const thesisMatch = pattern.test(thesisSummary);
+    const dealMatch = pattern.test(dealDescription);
+
+    if (thesisMatch && dealMatch) {
+      bonusPoints += value;
+      matches.push(label);
+    }
+  }
+
+  // Cap total bonus at 30 points per spec
+  bonusPoints = Math.min(30, bonusPoints);
+
+  const reasoning = matches.length > 0
+    ? `Thesis alignment: ${matches.join(', ')}`
+    : '';
+
+  return { bonus: bonusPoints, reasoning };
+}
+
 // Apply learning adjustments to score
 function applyLearningAdjustment(
-  baseScore: number, 
+  baseScore: number,
   pattern: LearningPattern | undefined,
-  adjustments: ScoringAdjustment[]
+  adjustments: ScoringAdjustment[],
+  calculatedThesisBonus: number = 0,
+  thesisReasoning: string = ''
 ): { adjustedScore: number; thesisBonus: number; adjustmentReason?: string; learningNote?: string } {
   let adjustedScore = baseScore;
-  let thesisBonus = 0;
+  let thesisBonus = calculatedThesisBonus; // Start with calculated bonus
   const reasons: string[] = [];
   let learningNote: string | undefined;
+
+  // Add thesis reasoning if present
+  if (thesisReasoning) {
+    reasons.push(thesisReasoning);
+  }
 
   // Apply deal-level adjustments
   for (const adj of adjustments) {
@@ -362,8 +607,9 @@ function applyLearningAdjustment(
       adjustedScore -= adj.adjustment_value;
       reasons.push(`-${adj.adjustment_value} (${adj.reason || 'penalty'})`);
     } else if (adj.adjustment_type === 'thesis_match') {
+      // Manual thesis adjustment overrides calculated bonus
       thesisBonus = adj.adjustment_value;
-      reasons.push(`+${adj.adjustment_value} thesis bonus`);
+      reasons.push(`+${adj.adjustment_value} thesis bonus (manual override)`);
     }
   }
 
@@ -439,28 +685,40 @@ async function handleSingleScore(
     throw new Error("Universe not found");
   }
 
-  // Fetch adjustments and learning patterns
-  const [adjustments, learningPatterns] = await Promise.all([
+  // Fetch adjustments, learning patterns, and engagement signals
+  const [adjustments, learningPatterns, engagementData] = await Promise.all([
     fetchScoringAdjustments(supabase, listingId),
     fetchLearningPatterns(supabase, [buyerId]),
+    fetchEngagementBonus(supabase, listingId, buyerId),
   ]);
 
   // Generate score using AI (no custom instructions for single score)
   const score = await generateAIScore(listing, buyer, universe, apiKey, undefined);
 
+  // Calculate thesis bonus
+  const thesisAnalysis = calculateThesisBonus(listing, buyer);
+
   // Apply learning adjustments
   const { adjustedScore, thesisBonus, adjustmentReason } = applyLearningAdjustment(
     score.composite_score,
     learningPatterns.get(buyerId),
-    adjustments
+    adjustments,
+    thesisAnalysis.bonus,
+    thesisAnalysis.reasoning
   );
 
-  // Recalculate tier based on adjusted score - ALIGNED WITH SPEC
+  // Apply engagement bonus (CRITICAL: Applied AFTER other adjustments, capped at 100 total)
+  const finalScore = Math.min(100, adjustedScore + engagementData.bonus);
+  const finalReasoning = engagementData.bonus > 0
+    ? `${adjustmentReason || score.fit_reasoning}\n\n${engagementData.reasoning}`
+    : (adjustmentReason || score.fit_reasoning);
+
+  // Recalculate tier based on final score (with engagement bonus) - ALIGNED WITH SPEC
   let tier: string;
-  if (adjustedScore >= 80) tier = "A";      // Tier 1 per spec
-  else if (adjustedScore >= 60) tier = "B"; // Tier 2 per spec
-  else if (adjustedScore >= 40) tier = "C"; // Tier 3 per spec
-  else tier = "D";                          // Pass per spec
+  if (finalScore >= 80) tier = "A";      // Tier 1 per spec
+  else if (finalScore >= 60) tier = "B"; // Tier 2 per spec
+  else if (finalScore >= 40) tier = "C"; // Tier 3 per spec
+  else tier = "D";                        // Pass per spec
 
   // Create deal snapshot for stale detection
   const dealSnapshot = {
@@ -479,15 +737,13 @@ async function handleSingleScore(
       buyer_id: buyerId,
       universe_id: universeId,
       ...score,
-      composite_score: adjustedScore,
+      composite_score: finalScore,
       tier,
       thesis_bonus: thesisBonus,
       acquisition_score: score.acquisition_score,
       portfolio_score: score.portfolio_score,
       business_model_score: score.business_model_score,
-      fit_reasoning: adjustmentReason 
-        ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
-        : score.fit_reasoning,
+      fit_reasoning: finalReasoning,
       scored_at: new Date().toISOString(),
       deal_snapshot: dealSnapshot,
     }, { onConflict: "listing_id,buyer_id" })
@@ -599,11 +855,12 @@ async function handleBulkScore(
 
   console.log(`Scoring ${buyersToScore.length} buyers for listing ${listingId} (rescore: ${rescoreExisting})`);
 
-  // Fetch adjustments and learning patterns in parallel
+  // Fetch adjustments, learning patterns, and engagement signals in parallel
   const allBuyerIds = buyersToScore.map((b: any) => b.id);
-  const [adjustments, learningPatterns] = await Promise.all([
+  const [adjustments, learningPatterns, engagementBonuses] = await Promise.all([
     fetchScoringAdjustments(supabase, listingId),
     fetchLearningPatterns(supabase, allBuyerIds),
+    fetchBulkEngagementBonuses(supabase, listingId, allBuyerIds),
   ]);
 
   // Process in batches to avoid rate limits
@@ -617,20 +874,32 @@ async function handleBulkScore(
     const batchPromises = batch.map(async (buyer: any) => {
       try {
         const score = await generateAIScore(listing, buyer, universe, apiKey, customInstructions);
-        
+
+        // Calculate thesis bonus for this buyer
+        const thesisAnalysis = calculateThesisBonus(listing, buyer);
+
         // Apply learning adjustments
         const { adjustedScore, thesisBonus, adjustmentReason } = applyLearningAdjustment(
           score.composite_score,
           learningPatterns.get(buyer.id),
-          adjustments
+          adjustments,
+          thesisAnalysis.bonus,
+          thesisAnalysis.reasoning
         );
 
-        // Recalculate tier - ALIGNED WITH SPEC
+        // Apply engagement bonus
+        const engagementData = engagementBonuses.get(buyer.id) || { bonus: 0, reasoning: '' };
+        const finalScore = Math.min(100, adjustedScore + engagementData.bonus);
+        const finalReasoning = engagementData.bonus > 0
+          ? `${adjustmentReason || score.fit_reasoning}\n\n${engagementData.reasoning}`
+          : (adjustmentReason || score.fit_reasoning);
+
+        // Recalculate tier based on final score - ALIGNED WITH SPEC
         let tier: string;
-        if (adjustedScore >= 80) tier = "A";      // Tier 1 per spec
-        else if (adjustedScore >= 60) tier = "B"; // Tier 2 per spec
-        else if (adjustedScore >= 40) tier = "C"; // Tier 3 per spec
-        else tier = "D";                          // Pass per spec
+        if (finalScore >= 80) tier = "A";      // Tier 1 per spec
+        else if (finalScore >= 60) tier = "B"; // Tier 2 per spec
+        else if (finalScore >= 40) tier = "C"; // Tier 3 per spec
+        else tier = "D";                        // Pass per spec
 
         // Create deal snapshot for stale detection
         const dealSnapshot = {
@@ -646,15 +915,13 @@ async function handleBulkScore(
           buyer_id: buyer.id,
           universe_id: universeId,
           ...score,
-          composite_score: adjustedScore,
+          composite_score: finalScore,
           tier,
           thesis_bonus: thesisBonus,
           acquisition_score: score.acquisition_score,
           portfolio_score: score.portfolio_score,
           business_model_score: score.business_model_score,
-          fit_reasoning: adjustmentReason 
-            ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
-            : score.fit_reasoning,
+          fit_reasoning: finalReasoning,
           scored_at: new Date().toISOString(),
           deal_snapshot: dealSnapshot,
         };
@@ -1136,6 +1403,11 @@ Provide scores and reasoning following the format above. Be specific about which
     return `Portfolio: ${names}`;
   };
 
+  // Calculate geography score using adjacency intelligence
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const geoScore = await calculateGeographyScore(listing, buyer, supabaseUrl, supabaseKey);
+
   // Calculate service overlap for prompt context
   const serviceOverlap = calculateServiceOverlap(listing, buyer);
 
@@ -1178,6 +1450,17 @@ SERVICE OVERLAP CONTEXT:
 - Calculated overlap: ${serviceOverlap.percentage}%
 - Matching services: ${serviceOverlap.matchingServices.length > 0 ? serviceOverlap.matchingServices.join(', ') : 'None identified'}
 - Deal services: ${serviceOverlap.allDealServices.join(', ') || 'Unknown'}
+
+GEOGRAPHIC ADJACENCY INTELLIGENCE (Use this as primary guidance for geography_score):
+- Proximity Score: ${geoScore.score}/100
+- Proximity Tier: ${geoScore.tier.toUpperCase()} (exact/adjacent/regional/distant)
+- Analysis: ${geoScore.reasoning}
+- IMPORTANT: Your geography_score should align closely with this calculated score (${geoScore.score}) unless there are compelling reasons to deviate.
+- Scoring breakdown:
+  * Exact state match: 90-100 points
+  * Adjacent state (~100 miles): 60-80 points
+  * Same region: 40-60 points
+  * Different region: 0-30 points
 
 ${structuredCriteria ? `\nUNIVERSE STRUCTURED CRITERIA:\n${structuredCriteria}` : ''}
 
@@ -1282,6 +1565,14 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
   } catch (e) {
     console.error("Failed to parse AI response:", toolCall.function.arguments);
     throw new Error("Failed to parse AI scores");
+  }
+
+  // Validate and align geography score with calculated adjacency score
+  // If AI score deviates significantly (>20 points) from calculated score, use calculated score
+  if (Math.abs(scores.geography_score - geoScore.score) > 20) {
+    console.log(`[GeographyValidation] AI score (${scores.geography_score}) deviates from calculated (${geoScore.score}), using calculated score`);
+    scores.geography_score = geoScore.score;
+    scores.reasoning = `${geoScore.reasoning}. ${scores.reasoning}`;
   }
 
   // Apply post-processing enforcement of hard rules

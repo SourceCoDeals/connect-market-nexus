@@ -23,10 +23,43 @@ export const ALLOWED_LISTING_INSERT_FIELDS = new Set<string>([
 
 export function sanitizeListingInsert<T extends Record<string, unknown>>(data: T): Partial<T> {
   const out: Partial<T> = {};
+
+  // First pass: copy allowed fields
   for (const [k, v] of Object.entries(data)) {
     if (!ALLOWED_LISTING_INSERT_FIELDS.has(k)) continue;
     if (v === undefined) continue;
     out[k as keyof T] = v as T[keyof T];
   }
+
+  // CRITICAL: Ensure required NOT NULL fields have valid values
+  // These defaults prevent database constraint violations
+
+  // description: required string, default to title if missing
+  if (typeof (out as any).description !== 'string' || !(out as any).description?.trim()) {
+    (out as any).description = (out as any).title || '';
+  }
+
+  // revenue: required number, default to 0
+  if (typeof (out as any).revenue !== 'number' || isNaN((out as any).revenue)) {
+    (out as any).revenue = 0;
+  }
+
+  // ebitda: required number, default to 0
+  if (typeof (out as any).ebitda !== 'number' || isNaN((out as any).ebitda)) {
+    (out as any).ebitda = 0;
+  }
+
+  // location: required string, ensure it exists
+  // This should already be set by the caller (DealImportDialog/DealCSVImport)
+  // but add a final fallback to prevent constraint violations
+  if (typeof (out as any).location !== 'string' || !(out as any).location?.trim()) {
+    (out as any).location = 'Unknown';
+  }
+
+  // category: required string, ensure it exists
+  if (typeof (out as any).category !== 'string' || !(out as any).category?.trim()) {
+    (out as any).category = 'Other';
+  }
+
   return out;
 }

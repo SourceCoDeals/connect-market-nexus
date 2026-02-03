@@ -7,11 +7,25 @@ import { expandLocations } from '@/lib/location-hierarchy';
 
 async function fetchListings(state: PaginationState) {
   console.log('🔍 Fetching listings for state:', state);
+
+  // CRITICAL FIX: Get IDs of listings that are in remarketing universes
+  const { data: remarketingListings } = await supabase
+    .from('remarketing_universe_deals')
+    .select('listing_id');
+
+  const remarketingIds = new Set(remarketingListings?.map(r => r.listing_id) || []);
+  console.log('🚫 Excluding', remarketingIds.size, 'remarketing listings from marketplace');
+
   let query = supabase
     .from('listings')
     .select('*', { count: 'exact' })
     .eq('status', 'active')
     .is('deleted_at', null);
+
+  // CRITICAL: Exclude remarketing deals from marketplace
+  if (remarketingIds.size > 0) {
+    query = query.not('id', 'in', `(${Array.from(remarketingIds).join(',')})`);
+  }
 
   // Apply filters
   if (state.search) {
@@ -83,11 +97,24 @@ async function fetchListings(state: PaginationState) {
 }
 
 async function fetchMetadata() {
-  const { data: listings, error } = await supabase
+  // Exclude remarketing deals
+  const { data: remarketingListings } = await supabase
+    .from('remarketing_universe_deals')
+    .select('listing_id');
+
+  const remarketingIds = new Set(remarketingListings?.map(r => r.listing_id) || []);
+
+  let query = supabase
     .from('listings')
     .select('category, location')
     .eq('status', 'active')
     .is('deleted_at', null);
+
+  if (remarketingIds.size > 0) {
+    query = query.not('id', 'in', `(${Array.from(remarketingIds).join(',')})`);
+  }
+
+  const { data: listings, error } = await query;
 
   if (error) {
     throw error;
