@@ -26,7 +26,8 @@ import {
   AIResearchSection,
   ScoringStyleCard,
   MatchCriteriaCard,
-  StructuredCriteriaPanel
+  StructuredCriteriaPanel,
+  EnrichmentProgressIndicator
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -156,7 +157,7 @@ const ReMarketingUniverseDetail = () => {
       
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_city, hq_state, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at')
+        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at')
         .eq('universe_id', id)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
@@ -469,6 +470,19 @@ const ReMarketingUniverseDetail = () => {
 
           {/* TAB 1: Universe - Buyers & Deals */}
           <TabsContent value="universe" className="space-y-4">
+            {/* Prominent Enrichment Progress Bar - like All Deals page */}
+            {enrichmentProgress.isRunning && (
+              <EnrichmentProgressIndicator
+                completedCount={enrichmentProgress.current}
+                totalCount={enrichmentProgress.total}
+                progress={enrichmentProgress.total > 0 ? (enrichmentProgress.current / enrichmentProgress.total) * 100 : 0}
+                estimatedTimeRemaining={enrichmentProgress.total > 0 
+                  ? `~${Math.ceil((enrichmentProgress.total - enrichmentProgress.current) * 3 / 60)} min` 
+                  : undefined}
+                processingRate={enrichmentProgress.current > 0 ? 20 : 0}
+              />
+            )}
+
             <Tabs defaultValue="buyers" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="buyers">
@@ -500,9 +514,12 @@ const ReMarketingUniverseDetail = () => {
                         resetEnrichment();
                         
                         // Use the hook which handles batching, 402 errors, and progress
+                        // Pass all website fields so the hook can filter properly
                         await enrichBuyers(buyers.map(b => ({
                           id: b.id,
-                          company_website: b.company_website
+                          company_website: b.company_website,
+                          platform_website: b.platform_website,
+                          pe_firm_website: b.pe_firm_website
                         })));
                       }}
                       onCancelEnrichment={cancelEnrichment}
