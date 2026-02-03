@@ -156,11 +156,30 @@ function categorizeChannel(referrer: string | null, utmSource: string | null, ut
 function extractDomain(url: string | null): string {
   if (!url) return 'Direct';
   try {
+    // Check if it's already a domain (no protocol) - common for utm_source values like "chatgpt.com"
+    if (!url.includes('://') && !url.startsWith('/')) {
+      return url.replace('www.', '').toLowerCase();
+    }
     const hostname = new URL(url).hostname;
     return hostname.replace('www.', '');
   } catch {
-    return url;
+    // For values like "chatgpt.com" that aren't full URLs
+    return url.replace('www.', '').toLowerCase();
   }
+}
+
+// Discovery source priority system - get the TRUE origin of a visitor
+// Priority 1: original_external_referrer (cross-domain tracking from blog)
+// Priority 2: utm_source (explicit attribution like chatgpt.com, brevo)
+// Priority 3: referrer (immediate HTTP referrer - fallback)
+function getDiscoverySource(session: {
+  original_external_referrer?: string | null;
+  utm_source?: string | null;
+  referrer?: string | null;
+}): string | null {
+  if (session.original_external_referrer) return session.original_external_referrer;
+  if (session.utm_source) return session.utm_source;
+  return session.referrer || null;
 }
 
 function getChannelIcon(channel: string): string {
@@ -213,10 +232,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         profilesResult,
         allConnectionsWithMilestonesResult,
       ] = await Promise.all([
-        // Current period sessions - include visitor_id and region for proper counting
+        // Current period sessions - include visitor_id, region, and original_external_referrer for proper attribution
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .gte('started_at', startDateStr)
@@ -670,7 +689,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const channelSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
-        const channel = categorizeChannel(s.referrer, s.utm_source, s.utm_medium);
+        // Use discovery source priority: original_external_referrer > utm_source > referrer
+        const discoverySource = getDiscoverySource(s);
+        const channel = categorizeChannel(discoverySource, s.utm_source, s.utm_medium);
         if (!channelVisitors[channel]) {
           channelVisitors[channel] = new Set();
           channelSessions[channel] = 0;
@@ -689,7 +710,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         if (c.user_id) {
           const session = userSessionMap.get(c.user_id);
           if (session) {
-            const channel = categorizeChannel(session.referrer, session.utm_source, session.utm_medium);
+            const discoverySource = getDiscoverySource(session);
+            const channel = categorizeChannel(discoverySource, session.utm_source, session.utm_medium);
             channelConnections[channel] = (channelConnections[channel] || 0) + 1;
           }
         }
@@ -739,7 +761,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const referrerSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
-        const domain = extractDomain(s.referrer);
+        // Use discovery source priority: original_external_referrer > utm_source > referrer
+        const discoverySource = getDiscoverySource(s);
+        const domain = extractDomain(discoverySource);
         if (!referrerVisitors[domain]) {
           referrerVisitors[domain] = new Set();
           referrerSessions[domain] = 0;
@@ -749,12 +773,13 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         referrerSessions[domain]++;
       });
       
-      // Map connections to referrers via user's first-touch referrer
+      // Map connections to referrers via user's first-touch referrer using discovery source priority
       filteredConnections.forEach(c => {
         if (c.user_id) {
           const userSession = userSessionMap.get(c.user_id);
           if (userSession) {
-            const domain = extractDomain(userSession.referrer);
+            const discoverySource = getDiscoverySource(userSession);
+            const domain = extractDomain(discoverySource);
             referrerConnections[domain] = (referrerConnections[domain] || 0) + 1;
           }
         }
