@@ -30,9 +30,9 @@ serve(async (req) => {
     // SECURITY: Verify admin access (or service role for internal calls)
     const authHeader = req.headers.get('Authorization');
     // Supabase sends this as `apikey` for both browser and service-role internal calls.
-    // (Some clients/proxies may vary casing; Headers.get is case-insensitive.)
     const apiKeyHeader = req.headers.get('apikey');
     
+    // Require at least one form of auth
     if (!authHeader && !apiKeyHeader) {
       console.error('No authorization header or apikey provided');
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
@@ -47,10 +47,11 @@ serve(async (req) => {
 
     // Check if this is the service role key (for internal calls)
     // Be tolerant of `bearer` casing to avoid false negatives.
+    // IMPORTANT: Check BOTH the Authorization header bearer token AND the apikey header
     const token = (authHeader || '').replace(/^Bearer\s+/i, '').trim();
     const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
     
-    console.log(`Auth check: isServiceRole=${isServiceRole}, hasAuthHeader=${!!authHeader}, hasApiKey=${!!apiKeyHeader}`);
+    console.log(`Auth check: isServiceRole=${isServiceRole}, hasAuthHeader=${!!authHeader}, hasApiKey=${!!apiKeyHeader}, tokenMatch=${token === supabaseServiceKey}, apiKeyMatch=${apiKeyHeader === supabaseServiceKey}`);
 
     if (!isServiceRole) {
       // Verify admin access for manual calls
