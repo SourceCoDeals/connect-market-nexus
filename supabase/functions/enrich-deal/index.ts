@@ -486,7 +486,7 @@ Extract all available business information using the provided tool. The address_
                   },
                   street_address: {
                     type: 'string',
-                    description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip.'
+                    description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip. Leave empty/null if not found - do NOT use placeholder values like "Not Found", "N/A", or "Unknown".'
                   },
                   address_city: {
                     type: 'string',
@@ -626,15 +626,29 @@ Extract all available business information using the provided tool. The address_
       }
     }
 
-    // Clean address_city (remove trailing commas, state codes)
+    // Clean address_city (remove trailing commas, state codes, reject placeholders)
     if (extracted.address_city) {
       let cityStr = String(extracted.address_city).trim();
       // Remove trailing ", ST" if accidentally included
       cityStr = cityStr.replace(/,\s*[A-Z]{2}$/, '').trim();
-      if (cityStr.length > 0) {
+      // Reject placeholder values
+      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available'];
+      if (cityStr.length > 0 && !placeholders.includes(cityStr.toLowerCase())) {
         extracted.address_city = cityStr;
       } else {
         delete extracted.address_city;
+      }
+    }
+
+    // Clean street_address - reject placeholder values
+    if (extracted.street_address) {
+      const streetStr = String(extracted.street_address).trim();
+      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
+      if (streetStr.length > 0 && !placeholders.includes(streetStr.toLowerCase())) {
+        extracted.street_address = streetStr;
+      } else {
+        console.log(`Rejecting placeholder street_address: "${extracted.street_address}"`);
+        delete extracted.street_address;
       }
     }
 
