@@ -66,7 +66,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { format } from "date-fns";
-import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
+import { getTierFromScore } from "@/components/remarketing";
 import {
   DndContext,
   closestCenter,
@@ -114,8 +114,6 @@ const SortableTableRow = ({
   listing,
   index,
   stats,
-  universeLookup,
-  scoreStats,
   navigate,
   formatCurrency,
   formatWebsiteDomain,
@@ -126,8 +124,6 @@ const SortableTableRow = ({
   listing: DealListing;
   index: number;
   stats: any;
-  universeLookup: Record<string, string>;
-  scoreStats: any;
   navigate: (path: string) => void;
   formatCurrency: (value: number | null) => string;
   formatWebsiteDomain: (url: string | null) => string | null;
@@ -155,7 +151,7 @@ const SortableTableRow = ({
   const displayName = listing.internal_company_name || listing.title;
   const geographyDisplay = formatGeographyBadges(listing.geographic_states);
   
-  // Use deal quality score (the custom algorithm score), not buyer-fit
+  // Use deal quality score (the custom algorithm score)
   const qualityScore = listing.deal_quality_score ?? listing.deal_total_score ?? null;
 
   return (
@@ -306,16 +302,6 @@ const SortableTableRow = ({
         {format(new Date(listing.created_at), 'dd/MM/yyyy')}
       </TableCell>
 
-      {/* Status */}
-      <TableCell>
-        <Badge
-          variant={listing.status === 'active' ? 'default' : 'secondary'}
-          className="text-xs capitalize"
-        >
-          {listing.status === 'active' ? 'Active' : listing.status}
-        </Badge>
-      </TableCell>
-
       {/* Actions */}
       <TableCell>
         <DropdownMenu>
@@ -373,9 +359,6 @@ const ReMarketingDeals = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [isCalculatingScores, setIsCalculatingScores] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string>("score");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
@@ -397,57 +380,6 @@ const ReMarketingDeals = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // Handle Calculate Scores for all deals
-  const handleCalculateScores = async () => {
-    setIsCalculatingScores(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-
-      // Get all active listings that need scoring
-      const dealsToScore = listings?.filter(l => {
-        const stats = scoreStats?.[l.id];
-        return !stats || stats.totalMatches === 0;
-      }) || [];
-
-      if (dealsToScore.length === 0) {
-        toast({ title: "All deals scored", description: "All deals already have scores calculated" });
-        setIsCalculatingScores(false);
-        return;
-      }
-
-      let scored = 0;
-      let errors = 0;
-
-      // Score in batches
-      for (const deal of dealsToScore.slice(0, 10)) { // Limit to 10 at a time
-        try {
-          const response = await supabase.functions.invoke('score-buyer-deal', {
-            body: { dealId: deal.id, scoreAll: true },
-            headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
-          });
-          if (response.error) throw response.error;
-          scored++;
-        } catch (e) {
-          console.error(`Failed to score deal ${deal.id}:`, e);
-          errors++;
-        }
-      }
-
-      toast({
-        title: "Scoring complete",
-        description: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}. ${dealsToScore.length > 10 ? `${dealsToScore.length - 10} remaining.` : ''}`
-      });
-
-      // Refetch score stats
-      refetchScoreStats();
-    } catch (error: any) {
-      console.error('Calculate scores error:', error);
-      toast({ title: "Scoring failed", description: error.message, variant: "destructive" });
-    } finally {
-      setIsCalculatingScores(false);
-    }
-  };
 
   // Handle file import
   const handleImport = async () => {
@@ -476,7 +408,6 @@ const ReMarketingDeals = () => {
         return deal;
       });
 
-      // Call the bulk import function
       const { data: sessionData } = await supabase.auth.getSession();
       const response = await supabase.functions.invoke('bulk-import-remarketing', {
         body: { action: 'validate', data: deals },
@@ -486,7 +417,6 @@ const ReMarketingDeals = () => {
       if (response.error) throw new Error(response.error.message);
 
       if (response.data?.valid) {
-        // Perform actual import
         const importResponse = await supabase.functions.invoke('bulk-import-remarketing', {
           body: { action: 'import', data: deals },
           headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
@@ -513,7 +443,7 @@ const ReMarketingDeals = () => {
     }
   };
 
-  // Fetch all listings (deals) with their score stats
+  // Fetch all listings (deals)
   const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = useQuery({
     queryKey: ['remarketing', 'deals'],
     queryFn: async () => {
@@ -524,7 +454,6 @@ const ReMarketingDeals = () => {
           title,
           description,
           location,
-          address,
           revenue,
           ebitda,
           status,
@@ -537,15 +466,6 @@ const ReMarketingDeals = () => {
           internal_deal_memo_link,
           geographic_states,
           enriched_at,
-          linkedin_employee_count,
-          full_time_employees,
-          deal_total_score,
-          seller_interest_score,
-          seller_motivation,
-          lead_source_id,
-          lead_sources (
-            name
-          )
           full_time_employees,
           deal_quality_score,
           deal_total_score,
@@ -576,9 +496,7 @@ const ReMarketingDeals = () => {
     }
   });
 
-  // Fetch score stats for all listings
-  const { data: scoreStats, refetch: refetchScoreStats } = useQuery({
-  // Fetch score stats for all listings (for engagement metrics)
+  // Fetch score stats for engagement metrics
   const { data: scoreStats } = useQuery({
     queryKey: ['remarketing', 'deal-score-stats'],
     queryFn: async () => {
@@ -588,14 +506,12 @@ const ReMarketingDeals = () => {
 
       if (error) throw error;
 
-      // Aggregate stats per listing
       const stats: Record<string, {
         totalMatches: number;
         approved: number;
         passed: number;
         avgScore: number;
         universeIds: Set<string>;
-        universeName: string | null;
       }> = {};
 
       data?.forEach(score => {
@@ -606,7 +522,6 @@ const ReMarketingDeals = () => {
             passed: 0,
             avgScore: 0,
             universeIds: new Set(),
-            universeName: null
           };
         }
         stats[score.listing_id].totalMatches++;
@@ -616,7 +531,6 @@ const ReMarketingDeals = () => {
         if (score.universe_id) stats[score.listing_id].universeIds.add(score.universe_id);
       });
 
-      // Calculate averages
       Object.keys(stats).forEach(key => {
         if (stats[key].totalMatches > 0) {
           stats[key].avgScore = stats[key].avgScore / stats[key].totalMatches;
@@ -627,43 +541,35 @@ const ReMarketingDeals = () => {
     }
   });
 
-  // Create universe lookup map
-  const universeLookup = useMemo(() => {
-    const map: Record<string, string> = {};
-    universes?.forEach(u => {
-      map[u.id] = u.name;
-    });
-    return map;
-  }, [universes]);
-
   // Get universe count
   const universeCount = universes?.length || 0;
 
-  // Dashboard metrics - using deal_total_score (deal quality), not buyer fit score
-  const dashboardMetrics = useMemo(() => {
+  // KPI Stats
+  const kpiStats = useMemo(() => {
     const totalDeals = listings?.length || 0;
-    let hotDeals = 0;
+    
+    const hotDeals = listings?.filter(listing => 
+      listing.deal_quality_score !== null && listing.deal_quality_score >= 80
+    ).length || 0;
+    
     let totalScore = 0;
     let scoredDeals = 0;
-    let needsAnalysis = 0;
-
     listings?.forEach(listing => {
-      // Use deal_total_score for deal quality metrics
-      if (listing.deal_total_score && listing.deal_total_score > 0) {
+      if (listing.deal_quality_score !== null) {
+        totalScore += listing.deal_quality_score;
         scoredDeals++;
-        totalScore += listing.deal_total_score;
-        if (listing.deal_total_score >= 85) hotDeals++;
-      } else {
-        needsAnalysis++;
       }
     });
-
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-
-    return { totalDeals, hotDeals, avgScore, needsAnalysis };
+    
+    const needsScoring = listings?.filter(listing => 
+      listing.deal_quality_score === null
+    ).length || 0;
+    
+    return { totalDeals, hotDeals, avgScore, needsScoring };
   }, [listings]);
 
-  // Extract website from deal memo
+  // Helper functions
   const extractWebsiteFromMemo = (memoLink: string | null): string | null => {
     if (!memoLink) return null;
     if (memoLink.includes('sharepoint.com') || memoLink.includes('onedrive')) return null;
@@ -679,12 +585,17 @@ const ReMarketingDeals = () => {
     return extractWebsiteFromMemo(listing.internal_deal_memo_link);
   };
 
+  const formatGeographyBadges = (states: string[] | null): string | null => {
+    if (!states || states.length === 0) return null;
+    if (states.length <= 3) return states.join(', ');
+    return `${states.slice(0, 2).join(', ')} +${states.length - 2}`;
+  };
+
   // Filter listings
   const filteredListings = useMemo(() => {
     if (!listings) return [];
     
     return listings.filter(listing => {
-      // Search filter
       if (search) {
         const searchLower = search.toLowerCase();
         const matchesSearch = 
@@ -696,25 +607,17 @@ const ReMarketingDeals = () => {
         if (!matchesSearch) return false;
       }
 
-      // Universe filter
       if (universeFilter !== "all") {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
       }
 
-      // Score filter (now uses deal_quality_score)
       if (scoreFilter !== "all") {
         const score = listing.deal_quality_score ?? 0;
         const tier = getTierFromScore(score);
         if (scoreFilter !== tier) return false;
       }
 
-      // Status filter
-      if (statusFilter !== "all" && listing.status !== statusFilter) {
-        return false;
-      }
-
-      // Date filter
       if (dateFilter !== "all") {
         const createdAt = new Date(listing.created_at);
         const now = new Date();
@@ -727,10 +630,10 @@ const ReMarketingDeals = () => {
 
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, statusFilter, dateFilter, scoreStats]);
+  }, [listings, search, universeFilter, scoreFilter, dateFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
-    if (!value) return "-";
+    if (!value) return "—";
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
     return `$${value}`;
@@ -745,57 +648,6 @@ const ReMarketingDeals = () => {
     if (score >= 75) return <TrendingUp className="h-3.5 w-3.5 text-green-500" />;
     if (score >= 55) return <Minus className="h-3.5 w-3.5 text-yellow-500" />;
     return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
-  };
-
-  const getFirstUniverseName = (listingId: string) => {
-    const stats = scoreStats?.[listingId];
-    if (!stats || stats.universeIds.size === 0) return null;
-    const firstId = Array.from(stats.universeIds)[0];
-    return universeLookup[firstId] || null;
-  };
-
-  // Format location as City, State only (no regions like "midwest")
-  const formatCityState = (listing: any): string | null => {
-    // First try address field (enriched data)
-    if (listing.address) {
-      // Parse address to extract city, state
-      // Common formats: "City, State", "City, State ZIP", "Street, City, State ZIP"
-      const parts = listing.address.split(',').map((p: string) => p.trim());
-      if (parts.length >= 2) {
-        // Get last two parts (city, state) - state might have ZIP
-        const statePart = parts[parts.length - 1].replace(/\d{5}(-\d{4})?$/, '').trim();
-        const cityPart = parts[parts.length - 2];
-  // Format geography as badges from geographic_states array
-  const formatGeographyBadges = (states: string[] | null) => {
-    if (!states || states.length === 0) return null;
-
-        // Validate it's a real state (2 letter code or full name)
-        const stateAbbr = statePart.length <= 3 ? statePart.toUpperCase() : statePart;
-        if (stateAbbr && cityPart) {
-          return `${cityPart}, ${stateAbbr}`;
-        }
-      }
-    }
-
-    // Fall back to location field only if it looks like "City, State" format
-    if (listing.location) {
-      const loc = listing.location.trim();
-      // Check if it matches "City, ST" pattern (not regions like "Midwest", "Southeast")
-      const cityStateMatch = loc.match(/^([A-Za-z\s]+),\s*([A-Z]{2})$/);
-      if (cityStateMatch) {
-        return `${cityStateMatch[1]}, ${cityStateMatch[2]}`;
-      }
-      // Skip region-like values
-      const regions = ['midwest', 'southeast', 'southwest', 'northeast', 'northwest', 'west coast', 'east coast', 'national', 'regional'];
-      if (!regions.some(r => loc.toLowerCase().includes(r))) {
-        // If it has a comma, assume City, State format
-        if (loc.includes(',')) {
-          return loc;
-        }
-      }
-    }
-
-    return null;
   };
 
   // Handle sort column click
@@ -819,7 +671,6 @@ const ReMarketingDeals = () => {
 
       switch (sortColumn) {
         case "rank":
-          // Manual rank or index-based
           aVal = a.manual_rank_override ?? 9999;
           bVal = b.manual_rank_override ?? 9999;
           break;
@@ -844,13 +695,6 @@ const ReMarketingDeals = () => {
           bVal = b.full_time_employees || 0;
           break;
         case "score":
-          aVal = a.deal_total_score || 0;
-          bVal = b.deal_total_score || 0;
-          break;
-        case "motivation":
-          aVal = a.seller_interest_score || 0;
-          bVal = b.seller_interest_score || 0;
-          // Use deal_quality_score (deal quality, not buyer fit)
           aVal = a.deal_quality_score ?? a.deal_total_score ?? 0;
           bVal = b.deal_quality_score ?? b.deal_total_score ?? 0;
           break;
@@ -892,34 +736,28 @@ const ReMarketingDeals = () => {
     
     if (!over || active.id === over.id) return;
 
-    // Use ref to get current listings (prevents stale closure bug)
     const currentListings = sortedListingsRef.current;
     const oldIndex = currentListings.findIndex((l) => l.id === active.id);
     const newIndex = currentListings.findIndex((l) => l.id === over.id);
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Reorder the array
     const reordered = arrayMove(currentListings, oldIndex, newIndex);
     
-    // Assign sequential ranks to ALL items (1, 2, 3, 4, ...)
     const updatedListings = reordered.map((listing, idx) => ({
       ...listing,
       manual_rank_override: idx + 1,
     }));
 
-    // Optimistically update UI immediately
     setLocalOrder(updatedListings);
     sortedListingsRef.current = updatedListings;
 
-    // Persist ALL ranks to database
     const updates = updatedListings.map((listing) => ({
       id: listing.id,
       manual_rank_override: listing.manual_rank_override,
     }));
 
     try {
-      // Batch update all ranks
       for (const update of updates) {
         await supabase
           .from('listings')
@@ -935,7 +773,6 @@ const ReMarketingDeals = () => {
       });
     } catch (error) {
       console.error('Failed to update rank:', error);
-      // Revert on failure
       setLocalOrder(currentListings);
       sortedListingsRef.current = currentListings;
       toast({ 
@@ -945,39 +782,10 @@ const ReMarketingDeals = () => {
     }
   }, [queryClient, toast]);
 
-  // Calculate KPI stats
-  const kpiStats = useMemo(() => {
-    const totalDeals = listings?.length || 0;
-    
-    // Hot deals = deals with deal_quality_score >= 80
-    const hotDeals = listings?.filter(listing => {
-      return listing.deal_quality_score !== null && listing.deal_quality_score >= 80;
-    }).length || 0;
-    
-    // Calculate average quality score
-    let totalScore = 0;
-    let scoredDeals = 0;
-    listings?.forEach(listing => {
-      if (listing.deal_quality_score !== null) {
-        totalScore += listing.deal_quality_score;
-        scoredDeals++;
-      }
-    });
-    const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-    
-    // Needs scoring = deals with no quality score
-    const needsScoring = listings?.filter(listing => 
-      listing.deal_quality_score === null
-    ).length || 0;
-    
-    return { totalDeals, hotDeals, avgScore, needsScoring };
-  }, [listings]);
-
-  // Handle calculate scores - calls a deal quality scoring function
+  // Handle calculate scores - uses a simple formula-based scoring
   const handleCalculateScores = async () => {
     setIsCalculating(true);
     try {
-      // Get all listings that need scoring
       const dealsToScore = listings?.filter(listing => 
         listing.deal_quality_score === null
       ) || [];
@@ -988,17 +796,45 @@ const ReMarketingDeals = () => {
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      // Score each deal
       let scored = 0;
-      for (const deal of dealsToScore.slice(0, 20)) { // Limit to 20 at a time
+      for (const deal of dealsToScore.slice(0, 50)) {
         try {
-          // Call a deal quality scoring function (or score-buyer-deal with deal-only mode)
-          await supabase.functions.invoke('score-buyer-deal', {
-            body: { listing_id: deal.id, mode: 'deal_quality' },
-            headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
-          });
+          // Calculate a deal quality score based on available data
+          let score = 50; // Base score
+          
+          // Revenue scoring (0-20 points)
+          if (deal.revenue) {
+            if (deal.revenue >= 5000000) score += 20;
+            else if (deal.revenue >= 2000000) score += 15;
+            else if (deal.revenue >= 1000000) score += 10;
+            else if (deal.revenue >= 500000) score += 5;
+          }
+          
+          // EBITDA margin scoring (0-15 points)
+          if (deal.ebitda && deal.revenue) {
+            const margin = (deal.ebitda / deal.revenue) * 100;
+            if (margin >= 25) score += 15;
+            else if (margin >= 20) score += 12;
+            else if (margin >= 15) score += 8;
+            else if (margin >= 10) score += 4;
+          }
+          
+          // Data completeness scoring (0-15 points)
+          if (deal.category) score += 3;
+          if (deal.location || (deal.geographic_states && deal.geographic_states.length > 0)) score += 3;
+          if (deal.full_time_employees) score += 3;
+          if (deal.website) score += 3;
+          if (deal.enriched_at) score += 3;
+          
+          // Cap at 100
+          score = Math.min(100, Math.max(0, score));
+          
+          // Update the listing with the calculated score
+          await supabase
+            .from('listings')
+            .update({ deal_quality_score: score })
+            .eq('id', deal.id);
+          
           scored++;
         } catch (err) {
           console.error(`Failed to score deal ${deal.id}:`, err);
@@ -1048,21 +884,11 @@ const ReMarketingDeals = () => {
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
           </Button>
-          <Button
-            onClick={handleCalculateScores}
-            disabled={isCalculatingScores}
+          <Button 
+            onClick={handleCalculateScores} 
+            disabled={isCalculating}
             className="bg-slate-800 hover:bg-slate-700 text-white"
           >
-            {isCalculatingScores ? (
-              <RotateCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Calculator className="h-4 w-4 mr-2" />
-            )}
-            Calculate Scores
-          </Button>
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
-            Reset columns
-          <Button onClick={handleCalculateScores} disabled={isCalculating}>
             <Calculator className="h-4 w-4 mr-2" />
             {isCalculating ? "Calculating..." : "Calculate Scores"}
           </Button>
@@ -1080,52 +906,6 @@ const ReMarketingDeals = () => {
         </div>
       </div>
 
-      {/* Dashboard Metrics */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="border shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <BarChart3 className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Deals</p>
-              <p className="text-2xl font-bold">{dashboardMetrics.totalDeals}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <Flame className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Hot Deals (85+)</p>
-              <p className="text-2xl font-bold text-green-600">{dashboardMetrics.hotDeals}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-amber-50 rounded-lg">
-              <Star className="h-5 w-5 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Avg Score</p>
-              <p className="text-2xl font-bold">{dashboardMetrics.avgScore}<span className="text-sm text-muted-foreground font-normal">/100</span></p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-red-50 rounded-lg">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Needs Analysis</p>
-              <p className="text-2xl font-bold text-red-500">{dashboardMetrics.needsAnalysis}</p>
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-4 gap-4">
         <Card>
@@ -1223,18 +1003,6 @@ const ReMarketingDeals = () => {
                 <SelectItem value="D">Tier D (&lt;40)</SelectItem>
               </SelectContent>
             </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Any Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -1285,302 +1053,6 @@ const ReMarketingDeals = () => {
       <Card>
         <CardContent className="p-0">
           <TooltipProvider>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40px]">#</TableHead>
-                  <TableHead className="w-[220px]">
-                    <button onClick={() => handleSort("deal_name")} className="flex items-center gap-1">
-                      Deal Name
-                      {sortColumn === "deal_name" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead className="w-[130px]">
-                    <button onClick={() => handleSort("industry")} className="flex items-center gap-1">
-                      Industry
-                      {sortColumn === "industry" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead className="text-right">
-                    <button onClick={() => handleSort("revenue")} className="flex items-center gap-1 ml-auto">
-                      Revenue
-                      {sortColumn === "revenue" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <button onClick={() => handleSort("ebitda")} className="flex items-center gap-1 ml-auto">
-                      EBITDA
-                      {sortColumn === "ebitda" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <button onClick={() => handleSort("employees")} className="flex items-center gap-1 ml-auto">
-                      Employees
-                      {sortColumn === "employees" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <button onClick={() => handleSort("score")} className="flex items-center gap-1 mx-auto">
-                      Sc...
-                      {sortColumn === "score" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <button onClick={() => handleSort("motivation")} className="flex items-center gap-1 mx-auto">
-                      M...
-                      {sortColumn === "motivation" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <button onClick={() => handleSort("margin")} className="flex items-center gap-1 ml-auto">
-                      Margin
-                      {sortColumn === "margin" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <button onClick={() => handleSort("engagement")} className="flex items-center gap-1 mx-auto">
-                      Engagement
-                      {sortColumn === "engagement" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button onClick={() => handleSort("added")} className="flex items-center gap-1">
-                      Added
-                      {sortColumn === "added" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
-                    </button>
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {listingsLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-14" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-8" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : sortedListings.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
-                      <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No deals found</p>
-                      <p className="text-sm">Try adjusting your search or filters</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedListings.map((listing, index) => {
-                    const stats = scoreStats?.[listing.id];
-                    const universeName = getFirstUniverseName(listing.id);
-                    const effectiveWebsite = getEffectiveWebsite(listing);
-                    const domain = formatWebsiteDomain(effectiveWebsite);
-                    const isEnriched = !!listing.enriched_at;
-                    const displayName = listing.internal_company_name || listing.title;
-                    const listedName = listing.internal_company_name && listing.title !== listing.internal_company_name 
-                      ? listing.title 
-                      : null;
-                    const locationDisplay = formatCityState(listing);
-                    
-                    return (
-                      <TableRow
-                        key={listing.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
-                      >
-                        {/* Row Number */}
-                        <TableCell className="font-medium text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            {index + 1}
-                            <ChevronDown className="h-3 w-3 opacity-50" />
-                          </div>
-                        </TableCell>
-
-                        {/* Deal Name */}
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-foreground flex items-center gap-1.5">
-                              {displayName}
-                              {isEnriched && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span>
-                                      <Sparkles className="h-3.5 w-3.5 text-primary" />
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Enriched on {format(new Date(listing.enriched_at), 'dd/MM/yyyy')}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                            </p>
-                            {domain && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Globe className="h-3 w-3" />
-                                {domain}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* Industry */}
-                        <TableCell>
-                          {listing.category ? (
-                            <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
-                              {listing.category.length > 18 ? listing.category.substring(0, 18) + '...' : listing.category}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Location */}
-                        <TableCell>
-                          {locationDisplay ? (
-                            <span className="text-sm">{locationDisplay}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Revenue */}
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(listing.revenue)}
-                        </TableCell>
-
-                        {/* EBITDA */}
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(listing.ebitda)}
-                        </TableCell>
-
-                        {/* Employees */}
-                        <TableCell className="text-right">
-                          {listing.full_time_employees ? (
-                            <span className="text-sm">{listing.full_time_employees}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Deal Quality Score */}
-                        <TableCell className="text-center">
-                          {listing.deal_total_score ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <span className="text-sm font-medium">{listing.deal_total_score}</span>
-                              {getScoreTrendIcon(listing.deal_total_score)}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Seller Interest / Motivation Score */}
-                        <TableCell className="text-center">
-                          {listing.seller_interest_score ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <span className={`text-sm font-medium ${
-                                listing.seller_interest_score >= 70 ? 'text-green-600' :
-                                listing.seller_interest_score >= 40 ? 'text-amber-600' : 'text-red-500'
-                              }`}>
-                                {listing.seller_interest_score}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Margin */}
-                        <TableCell className="text-right">
-                          {listing.ebitda && listing.revenue ? (
-                            <span className="text-sm">{Math.round((listing.ebitda / listing.revenue) * 100)}%</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Engagement */}
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-3 text-sm">
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Users className="h-3.5 w-3.5" />
-                              <span>{stats?.totalMatches || 0}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-green-600">
-                              <ThumbsUp className="h-3.5 w-3.5" />
-                              <span>{stats?.approved || 0}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-red-500">
-                              <ThumbsDown className="h-3.5 w-3.5" />
-                              <span>{stats?.passed || 0}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        {/* Added date */}
-                        <TableCell className="text-muted-foreground text-sm">
-                          {format(new Date(listing.created_at), 'dd/MM/yyyy')}
-                        </TableCell>
-
-                        {/* Status */}
-                        <TableCell>
-                          <Badge
-                            variant={listing.status === 'active' ? 'default' : 'secondary'}
-                            className="text-xs capitalize"
-                          >
-                            {listing.status === 'active' ? 'Active' : listing.status}
-                          </Badge>
-                        </TableCell>
-
-                        {/* Actions */}
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/admin/remarketing/deals/${listing.id}`);
-                                }}
-                              >
-                                <Building2 className="h-4 w-4 mr-2" />
-                                View Deal
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/admin/remarketing/matching/${listing.id}`);
-                                }}
-                              >
-                                <Target className="h-4 w-4 mr-2" />
-                                Match Buyers
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/listing/${listing.id}`);
-                                }}
-                              >
-                                <ExternalLink className="h-4 w-4 mr-2" />
-                                View Listing
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -1620,7 +1092,6 @@ const ReMarketingDeals = () => {
                     <TableHead>
                       <SortableHeader column="added" label="Added" />
                     </TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1643,7 +1114,7 @@ const ReMarketingDeals = () => {
                     ))
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
@@ -1660,8 +1131,6 @@ const ReMarketingDeals = () => {
                           listing={listing}
                           index={index}
                           stats={scoreStats?.[listing.id]}
-                          universeLookup={universeLookup}
-                          scoreStats={scoreStats}
                           navigate={navigate}
                           formatCurrency={formatCurrency}
                           formatWebsiteDomain={formatWebsiteDomain}
