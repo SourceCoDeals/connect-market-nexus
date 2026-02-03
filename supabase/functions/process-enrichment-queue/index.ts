@@ -98,11 +98,13 @@ serve(async (req) => {
       }
 
       try {
-        // Call enrich-deal function
+        // Call enrich-deal function with both Authorization and apikey headers
+        // The service role key works as both a JWT bearer token and an API key
         const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseServiceKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ dealId: item.listing_id }),
