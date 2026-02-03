@@ -220,6 +220,15 @@ serve(async (req) => {
 
     const systemPrompt = `You are a business analyst. Extract comprehensive company information from website content.
 
+CRITICAL LOCATION RULE: The "location" field MUST be in strict "City, ST" format (e.g., "Dallas, TX", "Chicago, IL", "Miami, FL"). 
+- Extract the actual city and 2-letter state code from the company's physical address on their website
+- Look in footer, contact page, about us, or header for address information
+- NEVER use region names like "Midwest", "Southeast", "Texas area"
+- NEVER use just a state name or just a city name
+- If you cannot find a specific city, leave location empty rather than guessing
+- Examples of CORRECT format: "Austin, TX", "Phoenix, AZ", "Denver, CO"
+- Examples of WRONG format: "Texas", "Southwest US", "Greater Chicago area", "Nationwide"
+
 Focus on extracting:
 1. Executive summary - A clear 2-3 paragraph description of the business
 2. Services offered - List of services/products they provide
@@ -227,7 +236,7 @@ Focus on extracting:
 4. Industry/sector - Primary industry classification
 5. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
 6. Number of locations - Physical office/branch count
-7. Address/headquarters - Company headquarters location
+7. Location/headquarters - MUST be "City, ST" format (e.g., "Dallas, TX") - extract from address on website
 8. Founded year - When the company was established
 9. Customer types - Who they serve (commercial, residential, government, etc.)
 10. Key differentiators - What makes them unique
@@ -287,9 +296,9 @@ Extract all available business information using the provided tool.`;
                     type: 'number',
                     description: 'Number of physical locations/offices/branches'
                   },
-                  address: {
+                  location: {
                     type: 'string',
-                    description: 'Headquarters address or primary location'
+                    description: 'Company headquarters in strict "City, ST" format only (e.g., "Dallas, TX", "Chicago, IL"). Extract from physical address on website. Leave empty if specific city cannot be determined.'
                   },
                   founded_year: {
                     type: 'number',
@@ -366,6 +375,17 @@ Extract all available business information using the provided tool.`;
     // Normalize geographic_states using shared module
     if (extracted.geographic_states) {
       extracted.geographic_states = normalizeStates(extracted.geographic_states as string[]);
+    }
+
+    // Validate location is in strict "City, ST" format - reject non-conforming values
+    if (extracted.location) {
+      const locationStr = String(extracted.location).trim();
+      // Pattern: "City Name, ST" where ST is 2-letter state code
+      const cityStatePattern = /^[A-Za-z\s\.\-']+,\s*[A-Z]{2}$/;
+      if (!cityStatePattern.test(locationStr)) {
+        console.log(`Rejecting invalid location format: "${locationStr}" - must be "City, ST" format`);
+        delete extracted.location;
+      }
     }
 
     // Build priority-aware updates using shared module
