@@ -95,6 +95,18 @@ function generateAnimalName(id: string): string {
   return `${COLORS[colorIndex]} ${ANIMALS[animalIndex]}`;
 }
 
+// Discovery source priority: original_external_referrer > utm_source > referrer
+function getDiscoverySource(session: {
+  original_external_referrer?: string | null;
+  utm_source?: string | null;
+  referrer?: string | null;
+} | null): string | null {
+  if (!session) return null;
+  if (session.original_external_referrer) return session.original_external_referrer;
+  if (session.utm_source) return session.utm_source;
+  return session.referrer || null;
+}
+
 function categorizeChannel(referrer: string | null, utmSource: string | null, utmMedium: string | null): string {
   if (!referrer && !utmSource) return 'Direct';
   
@@ -136,17 +148,20 @@ export function useUserDetail(visitorId: string | null) {
       const isUserId = !!profile;
       
       // Fetch sessions based on identifier type
+      // Filter out bot sessions
       const sessionsQuery = isUserId
         ? supabase
             .from('user_sessions')
             .select('*')
             .eq('user_id', visitorId)
+            .eq('is_bot', false)
             .gte('started_at', sixMonthsAgo)
             .order('started_at', { ascending: false })
         : supabase
             .from('user_sessions')
             .select('*')
             .eq('visitor_id', visitorId)
+            .eq('is_bot', false)
             .gte('started_at', sixMonthsAgo)
             .order('started_at', { ascending: false });
       
@@ -306,9 +321,9 @@ export function useUserDetail(visitorId: string | null) {
         activityLast7Days: last7Days,
         activityHeatmap,
         source: {
-          referrer: firstSession?.referrer,
+          referrer: getDiscoverySource(firstSession) || firstSession?.referrer,
           landingPage: firstSession?.first_touch_landing_page,
-          channel: categorizeChannel(firstSession?.referrer, firstSession?.utm_source, firstSession?.utm_medium),
+          channel: categorizeChannel(getDiscoverySource(firstSession), firstSession?.utm_source, firstSession?.utm_medium),
           utmSource: firstSession?.utm_source,
           utmMedium: firstSession?.utm_medium,
           utmCampaign: firstSession?.utm_campaign,
