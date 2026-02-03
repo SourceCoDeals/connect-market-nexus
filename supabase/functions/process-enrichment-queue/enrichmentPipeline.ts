@@ -74,48 +74,56 @@ export async function runListingEnrichmentPipeline(
     updatedFields.push(...enrichDeal.json.fieldsUpdated);
   }
 
-  // 2) LinkedIn employees via Apify (writes linkedin_employee_count/range)
+  // 2) LinkedIn + Google in PARALLEL (they're independent)
   const companyName = listing.internal_company_name || listing.title;
   if (companyName) {
-    const liRes = await callFn(input, 'apify-linkedin-scrape', {
-      dealId: input.listingId,
-      linkedinUrl: listing.linkedin_url,
-      companyName,
-      city: listing.address_city,
-      state: listing.address_state,
-    });
+    // Fire both API calls simultaneously
+    const [liResult, googleResult] = await Promise.allSettled([
+      callFn(input, 'apify-linkedin-scrape', {
+        dealId: input.listingId,
+        linkedinUrl: listing.linkedin_url,
+        companyName,
+        city: listing.address_city,
+        state: listing.address_state,
+      }),
+      callFn(input, 'apify-google-reviews', {
+        dealId: input.listingId,
+        businessName: companyName,
+        address: listing.address,
+        city: listing.address_city,
+        state: listing.address_state,
+      }),
+    ]);
 
-    // apify-linkedin-scrape returns 200 even for not found (success:false)
-    if (!liRes.ok) {
-      return { ok: false, error: getErrorMessage('apify-linkedin-scrape', liRes.status, liRes.json) };
-    }
-
-    if (liRes.json?.success === false) {
-      // Treat as soft failure: don't block the rest of the pipeline
-      // (common when LinkedIn page can't be found automatically).
+    // Process LinkedIn result
+    if (liResult.status === 'fulfilled') {
+      const liRes = liResult.value;
+      if (!liRes.ok) {
+        return { ok: false, error: getErrorMessage('apify-linkedin-scrape', liRes.status, liRes.json) };
+      }
+      // Soft failure for not found is acceptable
+      if (liRes.json?.success !== false) {
+        if (liRes.json?.linkedin_employee_count != null) updatedFields.push('linkedin_employee_count');
+        if (liRes.json?.linkedin_employee_range) updatedFields.push('linkedin_employee_range');
+        if (liRes.json?.linkedin_url) updatedFields.push('linkedin_url');
+      }
     } else {
-      if (liRes.json?.linkedin_employee_count != null) updatedFields.push('linkedin_employee_count');
-      if (liRes.json?.linkedin_employee_range) updatedFields.push('linkedin_employee_range');
-      if (liRes.json?.linkedin_url) updatedFields.push('linkedin_url');
-    }
-  }
-
-  // 3) Google reviews via Apify (writes google_review_count/rating/maps url/place id)
-  if (companyName) {
-    const googleRes = await callFn(input, 'apify-google-reviews', {
-      dealId: input.listingId,
-      businessName: companyName,
-      address: listing.address,
-      city: listing.address_city,
-      state: listing.address_state,
-    });
-
-    if (!googleRes.ok) {
-      return { ok: false, error: getErrorMessage('apify-google-reviews', googleRes.status, googleRes.json) };
+      console.error('LinkedIn scrape rejected:', liResult.reason);
+      // Don't fail the whole pipeline for LinkedIn errors
     }
 
-    if (googleRes.json?.success === true) {
-      updatedFields.push('google_review_count');
+    // Process Google result
+    if (googleResult.status === 'fulfilled') {
+      const googleRes = googleResult.value;
+      if (!googleRes.ok) {
+        return { ok: false, error: getErrorMessage('apify-google-reviews', googleRes.status, googleRes.json) };
+      }
+      if (googleRes.json?.success === true) {
+        updatedFields.push('google_review_count');
+      }
+    } else {
+      console.error('Google reviews rejected:', googleResult.reason);
+      // Don't fail the whole pipeline for Google errors
     }
   }
 

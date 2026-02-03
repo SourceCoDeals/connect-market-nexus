@@ -223,11 +223,10 @@ serve(async (req) => {
     ];
 
     // Common paths where we find address, company info, services
+    // OPTIMIZED: Reduced from 10 paths to 4 most valuable for speed
     const importantPaths = [
-      '/contact', '/contact-us', '/contactus',
-      '/about', '/about-us', '/aboutus', '/about-us/',
-      '/locations', '/location', '/our-locations',
-      '/services', '/our-services',
+      '/contact', '/contact-us',
+      '/about', '/about-us',
     ];
 
     // Add important paths
@@ -294,10 +293,10 @@ serve(async (req) => {
       }
     }
 
-    // Scrape up to 4 additional pages (prioritized first, then fallback to common paths)
+    // OPTIMIZED: Scrape up to 2 additional pages (was 4) for speed
     const additionalPages = prioritizedPaths.length > 0
-      ? prioritizedPaths.slice(0, 4)
-      : importantPaths.slice(0, 4).map(p => `${baseUrl.origin}${p}`);
+      ? prioritizedPaths.slice(0, 2)
+      : importantPaths.slice(0, 2).map(p => `${baseUrl.origin}${p}`);
 
     console.log(`Scraping additional pages: ${additionalPages.join(', ')}`);
 
