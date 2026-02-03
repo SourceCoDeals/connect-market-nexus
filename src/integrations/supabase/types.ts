@@ -6151,8 +6151,11 @@ export type Database = {
           id: string
           ip_address: unknown
           is_active: boolean | null
+          is_bot: boolean | null
           is_production: boolean | null
           last_active_at: string | null
+          lat: number | null
+          lon: number | null
           original_external_referrer: string | null
           original_keyword: string | null
           original_source: string | null
@@ -6191,8 +6194,11 @@ export type Database = {
           id?: string
           ip_address?: unknown
           is_active?: boolean | null
+          is_bot?: boolean | null
           is_production?: boolean | null
           last_active_at?: string | null
+          lat?: number | null
+          lon?: number | null
           original_external_referrer?: string | null
           original_keyword?: string | null
           original_source?: string | null
@@ -6231,8 +6237,11 @@ export type Database = {
           id?: string
           ip_address?: unknown
           is_active?: boolean | null
+          is_bot?: boolean | null
           is_production?: boolean | null
           last_active_at?: string | null
+          lat?: number | null
+          lon?: number | null
           original_external_referrer?: string | null
           original_keyword?: string | null
           original_source?: string | null

@@ -51,12 +51,13 @@ export function useRealTimeAnalytics() {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       
-      // Fetch active sessions (heartbeat within last 2 minutes)
+      // Fetch active sessions (heartbeat within last 2 minutes) - filter out bots
       const [activeSessionsResult, currentPagesResult] = await Promise.all([
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, country, city, last_active_at, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, country, city, last_active_at, session_duration_seconds, started_at, lat, lon')
           .eq('is_active', true)
+          .eq('is_bot', false)  // Filter out detected bots
           .gte('last_active_at', twoMinutesAgo)
           .order('last_active_at', { ascending: false })
           .limit(100),
