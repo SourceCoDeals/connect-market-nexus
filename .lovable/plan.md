@@ -1,142 +1,106 @@
 
-# Plan: Migrate AI Research Guide to Claude (Anthropic)
+# Plan: Ensure Business Descriptions Are Platform-Specific
 
-## Overview
+## Problem Analysis
 
-Switch the AI Research Guide generation from Google Gemini to Anthropic Claude. This addresses the rate limiting issues you've been experiencing since Claude has separate quota from the Gemini-based enrichment/scoring functions.
+After investigating the enrichment pipeline, I found the following behavior:
 
-## Technical Changes
+### Current Behavior
+| Scenario | Business Summary Source | Result |
+|----------|-------------------------|--------|
+| `platform_website` exists | Platform company website | ✅ Correct |
+| Only `pe_firm_website` | No extraction attempted | ⚠️ No data |
+| Neither website | Error returned | N/A |
 
-### 1. Update Shared AI Providers Module
+The enrichment pipeline correctly extracts the platform company description when a `platform_website` is provided. When only the PE firm website exists, the `business_summary` is never populated because:
+- Prompts 1-4 (Business Overview, Customers, Geography, Acquisitions) only run when `platformContent` exists
+- Prompts 5-6 (PE Thesis, Deal Structure, Portfolio) run on PE firm content but don't extract `business_summary`
 
-**File:** `supabase/functions/_shared/ai-providers.ts`
+### Data Check
+Looking at your current buyer universe:
+- **With platform_website**: "Insure Homes Holdings" → correctly shows Cypress Property & Casualty description
+- **Without platform_website**: "Disaster Restoration Contractor", "Trades Holding Company" → no business summary
 
-Add Claude model constants and a helper to convert OpenAI-style tool schemas to Anthropic format:
+## Proposed Solution
 
-```typescript
-// New constants
-export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
-export const DEFAULT_CLAUDE_FAST_MODEL = "claude-3-5-haiku-20241022";
+### Option A: Smart Platform Discovery (Recommended)
+When only `pe_firm_website` is available, search for the platform company on the PE firm's portfolio page using the buyer's `company_name`, then scrape that platform website.
 
-// Helper: Convert OpenAI tool format to Anthropic format
-export function toAnthropicTool(openAITool: any) {
-  return {
-    name: openAITool.function.name,
-    description: openAITool.function.description,
-    input_schema: openAITool.function.parameters
-  };
-}
-```
+### Option B: PE Portfolio Company Extraction
+Enhance the PE website extraction to identify and extract details about the specific platform company from the portfolio page content.
 
-### 2. Update generate-ma-guide Edge Function
+## Implementation Details
 
-**File:** `supabase/functions/generate-ma-guide/index.ts`
+### 1. Add Platform Discovery from PE Portfolio
 
-**Key Changes:**
-
-| Change | Details |
-|--------|---------|
-| Import Anthropic helpers | Replace Gemini imports with Anthropic ones |
-| API key | Use `ANTHROPIC_API_KEY` instead of `GEMINI_API_KEY` |
-| Request format | Change to Anthropic's format (separate `system` param, different tool schema) |
-| Response parsing | Parse `content[].type === 'tool_use'` + `.input` instead of `tool_calls[].function.arguments` |
-| Model selection | Use `claude-sonnet-4-20250514` for critical phases, `claude-3-5-haiku-20241022` for standard |
-
-**Request Format Transformation:**
+Modify `enrich-buyer/index.ts`:
 
 ```text
-Gemini (OpenAI-compatible):
-{
-  model: "gemini-2.0-flash",
-  messages: [
-    { role: "system", content: "..." },
-    { role: "user", content: "..." }
-  ],
-  tools: [{ type: "function", function: { name, parameters } }]
-}
-
-Anthropic:
-{
-  model: "claude-sonnet-4-20250514",
-  system: "...",
-  messages: [
-    { role: "user", content: "..." }
-  ],
-  tools: [{ name, description, input_schema }],
-  max_tokens: 4096
-}
++------------------------------------------+
+|  When only pe_firm_website exists:       |
+|                                          |
+|  1. Scrape PE firm website               |
+|  2. Search for platform by company_name  |
+|  3. Extract platform_website URL         |
+|  4. If found: scrape platform website    |
+|  5. Run business overview on platform    |
++------------------------------------------+
 ```
 
-**Response Parsing Transformation:**
+### 2. New AI Prompt: Platform Website Discovery
+
+Add a new prompt function that:
+- Takes PE firm portfolio page content
+- Searches for the buyer's `company_name` 
+- Extracts the platform company's website URL
+- Returns the URL for subsequent scraping
+
+### 3. Update Extraction Flow
 
 ```text
-Gemini: result.choices[0].message.tool_calls[0].function.arguments
-Anthropic: result.content.find(c => c.type === 'tool_use').input
+Current Flow:
+  platformWebsite exists? 
+    → Yes: Scrape platform → Extract business info
+    → No: Skip business prompts
+    
+New Flow:
+  platformWebsite exists?
+    → Yes: Scrape platform → Extract business info
+    → No: Has pe_firm_website?
+        → Yes: Scrape PE → Discover platform URL → Scrape platform → Extract
+        → No: Error
 ```
 
-### 3. Update clarify-industry Edge Function
+### 4. Fallback: PE-Context Business Summary
 
-**File:** `supabase/functions/clarify-industry/index.ts`
+If platform URL cannot be discovered from PE portfolio, create a PE-aware business prompt that:
+- Searches the PE firm's portfolio description for the specific company
+- Extracts only information about that specific platform
+- Clearly labels the extraction source
 
-Same pattern as above - switch from Gemini to Anthropic API format.
+## Files to Modify
 
-### 4. Functions to Update
-
-Both functions will be updated with this pattern:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                  generate-ma-guide/index.ts                 │
-├─────────────────────────────────────────────────────────────┤
-│  • generatePhaseContentWithModel() - Main content generation│
-│  • extractCriteria() - Tool-based criteria extraction       │
-│  • extractBuyerProfilesWithAI() - Tool-based profile extract│
-│  • generateGapFill() - Gap filling content                  │
-│  • API key check: GEMINI_API_KEY → ANTHROPIC_API_KEY        │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                 clarify-industry/index.ts                   │
-├─────────────────────────────────────────────────────────────┤
-│  • Main handler - Question generation with tool calling     │
-│  • API key check: GEMINI_API_KEY → ANTHROPIC_API_KEY        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Model Selection Strategy
-
-| Phase Type | Current (Gemini) | New (Claude) |
-|------------|------------------|--------------|
-| Standard phases (1a-1d, 2a-2c, 3a, 3c, 4b) | gemini-2.0-flash | claude-3-5-haiku-20241022 |
-| Critical phases (1e, 3b, 4a) | gemini-2.0-pro-exp | claude-sonnet-4-20250514 |
-| Criteria extraction | gemini-2.0-flash | claude-3-5-haiku-20241022 |
-| Clarifying questions | gemini-2.0-flash | claude-3-5-haiku-20241022 |
-
-## Error Handling Updates
-
-Anthropic has specific error codes that differ from Gemini:
-
-| HTTP Status | Meaning | Handling |
-|-------------|---------|----------|
-| 400 | Invalid request | Log and fail |
-| 401 | Invalid API key | Fail with clear message |
-| 429 | Rate limited | Retry with backoff |
-| 529 | Overloaded | Retry with backoff (Anthropic-specific) |
-
-## Benefits
-
-1. **Separate quota** - Claude has independent rate limits from Gemini, eliminating conflicts with enrichment/scoring
-2. **Better long-form content** - Claude excels at comprehensive, structured document generation
-3. **Reliability** - Claude's API has proven stable for M&A research content
-
-## Files Modified
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `supabase/functions/_shared/ai-providers.ts` | Add Claude model constants and conversion helper |
-| `supabase/functions/generate-ma-guide/index.ts` | Migrate from Gemini to Anthropic API |
-| `supabase/functions/clarify-industry/index.ts` | Migrate from Gemini to Anthropic API |
+| `supabase/functions/enrich-buyer/index.ts` | Add platform discovery prompt and logic |
 
-## No Frontend Changes Required
+## Technical Approach
 
-The frontend (`AIResearchSection.tsx`) doesn't need changes - it communicates via SSE events that remain unchanged.
+1. Add new `discoverPlatformFromPortfolio()` prompt function
+2. Insert discovery step after PE firm scraping when `platformContent` is null
+3. If platform URL found, scrape and run business overview prompts
+4. Add `platform_website` to database update when discovered
+5. Track discovery source in `extraction_sources`
+
+## Expected Outcome
+
+After enrichment:
+- Buyers with `platform_website` → business summary from platform (unchanged)
+- Buyers with only `pe_firm_website` → system discovers platform URL from PE portfolio → business summary from platform
+- Platform URLs discovered during enrichment are saved for future use
+
+## Considerations
+
+- **Rate Limits**: Adds 1-2 extra API calls per buyer when platform discovery is needed
+- **Accuracy**: Platform may not always be findable in PE portfolio pages
+- **Data Persistence**: Discovered `platform_website` should be saved to avoid re-discovery
