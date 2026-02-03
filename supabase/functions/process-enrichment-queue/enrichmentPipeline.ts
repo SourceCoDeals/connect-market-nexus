@@ -15,6 +15,7 @@ type ListingContext = {
   address_state: string | null;
   address: string | null;
   linkedin_url: string | null;
+  website: string | null;
 };
 
 type StepResult = { ok: true; fieldsUpdated: string[] } | { ok: false; error: string };
@@ -85,6 +86,7 @@ export async function runListingEnrichmentPipeline(
         companyName,
         city: listing.address_city,
         state: listing.address_state,
+        companyWebsite: listing.website, // Pass website for verification
       }),
       callFn(input, 'apify-google-reviews', {
         dealId: input.listingId,
