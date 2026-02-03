@@ -188,12 +188,63 @@ serve(async (req) => {
 
       console.log(`Deleting: ${learningCount} learning, ${scoreCount} scores, ${transcriptCount} transcripts, ${contactCount} contacts, ${buyerCount} buyers, ${universeCount} universes`);
 
-      await supabase.from('buyer_learning_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('buyer_transcripts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_buyer_contacts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_buyers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_buyer_universes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // Delete in order respecting foreign key constraints
+      const deleteErrors: string[] = [];
+
+      const { error: learningError } = await supabase.from('buyer_learning_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (learningError) {
+        console.error('Failed to delete learning history:', learningError);
+        deleteErrors.push(`learning_history: ${learningError.message}`);
+      }
+
+      const { error: scoresError } = await supabase.from('remarketing_scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (scoresError) {
+        console.error('Failed to delete scores:', scoresError);
+        deleteErrors.push(`scores: ${scoresError.message}`);
+      }
+
+      const { error: transcriptsError } = await supabase.from('buyer_transcripts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (transcriptsError) {
+        console.error('Failed to delete transcripts:', transcriptsError);
+        deleteErrors.push(`transcripts: ${transcriptsError.message}`);
+      }
+
+      const { error: contactsError } = await supabase.from('remarketing_buyer_contacts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (contactsError) {
+        console.error('Failed to delete contacts:', contactsError);
+        deleteErrors.push(`contacts: ${contactsError.message}`);
+      }
+
+      const { error: buyersError } = await supabase.from('remarketing_buyers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (buyersError) {
+        console.error('Failed to delete buyers:', buyersError);
+        deleteErrors.push(`buyers: ${buyersError.message}`);
+      }
+
+      const { error: universesError } = await supabase.from('remarketing_buyer_universes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (universesError) {
+        console.error('Failed to delete universes:', universesError);
+        deleteErrors.push(`universes: ${universesError.message}`);
+      }
+
+      if (deleteErrors.length > 0) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: 'Some delete operations failed',
+          errors: deleteErrors,
+          deleted: {
+            learningHistory: learningError ? 0 : (learningCount || 0),
+            scores: scoresError ? 0 : (scoreCount || 0),
+            transcripts: transcriptsError ? 0 : (transcriptCount || 0),
+            contacts: contactsError ? 0 : (contactCount || 0),
+            buyers: buyersError ? 0 : (buyerCount || 0),
+            universes: universesError ? 0 : (universeCount || 0),
+          }
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       return new Response(JSON.stringify({
         success: true,

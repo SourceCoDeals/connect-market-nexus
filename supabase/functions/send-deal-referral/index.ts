@@ -192,15 +192,20 @@ serve(async (req: Request) => {
     console.log('Email sent successfully via Brevo:', emailResult);
 
     // Update referral record with sent timestamp
-    await supabase
+    const { error: updateError } = await supabase
       .from('deal_referrals')
-      .update({ 
+      .update({
         sent_at: new Date().toISOString(),
         delivery_status: 'sent'
       })
       .eq('listing_id', listingId)
       .eq('recipient_email', recipientEmail)
       .eq('referrer_user_id', user.id);
+
+    if (updateError) {
+      console.error('Failed to update referral record:', updateError);
+      // Don't throw - email was already sent successfully
+    }
 
     return new Response(
       JSON.stringify({ 
