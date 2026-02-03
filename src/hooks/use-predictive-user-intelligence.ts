@@ -64,9 +64,12 @@ export function usePredictiveUserIntelligence(daysBack: number = 30) {
       if (!users) return { userScores: [], behaviorPatterns: [], engagementStrategies: [] };
 
       // Get user activity data
+      // Filter out bots and dev traffic
       const { data: sessions } = await supabase
         .from('user_sessions')
         .select('user_id, started_at, ended_at')
+        .eq('is_bot', false)
+        .eq('is_production', true)
         .gte('started_at', startDate.toISOString());
 
       const { data: analytics } = await supabase

@@ -5932,6 +5932,8 @@ export type Database = {
           first_utm_term: string | null
           ga4_client_id: string | null
           id: string
+          is_bot: boolean | null
+          is_production: boolean | null
           journey_stage: string | null
           last_page_path: string | null
           last_seen_at: string | null
@@ -5963,6 +5965,8 @@ export type Database = {
           first_utm_term?: string | null
           ga4_client_id?: string | null
           id?: string
+          is_bot?: boolean | null
+          is_production?: boolean | null
           journey_stage?: string | null
           last_page_path?: string | null
           last_seen_at?: string | null
@@ -5994,6 +5998,8 @@ export type Database = {
           first_utm_term?: string | null
           ga4_client_id?: string | null
           id?: string
+          is_bot?: boolean | null
+          is_production?: boolean | null
           journey_stage?: string | null
           last_page_path?: string | null
           last_seen_at?: string | null

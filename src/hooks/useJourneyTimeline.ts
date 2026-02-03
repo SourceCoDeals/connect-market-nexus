@@ -89,9 +89,11 @@ export function useJourneyTimeline(visitorId: string | null) {
       }
 
       // Get sessions for this user (if user_id is linked) or by last_session_id
+      // Filter out bot sessions
       let sessionsQuery = supabase
         .from('user_sessions')
         .select('*')
+        .eq('is_bot', false)
         .order('started_at', { ascending: true });
 
       if (journey.user_id) {

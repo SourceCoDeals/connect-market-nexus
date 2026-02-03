@@ -71,9 +71,12 @@ export function useTrafficAnalytics(timeRangeDays: number = 30) {
       const startDate = subDays(now, timeRangeDays);
       
       // Fetch all session data including new geo and duration fields
+      // Filter out bots and dev traffic
       const { data: sessions, error } = await supabase
         .from('user_sessions')
         .select('id, user_id, device_type, browser, referrer, created_at, country, session_duration_seconds')
+        .eq('is_bot', false)
+        .eq('is_production', true)
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: true });
       
