@@ -163,7 +163,7 @@ export const DealCSVImport = ({
           };
 
           // Numeric fields that need parsing
-          const numericFields = ["revenue", "ebitda", "full_time_employees", "number_of_locations", "google_review_count", "google_review_score"];
+          const numericFields = ["revenue", "ebitda", "full_time_employees", "number_of_locations", "google_review_count", "google_rating"];
           // Array fields that need splitting
           const arrayFields = ["geographic_states", "services"];
 

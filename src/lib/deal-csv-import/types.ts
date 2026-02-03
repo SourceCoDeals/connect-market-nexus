@@ -77,7 +77,7 @@ export interface ParsedDealData {
   
   // Reviews
   google_review_count?: number;
-  google_review_score?: number;
+  google_rating?: number;
   
   // Metadata
   internal_company_name?: string;
