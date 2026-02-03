@@ -86,7 +86,8 @@ serve(async (req) => {
     if (isServiceRole) {
       // Background processing via queue - use service role
       supabase = createClient(supabaseUrl, supabaseServiceKey);
-      userId = 'system-enrichment';
+      // Use a valid UUID for system operations (this is a reserved "system" UUID)
+      userId = '00000000-0000-0000-0000-000000000000';
       console.log('Enrichment triggered by background queue processor');
     } else {
       // User-initiated - verify admin access
