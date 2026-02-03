@@ -121,13 +121,6 @@ export function processRow(
       else if (field === 'primary_contact_last_name') {
         lastName = value;
       }
-      // Date fields
-      else if (field === 'last_contacted_at') {
-        const parsed = parseDateValue(value);
-        if (parsed) {
-          data.last_contacted_at = parsed;
-        }
-      }
       // String fields (default)
       else {
         data[field] = value;
