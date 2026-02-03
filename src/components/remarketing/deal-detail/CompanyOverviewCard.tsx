@@ -32,6 +32,7 @@ import {
   Building,
   MapPinned,
   Star,
+  Linkedin,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -90,6 +91,10 @@ interface CompanyOverviewCardProps {
   googleReviewCount?: number | null;
   googleRating?: number | null;
   googleMapsUrl?: string | null;
+  // LinkedIn data
+  linkedinUrl?: string | null;
+  linkedinEmployeeCount?: number | null;
+  linkedinEmployeeRange?: string | null;
   onSave: (data: {
     website: string;
     address: string;
@@ -125,6 +130,9 @@ export const CompanyOverviewCard = ({
   googleReviewCount,
   googleRating,
   googleMapsUrl,
+  linkedinUrl,
+  linkedinEmployeeCount,
+  linkedinEmployeeRange,
   onSave,
 }: CompanyOverviewCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -327,6 +335,36 @@ export const CompanyOverviewCard = ({
                 : "Not specified"
             } 
           />
+
+          {/* LinkedIn Employee Data */}
+          {(linkedinEmployeeCount || linkedinEmployeeRange) && (
+            <InfoRow
+              icon={Linkedin}
+              label="LINKEDIN EMPLOYEES"
+              value={
+                <div className="flex items-center gap-2">
+                  <span>
+                    {linkedinEmployeeCount?.toLocaleString() || linkedinEmployeeRange}
+                  </span>
+                  {linkedinEmployeeRange && linkedinEmployeeCount && (
+                    <span className="text-xs text-muted-foreground">
+                      ({linkedinEmployeeRange})
+                    </span>
+                  )}
+                  {linkedinUrl && (
+                    <a
+                      href={linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              }
+            />
+          )}
 
           <InfoRow
             icon={Building}

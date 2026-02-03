@@ -490,6 +490,10 @@ const ReMarketingDealDetail = () => {
           googleReviewCount={deal.google_review_count ?? undefined}
           googleRating={deal.google_rating ?? undefined}
           googleMapsUrl={deal.google_maps_url ?? undefined}
+          // LinkedIn data
+          linkedinUrl={deal.linkedin_url ?? undefined}
+          linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
+          linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
           onSave={async (data) => {
             await updateDealMutation.mutateAsync({
               website: data.website,
