@@ -12,6 +12,33 @@ interface GeoData {
   region: string;
   timezone: string;
   isp?: string;
+  lat?: number;
+  lon?: number;
+}
+
+// Bot detection patterns
+const BOT_USER_AGENT_PATTERNS = [
+  /HeadlessChrome/i,
+  /Googlebot/i,
+  /GoogleOther/i,
+  /bingbot/i,
+  /Baiduspider/i,
+  /YandexBot/i,
+  /DuckDuckBot/i,
+  /Slackbot/i,
+  /Twitterbot/i,
+  /facebookexternalhit/i,
+  /LinkedInBot/i,
+  /bot\b/i,
+  /crawler/i,
+  /spider/i,
+  /Chrome\/11[789]\./i,  // Chrome 117-119 (2+ years outdated)
+  /Chrome\/11[0-6]\./i,  // Chrome 110-116 (even older)
+];
+
+function detectBot(userAgent: string): boolean {
+  if (!userAgent) return false;
+  return BOT_USER_AGENT_PATTERNS.some(pattern => pattern.test(userAgent));
 }
 
 interface SessionData {
@@ -56,7 +83,8 @@ async function getGeoData(ip: string): Promise<GeoData | null> {
   }
 
   try {
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,timezone,isp`);
+    // Include lat and lon fields for accurate globe positioning
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,timezone,isp,lat,lon`);
     
     if (!response.ok) {
       console.error('Geo API response not OK:', response.status);
@@ -77,6 +105,8 @@ async function getGeoData(ip: string): Promise<GeoData | null> {
       region: data.regionName || 'Unknown',
       timezone: data.timezone || 'UTC',
       isp: data.isp || null,
+      lat: typeof data.lat === 'number' ? data.lat : undefined,
+      lon: typeof data.lon === 'number' ? data.lon : undefined,
     };
   } catch (error) {
     console.error('Failed to get geo data:', error);
@@ -141,11 +171,13 @@ Deno.serve(async (req) => {
     const body: SessionData = await req.json();
     const clientIP = getClientIP(req);
     const isProduction = isProductionRequest(req, body);
+    const isBot = detectBot(body.user_agent);
     
     console.log('Track session request:', {
       session_id: body.session_id,
       client_ip: clientIP,
       is_production: isProduction,
+      is_bot: isBot,
       user_agent: body.user_agent?.substring(0, 50) + '...',
     });
 
@@ -195,6 +227,11 @@ Deno.serve(async (req) => {
         blog_landing_page: body.blog_landing || null,
         // Production vs dev/preview flagging
         is_production: isProduction,
+        // Bot detection
+        is_bot: isBot,
+        // Precise coordinates from IP geolocation
+        lat: geoData?.lat || null,
+        lon: geoData?.lon || null,
       }, {
         onConflict: 'session_id',
         ignoreDuplicates: false,
