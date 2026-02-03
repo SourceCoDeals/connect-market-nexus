@@ -34,7 +34,10 @@ serve(async (req) => {
     // SECURITY: Verify admin access (or service role for internal calls)
     const authHeader = req.headers.get('Authorization');
     const apiKeyHeader = req.headers.get('apikey');
+    
+    // Require at least one form of auth
     if (!authHeader && !apiKeyHeader) {
+      console.error('No authorization header or apikey provided');
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -45,9 +48,12 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Check if this is the service role key (for internal calls from enrich-deal)
-    const token = authHeader ? authHeader.replace('Bearer ', '') : '';
+    // Check if this is the service role key (for internal calls from queue processor)
+    // IMPORTANT: Check BOTH the Authorization header bearer token AND the apikey header
+    const token = (authHeader || '').replace(/^Bearer\s+/i, '').trim();
     const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
+    
+    console.log(`Auth check: isServiceRole=${isServiceRole}, hasAuthHeader=${!!authHeader}, hasApiKey=${!!apiKeyHeader}`);
 
     if (!isServiceRole) {
       // Verify admin access for manual calls
@@ -264,10 +270,7 @@ serve(async (req) => {
         google_place_id: response.google_place_id,
       };
 
-      // Optionally update other fields if they're empty
-      if (response.google_phone) {
-        updateData.phone = response.google_phone;
-      }
+      // Optionally update address fields if they're empty (phone column doesn't exist)
       if (response.google_address) {
         updateData.address = response.google_address;
       }
