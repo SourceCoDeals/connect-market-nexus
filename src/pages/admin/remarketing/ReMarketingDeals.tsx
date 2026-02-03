@@ -60,7 +60,13 @@ import {
   Sparkles,
   Upload,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  BarChart3,
+  Flame,
+  Star,
+  AlertCircle,
+  Calculator,
+  RotateCw
 } from "lucide-react";
 import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing";
@@ -78,8 +84,60 @@ const ReMarketingDeals = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isCalculatingScores, setIsCalculatingScores] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>("score");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  // Handle Calculate Scores for all deals
+  const handleCalculateScores = async () => {
+    setIsCalculatingScores(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      // Get all active listings that need scoring
+      const dealsToScore = listings?.filter(l => {
+        const stats = scoreStats?.[l.id];
+        return !stats || stats.totalMatches === 0;
+      }) || [];
+
+      if (dealsToScore.length === 0) {
+        toast({ title: "All deals scored", description: "All deals already have scores calculated" });
+        setIsCalculatingScores(false);
+        return;
+      }
+
+      let scored = 0;
+      let errors = 0;
+
+      // Score in batches
+      for (const deal of dealsToScore.slice(0, 10)) { // Limit to 10 at a time
+        try {
+          const response = await supabase.functions.invoke('score-buyer-deal', {
+            body: { dealId: deal.id, scoreAll: true },
+            headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
+          });
+          if (response.error) throw response.error;
+          scored++;
+        } catch (e) {
+          console.error(`Failed to score deal ${deal.id}:`, e);
+          errors++;
+        }
+      }
+
+      toast({
+        title: "Scoring complete",
+        description: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}. ${dealsToScore.length > 10 ? `${dealsToScore.length - 10} remaining.` : ''}`
+      });
+
+      // Refetch score stats
+      refetchScoreStats();
+    } catch (error: any) {
+      console.error('Calculate scores error:', error);
+      toast({ title: "Scoring failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsCalculatingScores(false);
+    }
+  };
 
   // Handle file import
   const handleImport = async () => {
@@ -156,6 +214,7 @@ const ReMarketingDeals = () => {
           title,
           description,
           location,
+          address,
           revenue,
           ebitda,
           status,
@@ -199,7 +258,7 @@ const ReMarketingDeals = () => {
   });
 
   // Fetch score stats for all listings
-  const { data: scoreStats } = useQuery({
+  const { data: scoreStats, refetch: refetchScoreStats } = useQuery({
     queryKey: ['remarketing', 'deal-score-stats'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -258,6 +317,30 @@ const ReMarketingDeals = () => {
 
   // Get universe count
   const universeCount = universes?.length || 0;
+
+  // Dashboard metrics
+  const dashboardMetrics = useMemo(() => {
+    const totalDeals = listings?.length || 0;
+    let hotDeals = 0;
+    let totalScore = 0;
+    let scoredDeals = 0;
+    let needsAnalysis = 0;
+
+    listings?.forEach(listing => {
+      const stats = scoreStats?.[listing.id];
+      if (stats && stats.avgScore > 0) {
+        scoredDeals++;
+        totalScore += stats.avgScore;
+        if (stats.avgScore >= 85) hotDeals++;
+      } else {
+        needsAnalysis++;
+      }
+    });
+
+    const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
+
+    return { totalDeals, hotDeals, avgScore, needsAnalysis };
+  }, [listings, scoreStats]);
 
   // Extract website from deal memo
   const extractWebsiteFromMemo = (memoLink: string | null): string | null => {
@@ -350,15 +433,45 @@ const ReMarketingDeals = () => {
     return universeLookup[firstId] || null;
   };
 
-  // Format geography as badges from geographic_states array
-  const formatGeographyBadges = (states: string[] | null) => {
-    if (!states || states.length === 0) return null;
+  // Format location as City, State only (no regions like "midwest")
+  const formatCityState = (listing: any): string | null => {
+    // First try address field (enriched data)
+    if (listing.address) {
+      // Parse address to extract city, state
+      // Common formats: "City, State", "City, State ZIP", "Street, City, State ZIP"
+      const parts = listing.address.split(',').map((p: string) => p.trim());
+      if (parts.length >= 2) {
+        // Get last two parts (city, state) - state might have ZIP
+        const statePart = parts[parts.length - 1].replace(/\d{5}(-\d{4})?$/, '').trim();
+        const cityPart = parts[parts.length - 2];
 
-    if (states.length <= 2) {
-      return states.join(", ");
+        // Validate it's a real state (2 letter code or full name)
+        const stateAbbr = statePart.length <= 3 ? statePart.toUpperCase() : statePart;
+        if (stateAbbr && cityPart) {
+          return `${cityPart}, ${stateAbbr}`;
+        }
+      }
     }
 
-    return `${states.slice(0, 2).join(", ")} +${states.length - 2}`;
+    // Fall back to location field only if it looks like "City, State" format
+    if (listing.location) {
+      const loc = listing.location.trim();
+      // Check if it matches "City, ST" pattern (not regions like "Midwest", "Southeast")
+      const cityStateMatch = loc.match(/^([A-Za-z\s]+),\s*([A-Z]{2})$/);
+      if (cityStateMatch) {
+        return `${cityStateMatch[1]}, ${cityStateMatch[2]}`;
+      }
+      // Skip region-like values
+      const regions = ['midwest', 'southeast', 'southwest', 'northeast', 'northwest', 'west coast', 'east coast', 'national', 'regional'];
+      if (!regions.some(r => loc.toLowerCase().includes(r))) {
+        // If it has a comma, assume City, State format
+        if (loc.includes(',')) {
+          return loc;
+        }
+      }
+    }
+
+    return null;
   };
 
   // Handle sort column click
@@ -444,7 +557,22 @@ const ReMarketingDeals = () => {
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => setShowImportDialog(true)}>
             <Upload className="h-4 w-4 mr-2" />
-            Import Deals
+            Import CSV
+          </Button>
+          <Button
+            onClick={handleCalculateScores}
+            disabled={isCalculatingScores}
+            className="bg-slate-800 hover:bg-slate-700 text-white"
+          >
+            {isCalculatingScores ? (
+              <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Calculator className="h-4 w-4 mr-2" />
+            )}
+            Calculate Scores
+          </Button>
+          <Button variant="ghost" size="sm" className="text-muted-foreground">
+            Reset columns
           </Button>
           <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="w-[140px]">
@@ -458,6 +586,57 @@ const ReMarketingDeals = () => {
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      {/* Dashboard Metrics */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <BarChart3 className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Deals</p>
+              <p className="text-2xl font-bold">{dashboardMetrics.totalDeals}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Flame className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Hot Deals (85+)</p>
+              <p className="text-2xl font-bold text-green-600">{dashboardMetrics.hotDeals}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <Star className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Avg Score</p>
+              <p className="text-2xl font-bold">{dashboardMetrics.avgScore}<span className="text-sm text-muted-foreground font-normal">/100</span></p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-2 bg-red-50 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Needs Analysis</p>
+              <p className="text-2xl font-bold text-red-500">{dashboardMetrics.needsAnalysis}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -660,7 +839,7 @@ const ReMarketingDeals = () => {
                     const listedName = listing.internal_company_name && listing.title !== listing.internal_company_name 
                       ? listing.title 
                       : null;
-                    const geographyDisplay = formatGeographyBadges(listing.geographic_states);
+                    const locationDisplay = formatCityState(listing);
                     
                     return (
                       <TableRow
@@ -716,12 +895,8 @@ const ReMarketingDeals = () => {
 
                         {/* Location */}
                         <TableCell>
-                          {geographyDisplay ? (
-                            <span className="text-sm">{geographyDisplay}</span>
-                          ) : listing.location ? (
-                            <span className="text-sm">
-                              {listing.location.substring(0, 15)}{listing.location.length > 15 ? '...' : ''}
-                            </span>
+                          {locationDisplay ? (
+                            <span className="text-sm">{locationDisplay}</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
