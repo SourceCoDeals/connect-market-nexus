@@ -161,9 +161,9 @@ export const AIResearchSection = ({
 
     } catch (error) {
       console.error('Clarification error:', error);
-      toast.error(`Failed to get clarifying questions: ${(error as Error).message}`);
-      // Fall back to direct generation
-      handleGenerate({});
+      toast.error(`Failed to get clarifying questions: ${(error as Error).message}. Please check your Anthropic API key.`);
+      // Stay in idle state so the user can retry - don't silently skip to generation
+      setState('idle');
     }
   };
 
