@@ -34,6 +34,14 @@ import {
 import { toast } from "sonner";
 import Papa from "papaparse";
 
+// Import from unified import engine
+import {
+  type ColumnMapping,
+  DEAL_IMPORT_FIELDS,
+  normalizeHeader,
+  processRow,
+} from "@/lib/deal-csv-import";
+
 export interface DealCSVImportProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -41,53 +49,6 @@ export interface DealCSVImportProps {
   universeName?: string;
   onImportComplete?: () => void;
 }
-
-interface ColumnMapping {
-  csvColumn: string;
-  targetField: string | null;
-  confidence: number;
-  aiSuggested: boolean;
-}
-
-const DEAL_FIELDS = [
-  // Core fields (REQUIRED)
-  { value: "title", label: "Company Name *" },
-  { value: "website", label: "Website URL" },
-  // Financial data
-  { value: "revenue", label: "Revenue" },
-  { value: "ebitda", label: "EBITDA" },
-  // Business info
-  { value: "category", label: "Industry/Category" },
-  { value: "description", label: "Description / AI Summary" },
-  { value: "executive_summary", label: "Executive Summary" },
-  { value: "general_notes", label: "Notes" },
-  { value: "services", label: "Services" },
-  { value: "geographic_states", label: "States" },
-  { value: "full_time_employees", label: "Employee Count" },
-  { value: "number_of_locations", label: "Number of Locations" },
-  // Address fields
-  { value: "address", label: "Full Address" },
-  { value: "address_city", label: "City" },
-  { value: "address_state", label: "State (2-letter)" },
-  { value: "address_zip", label: "ZIP Code" },
-  { value: "address_country", label: "Country" },
-  // Contact info
-  { value: "primary_contact_name", label: "Contact Name" },
-  { value: "primary_contact_first_name", label: "Contact First Name" },
-  { value: "primary_contact_last_name", label: "Contact Last Name" },
-  { value: "primary_contact_email", label: "Contact Email" },
-  { value: "primary_contact_phone", label: "Contact Phone" },
-  { value: "primary_contact_title", label: "Contact Title/Role" },
-  // Links & metadata
-  { value: "linkedin_url", label: "LinkedIn URL" },
-  { value: "fireflies_url", label: "Fireflies/Recording URL" },
-  { value: "google_review_count", label: "Google Review Count" },
-  { value: "google_review_score", label: "Google Review Score" },
-  { value: "owner_goals", label: "Owner Goals" },
-  // status is intentionally omitted - it should never be imported from CSV
-  { value: "last_contacted_at", label: "Last Contacted Date" },
-  { value: "internal_notes", label: "Internal Notes" },
-];
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
 
@@ -490,7 +451,7 @@ export const DealCSVImport = ({
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Don't import</SelectItem>
-                                {DEAL_FIELDS.map((field) => (
+                                {DEAL_IMPORT_FIELDS.map((field) => (
                                   <SelectItem key={field.value} value={field.value}>
                                     {field.label}
                                   </SelectItem>
@@ -528,7 +489,7 @@ export const DealCSVImport = ({
               <p className="font-medium">Ready to import {csvData.length} deals</p>
               <p className="text-sm text-muted-foreground">
                 Mapped fields: {columnMappings.filter((m) => m.targetField).map((m) => 
-                  DEAL_FIELDS.find((f) => f.value === m.targetField)?.label
+                  DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label
                 ).join(", ")}
               </p>
             </div>
@@ -542,7 +503,7 @@ export const DealCSVImport = ({
                       .filter((m) => m.targetField)
                       .map((m) => (
                         <TableHead key={m.csvColumn}>
-                          {DEAL_FIELDS.find((f) => f.value === m.targetField)?.label}
+                          {DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label}
                         </TableHead>
                       ))}
                   </TableRow>
