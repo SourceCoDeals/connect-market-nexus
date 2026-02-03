@@ -227,7 +227,15 @@ const ReMarketingDeals = () => {
           internal_deal_memo_link,
           geographic_states,
           enriched_at,
-          full_time_employees
+          linkedin_employee_count,
+          full_time_employees,
+          deal_total_score,
+          seller_interest_score,
+          seller_motivation,
+          lead_source_id,
+          lead_sources (
+            name
+          )
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -313,7 +321,7 @@ const ReMarketingDeals = () => {
   // Get universe count
   const universeCount = universes?.length || 0;
 
-  // Dashboard metrics
+  // Dashboard metrics - using deal_total_score (deal quality), not buyer fit score
   const dashboardMetrics = useMemo(() => {
     const totalDeals = listings?.length || 0;
     let hotDeals = 0;
@@ -322,11 +330,11 @@ const ReMarketingDeals = () => {
     let needsAnalysis = 0;
 
     listings?.forEach(listing => {
-      const stats = scoreStats?.[listing.id];
-      if (stats && stats.avgScore > 0) {
+      // Use deal_total_score for deal quality metrics
+      if (listing.deal_total_score && listing.deal_total_score > 0) {
         scoredDeals++;
-        totalScore += stats.avgScore;
-        if (stats.avgScore >= 85) hotDeals++;
+        totalScore += listing.deal_total_score;
+        if (listing.deal_total_score >= 85) hotDeals++;
       } else {
         needsAnalysis++;
       }
@@ -335,7 +343,7 @@ const ReMarketingDeals = () => {
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
 
     return { totalDeals, hotDeals, avgScore, needsAnalysis };
-  }, [listings, scoreStats]);
+  }, [listings]);
 
   // Extract website from deal memo
   const extractWebsiteFromMemo = (memoLink: string | null): string | null => {
@@ -510,8 +518,12 @@ const ReMarketingDeals = () => {
           bVal = b.full_time_employees || 0;
           break;
         case "score":
-          aVal = stats_a?.avgScore || 0;
-          bVal = stats_b?.avgScore || 0;
+          aVal = a.deal_total_score || 0;
+          bVal = b.deal_total_score || 0;
+          break;
+        case "motivation":
+          aVal = a.seller_interest_score || 0;
+          bVal = b.seller_interest_score || 0;
           break;
         case "margin":
           // Calculate margin from ebitda/revenue if available
@@ -772,8 +784,14 @@ const ReMarketingDeals = () => {
                   </TableHead>
                   <TableHead className="text-center">
                     <button onClick={() => handleSort("score")} className="flex items-center gap-1 mx-auto">
-                      Score
+                      Sc...
                       {sortColumn === "score" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <button onClick={() => handleSort("motivation")} className="flex items-center gap-1 mx-auto">
+                      M...
+                      {sortColumn === "motivation" ? (sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />) : null}
                     </button>
                   </TableHead>
                   <TableHead className="text-right">
@@ -817,7 +835,7 @@ const ReMarketingDeals = () => {
                   ))
                 ) : sortedListings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                       <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>No deals found</p>
                       <p className="text-sm">Try adjusting your search or filters</p>
@@ -916,15 +934,31 @@ const ReMarketingDeals = () => {
                           )}
                         </TableCell>
 
-                        {/* Score with trend */}
+                        {/* Deal Quality Score */}
                         <TableCell className="text-center">
-                          {stats && stats.avgScore > 0 ? (
+                          {listing.deal_total_score ? (
                             <div className="flex items-center justify-center gap-1.5">
-                              <span className="text-sm">~{Math.round(stats.avgScore)}</span>
-                              {getScoreTrendIcon(stats.avgScore)}
+                              <span className="text-sm font-medium">{listing.deal_total_score}</span>
+                              {getScoreTrendIcon(listing.deal_total_score)}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground text-sm">?</span>
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Seller Interest / Motivation Score */}
+                        <TableCell className="text-center">
+                          {listing.seller_interest_score ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className={`text-sm font-medium ${
+                                listing.seller_interest_score >= 70 ? 'text-green-600' :
+                                listing.seller_interest_score >= 40 ? 'text-amber-600' : 'text-red-500'
+                              }`}>
+                                {listing.seller_interest_score}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
                           )}
                         </TableCell>
 
