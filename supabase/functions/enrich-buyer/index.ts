@@ -786,8 +786,14 @@ function getGeographyFootprintPrompt() {
         parameters: {
           type: 'object',
           properties: {
-            hq_city: { type: 'string', description: 'Headquarters city' },
-            hq_state: { type: 'string', description: 'Headquarters state as 2-letter abbreviation (TX, CA, etc.)' },
+            hq_city: { 
+              type: 'string', 
+              description: 'ACTUAL headquarters city name (e.g., "Atlanta", "Dallas", "Phoenix"). NEVER use regions like Southeast, Midwest, etc. Must be a real city name.' 
+            },
+            hq_state: { 
+              type: 'string', 
+              description: 'Headquarters state as 2-letter abbreviation (TX, CA, GA, etc.). NEVER use region names.' 
+            },
             geographic_footprint: { 
               type: 'array', 
               items: { type: 'string' }, 
@@ -804,14 +810,21 @@ function getGeographyFootprintPrompt() {
     },
     system: `Extract geographic information about where the company CURRENTLY operates.
 
-CRITICAL RULES:
-1. geographic_footprint: ONLY 2-letter state codes where they have physical offices/locations
-2. service_regions: ONLY states they serve FROM their physical locations
-3. DO NOT include aspirational or marketing language about "serving nationwide"
-4. Be conservative - regional companies are NOT national
-5. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`,
+CRITICAL RULES FOR HEADQUARTERS:
+1. hq_city MUST be an actual city name like "Atlanta", "Dallas", "Phoenix", "Nashville"
+2. hq_city must NEVER be a region like "Southeast", "Midwest", "Northeast", "Southwest", "Western"
+3. hq_state MUST be a 2-letter state code like "GA", "TX", "AZ", "TN"
+4. If exact city is not found, look for contact info, address footer, or "About Us" section
+5. If no specific city can be determined, omit hq_city entirely (do not guess a region)
+
+OTHER RULES:
+6. geographic_footprint: ONLY 2-letter state codes where they have physical offices/locations
+7. service_regions: ONLY states they serve FROM their physical locations
+8. DO NOT include aspirational or marketing language about "serving nationwide"
+9. Be conservative - regional companies are NOT national
+10. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`,
     user: (content: string) => 
-      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence.`
+      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence. Remember: hq_city must be an ACTUAL city name (like Atlanta, Dallas, Phoenix) - NEVER a region name like Southeast or Midwest.`
   };
 }
 
