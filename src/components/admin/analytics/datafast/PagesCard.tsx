@@ -30,13 +30,22 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
   const tabs = [
     { id: 'page', label: 'Page' },
     { id: 'entry', label: 'Entry page' },
-    { id: 'blog', label: 'Blog Entry' },
     { id: 'exit', label: 'Exit page' },
   ];
 
+  // Merge blog entry pages into entry pages for unified view
+  const mergedEntryPages = [
+    ...entryPages.map(p => ({ ...p, isExternal: false })),
+    ...blogEntryPages.map(p => ({ 
+      path: p.path, 
+      visitors: p.visitors, 
+      bounceRate: 0, 
+      isExternal: true 
+    }))
+  ].sort((a, b) => b.visitors - a.visitors);
+
   const maxPageVisitors = Math.max(...topPages.map(p => p.visitors), 1);
-  const maxEntryVisitors = Math.max(...entryPages.map(p => p.visitors), 1);
-  const maxBlogVisitors = Math.max(...blogEntryPages.map(p => p.visitors), 1);
+  const maxEntryVisitors = Math.max(...mergedEntryPages.map(p => p.visitors), 1);
   const maxExitVisitors = Math.max(...exitPages.map(p => p.exits), 1);
 
   // Removed - filtering now only via Details modal
@@ -55,13 +64,7 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
           visitors: p.visitors,
         }));
       case 'entry':
-        return entryPages.map(p => ({
-          id: p.path,
-          label: p.path,
-          visitors: p.visitors,
-        }));
-      case 'blog':
-        return blogEntryPages.map(p => ({
+        return mergedEntryPages.map(p => ({
           id: p.path,
           label: p.path,
           visitors: p.visitors,
@@ -81,7 +84,6 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
     switch (modalTab) {
       case 'page': return 'Pages';
       case 'entry': return 'Entry Pages';
-      case 'blog': return 'Blog Entry Pages';
       case 'exit': return 'Exit Pages';
       default: return 'Details';
     }
@@ -137,7 +139,7 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
             
             {activeTab === 'entry' && (
               <>
-                {entryPages.slice(0, 8).map((page, i) => {
+                {mergedEntryPages.slice(0, 8).map((page, i) => {
                   const isActive = hasFilter('page', page.path);
                   return (
                     <AnalyticsTooltip
@@ -145,7 +147,7 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                       title={page.path}
                       rows={[
                         { label: 'Entries', value: page.visitors.toLocaleString() },
-                        { label: 'Bounce Rate', value: `${page.bounceRate.toFixed(0)}%` },
+                        ...(!page.isExternal ? [{ label: 'Bounce Rate', value: `${page.bounceRate.toFixed(0)}%` }] : []),
                       ]}
                     >
                       <ProportionalBar value={page.visitors} maxValue={maxEntryVisitors}>
@@ -155,13 +157,20 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                             isActive && "opacity-50"
                           )}
                         >
-                          <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
-                            {formatPath(page.path)}
-                          </code>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {page.isExternal && (
+                              <Globe className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            )}
+                            <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
+                              {formatPath(page.path)}
+                            </code>
+                          </div>
                           <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground tabular-nums">
-                              {page.bounceRate.toFixed(0)}% bounce
-                            </span>
+                            {!page.isExternal && (
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {page.bounceRate.toFixed(0)}% bounce
+                              </span>
+                            )}
                             <span className="text-sm font-medium tabular-nums">
                               {page.visitors.toLocaleString()}
                             </span>
@@ -171,48 +180,8 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                     </AnalyticsTooltip>
                   );
                 })}
-                {entryPages.length === 0 && (
+                {mergedEntryPages.length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-4">No entry page data</div>
-                )}
-              </>
-            )}
-            
-            {activeTab === 'blog' && (
-              <>
-                {blogEntryPages.slice(0, 8).map((page, i) => {
-                  const isActive = hasFilter('page', page.path);
-                  return (
-                    <AnalyticsTooltip
-                      key={`${page.path}-${i}`}
-                      title={page.path}
-                      rows={[
-                        { label: 'Visitors', value: page.visitors.toLocaleString() },
-                        { label: 'Sessions', value: page.sessions.toLocaleString() },
-                      ]}
-                    >
-                      <ProportionalBar value={page.visitors} maxValue={maxBlogVisitors}>
-                        <div 
-                          className={cn(
-                            "flex items-center justify-between",
-                            isActive && "opacity-50"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Globe className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                            <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[180px]">
-                              {formatPath(page.path)}
-                            </code>
-                          </div>
-                          <span className="text-sm font-medium tabular-nums">
-                            {page.visitors.toLocaleString()}
-                          </span>
-                        </div>
-                      </ProportionalBar>
-                    </AnalyticsTooltip>
-                  );
-                })}
-                {blogEntryPages.length === 0 && (
-                  <div className="text-sm text-muted-foreground text-center py-4">No blog entry data</div>
                 )}
               </>
             )}
