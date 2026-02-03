@@ -60,7 +60,7 @@ serve(async (req) => {
     if (scrapeAll) {
       const { data: deals, error: fetchError } = await supabase
         .from('listings')
-        .select('id, title, internal_company_name, location, address')
+        .select('id, title, internal_company_name, location, address, address_city, address_state')
         .is('google_review_count', null)
         .eq('status', 'active')
         .limit(50); // Process in batches of 50
@@ -84,14 +84,17 @@ serve(async (req) => {
       for (const deal of deals) {
         try {
           const companyName = deal.internal_company_name || deal.title;
-          const location = deal.address || deal.location;
+          // Prefer structured city/state over legacy address
+          const location = (deal.address_city && deal.address_state)
+            ? `${deal.address_city}, ${deal.address_state}`
+            : (deal.address || deal.location);
 
           if (!companyName) {
             console.log(`Skipping deal ${deal.id} - no company name`);
             continue;
           }
 
-          // Build search query
+          // Build search query - company name + location is best for Google search
           const searchQuery = location
             ? `${companyName} ${location}`
             : companyName;
@@ -103,11 +106,23 @@ serve(async (req) => {
               google_review_count: result.data.reviewsCount || 0,
               google_rating: result.data.totalScore || null,
               google_maps_url: result.data.url || null,
+              google_place_id: result.data.placeId || null,
             };
 
             // Update address if we don't have one
             if (!deal.address && result.data.address) {
               updateData.address = result.data.address;
+            }
+
+            // Update structured address fields if we have them from Google (only if not already set)
+            if (result.data.city && !deal.address_city) {
+              updateData.address_city = result.data.city;
+            }
+            if (result.data.state && !deal.address_state) {
+              updateData.address_state = result.data.state;
+            }
+            if (result.data.postalCode) {
+              updateData.address_zip = result.data.postalCode;
             }
 
             const { error: updateError } = await supabase
@@ -203,6 +218,7 @@ serve(async (req) => {
         google_review_count: response.google_review_count,
         google_rating: response.google_rating,
         google_maps_url: response.google_maps_url,
+        google_place_id: response.google_place_id,
       };
 
       // Optionally update other fields if they're empty
@@ -211,6 +227,13 @@ serve(async (req) => {
       }
       if (response.google_address) {
         updateData.address = response.google_address;
+      }
+      // Update structured address fields from Google
+      if (response.google_city) {
+        updateData.address_city = response.google_city;
+      }
+      if (response.google_state) {
+        updateData.address_state = response.google_state;
       }
 
       const { error: updateError } = await supabase

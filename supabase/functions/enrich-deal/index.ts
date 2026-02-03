@@ -128,7 +128,9 @@ serve(async (req) => {
     }
 
     // Capture version for optimistic locking
-    const lockVersion = deal.enriched_at || deal.updated_at;
+    // IMPORTANT: Only use enriched_at, NOT updated_at as fallback
+    // If enriched_at is null, the lock check uses .is('enriched_at', null)
+    const lockVersion = deal.enriched_at;
 
     // Get website URL - prefer website field, fallback to extracting from internal_deal_memo_link
     let websiteUrl = deal.website;
