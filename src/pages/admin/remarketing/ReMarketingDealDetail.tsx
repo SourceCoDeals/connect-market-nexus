@@ -365,18 +365,6 @@ const ReMarketingDealDetail = () => {
         </div>
       </div>
 
-
-      {/* Pipeline Summary Card - Shows conversion funnel */}
-      {scoreStats && scoreStats.count > 0 && (
-        <PipelineSummaryCard
-          scored={scoreStats.count}
-          approved={scoreStats.approved}
-          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
-          meetingScheduled={pipelineStats?.meetingScheduled || 0}
-          closedWon={pipelineStats?.closedWon || 0}
-        />
-      )}
-
       {/* Website & Actions */}
       <Card>
         <CardHeader className="py-3">
@@ -607,6 +595,17 @@ const ReMarketingDealDetail = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pipeline Summary Card - Shows conversion funnel */}
+      {scoreStats && scoreStats.count > 0 && (
+        <PipelineSummaryCard
+          scored={scoreStats.count}
+          approved={scoreStats.approved}
+          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
+          meetingScheduled={pipelineStats?.meetingScheduled || 0}
+          closedWon={pipelineStats?.closedWon || 0}
+        />
+      )}
 
       {/* Executive Summary */}
       <ExecutiveSummaryCard
