@@ -142,9 +142,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Capture version for optimistic locking (use updated_at or data_last_updated)
-    const lockVersion = buyer.data_last_updated || buyer.created_at;
-
     // Get primary website - prefer platform_website, fall back to company_website
     const platformWebsite = buyer.platform_website || buyer.company_website;
     const peFirmWebsite = buyer.pe_firm_website;
@@ -414,19 +411,13 @@ Deno.serve(async (req) => {
 
     // If billing error occurred, return partial data with error code
     if (billingError) {
-      // Still save any partial data we extracted (with optimistic lock)
+      // Still save any partial data we extracted
       if (Object.keys(extractedData).length > 0) {
         const partialUpdateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
-        const { data: partialResult, count } = await supabase
+        await supabase
           .from('remarketing_buyers')
           .update(partialUpdateData)
-          .eq('id', buyerId)
-          .or(`data_last_updated.eq.${lockVersion},data_last_updated.is.null`)
-          .select('id');
-
-        if (!partialResult || partialResult.length === 0) {
-          console.warn('Optimistic lock conflict during partial save - record was modified by another process');
-        }
+          .eq('id', buyerId);
       }
 
       const errCode = (billingError as { code: string; message: string }).code || 'unknown';
@@ -448,22 +439,11 @@ Deno.serve(async (req) => {
     // Step 4: Apply intelligent merge logic
     const updateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
 
-    // Update buyer record with optimistic locking
-    // The lock prevents concurrent enrichment processes from overwriting each other
-    let updateQuery = supabase
+    // Update buyer record (last-write-wins for bulk enrichment compatibility)
+    const { error: updateError } = await supabase
       .from('remarketing_buyers')
       .update(updateData)
       .eq('id', buyerId);
-
-    // Apply optimistic lock: only update if version hasn't changed
-    if (lockVersion) {
-      updateQuery = updateQuery.eq('data_last_updated', lockVersion);
-    } else {
-      // If no previous update, ensure it's still null (first enrichment)
-      updateQuery = updateQuery.is('data_last_updated', null);
-    }
-
-    const { data: updateResult, error: updateError } = await updateQuery.select('id');
 
     if (updateError) {
       console.error('Failed to update buyer:', updateError);
@@ -479,20 +459,6 @@ Deno.serve(async (req) => {
           }
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check for optimistic lock conflict
-    if (!updateResult || updateResult.length === 0) {
-      console.warn(`Optimistic lock conflict for buyer ${buyerId} - record was modified by another process`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Record was modified by another process. Please refresh and try again.',
-          error_code: 'concurrent_modification',
-          recoverable: true
-        }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
