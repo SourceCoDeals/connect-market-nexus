@@ -456,7 +456,7 @@ export const DealCSVImport = ({
                   )}
                 </div>
 
-                <ScrollArea className="flex-1 border rounded-lg">
+                <ScrollArea className="flex-1 border rounded-lg max-h-[400px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
