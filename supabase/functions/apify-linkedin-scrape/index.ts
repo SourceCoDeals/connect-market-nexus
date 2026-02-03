@@ -168,11 +168,14 @@ serve(async (req) => {
     // Parse employee data from Apify result
     const { employeeCount, employeeRange } = parseEmployeeData(companyData);
 
+    // Normalize the LinkedIn URL to direct format
+    const normalizedLinkedinUrl = normalizeLinkedInUrl(targetUrl);
+
     const result = {
       success: true,
       scraped: true,
       foundViaSearch,
-      linkedin_url: targetUrl,
+      linkedin_url: normalizedLinkedinUrl,
       linkedin_employee_count: employeeCount,
       linkedin_employee_range: employeeRange,
       linkedin_industry: companyData.industry || null,
@@ -188,7 +191,7 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       const updateData: Record<string, unknown> = {
-        linkedin_url: targetUrl,
+        linkedin_url: normalizedLinkedinUrl,
       };
 
       if (result.linkedin_employee_count) {

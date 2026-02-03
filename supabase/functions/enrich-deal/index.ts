@@ -542,7 +542,7 @@ Extract all available business information using the provided tool. The address_
                   },
                   linkedin_url: {
                     type: 'string',
-                    description: 'LinkedIn company page URL (e.g., "https://www.linkedin.com/company/acme-corp")'
+                    description: 'DIRECT LinkedIn company page URL only. Must be in the format "https://www.linkedin.com/company/company-name". Do NOT use Google search links or redirects. Only extract if you find a direct linkedin.com/company/ URL.'
                   }
                 }
               }
@@ -646,6 +646,24 @@ Extract all available business information using the provided tool. The address_
     // IMPORTANT: Remove 'location' from extracted data - we never update it from enrichment
     // The 'location' field is for marketplace anonymity (e.g., "Southeast US")
     delete extracted.location;
+
+    // Validate and normalize linkedin_url - must be a DIRECT linkedin.com/company/ URL
+    if (extracted.linkedin_url) {
+      const linkedinUrlStr = String(extracted.linkedin_url).trim();
+      // Only accept direct LinkedIn company URLs, reject Google/search/redirect URLs
+      const linkedinCompanyPattern = /^https?:\/\/(www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+\/?$/;
+      if (linkedinCompanyPattern.test(linkedinUrlStr)) {
+        // Normalize to consistent format
+        const match = linkedinUrlStr.match(/linkedin\.com\/company\/([^\/\?]+)/);
+        if (match) {
+          extracted.linkedin_url = `https://www.linkedin.com/company/${match[1]}`;
+          console.log(`Validated LinkedIn URL: ${extracted.linkedin_url}`);
+        }
+      } else {
+        console.log(`Rejecting non-direct LinkedIn URL: "${linkedinUrlStr}"`);
+        delete extracted.linkedin_url;
+      }
+    }
 
     // Try to fetch LinkedIn data if we have a URL or company name
     const linkedinUrl = extracted.linkedin_url as string | undefined;
