@@ -13,7 +13,7 @@ export const DEAL_IMPORT_FIELDS: DealImportField[] = [
   { value: "category", label: "Industry/Category", description: "Business category (e.g., Collision, HVAC)" },
   { value: "description", label: "Description / AI Summary", description: "Business description or AI-generated summary" },
   { value: "executive_summary", label: "Executive Summary", description: "Deal executive summary" },
-  { value: "general_notes", label: "Notes / Bill Notes", description: "General notes about the deal" },
+  { value: "general_notes", label: "General Notes", description: "General notes about the deal" },
   { value: "internal_notes", label: "Internal Notes", description: "Internal-only notes" },
   { value: "owner_goals", label: "Owner Goals", description: "Seller motivation and goals" },
   
