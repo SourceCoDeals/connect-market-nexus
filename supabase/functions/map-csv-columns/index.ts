@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
+// Bump this when deploying to verify the active function version
+const VERSION = "map-csv-columns@2026-02-03.1";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -83,6 +86,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log(`[${VERSION}] Request received`, {
+      method: req.method,
+      url: req.url,
+      ts: new Date().toISOString(),
+    });
+
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
@@ -92,7 +101,7 @@ serve(async (req) => {
 
     if (!columns || columns.length === 0) {
       return new Response(
-        JSON.stringify({ mappings: [] }),
+        JSON.stringify({ mappings: [], _version: VERSION }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -211,14 +220,14 @@ Consider the sample data to make better decisions.`;
       if (response.status === 429) {
         console.log("Rate limited, falling back to heuristic mapping");
         return new Response(
-          JSON.stringify({ mappings: heuristicMapping(columns, targetType) }),
+          JSON.stringify({ mappings: heuristicMapping(columns, targetType), _version: VERSION }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         console.log("Payment required, falling back to heuristic mapping");
         return new Response(
-          JSON.stringify({ mappings: heuristicMapping(columns, targetType) }),
+          JSON.stringify({ mappings: heuristicMapping(columns, targetType), _version: VERSION }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -231,7 +240,7 @@ Consider the sample data to make better decisions.`;
     if (!toolCall) {
       console.log("No tool call, falling back to heuristic");
       return new Response(
-        JSON.stringify({ mappings: heuristicMapping(columns, targetType) }),
+        JSON.stringify({ mappings: heuristicMapping(columns, targetType), _version: VERSION }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -249,13 +258,13 @@ Consider the sample data to make better decisions.`;
     }
 
     return new Response(
-      JSON.stringify({ mappings }),
+      JSON.stringify({ mappings, _version: VERSION }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Map CSV columns error:", error);
+    console.error(`[${VERSION}] Map CSV columns error:`, error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error", _version: VERSION }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

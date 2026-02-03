@@ -69,6 +69,7 @@ export function DealImportDialog({
   const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [isMapping, setIsMapping] = useState(false);
+  const [mappingVersion, setMappingVersion] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState<{
     imported: number;
@@ -113,6 +114,12 @@ export function DealImportDialog({
           );
 
           if (error) throw error;
+
+          // Helps verify which backend deployment the UI is actually hitting
+          setMappingVersion(mappingResult?._version ?? null);
+          if (mappingResult?._version) {
+            console.log("map-csv-columns version:", mappingResult._version);
+          }
 
           setColumnMappings(
             mappingResult.mappings || columns.map((col) => ({
@@ -310,6 +317,11 @@ export function DealImportDialog({
                       <Badge variant="outline">
                         {getMappedFieldCount()}/{columnMappings.length} mapped
                       </Badge>
+                      {mappingVersion && (
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {mappingVersion}
+                        </Badge>
+                      )}
                       {!hasRequiredField && (
                         <Badge variant="destructive" className="gap-1">
                           <AlertCircle className="h-3 w-3" />
@@ -484,9 +496,9 @@ export function DealImportDialog({
               <div className="text-center">
                 <div className="mb-4">
                   {importResults.imported > 0 ? (
-                    <Check className="h-12 w-12 mx-auto text-green-500" />
+                    <Check className="h-12 w-12 mx-auto text-primary" />
                   ) : (
-                    <AlertCircle className="h-12 w-12 mx-auto text-yellow-500" />
+                    <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground" />
                   )}
                 </div>
                 <p className="font-medium text-lg">
