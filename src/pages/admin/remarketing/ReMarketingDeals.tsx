@@ -970,9 +970,22 @@ const ReMarketingDeals = () => {
           aVal = a.ebitda || 0;
           bVal = b.ebitda || 0;
           break;
-        case "employees":
+        case "linkedinCount":
           aVal = a.linkedin_employee_count || 0;
           bVal = b.linkedin_employee_count || 0;
+          break;
+        case "linkedinRange":
+          const parseRangeA = (r: string | null) => {
+            if (!r) return 0;
+            const match = r.match(/^(\d+)/);
+            return match ? parseInt(match[1], 10) : 0;
+          };
+          aVal = parseRangeA(a.linkedin_employee_range);
+          bVal = parseRangeA(b.linkedin_employee_range);
+          break;
+        case "googleReviews":
+          aVal = a.google_review_count || 0;
+          bVal = b.google_review_count || 0;
           break;
         case "score":
           aVal = a.deal_total_score ?? 0;
