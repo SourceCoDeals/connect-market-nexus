@@ -241,11 +241,47 @@ export const DealCSVImport = ({
             } else if (arrayFields.includes(mapping.targetField)) {
               // Parse as array
               listingData[mapping.targetField] = trimmedValue.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+            } else if (mapping.targetField === "address") {
+              // Full address field - parse out street, city, state, zip
+              listingData.address = trimmedValue;
+              
+              // Try to extract city/state from multi-line or comma-separated address
+              // Format examples:
+              // "23 Westbrook Industrial Park Rd., Westbrook, CT 06498"
+              // "23 Main St\n1961 Foxon Rd, North Branford, CT 06471"
+              const lines = trimmedValue.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
+              const lastLine = lines[lines.length - 1] || trimmedValue;
+              
+              // Try to parse "City, ST ZIP" or "City, ST" pattern from end
+              const cityStateZipMatch = lastLine.match(/([^,]+),\s*([A-Z]{2})\s*(\d{5})?/i);
+              if (cityStateZipMatch) {
+                // Extract just the city (last part before state might be street)
+                const potentialCity = cityStateZipMatch[1].trim();
+                // If city contains street indicators, try to get just the city name
+                const streetIndicators = /\b(rd\.?|road|st\.?|street|ave\.?|avenue|blvd\.?|boulevard|ln\.?|lane|dr\.?|drive|ct\.?|court|pl\.?|place|way|pkwy|park)\b/i;
+                if (!streetIndicators.test(potentialCity)) {
+                  if (!listingData.address_city) {
+                    listingData.address_city = potentialCity;
+                  }
+                }
+                if (!listingData.address_state) {
+                  listingData.address_state = cityStateZipMatch[2].toUpperCase();
+                }
+                if (cityStateZipMatch[3] && !listingData.address_zip) {
+                  listingData.address_zip = cityStateZipMatch[3];
+                }
+              }
             } else if (mapping.targetField === "address_state") {
               // Validate and uppercase state code
               const stateCode = trimmedValue.toUpperCase().trim();
               if (stateCode.length === 2) {
                 listingData.address_state = stateCode;
+              } else {
+                // Try to extract state from longer string (e.g., "Connecticut" or "CT 06498")
+                const stateMatch = trimmedValue.match(/\b([A-Z]{2})\b/i);
+                if (stateMatch) {
+                  listingData.address_state = stateMatch[1].toUpperCase();
+                }
               }
             } else if (mapping.targetField === "address_country") {
               // Default to US if not specified
