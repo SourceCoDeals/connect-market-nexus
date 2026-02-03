@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -109,6 +108,98 @@ interface DealListing {
   manual_rank_override: number | null;
 }
 
+// Column width configuration
+interface ColumnWidths {
+  rank: number;
+  dealName: number;
+  industry: number;
+  location: number;
+  revenue: number;
+  ebitda: number;
+  employees: number;
+  quality: number;
+  margin: number;
+  engagement: number;
+  added: number;
+  actions: number;
+}
+
+const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
+  rank: 60,
+  dealName: 200,
+  industry: 120,
+  location: 100,
+  revenue: 90,
+  ebitda: 90,
+  employees: 80,
+  quality: 80,
+  margin: 70,
+  engagement: 130,
+  added: 90,
+  actions: 50,
+};
+
+// Resizable column header component
+const ResizableHeader = ({
+  children,
+  width,
+  onResize,
+  minWidth = 50,
+  className = "",
+}: {
+  children: React.ReactNode;
+  width: number;
+  onResize: (newWidth: number) => void;
+  minWidth?: number;
+  className?: string;
+}) => {
+  const [isResizing, setIsResizing] = useState(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = width;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - startXRef.current;
+      const newWidth = Math.max(minWidth, startWidthRef.current + diff);
+      onResize(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  return (
+    <th
+      className={cn(
+        "relative h-10 px-3 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 border-b",
+        className
+      )}
+      style={{ width: `${width}px`, minWidth: `${minWidth}px` }}
+    >
+      <div className="flex items-center h-full">{children}</div>
+      <div
+        className={cn(
+          "absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors",
+          isResizing && "bg-primary"
+        )}
+        onMouseDown={handleMouseDown}
+      />
+    </th>
+  );
+};
+
 // Sortable table row component
 const SortableTableRow = ({
   listing,
@@ -120,6 +211,7 @@ const SortableTableRow = ({
   getEffectiveWebsite,
   formatGeographyBadges,
   getScoreTrendIcon,
+  columnWidths,
 }: {
   listing: DealListing;
   index: number;
@@ -130,6 +222,7 @@ const SortableTableRow = ({
   getEffectiveWebsite: (listing: any) => string | null;
   formatGeographyBadges: (states: string[] | null) => string | null;
   getScoreTrendIcon: (score: number) => JSX.Element;
+  columnWidths: ColumnWidths;
 }) => {
   const {
     attributes,
@@ -165,7 +258,7 @@ const SortableTableRow = ({
       onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
     >
       {/* Drag Handle + Rank */}
-      <TableCell className="w-[60px]">
+      <TableCell style={{ width: columnWidths.rank, minWidth: 50 }}>
         <div className="flex items-center gap-1">
           <button
             {...attributes}
@@ -182,7 +275,7 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Deal Name */}
-      <TableCell>
+      <TableCell style={{ width: columnWidths.dealName, minWidth: 100 }}>
         <div>
           <p className="font-medium text-foreground flex items-center gap-1.5">
             {displayName}
@@ -209,7 +302,7 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Industry */}
-      <TableCell>
+      <TableCell style={{ width: columnWidths.industry, minWidth: 60 }}>
         {listing.category ? (
           <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
             {listing.category.length > 18 ? listing.category.substring(0, 18) + '...' : listing.category}
@@ -220,7 +313,7 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Location */}
-      <TableCell>
+      <TableCell style={{ width: columnWidths.location, minWidth: 60 }}>
         {geographyDisplay ? (
           <span className="text-sm">{geographyDisplay}</span>
         ) : listing.location ? (
@@ -233,17 +326,17 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Revenue */}
-      <TableCell className="text-right font-medium">
+      <TableCell className="text-right font-medium" style={{ width: columnWidths.revenue, minWidth: 60 }}>
         {formatCurrency(listing.revenue)}
       </TableCell>
 
       {/* EBITDA */}
-      <TableCell className="text-right font-medium">
+      <TableCell className="text-right font-medium" style={{ width: columnWidths.ebitda, minWidth: 60 }}>
         {formatCurrency(listing.ebitda)}
       </TableCell>
 
       {/* Employees */}
-      <TableCell className="text-right">
+      <TableCell className="text-right" style={{ width: columnWidths.employees, minWidth: 50 }}>
         {listing.full_time_employees ? (
           <span className="text-sm">{listing.full_time_employees}</span>
         ) : (
@@ -252,7 +345,7 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Deal Quality Score */}
-      <TableCell className="text-center">
+      <TableCell className="text-center" style={{ width: columnWidths.quality, minWidth: 50 }}>
         {qualityScore !== null ? (
           <div className="flex items-center justify-center gap-1.5">
             <span className={cn(
@@ -271,7 +364,7 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Margin */}
-      <TableCell className="text-right">
+      <TableCell className="text-right" style={{ width: columnWidths.margin, minWidth: 50 }}>
         {listing.ebitda && listing.revenue ? (
           <span className="text-sm">{Math.round((listing.ebitda / listing.revenue) * 100)}%</span>
         ) : (
@@ -280,7 +373,7 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Engagement */}
-      <TableCell>
+      <TableCell style={{ width: columnWidths.engagement, minWidth: 80 }}>
         <div className="flex items-center justify-center gap-3 text-sm">
           <div className="flex items-center gap-1 text-muted-foreground">
             <Users className="h-3.5 w-3.5" />
@@ -298,12 +391,12 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Added date */}
-      <TableCell className="text-muted-foreground text-sm">
+      <TableCell className="text-muted-foreground text-sm" style={{ width: columnWidths.added, minWidth: 60 }}>
         {format(new Date(listing.created_at), 'dd/MM/yyyy')}
       </TableCell>
 
       {/* Actions */}
-      <TableCell>
+      <TableCell style={{ width: columnWidths.actions, minWidth: 40 }}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -366,8 +459,16 @@ const ReMarketingDeals = () => {
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
   
+  // Column widths state for resizable columns
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_COLUMN_WIDTHS);
+  
   // Ref to always have access to current listings (prevents stale closure bug)
   const sortedListingsRef = useRef<DealListing[]>([]);
+  
+  // Handle column resize
+  const handleColumnResize = useCallback((column: keyof ColumnWidths, newWidth: number) => {
+    setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
+  }, []);
 
   // DnD sensors
   const sensors = useSensors(
@@ -1058,43 +1159,45 @@ const ReMarketingDeals = () => {
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[60px]">
+              <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <ResizableHeader width={columnWidths.rank} onResize={(w) => handleColumnResize('rank', w)} minWidth={50}>
                       <SortableHeader column="rank" label="#" />
-                    </TableHead>
-                    <TableHead className="w-[220px]">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.dealName} onResize={(w) => handleColumnResize('dealName', w)} minWidth={100}>
                       <SortableHeader column="deal_name" label="Deal Name" />
-                    </TableHead>
-                    <TableHead className="w-[130px]">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.industry} onResize={(w) => handleColumnResize('industry', w)} minWidth={60}>
                       <SortableHeader column="industry" label="Industry" />
-                    </TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead className="text-right">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.location} onResize={(w) => handleColumnResize('location', w)} minWidth={60}>
+                      <span className="text-muted-foreground font-medium">Location</span>
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.revenue} onResize={(w) => handleColumnResize('revenue', w)} minWidth={60} className="text-right">
                       <SortableHeader column="revenue" label="Revenue" className="ml-auto" />
-                    </TableHead>
-                    <TableHead className="text-right">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.ebitda} onResize={(w) => handleColumnResize('ebitda', w)} minWidth={60} className="text-right">
                       <SortableHeader column="ebitda" label="EBITDA" className="ml-auto" />
-                    </TableHead>
-                    <TableHead className="text-right">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.employees} onResize={(w) => handleColumnResize('employees', w)} minWidth={50} className="text-right">
                       <SortableHeader column="employees" label="Employees" className="ml-auto" />
-                    </TableHead>
-                    <TableHead className="text-center">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.quality} onResize={(w) => handleColumnResize('quality', w)} minWidth={50} className="text-center">
                       <SortableHeader column="score" label="Quality" className="mx-auto" />
-                    </TableHead>
-                    <TableHead className="text-right">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.margin} onResize={(w) => handleColumnResize('margin', w)} minWidth={50} className="text-right">
                       <SortableHeader column="margin" label="Margin" className="ml-auto" />
-                    </TableHead>
-                    <TableHead className="text-center">
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.engagement} onResize={(w) => handleColumnResize('engagement', w)} minWidth={80} className="text-center">
                       <SortableHeader column="engagement" label="Engagement" className="mx-auto" />
-                    </TableHead>
-                    <TableHead>
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.added} onResize={(w) => handleColumnResize('added', w)} minWidth={60}>
                       <SortableHeader column="added" label="Added" />
-                    </TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
+                    </ResizableHeader>
+                    <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: columnWidths.actions, minWidth: 40 }}></th>
+                  </tr>
+                </thead>
                 <TableBody>
                   {listingsLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
@@ -1107,6 +1210,7 @@ const ReMarketingDeals = () => {
                         <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                         <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-14" /></TableCell>
                         <TableCell><Skeleton className="h-8 w-8" /></TableCell>
@@ -1137,6 +1241,7 @@ const ReMarketingDeals = () => {
                           getEffectiveWebsite={getEffectiveWebsite}
                           formatGeographyBadges={formatGeographyBadges}
                           getScoreTrendIcon={getScoreTrendIcon}
+                          columnWidths={columnWidths}
                         />
                       ))}
                     </SortableContext>
