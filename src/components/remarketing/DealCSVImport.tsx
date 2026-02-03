@@ -85,7 +85,11 @@ export const DealCSVImport = ({
         setCsvData(data);
 
         // Get column names
-        const columns = Object.keys(data[0] || {});
+        // IMPORTANT: Use PapaParse meta.fields so we don't miss columns that are blank
+        // in the first row (Object.keys(data[0]) can omit them).
+        const columns = (results.meta.fields || [])
+          .map((c) => (c ? normalizeHeader(c) : ""))
+          .filter((c) => c.trim());
         
         // Try AI mapping
         setIsMapping(true);

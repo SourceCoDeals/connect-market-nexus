@@ -92,7 +92,11 @@ export function DealImportDialog({
         setCsvData(data);
 
         // Get column names
-        const columns = Object.keys(data[0] || {}).filter(col => col.trim());
+        // IMPORTANT: Use PapaParse meta.fields so we don't miss columns that are blank
+        // in the first row (Object.keys(data[0]) can omit them).
+        const columns = (results.meta.fields || [])
+          .map((c) => (c ? normalizeHeader(c) : ""))
+          .filter((c) => c.trim());
         
         // Get sample data for context
         const sampleData = data.slice(0, 3);
