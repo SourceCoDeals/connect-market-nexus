@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -180,7 +180,7 @@ const SortableTableRow = ({
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
           <span className="font-medium text-muted-foreground w-5 text-center">
-            {listing.manual_rank_override ?? index + 1}
+            {index + 1}
           </span>
         </div>
       </TableCell>
@@ -376,6 +376,12 @@ const ReMarketingDeals = () => {
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
+  
+  // Local order state for optimistic UI updates during drag-and-drop
+  const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
+  
+  // Ref to always have access to current listings (prevents stale closure bug)
+  const sortedListingsRef = useRef<DealListing[]>([]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -738,28 +744,46 @@ const ReMarketingDeals = () => {
     });
   }, [filteredListings, sortColumn, sortDirection, scoreStats]);
 
-  // Handle drag end - update ranks
+  // Keep ref and local order in sync with sortedListings
+  useEffect(() => {
+    sortedListingsRef.current = sortedListings;
+    setLocalOrder(sortedListings);
+  }, [sortedListings]);
+
+  // Handle drag end - update ranks with proper sequential numbering
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over || active.id === over.id) return;
 
-    const oldIndex = sortedListings.findIndex((l) => l.id === active.id);
-    const newIndex = sortedListings.findIndex((l) => l.id === over.id);
+    // Use ref to get current listings (prevents stale closure bug)
+    const currentListings = sortedListingsRef.current;
+    const oldIndex = currentListings.findIndex((l) => l.id === active.id);
+    const newIndex = currentListings.findIndex((l) => l.id === over.id);
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Calculate new ranks for affected items
-    const reordered = arrayMove(sortedListings, oldIndex, newIndex);
+    // Reorder the array
+    const reordered = arrayMove(currentListings, oldIndex, newIndex);
     
-    // Update ranks in database
-    const updates = reordered.slice(0, Math.max(oldIndex, newIndex) + 1).map((listing, idx) => ({
-      id: listing.id,
+    // Assign sequential ranks to ALL items (1, 2, 3, 4, ...)
+    const updatedListings = reordered.map((listing, idx) => ({
+      ...listing,
       manual_rank_override: idx + 1,
     }));
 
+    // Optimistically update UI immediately
+    setLocalOrder(updatedListings);
+    sortedListingsRef.current = updatedListings;
+
+    // Persist ALL ranks to database
+    const updates = updatedListings.map((listing) => ({
+      id: listing.id,
+      manual_rank_override: listing.manual_rank_override,
+    }));
+
     try {
-      // Batch update ranks
+      // Batch update all ranks
       for (const update of updates) {
         await supabase
           .from('listings')
@@ -767,7 +791,6 @@ const ReMarketingDeals = () => {
           .eq('id', update.id);
       }
 
-      // Optimistically update the cache
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       
       toast({ 
@@ -776,12 +799,15 @@ const ReMarketingDeals = () => {
       });
     } catch (error) {
       console.error('Failed to update rank:', error);
+      // Revert on failure
+      setLocalOrder(currentListings);
+      sortedListingsRef.current = currentListings;
       toast({ 
         title: "Failed to update rank", 
         variant: "destructive" 
       });
     }
-  }, [sortedListings, queryClient, toast]);
+  }, [queryClient, toast]);
 
   // Calculate KPI stats
   const kpiStats = useMemo(() => {
@@ -1123,7 +1149,7 @@ const ReMarketingDeals = () => {
                         <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                       </TableRow>
                     ))
-                  ) : sortedListings.length === 0 ? (
+                  ) : localOrder.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -1133,10 +1159,10 @@ const ReMarketingDeals = () => {
                     </TableRow>
                   ) : (
                     <SortableContext
-                      items={sortedListings.map(l => l.id)}
+                      items={localOrder.map(l => l.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      {sortedListings.map((listing, index) => (
+                      {localOrder.map((listing, index) => (
                         <SortableTableRow
                           key={listing.id}
                           listing={listing}
