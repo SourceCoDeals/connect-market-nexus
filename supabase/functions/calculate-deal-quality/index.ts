@@ -128,20 +128,19 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     }
   } else if (employeeCount > 0) {
     // PROXY PATH: Estimate size from employee count when no financials
-    // Industry average: ~$150K-250K revenue per employee for services
-    // Conservative estimate for scoring purposes
+    // Industry average: ~$300K-500K revenue per employee for services
     notes.push('Size estimated from employee count (no financials)');
 
     if (employeeCount >= 100) {
-      sizeScore += 20; // Likely $15M+ revenue
+      sizeScore += 20; // Likely $30M+ revenue
     } else if (employeeCount >= 50) {
-      sizeScore += 15; // Likely $7-15M revenue
+      sizeScore += 15; // Likely $15-30M revenue
     } else if (employeeCount >= 25) {
-      sizeScore += 10; // Likely $3-7M revenue
+      sizeScore += 10; // Likely $7-15M revenue
     } else if (employeeCount >= 10) {
-      sizeScore += 6;  // Likely $1.5-3M revenue
+      sizeScore += 6;  // Likely $3-6M revenue
     } else if (employeeCount >= 5) {
-      sizeScore += 3;  // Likely $750K-1.5M revenue
+      sizeScore += 3;  // Likely $1.5-3M revenue
     } else {
       sizeScore += 1;  // Small business
     }
@@ -149,16 +148,38 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     notes.push('No financials or employee data - size cannot be scored');
   }
 
-  // ===== REVIEWS & RATINGS AS QUALITY INDICATORS =====
-  // These add bonus points regardless of whether we have financials
+  // ===== REVIEWS AS QUALITY INDICATOR (Consumer/Residential businesses only) =====
+  // Only apply review scoring for consumer-facing businesses, not B2B
   const reviewCount = deal.google_review_count || deal.review_count || 0;
-  const rating = deal.google_rating || deal.avg_rating || 0;
+  const category = (deal.category || '').toLowerCase();
+  const description = (deal.description || deal.executive_summary || '').toLowerCase();
+  const title = (deal.title || '').toLowerCase();
 
-  if (reviewCount > 0 || rating > 0) {
-    // Review count indicates established business presence
+  // Identify if this is a consumer/residential business vs B2B
+  const consumerKeywords = [
+    'residential', 'home', 'hvac', 'plumbing', 'roofing', 'landscaping',
+    'pest', 'cleaning', 'restoration', 'moving', 'storage', 'automotive',
+    'collision', 'auto body', 'dental', 'veterinary', 'medical', 'healthcare',
+    'fitness', 'salon', 'spa', 'restaurant', 'retail', 'consumer'
+  ];
+  const b2bKeywords = [
+    'commercial', 'industrial', 'manufacturing', 'b2b', 'enterprise',
+    'consulting', 'staffing', 'wholesale', 'distribution', 'logistics',
+    'professional services', 'software', 'saas', 'technology'
+  ];
+
+  const isConsumerBusiness = consumerKeywords.some(kw =>
+    category.includes(kw) || description.includes(kw) || title.includes(kw)
+  );
+  const isB2B = b2bKeywords.some(kw =>
+    category.includes(kw) || description.includes(kw) || title.includes(kw)
+  );
+
+  // Only apply review scoring for consumer businesses (not B2B)
+  if (reviewCount > 0 && isConsumerBusiness && !isB2B) {
     if (reviewCount >= 500) {
       qualityScore += 8;
-      notes.push(`Strong review presence: ${reviewCount} reviews`);
+      notes.push(`Strong consumer presence: ${reviewCount} reviews`);
     } else if (reviewCount >= 200) {
       qualityScore += 6;
     } else if (reviewCount >= 100) {
@@ -168,19 +189,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     } else if (reviewCount > 0) {
       qualityScore += 1;
     }
-
-    // High ratings indicate quality service
-    if (rating >= 4.8) {
-      qualityScore += 5;
-      notes.push(`Excellent rating: ${rating}/5`);
-    } else if (rating >= 4.5) {
-      qualityScore += 4;
-    } else if (rating >= 4.0) {
-      qualityScore += 2;
-    } else if (rating >= 3.5) {
-      qualityScore += 1;
-    }
-    // Below 3.5 rating = no bonus (could even be negative)
   }
 
   // ===== BUSINESS QUALITY (0-25 pts) =====
