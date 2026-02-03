@@ -61,6 +61,7 @@ export { ReMarketingBadge } from './ReMarketingBadge';
 // Import Components
 export { default as BuyerCSVImport } from './BuyerCSVImport';
 export { ImportValidationPanel } from './ImportValidationPanel';
+export { DealImportDialog } from './DealImportDialog';
 export type { DealIdMapping } from './DealMergePanel';
 
 // Transcript Components
@@ -88,6 +89,7 @@ export { ScoringInsightsSidebar } from './ScoringInsightsSidebar';
 // Bulk Actions & Progress
 export { BulkActionsToolbar } from './BulkActionsToolbar';
 export { ScoringProgressIndicator } from './ScoringProgressIndicator';
+export { EnrichmentProgressIndicator } from './EnrichmentProgressIndicator';
 
 // Email Generation
 export { EmailPreviewDialog } from './EmailPreviewDialog';

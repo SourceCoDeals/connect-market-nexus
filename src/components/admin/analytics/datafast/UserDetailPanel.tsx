@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, MapPin, Monitor, Smartphone, Chrome, Globe, Clock, Eye, Link2, Calendar, ExternalLink, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { X, MapPin, Monitor, Smartphone, Chrome, Globe, Clock, Eye, Link2, Calendar, ExternalLink, Search, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useUserDetail, type UserDetailData, type UserEvent } from "@/hooks/useUserDetail";
 import { ActivityCalendar } from "./ActivityDots";
+import { DiscoveryJourneyPath } from "./DiscoveryJourneyPath";
 import { format, formatDistanceToNow, differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -58,10 +59,31 @@ function formatTimeToConvert(firstSeen: string, converted?: string): string {
 
 function getFavicon(url: string): string {
   try {
+    // Handle both full URLs and simple domains (e.g., "chatgpt.com")
+    if (!url.includes('://')) {
+      // Simple domain - extract it directly
+      const domain = url.replace('www.', '').split('/')[0];
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    }
     const domain = new URL(url).hostname.replace('www.', '');
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
   } catch {
     return '';
+  }
+}
+
+// Safely extract hostname from a URL or domain string
+function safeGetHostname(urlOrDomain: string): string {
+  if (!urlOrDomain) return '';
+  try {
+    // Handle simple domains like "chatgpt.com" (no protocol)
+    if (!urlOrDomain.includes('://')) {
+      return urlOrDomain.replace('www.', '').split('/')[0];
+    }
+    return new URL(urlOrDomain).hostname.replace('www.', '');
+  } catch {
+    // Fallback: return the original value cleaned up
+    return urlOrDomain.replace('www.', '').split('/')[0];
   }
 }
 
@@ -258,7 +280,15 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                         <Badge variant="outline" className="text-[10px]">{data.source.channel}</Badge>
                       </div>
                       
-                      {data.source.referrer && (
+                      {/* Cross-domain discovery journey visualization */}
+                      <DiscoveryJourneyPath
+                        originalExternalReferrer={data.source.originalExternalReferrer}
+                        blogLandingPage={data.source.blogLandingPage}
+                        landingPage={data.source.landingPage}
+                      />
+                      
+                      {/* Show simple referrer if no cross-domain journey */}
+                      {!data.source.originalExternalReferrer && data.source.referrer && (
                         <div>
                           <span className="text-xs text-muted-foreground block mb-1">Referrer</span>
                           <TooltipProvider>
@@ -277,7 +307,7 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                                     rel="noopener noreferrer"
                                     className="text-xs text-blue-600 hover:underline truncate flex-1"
                                   >
-                                    {data.source.referrer}
+                                    {safeGetHostname(data.source.referrer)}
                                   </a>
                                   <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                                 </div>
@@ -290,7 +320,15 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                         </div>
                       )}
                       
-                      {data.source.landingPage && (
+                      {/* Show blog landing page separately if we have original external referrer but component didn't render */}
+                      {data.source.originalExternalReferrer && data.source.blogLandingPage && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Blog Entry</span>
+                          <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{data.source.blogLandingPage}</code>
+                        </div>
+                      )}
+                      
+                      {data.source.landingPage && !data.source.originalExternalReferrer && (
                         <div>
                           <span className="text-xs text-muted-foreground block mb-1">Landing Page</span>
                           <code className="text-xs bg-muted px-2 py-1 rounded block truncate">
@@ -448,7 +486,7 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                               <span className="text-sm text-[hsl(145_60%_35%)] font-medium truncate">
-                                {new URL(data.source.referrer).hostname.replace('www.', '')}
+                                {safeGetHostname(data.source.referrer)}
                               </span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">

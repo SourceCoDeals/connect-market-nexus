@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { cn } from '@/lib/utils';
 import { countryCodeToFlag } from '@/lib/flagEmoji';
 import type { EnhancedActiveUser, EnhancedRealTimeData } from '@/hooks/useEnhancedRealTimeAnalytics';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { MapboxFloatingPanel } from './MapboxFloatingPanel';
 import { MapboxTooltipCard } from './MapboxTooltipCard';
 import { LiveActivityFeed } from './LiveActivityFeed';
@@ -44,39 +45,11 @@ export function MapboxGlobeMap({
   const [selectedUser, setSelectedUser] = useState<EnhancedActiveUser | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
-  const [tokenLoading, setTokenLoading] = useState(true);
   const spinEnabledRef = useRef(true);
   const userInteractingRef = useRef(false);
 
-  // Fetch Mapbox token from edge function
-  useEffect(() => {
-    async function fetchToken() {
-      try {
-        const response = await fetch(
-          'https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/get-mapbox-token',
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.token) {
-            setMapboxToken(data.token);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch Mapbox token:', error);
-      } finally {
-        setTokenLoading(false);
-      }
-    }
-    
-    fetchToken();
-  }, []);
+  // Use cached Mapbox token hook
+  const { token: mapboxToken, isLoading: tokenLoading } = useMapboxToken();
 
   // Calculate buyer breakdown (real M&A data)
   const buyerBreakdown: BuyerBreakdown = {

@@ -34,6 +34,17 @@ import {
 import { toast } from "sonner";
 import Papa from "papaparse";
 
+// Import from unified import engine
+import {
+  type ColumnMapping,
+  type MergeStats,
+  DEAL_IMPORT_FIELDS,
+  normalizeHeader,
+  processRow,
+  mergeColumnMappings,
+  sanitizeListingInsert,
+} from "@/lib/deal-csv-import";
+
 export interface DealCSVImportProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -41,31 +52,6 @@ export interface DealCSVImportProps {
   universeName?: string;
   onImportComplete?: () => void;
 }
-
-interface ColumnMapping {
-  csvColumn: string;
-  targetField: string | null;
-  confidence: number;
-  aiSuggested: boolean;
-}
-
-const DEAL_FIELDS = [
-  { value: "title", label: "Company Name" },
-  { value: "website", label: "Website" },
-  { value: "location", label: "Location (Marketplace)" },
-  { value: "revenue", label: "Revenue" },
-  { value: "ebitda", label: "EBITDA" },
-  { value: "description", label: "Description" },
-  { value: "geographic_states", label: "States" },
-  { value: "services", label: "Services" },
-  { value: "notes", label: "Notes" },
-  // Structured address fields
-  { value: "street_address", label: "Street Address" },
-  { value: "address_city", label: "City" },
-  { value: "address_state", label: "State (2-letter)" },
-  { value: "address_zip", label: "ZIP Code" },
-  { value: "address_country", label: "Country" },
-];
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
 
@@ -79,8 +65,10 @@ export const DealCSVImport = ({
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
+  const [mappingStats, setMappingStats] = useState<MergeStats | null>(null);
   const [isMapping, setIsMapping] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [columnFilter, setColumnFilter] = useState("");
   const [importResults, setImportResults] = useState<{
     imported: number;
     errors: string[];
@@ -95,12 +83,21 @@ export const DealCSVImport = ({
     Papa.parse(uploadedFile, {
       header: true,
       skipEmptyLines: true,
+      // Normalize headers (strip BOM + trim) so mapping + row access works reliably
+      transformHeader: (header) => header.replace(/^\uFEFF/, "").trim(),
       complete: async (results) => {
         const data = results.data as Record<string, string>[];
         setCsvData(data);
 
         // Get column names
-        const columns = Object.keys(data[0] || {});
+        // IMPORTANT: Use PapaParse meta.fields so we don't miss columns that are blank
+        // in the first row (Object.keys(data[0]) can omit them).
+        const columns = (results.meta.fields || [])
+          .map((c) => (c ? normalizeHeader(c) : ""))
+          .filter((c) => c.trim());
+        
+        // Log parsed columns for debugging
+        console.log(`[DealCSVImport] Parsed ${columns.length} columns:`, columns);
         
         // Try AI mapping
         setIsMapping(true);
@@ -108,31 +105,27 @@ export const DealCSVImport = ({
           const { data: mappingResult, error } = await supabase.functions.invoke(
             "map-csv-columns",
             {
-              body: { columns, targetType: "deal" },
+              // Pass a few sample rows to improve mapping quality (disambiguates similar headers)
+              body: { columns, targetType: "deal", sampleData: data.slice(0, 3) },
             }
           );
 
           if (error) throw error;
 
-          setColumnMappings(
-            mappingResult.mappings || columns.map((col) => ({
-              csvColumn: col,
-              targetField: null,
-              confidence: 0,
-              aiSuggested: false,
-            }))
-          );
+          // CRITICAL: Merge AI mappings with full column list
+          // This ensures all parsed columns are visible even if AI returns partial list
+          const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
+          
+          console.log(`[DealCSVImport] Merge stats: AI returned ${stats.aiReturnedCount}, filled ${stats.filledCount}`);
+          
+          setColumnMappings(merged);
+          setMappingStats(stats);
         } catch (error) {
           console.error("AI mapping failed:", error);
-          // Fallback to manual mapping
-          setColumnMappings(
-            columns.map((col) => ({
-              csvColumn: col,
-              targetField: null,
-              confidence: 0,
-              aiSuggested: false,
-            }))
-          );
+          // Fallback to empty mapping - still use merge to ensure all columns present
+          const [merged, stats] = mergeColumnMappings(columns, []);
+          setColumnMappings(merged);
+          setMappingStats(stats);
         } finally {
           setIsMapping(false);
           setStep("mapping");
@@ -164,29 +157,9 @@ export const DealCSVImport = ({
         setImportProgress(Math.round(((i + 1) / csvData.length) * 100));
 
         try {
-          // Build listing object from mappings with proper typing
-          const listingData: {
-            title?: string;
-            website?: string;
-            location?: string;
-            revenue?: number;
-            ebitda?: number;
-            description?: string;
-            geographic_states?: string[];
-            services?: string[];
-            general_notes?: string;
-            is_active: boolean;
-            created_by?: string;
-            category: string;
-            // Structured address
-            street_address?: string;
-            address_city?: string;
-            address_state?: string;
-            address_zip?: string;
-            address_country?: string;
-          } = {
-            is_active: true,
-            created_by: user?.id,
+          // Build listing object dynamically - use Record to support all mapped fields
+          const listingData: Record<string, unknown> = {
+            status: "active",
             category: "Other",
             // Required field defaults
             description: "",
@@ -195,34 +168,107 @@ export const DealCSVImport = ({
             location: "Unknown",
           };
 
+          // Numeric fields that need parsing
+          const numericFields = ["revenue", "ebitda", "full_time_employees", "number_of_locations", "google_review_count", "google_rating"];
+          // Array fields that need splitting
+          const arrayFields = ["geographic_states", "services"];
+
           columnMappings.forEach((mapping) => {
-            if (mapping.targetField && row[mapping.csvColumn]) {
-              const value = row[mapping.csvColumn].trim();
-              
-              if (mapping.targetField === "revenue" || mapping.targetField === "ebitda") {
-                // Parse currency values
-                const numValue = parseFloat(value.replace(/[$,]/g, ""));
-                if (!isNaN(numValue)) {
-                  (listingData as Record<string, unknown>)[mapping.targetField] = numValue;
-                }
-              } else if (mapping.targetField === "geographic_states" || mapping.targetField === "services") {
-                // Parse as array
-                (listingData as Record<string, unknown>)[mapping.targetField] = value.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
-              } else if (mapping.targetField === "notes") {
-                listingData.general_notes = value;
-              } else if (mapping.targetField === "address_state") {
-                // Validate and uppercase state code
-                const stateCode = value.toUpperCase().trim();
-                if (stateCode.length === 2) {
-                  listingData.address_state = stateCode;
-                }
-              } else if (mapping.targetField === "address_country") {
-                // Default to US if not specified
-                const country = value.toUpperCase().trim();
-                listingData.address_country = country === "CA" || country === "CANADA" ? "CA" : "US";
-              } else {
-                (listingData as Record<string, unknown>)[mapping.targetField] = value;
+            if (!mapping.targetField) return;
+            
+            // Get the value - handle potential whitespace in column names
+            const csvColumn = mapping.csvColumn;
+            let value = row[csvColumn];
+            
+            // If direct access fails, try finding by trimmed key
+            if (value === undefined) {
+              const rowKeys = Object.keys(row);
+              const matchingKey = rowKeys.find(k => k.trim() === csvColumn.trim());
+              if (matchingKey) {
+                value = row[matchingKey];
               }
+            }
+            
+            if (!value || typeof value !== 'string') return;
+            
+            const trimmedValue = value.trim();
+            if (!trimmedValue) return;
+            
+            console.log(`Mapping: ${csvColumn} -> ${mapping.targetField} = "${trimmedValue}"`);
+            
+            if (numericFields.includes(mapping.targetField)) {
+              // Parse numeric values (remove $, commas, M/K suffixes, etc.)
+              let numStr = trimmedValue.replace(/[$,]/g, "");
+              let multiplier = 1;
+              if (numStr.toUpperCase().endsWith('M')) {
+                multiplier = 1000000;
+                numStr = numStr.slice(0, -1);
+              } else if (numStr.toUpperCase().endsWith('K')) {
+                multiplier = 1000;
+                numStr = numStr.slice(0, -1);
+              }
+              const numValue = parseFloat(numStr) * multiplier;
+              if (!isNaN(numValue)) {
+                listingData[mapping.targetField] = numValue;
+              }
+            } else if (arrayFields.includes(mapping.targetField)) {
+              // Parse as array
+              listingData[mapping.targetField] = trimmedValue.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+            } else if (mapping.targetField === "address") {
+              // Full address field - parse out street, city, state, zip
+              listingData.address = trimmedValue;
+              
+              // Try to extract city/state from multi-line or comma-separated address
+              // Format examples:
+              // "23 Westbrook Industrial Park Rd., Westbrook, CT 06498"
+              // "23 Main St\n1961 Foxon Rd, North Branford, CT 06471"
+              const lines = trimmedValue.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
+              const lastLine = lines[lines.length - 1] || trimmedValue;
+              
+              // Try to parse "City, ST ZIP" or "City, ST" pattern from end
+              const cityStateZipMatch = lastLine.match(/([^,]+),\s*([A-Z]{2})\s*(\d{5})?/i);
+              if (cityStateZipMatch) {
+                // Extract just the city (last part before state might be street)
+                const potentialCity = cityStateZipMatch[1].trim();
+                // If city contains street indicators, try to get just the city name
+                const streetIndicators = /\b(rd\.?|road|st\.?|street|ave\.?|avenue|blvd\.?|boulevard|ln\.?|lane|dr\.?|drive|ct\.?|court|pl\.?|place|way|pkwy|park)\b/i;
+                if (!streetIndicators.test(potentialCity)) {
+                  if (!listingData.address_city) {
+                    listingData.address_city = potentialCity;
+                  }
+                }
+                if (!listingData.address_state) {
+                  listingData.address_state = cityStateZipMatch[2].toUpperCase();
+                }
+                if (cityStateZipMatch[3] && !listingData.address_zip) {
+                  listingData.address_zip = cityStateZipMatch[3];
+                }
+              }
+            } else if (mapping.targetField === "address_state") {
+              // Validate and uppercase state code
+              const stateCode = trimmedValue.toUpperCase().trim();
+              if (stateCode.length === 2) {
+                listingData.address_state = stateCode;
+              } else {
+                // Try to extract state from longer string (e.g., "Connecticut" or "CT 06498")
+                const stateMatch = trimmedValue.match(/\b([A-Z]{2})\b/i);
+                if (stateMatch) {
+                  listingData.address_state = stateMatch[1].toUpperCase();
+                }
+              }
+            } else if (mapping.targetField === "address_country") {
+              // Default to US if not specified
+              const country = trimmedValue.toUpperCase().trim();
+              listingData.address_country = country === "CA" || country === "CANADA" ? "CA" : "US";
+            } else if (mapping.targetField === "last_contacted_at") {
+              // Parse date
+              const date = new Date(trimmedValue);
+              if (!isNaN(date.getTime())) {
+                listingData.last_contacted_at = date.toISOString();
+              }
+            } else {
+              // String fields - direct assignment
+              listingData[mapping.targetField] = trimmedValue;
             }
           });
 
@@ -231,38 +277,35 @@ export const DealCSVImport = ({
             listingData.address_country = "US";
           }
 
-          // Construct location from city/state if not provided
-          if (listingData.location === "Unknown") {
-            if (listingData.address_city && listingData.address_state) {
-              listingData.location = `${listingData.address_city}, ${listingData.address_state}`;
-            } else if (listingData.address_city) {
-              listingData.location = listingData.address_city;
-            } else if (listingData.address_state) {
-              listingData.location = listingData.address_state;
-            }
-          }
-
-          // Set description default to title if not provided
-          if (!listingData.description && listingData.title) {
-            listingData.description = listingData.title;
-          }
+          // Log what we're about to insert for debugging
+          console.log(`Row ${i + 1} listingData:`, JSON.stringify(listingData, null, 2));
 
           // Must have a title
           if (!listingData.title) {
-            results.errors.push(`Row ${i + 1}: Missing company name`);
+            results.errors.push(`Row ${i + 1}: Missing company name (check CSV column mapping)`);
             continue;
           }
 
-          // Must have a website for AI enrichment
+          // Website is optional - deals without website won't get AI enrichment
           if (!listingData.website) {
-            results.errors.push(`Row ${i + 1}: Missing website (required for AI enrichment)`);
-            continue;
+            console.log(`Row ${i + 1}: No website - deal will be imported but won't receive AI enrichment`);
           }
+
+          // listings.location is NOT NULL in schema; set a safe default.
+          // Prefer structured internal city/state; fall back to other known fields.
+          if (!listingData.location) {
+            const city = typeof listingData.address_city === 'string' ? listingData.address_city : '';
+            const state = typeof listingData.address_state === 'string' ? listingData.address_state : '';
+            const computedLocation = city && state ? `${city}, ${state}` : state || city || 'Unknown';
+            listingData.location = computedLocation;
+          }
+
+          const sanitized = sanitizeListingInsert(listingData);
 
           // Create listing - use any to bypass strict typing
           const { data: listing, error: listingError } = await supabase
             .from("listings")
-            .insert(listingData as never)
+            .insert(sanitized as never)
             .select("id")
             .single();
 
@@ -329,12 +372,19 @@ export const DealCSVImport = ({
     setFile(null);
     setCsvData([]);
     setColumnMappings([]);
+    setMappingStats(null);
     setImportProgress(0);
     setImportResults(null);
   };
 
   const getMappedFieldCount = () =>
     columnMappings.filter((m) => m.targetField).length;
+
+  const filteredColumnMappings = columnMappings.filter((m) => {
+    const q = columnFilter.trim().toLowerCase();
+    if (!q) return true;
+    return m.csvColumn.toLowerCase().includes(q);
+  });
 
   return (
     <div className="space-y-4">
@@ -379,8 +429,23 @@ export const DealCSVImport = ({
             ) : (
               <>
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="secondary">{csvData.length} rows</Badge>
+                    {mappingStats && (
+                      <Badge variant="secondary">
+                        Parsed: {mappingStats.parsedCount} cols
+                      </Badge>
+                    )}
+                    {mappingStats && mappingStats.aiReturnedCount > 0 && (
+                      <Badge variant="secondary">
+                        AI: {mappingStats.aiReturnedCount}
+                      </Badge>
+                    )}
+                    {mappingStats && mappingStats.filledCount > 0 && (
+                      <Badge variant="secondary">
+                        Filled: {mappingStats.filledCount}
+                      </Badge>
+                    )}
                     <Badge variant="outline">
                       {getMappedFieldCount()}/{columnMappings.length} mapped
                     </Badge>
@@ -390,7 +455,25 @@ export const DealCSVImport = ({
                   </p>
                 </div>
 
-                <ScrollArea className="flex-1 border rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-1">
+                    <Input
+                      value={columnFilter}
+                      onChange={(e) => setColumnFilter(e.target.value)}
+                      placeholder='Search columns (e.g. "Website", "EBITDA")'
+                    />
+                  </div>
+                  <div className="text-sm text-muted-foreground shrink-0">
+                    Showing {filteredColumnMappings.length} of {columnMappings.length}
+                  </div>
+                  {columnFilter.trim() && (
+                    <Button variant="outline" onClick={() => setColumnFilter("")}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                <ScrollArea className="flex-1 border rounded-lg max-h-[400px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -400,7 +483,7 @@ export const DealCSVImport = ({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {columnMappings.map((mapping) => (
+                      {filteredColumnMappings.map((mapping) => (
                         <TableRow key={mapping.csvColumn}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -431,7 +514,7 @@ export const DealCSVImport = ({
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Don't import</SelectItem>
-                                {DEAL_FIELDS.map((field) => (
+                                {DEAL_IMPORT_FIELDS.map((field) => (
                                   <SelectItem key={field.value} value={field.value}>
                                     {field.label}
                                   </SelectItem>
@@ -469,7 +552,7 @@ export const DealCSVImport = ({
               <p className="font-medium">Ready to import {csvData.length} deals</p>
               <p className="text-sm text-muted-foreground">
                 Mapped fields: {columnMappings.filter((m) => m.targetField).map((m) => 
-                  DEAL_FIELDS.find((f) => f.value === m.targetField)?.label
+                  DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label
                 ).join(", ")}
               </p>
             </div>
@@ -483,7 +566,7 @@ export const DealCSVImport = ({
                       .filter((m) => m.targetField)
                       .map((m) => (
                         <TableHead key={m.csvColumn}>
-                          {DEAL_FIELDS.find((f) => f.value === m.targetField)?.label}
+                          {DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label}
                         </TableHead>
                       ))}
                   </TableRow>
@@ -537,9 +620,9 @@ export const DealCSVImport = ({
         {step === "complete" && importResults && (
           <div className="flex-1 flex flex-col items-center justify-center py-12">
             {importResults.errors.length === 0 ? (
-              <Check className="h-12 w-12 mb-4 text-emerald-500" />
+              <Check className="h-12 w-12 mb-4 text-primary" />
             ) : (
-              <AlertCircle className="h-12 w-12 mb-4 text-amber-500" />
+              <AlertCircle className="h-12 w-12 mb-4 text-destructive" />
             )}
             <p className="font-medium mb-2">
               Imported {importResults.imported} of {csvData.length} deals

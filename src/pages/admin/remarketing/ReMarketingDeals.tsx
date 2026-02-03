@@ -79,9 +79,12 @@ import {
   ArrowUpDown,
   Archive,
   XCircle,
+  Star,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getTierFromScore } from "@/components/remarketing";
+import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator } from "@/components/remarketing";
+import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import {
   DndContext,
   closestCenter,
@@ -121,6 +124,8 @@ interface DealListing {
   full_time_employees: number | null;
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
+  google_review_count: number | null;
+  is_priority_target: boolean | null;
   deal_quality_score: number | null;
   deal_total_score: number | null;
   seller_interest_score: number | null;
@@ -139,7 +144,9 @@ interface ColumnWidths {
   location: number;
   revenue: number;
   ebitda: number;
-  employees: number;
+  linkedinCount: number;
+  linkedinRange: number;
+  googleReviews: number;
   quality: number;
   sellerInterest: number;
   engagement: number;
@@ -155,7 +162,9 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   location: 100,
   revenue: 90,
   ebitda: 90,
-  employees: 100,
+  linkedinCount: 70,
+  linkedinRange: 80,
+  googleReviews: 70,
   quality: 80,
   sellerInterest: 90,
   engagement: 130,
@@ -239,6 +248,7 @@ const SortableTableRow = ({
   isSelected,
   onToggleSelect,
   onArchive,
+  onTogglePriority,
 }: {
   listing: DealListing;
   index: number;
@@ -253,6 +263,7 @@ const SortableTableRow = ({
   isSelected: boolean;
   onToggleSelect: (dealId: string) => void;
   onArchive: (dealId: string, dealName: string) => void;
+  onTogglePriority: (dealId: string, currentStatus: boolean) => void;
 }) => {
   const {
     attributes,
@@ -330,7 +341,8 @@ const SortableTableRow = ({
       style={style}
       className={cn(
         "cursor-pointer hover:bg-muted/50",
-        isDragging && "bg-muted/80 opacity-80 shadow-lg z-50"
+        isDragging && "bg-muted/80 opacity-80 shadow-lg z-50",
+        listing.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
       )}
       onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
     >
@@ -419,12 +431,33 @@ const SortableTableRow = ({
         {formatCurrency(listing.ebitda)}
       </TableCell>
 
-      {/* Employees - LinkedIn data only */}
-      <TableCell className="text-right" style={{ width: columnWidths.employees, minWidth: 50 }}>
-        {listing.linkedin_employee_count || listing.linkedin_employee_range ? (
+      {/* LinkedIn Employee Count */}
+      <TableCell className="text-right" style={{ width: columnWidths.linkedinCount, minWidth: 50 }}>
+        {listing.linkedin_employee_count ? (
           <div className="text-sm flex items-center justify-end gap-1">
-            <span>{listing.linkedin_employee_count?.toLocaleString() || listing.linkedin_employee_range}</span>
+            <span>{listing.linkedin_employee_count.toLocaleString()}</span>
             <span className="text-xs text-blue-500 font-medium">LI</span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      {/* LinkedIn Employee Range */}
+      <TableCell className="text-right" style={{ width: columnWidths.linkedinRange, minWidth: 50 }}>
+        {listing.linkedin_employee_range ? (
+          <span className="text-sm text-muted-foreground">{listing.linkedin_employee_range}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      {/* Google Reviews */}
+      <TableCell className="text-right" style={{ width: columnWidths.googleReviews, minWidth: 50 }}>
+        {listing.google_review_count ? (
+          <div className="text-sm flex items-center justify-end gap-1">
+            <span>{listing.google_review_count.toLocaleString()}</span>
+            <span className="text-xs text-amber-500 font-medium">★</span>
           </div>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -530,6 +563,16 @@ const SortableTableRow = ({
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
+                onTogglePriority(listing.id, listing.is_priority_target || false);
+              }}
+              className={listing.is_priority_target ? "text-amber-600" : ""}
+            >
+              <Star className={cn("h-4 w-4 mr-2", listing.is_priority_target && "fill-amber-500")} />
+              {listing.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
                 onArchive(listing.id, displayName || 'Unknown Deal');
               }}
               className="text-red-600 focus:text-red-600"
@@ -556,11 +599,13 @@ const ReMarketingDeals = () => {
 
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isEnrichingAll, setIsEnrichingAll] = useState(false);
+  
+  // Enrichment progress tracking
+  const enrichmentProgress = useEnrichmentProgress();
   
   // Multi-select and archive state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
@@ -581,8 +626,14 @@ const ReMarketingDeals = () => {
     setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
   }, []);
 
-  // Track which deals have been queued for enrichment to prevent duplicate queue entries
+  // Track which deals have been queued in this session (cleared on component mount)
+  // The database upsert handles true duplicate prevention
   const enrichingDealsRef = useRef<Set<string>>(new Set());
+
+  // Clear the ref when listings change significantly (e.g., page change, filter change)
+  useEffect(() => {
+    enrichingDealsRef.current.clear();
+  }, [sortColumn, sortDirection, statusFilter, universeFilter, search]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -596,68 +647,6 @@ const ReMarketingDeals = () => {
     })
   );
 
-
-  // Handle file import
-  const handleImport = async () => {
-    if (!importFile) {
-      toast({ title: "No file selected", description: "Please select a CSV file to import", variant: "destructive" });
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      const text = await importFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-      const deals = lines.slice(1).map(line => {
-        const values = line.split(',');
-        const deal: Record<string, any> = {};
-        headers.forEach((header, i) => {
-          const value = values[i]?.trim();
-          if (header === 'revenue' || header === 'ebitda' || header === 'employee_count') {
-            deal[header] = value ? parseFloat(value.replace(/[^0-9.-]/g, '')) : null;
-          } else {
-            deal[header] = value || null;
-          }
-        });
-        return deal;
-      });
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke('bulk-import-remarketing', {
-        body: { action: 'validate', data: deals },
-        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
-      });
-
-      if (response.error) throw new Error(response.error.message);
-
-      if (response.data?.valid) {
-        const importResponse = await supabase.functions.invoke('bulk-import-remarketing', {
-          body: { action: 'import', data: deals },
-          headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
-        });
-
-        if (importResponse.error) throw new Error(importResponse.error.message);
-
-        toast({ title: "Import successful", description: `Imported ${importResponse.data?.imported || deals.length} deals` });
-        setShowImportDialog(false);
-        setImportFile(null);
-        refetchListings();
-      } else {
-        toast({
-          title: "Validation failed",
-          description: response.data?.errors?.join(', ') || "Invalid data format",
-          variant: "destructive"
-        });
-      }
-    } catch (error: any) {
-      console.error('Import error:', error);
-      toast({ title: "Import failed", description: error.message, variant: "destructive" });
-    } finally {
-      setIsImporting(false);
-    }
-  };
 
   // Fetch all listings (deals)
   const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = useQuery({
@@ -685,6 +674,8 @@ const ReMarketingDeals = () => {
           full_time_employees,
           linkedin_employee_count,
           linkedin_employee_range,
+          google_review_count,
+          is_priority_target,
           deal_quality_score,
           deal_total_score,
           seller_interest_score,
@@ -729,7 +720,7 @@ const ReMarketingDeals = () => {
 
         const { error } = await supabase
           .from('enrichment_queue')
-          .upsert(queueEntries, { onConflict: 'listing_id', ignoreDuplicates: true });
+          .upsert(queueEntries, { onConflict: 'listing_id' });
 
         if (error) {
           console.error('Failed to queue deals for enrichment:', error);
@@ -1092,6 +1083,35 @@ const ReMarketingDeals = () => {
     refetchListings();
   }, [toast, refetchListings]);
 
+  // Priority target handler
+  const handleTogglePriority = useCallback(async (dealId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    
+    // Optimistic update
+    setLocalOrder(prev => prev.map(deal => 
+      deal.id === dealId ? { ...deal, is_priority_target: newStatus } : deal
+    ));
+    
+    const { error } = await supabase
+      .from('listings')
+      .update({ is_priority_target: newStatus })
+      .eq('id', dealId);
+    
+    if (error) {
+      // Revert on error
+      setLocalOrder(prev => prev.map(deal => 
+        deal.id === dealId ? { ...deal, is_priority_target: currentStatus } : deal
+      ));
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    
+    toast({ 
+      title: newStatus ? "Priority target set" : "Priority removed", 
+      description: newStatus ? "Deal marked as priority target" : "Deal is no longer a priority target" 
+    });
+  }, [toast]);
+
   const handleBulkArchive = useCallback(async () => {
     setIsArchiving(true);
     try {
@@ -1117,25 +1137,39 @@ const ReMarketingDeals = () => {
     }
   }, [selectedDeals, toast, refetchListings]);
 
+  // Calculate scores dialog state
+  const [showCalculateDialog, setShowCalculateDialog] = useState(false);
+  
+  // Enrich dialog state
+  const [showEnrichDialog, setShowEnrichDialog] = useState(false);
+
   // Handle calculate scores - calls edge function for comprehensive scoring
-  const handleCalculateScores = async () => {
+  const handleCalculateScores = async (mode: 'all' | 'unscored') => {
+    setShowCalculateDialog(false);
     setIsCalculating(true);
     try {
-      // Call edge function to calculate scores for all unscored deals
+      // Call edge function to calculate scores
+      // mode 'all' = forceRecalculate (re-enrich and rescore everything)
+      // mode 'unscored' = calculateAll (only score unscored, enrich those without enrichment)
       const { data, error } = await supabase.functions.invoke('calculate-deal-quality', {
-        body: { calculateAll: true }
+        body: mode === 'all' 
+          ? { forceRecalculate: true, triggerEnrichment: true }
+          : { calculateAll: true }
       });
 
       if (error) {
         throw new Error(error.message || 'Failed to calculate scores');
       }
 
-      if (data?.scored === 0) {
+      if (data?.scored === 0 && !data?.enrichmentQueued) {
         toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
       } else {
+        const enrichmentMsg = data?.enrichmentQueued > 0 
+          ? `. Queued ${data.enrichmentQueued} deals for enrichment.`
+          : '';
         toast({
           title: "Scoring complete",
-          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}`
+          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}${enrichmentMsg}`
         });
       }
 
@@ -1145,6 +1179,101 @@ const ReMarketingDeals = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsCalculating(false);
+    }
+  };
+
+  // Handle enrich all deals - queues deals for enrichment
+  const handleEnrichDeals = async (mode: 'all' | 'unenriched') => {
+    setShowEnrichDialog(false);
+    
+    if (!listings || listings.length === 0) {
+      toast({ title: "No deals", description: "No deals available to enrich", variant: "destructive" });
+      return;
+    }
+
+    setIsEnrichingAll(true);
+    try {
+      // Filter based on mode
+      const dealsToEnrich = mode === 'all' 
+        ? listings 
+        : listings.filter(l => !l.enriched_at);
+      
+      if (dealsToEnrich.length === 0) {
+        toast({ title: "All deals enriched", description: "All deals have already been enriched" });
+        setIsEnrichingAll(false);
+        return;
+      }
+      
+      const dealIds = dealsToEnrich.map(l => l.id);
+      
+      // Reset enriched_at for selected deals to force re-enrichment
+      const { error: resetError } = await supabase
+        .from('listings')
+        .update({ enriched_at: null })
+        .in('id', dealIds);
+
+      if (resetError) {
+        console.warn('Failed to reset enriched_at:', resetError);
+      }
+
+      const nowIso = new Date().toISOString();
+
+      // Reset existing queue rows to a clean pending state
+      const { error: resetQueueError } = await supabase
+        .from('enrichment_queue')
+        .update({
+          status: 'pending',
+          attempts: 0,
+          started_at: null,
+          completed_at: null,
+          last_error: null,
+          queued_at: nowIso,
+          updated_at: nowIso,
+        })
+        .in('listing_id', dealIds);
+
+      if (resetQueueError) throw resetQueueError;
+
+      // Insert any missing queue rows
+      const { error: insertMissingError } = await supabase
+        .from('enrichment_queue')
+        .upsert(
+          dealIds.map(id => ({
+            listing_id: id,
+            status: 'pending',
+            attempts: 0,
+            queued_at: nowIso,
+          })),
+          { onConflict: 'listing_id', ignoreDuplicates: true }
+        );
+
+      if (insertMissingError) throw insertMissingError;
+
+      toast({
+        title: "Enrichment queued",
+        description: `${dealIds.length} deal${dealIds.length > 1 ? 's' : ''} queued for enrichment. Starting processing now...`,
+      });
+
+      // Mirror the "Calculate Scores" experience by kicking the worker immediately
+      // (cron is best-effort and can be misconfigured / paused).
+      // Fire-and-forget: the worker is intentionally small-batch to avoid timeouts.
+      void supabase.functions
+        .invoke('process-enrichment-queue', { body: { source: 'ui_enrich_deals' } })
+        .then(({ error }) => {
+          if (error) {
+            console.warn('Failed to trigger enrichment worker:', error);
+          }
+        })
+        .catch((e) => {
+          console.warn('Failed to trigger enrichment worker:', e);
+        });
+
+      refetchListings();
+    } catch (error: any) {
+      console.error('Enrich deals error:', error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsEnrichingAll(false);
     }
   };
 
@@ -1179,7 +1308,16 @@ const ReMarketingDeals = () => {
             Import CSV
           </Button>
           <Button 
-            onClick={handleCalculateScores} 
+            onClick={() => setShowEnrichDialog(true)} 
+            disabled={isEnrichingAll}
+            variant="outline"
+            className="border-primary text-primary hover:bg-primary/10"
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            {isEnrichingAll ? "Queueing..." : "Enrich Deals"}
+          </Button>
+          <Button 
+            onClick={() => setShowCalculateDialog(true)} 
             disabled={isCalculating}
             className="bg-slate-800 hover:bg-slate-700 text-white"
           >
@@ -1260,6 +1398,17 @@ const ReMarketingDeals = () => {
         </Card>
       </div>
 
+      {/* Enrichment Progress Indicator */}
+      {enrichmentProgress.isEnriching && (
+        <EnrichmentProgressIndicator
+          completedCount={enrichmentProgress.completedCount}
+          totalCount={enrichmentProgress.totalCount}
+          progress={enrichmentProgress.progress}
+          estimatedTimeRemaining={enrichmentProgress.estimatedTimeRemaining}
+          processingRate={enrichmentProgress.processingRate}
+        />
+      )}
+
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -1329,46 +1478,11 @@ const ReMarketingDeals = () => {
       )}
 
       {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import Deals</DialogTitle>
-            <DialogDescription>
-              Upload a CSV file with deal data. Required columns: title, location, revenue, ebitda
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="csvFile">CSV File</Label>
-              <Input
-                id="csvFile"
-                type="file"
-                accept=".csv"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              />
-            </div>
-            {importFile && (
-              <p className="text-sm text-muted-foreground">
-                Selected: {importFile.name} ({Math.round(importFile.size / 1024)} KB)
-              </p>
-            )}
-            <div className="bg-muted p-3 rounded text-xs">
-              <p className="font-medium mb-1">Expected CSV format:</p>
-              <code className="text-muted-foreground">
-                title, location, revenue, ebitda, category, employee_count, lead_source
-              </code>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleImport} disabled={!importFile || isImporting}>
-              {isImporting ? "Importing..." : "Import"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DealImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onImportComplete={() => refetchListings()}
+      />
 
       {/* Archive Confirmation Dialog */}
       <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
@@ -1432,8 +1546,14 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.ebitda} onResize={(w) => handleColumnResize('ebitda', w)} minWidth={60} className="text-right">
                       <SortableHeader column="ebitda" label="EBITDA" className="ml-auto" />
                     </ResizableHeader>
-                    <ResizableHeader width={columnWidths.employees} onResize={(w) => handleColumnResize('employees', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="employees" label="Employees" className="ml-auto" />
+                    <ResizableHeader width={columnWidths.linkedinCount} onResize={(w) => handleColumnResize('linkedinCount', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="linkedinCount" label="LI Count" className="ml-auto" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.linkedinRange} onResize={(w) => handleColumnResize('linkedinRange', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="linkedinRange" label="LI Range" className="ml-auto" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.googleReviews} onResize={(w) => handleColumnResize('googleReviews', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="googleReviews" label="Reviews" className="ml-auto" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.quality} onResize={(w) => handleColumnResize('quality', w)} minWidth={50} className="text-center">
                       <SortableHeader column="score" label="Quality" className="mx-auto" />
@@ -1470,7 +1590,7 @@ const ReMarketingDeals = () => {
                     ))
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
@@ -1497,6 +1617,7 @@ const ReMarketingDeals = () => {
                           isSelected={selectedDeals.has(listing.id)}
                           onToggleSelect={handleToggleSelect}
                           onArchive={handleArchiveDeal}
+                          onTogglePriority={handleTogglePriority}
                         />
                       ))}
                     </SortableContext>
@@ -1507,6 +1628,102 @@ const ReMarketingDeals = () => {
           </TooltipProvider>
         </CardContent>
       </Card>
+
+      {/* Calculate Scores Dialog */}
+      <Dialog open={showCalculateDialog} onOpenChange={setShowCalculateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Calculate Deal Scores
+            </DialogTitle>
+            <DialogDescription>
+              Choose how you want to calculate quality scores. Both options will trigger website enrichment for accurate data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              variant="default"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleCalculateScores('all')}
+              disabled={isCalculating}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Calculate All</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Re-enrich all websites and recalculate all scores
+                </span>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleCalculateScores('unscored')}
+              disabled={isCalculating}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Just Those Without a Score</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Only enrich and score deals that don't have a score yet
+                </span>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowCalculateDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enrich Deals Dialog */}
+      <Dialog open={showEnrichDialog} onOpenChange={setShowEnrichDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Enrich Deals
+            </DialogTitle>
+            <DialogDescription>
+              Enrichment scrapes websites, extracts company data, and fetches LinkedIn & Google info.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              variant="default"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleEnrichDeals('all')}
+              disabled={isEnrichingAll}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Enrich All</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Re-enrich all {listings?.length || 0} deals (resets existing data)
+                </span>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleEnrichDeals('unenriched')}
+              disabled={isEnrichingAll}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Only Unenriched</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Only enrich {listings?.filter(l => !l.enriched_at).length || 0} deals that haven't been enriched yet
+                </span>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowEnrichDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

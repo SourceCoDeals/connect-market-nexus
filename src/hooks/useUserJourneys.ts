@@ -53,6 +53,8 @@ export function useUserJourneys(timeRangeDays: number = 30) {
       const { data, error } = await supabase
         .from('user_journeys')
         .select('*')
+        .eq('is_bot', false)
+        .eq('is_production', true)
         .gte('first_seen_at', startDateStr)
         .order('last_seen_at', { ascending: false })
         .limit(500);

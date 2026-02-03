@@ -52,7 +52,7 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   // LinkedIn data from Apify
   'linkedin_employee_count',
   'linkedin_employee_range',
-  'linkedin_url',
+  'linkedin_url', // Extracted from website or entered manually
 ]);
 
 serve(async (req) => {
@@ -63,7 +63,8 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const apiKeyHeader = req.headers.get('apikey');
+    if (!authHeader && !apiKeyHeader) {
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -72,39 +73,57 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
 
-    // Verify user is admin
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Check if this is a service role call (background processing) or user token
+    const token = authHeader ? authHeader.replace('Bearer ', '') : '';
+    const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
+    let supabase;
+    let userId: string;
 
-    if (!profile?.is_admin) {
-      return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (isServiceRole) {
+      // Background processing via queue - use service role
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+      // Use a valid UUID for system operations (this is a reserved "system" UUID)
+      userId = '00000000-0000-0000-0000-000000000000';
+      console.log('Enrichment triggered by background queue processor');
+    } else {
+      // User-initiated - verify admin access
+      supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader || `Bearer ${apiKeyHeader}` } }
+      });
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        return new Response(
+          JSON.stringify({ error: 'Admin access required' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      userId = user.id;
     }
 
     // SECURITY: Check rate limit before making expensive AI calls
-    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_enrichment', true);
+    const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', true);
     if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for admin ${user.id} on ai_enrichment`);
+      console.warn(`Rate limit exceeded for ${userId} on ai_enrichment`);
       return rateLimitResponse(rateLimitResult);
     }
 
@@ -204,11 +223,10 @@ serve(async (req) => {
     ];
 
     // Common paths where we find address, company info, services
+    // OPTIMIZED: Reduced from 10 paths to 4 most valuable for speed
     const importantPaths = [
-      '/contact', '/contact-us', '/contactus',
-      '/about', '/about-us', '/aboutus', '/about-us/',
-      '/locations', '/location', '/our-locations',
-      '/services', '/our-services',
+      '/contact', '/contact-us',
+      '/about', '/about-us',
     ];
 
     // Add important paths
@@ -275,10 +293,10 @@ serve(async (req) => {
       }
     }
 
-    // Scrape up to 4 additional pages (prioritized first, then fallback to common paths)
+    // OPTIMIZED: Scrape up to 2 additional pages (was 4) for speed
     const additionalPages = prioritizedPaths.length > 0
-      ? prioritizedPaths.slice(0, 4)
-      : importantPaths.slice(0, 4).map(p => `${baseUrl.origin}${p}`);
+      ? prioritizedPaths.slice(0, 2)
+      : importantPaths.slice(0, 2).map(p => `${baseUrl.origin}${p}`);
 
     console.log(`Scraping additional pages: ${additionalPages.join(', ')}`);
 
@@ -419,126 +437,158 @@ ${websiteContent.substring(0, 20000)}
 Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.`;
 
 
-    const aiResponse = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(geminiApiKey),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'extract_deal_intelligence',
-              description: 'Extract comprehensive business/deal intelligence from website content',
-              parameters: {
-                type: 'object',
-                properties: {
-                  internal_company_name: {
-                    type: 'string',
-                    description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
-                  },
-                  executive_summary: {
-                    type: 'string',
-                    description: 'A 2-3 paragraph executive summary describing the business, its services, market position, and value proposition'
-                  },
-                  service_mix: {
-                    type: 'string',
-                    description: 'Comma-separated list of services or products offered'
-                  },
-                  business_model: {
-                    type: 'string',
-                    description: 'Description of how the business generates revenue (e.g., B2B services, recurring contracts, project-based)'
-                  },
-                  industry: {
-                    type: 'string',
-                    description: 'Primary industry classification (e.g., HVAC, Plumbing, IT Services, Healthcare)'
-                  },
-                  geographic_states: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Two-letter US state codes where they operate (e.g., ["CA", "TX", "FL"])'
-                  },
-                  number_of_locations: {
-                    type: 'number',
-                    description: 'Number of physical locations/offices/branches'
-                  },
-                  street_address: {
-                    type: 'string',
-                    description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip.'
-                  },
-                  address_city: {
-                    type: 'string',
-                    description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
-                  },
-                  address_state: {
-                    type: 'string',
-                    description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
-                  },
-                  address_zip: {
-                    type: 'string',
-                    description: '5-digit US ZIP code (e.g., "75201") or Canadian postal code (e.g., "M5V 1J2").'
-                  },
-                  address_country: {
-                    type: 'string',
-                    description: 'Country code. Use "US" for United States, "CA" for Canada. Default to "US" if not specified.'
-                  },
-                  address: {
-                    type: 'string',
-                    description: 'Full headquarters address as a single string (legacy field). Include street, city, state, zip if available.'
-                  },
-                  founded_year: {
-                    type: 'number',
-                    description: 'Year the company was founded (e.g., 2005)'
-                  },
-                  customer_types: {
-                    type: 'string',
-                    description: 'Types of customers served (e.g., Commercial, Residential, Government, Industrial)'
-                  },
-                  owner_goals: {
-                    type: 'string',
-                    description: 'Owner/seller goals for the transaction (exit, retirement, growth capital, partnership, etc.)'
-                  },
-                  key_risks: {
-                    type: 'string',
-                    description: 'Potential risk factors identified (one per line)'
-                  },
-                  competitive_position: {
-                    type: 'string',
-                    description: 'Market positioning, competitive advantages, market share information'
-                  },
-                  technology_systems: {
-                    type: 'string',
-                    description: 'Software, tools, or technology systems mentioned'
-                  },
-                  real_estate_info: {
-                    type: 'string',
-                    description: 'Information about facilities, whether owned or leased, square footage'
-                  },
-                  growth_trajectory: {
-                    type: 'string',
-                    description: 'Growth indicators, expansion history, or trajectory information'
-                  },
-                  linkedin_url: {
-                    type: 'string',
-                    description: 'LinkedIn company page URL (e.g., "https://www.linkedin.com/company/acme-corp")'
+    // Retry logic for AI calls (handles 429 rate limits)
+    const MAX_AI_RETRIES = 3;
+    const AI_RETRY_DELAYS = [2000, 5000, 10000]; // exponential backoff
+    
+    let aiResponse: Response | null = null;
+    let lastAiError = '';
+    
+    for (let attempt = 0; attempt < MAX_AI_RETRIES; attempt++) {
+      try {
+        aiResponse = await fetch(GEMINI_API_URL, {
+          method: 'POST',
+          headers: getGeminiHeaders(geminiApiKey),
+          body: JSON.stringify({
+            model: DEFAULT_GEMINI_MODEL,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            tools: [
+              {
+                type: 'function',
+                function: {
+                  name: 'extract_deal_intelligence',
+                  description: 'Extract comprehensive business/deal intelligence from website content',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      internal_company_name: {
+                        type: 'string',
+                        description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
+                      },
+                      executive_summary: {
+                        type: 'string',
+                        description: 'A 2-3 paragraph executive summary describing the business, its services, market position, and value proposition'
+                      },
+                      service_mix: {
+                        type: 'string',
+                        description: 'Comma-separated list of services or products offered'
+                      },
+                      business_model: {
+                        type: 'string',
+                        description: 'Description of how the business generates revenue (e.g., B2B services, recurring contracts, project-based)'
+                      },
+                      industry: {
+                        type: 'string',
+                        description: 'Primary industry classification (e.g., HVAC, Plumbing, IT Services, Healthcare)'
+                      },
+                      geographic_states: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Two-letter US state codes where they operate (e.g., ["CA", "TX", "FL"])'
+                      },
+                      number_of_locations: {
+                        type: 'number',
+                        description: 'Number of physical locations/offices/branches'
+                      },
+                      street_address: {
+                        type: 'string',
+                        description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip. Leave empty/null if not found - do NOT use placeholder values like "Not Found", "N/A", or "Unknown".'
+                      },
+                      address_city: {
+                        type: 'string',
+                        description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
+                      },
+                      address_state: {
+                        type: 'string',
+                        description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
+                      },
+                      address_zip: {
+                        type: 'string',
+                        description: 'ZIP code (e.g., "75201", "90210")'
+                      },
+                      address_country: {
+                        type: 'string',
+                        description: 'Country code, typically "US" or "CA"'
+                      },
+                      founded_year: {
+                        type: 'number',
+                        description: 'Year the company was founded'
+                      },
+                      customer_types: {
+                        type: 'string',
+                        description: 'Types of customers served (e.g., "Residential, Commercial, Government")'
+                      },
+                      owner_goals: {
+                        type: 'string',
+                        description: 'Any mentioned goals from the owner (exit, growth, succession, etc.)'
+                      },
+                      key_risks: {
+                        type: 'string',
+                        description: 'Potential risk factors identified'
+                      },
+                      competitive_position: {
+                        type: 'string',
+                        description: 'Market positioning and competitive advantages'
+                      },
+                      technology_systems: {
+                        type: 'string',
+                        description: 'Software, tools, or technology platforms used'
+                      },
+                      real_estate_info: {
+                        type: 'string',
+                        description: 'Information about facilities (owned vs leased, size, etc.)'
+                      },
+                      growth_trajectory: {
+                        type: 'string',
+                        description: 'Growth history and indicators'
+                      },
+                      linkedin_url: {
+                        type: 'string',
+                        description: 'LinkedIn company page URL if found on the website'
+                      }
+                    },
+                    required: []
                   }
                 }
               }
-            }
-          }
-        ],
-        tool_choice: { type: 'function', function: { name: 'extract_deal_intelligence' } }
-      }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
+            ],
+            tool_choice: { type: 'function', function: { name: 'extract_deal_intelligence' } }
+          }),
+          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+        });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI extraction error:', errorText);
+        // Check for rate limit (429)
+        if (aiResponse.status === 429) {
+          const retryAfter = aiResponse.headers.get('Retry-After');
+          const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : AI_RETRY_DELAYS[attempt];
+          console.log(`AI rate limited (429), retrying in ${waitMs}ms (attempt ${attempt + 1}/${MAX_AI_RETRIES})`);
+          await new Promise(r => setTimeout(r, waitMs));
+          continue;
+        }
+
+        // If successful, break out of retry loop
+        if (aiResponse.ok) {
+          break;
+        }
+
+        // Non-429 error - log and continue
+        lastAiError = await aiResponse.text();
+        console.error(`AI extraction error (attempt ${attempt + 1}):`, lastAiError);
+        
+      } catch (err) {
+        lastAiError = getErrorMessage(err);
+        console.error(`AI call exception (attempt ${attempt + 1}):`, lastAiError);
+        if (attempt < MAX_AI_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, AI_RETRY_DELAYS[attempt]));
+        }
+      }
+    }
+
+    if (!aiResponse || !aiResponse.ok) {
+      console.error('AI extraction failed after retries:', lastAiError);
       return new Response(
         JSON.stringify({ success: false, error: 'AI extraction failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -608,15 +658,83 @@ Extract all available business information using the provided tool. The address_
       }
     }
 
-    // Clean address_city (remove trailing commas, state codes)
+    // Clean address_city - AI sometimes puts full address in city field
+    // We need to extract just the city name
     if (extracted.address_city) {
       let cityStr = String(extracted.address_city).trim();
-      // Remove trailing ", ST" if accidentally included
+      
+      // Common patterns where AI puts full address in city field:
+      // "123 Main St. Dallas" -> extract "Dallas"
+      // "23 Westbrook Industrial Park Rd. Westbrook" -> extract "Westbrook"
+      // "456 Oak Ave, Chicago, IL 60601" -> extract "Chicago"
+      
+      // Pattern 1: Full address with comma-separated city,state,zip at end
+      // e.g., "123 Main St, Dallas, TX 75201"
+      const fullAddressPattern = /^(.+?),\s*([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?$/;
+      const fullMatch = cityStr.match(fullAddressPattern);
+      if (fullMatch) {
+        // Extract just the city from the match
+        cityStr = fullMatch[2].trim();
+        // If we don't have street_address, save the street part
+        if (!extracted.street_address && fullMatch[1]) {
+          extracted.street_address = fullMatch[1].trim();
+        }
+        console.log(`Extracted city "${cityStr}" from full address, street: "${fullMatch[1]}"`);
+      }
+      
+      // Pattern 2: Street address followed by city name without proper separators
+      // Look for common street indicators and take what follows
+      // e.g., "23 Westbrook Industrial Park Rd. Westbrook" -> "Westbrook"
+      // e.g., "456 Oak Avenue Suite 200 Chicago" -> "Chicago"
+      if (!fullMatch) {
+        const streetIndicators = /(St\.?|Street|Ave\.?|Avenue|Rd\.?|Road|Dr\.?|Drive|Blvd\.?|Boulevard|Ln\.?|Lane|Way|Ct\.?|Court|Pkwy\.?|Parkway|Pl\.?|Place|Cir\.?|Circle|Park)\s+/i;
+        const streetMatch = cityStr.match(streetIndicators);
+        if (streetMatch && streetMatch.index !== undefined) {
+          // Find the last occurrence of street indicator
+          const lastStreetIndex = cityStr.lastIndexOf(streetMatch[0]);
+          if (lastStreetIndex > 0) {
+            const afterStreet = cityStr.substring(lastStreetIndex + streetMatch[0].length).trim();
+            // Remove trailing state code or zip
+            const cleanedCity = afterStreet.replace(/,?\s*[A-Z]{2}\s*(\d{5})?$/, '').trim();
+            
+            // Only use this if it looks like a city name (1-3 words, no numbers)
+            if (cleanedCity.length > 0 && cleanedCity.length < 50 && !/\d/.test(cleanedCity)) {
+              // Save the street address part
+              if (!extracted.street_address) {
+                extracted.street_address = cityStr.substring(0, lastStreetIndex + streetMatch[0].length - 1).trim();
+              }
+              cityStr = cleanedCity;
+              console.log(`Parsed city "${cityStr}" from combined address, street: "${extracted.street_address}"`);
+            }
+          }
+        }
+      }
+      
+      // Pattern 3: Simple trailing ", ST" pattern
       cityStr = cityStr.replace(/,\s*[A-Z]{2}$/, '').trim();
-      if (cityStr.length > 0) {
+      
+      // Pattern 4: Remove trailing ZIP code
+      cityStr = cityStr.replace(/\s+\d{5}(-\d{4})?$/, '').trim();
+      
+      // Reject placeholder values
+      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available'];
+      if (cityStr.length > 0 && cityStr.length < 50 && !placeholders.includes(cityStr.toLowerCase())) {
         extracted.address_city = cityStr;
       } else {
+        console.log(`Rejecting invalid/placeholder address_city: "${extracted.address_city}"`);
         delete extracted.address_city;
+      }
+    }
+
+    // Clean street_address - reject placeholder values
+    if (extracted.street_address) {
+      const streetStr = String(extracted.street_address).trim();
+      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
+      if (streetStr.length > 0 && !placeholders.includes(streetStr.toLowerCase())) {
+        extracted.street_address = streetStr;
+      } else {
+        console.log(`Rejecting placeholder street_address: "${extracted.street_address}"`);
+        delete extracted.street_address;
       }
     }
 
@@ -628,6 +746,24 @@ Extract all available business information using the provided tool. The address_
     // IMPORTANT: Remove 'location' from extracted data - we never update it from enrichment
     // The 'location' field is for marketplace anonymity (e.g., "Southeast US")
     delete extracted.location;
+
+    // Validate and normalize linkedin_url - must be a DIRECT linkedin.com/company/ URL
+    if (extracted.linkedin_url) {
+      const linkedinUrlStr = String(extracted.linkedin_url).trim();
+      // Only accept direct LinkedIn company URLs, reject Google/search/redirect URLs
+      const linkedinCompanyPattern = /^https?:\/\/(www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+\/?$/;
+      if (linkedinCompanyPattern.test(linkedinUrlStr)) {
+        // Normalize to consistent format
+        const match = linkedinUrlStr.match(/linkedin\.com\/company\/([^\/\?]+)/);
+        if (match) {
+          extracted.linkedin_url = `https://www.linkedin.com/company/${match[1]}`;
+          console.log(`Validated LinkedIn URL: ${extracted.linkedin_url}`);
+        }
+      } else {
+        console.log(`Rejecting non-direct LinkedIn URL: "${linkedinUrlStr}"`);
+        delete extracted.linkedin_url;
+      }
+    }
 
     // Try to fetch LinkedIn data if we have a URL or company name
     const linkedinUrl = extracted.linkedin_url as string | undefined;
@@ -646,9 +782,11 @@ Extract all available business information using the provided tool. The address_
           body: JSON.stringify({
             linkedinUrl,
             companyName,
+            city: extracted.address_city || deal.address_city,
+            state: extracted.address_state || deal.address_state,
             dealId: dealId, // Let the function update directly too as backup
           }),
-          signal: AbortSignal.timeout(65000), // Slightly longer than Apify's 60s timeout
+          signal: AbortSignal.timeout(90000), // 90 seconds for Firecrawl search + scrape
         });
 
         if (linkedinResponse.ok) {
@@ -672,6 +810,51 @@ Extract all available business information using the provided tool. The address_
       } catch (linkedinError) {
         // Non-blocking - LinkedIn enrichment is optional
         console.warn('LinkedIn enrichment failed (non-blocking):', linkedinError);
+      }
+    }
+
+    // Try to fetch Google reviews data
+    // Use company name and location for search
+    const googleSearchName = companyName || deal.title;
+    const googleLocation = (extracted.address_city && extracted.address_state)
+      ? `${extracted.address_city}, ${extracted.address_state}`
+      : (deal.address_city && deal.address_state)
+        ? `${deal.address_city}, ${deal.address_state}`
+        : deal.location;
+
+    if (googleSearchName && !deal.google_review_count) {
+      try {
+        console.log(`Attempting Google reviews enrichment for: ${googleSearchName}`);
+
+        const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            businessName: googleSearchName,
+            city: extracted.address_city || deal.address_city,
+            state: extracted.address_state || deal.address_state,
+            dealId: dealId, // Let the function update directly
+          }),
+          signal: AbortSignal.timeout(95000), // Slightly longer than Google scraper's 90s timeout
+        });
+
+        if (googleResponse.ok) {
+          const googleData = await googleResponse.json();
+          if (googleData.success && googleData.scraped) {
+            console.log('Google reviews data retrieved:', googleData);
+            // Note: apify-google-reviews updates the deal directly when dealId is provided
+          } else {
+            console.log('Google reviews scrape returned no data:', googleData.error || 'No business found');
+          }
+        } else {
+          console.warn('Google reviews scrape failed:', googleResponse.status);
+        }
+      } catch (googleError) {
+        // Non-blocking - Google enrichment is optional
+        console.warn('Google reviews enrichment failed (non-blocking):', googleError);
       }
     }
 

@@ -9,6 +9,8 @@ import {
   Section,
   Text,
   Hr,
+  Row,
+  Column,
 } from 'npm:@react-email/components@0.0.22';
 import * as React from 'npm:react@18.3.1';
 
@@ -59,36 +61,49 @@ export const DealReassignmentEmail = ({
         {/* Deal Information */}
         <Section style={infoSection}>
           {companyName && (
-            <div style={infoRow}>
-              <Text style={infoLabel}>Company</Text>
-              <Text style={infoValue}>{companyName}</Text>
-            </div>
+            <Row style={infoRow}>
+              <Column style={infoLabelColumn}>
+                <Text style={infoLabel}>Company</Text>
+              </Column>
+              <Column style={infoValueColumn}>
+                <Text style={infoValue}>{companyName}</Text>
+              </Column>
+            </Row>
           )}
           
-          <div style={infoRow}>
-            <Text style={infoLabel}>Contact</Text>
-            <Text style={infoValue}>{dealTitle}</Text>
-          </div>
+          <Row style={infoRow}>
+            <Column style={infoLabelColumn}>
+              <Text style={infoLabel}>Contact</Text>
+            </Column>
+            <Column style={infoValueColumn}>
+              <Text style={infoValue}>{dealTitle}</Text>
+            </Column>
+          </Row>
 
           {listingTitle && (
-            <div style={infoRow}>
-              <Text style={infoLabel}>Listing</Text>
-              <Text style={infoValue}>{listingTitle}</Text>
-            </div>
+            <Row style={infoRow}>
+              <Column style={infoLabelColumn}>
+                <Text style={infoLabel}>Listing</Text>
+              </Column>
+              <Column style={infoValueColumn}>
+                <Text style={infoValue}>{listingTitle}</Text>
+              </Column>
+            </Row>
           )}
 
           {!isUnassignment && newOwnerName && (
             <>
               <Hr style={divider} />
-              <div style={infoRow}>
-                <Text style={infoLabel}>New Owner</Text>
-                <Text style={infoValue}>
-                  {newOwnerName}
-                  {newOwnerEmail && (
-                    <span style={infoSecondary}> • {newOwnerEmail}</span>
-                  )}
-                </Text>
-              </div>
+              <Row style={infoRow}>
+                <Column style={infoLabelColumn}>
+                  <Text style={infoLabel}>New Owner</Text>
+                </Column>
+                <Column style={infoValueColumn}>
+                  <Text style={infoValue}>
+                    {newOwnerName}{newOwnerEmail ? ` • ${newOwnerEmail}` : ''}
+                  </Text>
+                </Column>
+              </Row>
             </>
           )}
         </Section>
@@ -163,18 +178,23 @@ const infoSection = {
 };
 
 const infoRow = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
   marginBottom: '12px',
-} as const;
+};
+
+const infoLabelColumn = {
+  width: '120px',
+  verticalAlign: 'top' as const,
+};
+
+const infoValueColumn = {
+  verticalAlign: 'top' as const,
+};
 
 const infoLabel = {
   color: '#999999',
   fontSize: '13px',
   fontWeight: '500',
   margin: '0',
-  flex: '0 0 120px',
 };
 
 const infoValue = {
@@ -182,13 +202,6 @@ const infoValue = {
   fontSize: '14px',
   fontWeight: '500',
   margin: '0',
-  flex: '1',
-  textAlign: 'right' as const,
-};
-
-const infoSecondary = {
-  color: '#999999',
-  fontWeight: '400',
 };
 
 const divider = {

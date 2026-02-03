@@ -3346,6 +3346,7 @@ export type Database = {
           extraction_sources: Json | null
           files: string[] | null
           final_rank: number | null
+          fireflies_url: string | null
           founded_year: number | null
           full_time_employees: number | null
           general_notes: string | null
@@ -3372,6 +3373,7 @@ export type Database = {
           internal_salesforce_link: string | null
           investment_thesis: string | null
           is_owner_dependent: boolean | null
+          is_priority_target: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           last_ranked_at: string | null
@@ -3499,6 +3501,7 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null
@@ -3525,6 +3528,7 @@ export type Database = {
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
           is_owner_dependent?: boolean | null
+          is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           last_ranked_at?: string | null
@@ -3652,6 +3656,7 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null
@@ -3678,6 +3683,7 @@ export type Database = {
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
           is_owner_dependent?: boolean | null
+          is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           last_ranked_at?: string | null
@@ -5929,6 +5935,8 @@ export type Database = {
           first_utm_term: string | null
           ga4_client_id: string | null
           id: string
+          is_bot: boolean | null
+          is_production: boolean | null
           journey_stage: string | null
           last_page_path: string | null
           last_seen_at: string | null
@@ -5960,6 +5968,8 @@ export type Database = {
           first_utm_term?: string | null
           ga4_client_id?: string | null
           id?: string
+          is_bot?: boolean | null
+          is_production?: boolean | null
           journey_stage?: string | null
           last_page_path?: string | null
           last_seen_at?: string | null
@@ -5991,6 +6001,8 @@ export type Database = {
           first_utm_term?: string | null
           ga4_client_id?: string | null
           id?: string
+          is_bot?: boolean | null
+          is_production?: boolean | null
           journey_stage?: string | null
           last_page_path?: string | null
           last_seen_at?: string | null
@@ -6148,8 +6160,11 @@ export type Database = {
           id: string
           ip_address: unknown
           is_active: boolean | null
+          is_bot: boolean | null
           is_production: boolean | null
           last_active_at: string | null
+          lat: number | null
+          lon: number | null
           original_external_referrer: string | null
           original_keyword: string | null
           original_source: string | null
@@ -6188,8 +6203,11 @@ export type Database = {
           id?: string
           ip_address?: unknown
           is_active?: boolean | null
+          is_bot?: boolean | null
           is_production?: boolean | null
           last_active_at?: string | null
+          lat?: number | null
+          lon?: number | null
           original_external_referrer?: string | null
           original_keyword?: string | null
           original_source?: string | null
@@ -6228,8 +6246,11 @@ export type Database = {
           id?: string
           ip_address?: unknown
           is_active?: boolean | null
+          is_bot?: boolean | null
           is_production?: boolean | null
           last_active_at?: string | null
+          lat?: number | null
+          lon?: number | null
           original_external_referrer?: string | null
           original_keyword?: string | null
           original_source?: string | null

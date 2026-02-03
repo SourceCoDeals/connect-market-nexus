@@ -5,10 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
 // Apify Google Maps Scraper actor - extracts reviews, ratings, and business info
-const APIFY_ACTOR = 'compass/crawler-google-places';
-
+// Using compass~crawler-google-places (the original working actor with tilde separator)
+const APIFY_ACTOR = 'compass~crawler-google-places';
 interface GooglePlaceData {
   title?: string;
   totalScore?: number;        // Google rating (e.g., 4.5)
@@ -32,6 +31,58 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Verify admin access (or service role for internal calls)
+    const authHeader = req.headers.get('Authorization');
+    const apiKeyHeader = req.headers.get('apikey');
+    
+    // Require at least one form of auth
+    if (!authHeader && !apiKeyHeader) {
+      console.error('No authorization header or apikey provided');
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Check if this is the service role key (for internal calls from queue processor)
+    // IMPORTANT: Check BOTH the Authorization header bearer token AND the apikey header
+    const token = (authHeader || '').replace(/^Bearer\s+/i, '').trim();
+    const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
+    
+    console.log(`Auth check: isServiceRole=${isServiceRole}, hasAuthHeader=${!!authHeader}, hasApiKey=${!!apiKeyHeader}`);
+
+    if (!isServiceRole) {
+      // Verify admin access for manual calls
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader || `Bearer ${apiKeyHeader}` } }
+      });
+
+      const { data: { user }, error: userError } = await authClient.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: profile } = await authClient
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        return new Response(JSON.stringify({ error: 'Admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
 
     if (!APIFY_API_TOKEN) {
@@ -52,8 +103,6 @@ serve(async (req) => {
       scrapeAll  // If true, scrape all deals needing Google data
     } = await req.json();
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // If scrapeAll is true, fetch all deals that need Google review data
@@ -221,10 +270,7 @@ serve(async (req) => {
         google_place_id: response.google_place_id,
       };
 
-      // Optionally update other fields if they're empty
-      if (response.google_phone) {
-        updateData.phone = response.google_phone;
-      }
+      // Optionally update address fields if they're empty (phone column doesn't exist)
       if (response.google_address) {
         updateData.address = response.google_address;
       }
@@ -271,7 +317,7 @@ async function scrapeGooglePlace(
 
   const apifyUrl = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
 
-  // Configure the actor input
+  // Configure the actor input for compass~crawler-google-places
   const actorInput: Record<string, unknown> = {
     maxCrawledPlacesPerSearch: 1,  // We only need the first/best match
     language: 'en',
@@ -282,13 +328,14 @@ async function scrapeGooglePlace(
     scrapeReviewId: false,
     scrapeReviewUrl: false,
     scrapeResponseFromOwnerText: false,
+    maxImages: 0,
   };
 
   if (directUrl) {
     // If we have a direct Google Maps URL, use it
     actorInput.startUrls = [{ url: directUrl }];
   } else if (searchQuery) {
-    // Otherwise search by query
+    // Search by query - compass actor uses 'searchStringsArray'
     actorInput.searchStringsArray = [searchQuery];
   }
 

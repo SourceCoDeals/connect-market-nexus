@@ -245,11 +245,12 @@ export function useEnhancedRealTimeAnalytics() {
           .from('user_sessions')
           .select(`
             id, session_id, user_id, visitor_id, country, country_code, city, region,
-            device_type, browser, os, referrer, utm_source,
+            device_type, browser, os, referrer, utm_source, user_agent,
             session_duration_seconds, last_active_at, started_at, is_active,
             ga4_client_id, first_touch_source, first_touch_medium, first_touch_campaign,
-            first_touch_landing_page, first_touch_referrer
+            first_touch_landing_page, first_touch_referrer, is_bot, lat, lon
           `)
+          .eq('is_bot', false)  // Filter out detected bots
           .or(`last_active_at.gte.${oneHourAgo},started_at.gte.${oneHourAgo}`)
           .order('last_active_at', { ascending: false, nullsFirst: false })
           .limit(100),
@@ -267,6 +268,16 @@ export function useEnhancedRealTimeAnalytics() {
       const sessionsRaw = sessionsResult.data || [];
       const sessionMap = new Map<string, typeof sessionsRaw[0]>();
       sessionsRaw.forEach(session => {
+        // Additional client-side bot filtering for any that slip through
+        // Check for outdated Chrome versions (Chrome 117-119 are 2+ years old)
+        const userAgent = (session as any).user_agent || '';
+        const isLikelyBot = 
+          /Chrome\/11[0-9]\./.test(userAgent) ||
+          /HeadlessChrome/i.test(userAgent) ||
+          /bot\b/i.test(userAgent);
+        
+        if (isLikelyBot) return; // Skip bot sessions
+        
         const existing = sessionMap.get(session.session_id);
         if (!existing) {
           sessionMap.set(session.session_id, session);
@@ -415,15 +426,25 @@ export function useEnhancedRealTimeAnalytics() {
           : null;
         const displayName = realName || generateAnonymousName(session.session_id);
         
-        // Get coordinates - with fallback for users without geo data
-        let coordinates = getCoordinates(session.city, session.country);
+        // Get coordinates - prefer stored lat/lon from IP-API, fallback to city lookup
+        const storedLat = (session as any).lat;
+        const storedLon = (session as any).lon;
+        let coordinates: { lat: number; lng: number } | null = null;
         
-        // CRITICAL FIX: Provide default coordinates for users without geo data
-        // so they still appear on the globe (in Atlantic Ocean area)
-        if (!coordinates) {
-          coordinates = getDefaultCoordinates(session.session_id);
+        if (typeof storedLat === 'number' && typeof storedLon === 'number') {
+          // Use precise coordinates from IP geolocation (stored in DB)
+          coordinates = addJitter({ lat: storedLat, lng: storedLon }, session.session_id);
         } else {
-          coordinates = addJitter(coordinates, session.session_id);
+          // Fallback to city/country lookup
+          coordinates = getCoordinates(session.city, session.country);
+          
+          // CRITICAL FIX: Provide default coordinates for users without geo data
+          // so they still appear on the globe (in Atlantic Ocean area)
+          if (!coordinates) {
+            coordinates = getDefaultCoordinates(session.session_id);
+          } else {
+            coordinates = addJitter(coordinates, session.session_id);
+          }
         }
         
         const lastActiveAt = session.last_active_at || session.started_at;
@@ -605,8 +626,11 @@ export function useEnhancedRealTimeAnalytics() {
         recentEvents,
       };
     },
-    staleTime: 5000,
-    refetchInterval: 10000,
+    // Long staleTime ensures instant cache hits when toggling globe
+    // Background refetch keeps data fresh without blocking UI
+    staleTime: 30000, // 30 seconds - serve cached data instantly
+    refetchInterval: 10000, // Background refresh every 10s
+    refetchOnMount: 'always', // Always refetch on mount but use stale data immediately
   });
 }
 

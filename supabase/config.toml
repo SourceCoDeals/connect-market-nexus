@@ -156,7 +156,7 @@ verify_jwt = true
 [functions.analyze-deal-notes]
 verify_jwt = true
 [functions.enrich-deal]
-verify_jwt = true
+verify_jwt = false
 [functions.track-session]
 verify_jwt = false
 [functions.session-heartbeat]
@@ -172,4 +172,10 @@ verify_jwt = false
 [functions.process-enrichment-queue]
 verify_jwt = false
 [functions.apify-linkedin-scrape]
-verify_jwt = true
+verify_jwt = false
+[functions.apify-google-reviews]
+verify_jwt = false
+[functions.calculate-deal-quality]
+verify_jwt = false
+[functions.re-enrich-missing-addresses]
+verify_jwt = false

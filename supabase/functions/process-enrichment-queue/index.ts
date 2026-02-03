@@ -1,15 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration
-const BATCH_SIZE = 5; // Process up to 5 items per run
+// Configuration - OPTIMIZED FOR SPEED
+// Process items in PARALLEL batches instead of sequential
+const BATCH_SIZE = 10; // Fetch 10 items per run
+const CONCURRENCY_LIMIT = 5; // Process 5 items in parallel at once
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
-const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes per item
+const PROCESSING_TIMEOUT_MS = 90000; // 90 seconds per item
+
+// Stop early to avoid the platform killing the function mid-item.
+const MAX_FUNCTION_RUNTIME_MS = 110000; // ~110s
+
+// Helper to chunk array into smaller arrays
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,32 +32,43 @@ serve(async (req) => {
   }
 
   try {
+    const startedAt = Date.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     // Use service role for background processing
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Processing enrichment queue...');
+    console.log('Processing enrichment queue (PARALLEL MODE)...');
 
-    // Fetch pending queue items (oldest first, respecting max attempts)
-    const { data: queueItems, error: fetchError } = await supabase
-      .from('enrichment_queue')
-      .select(`
-        id,
-        listing_id,
-        status,
-        attempts,
-        queued_at
-      `)
-      .eq('status', 'pending')
-      .lt('attempts', MAX_ATTEMPTS)
-      .order('queued_at', { ascending: true })
-      .limit(BATCH_SIZE);
+    // Use RPC to atomically claim items (prevents race conditions)
+    const { data: claimedItems, error: claimError } = await supabase.rpc(
+      'claim_enrichment_queue_items',
+      { batch_size: BATCH_SIZE, max_attempts: MAX_ATTEMPTS }
+    );
 
-    if (fetchError) {
-      console.error('Error fetching queue items:', fetchError);
-      throw fetchError;
+    // Fallback to regular query if RPC doesn't exist yet
+    let queueItems = claimedItems;
+    if (claimError?.code === 'PGRST202') {
+      console.log('Using fallback queue fetch (RPC not available)');
+
+      const { data: pendingItems, error: fetchError } = await supabase
+        .from('enrichment_queue')
+        .select(`id, listing_id, status, attempts, queued_at`)
+        .eq('status', 'pending')
+        .lt('attempts', MAX_ATTEMPTS)
+        .order('queued_at', { ascending: true })
+        .limit(BATCH_SIZE);
+
+      if (fetchError) {
+        console.error('Error fetching queue items:', fetchError);
+        throw fetchError;
+      }
+
+      queueItems = pendingItems;
+    } else if (claimError) {
+      console.error('Error claiming queue items:', claimError);
+      throw claimError;
     }
 
     if (!queueItems || queueItems.length === 0) {
@@ -53,7 +79,49 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${queueItems.length} pending items to process`);
+    console.log(`Found ${queueItems.length} items to process`);
+
+    // PRE-CHECK: Mark items as completed if their listings are already enriched
+    const listingIds = queueItems.map((item: { listing_id: string }) => item.listing_id);
+    const { data: enrichedListings } = await supabase
+      .from('listings')
+      .select('id, enriched_at')
+      .in('id', listingIds)
+      .not('enriched_at', 'is', null);
+
+    const alreadyEnrichedIds = new Set(enrichedListings?.map(l => l.id) || []);
+    
+    if (alreadyEnrichedIds.size > 0) {
+      console.log(`Found ${alreadyEnrichedIds.size} listings already enriched - marking queue items as completed`);
+      
+      const itemsToComplete = queueItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
+      await Promise.all(itemsToComplete.map((item: { id: string; listing_id: string }) =>
+        supabase
+          .from('enrichment_queue')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            last_error: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', item.id)
+      ));
+      
+      queueItems = queueItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
+      
+      if (queueItems.length === 0) {
+        console.log('All items were already enriched - nothing to process');
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`, 
+            processed: 0,
+            synced: alreadyEnrichedIds.size 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     const results = {
       processed: 0,
@@ -62,100 +130,119 @@ serve(async (req) => {
       errors: [] as string[],
     };
 
-    // Process each item sequentially to avoid overwhelming external APIs
-    for (const item of queueItems) {
-      console.log(`Processing queue item ${item.id} for listing ${item.listing_id} (attempt ${item.attempts + 1})`);
-
-      // Mark as processing
-      await supabase
-        .from('enrichment_queue')
-        .update({
-          status: 'processing',
-          attempts: item.attempts + 1,
-          started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', item.id);
-
-      try {
-        // Call enrich-deal function
-        const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ dealId: item.listing_id }),
-          signal: AbortSignal.timeout(PROCESSING_TIMEOUT_MS),
-        });
-
-        const enrichResult = await enrichResponse.json();
-
-        if (enrichResponse.ok && enrichResult.success) {
-          // Success - mark as completed
-          await supabase
-            .from('enrichment_queue')
-            .update({
-              status: 'completed',
-              completed_at: new Date().toISOString(),
-              last_error: null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id);
-
-          console.log(`Successfully enriched listing ${item.listing_id}: ${enrichResult.fieldsUpdated?.length || 0} fields updated`);
-          results.succeeded++;
-        } else {
-          // Failed - update with error
-          const errorMsg = enrichResult.error || `HTTP ${enrichResponse.status}`;
-          
-          // Check if max attempts reached
-          const newStatus = item.attempts + 1 >= MAX_ATTEMPTS ? 'failed' : 'pending';
-          
-          await supabase
-            .from('enrichment_queue')
-            .update({
-              status: newStatus,
-              last_error: errorMsg,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id);
-
-          console.error(`Enrichment failed for listing ${item.listing_id}: ${errorMsg}`);
-          results.failed++;
-          results.errors.push(`${item.listing_id}: ${errorMsg}`);
-        }
-      } catch (error) {
-        // Network/timeout error
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        const newStatus = item.attempts + 1 >= MAX_ATTEMPTS ? 'failed' : 'pending';
-        
-        await supabase
-          .from('enrichment_queue')
-          .update({
-            status: newStatus,
-            last_error: errorMsg,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', item.id);
-
-        console.error(`Error processing ${item.listing_id}:`, error);
-        results.failed++;
-        results.errors.push(`${item.listing_id}: ${errorMsg}`);
+    // Process items in PARALLEL chunks (not sequential!)
+    // This is the key performance improvement: 5 items at once instead of 1
+    const chunks = chunkArray(queueItems, CONCURRENCY_LIMIT);
+    
+    for (const chunk of chunks) {
+      // Safety cutoff - check before each chunk
+      if (Date.now() - startedAt > MAX_FUNCTION_RUNTIME_MS) {
+        console.log('Stopping early to avoid function timeout');
+        break;
       }
 
-      results.processed++;
+      console.log(`Processing chunk of ${chunk.length} items in parallel...`);
 
-      // Small delay between items to be nice to external APIs
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Mark all items in chunk as processing (if not already claimed via RPC)
+      if (!claimedItems) {
+        await Promise.all(chunk.map((item: { id: string; attempts: number }) =>
+          supabase
+            .from('enrichment_queue')
+            .update({
+              status: 'processing',
+              attempts: item.attempts + 1,
+              started_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id)
+            .eq('status', 'pending')
+        ));
+      }
+
+      // Process entire chunk in parallel
+      const chunkResults = await Promise.allSettled(
+        chunk.map(async (item: { id: string; listing_id: string; attempts: number }) => {
+          console.log(`Processing queue item ${item.id} for listing ${item.listing_id}`);
+
+          // Fetch listing context
+          const { data: listing, error: listingError } = await supabase
+            .from('listings')
+            .select('internal_company_name, title, address_city, address_state, address, linkedin_url')
+            .eq('id', item.listing_id)
+            .single();
+
+          if (listingError || !listing) {
+            throw new Error(`Failed to fetch listing context: ${listingError?.message || 'not found'}`);
+          }
+
+          const pipeline = await runListingEnrichmentPipeline(
+            {
+              supabaseUrl,
+              serviceRoleKey: supabaseServiceKey,
+              listingId: item.listing_id,
+              timeoutMs: PROCESSING_TIMEOUT_MS,
+            },
+            listing
+          );
+
+          return { item, pipeline };
+        })
+      );
+
+      // Process results from this chunk
+      for (const result of chunkResults) {
+        results.processed++;
+
+        if (result.status === 'fulfilled') {
+          const { item, pipeline } = result.value;
+          const currentAttempts = claimedItems ? item.attempts : item.attempts + 1;
+
+          if (pipeline.ok) {
+            // Success
+            await supabase
+              .from('enrichment_queue')
+              .update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                last_error: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', item.id);
+
+            console.log(`Successfully enriched listing ${item.listing_id}: ${pipeline.fieldsUpdated.length} fields`);
+            results.succeeded++;
+          } else {
+            // Pipeline error
+            const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+            await supabase
+              .from('enrichment_queue')
+              .update({
+                status: newStatus,
+                last_error: pipeline.error,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', item.id);
+
+            console.error(`Enrichment failed for listing ${item.listing_id}: ${pipeline.error}`);
+            results.failed++;
+            results.errors.push(`${item.listing_id}: ${pipeline.error}`);
+          }
+        } else {
+          // Promise rejected - network/timeout error
+          const errorMsg = result.reason instanceof Error ? result.reason.message : 'Unknown error';
+          console.error(`Processing error:`, result.reason);
+          results.failed++;
+          results.errors.push(`chunk item: ${errorMsg}`);
+        }
+      }
     }
 
-    console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed`);
+    console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed} processed`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${results.processed} items`,
+        message: `Processed ${results.processed} items (parallel mode)`,
         ...results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

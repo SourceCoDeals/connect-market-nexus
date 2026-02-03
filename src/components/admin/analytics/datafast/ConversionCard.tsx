@@ -254,7 +254,7 @@ function getAvatarColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-// Enhanced Users tab with full Datafa.st-style data
+// Enhanced Users tab with full Datafa.st-style data - scrollable with fixed height
 function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: string) => void }) {
   if (users.length === 0) {
     return (
@@ -268,19 +268,23 @@ function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: 
   const maxSessions = Math.max(...users.map(u => u.sessions), 1);
   
   return (
-    <div className="space-y-1">
-      {/* Header row */}
-      <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-2">
-        <span className="flex-1">Visitor</span>
-        <div className="flex items-center gap-6">
-          <span className="w-16 text-center">Source</span>
-          <span className="w-12 text-right">Spent</span>
-          <span className="w-24 text-right">Last seen</span>
-          <span className="w-20 text-right">Activity</span>
-        </div>
-      </div>
-      
-      {users.slice(0, 15).map((user) => (
+    <div className="relative">
+      {/* Scrollable container with fixed max height - shows all users, not limited to 15 */}
+      <div className="max-h-[400px] overflow-y-auto pr-1">
+        <div className="space-y-1">
+          {/* Header row - sticky at top */}
+          <div className="sticky top-0 bg-card z-10 flex items-center justify-between px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-2">
+            <span className="flex-1">Visitor</span>
+            <div className="flex items-center gap-6">
+              <span className="w-16 text-center">Source</span>
+              <span className="w-12 text-right">Spent</span>
+              <span className="w-24 text-right">Last seen</span>
+              <span className="w-20 text-right">Activity</span>
+            </div>
+          </div>
+          
+          {/* Show all users (up to 50 fetched), not just first 15 */}
+          {users.map((user) => (
         <ProportionalBar
           key={user.id}
           value={user.sessions}
@@ -370,8 +374,10 @@ function UsersTab({ users, onUserClick }: { users: TopUser[]; onUserClick: (id: 
               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
-        </ProportionalBar>
-      ))}
+          </ProportionalBar>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

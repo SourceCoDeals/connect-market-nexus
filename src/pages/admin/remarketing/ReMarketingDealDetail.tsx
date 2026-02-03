@@ -365,50 +365,6 @@ const ReMarketingDealDetail = () => {
         </div>
       </div>
 
-      {/* Transcripts Section */}
-      <DealTranscriptSection dealId={dealId!} transcripts={transcripts || []} isLoading={transcriptsLoading} />
-
-      {/* General Notes Section */}
-      <GeneralNotesSection
-        notes={deal.general_notes}
-        onSave={async (notes) => {
-          await updateDealMutation.mutateAsync({ general_notes: notes });
-        }}
-        isAnalyzing={isAnalyzingNotes}
-        onAnalyze={async (notes) => {
-          setIsAnalyzingNotes(true);
-          try {
-            const { data, error } = await supabase.functions.invoke('analyze-deal-notes', {
-              body: { dealId, notesText: notes }
-            });
-            
-            if (error) throw error;
-            
-            if (data?.success) {
-              toast.success(`Extracted ${data.fieldsUpdated?.length || 0} fields from notes`);
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
-            } else {
-              toast.error(data?.error || "Failed to analyze notes");
-            }
-          } catch (error: any) {
-            toast.error(error.message || "Failed to analyze notes");
-          } finally {
-            setIsAnalyzingNotes(false);
-          }
-        }}
-      />
-
-      {/* Pipeline Summary Card - Shows conversion funnel */}
-      {scoreStats && scoreStats.count > 0 && (
-        <PipelineSummaryCard
-          scored={scoreStats.count}
-          approved={scoreStats.approved}
-          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
-          meetingScheduled={pipelineStats?.meetingScheduled || 0}
-          closedWon={pipelineStats?.closedWon || 0}
-        />
-      )}
-
       {/* Website & Actions */}
       <Card>
         <CardHeader className="py-3">
@@ -464,180 +420,199 @@ const ReMarketingDealDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Two Column Layout - Company & Financial */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <CompanyOverviewCard
-          website={effectiveWebsite}
-          location={deal.location}
-          address={deal.address}
-          foundedYear={deal.founded_year}
-          employees={{
-            fullTime: deal.full_time_employees,
-            partTime: deal.part_time_employees,
-          }}
-          industry={deal.industry}
-          numberOfLocations={deal.number_of_locations}
-          locationRadiusRequirement={deal.location_radius_requirement}
-          category={deal.category}
-          status={deal.status}
-          // Structured address fields
-          streetAddress={deal.street_address}
-          addressCity={deal.address_city}
-          addressState={deal.address_state}
-          addressZip={deal.address_zip}
-          addressCountry={deal.address_country}
-          // Google reviews data (new columns - type assertion while types regenerate)
-          googleReviewCount={(deal as any).google_review_count}
-          googleRating={(deal as any).google_rating}
-          googleMapsUrl={(deal as any).google_maps_url}
-          onSave={async (data) => {
-            await updateDealMutation.mutateAsync({
-              website: data.website,
-              address: data.address,
-              founded_year: data.foundedYear,
-              industry: data.industry,
-              number_of_locations: data.numberOfLocations,
-              location_radius_requirement: data.locationRadiusRequirement,
-              // Structured address
-              street_address: data.streetAddress,
-              address_city: data.addressCity,
-              address_state: data.addressState,
-              address_zip: data.addressZip,
-              address_country: data.addressCountry,
-            });
-          }}
-        />
+      {/* Company Overview - Full width with 3 columns */}
+      <CompanyOverviewCard
+        website={effectiveWebsite}
+        location={deal.location}
+        address={deal.address}
+        foundedYear={deal.founded_year}
+        employees={{
+          fullTime: deal.full_time_employees,
+          partTime: deal.part_time_employees,
+        }}
+        industry={deal.industry}
+        numberOfLocations={deal.number_of_locations}
+        locationRadiusRequirement={deal.location_radius_requirement}
+        category={deal.category}
+        status={deal.status}
+        // Structured address fields
+        streetAddress={deal.street_address}
+        addressCity={deal.address_city}
+        addressState={deal.address_state}
+        addressZip={deal.address_zip}
+        addressCountry={deal.address_country}
+        // Google reviews data
+        googleReviewCount={deal.google_review_count ?? undefined}
+        googleRating={deal.google_rating ?? undefined}
+        googleMapsUrl={deal.google_maps_url ?? undefined}
+        // LinkedIn data
+        linkedinUrl={deal.linkedin_url ?? undefined}
+        linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
+        linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
+        // Deal quality score
+        dealQualityScore={deal.deal_total_score ?? undefined}
+        onScoreChange={async (newScore) => {
+          await updateDealMutation.mutateAsync({
+            deal_total_score: newScore,
+          });
+        }}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            website: data.website,
+            address: data.address,
+            founded_year: data.foundedYear,
+            industry: data.industry,
+            number_of_locations: data.numberOfLocations,
+            location_radius_requirement: data.locationRadiusRequirement,
+            // Structured address
+            street_address: data.streetAddress,
+            address_city: data.addressCity,
+            address_state: data.addressState,
+            address_zip: data.addressZip,
+            address_country: data.addressCountry,
+          });
+        }}
+      />
 
-        {/* Financial Overview - Enhanced with Confidence Badges */}
-        <Card>
-          <CardHeader className="py-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Financial Overview
-              </CardTitle>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Pencil className="h-4 w-4" />
-              </Button>
+      {/* Financial Overview - Full width below Company Overview */}
+      <Card>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Financial Overview
+            </CardTitle>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Low Confidence Warning Banner */}
+          {((deal.revenue_confidence === 'low') || (deal.ebitda_confidence === 'low')) && (
+            <div className="flex items-start gap-2 p-2 mb-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium">Needs Clarification</p>
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Low Confidence Warning Banner */}
-            {((deal.revenue_confidence === 'low') || (deal.ebitda_confidence === 'low')) && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-                <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium">Financial Data Needs Clarification</p>
-                  <p className="text-xs text-amber-700">
-                    Some extracted values have low confidence. Review source quotes and schedule a follow-up call to confirm.
-                  </p>
-                </div>
+          )}
+          
+          {/* 3-column grid for financial metrics */}
+          <div className="grid grid-cols-3 gap-6">
+            {/* Revenue */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  REVENUE
+                </p>
+                {deal.revenue && (
+                  <Badge 
+                    variant="outline" 
+                    className={
+                      deal.revenue_confidence === 'high' 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
+                        : deal.revenue_confidence === 'low'
+                        ? "bg-red-50 text-red-600 border-red-200 text-xs"
+                        : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
+                    }
+                  >
+                    {deal.revenue_confidence === 'high' ? '✓' : 
+                     deal.revenue_confidence === 'low' ? '△' : '○'}
+                  </Badge>
+                )}
               </div>
-            )}
+              <span className="text-2xl font-bold">{formatCurrency(deal.revenue)}</span>
+              {deal.revenue_source_quote && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
+                      View source
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
+                      <p className="text-sm italic">"{deal.revenue_source_quote}"</p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
             
-            {/* Revenue & EBITDA Side by Side */}
-            <div className="grid grid-cols-2 gap-6">
-              {/* Revenue */}
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    REVENUE
-                  </p>
-                  {deal.revenue && (
-                    <Badge 
-                      variant="outline" 
-                      className={
-                        deal.revenue_confidence === 'high' 
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
-                          : deal.revenue_confidence === 'low'
-                          ? "bg-red-50 text-red-600 border-red-200 text-xs"
-                          : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
-                      }
-                    >
-                      {deal.revenue_confidence === 'high' ? '✓ High' : 
-                       deal.revenue_confidence === 'low' ? '△ Low' : '○ Med'}
-                    </Badge>
-                  )}
-                </div>
-                <span className="text-3xl font-bold">{formatCurrency(deal.revenue)}</span>
-                {deal.revenue_source_quote && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
-                        View source quote
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
-                        <p className="text-sm italic">"{deal.revenue_source_quote}"</p>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+            {/* EBITDA */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  EBITDA
+                </p>
+                {deal.ebitda && (
+                  <Badge 
+                    variant="outline" 
+                    className={
+                      deal.ebitda_confidence === 'high' 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
+                        : deal.ebitda_confidence === 'low'
+                        ? "bg-red-50 text-red-600 border-red-200 text-xs"
+                        : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
+                    }
+                  >
+                    {deal.ebitda_confidence === 'high' ? '✓' : 
+                     deal.ebitda_confidence === 'low' ? '△' : '○'}
+                  </Badge>
                 )}
               </div>
-              
-              {/* EBITDA */}
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    EBITDA
-                  </p>
-                  {deal.ebitda && (
-                    <Badge 
-                      variant="outline" 
-                      className={
-                        deal.ebitda_confidence === 'high' 
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
-                          : deal.ebitda_confidence === 'low'
-                          ? "bg-red-50 text-red-600 border-red-200 text-xs"
-                          : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
-                      }
-                    >
-                      {deal.ebitda_confidence === 'high' ? '✓ High' : 
-                       deal.ebitda_confidence === 'low' ? '△ Low' : '○ Med'}
-                    </Badge>
-                  )}
-                </div>
-                <span className="text-3xl font-bold">{formatCurrency(deal.ebitda)}</span>
-                {deal.ebitda_source_quote && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
-                        View source quote
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
-                        <p className="text-sm italic">"{deal.ebitda_source_quote}"</p>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                )}
-              </div>
+              <span className="text-2xl font-bold">{formatCurrency(deal.ebitda)}</span>
+              {deal.ebitda_source_quote && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
+                      View source
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
+                      <p className="text-sm italic">"{deal.ebitda_source_quote}"</p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
             
             {/* EBITDA Margin */}
-            {deal.revenue && deal.ebitda && (
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    EBITDA MARGIN
-                  </p>
-                  <span className="text-lg font-semibold">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                EBITDA MARGIN
+              </p>
+              {deal.revenue && deal.ebitda ? (
+                <>
+                  <span className="text-2xl font-bold">
                     {((deal.ebitda / deal.revenue) * 100).toFixed(0)}%
                   </span>
-                </div>
-                <Progress 
-                  value={Math.min((deal.ebitda / deal.revenue) * 100, 100)} 
-                  className="h-2 mt-2"
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <Progress 
+                    value={Math.min((deal.ebitda / deal.revenue) * 100, 100)} 
+                    className="h-2 mt-2"
+                  />
+                </>
+              ) : (
+                <span className="text-2xl font-bold text-muted-foreground">–</span>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pipeline Summary Card - Shows conversion funnel */}
+      {scoreStats && scoreStats.count > 0 && (
+        <PipelineSummaryCard
+          scored={scoreStats.count}
+          approved={scoreStats.approved}
+          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
+          meetingScheduled={pipelineStats?.meetingScheduled || 0}
+          closedWon={pipelineStats?.closedWon || 0}
+        />
+      )}
 
       {/* Executive Summary */}
       <ExecutiveSummaryCard
@@ -706,12 +681,12 @@ const ReMarketingDealDetail = () => {
       {/* End Market / Customers - Enhanced with 3 fields */}
       <CustomerTypesCard
         customerTypes={deal.customer_types}
-        customerConcentration={(deal as any).customer_concentration ?? undefined}
-        customerGeography={(deal as any).customer_geography ?? undefined}
+        customerConcentration={deal.customer_concentration != null ? String(deal.customer_concentration) : undefined}
+        customerGeography={deal.customer_geography ?? undefined}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({ 
             customer_types: data.customerTypes,
-            customer_concentration: data.customerConcentration,
+            customer_concentration: data.customerConcentration ? parseFloat(data.customerConcentration) : null,
             customer_geography: data.customerGeography,
           });
         }}
@@ -790,6 +765,39 @@ const ReMarketingDealDetail = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Transcripts Section */}
+      <DealTranscriptSection dealId={dealId!} transcripts={transcripts || []} isLoading={transcriptsLoading} />
+
+      {/* General Notes Section */}
+      <GeneralNotesSection
+        notes={deal.general_notes}
+        onSave={async (notes) => {
+          await updateDealMutation.mutateAsync({ general_notes: notes });
+        }}
+        isAnalyzing={isAnalyzingNotes}
+        onAnalyze={async (notes) => {
+          setIsAnalyzingNotes(true);
+          try {
+            const { data, error } = await supabase.functions.invoke('analyze-deal-notes', {
+              body: { dealId, notesText: notes }
+            });
+            
+            if (error) throw error;
+            
+            if (data?.success) {
+              toast.success(`Extracted ${data.fieldsUpdated?.length || 0} fields from notes`);
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+            } else {
+              toast.error(data?.error || "Failed to analyze notes");
+            }
+          } catch (error: any) {
+            toast.error(error.message || "Failed to analyze notes");
+          } finally {
+            setIsAnalyzingNotes(false);
+          }
+        }}
+      />
 
       {/* Timestamps Footer */}
       <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">

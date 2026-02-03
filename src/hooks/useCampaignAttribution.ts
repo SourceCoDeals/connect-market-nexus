@@ -54,9 +54,12 @@ export function useCampaignAttribution(timeRangeDays: number = 30) {
       const startDate = subDays(now, timeRangeDays);
       
       // Fetch sessions with UTM data
+      // Filter out bots and dev traffic
       const { data: sessions, error: sessionsError } = await supabase
         .from('user_sessions')
         .select('session_id, user_id, utm_source, utm_medium, utm_campaign, utm_content, created_at')
+        .eq('is_bot', false)
+        .eq('is_production', true)
         .gte('created_at', startDate.toISOString());
       
       if (sessionsError) throw sessionsError;

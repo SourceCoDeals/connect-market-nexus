@@ -44,6 +44,7 @@ export interface UnifiedAnalyticsData {
   topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
   entryPages: Array<{ path: string; visitors: number; bounceRate: number }>;
   exitPages: Array<{ path: string; exits: number; exitRate: number }>;
+  blogEntryPages: Array<{ path: string; visitors: number; sessions: number }>;
   
   browsers: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
   operatingSystems: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
@@ -156,11 +157,71 @@ function categorizeChannel(referrer: string | null, utmSource: string | null, ut
 function extractDomain(url: string | null): string {
   if (!url) return 'Direct';
   try {
-    const hostname = new URL(url).hostname;
-    return hostname.replace('www.', '');
+    let hostname: string;
+    
+    // Check if it's already a domain (no protocol) - common for utm_source values like "chatgpt.com"
+    if (!url.includes('://') && !url.startsWith('/')) {
+      hostname = url.replace('www.', '').toLowerCase();
+    } else {
+      hostname = new URL(url).hostname.replace('www.', '');
+    }
+    
+    // Normalize known email service tracking domains to a single canonical domain
+    // Brevo uses various subdomains like exdov.r.sp1-brevo.net, sendibt.com, etc.
+    if (hostname.includes('brevo') || hostname.includes('sendibt') || hostname.includes('exdov')) {
+      return 'brevo.com';
+    }
+    if (hostname.includes('mailchimp') || hostname.includes('mailchi.mp')) {
+      return 'mailchimp.com';
+    }
+    if (hostname.includes('sendgrid')) {
+      return 'sendgrid.com';
+    }
+    
+    return hostname;
   } catch {
-    return url;
+    // For values like "chatgpt.com" that aren't full URLs
+    return url.replace('www.', '').toLowerCase();
   }
+}
+
+// Discovery source priority system - get the TRUE origin of a visitor
+// Priority 1: original_external_referrer (cross-domain tracking from blog)
+// Priority 2: utm_source (explicit attribution like chatgpt.com, brevo)
+// Priority 3: referrer (immediate HTTP referrer - fallback)
+function getDiscoverySource(session: {
+  original_external_referrer?: string | null;
+  utm_source?: string | null;
+  referrer?: string | null;
+}): string | null {
+  if (session.original_external_referrer) return session.original_external_referrer;
+  if (session.utm_source) return session.utm_source;
+  return session.referrer || null;
+}
+
+// Find the first session with meaningful attribution data
+// Priority: original_external_referrer > utm_source > referrer > any session
+// This handles race conditions where the chronologically first session may have no referrer
+function getFirstMeaningfulSession(sessions: any[]): any | null {
+  if (!sessions || sessions.length === 0) return null;
+  
+  // Sessions come sorted DESC (most recent first), reverse for chronological
+  const chronological = [...sessions].reverse();
+  
+  // Priority 1: First session with cross-domain tracking
+  const withCrossDomain = chronological.find(s => s.original_external_referrer);
+  if (withCrossDomain) return withCrossDomain;
+  
+  // Priority 2: First session with UTM source
+  const withUtm = chronological.find(s => s.utm_source);
+  if (withUtm) return withUtm;
+  
+  // Priority 3: First session with any referrer
+  const withReferrer = chronological.find(s => s.referrer);
+  if (withReferrer) return withReferrer;
+  
+  // Fallback: actual first session (truly direct)
+  return chronological[0];
 }
 
 function getChannelIcon(channel: string): string {
@@ -213,17 +274,21 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         profilesResult,
         allConnectionsWithMilestonesResult,
       ] = await Promise.all([
-        // Current period sessions - include visitor_id and region for proper counting
+        // Current period sessions - include visitor_id, region, blog_landing_page and original_external_referrer for proper attribution
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .gte('started_at', startDateStr)
           .order('started_at', { ascending: false }),
         
         // Previous period sessions for trend
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, session_duration_seconds, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .gte('started_at', prevStartDateStr)
           .lt('started_at', startDateStr),
         
@@ -258,6 +323,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           .from('user_sessions')
           .select('id')
           .eq('is_active', true)
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .gte('last_active_at', twoMinutesAgo),
         
         // Profiles for signups in the time range ONLY (CRITICAL FIX: must filter by date!)
@@ -336,17 +403,33 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       if (profileIds.length > 0) {
         const { data: firstSessionsData } = await supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .in('user_id', profileIds)
           .order('started_at', { ascending: true });
         firstSessions = firstSessionsData || [];
       }
       
-      // Create profile to first session mapping for signup attribution
-      const profileToFirstSession = new Map<string, FirstSessionData>();
+      // Create profile to BEST attribution session mapping for signup attribution
+      // Uses smart first-touch: finds first session with meaningful attribution data
+      const profileSessionsMap = new Map<string, FirstSessionData[]>();
       firstSessions.forEach(s => {
-        if (s.user_id && !profileToFirstSession.has(s.user_id)) {
-          profileToFirstSession.set(s.user_id, s);
+        if (s.user_id) {
+          if (!profileSessionsMap.has(s.user_id)) {
+            profileSessionsMap.set(s.user_id, []);
+          }
+          profileSessionsMap.get(s.user_id)!.push(s);
+        }
+      });
+      
+      const profileToFirstSession = new Map<string, FirstSessionData>();
+      profileSessionsMap.forEach((sessions, userId) => {
+        // Use smart first-touch: find first session with meaningful attribution
+        // Sessions are sorted ASC, so first meaningful = best attribution
+        const meaningfulSession = getFirstMeaningfulSession(sessions.reverse()); // reverse for DESC like the helper expects
+        if (meaningfulSession) {
+          profileToFirstSession.set(userId, meaningfulSession);
         }
       });
       
@@ -386,9 +469,21 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }))
         .sort((a, b) => b.signups - a.signups);
       
-      // CRITICAL FIX #1: Filter out dev/bot traffic
-      const sessions = rawSessions.filter(s => !isDevTraffic(s.referrer));
-      const prevSessions = rawPrevSessions.filter(s => !isDevTraffic(s.referrer));
+      // CRITICAL FIX #1: Filter out dev/bot traffic (defense in depth - also filtered at query level)
+      const sessions = rawSessions.filter(s => 
+        !isDevTraffic(s.referrer) &&
+        !s.user_agent?.includes('Chrome/119.') &&
+        !s.user_agent?.includes('Chrome/118.') &&
+        !s.user_agent?.includes('Chrome/117.') &&
+        !s.user_agent?.includes('HeadlessChrome')
+      );
+      const prevSessions = rawPrevSessions.filter(s => 
+        !isDevTraffic(s.referrer) &&
+        !s.user_agent?.includes('Chrome/119.') &&
+        !s.user_agent?.includes('Chrome/118.') &&
+        !s.user_agent?.includes('Chrome/117.') &&
+        !s.user_agent?.includes('HeadlessChrome')
+      );
       
       // Deduplicate sessions by session_id (keep first occurrence)
       const sessionMap = new Map<string, typeof sessions[0]>();
@@ -403,14 +498,22 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       if (filters.length > 0) {
         filters.forEach(filter => {
           if (filter.type === 'channel') {
-            uniqueSessions = uniqueSessions.filter(s => 
-              categorizeChannel(s.referrer, s.utm_source, s.utm_medium) === filter.value
-            );
+            uniqueSessions = uniqueSessions.filter(s => {
+              // Use discovery source priority for consistent filtering
+              const discoverySource = getDiscoverySource(s);
+              return categorizeChannel(discoverySource, s.utm_source, s.utm_medium) === filter.value;
+            });
           }
           if (filter.type === 'referrer') {
-            uniqueSessions = uniqueSessions.filter(s => 
-              extractDomain(s.referrer) === filter.value
-            );
+            uniqueSessions = uniqueSessions.filter(s => {
+              // Use discovery source priority - same logic used in Referrer card display
+              const discoverySource = getDiscoverySource(s);
+              const domain = extractDomain(discoverySource);
+              // Match if domain equals filter, or if one contains the other (handles chatgpt vs chatgpt.com)
+              return domain === filter.value || 
+                     domain.includes(filter.value) || 
+                     filter.value.includes(domain);
+            });
           }
           if (filter.type === 'country') {
             uniqueSessions = uniqueSessions.filter(s => s.country === filter.value);
@@ -650,7 +753,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const channelSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
-        const channel = categorizeChannel(s.referrer, s.utm_source, s.utm_medium);
+        // Use discovery source priority: original_external_referrer > utm_source > referrer
+        const discoverySource = getDiscoverySource(s);
+        const channel = categorizeChannel(discoverySource, s.utm_source, s.utm_medium);
         if (!channelVisitors[channel]) {
           channelVisitors[channel] = new Set();
           channelSessions[channel] = 0;
@@ -660,16 +765,54 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         channelSessions[channel]++;
       });
       
-      // Map connections to channels
-      const userSessionMap = new Map<string, typeof sessions[0]>();
-      uniqueSessions.forEach(s => {
-        if (s.user_id) userSessionMap.set(s.user_id, s);
+      // === SMART ATTRIBUTION FOR CONNECTION USERS ===
+      // Build a map of each connection user's BEST attribution session using first-touch logic
+      // This ensures connections are attributed to the session with the best tracking data,
+      // not a random session (which was the bug - userSessionMap just overwrote with last session)
+      const connectionUserIds = new Set<string>();
+      filteredConnections.forEach(c => {
+        if (c.user_id) connectionUserIds.add(c.user_id);
       });
+      
+      // Fetch ALL sessions for these users (not just in time range) to find true first-touch
+      type ConnectionSessionType = typeof sessions[0];
+      let connectionUserSessions: ConnectionSessionType[] = [];
+      if (connectionUserIds.size > 0) {
+        const { data } = await supabase
+          .from('user_sessions')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
+          .in('user_id', Array.from(connectionUserIds))
+          .order('started_at', { ascending: false });
+        connectionUserSessions = (data || []) as ConnectionSessionType[];
+      }
+      
+      // Group sessions by user
+      const userSessionGroups = new Map<string, ConnectionSessionType[]>();
+      connectionUserSessions.forEach(s => {
+        if (s.user_id) {
+          if (!userSessionGroups.has(s.user_id)) {
+            userSessionGroups.set(s.user_id, []);
+          }
+          userSessionGroups.get(s.user_id)!.push(s);
+        }
+      });
+      
+      // Build attribution map using smart first-touch logic
+      const userToAttributionSession = new Map<string, ConnectionSessionType>();
+      userSessionGroups.forEach((sessions, userId) => {
+        const best = getFirstMeaningfulSession(sessions);
+        if (best) userToAttributionSession.set(userId, best as ConnectionSessionType);
+      });
+      
+      // Map connections to channels using smart attribution
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const session = userSessionMap.get(c.user_id);
+          const session = userToAttributionSession.get(c.user_id);
           if (session) {
-            const channel = categorizeChannel(session.referrer, session.utm_source, session.utm_medium);
+            const discoverySource = getDiscoverySource(session);
+            const channel = categorizeChannel(discoverySource, session.utm_source, session.utm_medium);
             channelConnections[channel] = (channelConnections[channel] || 0) + 1;
           }
         }
@@ -719,7 +862,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const referrerSignups: Record<string, number> = {};
       
       uniqueSessions.forEach(s => {
-        const domain = extractDomain(s.referrer);
+        // Use discovery source priority: original_external_referrer > utm_source > referrer
+        const discoverySource = getDiscoverySource(s);
+        const domain = extractDomain(discoverySource);
         if (!referrerVisitors[domain]) {
           referrerVisitors[domain] = new Set();
           referrerSessions[domain] = 0;
@@ -729,12 +874,13 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         referrerSessions[domain]++;
       });
       
-      // Map connections to referrers via user's first-touch referrer
+      // Map connections to referrers via user's first-touch referrer using discovery source priority
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession) {
-            const domain = extractDomain(userSession.referrer);
+            const discoverySource = getDiscoverySource(userSession);
+            const domain = extractDomain(discoverySource);
             referrerConnections[domain] = (referrerConnections[domain] || 0) + 1;
           }
         }
@@ -776,7 +922,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32` 
         }))
         .sort((a, b) => b.visitors - a.visitors)
-        .slice(0, 10);
+        .slice(0, 20); // Show more referrers to include lower-volume sources like LinkedIn
       
       // Campaign breakdown - count unique visitors
       const campaignVisitors: Record<string, Set<string>> = {};
@@ -793,11 +939,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           campaignSessions[s.utm_campaign]++;
         }
       });
-      // Map connections to campaigns
+      // Map connections to campaigns using smart attribution
       const campaignConnections: Record<string, number> = {};
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession?.utm_campaign) {
             campaignConnections[userSession.utm_campaign] = (campaignConnections[userSession.utm_campaign] || 0) + 1;
           }
@@ -836,11 +982,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           keywordSessions[s.utm_term]++;
         }
       });
-      // Map connections to keywords
+      // Map connections to keywords using smart attribution
       const keywordConnections: Record<string, number> = {};
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession?.utm_term) {
             keywordConnections[userSession.utm_term] = (keywordConnections[userSession.utm_term] || 0) + 1;
           }
@@ -909,10 +1055,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
       });
       
-      // Map connections to geography via user's session
+      // Map connections to geography via user's smart attribution session
       filteredConnections.forEach(c => {
         if (c.user_id) {
-          const userSession = userSessionMap.get(c.user_id);
+          const userSession = userToAttributionSession.get(c.user_id);
           if (userSession) {
             const country = userSession.country || 'Unknown';
             countryConnections[country] = (countryConnections[country] || 0) + 1;
@@ -1062,6 +1208,30 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }))
         .sort((a, b) => b.exits - a.exits)
         .slice(0, 10);
+      
+      // NEW: Aggregate blog_landing_page from user_sessions (cross-domain entry pages)
+      const blogEntryPageCounts: Record<string, { visitors: Set<string>; sessions: number }> = {};
+      uniqueSessions.forEach(s => {
+        if (s.blog_landing_page) {
+          // Format with main site domain prefix for clarity
+          const path = `sourcecodeals.com${s.blog_landing_page}`;
+          if (!blogEntryPageCounts[path]) {
+            blogEntryPageCounts[path] = { visitors: new Set(), sessions: 0 };
+          }
+          const visitorKey = getVisitorKey(s);
+          if (visitorKey) blogEntryPageCounts[path].visitors.add(visitorKey);
+          blogEntryPageCounts[path].sessions++;
+        }
+      });
+      
+      const blogEntryPages = Object.entries(blogEntryPageCounts)
+        .map(([path, data]) => ({
+          path,
+          visitors: data.visitors.size,
+          sessions: data.sessions,
+        }))
+        .sort((a, b) => b.visitors - a.visitors)
+        .slice(0, 20);
       
       // Tech breakdown - count unique visitors, not sessions
       const browserVisitors: Record<string, Set<string>> = {};
@@ -1311,20 +1481,38 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         })
         .slice(0, 50);
       
-      // Format daily metrics - FALLBACK to computing from raw data if empty
-      // Use unique_visitors column if available, otherwise compute
+      // Format daily metrics
+      // CRITICAL FIX: When filters are active, ALWAYS compute from filtered session data
+      // The pre-aggregated daily_metrics table is NOT filtered, so it would show wrong data
       let formattedDailyMetrics: Array<{ date: string; visitors: number; sessions: number; connections: number; bounceRate: number }>;
       
-      if (dailyMetrics.length > 0) {
+      if (filters.length > 0) {
+        // FILTERS ACTIVE: Compute from filtered uniqueSessions (which respects all filters)
+        formattedDailyMetrics = [];
+        const currentDate = new Date(startDate);
+        const end = new Date(endDate);
+        while (currentDate <= end) {
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          formattedDailyMetrics.push({
+            date: dateStr,
+            visitors: dailyVisitorSets.get(dateStr)?.size || 0,
+            sessions: dailySessionCounts.get(dateStr) || 0,
+            connections: dailyConnectionCounts.get(dateStr) || 0,
+            bounceRate: 0,
+          });
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else if (dailyMetrics.length > 0) {
+        // NO FILTERS: Use pre-aggregated data from daily_metrics table for performance
         formattedDailyMetrics = dailyMetrics.map(m => ({
           date: m.date,
-          visitors: (m as any).unique_visitors || 0, // Use unique_visitors if backfilled
+          visitors: (m as any).unique_visitors || 0,
           sessions: m.total_sessions || 0,
           connections: m.connection_requests || 0,
           bounceRate: m.bounce_rate || 0,
         }));
       } else {
-        // FALLBACK: Compute from raw sessions and connections
+        // FALLBACK: Compute from session data when no aggregated data exists
         formattedDailyMetrics = [];
         const currentDate = new Date(startDate);
         const end = new Date(endDate);
@@ -1364,6 +1552,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         topPages,
         entryPages,
         exitPages,
+        blogEntryPages,
         browsers,
         operatingSystems,
         devices,

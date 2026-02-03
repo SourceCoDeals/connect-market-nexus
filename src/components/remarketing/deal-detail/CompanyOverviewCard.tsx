@@ -13,6 +13,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -32,6 +37,8 @@ import {
   Building,
   MapPinned,
   Star,
+  Linkedin,
+  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -90,6 +97,13 @@ interface CompanyOverviewCardProps {
   googleReviewCount?: number | null;
   googleRating?: number | null;
   googleMapsUrl?: string | null;
+  // LinkedIn data
+  linkedinUrl?: string | null;
+  linkedinEmployeeCount?: number | null;
+  linkedinEmployeeRange?: string | null;
+  // Deal quality score
+  dealQualityScore?: number | null;
+  onScoreChange?: (newScore: number) => Promise<void>;
   onSave: (data: {
     website: string;
     address: string;
@@ -125,9 +139,17 @@ export const CompanyOverviewCard = ({
   googleReviewCount,
   googleRating,
   googleMapsUrl,
+  linkedinUrl,
+  linkedinEmployeeCount,
+  linkedinEmployeeRange,
+  dealQualityScore,
+  onScoreChange,
   onSave,
 }: CompanyOverviewCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [scorePopoverOpen, setScorePopoverOpen] = useState(false);
+  const [editingScore, setEditingScore] = useState("");
+  const [isSavingScore, setIsSavingScore] = useState(false);
   const [formData, setFormData] = useState({
     website: website || "",
     address: address || "",
@@ -143,6 +165,25 @@ export const CompanyOverviewCard = ({
     addressCountry: addressCountry || "US",
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleScoreSave = async () => {
+    if (!onScoreChange) return;
+    const num = parseInt(editingScore);
+    if (isNaN(num) || num < 0 || num > 100) {
+      toast.error("Score must be between 0 and 100");
+      return;
+    }
+    setIsSavingScore(true);
+    try {
+      await onScoreChange(num);
+      setScorePopoverOpen(false);
+      toast.success("Quality score updated");
+    } catch {
+      toast.error("Failed to update score");
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -202,21 +243,42 @@ export const CompanyOverviewCard = ({
     if (addressCity && addressState) {
       return `${addressCity}, ${addressState}`;
     }
-    return location || "Not specified";
+    return location || "–";
   };
 
-  // Format full address display
+  // Format full address display - include zip and country
   const getFullAddressDisplay = () => {
     const parts: string[] = [];
+    
+    // Line 1: Street address
     if (streetAddress) parts.push(streetAddress);
-    if (addressCity || addressState || addressZip) {
-      const cityStateZip = [
-        addressCity,
-        addressState,
-        addressZip
-      ].filter(Boolean).join(addressState && addressZip ? " " : ", ");
-      if (cityStateZip) parts.push(cityStateZip);
+    
+    // Line 2: City, State ZIP
+    const cityStateZip: string[] = [];
+    if (addressCity) cityStateZip.push(addressCity);
+    if (addressState) {
+      if (cityStateZip.length > 0) {
+        // Append state to city with comma
+        cityStateZip[cityStateZip.length - 1] += `, ${addressState}`;
+      } else {
+        cityStateZip.push(addressState);
+      }
     }
+    if (addressZip) {
+      if (cityStateZip.length > 0) {
+        cityStateZip[cityStateZip.length - 1] += ` ${addressZip}`;
+      } else {
+        cityStateZip.push(addressZip);
+      }
+    }
+    if (cityStateZip.length > 0) parts.push(cityStateZip.join(''));
+    
+    // Line 3: Country (if not US, or always show for completeness)
+    if (addressCountry) {
+      const countryDisplay = addressCountry === 'US' ? 'United States' : addressCountry === 'CA' ? 'Canada' : addressCountry;
+      parts.push(countryDisplay);
+    }
+    
     if (parts.length > 0) return parts;
     if (address) return [address];
     return null;
@@ -233,20 +295,17 @@ export const CompanyOverviewCard = ({
     label: string; 
     value: React.ReactNode; 
   }) => (
-    <>
-      <div className="flex items-start gap-3">
-        <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-        <div className="flex-1 flex justify-between items-start gap-2">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {label}
-          </span>
-          <span className="font-medium text-sm text-right">
-            {value}
-          </span>
-        </div>
+    <div className="flex items-start gap-2 py-2">
+      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+          {label}
+        </span>
+        <span className="font-medium text-sm mt-0.5 block truncate">
+          {value}
+        </span>
       </div>
-      <Separator />
-    </>
+    </div>
   );
 
   const allStates = [...US_STATES, ...CA_PROVINCES];
@@ -265,126 +324,257 @@ export const CompanyOverviewCard = ({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Website */}
-          <div className="flex items-start gap-3">
-            <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="flex-1 flex justify-between items-start gap-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                WEBSITE
-              </span>
-              {website ? (
-                <a
-                  href={getWebsiteHref(website)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-sm flex items-center gap-1 text-primary hover:underline"
-                >
-                  {formatWebsiteDisplay(website)}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : (
-                <span className="text-sm text-muted-foreground italic">Not specified</span>
-              )}
-            </div>
-          </div>
-          <Separator />
-
-          <InfoRow 
-            icon={MapPin} 
-            label="HEADQUARTERS" 
-            value={getHeadquartersDisplay()} 
-          />
-
-          <InfoRow 
-            icon={Home} 
-            label="ADDRESS" 
-            value={
-              fullAddress ? (
-                <div className="text-right max-w-[200px]">
-                  {fullAddress.map((line, i) => (
-                    <div key={i}>{line}</div>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-muted-foreground italic">Not specified</span>
-              )
-            } 
-          />
-
-          <InfoRow 
-            icon={Calendar} 
-            label="FOUNDED" 
-            value={foundedYear || "Not specified"} 
-          />
-
-          <InfoRow 
-            icon={Users} 
-            label="EMPLOYEES" 
-            value={
-              employees.fullTime || employees.partTime
-                ? `${employees.fullTime ? `${employees.fullTime} FT` : ""}${employees.fullTime && employees.partTime ? " + " : ""}${employees.partTime ? `${employees.partTime} PT` : ""}`
-                : "Not specified"
-            } 
-          />
-
-          <InfoRow
-            icon={Building}
-            label="INDUSTRY"
-            value={industry || category || "Not specified"}
-          />
-
-          {/* Google Reviews - only show if we have data */}
-          {(googleReviewCount !== null && googleReviewCount !== undefined) && (
-            <InfoRow
-              icon={Star}
-              label="GOOGLE REVIEWS"
-              value={
-                <div className="flex items-center gap-2">
-                  {googleRating && (
-                    <span className="flex items-center gap-1">
-                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold">{googleRating.toFixed(1)}</span>
-                    </span>
-                  )}
-                  <span className="text-muted-foreground">
-                    ({googleReviewCount.toLocaleString()} review{googleReviewCount !== 1 ? 's' : ''})
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 divide-y lg:divide-y-0 lg:divide-x divide-border">
+            {/* Column 1 */}
+            <div className="space-y-1 lg:pr-6">
+              {/* Website */}
+              <div className="flex items-start gap-2 py-2">
+                <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+                    WEBSITE
                   </span>
-                  {googleMapsUrl && (
+                  {website ? (
                     <a
-                      href={googleMapsUrl}
+                      href={getWebsiteHref(website)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary hover:underline"
+                      className="font-medium text-sm flex items-center gap-1 text-primary hover:underline mt-0.5"
                     >
+                      {formatWebsiteDisplay(website)}
                       <ExternalLink className="h-3 w-3" />
                     </a>
+                  ) : (
+                    <span className="text-sm text-muted-foreground mt-0.5 block">–</span>
                   )}
                 </div>
-              }
-            />
-          )}
+              </div>
 
-          <InfoRow
-            icon={Building2}
-            label="NUMBER OF LOCATIONS" 
-            value={
-              numberOfLocations 
-                ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
-                : "Not specified"
-            } 
-          />
+              <InfoRow 
+                icon={MapPin} 
+                label="HEADQUARTERS" 
+                value={getHeadquartersDisplay()} 
+              />
 
-          {/* Status - without separator after */}
-          <div className="flex items-start gap-3">
-            <MapPinned className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="flex-1 flex justify-between items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                STATUS
-              </span>
-              <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize">
-                {status}
-              </Badge>
+              <InfoRow 
+                icon={Home} 
+                label="ADDRESS" 
+                value={
+                  fullAddress ? (
+                    <div className="max-w-[180px]">
+                      {fullAddress.map((line, i) => (
+                        <div key={i}>{line}</div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">–</span>
+                  )
+                } 
+              />
+
+              <InfoRow 
+                icon={Calendar} 
+                label="FOUNDED" 
+                value={foundedYear || "–"} 
+              />
+
+              <InfoRow 
+                icon={Users} 
+                label="EMPLOYEES" 
+                value={
+                  employees.fullTime || employees.partTime
+                    ? `${employees.fullTime ? `${employees.fullTime} FT` : ""}${employees.fullTime && employees.partTime ? " + " : ""}${employees.partTime ? `${employees.partTime} PT` : ""}`
+                    : "–"
+                } 
+              />
+            </div>
+
+            {/* Column 2 */}
+            <div className="space-y-1 lg:px-6 pt-3 lg:pt-0">
+              <InfoRow
+                icon={Linkedin}
+                label="LINKEDIN"
+                value={
+                  linkedinUrl ? (
+                    <a
+                      href={linkedinUrl.startsWith("http") ? linkedinUrl : `https://${linkedinUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline flex items-center gap-1"
+                    >
+                      {linkedinUrl.replace(/^https?:\/\/(www\.)?linkedin\.com\/company\//i, "").replace(/\/$/, "")}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    "–"
+                  )
+                }
+              />
+
+              <InfoRow
+                icon={Users}
+                label="LINKEDIN EMPLOYEES"
+                value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : "–"}
+              />
+
+              <InfoRow
+                icon={Users}
+                label="EMPLOYEE RANGE"
+                value={linkedinEmployeeRange || "–"}
+              />
+
+              <InfoRow
+                icon={Building}
+                label="INDUSTRY"
+                value={industry || category || "–"}
+              />
+
+              <InfoRow
+                icon={Building2}
+                label="LOCATIONS" 
+                value={
+                  numberOfLocations 
+                    ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
+                    : "–"
+                } 
+              />
+            </div>
+
+            {/* Column 3 */}
+            <div className="space-y-1 lg:pl-6 pt-3 lg:pt-0">
+              <InfoRow
+                icon={Star}
+                label="GOOGLE RATING"
+                value={
+                  googleRating ? (
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      <span className="font-semibold">{googleRating.toFixed(1)}</span>
+                      {googleMapsUrl && (
+                        <a
+                          href={googleMapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline ml-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </span>
+                  ) : (
+                    "–"
+                  )
+                }
+              />
+
+              <InfoRow
+                icon={Star}
+                label="GOOGLE REVIEWS"
+                value={
+                  googleReviewCount !== null && googleReviewCount !== undefined
+                    ? `${googleReviewCount.toLocaleString()} review${googleReviewCount !== 1 ? 's' : ''}`
+                    : "–"
+                }
+              />
+
+              {/* Deal Quality Score - Clickable */}
+              <div className="flex items-start gap-2 py-2">
+                <Target className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+                    QUALITY SCORE
+                  </span>
+                  <Popover 
+                    open={scorePopoverOpen} 
+                    onOpenChange={(open) => {
+                      setScorePopoverOpen(open);
+                      if (open) {
+                        setEditingScore(dealQualityScore?.toString() || "");
+                      }
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 mt-0.5 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors cursor-pointer"
+                        title="Click to edit score"
+                      >
+                        {dealQualityScore !== null && dealQualityScore !== undefined ? (
+                          <>
+                            <span className={`text-lg font-bold ${
+                              dealQualityScore >= 80 ? 'text-green-600' :
+                              dealQualityScore >= 60 ? 'text-amber-600' :
+                              dealQualityScore >= 40 ? 'text-orange-500' :
+                              'text-red-500'
+                            }`}>
+                              {dealQualityScore}
+                            </span>
+                            <span className="text-xs text-muted-foreground">/100</span>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                          </>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Click to set score</span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-3" align="start">
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="quality-score" className="text-xs">Score (0-100)</Label>
+                          <Input
+                            id="quality-score"
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={editingScore}
+                            onChange={(e) => setEditingScore(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleScoreSave();
+                              }
+                            }}
+                            className="mt-1"
+                            placeholder="0-100"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setScorePopoverOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={handleScoreSave}
+                            disabled={isSavingScore}
+                          >
+                            {isSavingScore ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="flex items-start gap-2 py-2">
+                <MapPinned className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
+                    STATUS
+                  </span>
+                  <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize mt-0.5">
+                    {status}
+                  </Badge>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

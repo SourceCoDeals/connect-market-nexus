@@ -244,7 +244,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { listingId, calculateAll } = body;
+    const { listingId, calculateAll, forceRecalculate, triggerEnrichment } = body;
 
     // Rate limit check
     const rateLimitResult = await checkRateLimit(supabase, userId, 'deal_scoring', false);
@@ -254,7 +254,7 @@ serve(async (req) => {
     }
 
     // If calculating for all deals, check global rate limit
-    if (calculateAll) {
+    if (calculateAll || forceRecalculate) {
       const globalRateLimit = await checkGlobalRateLimit(supabase, 'global_ai_calls');
       if (!globalRateLimit.allowed) {
         console.error('Global rate limit exceeded for bulk deal scoring');
@@ -263,6 +263,43 @@ serve(async (req) => {
     }
 
     let listingsToScore: any[] = [];
+    let enrichmentQueued = 0;
+
+    // Helper function to queue deals for enrichment
+    const queueDealsForEnrichment = async (dealIds: string[], reason: string) => {
+      console.log(`Queueing ${dealIds.length} deals for enrichment (${reason})`);
+      let queuedCount = 0;
+      
+      for (const dealId of dealIds) {
+        // Check if already in queue (pending or processing)
+        const { data: existing } = await supabase
+          .from("enrichment_queue")
+          .select("id")
+          .eq("listing_id", dealId)
+          .in("status", ["pending", "processing"])
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: queueError } = await supabase
+            .from("enrichment_queue")
+            .upsert({
+              listing_id: dealId,
+              status: "pending",
+              attempts: 0,
+              queued_at: new Date().toISOString(),
+            }, { onConflict: 'listing_id' });
+
+          if (!queueError) {
+            queuedCount++;
+          }
+        }
+      }
+      
+      if (queuedCount > 0) {
+        console.log(`Queued ${queuedCount} deals for enrichment`);
+      }
+      return queuedCount;
+    };
 
     if (listingId) {
       // Score single listing
@@ -277,6 +314,43 @@ serve(async (req) => {
       }
 
       listingsToScore = [listing];
+      
+      // Always queue single listing for enrichment when scoring
+      enrichmentQueued = await queueDealsForEnrichment([listingId], 'single deal score');
+    } else if (forceRecalculate) {
+      // Force recalculate ALL active listings (even if already scored)
+      const { data: listings, error: listingsError } = await supabase
+        .from("listings")
+        .select("*")
+        .eq("status", "active")
+        .is("deleted_at", null)
+        .limit(100); // Process in larger batches for rescore
+
+      if (listingsError) {
+        throw new Error("Failed to fetch listings");
+      }
+
+      listingsToScore = listings || [];
+      console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
+
+      // If triggerEnrichment is true, queue ALL deals for re-enrichment
+      // AND reset their enriched_at to force full re-processing
+      if (triggerEnrichment && listingsToScore.length > 0) {
+        const dealIds = listingsToScore.map(l => l.id);
+        
+        // Reset enriched_at to null so the queue processor actually processes them
+        console.log(`Resetting enriched_at for ${dealIds.length} deals to force re-enrichment`);
+        const { error: resetError } = await supabase
+          .from("listings")
+          .update({ enriched_at: null })
+          .in("id", dealIds);
+        
+        if (resetError) {
+          console.error("Failed to reset enriched_at:", resetError);
+        }
+        
+        enrichmentQueued = await queueDealsForEnrichment(dealIds, 'force recalculate all');
+      }
     } else if (calculateAll) {
       // Score all listings that don't have a score yet
       const { data: listings, error: listingsError } = await supabase
@@ -290,9 +364,40 @@ serve(async (req) => {
       }
 
       listingsToScore = listings || [];
+
+      // Queue unscored deals for enrichment (they likely need it)
+      if (listingsToScore.length > 0) {
+        const unscoredIds = listingsToScore
+          .filter(l => !l.enriched_at) // Only those not enriched
+          .map(l => l.id);
+        
+        if (unscoredIds.length > 0) {
+          enrichmentQueued = await queueDealsForEnrichment(unscoredIds, 'unscored deals');
+        }
+      }
+
+      // Also queue enrichment for stale deals (not enriched in 30+ days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+
+      const { data: staleDeals, error: staleError } = await supabase
+        .from("listings")
+        .select("id, enriched_at")
+        .eq("status", "active")
+        .is("deleted_at", null)
+        .or(`enriched_at.is.null,enriched_at.lt.${thirtyDaysAgoISO}`)
+        .limit(20);
+
+      if (!staleError && staleDeals && staleDeals.length > 0) {
+        console.log(`Found ${staleDeals.length} deals needing enrichment (stale or never enriched)`);
+        const staleIds = staleDeals.map(d => d.id);
+        const staleQueued = await queueDealsForEnrichment(staleIds, 'stale deals');
+        enrichmentQueued += staleQueued;
+      }
     } else {
       return new Response(
-        JSON.stringify({ error: "Must provide listingId or set calculateAll: true" }),
+        JSON.stringify({ error: "Must provide listingId, calculateAll: true, or forceRecalculate: true" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -346,7 +451,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Scored ${scored} listings, ${errors} errors`);
+    console.log(`Scored ${scored} listings, ${errors} errors, ${enrichmentQueued} queued for enrichment`);
 
     return new Response(
       JSON.stringify({
@@ -354,6 +459,7 @@ serve(async (req) => {
         message: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}`,
         scored,
         errors,
+        enrichmentQueued,
         results: results.slice(0, 10), // Return first 10 for reference
         remaining: listingsToScore.length > 50 ? "More deals available, run again" : undefined,
       }),

@@ -59,6 +59,9 @@ export interface UserDetailData {
     utmSource?: string;
     utmMedium?: string;
     utmCampaign?: string;
+    // Cross-domain journey tracking
+    originalExternalReferrer?: string; // True discovery source (e.g., google.com)
+    blogLandingPage?: string;          // Entry page on main site (e.g., /marketplace)
     // Full session history for complete journey visibility
     allSessions?: Array<{
       referrer: string | null;
@@ -68,6 +71,8 @@ export interface UserDetailData {
       utmSource?: string | null;
       utmMedium?: string | null;
       utmCampaign?: string | null;
+      originalExternalReferrer?: string | null;
+      blogLandingPage?: string | null;
     }>;
   };
 }
@@ -93,6 +98,43 @@ function generateAnimalName(id: string): string {
   const colorIndex = Math.abs(hash) % COLORS.length;
   const animalIndex = Math.abs(hash >> 8) % ANIMALS.length;
   return `${COLORS[colorIndex]} ${ANIMALS[animalIndex]}`;
+}
+
+// Discovery source priority: original_external_referrer > utm_source > referrer
+function getDiscoverySource(session: {
+  original_external_referrer?: string | null;
+  utm_source?: string | null;
+  referrer?: string | null;
+} | null): string | null {
+  if (!session) return null;
+  if (session.original_external_referrer) return session.original_external_referrer;
+  if (session.utm_source) return session.utm_source;
+  return session.referrer || null;
+}
+
+// Find the first session with meaningful attribution data
+// Priority: original_external_referrer > utm_source > referrer > any session
+// This handles race conditions where the chronologically first session may have no referrer
+function getFirstMeaningfulSession(sessions: any[]): any | null {
+  if (!sessions || sessions.length === 0) return null;
+  
+  // Sessions come sorted DESC (most recent first), reverse for chronological
+  const chronological = [...sessions].reverse();
+  
+  // Priority 1: First session with cross-domain tracking
+  const withCrossDomain = chronological.find(s => s.original_external_referrer);
+  if (withCrossDomain) return withCrossDomain;
+  
+  // Priority 2: First session with UTM source
+  const withUtm = chronological.find(s => s.utm_source);
+  if (withUtm) return withUtm;
+  
+  // Priority 3: First session with any referrer
+  const withReferrer = chronological.find(s => s.referrer);
+  if (withReferrer) return withReferrer;
+  
+  // Fallback: actual first session (truly direct)
+  return chronological[0];
 }
 
 function categorizeChannel(referrer: string | null, utmSource: string | null, utmMedium: string | null): string {
@@ -136,17 +178,20 @@ export function useUserDetail(visitorId: string | null) {
       const isUserId = !!profile;
       
       // Fetch sessions based on identifier type
+      // Filter out bot sessions
       const sessionsQuery = isUserId
         ? supabase
             .from('user_sessions')
             .select('*')
             .eq('user_id', visitorId)
+            .eq('is_bot', false)
             .gte('started_at', sixMonthsAgo)
             .order('started_at', { ascending: false })
         : supabase
             .from('user_sessions')
             .select('*')
             .eq('visitor_id', visitorId)
+            .eq('is_bot', false)
             .gte('started_at', sixMonthsAgo)
             .order('started_at', { ascending: false });
       
@@ -203,16 +248,17 @@ export function useUserDetail(visitorId: string | null) {
       const totalSessions = new Set(sessions.map(s => s.session_id)).size;
       const totalTimeOnSite = sessions.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0);
       
-      const firstSession = sessions[sessions.length - 1];
-      const firstSeen = firstSession?.started_at || new Date().toISOString();
+      const actualFirstSession = sessions[sessions.length - 1]; // Chronologically first, for timestamps
+      const attributionSession = getFirstMeaningfulSession(sessions); // Smart first-touch attribution
+      const firstSeen = actualFirstSession?.started_at || new Date().toISOString();
       const lastSeen = latestSession?.last_active_at || latestSession?.started_at || new Date().toISOString();
       
       // Time to convert (first session to first connection)
       let timeToConvert: number | undefined;
       let convertedAt: string | undefined;
-      if (connections.length > 0 && firstSession) {
+      if (connections.length > 0 && actualFirstSession) {
         const firstConnectionDate = new Date(connections[0].created_at);
-        const firstSessionDate = new Date(firstSession.started_at);
+        const firstSessionDate = new Date(actualFirstSession.started_at);
         timeToConvert = differenceInSeconds(firstConnectionDate, firstSessionDate);
         convertedAt = connections[0].created_at;
       }
@@ -306,21 +352,27 @@ export function useUserDetail(visitorId: string | null) {
         activityLast7Days: last7Days,
         activityHeatmap,
         source: {
-          referrer: firstSession?.referrer,
-          landingPage: firstSession?.first_touch_landing_page,
-          channel: categorizeChannel(firstSession?.referrer, firstSession?.utm_source, firstSession?.utm_medium),
-          utmSource: firstSession?.utm_source,
-          utmMedium: firstSession?.utm_medium,
-          utmCampaign: firstSession?.utm_campaign,
+          // Use smart first-touch: find first session with meaningful attribution
+          referrer: getDiscoverySource(attributionSession) || attributionSession?.referrer,
+          landingPage: attributionSession?.first_touch_landing_page || actualFirstSession?.first_touch_landing_page,
+          channel: categorizeChannel(getDiscoverySource(attributionSession), attributionSession?.utm_source, attributionSession?.utm_medium),
+          utmSource: attributionSession?.utm_source || actualFirstSession?.utm_source,
+          utmMedium: attributionSession?.utm_medium || actualFirstSession?.utm_medium,
+          utmCampaign: attributionSession?.utm_campaign || actualFirstSession?.utm_campaign,
+          // Cross-domain journey tracking
+          originalExternalReferrer: attributionSession?.original_external_referrer || actualFirstSession?.original_external_referrer,
+          blogLandingPage: attributionSession?.blog_landing_page || actualFirstSession?.blog_landing_page,
           // Full journey history - all sessions with their referrers
           allSessions: sessions.map(s => ({
             referrer: s.referrer,
             landingPage: s.first_touch_landing_page,
             startedAt: s.started_at,
-            channel: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
+            channel: categorizeChannel(getDiscoverySource(s), s.utm_source, s.utm_medium),
             utmSource: s.utm_source,
             utmMedium: s.utm_medium,
             utmCampaign: s.utm_campaign,
+            originalExternalReferrer: s.original_external_referrer,
+            blogLandingPage: s.blog_landing_page,
           })),
         },
       };
