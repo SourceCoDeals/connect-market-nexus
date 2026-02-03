@@ -49,6 +49,10 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'technology_systems',
   'real_estate_info',
   'growth_trajectory',
+  // LinkedIn data from Apify
+  'linkedin_employee_count',
+  'linkedin_employee_range',
+  'linkedin_url',
 ]);
 
 serve(async (req) => {
@@ -411,6 +415,10 @@ Extract all available business information using the provided tool.`;
                   growth_trajectory: {
                     type: 'string',
                     description: 'Growth indicators, expansion history, or trajectory information'
+                  },
+                  linkedin_url: {
+                    type: 'string',
+                    description: 'LinkedIn company page URL (e.g., "https://www.linkedin.com/company/acme-corp")'
                   }
                 }
               }
@@ -514,6 +522,52 @@ Extract all available business information using the provided tool.`;
     // IMPORTANT: Remove 'location' from extracted data - we never update it from enrichment
     // The 'location' field is for marketplace anonymity (e.g., "Southeast US")
     delete extracted.location;
+
+    // Try to fetch LinkedIn data if we have a URL or company name
+    const linkedinUrl = extracted.linkedin_url as string | undefined;
+    const companyName = (extracted.internal_company_name || deal.internal_company_name || deal.title) as string | undefined;
+    
+    if (linkedinUrl || companyName) {
+      try {
+        console.log(`Attempting LinkedIn enrichment for: ${linkedinUrl || companyName}`);
+        
+        const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            linkedinUrl,
+            companyName,
+            dealId: dealId, // Let the function update directly too as backup
+          }),
+          signal: AbortSignal.timeout(65000), // Slightly longer than Apify's 60s timeout
+        });
+
+        if (linkedinResponse.ok) {
+          const linkedinData = await linkedinResponse.json();
+          if (linkedinData.success && linkedinData.scraped) {
+            console.log('LinkedIn data retrieved:', linkedinData);
+            
+            // Add LinkedIn data to extracted fields
+            if (linkedinData.linkedin_employee_count) {
+              extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
+            }
+            if (linkedinData.linkedin_employee_range) {
+              extracted.linkedin_employee_range = linkedinData.linkedin_employee_range;
+            }
+          } else {
+            console.log('LinkedIn scrape returned no data:', linkedinData.error || 'No company found');
+          }
+        } else {
+          console.warn('LinkedIn scrape failed:', linkedinResponse.status);
+        }
+      } catch (linkedinError) {
+        // Non-blocking - LinkedIn enrichment is optional
+        console.warn('LinkedIn enrichment failed (non-blocking):', linkedinError);
+      }
+    }
 
     // Build priority-aware updates using shared module
     const { updates, sourceUpdates } = buildPriorityUpdates(

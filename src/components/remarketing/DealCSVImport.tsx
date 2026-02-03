@@ -268,11 +268,27 @@ export const DealCSVImport = ({
 
       return results;
     },
-    onSuccess: (results) => {
+    onSuccess: async (results) => {
       setImportResults(results);
       setStep("complete");
       queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
+      
+      // Trigger background enrichment for all imported deals
+      if (results.imported > 0) {
+        toast.info(`Triggering AI enrichment for ${results.imported} deals...`);
+        // The database trigger has already queued these, but we can also trigger the processor
+        supabase.functions.invoke("process-enrichment-queue", {
+          body: {},
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error("Enrichment queue processing error:", error);
+          } else {
+            console.log("Enrichment queue processed:", data);
+          }
+        });
+      }
+      
       onImportComplete?.();
     },
     onError: (error) => {
