@@ -244,7 +244,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { listingId, calculateAll } = body;
+    const { listingId, calculateAll, forceRecalculate } = body;
 
     // Rate limit check
     const rateLimitResult = await checkRateLimit(supabase, userId, 'deal_scoring', false);
@@ -254,7 +254,7 @@ serve(async (req) => {
     }
 
     // If calculating for all deals, check global rate limit
-    if (calculateAll) {
+    if (calculateAll || forceRecalculate) {
       const globalRateLimit = await checkGlobalRateLimit(supabase, 'global_ai_calls');
       if (!globalRateLimit.allowed) {
         console.error('Global rate limit exceeded for bulk deal scoring');
@@ -277,6 +277,21 @@ serve(async (req) => {
       }
 
       listingsToScore = [listing];
+    } else if (forceRecalculate) {
+      // Force recalculate ALL active listings (even if already scored)
+      const { data: listings, error: listingsError } = await supabase
+        .from("listings")
+        .select("*")
+        .eq("status", "active")
+        .is("deleted_at", null)
+        .limit(100); // Process in larger batches for rescore
+
+      if (listingsError) {
+        throw new Error("Failed to fetch listings");
+      }
+
+      listingsToScore = listings || [];
+      console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
     } else if (calculateAll) {
       // Score all listings that don't have a score yet
       const { data: listings, error: listingsError } = await supabase
@@ -292,7 +307,7 @@ serve(async (req) => {
       listingsToScore = listings || [];
     } else {
       return new Response(
-        JSON.stringify({ error: "Must provide listingId or set calculateAll: true" }),
+        JSON.stringify({ error: "Must provide listingId, calculateAll: true, or forceRecalculate: true" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

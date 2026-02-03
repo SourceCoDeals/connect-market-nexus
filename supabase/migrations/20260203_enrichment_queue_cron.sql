@@ -1,6 +1,21 @@
 -- Migration: Set up cron job for processing enrichment queue
 -- Uses pg_cron + pg_net to call edge function
-
+--
+-- =============================================================
+-- SETUP INSTRUCTIONS (REQUIRED):
+-- =============================================================
+-- After running this migration, configure the database settings:
+--
+-- Option 1: Via Supabase Dashboard > SQL Editor
+--   ALTER DATABASE postgres SET app.settings.supabase_url = 'https://YOUR-PROJECT.supabase.co';
+--   ALTER DATABASE postgres SET app.settings.service_role_key = 'YOUR-SERVICE-ROLE-KEY';
+--
+-- Option 2: Via Supabase Dashboard > Database Settings > Vault
+--   Add secrets: supabase_url and service_role_key
+--
+-- Then verify settings work:
+--   SELECT trigger_enrichment_queue_processor();
+--
 -- =============================================================
 -- ENABLE PG_NET EXTENSION (for HTTP calls from Postgres)
 -- =============================================================
@@ -8,6 +23,19 @@
 -- Note: pg_net may need to be enabled via Supabase dashboard
 -- Extensions > pg_net > Enable
 CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- =============================================================
+-- CREATE CRON JOB LOGS TABLE
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS public.cron_job_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_name TEXT NOT NULL,
+  result JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cron_job_logs_job_name ON public.cron_job_logs(job_name, created_at DESC);
 
 -- =============================================================
 -- CREATE FUNCTION TO CALL ENRICHMENT QUEUE PROCESSOR
@@ -24,8 +52,9 @@ DECLARE
   v_supabase_url TEXT;
   v_service_key TEXT;
 BEGIN
-  -- Get Supabase config from environment (set via Vault secrets)
-  -- These need to be configured in the database settings
+  -- Get Supabase config from environment (set via Vault secrets or ALTER DATABASE)
+  -- Run: ALTER DATABASE postgres SET app.settings.supabase_url = 'https://YOUR-PROJECT.supabase.co';
+  -- Run: ALTER DATABASE postgres SET app.settings.service_role_key = 'YOUR-SERVICE-ROLE-KEY';
   v_supabase_url := current_setting('app.settings.supabase_url', true);
   v_service_key := current_setting('app.settings.service_role_key', true);
 
@@ -33,7 +62,7 @@ BEGIN
   IF v_supabase_url IS NULL OR v_service_key IS NULL THEN
     v_result := jsonb_build_object(
       'success', false,
-      'error', 'Supabase URL or service key not configured in database settings',
+      'error', 'Supabase URL or service key not configured. Run: ALTER DATABASE postgres SET app.settings.supabase_url = ''https://YOUR-PROJECT.supabase.co''; ALTER DATABASE postgres SET app.settings.service_role_key = ''YOUR-KEY'';',
       'timestamp', NOW()
     );
 

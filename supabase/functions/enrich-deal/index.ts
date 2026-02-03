@@ -52,7 +52,7 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   // LinkedIn data from Apify
   'linkedin_employee_count',
   'linkedin_employee_range',
-  'linkedin_url',
+  'linkedin_url', // Extracted from website or entered manually
 ]);
 
 serve(async (req) => {
@@ -72,39 +72,56 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
 
-    // Verify user is admin
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Check if this is a service role key (background processing) or user token
+    const token = authHeader.replace('Bearer ', '');
+    const isServiceRole = token === supabaseServiceKey;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
+    let supabase;
+    let userId: string;
 
-    if (!profile?.is_admin) {
-      return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (isServiceRole) {
+      // Background processing via queue - use service role
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+      userId = 'system-enrichment';
+      console.log('Enrichment triggered by background queue processor');
+    } else {
+      // User-initiated - verify admin access
+      supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        return new Response(
+          JSON.stringify({ error: 'Admin access required' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      userId = user.id;
     }
 
     // SECURITY: Check rate limit before making expensive AI calls
-    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_enrichment', true);
+    const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', true);
     if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for admin ${user.id} on ai_enrichment`);
+      console.warn(`Rate limit exceeded for ${userId} on ai_enrichment`);
       return rateLimitResponse(rateLimitResult);
     }
 
@@ -672,6 +689,51 @@ Extract all available business information using the provided tool. The address_
       } catch (linkedinError) {
         // Non-blocking - LinkedIn enrichment is optional
         console.warn('LinkedIn enrichment failed (non-blocking):', linkedinError);
+      }
+    }
+
+    // Try to fetch Google reviews data
+    // Use company name and location for search
+    const googleSearchName = companyName || deal.title;
+    const googleLocation = (extracted.address_city && extracted.address_state)
+      ? `${extracted.address_city}, ${extracted.address_state}`
+      : (deal.address_city && deal.address_state)
+        ? `${deal.address_city}, ${deal.address_state}`
+        : deal.location;
+
+    if (googleSearchName && !deal.google_review_count) {
+      try {
+        console.log(`Attempting Google reviews enrichment for: ${googleSearchName}`);
+
+        const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            businessName: googleSearchName,
+            city: extracted.address_city || deal.address_city,
+            state: extracted.address_state || deal.address_state,
+            dealId: dealId, // Let the function update directly
+          }),
+          signal: AbortSignal.timeout(95000), // Slightly longer than Google scraper's 90s timeout
+        });
+
+        if (googleResponse.ok) {
+          const googleData = await googleResponse.json();
+          if (googleData.success && googleData.scraped) {
+            console.log('Google reviews data retrieved:', googleData);
+            // Note: apify-google-reviews updates the deal directly when dealId is provided
+          } else {
+            console.log('Google reviews scrape returned no data:', googleData.error || 'No business found');
+          }
+        } else {
+          console.warn('Google reviews scrape failed:', googleResponse.status);
+        }
+      } catch (googleError) {
+        // Non-blocking - Google enrichment is optional
+        console.warn('Google reviews enrichment failed (non-blocking):', googleError);
       }
     }
 
