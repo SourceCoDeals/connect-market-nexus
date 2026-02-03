@@ -3126,6 +3126,10 @@ export type Database = {
         Row: {
           acquisition_type: string | null
           address: string | null
+          address_city: string | null
+          address_country: string | null
+          address_state: string | null
+          address_zip: string | null
           ai_description: string | null
           business_model: string | null
           calculated_rank: number | null
@@ -3255,6 +3259,7 @@ export type Database = {
           status: string
           status_label: string | null
           status_tag: string | null
+          street_address: string | null
           tags: string[] | null
           team_page_employee_count: number | null
           technology_systems: string | null
@@ -3268,6 +3273,10 @@ export type Database = {
         Insert: {
           acquisition_type?: string | null
           address?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          address_state?: string | null
+          address_zip?: string | null
           ai_description?: string | null
           business_model?: string | null
           calculated_rank?: number | null
@@ -3397,6 +3406,7 @@ export type Database = {
           status?: string
           status_label?: string | null
           status_tag?: string | null
+          street_address?: string | null
           tags?: string[] | null
           team_page_employee_count?: number | null
           technology_systems?: string | null
@@ -3410,6 +3420,10 @@ export type Database = {
         Update: {
           acquisition_type?: string | null
           address?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          address_state?: string | null
+          address_zip?: string | null
           ai_description?: string | null
           business_model?: string | null
           calculated_rank?: number | null
@@ -3539,6 +3553,7 @@ export type Database = {
           status?: string
           status_label?: string | null
           status_tag?: string | null
+          street_address?: string | null
           tags?: string[] | null
           team_page_employee_count?: number | null
           technology_systems?: string | null

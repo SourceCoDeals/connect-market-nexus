@@ -24,6 +24,7 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 // Only allow updates to real listings columns (prevents schema-cache 500s)
+// NOTE: 'location' is intentionally excluded - it's for marketplace anonymity
 const VALID_LISTING_UPDATE_KEYS = new Set([
   'internal_company_name', // extracted company name
   'title', // fallback if internal_company_name not set
@@ -33,8 +34,13 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'industry',
   'geographic_states',
   'number_of_locations',
-  'location', // must be City, ST
-  'address',
+  // Structured address fields (for remarketing accuracy)
+  'street_address',
+  'address_city',
+  'address_state',
+  'address_zip',
+  'address_country',
+  'address', // legacy full address field
   'founded_year',
   'customer_types',
   'owner_goals',
@@ -253,7 +259,7 @@ serve(async (req) => {
     // Step 2: Use AI to extract structured data
     console.log('Extracting deal intelligence with AI...');
 
-    const systemPrompt = `You are a business analyst. Extract comprehensive company information from website content.
+const systemPrompt = `You are a business analyst. Extract comprehensive company information from website content.
 
 CRITICAL - COMPANY NAME EXTRACTION:
 - Extract the REAL company name from the website (look in header, logo, footer, about page, legal notices)
@@ -262,16 +268,22 @@ CRITICAL - COMPANY NAME EXTRACTION:
 - Examples of BAD names: "Performance Marketing Agency", "Home Services Company", "Leading Provider"
 - If you find a generic placeholder title, look harder for the real company name
 
-CRITICAL LOCATION RULE: The "location" field MUST be in strict "City, ST" format (e.g., "Dallas, TX", "Chicago, IL").
-- Extract the actual city and 2-letter state code from the company's physical address on their website
-- Look in footer, contact page, about us, or header for address information
-- NEVER use region names like "Midwest", "Southeast", "Texas area"
-- NEVER use just a state name or just a city name
-- If you cannot find a specific city, leave location empty rather than guessing
+CRITICAL ADDRESS EXTRACTION RULE:
+Extract the company's physical address into STRUCTURED COMPONENTS:
+- street_address: Just the street number and name (e.g., "123 Main Street")
+- address_city: City name only (e.g., "Dallas")
+- address_state: 2-letter state code only (e.g., "TX")
+- address_zip: 5-digit ZIP code (e.g., "75201")
+- address_country: Country code, default "US"
 
-Also extract "address" if available:
-- "address" may be a full street address (street/city/state/zip)
-- If you only find city/state, set "location" and leave "address" empty
+WHERE TO FIND ADDRESS:
+- Website footer
+- Contact page
+- About Us page
+- Legal/privacy pages
+
+DO NOT extract vague regions like "Midwest", "Southeast", "Texas area".
+If you cannot find a specific street address, at minimum try to find the city and state.
 
 Focus on extracting:
 1. Company name - The REAL business name (not a generic description)
@@ -281,15 +293,14 @@ Focus on extracting:
 5. Industry/sector - Primary industry classification
 6. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
 7. Number of locations - Physical office/branch count
-8. Location/headquarters - MUST be "City, ST" format (e.g., "Dallas, TX")
-9. Address/headquarters - Full address if present (street/city/state/zip)
-10. Founded year - When the company was established
-11. Customer types - Who they serve (commercial, residential, government, etc.)
-12. Key risks - Any potential risk factors visible (one per line)
-13. Competitive position - Market positioning information
-14. Technology/systems - Software, tools, or technology mentioned
-15. Real estate - Information about facilities (owned vs leased)
-16. Growth trajectory - Any growth indicators or history`;
+8. Structured address - Extract into components: street_address, address_city, address_state, address_zip
+9. Founded year - When the company was established
+10. Customer types - Who they serve (commercial, residential, government, etc.)
+11. Key risks - Any potential risk factors visible (one per line)
+12. Competitive position - Market positioning information
+13. Technology/systems - Software, tools, or technology mentioned
+14. Real estate - Information about facilities (owned vs leased)
+15. Growth trajectory - Any growth indicators or history`;
 
     const userPrompt = `Analyze this website content from "${deal.title}" and extract business information.
 
@@ -345,13 +356,29 @@ Extract all available business information using the provided tool.`;
                     type: 'number',
                     description: 'Number of physical locations/offices/branches'
                   },
-                  location: {
+                  street_address: {
                     type: 'string',
-                    description: 'Company headquarters in strict "City, ST" format only (e.g., "Dallas, TX", "Chicago, IL"). Extract from physical address on website. Leave empty if specific city cannot be determined.'
+                    description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip.'
+                  },
+                  address_city: {
+                    type: 'string',
+                    description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
+                  },
+                  address_state: {
+                    type: 'string',
+                    description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
+                  },
+                  address_zip: {
+                    type: 'string',
+                    description: '5-digit US ZIP code (e.g., "75201") or Canadian postal code (e.g., "M5V 1J2").'
+                  },
+                  address_country: {
+                    type: 'string',
+                    description: 'Country code. Use "US" for United States, "CA" for Canada. Default to "US" if not specified.'
                   },
                   address: {
                     type: 'string',
-                    description: 'Full headquarters address if available (may include street, city, state, zip). Leave empty if not found.'
+                    description: 'Full headquarters address as a single string (legacy field). Include street, city, state, zip if available.'
                   },
                   founded_year: {
                     type: 'number',
@@ -433,16 +460,60 @@ Extract all available business information using the provided tool.`;
       extracted.geographic_states = normalizeStates(extracted.geographic_states as string[]);
     }
 
-    // Validate location is in strict "City, ST" format - reject non-conforming values
-    if (extracted.location) {
-      const locationStr = String(extracted.location).trim();
-      // Pattern: "City Name, ST" where ST is 2-letter state code
-      const cityStatePattern = /^[A-Za-z\s\.\-']+,\s*[A-Z]{2}$/;
-      if (!cityStatePattern.test(locationStr)) {
-        console.log(`Rejecting invalid location format: "${locationStr}" - must be "City, ST" format`);
-        delete extracted.location;
+    // Validate and clean structured address fields
+    const US_STATE_CODES = new Set([
+      'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+      'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+      'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+      'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC', 'PR'
+    ]);
+    const CA_PROVINCE_CODES = new Set(['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']);
+
+    // Validate address_state
+    if (extracted.address_state) {
+      const stateStr = String(extracted.address_state).trim().toUpperCase();
+      if (stateStr.length === 2 && (US_STATE_CODES.has(stateStr) || CA_PROVINCE_CODES.has(stateStr))) {
+        extracted.address_state = stateStr;
+      } else {
+        console.log(`Rejecting invalid address_state: "${extracted.address_state}"`);
+        delete extracted.address_state;
       }
     }
+
+    // Validate address_zip (US 5-digit or Canadian postal code)
+    if (extracted.address_zip) {
+      const zipStr = String(extracted.address_zip).trim();
+      const usZipPattern = /^\d{5}(-\d{4})?$/;
+      const caPostalPattern = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
+      if (!usZipPattern.test(zipStr) && !caPostalPattern.test(zipStr)) {
+        console.log(`Rejecting invalid address_zip: "${extracted.address_zip}"`);
+        delete extracted.address_zip;
+      } else {
+        extracted.address_zip = zipStr;
+      }
+    }
+
+    // Clean address_city (remove trailing commas, state codes)
+    if (extracted.address_city) {
+      let cityStr = String(extracted.address_city).trim();
+      // Remove trailing ", ST" if accidentally included
+      cityStr = cityStr.replace(/,\s*[A-Z]{2}$/, '').trim();
+      if (cityStr.length > 0) {
+        extracted.address_city = cityStr;
+      } else {
+        delete extracted.address_city;
+      }
+    }
+
+    // Default address_country to US if we have other address fields
+    if ((extracted.address_city || extracted.address_state) && !extracted.address_country) {
+      extracted.address_country = 'US';
+    }
+
+    // IMPORTANT: Remove 'location' from extracted data - we never update it from enrichment
+    // The 'location' field is for marketplace anonymity (e.g., "Southeast US")
+    delete extracted.location;
 
     // Build priority-aware updates using shared module
     const { updates, sourceUpdates } = buildPriorityUpdates(

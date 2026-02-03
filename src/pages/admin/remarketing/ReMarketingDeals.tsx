@@ -109,6 +109,9 @@ interface DealListing {
   deal_quality_score: number | null;
   deal_total_score: number | null;
   manual_rank_override: number | null;
+  // Structured address fields
+  address_city: string | null;
+  address_state: string | null;
 }
 
 // Column width configuration
@@ -245,7 +248,11 @@ const SortableTableRow = ({
   const domain = formatWebsiteDomain(effectiveWebsite);
   const isEnriched = !!listing.enriched_at;
   const displayName = listing.internal_company_name || listing.title;
-  const geographyDisplay = formatGeographyBadges(listing.geographic_states);
+  
+  // Prefer structured address (city, state) over geographic_states or location
+  const geographyDisplay = listing.address_city && listing.address_state
+    ? `${listing.address_city}, ${listing.address_state}`
+    : formatGeographyBadges(listing.geographic_states);
   
   // Use deal quality score (the custom algorithm score)
   const qualityScore = listing.deal_quality_score ?? listing.deal_total_score ?? null;

@@ -320,12 +320,18 @@ const ReMarketingDealDetail = () => {
           {listedName && (
             <p className="text-sm text-muted-foreground mt-0.5">Listed as: {listedName}</p>
           )}
-          {deal.location && (
+          {/* Show structured address if available, otherwise fall back to location */}
+          {(deal.address_city && deal.address_state) ? (
+            <p className="text-muted-foreground flex items-center gap-1 mt-1">
+              <MapPin className="h-4 w-4" />
+              {deal.address_city}, {deal.address_state}
+            </p>
+          ) : deal.location ? (
             <p className="text-muted-foreground flex items-center gap-1 mt-1">
               <MapPin className="h-4 w-4" />
               {deal.location}
             </p>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {tier && <ScoreTierBadge tier={tier} size="lg" />}
@@ -447,6 +453,12 @@ const ReMarketingDealDetail = () => {
           locationRadiusRequirement={deal.location_radius_requirement}
           category={deal.category}
           status={deal.status}
+          // Structured address fields
+          streetAddress={deal.street_address}
+          addressCity={deal.address_city}
+          addressState={deal.address_state}
+          addressZip={deal.address_zip}
+          addressCountry={deal.address_country}
           onSave={async (data) => {
             await updateDealMutation.mutateAsync({
               website: data.website,
@@ -455,6 +467,12 @@ const ReMarketingDealDetail = () => {
               industry: data.industry,
               number_of_locations: data.numberOfLocations,
               location_radius_requirement: data.locationRadiusRequirement,
+              // Structured address
+              street_address: data.streetAddress,
+              address_city: data.addressCity,
+              address_state: data.addressState,
+              address_zip: data.addressZip,
+              address_country: data.addressCountry,
             });
           }}
         />
