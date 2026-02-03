@@ -42,7 +42,9 @@ export function AddBuyerDialog({ open, onOpenChange, trackerId, onBuyerAdded }: 
       const { error } = await supabase
         .from("remarketing_buyers")
         .insert({
-          industry_tracker_id: trackerId,
+          universe_id: trackerId !== 'new' ? trackerId : null,
+          company_name: peFirmName.trim(),
+          company_website: peFirmWebsite.trim() || null,
           pe_firm_name: peFirmName.trim(),
           pe_firm_website: peFirmWebsite.trim() || null,
           platform_company_name: platformName.trim() || null,

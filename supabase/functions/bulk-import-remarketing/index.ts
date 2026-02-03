@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to extract error message from unknown error type
+function getErrorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : 'Unknown error';
+}
+
 interface ImportData {
   universes: any[];
   buyers: any[];
@@ -262,7 +267,7 @@ serve(async (req) => {
             results.universes.imported++;
           }
         } catch (e) {
-          results.universes.errors.push(`Universe ${row.industry_name}: ${e.message}`);
+          results.universes.errors.push(`Universe ${row.industry_name}: ${getErrorMessage(e)}`);
         }
       }
       console.log(`Imported ${results.universes.imported} universes`);
@@ -325,7 +330,7 @@ serve(async (req) => {
             results.buyers.imported++;
           }
         } catch (e) {
-          results.buyers.errors.push(`Buyer ${row.platform_company_name}: ${e.message}`);
+          results.buyers.errors.push(`Buyer ${row.platform_company_name}: ${getErrorMessage(e)}`);
         }
       }
       console.log(`Imported ${results.buyers.imported} buyers`);
@@ -430,7 +435,7 @@ serve(async (req) => {
             results.contacts.imported++;
           }
         } catch (e) {
-          results.contacts.errors.push(`Contact ${row.name}: ${e.message}`);
+          results.contacts.errors.push(`Contact ${row.name}: ${getErrorMessage(e)}`);
         }
       }
       console.log(`Imported ${results.contacts.imported} contacts`);
@@ -477,8 +482,8 @@ serve(async (req) => {
             results.transcripts.imported++;
           }
         } catch (e) {
-          console.log(`Transcript exception: ${e.message}`);
-          results.transcripts.errors.push(`Transcript ${row.title}: ${e.message}`);
+          console.log(`Transcript exception: ${getErrorMessage(e)}`);
+          results.transcripts.errors.push(`Transcript ${row.title}: ${getErrorMessage(e)}`);
         }
       }
       console.log(`Imported ${results.transcripts.imported} transcripts`);
@@ -538,7 +543,7 @@ serve(async (req) => {
             results.scores.imported++;
           }
         } catch (e) {
-          results.scores.errors.push(`Score: ${e.message}`);
+          results.scores.errors.push(`Score: ${getErrorMessage(e)}`);
         }
       }
       console.log(`Imported ${results.scores.imported} scores`);
@@ -596,7 +601,7 @@ serve(async (req) => {
             results.learningHistory.imported++;
           }
         } catch (e) {
-          results.learningHistory.errors.push(`Learning: ${e.message}`);
+          results.learningHistory.errors.push(`Learning: ${getErrorMessage(e)}`);
         }
       }
       console.log(`Imported ${results.learningHistory.imported} learning history records`);
@@ -613,7 +618,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Import error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: getErrorMessage(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
