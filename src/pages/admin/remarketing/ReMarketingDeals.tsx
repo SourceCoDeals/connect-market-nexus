@@ -104,6 +104,8 @@ interface DealListing {
   geographic_states: string[] | null;
   enriched_at: string | null;
   full_time_employees: number | null;
+  linkedin_employee_count: number | null;
+  linkedin_employee_range: string | null;
   deal_quality_score: number | null;
   deal_total_score: number | null;
   manual_rank_override: number | null;
@@ -336,10 +338,15 @@ const SortableTableRow = ({
         {formatCurrency(listing.ebitda)}
       </TableCell>
 
-      {/* Employees */}
+      {/* Employees - LinkedIn data with fallback */}
       <TableCell className="text-right" style={{ width: columnWidths.employees, minWidth: 50 }}>
-        {listing.full_time_employees ? (
-          <span className="text-sm">{listing.full_time_employees}</span>
+        {listing.linkedin_employee_count || listing.linkedin_employee_range ? (
+          <div className="text-sm flex items-center justify-end gap-1">
+            <span>{listing.linkedin_employee_count?.toLocaleString() || listing.linkedin_employee_range}</span>
+            <span className="text-xs text-blue-500 font-medium">LI</span>
+          </div>
+        ) : listing.full_time_employees ? (
+          <span className="text-sm">{listing.full_time_employees.toLocaleString()}</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -574,6 +581,8 @@ const ReMarketingDeals = () => {
           geographic_states,
           enriched_at,
           full_time_employees,
+          linkedin_employee_count,
+          linkedin_employee_range,
           deal_quality_score,
           deal_total_score,
           manual_rank_override
