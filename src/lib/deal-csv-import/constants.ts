@@ -49,7 +49,7 @@ export const DEAL_IMPORT_FIELDS: DealImportField[] = [
   
   // Reviews
   { value: "google_review_count", label: "Google Review Count", description: "Number of Google reviews" },
-  { value: "google_review_score", label: "Google Review Score", description: "Google rating (1-5)" },
+  { value: "google_rating", label: "Google Rating", description: "Google rating (1-5)" },
   
   // Metadata
   { value: "internal_company_name", label: "Internal Company Name", description: "Internal reference name" },
@@ -83,7 +83,7 @@ export const IGNORED_CSV_COLUMNS = [
 export const NUMERIC_FIELDS = [
   'revenue',
   'ebitda',
-  'google_review_score',
+  'google_rating',
 ];
 
 /**
