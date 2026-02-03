@@ -205,6 +205,12 @@ export const DealCSVImport = ({
             continue;
           }
 
+          // Must have a website for AI enrichment
+          if (!listingData.website) {
+            results.errors.push(`Row ${i + 1}: Missing website (required for AI enrichment)`);
+            continue;
+          }
+
           // Create listing - use any to bypass strict typing
           const { data: listing, error: listingError } = await supabase
             .from("listings")

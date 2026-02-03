@@ -25,6 +25,8 @@ const getErrorMessage = (error: unknown): string => {
 
 // Only allow updates to real listings columns (prevents schema-cache 500s)
 const VALID_LISTING_UPDATE_KEYS = new Set([
+  'internal_company_name', // extracted company name
+  'title', // fallback if internal_company_name not set
   'executive_summary',
   'service_mix',
   'business_model',
@@ -41,7 +43,7 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'technology_systems',
   'real_estate_info',
   'growth_trajectory',
- ]);
+]);
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -253,6 +255,13 @@ serve(async (req) => {
 
     const systemPrompt = `You are a business analyst. Extract comprehensive company information from website content.
 
+CRITICAL - COMPANY NAME EXTRACTION:
+- Extract the REAL company name from the website (look in header, logo, footer, about page, legal notices)
+- The company name should be the actual business name, NOT a generic description
+- Examples of GOOD names: "Acme Plumbing Inc.", "Johnson HVAC Services", "Precision Solar LLC"
+- Examples of BAD names: "Performance Marketing Agency", "Home Services Company", "Leading Provider"
+- If you find a generic placeholder title, look harder for the real company name
+
 CRITICAL LOCATION RULE: The "location" field MUST be in strict "City, ST" format (e.g., "Dallas, TX", "Chicago, IL").
 - Extract the actual city and 2-letter state code from the company's physical address on their website
 - Look in footer, contact page, about us, or header for address information
@@ -265,21 +274,22 @@ Also extract "address" if available:
 - If you only find city/state, set "location" and leave "address" empty
 
 Focus on extracting:
-1. Executive summary - A clear 2-3 paragraph description of the business
-2. Services offered - List of services/products they provide
-3. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
-4. Industry/sector - Primary industry classification
-5. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
-6. Number of locations - Physical office/branch count
-7. Location/headquarters - MUST be "City, ST" format (e.g., "Dallas, TX")
-8. Address/headquarters - Full address if present (street/city/state/zip)
-9. Founded year - When the company was established
-10. Customer types - Who they serve (commercial, residential, government, etc.)
-11. Key risks - Any potential risk factors visible (one per line)
-12. Competitive position - Market positioning information
-13. Technology/systems - Software, tools, or technology mentioned
-14. Real estate - Information about facilities (owned vs leased)
-15. Growth trajectory - Any growth indicators or history`;
+1. Company name - The REAL business name (not a generic description)
+2. Executive summary - A clear 2-3 paragraph description of the business
+3. Services offered - List of services/products they provide
+4. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
+5. Industry/sector - Primary industry classification
+6. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
+7. Number of locations - Physical office/branch count
+8. Location/headquarters - MUST be "City, ST" format (e.g., "Dallas, TX")
+9. Address/headquarters - Full address if present (street/city/state/zip)
+10. Founded year - When the company was established
+11. Customer types - Who they serve (commercial, residential, government, etc.)
+12. Key risks - Any potential risk factors visible (one per line)
+13. Competitive position - Market positioning information
+14. Technology/systems - Software, tools, or technology mentioned
+15. Real estate - Information about facilities (owned vs leased)
+16. Growth trajectory - Any growth indicators or history`;
 
     const userPrompt = `Analyze this website content from "${deal.title}" and extract business information.
 
@@ -306,6 +316,10 @@ Extract all available business information using the provided tool.`;
               parameters: {
                 type: 'object',
                 properties: {
+                  internal_company_name: {
+                    type: 'string',
+                    description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
+                  },
                   executive_summary: {
                     type: 'string',
                     description: 'A 2-3 paragraph executive summary describing the business, its services, market position, and value proposition'
