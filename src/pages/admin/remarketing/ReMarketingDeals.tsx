@@ -272,10 +272,53 @@ const SortableTableRow = ({
   const isEnriched = !!listing.enriched_at;
   const displayName = listing.internal_company_name || listing.title;
   
-  // Prefer structured address (city, state) over geographic_states or location
-  const geographyDisplay = listing.address_city && listing.address_state
-    ? `${listing.address_city}, ${listing.address_state}`
-    : formatGeographyBadges(listing.geographic_states);
+  // City, State display only - normalize state to abbreviation
+  const normalizeState = (state: string | null): string | null => {
+    if (!state) return null;
+    const cleaned = state.trim().toUpperCase();
+    // Extract just the state if it contains extra info
+    const stateMatch = cleaned.match(/^([A-Z]{2})\b/);
+    if (stateMatch) return stateMatch[1];
+    // State name to abbreviation map (common ones)
+    const stateMap: Record<string, string> = {
+      'MARYLAND': 'MD', 'CALIFORNIA': 'CA', 'TEXAS': 'TX', 'NEW YORK': 'NY',
+      'FLORIDA': 'FL', 'ILLINOIS': 'IL', 'PENNSYLVANIA': 'PA', 'OHIO': 'OH',
+      'GEORGIA': 'GA', 'MICHIGAN': 'MI', 'NORTH CAROLINA': 'NC', 'NEW JERSEY': 'NJ',
+      'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'ARIZONA': 'AZ', 'MASSACHUSETTS': 'MA',
+      'TENNESSEE': 'TN', 'INDIANA': 'IN', 'MISSOURI': 'MO', 'WISCONSIN': 'WI',
+      'COLORADO': 'CO', 'MINNESOTA': 'MN', 'SOUTH CAROLINA': 'SC', 'ALABAMA': 'AL',
+      'LOUISIANA': 'LA', 'KENTUCKY': 'KY', 'OREGON': 'OR', 'OKLAHOMA': 'OK',
+      'CONNECTICUT': 'CT', 'UTAH': 'UT', 'IOWA': 'IA', 'NEVADA': 'NV',
+      'ARKANSAS': 'AR', 'KANSAS': 'KS', 'MISSISSIPPI': 'MS', 'NEW MEXICO': 'NM',
+      'NEBRASKA': 'NE', 'IDAHO': 'ID', 'WEST VIRGINIA': 'WV', 'HAWAII': 'HI',
+      'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME', 'MONTANA': 'MT', 'RHODE ISLAND': 'RI',
+      'DELAWARE': 'DE', 'SOUTH DAKOTA': 'SD', 'NORTH DAKOTA': 'ND', 'ALASKA': 'AK',
+      'VERMONT': 'VT', 'WYOMING': 'WY'
+    };
+    return stateMap[cleaned] || null;
+  };
+
+  // Get city, state display - only show if we have valid city AND state
+  const getLocationDisplay = (): string | null => {
+    // First try address_city + address_state
+    if (listing.address_city && listing.address_state) {
+      const city = listing.address_city.trim();
+      const state = normalizeState(listing.address_state);
+      if (city && state) {
+        return `${city}, ${state}`;
+      }
+    }
+    // Fallback: if we have geographic_states with a single state abbreviation
+    if (listing.geographic_states && listing.geographic_states.length === 1) {
+      const state = listing.geographic_states[0];
+      if (state && state.length === 2) {
+        return state; // Just show the state abbreviation
+      }
+    }
+    return null;
+  };
+  
+  const geographyDisplay = getLocationDisplay();
   
   // Use deal quality score (the custom algorithm score)
   const qualityScore = listing.deal_quality_score ?? listing.deal_total_score ?? null;
@@ -356,14 +399,10 @@ const SortableTableRow = ({
         )}
       </TableCell>
 
-      {/* Location */}
+      {/* Location - City, State only */}
       <TableCell style={{ width: columnWidths.location, minWidth: 60 }}>
         {geographyDisplay ? (
           <span className="text-sm">{geographyDisplay}</span>
-        ) : listing.location ? (
-          <span className="text-sm">
-            {listing.location.substring(0, 15)}{listing.location.length > 15 ? '...' : ''}
-          </span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -642,7 +681,9 @@ const ReMarketingDeals = () => {
           linkedin_employee_range,
           deal_quality_score,
           deal_total_score,
-          manual_rank_override
+          manual_rank_override,
+          address_city,
+          address_state
         `)
         .eq('status', 'active')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
