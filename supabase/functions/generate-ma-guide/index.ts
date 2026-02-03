@@ -650,10 +650,11 @@ async function generatePhaseWithTimeout(
     );
     clearTimeout(timeoutId);
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
     
-    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+    const err = error as Error;
+    if (err.name === 'AbortError' || err.message?.includes('timeout')) {
       console.error(`Phase ${phase.id} timed out (attempt ${retryCount + 1})`);
       
       if (retryCount < MAX_RETRIES) {
@@ -1169,18 +1170,19 @@ serve(async (req) => {
             });
           }
 
-        } catch (error) {
-          const errorCode = (error as any).code || 'unknown';
-          const recoverable = (error as any).recoverable ?? true;
+        } catch (error: unknown) {
+          const err = error as Error & { code?: string; recoverable?: boolean };
+          const errorCode = err.code || 'unknown';
+          const recoverable = err.recoverable ?? true;
           console.error('SSE generation error:', { 
-            message: error.message, 
+            message: err.message, 
             code: errorCode, 
             recoverable,
             batch: batch_index 
           });
           send({ 
             type: 'error', 
-            message: error.message,
+            message: err.message,
             error_code: errorCode,
             recoverable,
             batch_index

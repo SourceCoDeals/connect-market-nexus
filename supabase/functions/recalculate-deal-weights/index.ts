@@ -200,10 +200,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in recalculate-deal-weights:', error);
+    const message = error instanceof Error ? error.message : 'Failed to analyze learning history';
     return new Response(JSON.stringify({ 
-      error: error.message || 'Failed to analyze learning history',
+      error: message,
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

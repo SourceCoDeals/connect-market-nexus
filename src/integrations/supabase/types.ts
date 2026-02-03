@@ -1284,6 +1284,27 @@ export type Database = {
           },
         ]
       }
+      cron_job_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          job_name: string
+          result: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          job_name: string
+          result?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          job_name?: string
+          result?: Json | null
+        }
+        Relationships: []
+      }
       daily_metrics: {
         Row: {
           active_users: number | null
@@ -3329,6 +3350,9 @@ export type Database = {
           full_time_employees: number | null
           general_notes: string | null
           geographic_states: string[] | null
+          google_maps_url: string | null
+          google_place_id: string | null
+          google_rating: number | null
           google_review_count: number | null
           growth_drivers: Json | null
           growth_trajectory: string | null
@@ -3355,6 +3379,7 @@ export type Database = {
           lead_source_notes: string | null
           linkedin_employee_count: number | null
           linkedin_employee_range: string | null
+          linkedin_url: string | null
           location: string
           location_radius_requirement: string | null
           management_depth: string | null
@@ -3478,6 +3503,9 @@ export type Database = {
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          google_rating?: number | null
           google_review_count?: number | null
           growth_drivers?: Json | null
           growth_trajectory?: string | null
@@ -3504,6 +3532,7 @@ export type Database = {
           lead_source_notes?: string | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
+          linkedin_url?: string | null
           location: string
           location_radius_requirement?: string | null
           management_depth?: string | null
@@ -3627,6 +3656,9 @@ export type Database = {
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          google_rating?: number | null
           google_review_count?: number | null
           growth_drivers?: Json | null
           growth_trajectory?: string | null
@@ -3653,6 +3685,7 @@ export type Database = {
           lead_source_notes?: string | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
+          linkedin_url?: string | null
           location?: string
           location_radius_requirement?: string | null
           management_depth?: string | null

@@ -486,10 +486,10 @@ const ReMarketingDealDetail = () => {
           addressState={deal.address_state}
           addressZip={deal.address_zip}
           addressCountry={deal.address_country}
-          // Google reviews data
-          googleReviewCount={deal.google_review_count}
-          googleRating={deal.google_rating}
-          googleMapsUrl={deal.google_maps_url}
+          // Google reviews data (new columns - type assertion while types regenerate)
+          googleReviewCount={(deal as any).google_review_count}
+          googleRating={(deal as any).google_rating}
+          googleMapsUrl={(deal as any).google_maps_url}
           onSave={async (data) => {
             await updateDealMutation.mutateAsync({
               website: data.website,

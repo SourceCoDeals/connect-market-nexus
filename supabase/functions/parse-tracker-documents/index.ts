@@ -80,14 +80,14 @@ serve(async (req) => {
     const safeDocumentUrl = urlValidation.normalizedUrl || document_url;
     const docResponse = await fetch(safeDocumentUrl);
     if (!docResponse.ok) {
-      throw new Error(\`Failed to fetch document: \${docResponse.statusText}\`);
+      throw new Error(`Failed to fetch document: ${docResponse.statusText}`);
     }
 
     const docBuffer = await docResponse.arrayBuffer();
     const base64Doc = btoa(String.fromCharCode(...new Uint8Array(docBuffer)));
 
     // Analyze with Claude Sonnet 4 (supports PDF)
-    const system_prompt = \`You are a document analysis assistant specialized in analyzing M&A documents.
+    const system_prompt = `You are a document analysis assistant specialized in analyzing M&A documents.
 
 Your task is to extract key information from documents such as:
 - CIMs (Confidential Information Memorandums)
@@ -104,7 +104,7 @@ Extract and structure:
 6. Key risks and opportunities
 7. Target buyer profile hints
 
-Return a JSON object with the extracted information.\`;
+Return a JSON object with the extracted information.`;
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -138,7 +138,7 @@ Return a JSON object with the extracted information.\`;
     // Parse JSON from response
     let extracted_data = {};
     try {
-      const jsonMatch = assistant_message.match(/\\{[\\s\\S]*\\}/);
+      const jsonMatch = assistant_message.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         extracted_data = JSON.parse(jsonMatch[0]);
       }
@@ -159,10 +159,11 @@ Return a JSON object with the extracted information.\`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[parse-tracker-documents] Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
