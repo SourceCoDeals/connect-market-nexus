@@ -202,10 +202,22 @@ export function DealImportDialog({
             continue;
           }
 
+          // listings.location is NOT NULL in schema; set a safe default.
+          // Use structured city/state when available; otherwise fall back.
+          const computedLocation =
+            parsedData.address_city && parsedData.address_state
+              ? `${parsedData.address_city}, ${parsedData.address_state}`
+              : parsedData.address_state
+                ? parsedData.address_state
+                : parsedData.address_city
+                  ? parsedData.address_city
+                  : "Unknown";
+
           // Build final listing object
           const listingData = sanitizeListingInsert({
             ...parsedData,
             status: 'active',
+            location: computedLocation,
           });
 
           // Log what we're importing for debugging

@@ -286,6 +286,15 @@ export const DealCSVImport = ({
             console.log(`Row ${i + 1}: No website - deal will be imported but won't receive AI enrichment`);
           }
 
+          // listings.location is NOT NULL in schema; set a safe default.
+          // Prefer structured internal city/state; fall back to other known fields.
+          if (!listingData.location) {
+            const city = typeof listingData.address_city === 'string' ? listingData.address_city : '';
+            const state = typeof listingData.address_state === 'string' ? listingData.address_state : '';
+            const computedLocation = city && state ? `${city}, ${state}` : state || city || 'Unknown';
+            listingData.location = computedLocation;
+          }
+
           const sanitized = sanitizeListingInsert(listingData);
 
           // Create listing - use any to bypass strict typing
