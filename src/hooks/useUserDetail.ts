@@ -107,6 +107,31 @@ function getDiscoverySource(session: {
   return session.referrer || null;
 }
 
+// Find the first session with meaningful attribution data
+// Priority: original_external_referrer > utm_source > referrer > any session
+// This handles race conditions where the chronologically first session may have no referrer
+function getFirstMeaningfulSession(sessions: any[]): any | null {
+  if (!sessions || sessions.length === 0) return null;
+  
+  // Sessions come sorted DESC (most recent first), reverse for chronological
+  const chronological = [...sessions].reverse();
+  
+  // Priority 1: First session with cross-domain tracking
+  const withCrossDomain = chronological.find(s => s.original_external_referrer);
+  if (withCrossDomain) return withCrossDomain;
+  
+  // Priority 2: First session with UTM source
+  const withUtm = chronological.find(s => s.utm_source);
+  if (withUtm) return withUtm;
+  
+  // Priority 3: First session with any referrer
+  const withReferrer = chronological.find(s => s.referrer);
+  if (withReferrer) return withReferrer;
+  
+  // Fallback: actual first session (truly direct)
+  return chronological[0];
+}
+
 function categorizeChannel(referrer: string | null, utmSource: string | null, utmMedium: string | null): string {
   if (!referrer && !utmSource) return 'Direct';
   
@@ -218,16 +243,17 @@ export function useUserDetail(visitorId: string | null) {
       const totalSessions = new Set(sessions.map(s => s.session_id)).size;
       const totalTimeOnSite = sessions.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0);
       
-      const firstSession = sessions[sessions.length - 1];
-      const firstSeen = firstSession?.started_at || new Date().toISOString();
+      const actualFirstSession = sessions[sessions.length - 1]; // Chronologically first, for timestamps
+      const attributionSession = getFirstMeaningfulSession(sessions); // Smart first-touch attribution
+      const firstSeen = actualFirstSession?.started_at || new Date().toISOString();
       const lastSeen = latestSession?.last_active_at || latestSession?.started_at || new Date().toISOString();
       
       // Time to convert (first session to first connection)
       let timeToConvert: number | undefined;
       let convertedAt: string | undefined;
-      if (connections.length > 0 && firstSession) {
+      if (connections.length > 0 && actualFirstSession) {
         const firstConnectionDate = new Date(connections[0].created_at);
-        const firstSessionDate = new Date(firstSession.started_at);
+        const firstSessionDate = new Date(actualFirstSession.started_at);
         timeToConvert = differenceInSeconds(firstConnectionDate, firstSessionDate);
         convertedAt = connections[0].created_at;
       }
@@ -321,18 +347,19 @@ export function useUserDetail(visitorId: string | null) {
         activityLast7Days: last7Days,
         activityHeatmap,
         source: {
-          referrer: getDiscoverySource(firstSession) || firstSession?.referrer,
-          landingPage: firstSession?.first_touch_landing_page,
-          channel: categorizeChannel(getDiscoverySource(firstSession), firstSession?.utm_source, firstSession?.utm_medium),
-          utmSource: firstSession?.utm_source,
-          utmMedium: firstSession?.utm_medium,
-          utmCampaign: firstSession?.utm_campaign,
+          // Use smart first-touch: find first session with meaningful attribution
+          referrer: getDiscoverySource(attributionSession) || attributionSession?.referrer,
+          landingPage: attributionSession?.first_touch_landing_page || actualFirstSession?.first_touch_landing_page,
+          channel: categorizeChannel(getDiscoverySource(attributionSession), attributionSession?.utm_source, attributionSession?.utm_medium),
+          utmSource: attributionSession?.utm_source || actualFirstSession?.utm_source,
+          utmMedium: attributionSession?.utm_medium || actualFirstSession?.utm_medium,
+          utmCampaign: attributionSession?.utm_campaign || actualFirstSession?.utm_campaign,
           // Full journey history - all sessions with their referrers
           allSessions: sessions.map(s => ({
             referrer: s.referrer,
             landingPage: s.first_touch_landing_page,
             startedAt: s.started_at,
-            channel: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
+            channel: categorizeChannel(getDiscoverySource(s), s.utm_source, s.utm_medium),
             utmSource: s.utm_source,
             utmMedium: s.utm_medium,
             utmCampaign: s.utm_campaign,

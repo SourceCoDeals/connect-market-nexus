@@ -182,6 +182,31 @@ function getDiscoverySource(session: {
   return session.referrer || null;
 }
 
+// Find the first session with meaningful attribution data
+// Priority: original_external_referrer > utm_source > referrer > any session
+// This handles race conditions where the chronologically first session may have no referrer
+function getFirstMeaningfulSession(sessions: any[]): any | null {
+  if (!sessions || sessions.length === 0) return null;
+  
+  // Sessions come sorted DESC (most recent first), reverse for chronological
+  const chronological = [...sessions].reverse();
+  
+  // Priority 1: First session with cross-domain tracking
+  const withCrossDomain = chronological.find(s => s.original_external_referrer);
+  if (withCrossDomain) return withCrossDomain;
+  
+  // Priority 2: First session with UTM source
+  const withUtm = chronological.find(s => s.utm_source);
+  if (withUtm) return withUtm;
+  
+  // Priority 3: First session with any referrer
+  const withReferrer = chronological.find(s => s.referrer);
+  if (withReferrer) return withReferrer;
+  
+  // Fallback: actual first session (truly direct)
+  return chronological[0];
+}
+
 function getChannelIcon(channel: string): string {
   const icons: Record<string, string> = {
     'AI': 'sparkles',
@@ -369,11 +394,25 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         firstSessions = firstSessionsData || [];
       }
       
-      // Create profile to first session mapping for signup attribution
-      const profileToFirstSession = new Map<string, FirstSessionData>();
+      // Create profile to BEST attribution session mapping for signup attribution
+      // Uses smart first-touch: finds first session with meaningful attribution data
+      const profileSessionsMap = new Map<string, FirstSessionData[]>();
       firstSessions.forEach(s => {
-        if (s.user_id && !profileToFirstSession.has(s.user_id)) {
-          profileToFirstSession.set(s.user_id, s);
+        if (s.user_id) {
+          if (!profileSessionsMap.has(s.user_id)) {
+            profileSessionsMap.set(s.user_id, []);
+          }
+          profileSessionsMap.get(s.user_id)!.push(s);
+        }
+      });
+      
+      const profileToFirstSession = new Map<string, FirstSessionData>();
+      profileSessionsMap.forEach((sessions, userId) => {
+        // Use smart first-touch: find first session with meaningful attribution
+        // Sessions are sorted ASC, so first meaningful = best attribution
+        const meaningfulSession = getFirstMeaningfulSession(sessions.reverse()); // reverse for DESC like the helper expects
+        if (meaningfulSession) {
+          profileToFirstSession.set(userId, meaningfulSession);
         }
       });
       
