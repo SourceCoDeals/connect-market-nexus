@@ -538,6 +538,11 @@ Deno.serve(async (req) => {
 
 // ============= Helper Functions =============
 
+// Minimum content length required before proceeding with AI extraction
+const MIN_CONTENT_LENGTH = 200;
+const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds
+const AI_TIMEOUT_MS = 45000; // 45 seconds
+
 async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     let formattedUrl = url.trim();
@@ -557,6 +562,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
         onlyMainContent: true,
         waitFor: 3000,
       }),
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -566,12 +572,17 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
     const data = await response.json();
     const content = data.data?.markdown || data.markdown || '';
     
-    if (!content || content.length < 100) {
-      return { success: false, error: 'Insufficient content' };
+    // Validate minimum content length to avoid wasted AI calls
+    if (!content || content.length < MIN_CONTENT_LENGTH) {
+      return { success: false, error: `Insufficient content (${content.length} chars, need ${MIN_CONTENT_LENGTH}+)` };
     }
 
     return { success: true, content };
   } catch (error) {
+    // Handle timeout specifically
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return { success: false, error: `Scrape timed out after ${SCRAPE_TIMEOUT_MS / 1000}s` };
+    }
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -598,6 +609,7 @@ async function callAI(
         tools: [tool],
         tool_choice: { type: 'function', function: { name: tool.function.name } }
       }),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
     });
 
     // Handle billing/rate limit errors
