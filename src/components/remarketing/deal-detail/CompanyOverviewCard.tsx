@@ -377,37 +377,6 @@ export const CompanyOverviewCard = ({
             value={industry || category || "Not specified"}
           />
 
-          {/* Google Reviews - only show if we have data */}
-          {(googleReviewCount !== null && googleReviewCount !== undefined) && (
-            <InfoRow
-              icon={Star}
-              label="GOOGLE REVIEWS"
-              value={
-                <div className="flex items-center gap-2">
-                  {googleRating && (
-                    <span className="flex items-center gap-1">
-                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold">{googleRating.toFixed(1)}</span>
-                    </span>
-                  )}
-                  <span className="text-muted-foreground">
-                    ({googleReviewCount.toLocaleString()} review{googleReviewCount !== 1 ? 's' : ''})
-                  </span>
-                  {googleMapsUrl && (
-                    <a
-                      href={googleMapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
-              }
-            />
-          )}
-
           <InfoRow
             icon={Building2}
             label="NUMBER OF LOCATIONS" 
@@ -416,6 +385,43 @@ export const CompanyOverviewCard = ({
                 ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
                 : "Not specified"
             } 
+          />
+
+          {/* Google Rating - Always show */}
+          <InfoRow
+            icon={Star}
+            label="GOOGLE RATING"
+            value={
+              googleRating ? (
+                <span className="flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-semibold">{googleRating.toFixed(1)}</span>
+                  {googleMapsUrl && (
+                    <a
+                      href={googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline ml-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </span>
+              ) : (
+                "Not specified"
+              )
+            }
+          />
+
+          {/* Google Review Count - Always show */}
+          <InfoRow
+            icon={Star}
+            label="GOOGLE REVIEWS"
+            value={
+              googleReviewCount !== null && googleReviewCount !== undefined
+                ? `${googleReviewCount.toLocaleString()} review${googleReviewCount !== 1 ? 's' : ''}`
+                : "Not specified"
+            }
           />
 
           {/* Status - without separator after */}
