@@ -8,8 +8,10 @@ const corsHeaders = {
 };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// NOTE: supabase is initialized per-request now for proper auth
 
 interface DigestRequest {
   type: 'daily' | 'weekly' | 'urgent';
@@ -22,19 +24,63 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // SECURITY: Verify admin access (or service role for cron jobs)
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if this is the service role key (for cron jobs)
+    const token = authHeader.replace('Bearer ', '');
+    const isServiceRole = token === supabaseServiceKey;
+
+    if (!isServiceRole) {
+      // Verify admin access for manual calls
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      const { data: { user }, error: userError } = await authClient.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: profile } = await authClient
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        return new Response(JSON.stringify({ error: 'Admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Create supabase client with service role for actual operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const request: DigestRequest = await req.json();
     const correlationId = crypto.randomUUID();
     
     console.log(`[${correlationId}] Processing admin digest request:`, request);
 
     // Get admin statistics
-    const digestData = await generateDigestData(correlationId);
-    
+    const digestData = await generateDigestData(supabase, correlationId);
+
     // Check if digest should be sent
     const shouldSend = request.force || await shouldSendDigest(request.type, digestData);
-    
+
     if (shouldSend) {
-      await sendAdminDigest(request.type, digestData, correlationId);
+      await sendAdminDigest(supabase, request.type, digestData, correlationId);
     }
 
     return new Response(
@@ -62,7 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function generateDigestData(correlationId: string) {
+async function generateDigestData(supabase: any, correlationId: string) {
   try {
     // Get pending user approvals
     const { data: pendingUsers, error: usersError } = await supabase
@@ -143,7 +189,7 @@ async function shouldSendDigest(type: string, data: any): Promise<boolean> {
   return false;
 }
 
-async function sendAdminDigest(type: string, data: any, correlationId: string) {
+async function sendAdminDigest(supabase: any, type: string, data: any, correlationId: string) {
   const adminEmails = ['adam.haile@sourcecodeals.com']; // Can be expanded
   
   const subject = `${type.charAt(0).toUpperCase() + type.slice(1)} Admin Digest - SourceCo Marketplace`;
