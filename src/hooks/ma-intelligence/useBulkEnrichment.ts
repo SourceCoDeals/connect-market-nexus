@@ -39,6 +39,27 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<EnrichmentProgress>({ current: 0, total: 0 });
 
+  const parseInvokeError = (err: unknown): {
+    message: string;
+    status?: number;
+    code?: string;
+    resetTime?: string;
+  } => {
+    const anyErr = err as any;
+    const status = anyErr?.context?.status as number | undefined;
+    const json = anyErr?.context?.json as any | undefined;
+
+    return {
+      message:
+        json?.error ||
+        anyErr?.message ||
+        (status ? `Request failed (HTTP ${status})` : 'Request failed'),
+      status,
+      code: json?.code,
+      resetTime: json?.resetTime,
+    };
+  };
+
   const enrichBuyer = useCallback(async (
     buyerId: string
   ): Promise<{ success: boolean; partial?: boolean; reason?: string; rateLimited?: boolean }> => {
@@ -48,16 +69,25 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
       });
 
       if (error) {
-        // Check for rate limit error
-        const isRateLimited = error.message?.includes('429') || 
-                              error.message?.toLowerCase().includes('rate limit');
-        return { success: false, reason: error.message, rateLimited: isRateLimited };
+        const parsed = parseInvokeError(error);
+        const isRateLimited = parsed.status === 429 || parsed.code === 'RATE_LIMIT_EXCEEDED';
+        const isPaymentRequired = parsed.status === 402 || parsed.code === 'payment_required';
+        const extra = parsed.resetTime ? ` (reset: ${new Date(parsed.resetTime).toLocaleTimeString()})` : '';
+        return {
+          success: false,
+          reason: `${parsed.message}${extra}`,
+          rateLimited: isRateLimited || isPaymentRequired,
+        };
       }
 
       if (!data?.success) {
-        const isRateLimited = data?.error?.includes('rate limit') || 
-                              data?.error?.includes('429');
-        return { success: false, reason: data?.error || 'Unknown error', rateLimited: isRateLimited };
+        const isRateLimited = data?.error_code === 'rate_limited' || data?.code === 'RATE_LIMIT_EXCEEDED';
+        const isPaymentRequired = data?.error_code === 'payment_required';
+        return {
+          success: false,
+          reason: data?.error || 'Unknown error',
+          rateLimited: isRateLimited || isPaymentRequired,
+        };
       }
 
       return { success: true, partial: !!data.warning };
@@ -167,7 +197,13 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
       const result = { success: !rateLimited, enrichedCount, failedCount, partialCount, rateLimited };
       onComplete?.(result);
 
-      if (!rateLimited) {
+      if (enrichedCount === 0 && failedCount > 0) {
+        toast({
+          title: 'Enrichment failed',
+          description: `All ${failedCount} buyers failed to enrich. Most common cause: rate limit exceeded—wait for the reset window and try again.`,
+          variant: 'destructive',
+        });
+      } else if (!rateLimited) {
         toast({
           title: 'Bulk enrichment complete',
           description: `${enrichedCount} enriched${partialCount > 0 ? ` (${partialCount} partial)` : ''}${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
