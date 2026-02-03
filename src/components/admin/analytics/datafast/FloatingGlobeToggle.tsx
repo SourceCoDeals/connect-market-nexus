@@ -1,10 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Globe, X, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RealTimeTab } from "../realtime/RealTimeTab";
+import { FullscreenGlobeView } from "./FullscreenGlobeView";
 
 export function FloatingGlobeToggle() {
   const [isGlobeOpen, setIsGlobeOpen] = useState(false);
+
+  // ESC key to close fullscreen globe
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape' && isGlobeOpen) {
+      setIsGlobeOpen(false);
+    }
+  }, [isGlobeOpen]);
+
+  useEffect(() => {
+    if (isGlobeOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Prevent body scroll when fullscreen is open
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isGlobeOpen, handleKeyDown]);
 
   return (
     <>
@@ -39,20 +58,7 @@ export function FloatingGlobeToggle() {
 
       {/* Fullscreen Globe Overlay */}
       {isGlobeOpen && (
-        <div className="fixed inset-0 z-50 bg-background">
-          {/* Close button in corner */}
-          <button
-            onClick={() => setIsGlobeOpen(false)}
-            className="absolute top-4 right-4 z-[60] w-10 h-10 rounded-full bg-card/90 backdrop-blur border border-border/50 shadow-lg flex items-center justify-center hover:bg-card transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          
-          {/* Globe Content */}
-          <div className="h-full w-full">
-            <RealTimeTab />
-          </div>
-        </div>
+        <FullscreenGlobeView onClose={() => setIsGlobeOpen(false)} />
       )}
     </>
   );
