@@ -214,10 +214,11 @@ Focus on relevance - only include buyers that genuinely match the query criteria
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in query-buyer-universe:', error);
+    const message = error instanceof Error ? error.message : 'Failed to search buyers';
     return new Response(JSON.stringify({ 
-      error: error.message || 'Failed to search buyers',
+      error: message,
       details: String(error)
     }), {
       status: 500,

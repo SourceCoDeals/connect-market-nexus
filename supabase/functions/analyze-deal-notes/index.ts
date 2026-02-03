@@ -64,12 +64,14 @@ function extractWithRegex(text: string): {
   ebitda?: number;
   ebitda_margin?: number;
   full_time_employees?: number;
+  geographic_states?: string[];
 } {
   const result: {
     revenue?: number;
     ebitda?: number;
     ebitda_margin?: number;
     full_time_employees?: number;
+    geographic_states?: string[];
   } = {};
   
   // Extract revenue
@@ -281,7 +283,7 @@ Extract the relevant information using the provided tool.`;
     }
 
     // Merge regex and AI extractions
-    const extracted = {
+    const extracted: Record<string, unknown> = {
       ...regexExtracted,
       ...aiExtracted,
     };
@@ -308,7 +310,7 @@ Extract the relevant information using the provided tool.`;
     );
 
     // Add notes_analyzed_at
-    const finalUpdates = {
+    const finalUpdates: Record<string, unknown> = {
       ...updates,
       notes_analyzed_at: new Date().toISOString(),
       extraction_sources: updateExtractionSources(deal.extraction_sources, sourceUpdates),

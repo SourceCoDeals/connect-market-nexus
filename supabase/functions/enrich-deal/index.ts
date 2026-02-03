@@ -684,7 +684,7 @@ Extract all available business information using the provided tool. The address_
     );
 
     // Add enriched_at timestamp
-    const finalUpdates = {
+    const finalUpdates: Record<string, unknown> = {
       ...updates,
       enriched_at: new Date().toISOString(),
       extraction_sources: updateExtractionSources(deal.extraction_sources, sourceUpdates),

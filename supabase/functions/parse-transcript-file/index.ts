@@ -77,7 +77,7 @@ serve(async (req) => {
     else if (fileName.endsWith('.pdf')) {
       // For PDF files, use Lovable AI to extract text
       const arrayBuffer = await file.arrayBuffer();
-      const base64Content = base64Encode(new Uint8Array(arrayBuffer));
+      const base64Content = base64Encode(arrayBuffer);
       
       console.log(`PDF file, size: ${arrayBuffer.byteLength} bytes, base64 length: ${base64Content.length}`);
       
@@ -132,7 +132,7 @@ serve(async (req) => {
     else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
       // For DOC/DOCX files, use Lovable AI
       const arrayBuffer = await file.arrayBuffer();
-      const base64Content = base64Encode(new Uint8Array(arrayBuffer));
+      const base64Content = base64Encode(arrayBuffer);
       
       const mimeType = fileName.endsWith('.docx') 
         ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -204,10 +204,11 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in parse-transcript-file:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
