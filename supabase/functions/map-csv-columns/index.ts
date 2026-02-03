@@ -263,103 +263,161 @@ Consider the sample data to make better decisions.`;
 
 function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buyer'): ColumnMapping[] {
   return columns.map(col => {
-    const lower = col.toLowerCase();
+    const lower = col.toLowerCase().trim();
     let targetField: string | null = null;
     let confidence = 0.5;
 
     if (targetType === 'deal') {
-      // Deal/Company mappings
-      if (lower.includes('company') && lower.includes('name') || lower === 'company name' || lower === 'name') {
-        targetField = 'title';
-        confidence = 0.9;
-      } else if ((lower.includes('website') || lower.includes('url') || lower.includes('site')) && !lower.includes('linkedin') && !lower.includes('transcript') && !lower.includes('fireflies') && !lower.includes('recording')) {
-        targetField = 'website';
-        confidence = 0.85;
-      } else if (lower.includes('industry') || lower.includes('category') || lower.includes('sector') || lower.includes('vertical')) {
-        targetField = 'category';
-        confidence = 0.8;
-      } else if (lower.includes('revenue') && !lower.includes('model')) {
-        targetField = 'revenue';
-        confidence = 0.9;
-      } else if (lower.includes('ebitda') || lower.includes('ebida')) {
-        targetField = 'ebitda';
-        confidence = 0.9;
-      } else if (lower.includes('description') || lower.includes('summary') || lower.includes('about')) {
-        targetField = 'description';
-        confidence = 0.8;
-      } else if (lower.includes('bill') && lower.includes('note')) {
-        targetField = 'general_notes';
-        confidence = 0.9;
-      } else if (lower.includes('notes') || lower.includes('comment')) {
-        targetField = 'general_notes';
-        confidence = 0.75;
-      } else if (lower.includes('service') && (lower.includes('main') || lower.includes('offer'))) {
-        targetField = 'services';
-        confidence = 0.8;
-      } else if (lower.includes('employee') || lower.includes('staff') || lower.includes('headcount') || lower.includes('fte')) {
-        targetField = 'full_time_employees';
-        confidence = 0.85;
-      } else if (lower.includes('address') && !lower.includes('email')) {
-        targetField = 'address';
-        confidence = 0.8;
-      } else if (lower === 'city' || lower.includes('city')) {
-        targetField = 'address_city';
-        confidence = 0.8;
-      } else if ((lower === 'state' || lower.includes('state')) && !lower.includes('united')) {
-        targetField = 'address_state';
-        confidence = 0.75;
-      } else if (lower.includes('first') && lower.includes('name')) {
-        targetField = 'primary_contact_first_name';
-        confidence = 0.85;
-      } else if (lower.includes('last') && lower.includes('name')) {
-        targetField = 'primary_contact_last_name';
-        confidence = 0.85;
-      } else if ((lower.includes('contact') || lower.includes('owner')) && lower.includes('name')) {
-        targetField = 'primary_contact_name';
-        confidence = 0.8;
-      } else if (lower === 'title' || lower.includes('job title') || lower.includes('role') || lower.includes('position')) {
-        // "Title" by itself or job-related terms → contact title (not company name)
-        if (!lower.includes('company') && !lower.includes('deal')) {
-          targetField = 'primary_contact_title';
-          confidence = 0.7;
-        }
-      } else if (lower.includes('email') && !lower.includes('sent')) {
-        targetField = 'primary_contact_email';
-        confidence = 0.85;
-      } else if (lower.includes('phone') || lower.includes('mobile') || lower.includes('cell')) {
-        targetField = 'primary_contact_phone';
-        confidence = 0.85;
-      } else if (lower.includes('linkedin')) {
-        targetField = 'linkedin_url';
-        confidence = 0.8;
-      } else if (lower.includes('fireflies') || (lower.includes('recording') && lower.includes('url'))) {
-        targetField = 'fireflies_url';
-        confidence = 0.9;
-      } else if (lower.includes('google') && lower.includes('review') && lower.includes('count')) {
-        targetField = 'google_review_count';
-        confidence = 0.9;
-      } else if (lower.includes('google') && lower.includes('score')) {
-        targetField = 'google_review_score';
-        confidence = 0.9;
-      } else if (lower.includes('location') && lower.includes('count')) {
-        targetField = 'number_of_locations';
-        confidence = 0.85;
-      } else if (lower === 'locations' || lower === '# of locations') {
-        targetField = 'number_of_locations';
-        confidence = 0.7;
-      } else if (lower.includes('owner') && lower.includes('goal')) {
-        targetField = 'owner_goals';
-        confidence = 0.8;
-      } else if (lower.includes('status') || lower.includes('stage') || lower.includes('pipeline')) {
-        targetField = 'status';
-        confidence = 0.75;
-      } else if (lower.includes('last') && lower.includes('contact')) {
-        targetField = 'last_contacted_at';
-        confidence = 0.8;
-      } else if (lower === 'marketplace' || lower.includes('fit') || lower.includes('qualified')) {
-        // Ignore marketplace and fit columns - internal only, never map
+      // Deal/Company mappings - ORDER MATTERS (most specific first)
+      
+      // IGNORE columns - check FIRST before any other matches
+      if (lower === 'marketplace' || lower === 'fit / not fit' || lower === 'fit/not fit' || 
+          lower.includes('qualified') || lower.includes('buyers shown') || 
+          lower.includes('appointment') || lower.includes('data source')) {
         targetField = null;
         confidence = 0;
+      }
+      // Company name
+      else if (lower.includes('company') && lower.includes('name') || lower === 'company name' || lower === 'name' || lower === 'business name' || lower === 'account') {
+        targetField = 'title';
+        confidence = 0.95;
+      }
+      // Website - but NOT LinkedIn, Fireflies, or Recording URLs
+      else if ((lower.includes('website') || lower === 'url' || lower === 'site') && 
+               !lower.includes('linkedin') && !lower.includes('fireflies') && !lower.includes('recording')) {
+        targetField = 'website';
+        confidence = 0.9;
+      }
+      // Fireflies/Recording URL - specific patterns
+      else if (lower.includes('fireflies') || (lower.includes('recording') && !lower.includes('google'))) {
+        targetField = 'fireflies_url';
+        confidence = 0.9;
+      }
+      // LinkedIn URL
+      else if (lower.includes('linkedin')) {
+        targetField = 'linkedin_url';
+        confidence = 0.85;
+      }
+      // Industry/Category
+      else if (lower.includes('industry') || lower.includes('category') || lower.includes('sector') || lower.includes('vertical')) {
+        targetField = 'category';
+        confidence = 0.85;
+      }
+      // Revenue
+      else if (lower.includes('revenue') && !lower.includes('model')) {
+        targetField = 'revenue';
+        confidence = 0.95;
+      }
+      // EBITDA
+      else if (lower.includes('ebitda') || lower.includes('ebida')) {
+        targetField = 'ebitda';
+        confidence = 0.95;
+      }
+      // AI Description / Description
+      else if (lower.includes('ai description') || lower.includes('ai summary')) {
+        targetField = 'description';
+        confidence = 0.9;
+      }
+      else if (lower.includes('description') || lower.includes('summary') || lower.includes('about')) {
+        targetField = 'description';
+        confidence = 0.8;
+      }
+      // Bill Notes / General Notes
+      else if (lower.includes('bill') && lower.includes('note')) {
+        targetField = 'general_notes';
+        confidence = 0.95;
+      }
+      else if (lower.includes('notes') || lower.includes('comment')) {
+        targetField = 'general_notes';
+        confidence = 0.75;
+      }
+      // Main Services
+      else if (lower.includes('service') || lower.includes('offering') || lower.includes('product')) {
+        targetField = 'services';
+        confidence = 0.85;
+      }
+      // Employee Count (not Range - we skip range)
+      else if (lower === 'employee count' || lower.includes('headcount') || lower.includes('fte') || lower === 'employees' || lower === 'staff') {
+        targetField = 'full_time_employees';
+        confidence = 0.85;
+      }
+      else if (lower === 'employee range') {
+        // Skip - we only import the exact count
+        targetField = null;
+        confidence = 0;
+      }
+      // Address
+      else if (lower === 'address' || lower === 'full address' || lower === 'street address') {
+        targetField = 'address';
+        confidence = 0.85;
+      }
+      else if (lower === 'city' || lower.includes('city')) {
+        targetField = 'address_city';
+        confidence = 0.8;
+      }
+      else if ((lower === 'state' || lower.includes('state')) && !lower.includes('united')) {
+        targetField = 'address_state';
+        confidence = 0.75;
+      }
+      // Contact - First Name
+      else if (lower === 'first name' || (lower.includes('first') && lower.includes('name'))) {
+        targetField = 'primary_contact_first_name';
+        confidence = 0.9;
+      }
+      // Contact - Last Name
+      else if (lower === 'last name' || (lower.includes('last') && lower.includes('name'))) {
+        targetField = 'primary_contact_last_name';
+        confidence = 0.9;
+      }
+      // Contact - Full Name
+      else if ((lower.includes('contact') || lower.includes('owner')) && lower.includes('name')) {
+        targetField = 'primary_contact_name';
+        confidence = 0.8;
+      }
+      // Contact - Title/Role
+      else if (lower === 'title' || lower.includes('job title') || lower.includes('role') || lower.includes('position')) {
+        targetField = 'primary_contact_title';
+        confidence = 0.75;
+      }
+      // Email
+      else if (lower === 'email' || lower.includes('email') && !lower.includes('sent')) {
+        targetField = 'primary_contact_email';
+        confidence = 0.9;
+      }
+      // Phone
+      else if (lower === 'phone' || lower.includes('phone') || lower.includes('mobile') || lower.includes('cell')) {
+        targetField = 'primary_contact_phone';
+        confidence = 0.9;
+      }
+      // Google Review Count
+      else if (lower === 'google review count' || (lower.includes('google') && lower.includes('review') && lower.includes('count'))) {
+        targetField = 'google_review_count';
+        confidence = 0.95;
+      }
+      // Google Review Score/Rating
+      else if (lower === 'google review score' || lower === 'google rating' || (lower.includes('google') && (lower.includes('score') || lower.includes('rating')))) {
+        targetField = 'google_review_score';
+        confidence = 0.95;
+      }
+      // Number of Locations
+      else if (lower === 'locations' || lower === '# of locations' || lower.includes('location count') || lower === 'number of locations') {
+        targetField = 'number_of_locations';
+        confidence = 0.85;
+      }
+      // Owner Goals
+      else if (lower.includes('owner') && lower.includes('goal')) {
+        targetField = 'owner_goals';
+        confidence = 0.8;
+      }
+      // Status
+      else if (lower === 'status' || lower.includes('deal status') || lower.includes('stage') || lower.includes('pipeline')) {
+        targetField = 'status';
+        confidence = 0.75;
+      }
+      // Last Contacted
+      else if (lower.includes('last') && lower.includes('contact')) {
+        targetField = 'last_contacted_at';
+        confidence = 0.85;
       }
     } else {
       // Buyer mappings (original logic)
