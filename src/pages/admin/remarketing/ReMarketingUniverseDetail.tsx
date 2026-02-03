@@ -453,333 +453,346 @@ const ReMarketingUniverseDetail = () => {
         <UniverseTemplates onApplyTemplate={handleApplyTemplate} />
       )}
 
-      {/* SECTION 1: Industry & Scoring Style */}
+      {/* Main Tabs: Universe (default) vs Configuration */}
       {!isNew && (
-        <ScoringStyleCard
-          scoringBehavior={scoringBehavior}
-          onScoringBehaviorChange={setScoringBehavior}
-          onStartAIResearch={() => setShowAIResearch(true)}
-          onSave={() => saveMutation.mutate()}
-          isSaving={saveMutation.isPending}
-        />
-      )}
-
-      {/* SECTION 2: Match Criteria */}
-      {!isNew && (
-        <MatchCriteriaCard
-          sizeCriteria={sizeCriteria}
-          geographyCriteria={geographyCriteria}
-          serviceCriteria={serviceCriteria}
-          onEdit={() => setShowCriteriaEdit(true)}
-        />
-      )}
-
-      {/* SECTION 3: AI Research (shown when triggered) */}
-      {!isNew && id && showAIResearch && (
-        <AIResearchSection
-          universeName={formData.name}
-          existingContent={maGuideContent}
-          onGuideGenerated={(guide, extractedCriteria, buyerProfiles) => {
-            setMaGuideContent(guide);
-            if (extractedCriteria) {
-              if (extractedCriteria.size_criteria) setSizeCriteria(prev => ({ ...prev, ...extractedCriteria.size_criteria }));
-              if (extractedCriteria.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...extractedCriteria.geography_criteria }));
-              if (extractedCriteria.service_criteria) setServiceCriteria(prev => ({ ...prev, ...extractedCriteria.service_criteria }));
-              if (extractedCriteria.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...extractedCriteria.buyer_types_criteria }));
-            }
-            // Update target buyer types with AI-generated profiles
-            if (buyerProfiles && buyerProfiles.length > 0) {
-              setTargetBuyerTypes(buyerProfiles);
-            }
-            toast.success('M&A Guide generated and criteria extracted');
-          }}
-        />
-      )}
-
-      {/* Target Buyer Profiles - Hidden until wired into scoring engine */}
-
-      {/* COLLAPSIBLE: Supporting Documents */}
-      {!isNew && id && (
-        <Collapsible open={documentsOpen} onOpenChange={setDocumentsOpen}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-sm font-medium">Supporting Documents</CardTitle>
-                    <Badge variant="secondary" className="text-xs">
-                      {documents.length} files
-                    </Badge>
-                  </div>
-                  {documentsOpen ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0">
-                <DocumentUploadSection
-                  universeId={id}
-                  documents={documents}
-                  onDocumentsChange={setDocuments}
-                />
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-      )}
-
-      {/* Buyers/Deals Tabs */}
-      {!isNew && (
-        <Tabs defaultValue="buyers" className="space-y-4">
+        <Tabs defaultValue="universe" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="buyers">
+            <TabsTrigger value="universe">
               <Users className="mr-2 h-4 w-4" />
-              Buyers ({buyers?.length || 0})
+              Universe
             </TabsTrigger>
-            <TabsTrigger value="deals">
-              <Briefcase className="mr-2 h-4 w-4" />
-              Deals ({universeDeals?.length || 0})
+            <TabsTrigger value="configuration">
+              <Settings className="mr-2 h-4 w-4" />
+              Configuration & Research
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="buyers">
-            <Card>
-              <CardHeader className="pb-4">
-                <BuyerTableToolbar
-                  buyerCount={filteredBuyers.length}
-                  searchValue={buyerSearch}
-                  onSearchChange={setBuyerSearch}
-                  onAddBuyer={() => navigate('/admin/remarketing/buyers')}
-                  onImportCSV={() => setImportBuyersDialogOpen(true)}
-                  onEnrichAll={async () => {
-                    if (!buyers?.length) {
-                      toast.error('No buyers to enrich');
-                      return;
-                    }
-                    
-                    // Reset any previous enrichment state
-                    resetEnrichment();
-                    
-                    // Use the hook which handles batching, 402 errors, and progress
-                    await enrichBuyers(buyers.map(b => ({
-                      id: b.id,
-                      company_website: b.company_website
-                    })));
-                  }}
-                  onCancelEnrichment={cancelEnrichment}
-                  onScoreAlignment={async () => {
-                    if (!buyers?.length) {
-                      toast.error('No buyers to score');
-                      return;
-                    }
-                    
-                    // Reset any previous alignment state
-                    resetAlignmentScoring();
-                    
-                    // Score buyers and refresh when done
-                    await scoreAlignmentBuyers(
-                      buyers.map(b => ({
-                        id: b.id,
-                        company_name: b.company_name,
-                        alignment_score: b.alignment_score ?? null
-                      })),
-                      () => refetchBuyers()
-                    );
-                  }}
-                  onCancelAlignment={cancelAlignmentScoring}
-                  onDedupe={async () => {
-                    if (!buyers?.length || buyers.length < 2) {
-                      toast.error('Need at least 2 buyers to dedupe');
-                      return;
-                    }
-                    setIsDeduping(true);
-                    try {
-                      const { data, error } = await supabase.functions.invoke('dedupe-buyers', {
-                        body: { universeId: id }
-                      });
-                      if (error) throw error;
-                      toast.success(data?.message || 'Deduplication complete');
-                      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
-                    } catch (error) {
-                      toast.error('Failed to dedupe buyers');
-                    } finally {
-                      setIsDeduping(false);
-                    }
-                  }}
-                  isEnriching={enrichmentProgress.isRunning}
-                  isDeduping={isDeduping}
-                  isScoringAlignment={isScoringAlignment}
-                  enrichmentProgress={{
-                    current: enrichmentProgress.current,
-                    total: enrichmentProgress.total,
-                    successful: enrichmentProgress.successful,
-                    failed: enrichmentProgress.failed,
-                    creditsDepleted: enrichmentProgress.creditsDepleted
-                  }}
-                  alignmentProgress={{
-                    current: alignmentProgress.current,
-                    total: alignmentProgress.total,
-                    successful: alignmentProgress.successful,
-                    failed: alignmentProgress.failed,
-                    creditsDepleted: alignmentProgress.creditsDepleted
-                  }}
-                />
-              </CardHeader>
-              <CardContent className="p-0">
-                <BuyerTableEnhanced
-                  buyers={filteredBuyers}
-                  showPEColumn={true}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* TAB 1: Universe - Buyers & Deals */}
+          <TabsContent value="universe" className="space-y-4">
+            <Tabs defaultValue="buyers" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="buyers">
+                  <Users className="mr-2 h-4 w-4" />
+                  Buyers ({buyers?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="deals">
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Deals ({universeDeals?.length || 0})
+                </TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="deals">
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground">
-                      {universeDeals?.length || 0} deals
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="sm"
-                      onClick={async () => {
-                        if (!universeDeals?.length) {
-                          toast.error('No deals to score');
+              <TabsContent value="buyers">
+                <Card>
+                  <CardHeader className="pb-4">
+                    <BuyerTableToolbar
+                      buyerCount={filteredBuyers.length}
+                      searchValue={buyerSearch}
+                      onSearchChange={setBuyerSearch}
+                      onAddBuyer={() => navigate('/admin/remarketing/buyers')}
+                      onImportCSV={() => setImportBuyersDialogOpen(true)}
+                      onEnrichAll={async () => {
+                        if (!buyers?.length) {
+                          toast.error('No buyers to enrich');
                           return;
                         }
-                        setIsScoringAllDeals(true);
+                        
+                        // Reset any previous enrichment state
+                        resetEnrichment();
+                        
+                        // Use the hook which handles batching, 402 errors, and progress
+                        await enrichBuyers(buyers.map(b => ({
+                          id: b.id,
+                          company_website: b.company_website
+                        })));
+                      }}
+                      onCancelEnrichment={cancelEnrichment}
+                      onScoreAlignment={async () => {
+                        if (!buyers?.length) {
+                          toast.error('No buyers to score');
+                          return;
+                        }
+                        
+                        // Reset any previous alignment state
+                        resetAlignmentScoring();
+                        
+                        // Score buyers and refresh when done
+                        await scoreAlignmentBuyers(
+                          buyers.map(b => ({
+                            id: b.id,
+                            company_name: b.company_name,
+                            alignment_score: b.alignment_score ?? null
+                          })),
+                          () => refetchBuyers()
+                        );
+                      }}
+                      onCancelAlignment={cancelAlignmentScoring}
+                      onDedupe={async () => {
+                        if (!buyers?.length || buyers.length < 2) {
+                          toast.error('Need at least 2 buyers to dedupe');
+                          return;
+                        }
+                        setIsDeduping(true);
                         try {
-                          for (const deal of universeDeals) {
-                            if (deal.listing?.id) {
-                              await supabase.functions.invoke('score-buyer-deal', {
-                                body: { bulk: true, listingId: deal.listing.id, universeId: id }
-                              });
-                            }
-                          }
-                          toast.success(`Scored ${universeDeals.length} deals`);
-                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
+                          const { data, error } = await supabase.functions.invoke('dedupe-buyers', {
+                            body: { universeId: id }
+                          });
+                          if (error) throw error;
+                          toast.success(data?.message || 'Deduplication complete');
+                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
                         } catch (error) {
-                          toast.error('Failed to score deals');
+                          toast.error('Failed to dedupe buyers');
                         } finally {
-                          setIsScoringAllDeals(false);
+                          setIsDeduping(false);
                         }
                       }}
-                      disabled={isScoringAllDeals || !universeDeals?.length}
-                    >
-                      {isScoringAllDeals ? (
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      ) : (
-                        <TrendingUp className="h-4 w-4 mr-1" />
-                      )}
-                      Score All Deals
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={async () => {
-                        if (!universeDeals?.length) {
-                          toast.error('No deals to enrich');
-                          return;
-                        }
-                        setIsEnrichingAllDeals(true);
-                        try {
-                          let enriched = 0;
-                          for (const deal of universeDeals) {
-                            if (deal.listing?.id && !deal.listing.enriched_at) {
-                              await supabase.functions.invoke('enrich-deal', {
-                                body: { dealId: deal.listing.id }
-                              });
-                              enriched++;
+                      isEnriching={enrichmentProgress.isRunning}
+                      isDeduping={isDeduping}
+                      isScoringAlignment={isScoringAlignment}
+                      enrichmentProgress={{
+                        current: enrichmentProgress.current,
+                        total: enrichmentProgress.total,
+                        successful: enrichmentProgress.successful,
+                        failed: enrichmentProgress.failed,
+                        creditsDepleted: enrichmentProgress.creditsDepleted
+                      }}
+                      alignmentProgress={{
+                        current: alignmentProgress.current,
+                        total: alignmentProgress.total,
+                        successful: alignmentProgress.successful,
+                        failed: alignmentProgress.failed,
+                        creditsDepleted: alignmentProgress.creditsDepleted
+                      }}
+                    />
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <BuyerTableEnhanced
+                      buyers={filteredBuyers}
+                      showPEColumn={true}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="deals">
+                <Card>
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-muted-foreground">
+                          {universeDeals?.length || 0} deals
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm"
+                          onClick={async () => {
+                            if (!universeDeals?.length) {
+                              toast.error('No deals to score');
+                              return;
                             }
-                          }
-                          toast.success(`Enriched ${enriched} deals`);
+                            setIsScoringAllDeals(true);
+                            try {
+                              for (const deal of universeDeals) {
+                                if (deal.listing?.id) {
+                                  await supabase.functions.invoke('score-buyer-deal', {
+                                    body: { bulk: true, listingId: deal.listing.id, universeId: id }
+                                  });
+                                }
+                              }
+                              toast.success(`Scored ${universeDeals.length} deals`);
+                              queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
+                            } catch (error) {
+                              toast.error('Failed to score deals');
+                            } finally {
+                              setIsScoringAllDeals(false);
+                            }
+                          }}
+                          disabled={isScoringAllDeals || !universeDeals?.length}
+                        >
+                          {isScoringAllDeals ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <TrendingUp className="h-4 w-4 mr-1" />
+                          )}
+                          Score All Deals
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={async () => {
+                            if (!universeDeals?.length) {
+                              toast.error('No deals to enrich');
+                              return;
+                            }
+                            setIsEnrichingAllDeals(true);
+                            try {
+                              let enriched = 0;
+                              for (const deal of universeDeals) {
+                                if (deal.listing?.id && !deal.listing.enriched_at) {
+                                  await supabase.functions.invoke('enrich-deal', {
+                                    body: { dealId: deal.listing.id }
+                                  });
+                                  enriched++;
+                                }
+                              }
+                              toast.success(`Enriched ${enriched} deals`);
+                              refetchDeals();
+                            } catch (error) {
+                              toast.error('Failed to enrich deals');
+                            } finally {
+                              setIsEnrichingAllDeals(false);
+                            }
+                          }}
+                          disabled={isEnrichingAllDeals || !universeDeals?.length}
+                        >
+                          {isEnrichingAllDeals ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 mr-1" />
+                          )}
+                          Enrich All Deals
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setImportDealsDialogOpen(true)}
+                        >
+                          <Upload className="h-4 w-4 mr-1" />
+                          Import Deals
+                        </Button>
+                        <Button 
+                          size="sm"
+                          onClick={() => {
+                            setAddDealDefaultTab('existing');
+                            setAddDealDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Deal
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <UniverseDealsTable
+                      deals={universeDeals || []}
+                      engagementStats={dealEngagementStats || {}}
+                      onRemoveDeal={async (dealId, listingId) => {
+                        try {
+                          await supabase
+                            .from('remarketing_universe_deals')
+                            .update({ status: 'archived' })
+                            .eq('id', dealId);
+                          toast.success('Deal removed from universe');
                           refetchDeals();
                         } catch (error) {
-                          toast.error('Failed to enrich deals');
-                        } finally {
-                          setIsEnrichingAllDeals(false);
+                          toast.error('Failed to remove deal');
                         }
                       }}
-                      disabled={isEnrichingAllDeals || !universeDeals?.length}
-                    >
-                      {isEnrichingAllDeals ? (
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-1" />
-                      )}
-                      Enrich All Deals
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setImportDealsDialogOpen(true)}
-                    >
-                      <Upload className="h-4 w-4 mr-1" />
-                      Import Deals
-                    </Button>
-                    <Button 
-                      size="sm"
-                      onClick={() => {
-                        setAddDealDefaultTab('existing');
-                        setAddDealDialogOpen(true);
+                      onScoreDeal={async (listingId) => {
+                        try {
+                          await supabase.functions.invoke('score-buyer-deal', {
+                            body: { bulk: true, listingId, universeId: id }
+                          });
+                          toast.success('Deal scored');
+                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
+                        } catch (error) {
+                          toast.error('Failed to score deal');
+                        }
                       }}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Deal
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <UniverseDealsTable
-                  deals={universeDeals || []}
-                  engagementStats={dealEngagementStats || {}}
-                  onRemoveDeal={async (dealId, listingId) => {
-                    try {
-                      await supabase
-                        .from('remarketing_universe_deals')
-                        .update({ status: 'archived' })
-                        .eq('id', dealId);
-                      toast.success('Deal removed from universe');
-                      refetchDeals();
-                    } catch (error) {
-                      toast.error('Failed to remove deal');
-                    }
-                  }}
-                  onScoreDeal={async (listingId) => {
-                    try {
-                      await supabase.functions.invoke('score-buyer-deal', {
-                        body: { bulk: true, listingId, universeId: id }
-                      });
-                      toast.success('Deal scored');
-                      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
-                    } catch (error) {
-                      toast.error('Failed to score deal');
-                    }
-                  }}
-                  onEnrichDeal={async (listingId) => {
-                    try {
-                      await supabase.functions.invoke('enrich-deal', {
-                        body: { dealId: listingId }
-                      });
-                      toast.success('Deal enriched');
-                      refetchDeals();
-                    } catch (error) {
-                      toast.error('Failed to enrich deal');
-                    }
-                  }}
-                />
-              </CardContent>
-            </Card>
+                      onEnrichDeal={async (listingId) => {
+                        try {
+                          await supabase.functions.invoke('enrich-deal', {
+                            body: { dealId: listingId }
+                          });
+                          toast.success('Deal enriched');
+                          refetchDeals();
+                        } catch (error) {
+                          toast.error('Failed to enrich deal');
+                        }
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          {/* TAB 2: Configuration & Research */}
+          <TabsContent value="configuration" className="space-y-6">
+            {/* Industry & Scoring Style */}
+            <ScoringStyleCard
+              scoringBehavior={scoringBehavior}
+              onScoringBehaviorChange={setScoringBehavior}
+              onStartAIResearch={() => setShowAIResearch(true)}
+              onSave={() => saveMutation.mutate()}
+              isSaving={saveMutation.isPending}
+            />
+
+            {/* Match Criteria */}
+            <MatchCriteriaCard
+              sizeCriteria={sizeCriteria}
+              geographyCriteria={geographyCriteria}
+              serviceCriteria={serviceCriteria}
+              onEdit={() => setShowCriteriaEdit(true)}
+            />
+
+            {/* AI Research (shown when triggered) */}
+            {id && showAIResearch && (
+              <AIResearchSection
+                universeName={formData.name}
+                existingContent={maGuideContent}
+                onGuideGenerated={(guide, extractedCriteria, buyerProfiles) => {
+                  setMaGuideContent(guide);
+                  if (extractedCriteria) {
+                    if (extractedCriteria.size_criteria) setSizeCriteria(prev => ({ ...prev, ...extractedCriteria.size_criteria }));
+                    if (extractedCriteria.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...extractedCriteria.geography_criteria }));
+                    if (extractedCriteria.service_criteria) setServiceCriteria(prev => ({ ...prev, ...extractedCriteria.service_criteria }));
+                    if (extractedCriteria.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...extractedCriteria.buyer_types_criteria }));
+                  }
+                  // Update target buyer types with AI-generated profiles
+                  if (buyerProfiles && buyerProfiles.length > 0) {
+                    setTargetBuyerTypes(buyerProfiles);
+                  }
+                  toast.success('M&A Guide generated and criteria extracted');
+                }}
+              />
+            )}
+
+            {/* Supporting Documents */}
+            {id && (
+              <Collapsible open={documentsOpen} onOpenChange={setDocumentsOpen}>
+                <Card>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <CardTitle className="text-sm font-medium">Supporting Documents</CardTitle>
+                          <Badge variant="secondary" className="text-xs">
+                            {documents.length} files
+                          </Badge>
+                        </div>
+                        {documentsOpen ? (
+                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <DocumentUploadSection
+                        universeId={id}
+                        documents={documents}
+                        onDocumentsChange={setDocuments}
+                      />
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            )}
           </TabsContent>
         </Tabs>
       )}
