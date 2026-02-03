@@ -69,7 +69,7 @@ serve(async (req) => {
       has_current_criteria: !!current_criteria,
     });
 
-    const system_prompt = \`You are an AI assistant helping to refine buyer fit criteria for M&A deal sourcing.
+    const system_prompt = `You are an AI assistant helping to refine buyer fit criteria for M&A deal sourcing.
 
 Your role is to:
 1. Help users refine their size, service, and geography criteria
@@ -78,14 +78,14 @@ Your role is to:
 4. Provide structured criteria updates in JSON format
 
 Current criteria context:
-\${JSON.stringify(current_criteria, null, 2)}
+${JSON.stringify(current_criteria, null, 2)}
 
 When suggesting updates, provide:
 1. Specific recommendations with rationale
 2. JSON format updates that can be directly applied
 3. Clarifying questions if needed
 
-Be concise and actionable.\`;
+Be concise and actionable.`;
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -114,10 +114,11 @@ Be concise and actionable.\`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error: any) {
-    console.error("[update-fit-criteria-chat] Error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[update-fit-criteria-chat] Error:", errorMessage);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
