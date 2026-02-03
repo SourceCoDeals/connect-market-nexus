@@ -121,6 +121,7 @@ interface DealListing {
   full_time_employees: number | null;
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
+  google_review_count: number | null;
   deal_quality_score: number | null;
   deal_total_score: number | null;
   seller_interest_score: number | null;
@@ -139,7 +140,8 @@ interface ColumnWidths {
   location: number;
   revenue: number;
   ebitda: number;
-  employees: number;
+  linkedin: number;
+  googleReviews: number;
   quality: number;
   sellerInterest: number;
   engagement: number;
@@ -155,7 +157,8 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   location: 100,
   revenue: 90,
   ebitda: 90,
-  employees: 100,
+  linkedin: 90,
+  googleReviews: 80,
   quality: 80,
   sellerInterest: 90,
   engagement: 130,
@@ -419,12 +422,24 @@ const SortableTableRow = ({
         {formatCurrency(listing.ebitda)}
       </TableCell>
 
-      {/* Employees - LinkedIn data only */}
-      <TableCell className="text-right" style={{ width: columnWidths.employees, minWidth: 50 }}>
+      {/* LinkedIn Employees */}
+      <TableCell className="text-right" style={{ width: columnWidths.linkedin, minWidth: 50 }}>
         {listing.linkedin_employee_count || listing.linkedin_employee_range ? (
           <div className="text-sm flex items-center justify-end gap-1">
             <span>{listing.linkedin_employee_count?.toLocaleString() || listing.linkedin_employee_range}</span>
             <span className="text-xs text-blue-500 font-medium">LI</span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      {/* Google Reviews */}
+      <TableCell className="text-right" style={{ width: columnWidths.googleReviews, minWidth: 50 }}>
+        {listing.google_review_count ? (
+          <div className="text-sm flex items-center justify-end gap-1">
+            <span>{listing.google_review_count.toLocaleString()}</span>
+            <span className="text-xs text-amber-500 font-medium">★</span>
           </div>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -691,6 +706,7 @@ const ReMarketingDeals = () => {
           full_time_employees,
           linkedin_employee_count,
           linkedin_employee_range,
+          google_review_count,
           deal_quality_score,
           deal_total_score,
           seller_interest_score,
@@ -1441,8 +1457,11 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.ebitda} onResize={(w) => handleColumnResize('ebitda', w)} minWidth={60} className="text-right">
                       <SortableHeader column="ebitda" label="EBITDA" className="ml-auto" />
                     </ResizableHeader>
-                    <ResizableHeader width={columnWidths.employees} onResize={(w) => handleColumnResize('employees', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="employees" label="Employees" className="ml-auto" />
+                    <ResizableHeader width={columnWidths.linkedin} onResize={(w) => handleColumnResize('linkedin', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="linkedin" label="LinkedIn" className="ml-auto" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.googleReviews} onResize={(w) => handleColumnResize('googleReviews', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="googleReviews" label="Reviews" className="ml-auto" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.quality} onResize={(w) => handleColumnResize('quality', w)} minWidth={50} className="text-center">
                       <SortableHeader column="score" label="Quality" className="mx-auto" />
@@ -1479,7 +1498,7 @@ const ReMarketingDeals = () => {
                     ))
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
