@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import {
   Tooltip,
   TooltipContent,
@@ -470,6 +471,10 @@ const ReMarketingDeals = () => {
     setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
   }, []);
 
+  // Track which deals are currently being enriched to prevent duplicate calls
+  const enrichingDealsRef = useRef<Set<string>>(new Set());
+  const [enrichmentProgress, setEnrichmentProgress] = useState<{ current: number; total: number } | null>(null);
+
   // DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -481,6 +486,7 @@ const ReMarketingDeals = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
 
   // Handle file import
   const handleImport = async () => {
@@ -581,6 +587,63 @@ const ReMarketingDeals = () => {
       return data as DealListing[];
     }
   });
+
+  // Auto-enrich deals that don't have enriched_at set
+  useEffect(() => {
+    const autoEnrichDeals = async () => {
+      if (!listings) return;
+
+      // Find deals that need enrichment (no enriched_at and have a website)
+      const dealsToEnrich = listings.filter(deal => {
+        const website = deal.website || (deal.internal_deal_memo_link && !deal.internal_deal_memo_link.includes('sharepoint'));
+        return !deal.enriched_at && website && !enrichingDealsRef.current.has(deal.id);
+      });
+
+      if (dealsToEnrich.length === 0) return;
+
+      // Mark all as being enriched to prevent duplicate calls
+      dealsToEnrich.forEach(deal => enrichingDealsRef.current.add(deal.id));
+      
+      setEnrichmentProgress({ current: 0, total: dealsToEnrich.length });
+      
+      // Enrich in batches of 3 to avoid overwhelming the API
+      const batchSize = 3;
+      let enriched = 0;
+      
+      for (let i = 0; i < dealsToEnrich.length; i += batchSize) {
+        const batch = dealsToEnrich.slice(i, i + batchSize);
+        
+        await Promise.all(batch.map(async (deal) => {
+          try {
+            await supabase.functions.invoke('enrich-deal', {
+              body: { dealId: deal.id, onlyFillEmpty: true }
+            });
+            enriched++;
+            setEnrichmentProgress({ current: enriched, total: dealsToEnrich.length });
+          } catch (err) {
+            console.error(`Failed to auto-enrich deal ${deal.id}:`, err);
+          }
+        }));
+        
+        // Small delay between batches
+        if (i + batchSize < dealsToEnrich.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      // Clear progress and refetch
+      setEnrichmentProgress(null);
+      if (enriched > 0) {
+        toast({
+          title: "Auto-enrichment complete",
+          description: `Enriched ${enriched} deal${enriched !== 1 ? 's' : ''} with company data`
+        });
+        refetchListings();
+      }
+    };
+
+    autoEnrichDeals();
+  }, [listings, toast, refetchListings]);
 
   // Fetch universes for the filter
   const { data: universes } = useQuery({
@@ -1006,6 +1069,31 @@ const ReMarketingDeals = () => {
           </Select>
         </div>
       </div>
+
+      {/* Auto-enrichment progress indicator */}
+      {enrichmentProgress && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <Sparkles className="h-5 w-5 text-blue-600 animate-pulse" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-blue-900">
+                    Auto-enriching deals with company data...
+                  </span>
+                  <span className="text-sm text-blue-700">
+                    {enrichmentProgress.current} / {enrichmentProgress.total}
+                  </span>
+                </div>
+                <Progress 
+                  value={(enrichmentProgress.current / enrichmentProgress.total) * 100} 
+                  className="h-2"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-4 gap-4">
