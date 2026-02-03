@@ -132,7 +132,9 @@ serve(async (req) => {
     }
 
     // Capture version for optimistic locking
-    const lockVersion = deal.enriched_at || deal.updated_at;
+    // IMPORTANT: Only use enriched_at, NOT updated_at as fallback
+    // If enriched_at is null, the lock check uses .is('enriched_at', null)
+    const lockVersion = deal.enriched_at;
 
     // Get website URL - prefer website field, fallback to extracting from internal_deal_memo_link
     let websiteUrl = deal.website;
@@ -187,38 +189,123 @@ serve(async (req) => {
     }
 
     // Timeout constants for external API calls
-    const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds
+    const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds per page
     const AI_TIMEOUT_MS = 45000; // 45 seconds
     const MIN_CONTENT_LENGTH = 200; // Minimum chars to proceed with AI
 
-    // Step 1: Scrape the website using Firecrawl
-    console.log('Scraping website with Firecrawl...');
-    const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: websiteUrl,
-        formats: ['markdown'],
-        onlyMainContent: true,
-        waitFor: 3000,
-      }),
-      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
-    });
+    // Step 1: Scrape MULTIPLE pages using Firecrawl
+    // We need to crawl Contact, About, and Services pages to find address information
+    console.log('Scraping website with Firecrawl (multi-page)...');
 
-    if (!scrapeResponse.ok) {
-      const errorText = await scrapeResponse.text();
-      console.error('Firecrawl scrape error:', errorText);
+    // Build list of pages to scrape - homepage + common important pages
+    const baseUrl = new URL(websiteUrl);
+    const pagesToScrape = [
+      websiteUrl, // Homepage
+    ];
+
+    // Common paths where we find address, company info, services
+    const importantPaths = [
+      '/contact', '/contact-us', '/contactus',
+      '/about', '/about-us', '/aboutus', '/about-us/',
+      '/locations', '/location', '/our-locations',
+      '/services', '/our-services',
+    ];
+
+    // Add important paths
+    for (const path of importantPaths) {
+      pagesToScrape.push(`${baseUrl.origin}${path}`);
+    }
+
+    console.log(`Will attempt to scrape up to ${pagesToScrape.length} pages`);
+
+    // Scrape all pages in parallel (with limit)
+    const scrapedPages: { url: string; content: string; success: boolean }[] = [];
+
+    // Helper function to scrape a single page
+    async function scrapePage(url: string): Promise<{ url: string; content: string; success: boolean }> {
+      try {
+        const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: url,
+            formats: ['markdown'],
+            onlyMainContent: true,
+            waitFor: 2000,
+          }),
+          signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
+        });
+
+        if (!response.ok) {
+          return { url, content: '', success: false };
+        }
+
+        const data = await response.json();
+        const content = data.data?.markdown || data.markdown || '';
+        return { url, content, success: content.length > 50 };
+      } catch {
+        return { url, content: '', success: false };
+      }
+    }
+
+    // First, always scrape the homepage
+    const homepageResult = await scrapePage(websiteUrl);
+    scrapedPages.push(homepageResult);
+
+    if (!homepageResult.success) {
+      console.error('Failed to scrape homepage');
       return new Response(
-        JSON.stringify({ success: false, error: `Failed to scrape website: ${scrapeResponse.status}` }),
+        JSON.stringify({ success: false, error: 'Failed to scrape website homepage' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const scrapeData = await scrapeResponse.json();
-    const websiteContent = scrapeData.data?.markdown || scrapeData.markdown || '';
+    // Try to find actual navigation links in the homepage to prioritize real pages
+    const homepageContent = homepageResult.content.toLowerCase();
+    const prioritizedPaths: string[] = [];
+
+    // Check which paths are likely to exist based on homepage content
+    for (const path of importantPaths) {
+      const pathName = path.replace(/[/-]/g, ' ').trim();
+      if (homepageContent.includes(pathName) || homepageContent.includes(path.slice(1))) {
+        prioritizedPaths.push(`${baseUrl.origin}${path}`);
+      }
+    }
+
+    // Scrape up to 4 additional pages (prioritized first, then fallback to common paths)
+    const additionalPages = prioritizedPaths.length > 0
+      ? prioritizedPaths.slice(0, 4)
+      : importantPaths.slice(0, 4).map(p => `${baseUrl.origin}${p}`);
+
+    console.log(`Scraping additional pages: ${additionalPages.join(', ')}`);
+
+    // Scrape additional pages in parallel
+    const additionalResults = await Promise.all(additionalPages.map(url => scrapePage(url)));
+    scrapedPages.push(...additionalResults);
+
+    // Count successful scrapes
+    const successfulScrapes = scrapedPages.filter(p => p.success);
+    console.log(`Successfully scraped ${successfulScrapes.length} of ${scrapedPages.length} pages`);
+
+    // Combine all scraped content with page markers
+    let websiteContent = '';
+    for (const page of scrapedPages) {
+      if (page.success && page.content.length > 50) {
+        const pageName = new URL(page.url).pathname || 'homepage';
+        websiteContent += `\n\n=== PAGE: ${pageName} ===\n\n${page.content}`;
+      }
+    }
+
+    // Log which pages were scraped for diagnostics
+    const scrapedPagesSummary = scrapedPages.map(p => ({
+      url: p.url,
+      success: p.success,
+      chars: p.content.length
+    }));
+    console.log('Scrape summary:', JSON.stringify(scrapedPagesSummary));
 
     if (!websiteContent || websiteContent.length < MIN_CONTENT_LENGTH) {
       console.log(`Insufficient website content scraped: ${websiteContent.length} chars (need ${MIN_CONTENT_LENGTH}+)`);
@@ -327,7 +414,7 @@ Focus on extracting:
 IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
 
 Website Content:
-${websiteContent.substring(0, 15000)}
+${websiteContent.substring(0, 20000)}
 
 Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.`;
 
@@ -662,6 +749,13 @@ Extract all available business information using the provided tool. The address_
         message: `Successfully enriched deal with ${fieldsUpdated.length} fields`,
         fieldsUpdated,
         extracted,
+        // "What We Scraped" diagnostic report
+        scrapeReport: {
+          totalPagesAttempted: scrapedPages.length,
+          successfulPages: successfulScrapes.length,
+          totalCharactersScraped: websiteContent.length,
+          pages: scrapedPagesSummary,
+        },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

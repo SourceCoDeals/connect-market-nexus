@@ -89,37 +89,106 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   // ===== FINANCIAL QUALITY / SIZE SCORE (0-30 pts) =====
   const revenue = deal.revenue || 0;
   const ebitda = deal.ebitda || 0;
+  const employeeCount = deal.full_time_employees || deal.linkedin_employee_count || 0;
+  const hasFinancials = revenue > 0 || ebitda > 0;
 
-  // Revenue scoring
-  if (revenue >= 5000000) {
-    sizeScore += 15;
-  } else if (revenue >= 2000000) {
-    sizeScore += 10;
-  } else if (revenue >= 1000000) {
-    sizeScore += 5;
-  } else if (revenue > 0) {
-    sizeScore += 2;
-  }
+  if (hasFinancials) {
+    // PRIMARY PATH: Use actual financials when available
 
-  // EBITDA margin scoring
-  if (revenue > 0 && ebitda > 0) {
-    const margin = ebitda / revenue;
-    if (margin >= 0.20) {
+    // Revenue scoring
+    if (revenue >= 5000000) {
+      sizeScore += 15;
+    } else if (revenue >= 2000000) {
       sizeScore += 10;
-    } else if (margin >= 0.15) {
-      sizeScore += 7;
-    } else if (margin >= 0.10) {
-      sizeScore += 4;
-    } else if (margin > 0) {
+    } else if (revenue >= 1000000) {
+      sizeScore += 5;
+    } else if (revenue > 0) {
       sizeScore += 2;
     }
+
+    // EBITDA margin scoring
+    if (revenue > 0 && ebitda > 0) {
+      const margin = ebitda / revenue;
+      if (margin >= 0.20) {
+        sizeScore += 10;
+      } else if (margin >= 0.15) {
+        sizeScore += 7;
+      } else if (margin >= 0.10) {
+        sizeScore += 4;
+      } else if (margin > 0) {
+        sizeScore += 2;
+      }
+    }
+
+    // Absolute EBITDA scoring
+    if (ebitda >= 500000) {
+      sizeScore += 5;
+    } else if (ebitda >= 200000) {
+      sizeScore += 3;
+    }
+  } else if (employeeCount > 0) {
+    // PROXY PATH: Estimate size from employee count when no financials
+    // Industry average: ~$300K-500K revenue per employee for services
+    notes.push('Size estimated from employee count (no financials)');
+
+    if (employeeCount >= 100) {
+      sizeScore += 20; // Likely $30M+ revenue
+    } else if (employeeCount >= 50) {
+      sizeScore += 15; // Likely $15-30M revenue
+    } else if (employeeCount >= 25) {
+      sizeScore += 10; // Likely $7-15M revenue
+    } else if (employeeCount >= 10) {
+      sizeScore += 6;  // Likely $3-6M revenue
+    } else if (employeeCount >= 5) {
+      sizeScore += 3;  // Likely $1.5-3M revenue
+    } else {
+      sizeScore += 1;  // Small business
+    }
+  } else {
+    notes.push('No financials or employee data - size cannot be scored');
   }
 
-  // Absolute EBITDA scoring
-  if (ebitda >= 500000) {
-    sizeScore += 5;
-  } else if (ebitda >= 200000) {
-    sizeScore += 3;
+  // ===== REVIEWS AS QUALITY INDICATOR (Consumer/Residential businesses only) =====
+  // Only apply review scoring for consumer-facing businesses, not B2B
+  const reviewCount = deal.google_review_count || deal.review_count || 0;
+  const category = (deal.category || '').toLowerCase();
+  const description = (deal.description || deal.executive_summary || '').toLowerCase();
+  const title = (deal.title || '').toLowerCase();
+
+  // Identify if this is a consumer/residential business vs B2B
+  const consumerKeywords = [
+    'residential', 'home', 'hvac', 'plumbing', 'roofing', 'landscaping',
+    'pest', 'cleaning', 'restoration', 'moving', 'storage', 'automotive',
+    'collision', 'auto body', 'dental', 'veterinary', 'medical', 'healthcare',
+    'fitness', 'salon', 'spa', 'restaurant', 'retail', 'consumer'
+  ];
+  const b2bKeywords = [
+    'commercial', 'industrial', 'manufacturing', 'b2b', 'enterprise',
+    'consulting', 'staffing', 'wholesale', 'distribution', 'logistics',
+    'professional services', 'software', 'saas', 'technology'
+  ];
+
+  const isConsumerBusiness = consumerKeywords.some(kw =>
+    category.includes(kw) || description.includes(kw) || title.includes(kw)
+  );
+  const isB2B = b2bKeywords.some(kw =>
+    category.includes(kw) || description.includes(kw) || title.includes(kw)
+  );
+
+  // Only apply review scoring for consumer businesses (not B2B)
+  if (reviewCount > 0 && isConsumerBusiness && !isB2B) {
+    if (reviewCount >= 500) {
+      qualityScore += 8;
+      notes.push(`Strong consumer presence: ${reviewCount} reviews`);
+    } else if (reviewCount >= 200) {
+      qualityScore += 6;
+    } else if (reviewCount >= 100) {
+      qualityScore += 4;
+    } else if (reviewCount >= 50) {
+      qualityScore += 2;
+    } else if (reviewCount > 0) {
+      qualityScore += 1;
+    }
   }
 
   // ===== BUSINESS QUALITY (0-25 pts) =====
