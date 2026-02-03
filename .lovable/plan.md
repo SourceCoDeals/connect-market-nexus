@@ -1,65 +1,71 @@
 
-Problem diagnosis (what’s happening and why)
-- Your data pipeline is now correct: PapaParse is detecting 28 headers (confirmed in console logs) and `columnMappings` contains 28 entries (your UI badges also show “Showing 28 of 28”).
-- The reason you only visually see ~5 rows is a layout/scroll containment bug:
-  - The dialog’s content area is height-constrained (`max-h-[85vh]`) and uses `overflow-hidden` in the inner wrapper.
-  - The mapping list container (`ScrollArea`) is currently using `max-h-[400px]` and `flex-1`, but in this specific layout Radix ScrollArea ends up expanding to content height rather than becoming the scroll container you expect.
-  - Result: the table grows beyond the available dialog height, but the dialog clips it (because the dialog body is overflow-hidden), and no scrollbar appears because the ScrollArea itself is not the element with a fixed height.
+# Fix Column Sorting Mismatches in All Deals Table
 
-Why this is consistent with your screenshot
-- Badge says “Showing 28 of 28” → React is rendering 28 rows logically.
-- You can only see the first few rows → the rest are clipped out of view.
-- No scrollbar → the element that should scroll doesn’t have an actual fixed height in the final computed layout.
+## Problem Summary
 
-Fix strategy (UI-first, deterministic, no AI involved)
-We will make the mapping step layout enforce a real scroll container by:
-1) Giving the dialog a concrete height (not only max-height), so flex children can compute remaining space.
-2) Ensuring the mapping step wrapper has `min-h-0` (so children are allowed to shrink) and that the ScrollArea is the element that receives the constrained height.
-3) Removing the ambiguous `max-h-[400px]` approach (which is easily defeated by the surrounding clipping) and instead using either:
-   - `flex-1 min-h-0` (preferred) inside a `h-[85vh]` dialog, or
-   - a simple `h-[50vh]` fixed height on the ScrollArea if we want maximum predictability.
-4) (Optional but recommended) Make the table header sticky so the column titles remain visible while scrolling.
+Clicking on **LI Count**, **LI Range**, and **Reviews** column headers does not sort the table because there are mismatches between the column identifier used in the header and what the sorting logic expects.
 
-Implementation details (what I will change)
-A) DealImportDialog (route you’re on: /admin/remarketing/deals)
-- Update `DialogContent` sizing:
-  - Change from: `max-h-[85vh]`
-  - To: `h-[85vh]` (or `h-[85svh]` for better mobile behavior) plus `max-h` if desired.
-  - Keep `flex flex-col` so the mapping list can occupy remaining space.
-- Ensure the mapping step container uses:
-  - `className="flex-1 flex flex-col min-h-0"`
-- Update ScrollArea to become the scroll container:
-  - Replace `max-h-[400px]` with `flex-1 min-h-0` (or a fixed `h-[50vh]` if we want absolute certainty).
-  - Add `overflow-hidden` only where needed; the ScrollArea viewport will handle actual scrolling.
-- Add “always visible” scrollbar styling (optional):
-  - Radix scrollbars can feel subtle; we can increase contrast/width if needed.
+## Technical Details
 
-B) DealCSVImport (the universe import component)
-- Apply the exact same layout fixes for consistency:
-  - Dialog/container height enforcement (if it uses a dialog)
-  - `min-h-0` parent
-  - ScrollArea gets real constrained height (`flex-1 min-h-0` or `h-[50vh]`)
+The table headers use `SortableHeader` which sets a column name when clicked. This column name must match a `case` in the `sortedListings` switch statement. Currently:
 
-C) Verification (end-to-end)
-- After changes:
-  1) Upload `Test_deals-4.csv`
-  2) Confirm you can scroll through the mapping list and reach the last columns (e.g., “Fireflies Recording”, “Appointment Booked”, “Buyers Shown”, “Data Source”).
-  3) Confirm “Showing 28 of 28” still matches visible scrollable content (and not clipped).
-  4) Confirm the scrollbar is visible and functional with mouse wheel + trackpad + drag.
-  5) Confirm the dialog itself does not scroll weirdly (only the mapping list scrolls).
+| Column | Header Uses | Sort Has | Result |
+|--------|-------------|----------|--------|
+| LI Count | `linkedinCount` | `employees` | No sort |
+| LI Range | `linkedinRange` | (nothing) | No sort |
+| Reviews | `googleReviews` | (nothing) | No sort |
 
-Edge cases we’ll explicitly protect against
-- Large number of columns (50–200): the list must remain scrollable without expanding the dialog.
-- Short viewport heights (smaller laptops): the mapping list should still scroll and not clip.
-- Long sample values: ensure row height doesn’t blow up (keep truncation; optionally add tooltip on hover later).
+## Solution
 
-Files to change
-- src/components/remarketing/DealImportDialog.tsx
-- src/components/remarketing/DealCSVImport.tsx
-(Optional if needed for consistent scrollbar visibility/contrast)
-- src/components/ui/scroll-area.tsx (only if the scrollbar is too subtle after the layout fix)
+Update the sorting switch statement to handle the correct column names:
 
-Success criteria (non-negotiable)
-- The mapping screen shows all columns via scrolling every time.
-- No clipping of rows below the fold.
-- Scrollbar is present and usable without needing the dialog itself to scroll.
+### Changes to `src/pages/admin/remarketing/ReMarketingDeals.tsx`
+
+1. **Replace the `employees` case** with `linkedinCount` (line ~973):
+   ```typescript
+   // BEFORE
+   case "employees":
+     aVal = a.linkedin_employee_count || 0;
+     bVal = b.linkedin_employee_count || 0;
+     break;
+   
+   // AFTER
+   case "linkedinCount":
+     aVal = a.linkedin_employee_count || 0;
+     bVal = b.linkedin_employee_count || 0;
+     break;
+   ```
+
+2. **Add missing `linkedinRange` case** (new case after linkedinCount):
+   ```typescript
+   case "linkedinRange":
+     // Sort by the range's numeric portion (e.g., "11-50" → 11)
+     const parseRange = (r: string | null) => {
+       if (!r) return 0;
+       const match = r.match(/^(\d+)/);
+       return match ? parseInt(match[1], 10) : 0;
+     };
+     aVal = parseRange(a.linkedin_employee_range);
+     bVal = parseRange(b.linkedin_employee_range);
+     break;
+   ```
+
+3. **Add missing `googleReviews` case** (new case):
+   ```typescript
+   case "googleReviews":
+     aVal = a.google_review_count || 0;
+     bVal = b.google_review_count || 0;
+     break;
+   ```
+
+## Expected Outcome
+
+After these changes:
+- Clicking **LI Count** will sort by LinkedIn employee count (numeric)
+- Clicking **LI Range** will sort by the starting number of the range (e.g., "11-50" sorts as 11)
+- Clicking **Reviews** will sort by Google review count (numeric)
+
+All three will toggle between ascending/descending when clicked repeatedly, matching the behavior of the other sortable columns.
+
+## Files Modified
+- `src/pages/admin/remarketing/ReMarketingDeals.tsx` (lines 973-976, plus new cases)
