@@ -946,73 +946,34 @@ const ReMarketingDeals = () => {
     }
   }, [queryClient, toast]);
 
-  // Handle calculate scores - uses a simple formula-based scoring
+  // Handle calculate scores - uses edge function for realistic scoring algorithm
   const handleCalculateScores = async () => {
     setIsCalculating(true);
     try {
-      const dealsToScore = listings?.filter(listing => 
-        listing.deal_quality_score === null
-      ) || [];
+      const { data: sessionData } = await supabase.auth.getSession();
 
-      if (dealsToScore.length === 0) {
-        toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
-        setIsCalculating(false);
-        return;
-      }
-
-      let scored = 0;
-      for (const deal of dealsToScore.slice(0, 50)) {
-        try {
-          // Calculate a deal quality score based on available data
-          let score = 50; // Base score
-          
-          // Revenue scoring (0-20 points)
-          if (deal.revenue) {
-            if (deal.revenue >= 5000000) score += 20;
-            else if (deal.revenue >= 2000000) score += 15;
-            else if (deal.revenue >= 1000000) score += 10;
-            else if (deal.revenue >= 500000) score += 5;
-          }
-          
-          // EBITDA margin scoring (0-15 points)
-          if (deal.ebitda && deal.revenue) {
-            const margin = (deal.ebitda / deal.revenue) * 100;
-            if (margin >= 25) score += 15;
-            else if (margin >= 20) score += 12;
-            else if (margin >= 15) score += 8;
-            else if (margin >= 10) score += 4;
-          }
-          
-          // Data completeness scoring (0-15 points)
-          if (deal.category) score += 3;
-          if (deal.location || (deal.geographic_states && deal.geographic_states.length > 0)) score += 3;
-          if (deal.full_time_employees) score += 3;
-          if (deal.website) score += 3;
-          if (deal.enriched_at) score += 3;
-          
-          // Cap at 100
-          score = Math.min(100, Math.max(0, score));
-          
-          // Update the listing with the calculated score
-          await supabase
-            .from('listings')
-            .update({ deal_quality_score: score })
-            .eq('id', deal.id);
-          
-          scored++;
-        } catch (err) {
-          console.error(`Failed to score deal ${deal.id}:`, err);
-        }
-      }
-
-      toast({ 
-        title: "Scoring complete", 
-        description: `Calculated quality scores for ${scored} deals` 
+      // Call the calculate-deal-quality edge function with rescoreAll to recalculate all scores
+      const response = await supabase.functions.invoke('calculate-deal-quality', {
+        body: { rescoreAll: true },
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
       });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const result = response.data;
+
+      toast({
+        title: "Scoring complete",
+        description: result.message || `Scored ${result.scored || 0} deals`
+      });
+
+      // Refetch listings to show updated scores
       refetchListings();
     } catch (error: any) {
       console.error('Calculate scores error:', error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Scoring failed", description: error.message, variant: "destructive" });
     } finally {
       setIsCalculating(false);
     }
