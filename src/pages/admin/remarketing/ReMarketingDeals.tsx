@@ -1199,6 +1199,9 @@ const ReMarketingDeals = () => {
 
   // Calculate scores dialog state
   const [showCalculateDialog, setShowCalculateDialog] = useState(false);
+  
+  // Enrich dialog state
+  const [showEnrichDialog, setShowEnrichDialog] = useState(false);
 
   // Handle calculate scores - calls edge function for comprehensive scoring
   const handleCalculateScores = async (mode: 'all' | 'unscored') => {
@@ -1239,8 +1242,10 @@ const ReMarketingDeals = () => {
     }
   };
 
-  // Handle enrich all deals - queues all deals for enrichment
-  const handleEnrichAll = async () => {
+  // Handle enrich all deals - queues deals for enrichment
+  const handleEnrichDeals = async (mode: 'all' | 'unenriched') => {
+    setShowEnrichDialog(false);
+    
     if (!listings || listings.length === 0) {
       toast({ title: "No deals", description: "No deals available to enrich", variant: "destructive" });
       return;
@@ -1248,9 +1253,20 @@ const ReMarketingDeals = () => {
 
     setIsEnrichingAll(true);
     try {
-      const dealIds = listings.map(l => l.id);
+      // Filter based on mode
+      const dealsToEnrich = mode === 'all' 
+        ? listings 
+        : listings.filter(l => !l.enriched_at);
       
-      // Reset enriched_at for all deals to force re-enrichment
+      if (dealsToEnrich.length === 0) {
+        toast({ title: "All deals enriched", description: "All deals have already been enriched" });
+        setIsEnrichingAll(false);
+        return;
+      }
+      
+      const dealIds = dealsToEnrich.map(l => l.id);
+      
+      // Reset enriched_at for selected deals to force re-enrichment
       const { error: resetError } = await supabase
         .from('listings')
         .update({ enriched_at: null })
@@ -1262,12 +1278,7 @@ const ReMarketingDeals = () => {
 
       const nowIso = new Date().toISOString();
 
-      // IMPORTANT:
-      // Using upsert here previously overwrote existing rows' attempts/status while leaving
-      // started_at/completed_at intact, making items look stuck.
-      // Instead:
-      // 1) Reset existing queue rows to a clean pending state
-      // 2) Insert any missing queue rows (ignore duplicates)
+      // Reset existing queue rows to a clean pending state
       const { error: resetQueueError } = await supabase
         .from('enrichment_queue')
         .update({
@@ -1283,6 +1294,7 @@ const ReMarketingDeals = () => {
 
       if (resetQueueError) throw resetQueueError;
 
+      // Insert any missing queue rows
       const { error: insertMissingError } = await supabase
         .from('enrichment_queue')
         .upsert(
@@ -1299,12 +1311,12 @@ const ReMarketingDeals = () => {
 
       toast({
         title: "Enrichment queued",
-        description: `${dealIds.length} deals queued for enrichment. Processing runs every 5 minutes.`,
+        description: `${dealIds.length} deal${dealIds.length > 1 ? 's' : ''} queued for enrichment. Processing runs every 5 minutes.`,
       });
 
       refetchListings();
     } catch (error: any) {
-      console.error('Enrich all error:', error);
+      console.error('Enrich deals error:', error);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsEnrichingAll(false);
@@ -1342,13 +1354,13 @@ const ReMarketingDeals = () => {
             Import CSV
           </Button>
           <Button 
-            onClick={handleEnrichAll} 
+            onClick={() => setShowEnrichDialog(true)} 
             disabled={isEnrichingAll}
             variant="outline"
             className="border-primary text-primary hover:bg-primary/10"
           >
             <Zap className="h-4 w-4 mr-2" />
-            {isEnrichingAll ? "Queueing..." : "Enrich All"}
+            {isEnrichingAll ? "Queueing..." : "Enrich Deals"}
           </Button>
           <Button 
             onClick={() => setShowCalculateDialog(true)} 
@@ -1729,6 +1741,54 @@ const ReMarketingDeals = () => {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCalculateDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enrich Deals Dialog */}
+      <Dialog open={showEnrichDialog} onOpenChange={setShowEnrichDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Enrich Deals
+            </DialogTitle>
+            <DialogDescription>
+              Enrichment scrapes websites, extracts company data, and fetches LinkedIn & Google info.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              variant="default"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleEnrichDeals('all')}
+              disabled={isEnrichingAll}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Enrich All</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Re-enrich all {listings?.length || 0} deals (resets existing data)
+                </span>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleEnrichDeals('unenriched')}
+              disabled={isEnrichingAll}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Only Unenriched</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Only enrich {listings?.filter(l => !l.enriched_at).length || 0} deals that haven't been enriched yet
+                </span>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowEnrichDialog(false)}>
               Cancel
             </Button>
           </DialogFooter>
