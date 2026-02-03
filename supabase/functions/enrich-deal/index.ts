@@ -141,6 +141,11 @@ serve(async (req) => {
       );
     }
 
+    // Timeout constants for external API calls
+    const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds
+    const AI_TIMEOUT_MS = 45000; // 45 seconds
+    const MIN_CONTENT_LENGTH = 200; // Minimum chars to proceed with AI
+
     // Step 1: Scrape the website using Firecrawl
     console.log('Scraping website with Firecrawl...');
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -155,6 +160,7 @@ serve(async (req) => {
         onlyMainContent: true,
         waitFor: 3000,
       }),
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
 
     if (!scrapeResponse.ok) {
@@ -169,10 +175,10 @@ serve(async (req) => {
     const scrapeData = await scrapeResponse.json();
     const websiteContent = scrapeData.data?.markdown || scrapeData.markdown || '';
 
-    if (!websiteContent || websiteContent.length < 100) {
-      console.log('Insufficient website content scraped');
+    if (!websiteContent || websiteContent.length < MIN_CONTENT_LENGTH) {
+      console.log(`Insufficient website content scraped: ${websiteContent.length} chars (need ${MIN_CONTENT_LENGTH}+)`);
       return new Response(
-        JSON.stringify({ success: false, error: 'Could not extract sufficient content from website' }),
+        JSON.stringify({ success: false, error: `Could not extract sufficient content from website (${websiteContent.length} chars, need ${MIN_CONTENT_LENGTH}+)` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -328,6 +334,7 @@ Extract all available business information using the provided tool.`;
         ],
         tool_choice: { type: 'function', function: { name: 'extract_deal_intelligence' } }
       }),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
     });
 
     if (!aiResponse.ok) {

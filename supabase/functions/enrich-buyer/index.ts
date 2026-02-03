@@ -538,6 +538,11 @@ Deno.serve(async (req) => {
 
 // ============= Helper Functions =============
 
+// Minimum content length required before proceeding with AI extraction
+const MIN_CONTENT_LENGTH = 200;
+const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds
+const AI_TIMEOUT_MS = 45000; // 45 seconds
+
 async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     let formattedUrl = url.trim();
@@ -557,6 +562,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
         onlyMainContent: true,
         waitFor: 3000,
       }),
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -566,12 +572,17 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
     const data = await response.json();
     const content = data.data?.markdown || data.markdown || '';
     
-    if (!content || content.length < 100) {
-      return { success: false, error: 'Insufficient content' };
+    // Validate minimum content length to avoid wasted AI calls
+    if (!content || content.length < MIN_CONTENT_LENGTH) {
+      return { success: false, error: `Insufficient content (${content.length} chars, need ${MIN_CONTENT_LENGTH}+)` };
     }
 
     return { success: true, content };
   } catch (error) {
+    // Handle timeout specifically
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return { success: false, error: `Scrape timed out after ${SCRAPE_TIMEOUT_MS / 1000}s` };
+    }
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -598,6 +609,7 @@ async function callAI(
         tools: [tool],
         tool_choice: { type: 'function', function: { name: tool.function.name } }
       }),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
     });
 
     // Handle billing/rate limit errors
@@ -774,8 +786,14 @@ function getGeographyFootprintPrompt() {
         parameters: {
           type: 'object',
           properties: {
-            hq_city: { type: 'string', description: 'Headquarters city' },
-            hq_state: { type: 'string', description: 'Headquarters state as 2-letter abbreviation (TX, CA, etc.)' },
+            hq_city: { 
+              type: 'string', 
+              description: 'ACTUAL headquarters city name (e.g., "Atlanta", "Dallas", "Phoenix"). NEVER use regions like Southeast, Midwest, etc. Must be a real city name.' 
+            },
+            hq_state: { 
+              type: 'string', 
+              description: 'Headquarters state as 2-letter abbreviation (TX, CA, GA, etc.). NEVER use region names.' 
+            },
             geographic_footprint: { 
               type: 'array', 
               items: { type: 'string' }, 
@@ -792,14 +810,21 @@ function getGeographyFootprintPrompt() {
     },
     system: `Extract geographic information about where the company CURRENTLY operates.
 
-CRITICAL RULES:
-1. geographic_footprint: ONLY 2-letter state codes where they have physical offices/locations
-2. service_regions: ONLY states they serve FROM their physical locations
-3. DO NOT include aspirational or marketing language about "serving nationwide"
-4. Be conservative - regional companies are NOT national
-5. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`,
+CRITICAL RULES FOR HEADQUARTERS:
+1. hq_city MUST be an actual city name like "Atlanta", "Dallas", "Phoenix", "Nashville"
+2. hq_city must NEVER be a region like "Southeast", "Midwest", "Northeast", "Southwest", "Western"
+3. hq_state MUST be a 2-letter state code like "GA", "TX", "AZ", "TN"
+4. If exact city is not found, look for contact info, address footer, or "About Us" section
+5. If no specific city can be determined, omit hq_city entirely (do not guess a region)
+
+OTHER RULES:
+6. geographic_footprint: ONLY 2-letter state codes where they have physical offices/locations
+7. service_regions: ONLY states they serve FROM their physical locations
+8. DO NOT include aspirational or marketing language about "serving nationwide"
+9. Be conservative - regional companies are NOT national
+10. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`,
     user: (content: string) => 
-      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence.`
+      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence. Remember: hq_city must be an ACTUAL city name (like Atlanta, Dallas, Phoenix) - NEVER a region name like Southeast or Midwest.`
   };
 }
 
