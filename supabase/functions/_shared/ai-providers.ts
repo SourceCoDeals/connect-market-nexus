@@ -39,11 +39,34 @@ export const GEMINI_MODEL_MAP: Record<string, string> = {
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.0-pro-exp";
 
+// Claude/Anthropic models
+export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
+export const DEFAULT_CLAUDE_FAST_MODEL = "claude-3-5-haiku-20241022";
+
 /**
  * Get the native Gemini model name from a Lovable Gateway model name
  */
 export function getGeminiModel(gatewayModel: string): string {
   return GEMINI_MODEL_MAP[gatewayModel] || DEFAULT_GEMINI_MODEL;
+}
+
+/**
+ * Convert OpenAI-style tool schema to Anthropic format
+ */
+export function toAnthropicTool(openAITool: { type: string; function: { name: string; description: string; parameters: object } }) {
+  return {
+    name: openAITool.function.name,
+    description: openAITool.function.description,
+    input_schema: openAITool.function.parameters
+  };
+}
+
+/**
+ * Parse Anthropic tool_use response to get structured data
+ */
+export function parseAnthropicToolResponse(result: { content: Array<{ type: string; input?: unknown }> }): unknown | null {
+  const toolUse = result.content?.find((c: { type: string }) => c.type === 'tool_use');
+  return toolUse?.input || null;
 }
 
 /**
