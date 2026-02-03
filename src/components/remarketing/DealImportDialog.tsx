@@ -86,9 +86,11 @@ const DEAL_FIELDS = [
   { value: "fireflies_url", label: "Fireflies/Transcript URL" },
   { value: "google_review_count", label: "Google Review Count" },
   { value: "google_review_score", label: "Google Review Score" },
-  { value: "status", label: "Deal Status" },
+  // status is intentionally omitted - it should never be imported from CSV
   { value: "last_contacted_at", label: "Last Contacted Date" },
 ];
+
+const normalizeHeader = (header: string) => header.replace(/^\uFEFF/, "").trim();
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
 
@@ -118,6 +120,7 @@ export function DealImportDialog({
     Papa.parse(uploadedFile, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: normalizeHeader,
       complete: async (results) => {
         const data = results.data as Record<string, string>[];
         setCsvData(data);
@@ -187,10 +190,42 @@ export function DealImportDialog({
 
   const parseNumericValue = (value: string | null | undefined): number | null => {
     if (!value) return null;
-    // Remove currency symbols, commas, and other non-numeric characters except . and -
-    const cleaned = value.replace(/[^0-9.\-]/g, '');
+    // Handle $ / commas and M/K suffixes like "$3,000,000" or "2.5M" or "450K"
+    let cleaned = value.trim();
+    let multiplier = 1;
+    if (/\bM\b/i.test(cleaned) || cleaned.toUpperCase().endsWith("M")) {
+      multiplier = 1_000_000;
+      cleaned = cleaned.replace(/M/gi, "");
+    } else if (/\bK\b/i.test(cleaned) || cleaned.toUpperCase().endsWith("K")) {
+      multiplier = 1_000;
+      cleaned = cleaned.replace(/K/gi, "");
+    }
+    cleaned = cleaned.replace(/[$,]/g, "");
+    // Remove other non-numeric characters except . and -
+    cleaned = cleaned.replace(/[^0-9.\-]/g, "");
     const num = parseFloat(cleaned);
     return isNaN(num) ? null : num;
+  };
+
+  const tryExtractCityStateZip = (rawAddress: string): { city?: string; state?: string; zip?: string } => {
+    const lines = rawAddress
+      .split(/[\n\r]+/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const lastLine = lines[lines.length - 1] || rawAddress;
+
+    const match = lastLine.match(/([^,]+),\s*([A-Z]{2})\s*(\d{5})?/i);
+    if (!match) return {};
+
+    const potentialCity = match[1].trim();
+    const state = match[2].toUpperCase();
+    const zip = match[3];
+
+    // Avoid treating street as city
+    const streetIndicators = /\b(rd\.?|road|st\.?|street|ave\.?|avenue|blvd\.?|boulevard|ln\.?|lane|dr\.?|drive|ct\.?|court|pl\.?|place|way|pkwy|park)\b/i;
+    const city = streetIndicators.test(potentialCity) ? undefined : potentialCity;
+
+    return { city, state, zip: zip || undefined };
   };
 
   const parseArrayValue = (value: string | null | undefined): string[] => {
@@ -224,8 +259,13 @@ export function DealImportDialog({
           let lastName = '';
 
           columnMappings.forEach((mapping) => {
-            if (mapping.targetField && row[mapping.csvColumn]) {
-              const value = row[mapping.csvColumn]?.trim();
+            if (!mapping.targetField) return;
+
+            // Robust column access (trimmed keys)
+            const raw = row[mapping.csvColumn] ?? row[normalizeHeader(mapping.csvColumn)];
+            if (!raw) return;
+
+            const value = String(raw).trim();
               if (!value) return;
               
               const field = mapping.targetField;
@@ -242,6 +282,14 @@ export function DealImportDialog({
               // Handle array fields
               else if (field === "services" || field === "geographic_states") {
                 listingData[field] = parseArrayValue(value);
+              }
+              // Handle full address parsing to also populate city/state/zip when possible
+              else if (field === "address") {
+                listingData.address = value;
+                const extracted = tryExtractCityStateZip(value);
+                if (extracted.city && !listingData.address_city) listingData.address_city = extracted.city;
+                if (extracted.state && !listingData.address_state) listingData.address_state = extracted.state;
+                if (extracted.zip && !listingData.address_zip) listingData.address_zip = extracted.zip;
               }
               // Handle state code normalization
               else if (field === "address_state") {
@@ -273,18 +321,6 @@ export function DealImportDialog({
                   // Invalid date, skip
                 }
               }
-              // Handle status mapping
-              else if (field === "status") {
-                // Map common status values to our schema
-                const lowerVal = value.toLowerCase();
-                if (lowerVal.includes('active') || lowerVal.includes('evaluation')) {
-                  listingData.status = 'active';
-                } else if (lowerVal.includes('closed') || lowerVal.includes('sold')) {
-                  listingData.status = 'sold';
-                } else if (lowerVal.includes('inactive') || lowerVal.includes('archived')) {
-                  listingData.status = 'inactive';
-                }
-              }
               // Handle Fireflies/transcript URLs - store as fireflies_url field
               else if (field === "fireflies_url") {
                 listingData.fireflies_url = value;
@@ -293,7 +329,6 @@ export function DealImportDialog({
               else {
                 listingData[field] = value;
               }
-            }
           });
 
           // Combine first + last name into primary_contact_name
