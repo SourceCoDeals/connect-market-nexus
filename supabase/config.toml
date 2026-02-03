@@ -169,3 +169,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.enrich-geo-data]
 verify_jwt = false
+[functions.process-enrichment-queue]
+verify_jwt = false
+[functions.apify-linkedin-scrape]
+verify_jwt = true

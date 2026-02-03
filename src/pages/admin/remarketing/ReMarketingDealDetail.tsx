@@ -508,34 +508,35 @@ const ReMarketingDealDetail = () => {
               </div>
             )}
             
-            {/* Revenue with Confidence */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  REVENUE (IN $M)
-                </p>
-                {deal.revenue && (
-                  <Badge 
-                    variant="outline" 
-                    className={
-                      deal.revenue_confidence === 'high' 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
-                        : deal.revenue_confidence === 'low'
-                        ? "bg-red-50 text-red-600 border-red-200 text-xs"
-                        : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
-                    }
-                  >
-                    {deal.revenue_confidence === 'high' ? '✓ High Confidence' : 
-                     deal.revenue_confidence === 'low' ? '△ Low Confidence' : '○ Medium Confidence'}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
+            {/* Revenue & EBITDA Side by Side */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Revenue */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    REVENUE
+                  </p>
+                  {deal.revenue && (
+                    <Badge 
+                      variant="outline" 
+                      className={
+                        deal.revenue_confidence === 'high' 
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
+                          : deal.revenue_confidence === 'low'
+                          ? "bg-red-50 text-red-600 border-red-200 text-xs"
+                          : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
+                      }
+                    >
+                      {deal.revenue_confidence === 'high' ? '✓ High' : 
+                       deal.revenue_confidence === 'low' ? '△ Low' : '○ Med'}
+                    </Badge>
+                  )}
+                </div>
                 <span className="text-3xl font-bold">{formatCurrency(deal.revenue)}</span>
                 {deal.revenue_source_quote && (
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto">
+                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
                         View source quote
                       </Button>
                     </PopoverTrigger>
@@ -548,14 +549,12 @@ const ReMarketingDealDetail = () => {
                   </Popover>
                 )}
               </div>
-            </div>
-            
-            {/* EBITDA Margin with Confidence */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-2">
+              
+              {/* EBITDA */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    EBITDA MARGIN (%)
+                    EBITDA
                   </p>
                   {deal.ebitda && (
                     <Badge 
@@ -573,27 +572,11 @@ const ReMarketingDealDetail = () => {
                     </Badge>
                   )}
                 </div>
-                <span className="text-lg font-semibold">
-                  {deal.revenue && deal.ebitda 
-                    ? `${((deal.ebitda / deal.revenue) * 100).toFixed(0)}%`
-                    : '—'
-                  }
-                </span>
-              </div>
-              {deal.revenue && deal.ebitda && (
-                <Progress 
-                  value={Math.min((deal.ebitda / deal.revenue) * 100, 100)} 
-                  className="h-3"
-                />
-              )}
-              <div className="flex items-center gap-3 mt-2">
-                <p className="text-sm text-muted-foreground">
-                  EBITDA: {formatCurrency(deal.ebitda)}
-                </p>
+                <span className="text-3xl font-bold">{formatCurrency(deal.ebitda)}</span>
                 {deal.ebitda_source_quote && (
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto">
+                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
                         View source quote
                       </Button>
                     </PopoverTrigger>
@@ -607,6 +590,24 @@ const ReMarketingDealDetail = () => {
                 )}
               </div>
             </div>
+            
+            {/* EBITDA Margin */}
+            {deal.revenue && deal.ebitda && (
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    EBITDA MARGIN
+                  </p>
+                  <span className="text-lg font-semibold">
+                    {((deal.ebitda / deal.revenue) * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <Progress 
+                  value={Math.min((deal.ebitda / deal.revenue) * 100, 100)} 
+                  className="h-2 mt-2"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

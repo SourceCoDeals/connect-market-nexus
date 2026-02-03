@@ -6,186 +6,148 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-/**
- * RE-ENRICH MISSING ADDRESSES
- *
- * This function finds all active deals missing structured address data
- * (address_city or address_state) and re-runs enrichment on them.
- *
- * Features:
- * - Finds deals with websites but missing address components
- * - Processes in small batches to avoid rate limits
- * - 3-second delay between enrichments
- * - Reports progress and results
- *
- * Usage:
- *   POST { "batchSize": 5, "dryRun": true }
- *   - batchSize: Number of deals to process (default 10, max 50)
- *   - dryRun: If true, only report which deals would be re-enriched
- */
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request body
-    const body = await req.json().catch(() => ({}));
-    const batchSize = Math.min(body.batchSize || 10, 50); // Max 50 per run
-    const dryRun = body.dryRun === true;
+    // Parse request body for options
+    const { dryRun = false, limit = 50 } = await req.json().catch(() => ({}));
 
-    console.log(`Re-enrich missing addresses: batchSize=${batchSize}, dryRun=${dryRun}`);
-
-    // Find deals missing address data but have a website
-    const { data: dealsNeedingAddresses, error: queryError } = await supabase
+    // Find all active deals missing address_city or address_state that have a website
+    const { data: dealsToEnrich, error: fetchError } = await supabase
       .from('listings')
-      .select('id, title, internal_company_name, website, address_city, address_state, enriched_at')
+      .select('id, title, internal_company_name, website, internal_deal_memo_link, address_city, address_state, enriched_at')
       .eq('status', 'active')
       .or('address_city.is.null,address_state.is.null')
-      .not('website', 'is', null)
-      .neq('website', '')
-      .order('created_at', { ascending: false })
-      .limit(batchSize);
+      .limit(limit);
 
-    if (queryError) {
-      console.error('Query error:', queryError);
-      throw new Error(`Failed to query deals: ${queryError.message}`);
-    }
+    if (fetchError) throw fetchError;
 
-    if (!dealsNeedingAddresses || dealsNeedingAddresses.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'No deals found needing address re-enrichment',
-          dealsFound: 0,
-          dealsProcessed: 0,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Filter to only deals that have a valid website
+    const eligibleDeals = (dealsToEnrich || []).filter(deal => {
+      const website = deal.website;
+      const memoLink = deal.internal_deal_memo_link;
+      
+      // Has a direct website
+      if (website && website.trim() !== '') return true;
+      
+      // Has a valid URL in memo link (not sharepoint/onedrive)
+      if (memoLink && memoLink.trim() !== '') {
+        if (!memoLink.includes('sharepoint') && !memoLink.includes('onedrive')) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
 
-    console.log(`Found ${dealsNeedingAddresses.length} deals needing address data`);
-
-    // In dry run mode, just report what would be processed
     if (dryRun) {
       return new Response(
-        JSON.stringify({
-          success: true,
-          message: `Dry run: would re-enrich ${dealsNeedingAddresses.length} deals`,
+        JSON.stringify({ 
+          success: true, 
           dryRun: true,
-          dealsFound: dealsNeedingAddresses.length,
-          deals: dealsNeedingAddresses.map(d => ({
+          eligibleCount: eligibleDeals.length,
+          deals: eligibleDeals.map(d => ({
             id: d.id,
             name: d.internal_company_name || d.title,
-            website: d.website,
-            currentCity: d.address_city,
-            currentState: d.address_state,
-            lastEnriched: d.enriched_at,
-          })),
+            hasCity: !!d.address_city,
+            hasState: !!d.address_state,
+            wasEnriched: !!d.enriched_at
+          }))
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Process each deal
-    let processed = 0;
-    let succeeded = 0;
-    let failed = 0;
-    const results: Array<{
-      dealId: string;
-      name: string;
-      status: 'success' | 'failed';
-      error?: string;
-      addressFound?: boolean;
-    }> = [];
+    if (eligibleDeals.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No deals found missing address data with valid websites',
+          enriched: 0 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    for (const deal of dealsNeedingAddresses) {
-      const dealName = deal.internal_company_name || deal.title || 'Unknown';
-      console.log(`Processing deal ${processed + 1}/${dealsNeedingAddresses.length}: ${dealName}`);
+    // Re-enrich each deal by calling the enrich-deal function
+    const results: { id: string; name: string; success: boolean; error?: string }[] = [];
+    const BATCH_SIZE = 3;
+    const DELAY_BETWEEN_BATCHES = 2000; // 2 seconds
 
-      try {
-        // Call the enrich-deal function
-        const enrichResponse = await supabase.functions.invoke('enrich-deal', {
-          body: { dealId: deal.id },
-        });
-
-        if (enrichResponse.error) {
-          console.error(`Enrichment error for ${dealName}:`, enrichResponse.error);
-          results.push({
-            dealId: deal.id,
-            name: dealName,
-            status: 'failed',
-            error: enrichResponse.error.message || 'Unknown error',
+    for (let i = 0; i < eligibleDeals.length; i += BATCH_SIZE) {
+      const batch = eligibleDeals.slice(i, i + BATCH_SIZE);
+      
+      const batchPromises = batch.map(async (deal) => {
+        try {
+          const response = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ dealId: deal.id }),
           });
-          failed++;
-        } else {
-          // Check if address was found after enrichment
-          const { data: updatedDeal } = await supabase
-            .from('listings')
-            .select('address_city, address_state')
-            .eq('id', deal.id)
-            .single();
 
-          const addressFound = !!(updatedDeal?.address_city || updatedDeal?.address_state);
-
-          results.push({
-            dealId: deal.id,
-            name: dealName,
-            status: 'success',
-            addressFound,
-          });
-          succeeded++;
-
-          console.log(`Successfully enriched ${dealName}, address found: ${addressFound}`);
+          const result = await response.json();
+          
+          return {
+            id: deal.id,
+            name: deal.internal_company_name || deal.title || 'Unknown',
+            success: response.ok && result.success,
+            error: result.error || undefined
+          };
+        } catch (error: any) {
+          return {
+            id: deal.id,
+            name: deal.internal_company_name || deal.title || 'Unknown',
+            success: false,
+            error: error.message
+          };
         }
-      } catch (error) {
-        console.error(`Exception for ${dealName}:`, error);
-        results.push({
-          dealId: deal.id,
-          name: dealName,
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-        failed++;
-      }
+      });
 
-      processed++;
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
 
-      // Rate limit: wait 3 seconds between enrichments
-      if (processed < dealsNeedingAddresses.length) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+      // Delay between batches to avoid rate limits
+      if (i + BATCH_SIZE < eligibleDeals.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
       }
     }
 
-    // Count how many addresses were found
-    const addressesFound = results.filter(r => r.status === 'success' && r.addressFound).length;
+    const successCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Re-enrichment complete: ${succeeded} succeeded, ${failed} failed, ${addressesFound} addresses found`,
-        dealsFound: dealsNeedingAddresses.length,
-        dealsProcessed: processed,
-        succeeded,
-        failed,
-        addressesFound,
-        results,
+      JSON.stringify({ 
+        success: true, 
+        message: `Re-enriched ${successCount} deals (${failedCount} failed)`,
+        total: eligibleDeals.length,
+        successCount,
+        failedCount,
+        results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
-  } catch (error) {
-    console.error('Error in re-enrich-missing-addresses:', error);
+  } catch (error: any) {
+    console.error('Error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

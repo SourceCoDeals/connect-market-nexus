@@ -49,6 +49,10 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'technology_systems',
   'real_estate_info',
   'growth_trajectory',
+  // LinkedIn data from Apify
+  'linkedin_employee_count',
+  'linkedin_employee_range',
+  'linkedin_url',
 ]);
 
 serve(async (req) => {
@@ -346,7 +350,7 @@ serve(async (req) => {
     // Step 2: Use AI to extract structured data
     console.log('Extracting deal intelligence with AI...');
 
-const systemPrompt = `You are a business analyst. Extract comprehensive company information from website content.
+const systemPrompt = `You are a business analyst specializing in M&A due diligence. Extract comprehensive company information from website content.
 
 CRITICAL - COMPANY NAME EXTRACTION:
 - Extract the REAL company name from the website (look in header, logo, footer, about page, legal notices)
@@ -355,55 +359,51 @@ CRITICAL - COMPANY NAME EXTRACTION:
 - Examples of BAD names: "Performance Marketing Agency", "Home Services Company", "Leading Provider"
 - If you find a generic placeholder title, look harder for the real company name
 
-CRITICAL ADDRESS EXTRACTION RULE - THIS IS A REQUIRED FIELD:
-You MUST extract the company's physical address into STRUCTURED COMPONENTS:
+CRITICAL - ADDRESS EXTRACTION (HIGHEST PRIORITY):
+You MUST extract a physical address. This is required for deal matching. Search AGGRESSIVELY for address information.
+
+WHERE TO FIND ADDRESS (search ALL of these):
+1. **Footer** - Most common location, look for city/state near copyright or contact info
+2. **Contact page** - "Contact Us", "Locations", "Get in Touch" sections
+3. **About page** - "About Us", "Our Story", company history sections
+4. **Header** - Sometimes addresses appear in top navigation
+5. **Google Maps embed** - Look for embedded map with address
+6. **Phone numbers** - Area codes can indicate location (e.g., 214 = Dallas, TX)
+7. **Service area mentions** - "Serving the Dallas-Fort Worth area", "Based in Chicago"
+8. **License/certification info** - Often includes state (e.g., "Licensed in Texas")
+9. **Job postings** - Often mention office location
+10. **Press releases** - Often include headquarters location
+11. **Copyright notices** - May include city/state
+
+EXTRACT INTO STRUCTURED COMPONENTS:
 - street_address: Just the street number and name (e.g., "123 Main Street")
-- address_city: City name only (e.g., "Dallas") - THIS IS REQUIRED
-- address_state: 2-letter state code only (e.g., "TX") - THIS IS REQUIRED
+- address_city: City name ONLY (e.g., "Dallas", "Chicago", "Phoenix")
+- address_state: 2-letter US state code ONLY (e.g., "TX", "IL", "AZ")
 - address_zip: 5-digit ZIP code (e.g., "75201")
 - address_country: Country code, default "US"
 
-WHERE TO FIND ADDRESS (check ALL of these locations):
-1. Website footer - Most common location for address
-2. Contact page/Contact Us - Look for physical address, not just email
-3. About Us/About page - Company history often mentions headquarters
-4. Legal/privacy pages - Required to list business address
-5. Google Maps embed - Extract address from map iframe or link
-6. Phone number area code - Use to infer city/state (e.g., 214 = Dallas, TX; 312 = Chicago, IL)
-7. Service area mentions - "Serving the Dallas-Fort Worth area" = Dallas, TX
-8. License/certification info - State licenses reveal location
-9. Job postings/Careers page - Job locations reveal office locations
-10. Press releases/News - Often mention headquarters location
-11. Social media links - Check for location in embedded feeds
-12. BBB accreditation - Always includes city/state
+INFERENCE RULES (if explicit address not found):
+- If you see "Serving Dallas-Fort Worth" → address_city: "Dallas", address_state: "TX"
+- If you see "Chicago-based" → address_city: "Chicago", address_state: "IL"  
+- If you see "Headquartered in Phoenix, Arizona" → address_city: "Phoenix", address_state: "AZ"
+- If you see a phone area code, infer the city/state from it
+- If you see state licensing info, use that state
 
-INFERENCE RULES (use when explicit address not found):
-- "Serving Dallas-Fort Worth" → Dallas, TX
-- "Greater Houston area" → Houston, TX
-- "Bay Area" or "Silicon Valley" → San Francisco, CA or San Jose, CA
-- "DMV area" → Washington, DC
-- "Tri-State area" → New York, NY
-- Phone area code 214/972 → Dallas, TX
-- Phone area code 713/281 → Houston, TX
-- Phone area code 312/773 → Chicago, IL
-- Phone area code 404/770 → Atlanta, GA
-- Phone area code 305/786 → Miami, FL
-
-DO NOT extract vague regions like "Midwest", "Southeast", "Texas area" without a specific city.
-If you cannot find a street address, you MUST still find the city and state using inference rules above.
+DO NOT extract vague regions like "Midwest", "Southeast", "Texas area" for address fields.
+The address_city and address_state fields must be specific - a real city name and 2-letter state code.
 
 Focus on extracting:
 1. Company name - The REAL business name (not a generic description)
-2. Executive summary - A clear 2-3 paragraph description of the business
-3. Services offered - List of services/products they provide
-4. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
-5. Industry/sector - Primary industry classification
-6. Geographic coverage - States/regions they operate in (use 2-letter US state codes like CA, TX, FL)
-7. Number of locations - Physical office/branch count
-8. Structured address - Extract into components: street_address, address_city, address_state, address_zip
+2. **Structured address** - REQUIRED: Extract city and state at minimum
+3. Executive summary - A clear 2-3 paragraph description of the business
+4. Services offered - List of services/products they provide
+5. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
+6. Industry/sector - Primary industry classification
+7. Geographic coverage - States/regions they operate in (use 2-letter US state codes)
+8. Number of locations - Physical office/branch count
 9. Founded year - When the company was established
 10. Customer types - Who they serve (commercial, residential, government, etc.)
-11. Key risks - Any potential risk factors visible (one per line)
+11. Key risks - Any potential risk factors visible
 12. Competitive position - Market positioning information
 13. Technology/systems - Software, tools, or technology mentioned
 14. Real estate - Information about facilities (owned vs leased)
@@ -411,13 +411,13 @@ Focus on extracting:
 
     const userPrompt = `Analyze this website content from "${deal.title}" and extract business information.
 
-NOTE: The content below includes MULTIPLE PAGES from the website (Homepage, Contact, About, Services, etc.).
-Each page is marked with "=== PAGE: /path ===" headers. Pay special attention to Contact and About pages for address information.
+IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
 
 Website Content:
 ${websiteContent.substring(0, 20000)}
 
-Extract all available business information using the provided tool. The address is CRITICAL - check all pages especially Contact and About pages.`;
+Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.`;
+
 
     const aiResponse = await fetch(GEMINI_API_URL, {
       method: 'POST',
@@ -521,6 +521,10 @@ Extract all available business information using the provided tool. The address 
                   growth_trajectory: {
                     type: 'string',
                     description: 'Growth indicators, expansion history, or trajectory information'
+                  },
+                  linkedin_url: {
+                    type: 'string',
+                    description: 'LinkedIn company page URL (e.g., "https://www.linkedin.com/company/acme-corp")'
                   }
                 }
               }
@@ -624,6 +628,52 @@ Extract all available business information using the provided tool. The address 
     // IMPORTANT: Remove 'location' from extracted data - we never update it from enrichment
     // The 'location' field is for marketplace anonymity (e.g., "Southeast US")
     delete extracted.location;
+
+    // Try to fetch LinkedIn data if we have a URL or company name
+    const linkedinUrl = extracted.linkedin_url as string | undefined;
+    const companyName = (extracted.internal_company_name || deal.internal_company_name || deal.title) as string | undefined;
+    
+    if (linkedinUrl || companyName) {
+      try {
+        console.log(`Attempting LinkedIn enrichment for: ${linkedinUrl || companyName}`);
+        
+        const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            linkedinUrl,
+            companyName,
+            dealId: dealId, // Let the function update directly too as backup
+          }),
+          signal: AbortSignal.timeout(65000), // Slightly longer than Apify's 60s timeout
+        });
+
+        if (linkedinResponse.ok) {
+          const linkedinData = await linkedinResponse.json();
+          if (linkedinData.success && linkedinData.scraped) {
+            console.log('LinkedIn data retrieved:', linkedinData);
+            
+            // Add LinkedIn data to extracted fields
+            if (linkedinData.linkedin_employee_count) {
+              extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
+            }
+            if (linkedinData.linkedin_employee_range) {
+              extracted.linkedin_employee_range = linkedinData.linkedin_employee_range;
+            }
+          } else {
+            console.log('LinkedIn scrape returned no data:', linkedinData.error || 'No company found');
+          }
+        } else {
+          console.warn('LinkedIn scrape failed:', linkedinResponse.status);
+        }
+      } catch (linkedinError) {
+        // Non-blocking - LinkedIn enrichment is optional
+        console.warn('LinkedIn enrichment failed (non-blocking):', linkedinError);
+      }
+    }
 
     // Build priority-aware updates using shared module
     const { updates, sourceUpdates } = buildPriorityUpdates(

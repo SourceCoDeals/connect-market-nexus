@@ -6,31 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-/**
- * PROCESS ENRICHMENT QUEUE
- *
- * This function processes pending items in the enrichment_queue table.
- * It should be called via cron job every few minutes.
- *
- * Features:
- * - Processes items in batches (default 5)
- * - Uses FOR UPDATE SKIP LOCKED to prevent concurrent processing
- * - Retries failed items up to 3 times
- * - Updates queue status (pending -> processing -> completed/failed)
- * - Rate limits between enrichments (3 second delay)
- *
- * Usage:
- *   POST { "batchSize": 5 }
- *   - batchSize: Number of items to process per run (default 5, max 10)
- */
-
-interface QueueItem {
-  id: string;
-  listing_id: string;
-  queued_at: string;
-  attempts: number;
-  status: string;
-}
+// Configuration
+const BATCH_SIZE = 5; // Process up to 5 items per run
+const MAX_ATTEMPTS = 3; // Maximum retry attempts
+const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes per item
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -40,159 +19,153 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // Use service role for background processing
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request body
-    const body = await req.json().catch(() => ({}));
-    const batchSize = Math.min(body.batchSize || 5, 10); // Max 10 per run
+    console.log('Processing enrichment queue...');
 
-    console.log(`Processing enrichment queue: batchSize=${batchSize}`);
-
-    // Fetch pending items (oldest first, max 3 attempts)
-    // Use FOR UPDATE SKIP LOCKED to prevent concurrent processing
-    const { data: pendingItems, error: fetchError } = await supabase
+    // Fetch pending queue items (oldest first, respecting max attempts)
+    const { data: queueItems, error: fetchError } = await supabase
       .from('enrichment_queue')
-      .select('id, listing_id, queued_at, attempts, status')
+      .select(`
+        id,
+        listing_id,
+        status,
+        attempts,
+        queued_at
+      `)
       .eq('status', 'pending')
-      .lt('attempts', 3)
+      .lt('attempts', MAX_ATTEMPTS)
       .order('queued_at', { ascending: true })
-      .limit(batchSize);
+      .limit(BATCH_SIZE);
 
     if (fetchError) {
-      console.error('Error fetching queue:', fetchError);
-      throw new Error(`Failed to fetch queue: ${fetchError.message}`);
+      console.error('Error fetching queue items:', fetchError);
+      throw fetchError;
     }
 
-    if (!pendingItems || pendingItems.length === 0) {
+    if (!queueItems || queueItems.length === 0) {
+      console.log('No pending enrichment items in queue');
       return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'No pending items in enrichment queue',
-          processed: 0,
-        }),
+        JSON.stringify({ success: true, message: 'No pending items', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${pendingItems.length} pending items`);
+    console.log(`Found ${queueItems.length} pending items to process`);
 
-    let processed = 0;
-    let succeeded = 0;
-    let failed = 0;
-    const results: Array<{
-      listingId: string;
-      status: 'success' | 'failed';
-      error?: string;
-    }> = [];
+    const results = {
+      processed: 0,
+      succeeded: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
 
-    for (const item of pendingItems as QueueItem[]) {
-      console.log(`Processing queue item ${item.id} for listing ${item.listing_id}`);
+    // Process each item sequentially to avoid overwhelming external APIs
+    for (const item of queueItems) {
+      console.log(`Processing queue item ${item.id} for listing ${item.listing_id} (attempt ${item.attempts + 1})`);
 
       // Mark as processing
       await supabase
         .from('enrichment_queue')
         .update({
           status: 'processing',
-          started_at: new Date().toISOString(),
           attempts: item.attempts + 1,
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', item.id);
 
       try {
-        // Call the enrich-deal function
-        const enrichResponse = await supabase.functions.invoke('enrich-deal', {
-          body: { dealId: item.listing_id },
+        // Call enrich-deal function
+        const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ dealId: item.listing_id }),
+          signal: AbortSignal.timeout(PROCESSING_TIMEOUT_MS),
         });
 
-        if (enrichResponse.error) {
-          throw new Error(enrichResponse.error.message || 'Enrichment failed');
-        }
+        const enrichResult = await enrichResponse.json();
 
-        const enrichData = enrichResponse.data;
-
-        if (enrichData?.success) {
-          // Mark as completed
+        if (enrichResponse.ok && enrichResult.success) {
+          // Success - mark as completed
           await supabase
             .from('enrichment_queue')
             .update({
               status: 'completed',
               completed_at: new Date().toISOString(),
               last_error: null,
+              updated_at: new Date().toISOString(),
             })
             .eq('id', item.id);
 
-          // Update the listing's enrichment tracking
-          await supabase
-            .from('listings')
-            .update({
-              enrichment_scheduled_at: null,
-              enrichment_refresh_due_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days
-            })
-            .eq('id', item.listing_id);
-
-          results.push({
-            listingId: item.listing_id,
-            status: 'success',
-          });
-          succeeded++;
-
-          console.log(`Successfully enriched listing ${item.listing_id}`);
+          console.log(`Successfully enriched listing ${item.listing_id}: ${enrichResult.fieldsUpdated?.length || 0} fields updated`);
+          results.succeeded++;
         } else {
-          throw new Error(enrichData?.error || 'Unknown enrichment error');
+          // Failed - update with error
+          const errorMsg = enrichResult.error || `HTTP ${enrichResponse.status}`;
+          
+          // Check if max attempts reached
+          const newStatus = item.attempts + 1 >= MAX_ATTEMPTS ? 'failed' : 'pending';
+          
+          await supabase
+            .from('enrichment_queue')
+            .update({
+              status: newStatus,
+              last_error: errorMsg,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+
+          console.error(`Enrichment failed for listing ${item.listing_id}: ${errorMsg}`);
+          results.failed++;
+          results.errors.push(`${item.listing_id}: ${errorMsg}`);
         }
-
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`Error enriching listing ${item.listing_id}:`, errorMessage);
-
-        // Check if max retries reached
-        const newAttempts = item.attempts + 1;
-        const newStatus = newAttempts >= 3 ? 'failed' : 'pending';
-
+        // Network/timeout error
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const newStatus = item.attempts + 1 >= MAX_ATTEMPTS ? 'failed' : 'pending';
+        
         await supabase
           .from('enrichment_queue')
           .update({
             status: newStatus,
-            last_error: errorMessage,
-            started_at: null, // Reset for retry
+            last_error: errorMsg,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', item.id);
 
-        results.push({
-          listingId: item.listing_id,
-          status: 'failed',
-          error: errorMessage,
-        });
-        failed++;
+        console.error(`Error processing ${item.listing_id}:`, error);
+        results.failed++;
+        results.errors.push(`${item.listing_id}: ${errorMsg}`);
       }
 
-      processed++;
+      results.processed++;
 
-      // Rate limit: wait 3 seconds between enrichments
-      if (processed < pendingItems.length) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
+      // Small delay between items to be nice to external APIs
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
+
+    console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${processed} items: ${succeeded} succeeded, ${failed} failed`,
-        processed,
-        succeeded,
-        failed,
-        results,
+        message: `Processed ${results.processed} items`,
+        ...results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in process-enrichment-queue:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }),
+      JSON.stringify({ success: false, error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
