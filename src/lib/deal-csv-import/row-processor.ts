@@ -67,7 +67,9 @@ export function processRow(
     if (!rawValue) continue;
     
     const value = String(rawValue).trim();
-    if (!value || value === '-' || value.toLowerCase() === 'n/a') continue;
+    const lower = value.toLowerCase();
+    // Treat common sentinel strings as empty cells (prevents inserting "undefined"/"null")
+    if (!value || value === '-' || lower === 'n/a' || lower === 'undefined' || lower === 'null') continue;
     
     const field = mapping.targetField;
     

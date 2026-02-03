@@ -220,6 +220,16 @@ export function DealImportDialog({
             location: computedLocation,
           });
 
+          // Hard requirements enforced by DB schema (avoid opaque NOT NULL failures)
+          if (typeof listingData.revenue !== 'number' || Number.isNaN(listingData.revenue)) {
+            results.errors.push(`Row ${i + 2}: Missing required field: Revenue (map the correct column or provide a value)`);
+            continue;
+          }
+          if (typeof listingData.ebitda !== 'number' || Number.isNaN(listingData.ebitda)) {
+            results.errors.push(`Row ${i + 2}: Missing required field: EBITDA (map the correct column or provide a value)`);
+            continue;
+          }
+
           // Log what we're importing for debugging
           console.log(`Row ${i + 2} import data:`, {
             title: listingData.title,
