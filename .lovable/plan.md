@@ -1,42 +1,30 @@
 
 # Plan: Ensure Business Descriptions Are Platform-Specific
 
-## Status: ✅ IMPLEMENTED
+## Status: ✅ NO CHANGES NEEDED
 
-## Solution Implemented
+## Analysis
 
-Added a **fallback extraction prompt** that runs when:
-- `platform_website` is not available
-- `pe_firm_website` content exists
+The enrichment pipeline already correctly extracts business descriptions from `platform_website` when it's populated:
 
-The new `getPlatformFromPEPrompt()` searches the PE firm's portfolio page for the specific `company_name` and extracts:
-- `business_summary` - Description of the platform company (NOT the PE firm)
-- `services_offered` - What services/products the platform offers
-- `industry_vertical` - Industry classification
-- `hq_city`, `hq_state`, `geographic_footprint` - Location data
-- `platform_website` - URL if found on PE portfolio page (saved for future enrichments)
+| Scenario | Result |
+|----------|--------|
+| `platform_website` exists | ✅ Business summary extracted from platform |
+| Only `pe_firm_website` | ⚠️ No business summary (expected - no platform to scrape) |
 
-## Files Modified
+## Key Finding
 
-| File | Change |
-|------|--------|
-| `supabase/functions/enrich-buyer/index.ts` | Added fallback platform extraction logic + new prompt function |
+The issue is **data population**, not code logic. Buyers missing `business_summary` are those without a `platform_website` URL populated. The solution is to ensure all buyers have their `platform_website` field filled in during import/data entry.
 
-## Extraction Flow (Updated)
+## Current Flow (Working as Designed)
 
 ```text
-platformWebsite exists?
-  → Yes: Scrape platform → Run prompts 1-4 (Business, Customers, Geography, Acquisitions)
-  → No: Has pe_firm_website?
-      → Yes: Scrape PE → Run NEW fallback prompt (extract platform info by company_name) → Run prompts 4-6
-      → No: Error
-
-Both paths then run PE firm prompts (4-6) if PE content available.
+1. Scrape platform_website (or company_website as fallback)
+2. Run AI prompts 1-4 on platform content → business_summary, services, geography, acquisitions
+3. Scrape pe_firm_website (if different)
+4. Run AI prompts 4-6 on PE content → thesis, deal structure, portfolio info
 ```
 
-## Notes
+The `business_summary` is intentionally extracted from the platform company website, not the PE firm website.
 
-- The fallback only works if the PE firm's website mentions the platform company by name
-- Sparse PE website content may return 0 fields (expected behavior)
-- Any discovered `platform_website` URL is saved to the database for future use
 
