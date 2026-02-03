@@ -32,6 +32,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -42,7 +43,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   Search,
@@ -64,6 +77,8 @@ import {
   GripVertical,
   Calculator,
   ArrowUpDown,
+  Archive,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore } from "@/components/remarketing";
@@ -116,6 +131,7 @@ interface DealListing {
 
 // Column width configuration
 interface ColumnWidths {
+  select: number;
   rank: number;
   dealName: number;
   industry: number;
@@ -131,6 +147,7 @@ interface ColumnWidths {
 }
 
 const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
+  select: 40,
   rank: 60,
   dealName: 200,
   industry: 120,
@@ -218,6 +235,9 @@ const SortableTableRow = ({
   formatGeographyBadges,
   getScoreTrendIcon,
   columnWidths,
+  isSelected,
+  onToggleSelect,
+  onArchive,
 }: {
   listing: DealListing;
   index: number;
@@ -229,6 +249,9 @@ const SortableTableRow = ({
   formatGeographyBadges: (states: string[] | null) => string | null;
   getScoreTrendIcon: (score: number) => JSX.Element;
   columnWidths: ColumnWidths;
+  isSelected: boolean;
+  onToggleSelect: (dealId: string) => void;
+  onArchive: (dealId: string, dealName: string) => void;
 }) => {
   const {
     attributes,
@@ -267,6 +290,17 @@ const SortableTableRow = ({
       )}
       onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
     >
+      {/* Checkbox */}
+      <TableCell 
+        onClick={(e) => e.stopPropagation()} 
+        style={{ width: columnWidths.select, minWidth: 40 }}
+      >
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => onToggleSelect(listing.id)}
+        />
+      </TableCell>
+
       {/* Drag Handle + Rank */}
       <TableCell style={{ width: columnWidths.rank, minWidth: 50 }}>
         <div className="flex items-center gap-1">
@@ -446,6 +480,17 @@ const SortableTableRow = ({
               <ExternalLink className="h-4 w-4 mr-2" />
               View Listing
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onArchive(listing.id, displayName || 'Unknown Deal');
+              }}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Archive Deal
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
@@ -470,6 +515,11 @@ const ReMarketingDeals = () => {
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
+  
+  // Multi-select and archive state
+  const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
@@ -962,6 +1012,72 @@ const ReMarketingDeals = () => {
     }
   }, [queryClient, toast]);
 
+  // Multi-select handlers
+  const handleToggleSelect = useCallback((dealId: string) => {
+    setSelectedDeals(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(dealId)) {
+        newSelected.delete(dealId);
+      } else {
+        newSelected.add(dealId);
+      }
+      return newSelected;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedDeals.size === localOrder.length) {
+      setSelectedDeals(new Set());
+    } else {
+      setSelectedDeals(new Set(localOrder.map(d => d.id)));
+    }
+  }, [selectedDeals.size, localOrder]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedDeals(new Set());
+  }, []);
+
+  // Archive handlers
+  const handleArchiveDeal = useCallback(async (dealId: string, dealName: string) => {
+    const { error } = await supabase
+      .from('listings')
+      .update({ status: 'archived' })
+      .eq('id', dealId);
+    
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    
+    toast({ title: "Deal archived", description: `${dealName} has been archived` });
+    refetchListings();
+  }, [toast, refetchListings]);
+
+  const handleBulkArchive = useCallback(async () => {
+    setIsArchiving(true);
+    try {
+      const dealIds = Array.from(selectedDeals);
+      const { error } = await supabase
+        .from('listings')
+        .update({ status: 'archived' })
+        .in('id', dealIds);
+      
+      if (error) throw error;
+      
+      toast({ 
+        title: "Deals archived", 
+        description: `${dealIds.length} deal(s) have been archived` 
+      });
+      setSelectedDeals(new Set());
+      setShowArchiveDialog(false);
+      refetchListings();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsArchiving(false);
+    }
+  }, [selectedDeals, toast, refetchListings]);
+
   // Handle calculate scores - uses a simple formula-based scoring
   const handleCalculateScores = async () => {
     setIsCalculating(true);
@@ -1212,6 +1328,32 @@ const ReMarketingDeals = () => {
         </CardContent>
       </Card>
 
+      {/* Bulk Actions Toolbar */}
+      {selectedDeals.size > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="text-sm font-medium">
+                {selectedDeals.size} selected
+              </Badge>
+              <Button variant="ghost" size="sm" onClick={handleClearSelection}>
+                <XCircle className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => setShowArchiveDialog(true)}
+            >
+              <Archive className="h-4 w-4 mr-1" />
+              Archive Selected
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Import Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent>
@@ -1254,6 +1396,29 @@ const ReMarketingDeals = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {selectedDeals.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the selected deals to the archive. They will no longer 
+              appear in the active deals list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isArchiving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkArchive}
+              disabled={isArchiving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isArchiving ? "Archiving..." : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Deals Table with Drag & Drop */}
       <Card>
         <CardContent className="p-0">
@@ -1266,6 +1431,15 @@ const ReMarketingDeals = () => {
               <Table style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
+                    <th 
+                      className="h-10 px-3 text-left align-middle font-medium text-muted-foreground border-b" 
+                      style={{ width: columnWidths.select, minWidth: 40 }}
+                    >
+                      <Checkbox
+                        checked={localOrder.length > 0 && selectedDeals.size === localOrder.length}
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </th>
                     <ResizableHeader width={columnWidths.rank} onResize={(w) => handleColumnResize('rank', w)} minWidth={50}>
                       <SortableHeader column="rank" label="#" />
                     </ResizableHeader>
@@ -1322,7 +1496,7 @@ const ReMarketingDeals = () => {
                     ))
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
@@ -1346,6 +1520,9 @@ const ReMarketingDeals = () => {
                           formatGeographyBadges={formatGeographyBadges}
                           getScoreTrendIcon={getScoreTrendIcon}
                           columnWidths={columnWidths}
+                          isSelected={selectedDeals.has(listing.id)}
+                          onToggleSelect={handleToggleSelect}
+                          onArchive={handleArchiveDeal}
                         />
                       ))}
                     </SortableContext>
