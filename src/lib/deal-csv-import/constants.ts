@@ -41,7 +41,6 @@ export const DEAL_IMPORT_FIELDS: DealImportField[] = [
   { value: "primary_contact_last_name", label: "Contact Last Name", description: "Last name (will combine with first)" },
   { value: "primary_contact_email", label: "Contact Email", description: "Email address" },
   { value: "primary_contact_phone", label: "Contact Phone", description: "Phone number" },
-  { value: "primary_contact_title", label: "Contact Title/Role", description: "Job title or role" },
   
   // URLs
   { value: "linkedin_url", label: "LinkedIn URL", description: "Company LinkedIn profile" },
@@ -53,7 +52,6 @@ export const DEAL_IMPORT_FIELDS: DealImportField[] = [
   
   // Metadata
   { value: "internal_company_name", label: "Internal Company Name", description: "Internal reference name" },
-  { value: "last_contacted_at", label: "Last Contacted Date", description: "Date of last contact" },
 ];
 
 /**

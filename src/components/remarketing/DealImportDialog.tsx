@@ -51,6 +51,7 @@ import {
   normalizeHeader,
   processRow,
   mergeColumnMappings,
+  sanitizeListingInsert,
 } from "@/lib/deal-csv-import";
 
 interface DealImportDialogProps {
@@ -202,10 +203,10 @@ export function DealImportDialog({
           }
 
           // Build final listing object
-          const listingData = {
+          const listingData = sanitizeListingInsert({
             ...parsedData,
             status: 'active',
-          };
+          });
 
           // Log what we're importing for debugging
           console.log(`Row ${i + 2} import data:`, {

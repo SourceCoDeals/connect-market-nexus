@@ -69,7 +69,6 @@ export interface ParsedDealData {
   primary_contact_last_name?: string;
   primary_contact_email?: string;
   primary_contact_phone?: string;
-  primary_contact_title?: string;
   
   // URLs
   linkedin_url?: string;
@@ -81,5 +80,4 @@ export interface ParsedDealData {
   
   // Metadata
   internal_company_name?: string;
-  last_contacted_at?: string;
 }

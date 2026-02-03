@@ -42,6 +42,7 @@ import {
   normalizeHeader,
   processRow,
   mergeColumnMappings,
+  sanitizeListingInsert,
 } from "@/lib/deal-csv-import";
 
 export interface DealCSVImportProps {
@@ -285,10 +286,12 @@ export const DealCSVImport = ({
             console.log(`Row ${i + 1}: No website - deal will be imported but won't receive AI enrichment`);
           }
 
+          const sanitized = sanitizeListingInsert(listingData);
+
           // Create listing - use any to bypass strict typing
           const { data: listing, error: listingError } = await supabase
             .from("listings")
-            .insert(listingData as never)
+            .insert(sanitized as never)
             .select("id")
             .single();
 
