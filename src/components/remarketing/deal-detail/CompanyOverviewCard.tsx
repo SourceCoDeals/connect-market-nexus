@@ -19,10 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Pencil, 
-  Loader2, 
-  Building2, 
+import {
+  Pencil,
+  Loader2,
+  Building2,
   ExternalLink,
   Globe,
   MapPin,
@@ -31,6 +31,7 @@ import {
   Users,
   Building,
   MapPinned,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,6 +86,10 @@ interface CompanyOverviewCardProps {
   addressState?: string | null;
   addressZip?: string | null;
   addressCountry?: string | null;
+  // Google reviews data
+  googleReviewCount?: number | null;
+  googleRating?: number | null;
+  googleMapsUrl?: string | null;
   onSave: (data: {
     website: string;
     address: string;
@@ -117,6 +122,9 @@ export const CompanyOverviewCard = ({
   addressState,
   addressZip,
   addressCountry,
+  googleReviewCount,
+  googleRating,
+  googleMapsUrl,
   onSave,
 }: CompanyOverviewCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -320,14 +328,45 @@ export const CompanyOverviewCard = ({
             } 
           />
 
-          <InfoRow 
-            icon={Building} 
-            label="INDUSTRY" 
-            value={industry || category || "Not specified"} 
+          <InfoRow
+            icon={Building}
+            label="INDUSTRY"
+            value={industry || category || "Not specified"}
           />
 
-          <InfoRow 
-            icon={Building2} 
+          {/* Google Reviews - only show if we have data */}
+          {(googleReviewCount !== null && googleReviewCount !== undefined) && (
+            <InfoRow
+              icon={Star}
+              label="GOOGLE REVIEWS"
+              value={
+                <div className="flex items-center gap-2">
+                  {googleRating && (
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold">{googleRating.toFixed(1)}</span>
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">
+                    ({googleReviewCount.toLocaleString()} review{googleReviewCount !== 1 ? 's' : ''})
+                  </span>
+                  {googleMapsUrl && (
+                    <a
+                      href={googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              }
+            />
+          )}
+
+          <InfoRow
+            icon={Building2}
             label="NUMBER OF LOCATIONS" 
             value={
               numberOfLocations 
