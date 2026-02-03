@@ -20,73 +20,146 @@ interface DealQualityScores {
  * Calculate deal quality score based on deal attributes.
  * This is the overall quality of the deal, NOT how well it fits a specific buyer.
  *
- * REALISTIC Scoring methodology (0-100):
+ * SIZE-DOMINANT Scoring methodology (0-100):
+ * Size (EBITDA) is 60%+ of the score. Seller motivation is a BONUS only, never a penalty.
  *
- * A 90+ score requires: $2M+ EBITDA AND highly motivated seller
+ * 1. EBITDA/SIZE - PRIMARY DRIVER (0-65 pts, ~65% weight):
+ *    - $5M+: 65 pts (premium)
+ *    - $3M-5M: 58 pts (excellent)
+ *    - $2M-3M: 50 pts (strong)
+ *    - $1.5M-2M: 42 pts (good)
+ *    - $1M-1.5M: 34 pts (solid)
+ *    - $750K-1M: 26 pts (decent)
+ *    - $500K-750K: 20 pts (small)
+ *    - $250K-500K: 12 pts (micro)
+ *    - Below $250K: 6 pts (lifestyle)
+ *    - No EBITDA: 0 pts
  *
- * 1. EBITDA - PRIMARY DRIVER (0-50 pts):
- *    - $3M+: 50 pts (premium deal)
- *    - $2M-3M: 42 pts (strong deal)
- *    - $1.5M-2M: 35 pts (good deal)
- *    - $1M-1.5M: 28 pts (solid deal)
- *    - $500K-1M: 20 pts (small deal)
- *    - $250K-500K: 12 pts (micro deal)
- *    - Below $250K: 5 pts (lifestyle business)
- *    - No EBITDA data: 0 pts
+ * 2. Deal Quality/Margins (0-20 pts, ~20% weight):
+ *    - EBITDA margin scoring (0-12 pts)
+ *    - Multiple locations bonus (0-5 pts)
+ *    - Established business bonus (0-3 pts)
  *
- * 2. Seller Motivation - REQUIRED FOR 90+ (0-25 pts):
- *    - Highly motivated (retirement, health, urgent): 20-25 pts
- *    - Motivated (clear reason stated): 12-15 pts
- *    - Has some indication: 5-8 pts
- *    - No motivation info: 0 pts
+ * 3. Data Completeness (0-8 pts, ~8% weight):
+ *    - Having key data filled in
  *
- * 3. Deal Quality/Margins (0-15 pts):
- *    - EBITDA margin 25%+: 10 pts
- *    - EBITDA margin 20-25%: 8 pts
- *    - EBITDA margin 15-20%: 6 pts
- *    - EBITDA margin 10-15%: 4 pts
- *    - Multiple locations: +3 pts
- *    - Established business (10+ yrs): +2 pts
+ * 4. Seller Motivation BONUS (0-7 pts, ~7% weight):
+ *    - ONLY ADDS points when we have data, NEVER penalizes
+ *    - Highly motivated: +7 pts
+ *    - Moderately motivated: +4 pts
+ *    - Some indication: +2 pts
+ *    - No data: +0 pts (no penalty)
  *
- * 4. Data Completeness (0-10 pts):
- *    - Has all key data points: 10 pts
- *    - Missing some data: 5 pts
- *    - Missing critical data: 0 pts
+ * Example scores:
+ *   - $3M EBITDA, 20% margin, no motivation data: 58 + 15 + 8 + 0 = 81
+ *   - $1M EBITDA, 25% margin, motivated seller: 34 + 17 + 8 + 4 = 63
+ *   - $500K EBITDA, 15% margin, no data: 20 + 11 + 6 + 0 = 37
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
   let sizeScore = 0;
-  let motivationScore = 0;
   let qualityScore = 0;
   let completenessScore = 0;
+  let motivationBonus = 0;
   const notes: string[] = [];
 
   const revenue = deal.revenue || 0;
   const ebitda = deal.ebitda || 0;
 
-  // ===== 1. EBITDA - PRIMARY DRIVER (0-50 pts) =====
-  // This is the most important factor - no great deal without solid EBITDA
+  // ===== 1. EBITDA/SIZE - PRIMARY DRIVER (0-65 pts) =====
+  // This is BY FAR the most important factor (~65% of score)
 
-  if (ebitda >= 3000000) {
-    sizeScore = 50; // Premium deal
+  if (ebitda >= 5000000) {
+    sizeScore = 65; // Premium deal
+  } else if (ebitda >= 3000000) {
+    sizeScore = 58; // Excellent deal
   } else if (ebitda >= 2000000) {
-    sizeScore = 42; // Strong deal
+    sizeScore = 50; // Strong deal
   } else if (ebitda >= 1500000) {
-    sizeScore = 35; // Good deal
+    sizeScore = 42; // Good deal
   } else if (ebitda >= 1000000) {
-    sizeScore = 28; // Solid deal
+    sizeScore = 34; // Solid deal
+  } else if (ebitda >= 750000) {
+    sizeScore = 26; // Decent deal
   } else if (ebitda >= 500000) {
     sizeScore = 20; // Small deal
   } else if (ebitda >= 250000) {
     sizeScore = 12; // Micro deal
   } else if (ebitda > 0) {
-    sizeScore = 5; // Lifestyle business
+    sizeScore = 6; // Lifestyle business
   } else {
     sizeScore = 0;
-    notes.push("No EBITDA data - cannot properly score");
+    notes.push("No EBITDA data");
   }
 
-  // ===== 2. SELLER MOTIVATION - REQUIRED FOR 90+ (0-25 pts) =====
-  // Without clear motivation, max score is capped
+  // ===== 2. DEAL QUALITY/MARGINS (0-20 pts) =====
+
+  // Margin scoring (0-12 pts)
+  if (revenue > 0 && ebitda > 0) {
+    const margin = ebitda / revenue;
+    if (margin >= 0.30) {
+      qualityScore += 12;
+    } else if (margin >= 0.25) {
+      qualityScore += 10;
+    } else if (margin >= 0.20) {
+      qualityScore += 8;
+    } else if (margin >= 0.15) {
+      qualityScore += 6;
+    } else if (margin >= 0.10) {
+      qualityScore += 4;
+    } else if (margin > 0) {
+      qualityScore += 2;
+    }
+  }
+
+  // Multiple locations bonus (0-5 pts)
+  const locationCount = deal.number_of_locations || deal.location_count || 1;
+  if (locationCount >= 5) {
+    qualityScore += 5;
+  } else if (locationCount >= 3) {
+    qualityScore += 4;
+  } else if (locationCount >= 2) {
+    qualityScore += 2;
+  }
+
+  // Established business bonus (0-3 pts)
+  if (deal.founded_year) {
+    const age = new Date().getFullYear() - deal.founded_year;
+    if (age >= 15) {
+      qualityScore += 3;
+    } else if (age >= 10) {
+      qualityScore += 2;
+    } else if (age >= 5) {
+      qualityScore += 1;
+    }
+  }
+
+  // Cap quality score at 20
+  qualityScore = Math.min(20, qualityScore);
+
+  // ===== 3. DATA COMPLETENESS (0-8 pts) =====
+
+  let dataPoints = 0;
+  if (revenue > 0) dataPoints++;
+  if (ebitda > 0) dataPoints++;
+  if (deal.location || deal.address) dataPoints++;
+  if (deal.description || deal.executive_summary) dataPoints++;
+  if (deal.category || deal.service_mix) dataPoints++;
+  if (deal.full_time_employees || deal.linkedin_employee_count) dataPoints++;
+
+  if (dataPoints >= 5) {
+    completenessScore = 8;
+  } else if (dataPoints >= 4) {
+    completenessScore = 6;
+  } else if (dataPoints >= 2) {
+    completenessScore = 4;
+  } else if (dataPoints >= 1) {
+    completenessScore = 2;
+  } else {
+    completenessScore = 0;
+  }
+
+  // ===== 4. SELLER MOTIVATION BONUS (0-7 pts) =====
+  // This is a BONUS ONLY - no penalty for missing data
 
   const motivation = (deal.seller_motivation || deal.owner_goals || '').toLowerCase();
   const hasSellerInterestScore = deal.seller_interest_score && deal.seller_interest_score > 0;
@@ -100,104 +173,27 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const hasModerateMotivation = moderateMotivationKeywords.some(kw => motivation.includes(kw));
 
   if (hasHighMotivation || (hasSellerInterestScore && deal.seller_interest_score >= 80)) {
-    motivationScore = 23; // Highly motivated
+    motivationBonus = 7; // Highly motivated - full bonus
   } else if (hasModerateMotivation || (hasSellerInterestScore && deal.seller_interest_score >= 60)) {
-    motivationScore = 14; // Motivated
+    motivationBonus = 4; // Moderately motivated
   } else if (motivation.length > 10 || (hasSellerInterestScore && deal.seller_interest_score >= 40)) {
-    motivationScore = 7; // Some indication
-  } else if (deal.asking_price && deal.asking_price > 0) {
-    motivationScore = 4; // Has asking price at least
+    motivationBonus = 2; // Some indication
   } else {
-    motivationScore = 0;
-    notes.push("No seller motivation data");
-  }
-
-  // ===== 3. DEAL QUALITY/MARGINS (0-15 pts) =====
-
-  // Margin scoring (0-10 pts)
-  if (revenue > 0 && ebitda > 0) {
-    const margin = ebitda / revenue;
-    if (margin >= 0.25) {
-      qualityScore += 10;
-    } else if (margin >= 0.20) {
-      qualityScore += 8;
-    } else if (margin >= 0.15) {
-      qualityScore += 6;
-    } else if (margin >= 0.10) {
-      qualityScore += 4;
-    } else if (margin > 0) {
-      qualityScore += 2;
-    }
-  }
-
-  // Multiple locations bonus (0-3 pts)
-  const locationCount = deal.number_of_locations || deal.location_count || 1;
-  if (locationCount >= 3) {
-    qualityScore += 3;
-  } else if (locationCount >= 2) {
-    qualityScore += 2;
-  }
-
-  // Established business bonus (0-2 pts)
-  if (deal.founded_year) {
-    const age = new Date().getFullYear() - deal.founded_year;
-    if (age >= 10) {
-      qualityScore += 2;
-    } else if (age >= 5) {
-      qualityScore += 1;
-    }
-  }
-
-  // Cap quality score at 15
-  qualityScore = Math.min(15, qualityScore);
-
-  // ===== 4. DATA COMPLETENESS (0-10 pts) =====
-
-  let dataPoints = 0;
-  if (revenue > 0) dataPoints++;
-  if (ebitda > 0) dataPoints++;
-  if (deal.location || deal.address) dataPoints++;
-  if (deal.description || deal.executive_summary) dataPoints++;
-  if (deal.category || deal.service_mix) dataPoints++;
-  if (deal.full_time_employees || deal.linkedin_employee_count) dataPoints++;
-
-  if (dataPoints >= 5) {
-    completenessScore = 10;
-  } else if (dataPoints >= 3) {
-    completenessScore = 6;
-  } else if (dataPoints >= 1) {
-    completenessScore = 3;
-  } else {
-    completenessScore = 0;
+    motivationBonus = 0; // No data - NO PENALTY, just no bonus
   }
 
   // ===== CALCULATE TOTAL =====
-  let totalScore = sizeScore + motivationScore + qualityScore + completenessScore;
+  // Size (65) + Quality (20) + Completeness (8) + Motivation Bonus (7) = 100 max
+  let totalScore = sizeScore + qualityScore + completenessScore + motivationBonus;
 
-  // ===== HARD CAPS =====
-  // Without $2M+ EBITDA, cap at 89
-  if (ebitda < 2000000) {
-    totalScore = Math.min(totalScore, 89);
-  }
-
-  // Without motivation data, cap at 75
-  if (motivationScore < 7) {
-    totalScore = Math.min(totalScore, 75);
-  }
-
-  // Without EBITDA data, cap at 40
-  if (ebitda <= 0) {
-    totalScore = Math.min(totalScore, 40);
-  }
-
-  // Ensure scores are within bounds
+  // Ensure scores are within bounds (no hard caps - let size drive the score)
   totalScore = Math.min(100, Math.max(0, totalScore));
 
   return {
     deal_total_score: totalScore,
     deal_quality_score: qualityScore,
     deal_size_score: sizeScore,
-    deal_motivation_score: motivationScore,
+    deal_motivation_score: motivationBonus,
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
