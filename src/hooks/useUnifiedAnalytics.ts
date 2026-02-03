@@ -216,14 +216,18 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         // Current period sessions - include visitor_id and region for proper counting
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .gte('started_at', startDateStr)
           .order('started_at', { ascending: false }),
         
         // Previous period sessions for trend
         supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, session_duration_seconds, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, session_duration_seconds, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .gte('started_at', prevStartDateStr)
           .lt('started_at', startDateStr),
         
@@ -258,6 +262,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           .from('user_sessions')
           .select('id')
           .eq('is_active', true)
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .gte('last_active_at', twoMinutesAgo),
         
         // Profiles for signups in the time range ONLY (CRITICAL FIX: must filter by date!)
@@ -336,7 +342,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       if (profileIds.length > 0) {
         const { data: firstSessionsData } = await supabase
           .from('user_sessions')
-          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at')
+          .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at, user_agent')
+          .eq('is_bot', false)
+          .eq('is_production', true)
           .in('user_id', profileIds)
           .order('started_at', { ascending: true });
         firstSessions = firstSessionsData || [];
@@ -386,9 +394,21 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }))
         .sort((a, b) => b.signups - a.signups);
       
-      // CRITICAL FIX #1: Filter out dev/bot traffic
-      const sessions = rawSessions.filter(s => !isDevTraffic(s.referrer));
-      const prevSessions = rawPrevSessions.filter(s => !isDevTraffic(s.referrer));
+      // CRITICAL FIX #1: Filter out dev/bot traffic (defense in depth - also filtered at query level)
+      const sessions = rawSessions.filter(s => 
+        !isDevTraffic(s.referrer) &&
+        !s.user_agent?.includes('Chrome/119.') &&
+        !s.user_agent?.includes('Chrome/118.') &&
+        !s.user_agent?.includes('Chrome/117.') &&
+        !s.user_agent?.includes('HeadlessChrome')
+      );
+      const prevSessions = rawPrevSessions.filter(s => 
+        !isDevTraffic(s.referrer) &&
+        !s.user_agent?.includes('Chrome/119.') &&
+        !s.user_agent?.includes('Chrome/118.') &&
+        !s.user_agent?.includes('Chrome/117.') &&
+        !s.user_agent?.includes('HeadlessChrome')
+      );
       
       // Deduplicate sessions by session_id (keep first occurrence)
       const sessionMap = new Map<string, typeof sessions[0]>();
