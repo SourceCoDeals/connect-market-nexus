@@ -160,7 +160,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   rank: 60,
   dealName: 200,
   industry: 120,
-  description: 240,
+  description: 180,
   location: 100,
   revenue: 90,
   ebitda: 90,
