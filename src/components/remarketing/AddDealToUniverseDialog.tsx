@@ -178,6 +178,29 @@ export const AddDealToUniverseDialog = ({
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals", "universe", universeId] });
       toast.success(`Added ${listingIds.length} deal${listingIds.length > 1 ? "s" : ""} to universe`);
       
+      // Auto-enrich unenriched deals that have websites
+      const unenrichedWithWebsites = availableListings?.filter(
+        (l) => listingIds.includes(l.id) && !l.enriched_at && getEffectiveWebsite(l)
+      ) || [];
+      
+      if (unenrichedWithWebsites.length > 0) {
+        toast.info(`Enriching ${unenrichedWithWebsites.length} deal${unenrichedWithWebsites.length > 1 ? "s" : ""} in background...`);
+        
+        // Enrich each deal in the background (don't await)
+        for (const listing of unenrichedWithWebsites) {
+          supabase.functions.invoke("enrich-deal", {
+            body: { dealId: listing.id },
+          }).then(({ data, error }) => {
+            if (error) {
+              console.error(`Enrichment error for ${listing.id}:`, error);
+            } else if (data?.success) {
+              console.log(`Enriched ${listing.internal_company_name || listing.title}`);
+              queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
+            }
+          });
+        }
+      }
+      
       // Trigger background scoring for each deal
       toast.info("Scoring buyers in the background...");
       for (const listingId of listingIds) {

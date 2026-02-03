@@ -620,6 +620,18 @@ const ReMarketingUniverseDetail = () => {
                         <span className="text-sm text-muted-foreground">
                           {universeDeals?.length || 0} deals
                         </span>
+                        {(() => {
+                          const unenrichedCount = universeDeals?.filter((d: any) => !d.listing?.enriched_at).length || 0;
+                          return unenrichedCount > 0 ? (
+                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/30">
+                              {unenrichedCount} unenriched
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
+                              All enriched
+                            </Badge>
+                          );
+                        })()}
                       </div>
                       
                       <div className="flex items-center gap-2">
@@ -665,35 +677,30 @@ const ReMarketingUniverseDetail = () => {
                             Cancel Enrichment
                           </Button>
                         ) : (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={async () => {
-                              if (!universeDeals?.length) {
-                                toast.error('No deals to enrich');
-                                return;
-                              }
-                              
-                              // Reset any previous state
-                              resetDealEnrichment();
-                              
-                              // Map deals to the format expected by the hook
-                              const dealsToEnrich = universeDeals
-                                .filter((d: any) => d.listing?.id)
-                                .map((d: any) => ({
-                                  id: d.id,
-                                  listingId: d.listing.id,
-                                  enrichedAt: d.listing.enriched_at
-                                }));
-                              
-                              await enrichDeals(dealsToEnrich);
-                              refetchDeals();
-                            }}
-                            disabled={!universeDeals?.length}
-                          >
-                            <Sparkles className="h-4 w-4 mr-1" />
-                            Enrich All Deals
-                          </Button>
+                          (() => {
+                            const unenrichedDeals = universeDeals?.filter((d: any) => d.listing?.id && !d.listing.enriched_at) || [];
+                            return unenrichedDeals.length > 0 ? (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={async () => {
+                                  resetDealEnrichment();
+                                  
+                                  const dealsToEnrich = unenrichedDeals.map((d: any) => ({
+                                    id: d.id,
+                                    listingId: d.listing.id,
+                                    enrichedAt: d.listing.enriched_at
+                                  }));
+                                  
+                                  await enrichDeals(dealsToEnrich);
+                                  refetchDeals();
+                                }}
+                              >
+                                <Sparkles className="h-4 w-4 mr-1" />
+                                Enrich {unenrichedDeals.length} Unenriched
+                              </Button>
+                            ) : null;
+                          })()
                         )}
                         <Button 
                           variant="outline" 
