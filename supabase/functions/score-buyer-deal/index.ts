@@ -111,10 +111,84 @@ async function fetchScoringAdjustments(supabase: any, listingId: string): Promis
   return data || [];
 }
 
+// Fetch engagement signals for a listing-buyer pair
+async function fetchEngagementBonus(
+  supabase: any,
+  listingId: string,
+  buyerId: string
+): Promise<{ bonus: number; signals: any[]; reasoning: string }> {
+  const { data: signals, error } = await supabase
+    .from('engagement_signals')
+    .select('*')
+    .eq('listing_id', listingId)
+    .eq('buyer_id', buyerId)
+    .order('signal_date', { ascending: false });
+
+  if (error || !signals || signals.length === 0) {
+    return { bonus: 0, signals: [], reasoning: '' };
+  }
+
+  // Calculate total bonus (capped at 100 per spec)
+  const totalBonus = Math.min(100, signals.reduce((sum: number, s: any) => sum + (s.signal_value || 0), 0));
+
+  // Build reasoning string
+  const signalSummary = signals.map((s: any) =>
+    `${s.signal_type.replace('_', ' ')} (+${s.signal_value})`
+  ).join(', ');
+
+  const reasoning = `Engagement signals: ${signalSummary} = +${totalBonus} pts`;
+
+  return { bonus: totalBonus, signals, reasoning };
+}
+
+// Fetch engagement signals for multiple buyers (bulk scoring optimization)
+async function fetchBulkEngagementBonuses(
+  supabase: any,
+  listingId: string,
+  buyerIds: string[]
+): Promise<Map<string, { bonus: number; reasoning: string }>> {
+  const bonuses = new Map<string, { bonus: number; reasoning: string }>();
+
+  if (buyerIds.length === 0) return bonuses;
+
+  const { data: signals, error } = await supabase
+    .from('engagement_signals')
+    .select('*')
+    .eq('listing_id', listingId)
+    .in('buyer_id', buyerIds);
+
+  if (error || !signals) {
+    console.warn("Failed to fetch engagement signals:", error);
+    return bonuses;
+  }
+
+  // Group signals by buyer_id
+  const signalsByBuyer = new Map<string, any[]>();
+  for (const signal of signals) {
+    if (!signalsByBuyer.has(signal.buyer_id)) {
+      signalsByBuyer.set(signal.buyer_id, []);
+    }
+    signalsByBuyer.get(signal.buyer_id)!.push(signal);
+  }
+
+  // Calculate bonus for each buyer
+  for (const [buyerId, buyerSignals] of signalsByBuyer) {
+    const totalBonus = Math.min(100, buyerSignals.reduce((sum, s) => sum + (s.signal_value || 0), 0));
+    const signalSummary = buyerSignals.map(s =>
+      `${s.signal_type.replace('_', ' ')} (+${s.signal_value})`
+    ).join(', ');
+    const reasoning = `Engagement signals: ${signalSummary} = +${totalBonus} pts`;
+
+    bonuses.set(buyerId, { bonus: totalBonus, reasoning });
+  }
+
+  return bonuses;
+}
+
 // Fetch learning patterns from buyer history
 async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise<Map<string, LearningPattern>> {
   const patterns = new Map<string, LearningPattern>();
-  
+
   if (buyerIds.length === 0) return patterns;
 
   const { data: history, error } = await supabase
@@ -611,10 +685,11 @@ async function handleSingleScore(
     throw new Error("Universe not found");
   }
 
-  // Fetch adjustments and learning patterns
-  const [adjustments, learningPatterns] = await Promise.all([
+  // Fetch adjustments, learning patterns, and engagement signals
+  const [adjustments, learningPatterns, engagementData] = await Promise.all([
     fetchScoringAdjustments(supabase, listingId),
     fetchLearningPatterns(supabase, [buyerId]),
+    fetchEngagementBonus(supabase, listingId, buyerId),
   ]);
 
   // Generate score using AI (no custom instructions for single score)
@@ -632,12 +707,18 @@ async function handleSingleScore(
     thesisAnalysis.reasoning
   );
 
-  // Recalculate tier based on adjusted score - ALIGNED WITH SPEC
+  // Apply engagement bonus (CRITICAL: Applied AFTER other adjustments, capped at 100 total)
+  const finalScore = Math.min(100, adjustedScore + engagementData.bonus);
+  const finalReasoning = engagementData.bonus > 0
+    ? `${adjustmentReason || score.fit_reasoning}\n\n${engagementData.reasoning}`
+    : (adjustmentReason || score.fit_reasoning);
+
+  // Recalculate tier based on final score (with engagement bonus) - ALIGNED WITH SPEC
   let tier: string;
-  if (adjustedScore >= 80) tier = "A";      // Tier 1 per spec
-  else if (adjustedScore >= 60) tier = "B"; // Tier 2 per spec
-  else if (adjustedScore >= 40) tier = "C"; // Tier 3 per spec
-  else tier = "D";                          // Pass per spec
+  if (finalScore >= 80) tier = "A";      // Tier 1 per spec
+  else if (finalScore >= 60) tier = "B"; // Tier 2 per spec
+  else if (finalScore >= 40) tier = "C"; // Tier 3 per spec
+  else tier = "D";                        // Pass per spec
 
   // Create deal snapshot for stale detection
   const dealSnapshot = {
@@ -656,15 +737,13 @@ async function handleSingleScore(
       buyer_id: buyerId,
       universe_id: universeId,
       ...score,
-      composite_score: adjustedScore,
+      composite_score: finalScore,
       tier,
       thesis_bonus: thesisBonus,
       acquisition_score: score.acquisition_score,
       portfolio_score: score.portfolio_score,
       business_model_score: score.business_model_score,
-      fit_reasoning: adjustmentReason 
-        ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
-        : score.fit_reasoning,
+      fit_reasoning: finalReasoning,
       scored_at: new Date().toISOString(),
       deal_snapshot: dealSnapshot,
     }, { onConflict: "listing_id,buyer_id" })
@@ -776,11 +855,12 @@ async function handleBulkScore(
 
   console.log(`Scoring ${buyersToScore.length} buyers for listing ${listingId} (rescore: ${rescoreExisting})`);
 
-  // Fetch adjustments and learning patterns in parallel
+  // Fetch adjustments, learning patterns, and engagement signals in parallel
   const allBuyerIds = buyersToScore.map((b: any) => b.id);
-  const [adjustments, learningPatterns] = await Promise.all([
+  const [adjustments, learningPatterns, engagementBonuses] = await Promise.all([
     fetchScoringAdjustments(supabase, listingId),
     fetchLearningPatterns(supabase, allBuyerIds),
+    fetchBulkEngagementBonuses(supabase, listingId, allBuyerIds),
   ]);
 
   // Process in batches to avoid rate limits
@@ -807,12 +887,19 @@ async function handleBulkScore(
           thesisAnalysis.reasoning
         );
 
-        // Recalculate tier - ALIGNED WITH SPEC
+        // Apply engagement bonus
+        const engagementData = engagementBonuses.get(buyer.id) || { bonus: 0, reasoning: '' };
+        const finalScore = Math.min(100, adjustedScore + engagementData.bonus);
+        const finalReasoning = engagementData.bonus > 0
+          ? `${adjustmentReason || score.fit_reasoning}\n\n${engagementData.reasoning}`
+          : (adjustmentReason || score.fit_reasoning);
+
+        // Recalculate tier based on final score - ALIGNED WITH SPEC
         let tier: string;
-        if (adjustedScore >= 80) tier = "A";      // Tier 1 per spec
-        else if (adjustedScore >= 60) tier = "B"; // Tier 2 per spec
-        else if (adjustedScore >= 40) tier = "C"; // Tier 3 per spec
-        else tier = "D";                          // Pass per spec
+        if (finalScore >= 80) tier = "A";      // Tier 1 per spec
+        else if (finalScore >= 60) tier = "B"; // Tier 2 per spec
+        else if (finalScore >= 40) tier = "C"; // Tier 3 per spec
+        else tier = "D";                        // Pass per spec
 
         // Create deal snapshot for stale detection
         const dealSnapshot = {
@@ -828,15 +915,13 @@ async function handleBulkScore(
           buyer_id: buyer.id,
           universe_id: universeId,
           ...score,
-          composite_score: adjustedScore,
+          composite_score: finalScore,
           tier,
           thesis_bonus: thesisBonus,
           acquisition_score: score.acquisition_score,
           portfolio_score: score.portfolio_score,
           business_model_score: score.business_model_score,
-          fit_reasoning: adjustmentReason 
-            ? `${score.fit_reasoning}\n\nAdjustments: ${adjustmentReason}`
-            : score.fit_reasoning,
+          fit_reasoning: finalReasoning,
           scored_at: new Date().toISOString(),
           deal_snapshot: dealSnapshot,
         };
