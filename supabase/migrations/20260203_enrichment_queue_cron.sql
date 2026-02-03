@@ -1,6 +1,21 @@
 -- Migration: Set up cron job for processing enrichment queue
 -- Uses pg_cron + pg_net to call edge function
-
+--
+-- =============================================================
+-- SETUP INSTRUCTIONS (REQUIRED):
+-- =============================================================
+-- After running this migration, configure the database settings:
+--
+-- Option 1: Via Supabase Dashboard > SQL Editor
+--   ALTER DATABASE postgres SET app.settings.supabase_url = 'https://YOUR-PROJECT.supabase.co';
+--   ALTER DATABASE postgres SET app.settings.service_role_key = 'YOUR-SERVICE-ROLE-KEY';
+--
+-- Option 2: Via Supabase Dashboard > Database Settings > Vault
+--   Add secrets: supabase_url and service_role_key
+--
+-- Then verify settings work:
+--   SELECT trigger_enrichment_queue_processor();
+--
 -- =============================================================
 -- ENABLE PG_NET EXTENSION (for HTTP calls from Postgres)
 -- =============================================================
@@ -8,6 +23,66 @@
 -- Note: pg_net may need to be enabled via Supabase dashboard
 -- Extensions > pg_net > Enable
 CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- =============================================================
+-- CREATE CRON JOB LOGS TABLE
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS public.cron_job_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_name TEXT NOT NULL,
+  result JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cron_job_logs_job_name ON public.cron_job_logs(job_name, created_at DESC);
+
+-- =============================================================
+-- ATOMIC CLAIM FUNCTION (Prevents Race Conditions)
+-- =============================================================
+
+-- This function atomically claims queue items for processing.
+-- It updates the status to 'processing' and returns the claimed items.
+-- Uses FOR UPDATE SKIP LOCKED to prevent multiple workers from claiming the same items.
+CREATE OR REPLACE FUNCTION claim_enrichment_queue_items(
+  batch_size INTEGER DEFAULT 5,
+  max_attempts INTEGER DEFAULT 3
+)
+RETURNS TABLE (
+  id UUID,
+  listing_id UUID,
+  status TEXT,
+  attempts INTEGER,
+  queued_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH claimed AS (
+    SELECT eq.id
+    FROM public.enrichment_queue eq
+    WHERE eq.status = 'pending'
+      AND eq.attempts < max_attempts
+    ORDER BY eq.queued_at ASC
+    LIMIT batch_size
+    FOR UPDATE SKIP LOCKED
+  )
+  UPDATE public.enrichment_queue eq
+  SET
+    status = 'processing',
+    attempts = eq.attempts + 1,
+    started_at = NOW(),
+    updated_at = NOW()
+  FROM claimed
+  WHERE eq.id = claimed.id
+  RETURNING eq.id, eq.listing_id, eq.status, eq.attempts, eq.queued_at;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION claim_enrichment_queue_items(INTEGER, INTEGER) TO service_role;
+COMMENT ON FUNCTION claim_enrichment_queue_items IS 'Atomically claims enrichment queue items for processing (prevents race conditions)';
 
 -- =============================================================
 -- CREATE FUNCTION TO CALL ENRICHMENT QUEUE PROCESSOR
@@ -24,8 +99,9 @@ DECLARE
   v_supabase_url TEXT;
   v_service_key TEXT;
 BEGIN
-  -- Get Supabase config from environment (set via Vault secrets)
-  -- These need to be configured in the database settings
+  -- Get Supabase config from environment (set via Vault secrets or ALTER DATABASE)
+  -- Run: ALTER DATABASE postgres SET app.settings.supabase_url = 'https://YOUR-PROJECT.supabase.co';
+  -- Run: ALTER DATABASE postgres SET app.settings.service_role_key = 'YOUR-SERVICE-ROLE-KEY';
   v_supabase_url := current_setting('app.settings.supabase_url', true);
   v_service_key := current_setting('app.settings.service_role_key', true);
 
@@ -33,7 +109,7 @@ BEGIN
   IF v_supabase_url IS NULL OR v_service_key IS NULL THEN
     v_result := jsonb_build_object(
       'success', false,
-      'error', 'Supabase URL or service key not configured in database settings',
+      'error', 'Supabase URL or service key not configured. Run: ALTER DATABASE postgres SET app.settings.supabase_url = ''https://YOUR-PROJECT.supabase.co''; ALTER DATABASE postgres SET app.settings.service_role_key = ''YOUR-KEY'';',
       'timestamp', NOW()
     );
 

@@ -758,7 +758,7 @@ const ReMarketingUniverseDetail = () => {
                   onScoreDeal={async (listingId) => {
                     try {
                       await supabase.functions.invoke('score-buyer-deal', {
-                        body: { listingId, universeId: id }
+                        body: { bulk: true, listingId, universeId: id }
                       });
                       toast.success('Deal scored');
                       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });

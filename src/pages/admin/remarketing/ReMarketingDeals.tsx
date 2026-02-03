@@ -581,8 +581,14 @@ const ReMarketingDeals = () => {
     setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
   }, []);
 
-  // Track which deals have been queued for enrichment to prevent duplicate queue entries
+  // Track which deals have been queued in this session (cleared on component mount)
+  // The database upsert handles true duplicate prevention
   const enrichingDealsRef = useRef<Set<string>>(new Set());
+
+  // Clear the ref when listings change significantly (e.g., page change, filter change)
+  useEffect(() => {
+    enrichingDealsRef.current.clear();
+  }, [sortConfig, statusFilter, universeFilter, searchQuery]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -729,7 +735,7 @@ const ReMarketingDeals = () => {
 
         const { error } = await supabase
           .from('enrichment_queue')
-          .upsert(queueEntries, { onConflict: 'listing_id', ignoreDuplicates: true });
+          .upsert(queueEntries, { onConflict: 'listing_id' });
 
         if (error) {
           console.error('Failed to queue deals for enrichment:', error);

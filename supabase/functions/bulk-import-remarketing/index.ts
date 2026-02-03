@@ -108,8 +108,46 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Verify admin access
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Verify admin access first
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: profile } = await authClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.is_admin) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Use service role for the actual operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { action, data, confirmClear }: { action: string; data?: ImportData; confirmClear?: boolean } = await req.json();
@@ -150,12 +188,63 @@ serve(async (req) => {
 
       console.log(`Deleting: ${learningCount} learning, ${scoreCount} scores, ${transcriptCount} transcripts, ${contactCount} contacts, ${buyerCount} buyers, ${universeCount} universes`);
 
-      await supabase.from('buyer_learning_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('buyer_transcripts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_buyer_contacts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_buyers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('remarketing_buyer_universes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // Delete in order respecting foreign key constraints
+      const deleteErrors: string[] = [];
+
+      const { error: learningError } = await supabase.from('buyer_learning_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (learningError) {
+        console.error('Failed to delete learning history:', learningError);
+        deleteErrors.push(`learning_history: ${learningError.message}`);
+      }
+
+      const { error: scoresError } = await supabase.from('remarketing_scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (scoresError) {
+        console.error('Failed to delete scores:', scoresError);
+        deleteErrors.push(`scores: ${scoresError.message}`);
+      }
+
+      const { error: transcriptsError } = await supabase.from('buyer_transcripts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (transcriptsError) {
+        console.error('Failed to delete transcripts:', transcriptsError);
+        deleteErrors.push(`transcripts: ${transcriptsError.message}`);
+      }
+
+      const { error: contactsError } = await supabase.from('remarketing_buyer_contacts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (contactsError) {
+        console.error('Failed to delete contacts:', contactsError);
+        deleteErrors.push(`contacts: ${contactsError.message}`);
+      }
+
+      const { error: buyersError } = await supabase.from('remarketing_buyers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (buyersError) {
+        console.error('Failed to delete buyers:', buyersError);
+        deleteErrors.push(`buyers: ${buyersError.message}`);
+      }
+
+      const { error: universesError } = await supabase.from('remarketing_buyer_universes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (universesError) {
+        console.error('Failed to delete universes:', universesError);
+        deleteErrors.push(`universes: ${universesError.message}`);
+      }
+
+      if (deleteErrors.length > 0) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: 'Some delete operations failed',
+          errors: deleteErrors,
+          deleted: {
+            learningHistory: learningError ? 0 : (learningCount || 0),
+            scores: scoresError ? 0 : (scoreCount || 0),
+            transcripts: transcriptsError ? 0 : (transcriptCount || 0),
+            contacts: contactsError ? 0 : (contactCount || 0),
+            buyers: buyersError ? 0 : (buyerCount || 0),
+            universes: universesError ? 0 : (universeCount || 0),
+          }
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       return new Response(JSON.stringify({
         success: true,
