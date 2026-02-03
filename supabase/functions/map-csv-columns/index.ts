@@ -73,7 +73,7 @@ const DEAL_FIELDS = [
   { field: 'google_review_score', description: 'Google review score/rating' },
   { field: 'linkedin_url', description: 'LinkedIn company profile URL' },
   { field: 'fireflies_url', description: 'URL to Fireflies call recording or transcript' },
-  { field: 'status', description: 'Deal status (e.g., Active, Evaluation, Closed)' },
+  // status is intentionally omitted - it should never be imported from CSV
   { field: 'last_contacted_at', description: 'Date of last contact with the company' },
 ];
 
@@ -271,9 +271,11 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       // Deal/Company mappings - ORDER MATTERS (most specific first)
       
       // IGNORE columns - check FIRST before any other matches
+      // Status should NEVER be imported - it's set by the system
       if (lower === 'marketplace' || lower === 'fit / not fit' || lower === 'fit/not fit' || 
           lower.includes('qualified') || lower.includes('buyers shown') || 
-          lower.includes('appointment') || lower.includes('data source')) {
+          lower.includes('appointment') || lower.includes('data source') ||
+          lower === 'status' || lower === 'deal status' || lower === 'stage' || lower === 'pipeline stage') {
         targetField = null;
         confidence = 0;
       }
