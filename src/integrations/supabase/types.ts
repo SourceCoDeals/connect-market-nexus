@@ -548,6 +548,66 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_enrichment_queue: {
+        Row: {
+          attempts: number
+          buyer_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          queued_at: string
+          rate_limit_reset_at: string | null
+          started_at: string | null
+          status: string
+          universe_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          buyer_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          queued_at?: string
+          rate_limit_reset_at?: string | null
+          started_at?: string | null
+          status?: string
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          buyer_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          queued_at?: string
+          rate_limit_reset_at?: string | null
+          started_at?: string | null
+          status?: string
+          universe_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_enrichment_queue_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: true
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_enrichment_queue_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_learning_history: {
         Row: {
           action: string

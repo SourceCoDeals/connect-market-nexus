@@ -61,6 +61,7 @@ import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
+import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
 import { useDealEnrichment } from "@/hooks/useDealEnrichment";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
 
@@ -118,13 +119,21 @@ const ReMarketingUniverseDetail = () => {
   const [isDeduping, setIsDeduping] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
 
-  // Use the enrichment hook for proper batch processing with progress tracking
+  // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
   const { 
-    progress: enrichmentProgress, 
-    enrichBuyers, 
-    cancel: cancelEnrichment, 
-    reset: resetEnrichment 
+    progress: legacyEnrichmentProgress, 
+    enrichBuyers: legacyEnrichBuyers, 
+    cancel: legacyCancelEnrichment, 
+    reset: legacyResetEnrichment 
   } = useBuyerEnrichment(id);
+
+  // Use the queue-based enrichment for persistent background processing
+  const {
+    progress: queueProgress,
+    queueBuyers,
+    cancel: cancelQueueEnrichment,
+    reset: resetQueueEnrichment,
+  } = useBuyerEnrichmentQueue(id);
 
   // Use the deal enrichment hook for proper batch processing with progress tracking
   const { 
@@ -447,7 +456,7 @@ const ReMarketingUniverseDetail = () => {
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
 
-  // Handler for buyer enrichment with mode selection
+  // Handler for buyer enrichment with mode selection - uses queue for background processing
   const handleBuyerEnrichment = async (mode: 'all' | 'unenriched') => {
     setShowBuyerEnrichDialog(false);
     
@@ -456,7 +465,7 @@ const ReMarketingUniverseDetail = () => {
       return;
     }
     
-    resetEnrichment();
+    resetQueueEnrichment();
     
     // Filter based on mode
     const buyersToEnrich = mode === 'all' 
@@ -468,7 +477,8 @@ const ReMarketingUniverseDetail = () => {
       return;
     }
     
-    await enrichBuyers(buyersToEnrich.map(b => ({
+    // Queue for background processing (persists even when navigating away)
+    await queueBuyers(buyersToEnrich.map(b => ({
       id: b.id,
       company_website: b.company_website,
       platform_website: b.platform_website,
@@ -584,7 +594,7 @@ const ReMarketingUniverseDetail = () => {
                       onAddBuyer={() => navigate('/admin/remarketing/buyers')}
                       onImportCSV={() => setImportBuyersDialogOpen(true)}
                       onEnrichAll={() => setShowBuyerEnrichDialog(true)}
-                      onCancelEnrichment={cancelEnrichment}
+                      onCancelEnrichment={cancelQueueEnrichment}
                       onScoreAlignment={async () => {
                         if (!buyers?.length) {
                           toast.error('No buyers to score');
@@ -624,15 +634,17 @@ const ReMarketingUniverseDetail = () => {
                           setIsDeduping(false);
                         }
                       }}
-                      isEnriching={enrichmentProgress.isRunning}
+                      isEnriching={queueProgress.isRunning}
                       isDeduping={isDeduping}
                       isScoringAlignment={isScoringAlignment}
                       enrichmentProgress={{
-                        current: enrichmentProgress.current,
-                        total: enrichmentProgress.total,
-                        successful: enrichmentProgress.successful,
-                        failed: enrichmentProgress.failed,
-                        creditsDepleted: enrichmentProgress.creditsDepleted
+                        current: queueProgress.completed + queueProgress.failed,
+                        total: queueProgress.total,
+                        successful: queueProgress.completed,
+                        failed: queueProgress.failed,
+                        creditsDepleted: false,
+                        rateLimited: queueProgress.rateLimited > 0,
+                        resetTime: queueProgress.rateLimitResetAt
                       }}
                       alignmentProgress={{
                         current: alignmentProgress.current,
@@ -1180,7 +1192,7 @@ const ReMarketingUniverseDetail = () => {
               variant="default"
               className="w-full justify-start h-auto py-4 px-4"
               onClick={() => handleBuyerEnrichment('all')}
-              disabled={enrichmentProgress.isRunning}
+              disabled={queueProgress.isRunning}
             >
               <div className="flex flex-col items-start gap-1">
                 <span className="font-medium">Enrich All</span>
@@ -1195,7 +1207,7 @@ const ReMarketingUniverseDetail = () => {
               variant="outline"
               className="w-full justify-start h-auto py-4 px-4"
               onClick={() => handleBuyerEnrichment('unenriched')}
-              disabled={enrichmentProgress.isRunning}
+              disabled={queueProgress.isRunning}
             >
               <div className="flex flex-col items-start gap-1">
                 <span className="font-medium">Only Unenriched</span>
