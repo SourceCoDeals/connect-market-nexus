@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
+import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
 
 type GenerationState = 'idle' | 'clarifying' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
 
@@ -87,6 +88,12 @@ export const AIResearchSection = ({
   const [missingElements, setMissingElements] = useState<string[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Error details state for enhanced error panel
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
+
+  // Track last clarification context for resume/retry
+  const lastClarificationContextRef = useRef<ClarificationContext>({});
 
   // Clarification state
   const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyQuestion[]>([]);
@@ -263,7 +270,11 @@ export const AIResearchSection = ({
     setQualityResult(null);
     setExtractedCriteria(null);
     setMissingElements([]);
+    setErrorDetails(null); // Clear any previous error
     clearProgress();
+
+    // Save context for potential retry/resume
+    lastClarificationContextRef.current = clarificationContext;
 
     batchRetryCountRef.current = {};
 
@@ -468,21 +479,42 @@ export const AIResearchSection = ({
                 break;
 
               case 'error':
+                // Set detailed error info for the error panel
+                const errorCode = event.error_code || 'unknown';
+                setErrorDetails({
+                  code: errorCode,
+                  message: event.message || 'Unknown error',
+                  batchIndex: event.batch_index ?? batchIndex,
+                  phaseName: phaseName || undefined,
+                  isRecoverable: event.recoverable ?? true,
+                  retryAfterMs: event.retry_after_ms,
+                  savedWordCount: event.saved_word_count || fullContent.split(/\s+/).length,
+                  timestamp: Date.now()
+                });
+
                 // Check for specific error codes
-                if (event.error_code === 'payment_required') {
-                  toast.error("AI credits depleted. Please add credits in Settings → Workspace → Usage to continue.", {
+                if (errorCode === 'payment_required') {
+                  toast.error("AI credits depleted. Please add credits to continue.", {
                     duration: 10000
                   });
                   setState('error');
                   return; // Don't retry billing errors
                 }
-                if (event.error_code === 'rate_limited') {
+                if (errorCode === 'rate_limited') {
                   // Throw with rate limit flag so catch block handles retry with backoff
                   const err = new Error(event.message);
                   (err as any).isRateLimited = true;
+                  (err as any).retryAfterMs = event.retry_after_ms || 30000;
                   throw err;
                 }
                 throw new Error(event.message);
+
+              case 'timeout_warning':
+                // Show toast warning about approaching timeout
+                toast.warning(event.message || 'Approaching time limit, saving progress...', {
+                  duration: 5000
+                });
+                break;
             }
           } catch (e) {
             // Don't silently swallow parse issues; they often indicate a truncated SSE stream.
@@ -497,20 +529,24 @@ export const AIResearchSection = ({
 
       // If the stream ends without a batch_complete, treat as failure (edge hard timeout / proxy cut-off).
       if (!sawBatchComplete) {
-        throw new Error(
+        const timeoutError = new Error(
           `Stream ended unexpectedly during batch ${batchIndex + 1}. This usually means the edge function hit a hard timeout or the connection was closed.`
         );
+        (timeoutError as any).code = 'function_timeout';
+        throw timeoutError;
       }
 
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         toast.info("Generation cancelled");
         setState('idle');
+        setErrorDetails(null);
       } else {
         const message = (error as Error).message || 'Unknown error';
+        const errorCode = (error as any).code || 'unknown';
 
         // Auto-retry on likely transient stream cut-offs or rate limits so the user doesn't need to manually resume.
-        const isStreamCutoff = message.includes('Stream ended unexpectedly during batch');
+        const isStreamCutoff = message.includes('Stream ended unexpectedly during batch') || errorCode === 'function_timeout';
         const isRateLimited = 
           (error as any).isRateLimited || 
           message.includes('Rate limit') ||
@@ -522,11 +558,13 @@ export const AIResearchSection = ({
           batchRetryCountRef.current[batchIndex] = currentRetries + 1;
           
           // Use longer backoff for rate limits (30s) vs stream cutoffs (1-3s)
-          const backoffMs = isRateLimited ? 30000 : 1000 * (currentRetries + 1);
+          const backoffMs = isRateLimited 
+            ? ((error as any).retryAfterMs || 30000)
+            : 1000 * (currentRetries + 1);
           
           toast.info(
             isRateLimited
-              ? `Rate limit hit. Waiting 30s before retry (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+              ? `Rate limit hit. Waiting ${Math.round(backoffMs / 1000)}s before retry (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
               : `Connection dropped during batch ${batchIndex + 1}. Retrying (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
           );
           
@@ -539,7 +577,21 @@ export const AIResearchSection = ({
         }
 
         console.error('Generation error:', error);
-        toast.error(`Generation failed: ${message}`);
+
+        // Set error details if not already set by SSE event
+        if (!errorDetails) {
+          setErrorDetails({
+            code: isRateLimited ? 'rate_limited' : (isStreamCutoff ? 'function_timeout' : errorCode),
+            message,
+            batchIndex,
+            phaseName: phaseName || undefined,
+            isRecoverable: isRateLimited || isStreamCutoff,
+            retryAfterMs: isRateLimited ? ((error as any).retryAfterMs || 30000) : undefined,
+            savedWordCount: wordCount,
+            timestamp: Date.now()
+          });
+        }
+
         setState('error');
       }
     }
@@ -552,6 +604,7 @@ export const AIResearchSection = ({
     setState('idle');
     setClarifyingQuestions([]);
     setClarifyAnswers({});
+    setErrorDetails(null);
   };
 
   const handleApply = () => {
@@ -571,6 +624,30 @@ export const AIResearchSection = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Error panel handlers
+  const handleErrorRetry = () => {
+    setErrorDetails(null);
+    handleGenerate(lastClarificationContextRef.current);
+  };
+
+  const handleErrorResume = () => {
+    if (savedProgress) {
+      setErrorDetails(null);
+      resumeGeneration(savedProgress);
+    } else if (content && errorDetails) {
+      // Resume from current content if no saved progress
+      setErrorDetails(null);
+      setState('generating');
+      abortControllerRef.current = new AbortController();
+      generateBatch(errorDetails.batchIndex, content, lastClarificationContextRef.current);
+    }
+  };
+
+  const handleErrorCancel = () => {
+    setErrorDetails(null);
+    setState('idle');
   };
 
   const progressPercent = totalPhases > 0 ? (currentPhase / totalPhases) * 100 : 0;
@@ -693,8 +770,20 @@ export const AIResearchSection = ({
               </div>
             )}
 
-            {/* Industry Input - shown in idle state */}
-            {(state === 'idle' || state === 'complete' || state === 'error') && (
+            {/* Error Panel - shown when state is error and we have error details */}
+            {state === 'error' && errorDetails && (
+              <GuideGenerationErrorPanel
+                errorDetails={errorDetails}
+                onRetry={handleErrorRetry}
+                onResume={handleErrorResume}
+                onCancel={handleErrorCancel}
+                hasCheckpoint={!!savedProgress || (content.length > 0 && errorDetails.savedWordCount !== undefined && errorDetails.savedWordCount > 0)}
+                totalBatches={totalBatches}
+              />
+            )}
+
+            {/* Industry Input - shown in idle state or error state without error panel */}
+            {(state === 'idle' || state === 'complete' || (state === 'error' && !errorDetails)) && (
               <div className="flex gap-4 items-end">
                 <div className="flex-1 space-y-2">
                   <Label htmlFor="industry-name">Industry Name</Label>

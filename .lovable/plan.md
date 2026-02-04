@@ -1,9 +1,11 @@
 
 # Plan: M&A Research Guide Timeout Improvements
 
+**Status: ✅ IMPLEMENTED**
+
 ## Problem Analysis
 
-The M&A Research Guide generation is experiencing timeouts and abrupt stops. Based on code analysis, the root causes are:
+The M&A Research Guide generation was experiencing timeouts and abrupt stops. Based on code analysis, the root causes were:
 
 ### Root Causes Identified
 
@@ -19,196 +21,87 @@ The M&A Research Guide generation is experiencing timeouts and abrupt stops. Bas
 
 ---
 
-## Solution Overview
+## Solution Implemented
 
-### Part 1: Enhanced User-Facing Error Messaging
+### Part 1: Enhanced User-Facing Error Messaging ✅
 
-Add a dedicated error state panel in the UI that shows:
+Added a dedicated error state panel (`GuideGenerationErrorPanel.tsx`) that shows:
 - What phase/batch failed
 - The specific error reason (rate limit, timeout, credits, network)
 - Suggested actions to resolve the issue
-- One-click retry options
+- One-click retry/resume options
+- Collapsible technical details
 
-### Part 2: Better Timeout Detection and Communication
+### Part 2: Better Timeout Detection and Communication ✅
 
-Improve the edge function to:
-- Detect approaching timeouts and gracefully conclude with a resumable state
-- Send periodic "time remaining" heartbeats so the client knows if a timeout is imminent
-- Return structured error codes for different failure modes
+Improved the edge function to:
+- Track elapsed time with `FUNCTION_START` timestamp
+- Check remaining time before each phase (`hasTimeForPhase()`)
+- Send `timeout_warning` SSE event when approaching limit
+- Gracefully exit with `timeout_approaching: true` in batch_complete
+- Include `remaining_time_ms` in phase events for client awareness
 
-### Part 3: Progress Persistence Improvements
+### Part 3: Progress Persistence Improvements ✅
 
-Enhance the resume functionality to:
-- Save progress more granularly (after each phase, not just each batch)
-- Display clearer resume prompts with context about what was completed
-- Auto-retry transient failures with better backoff strategy
-
----
-
-## Implementation Details
-
-### File Changes
-
-**1. `src/components/remarketing/AIResearchSection.tsx`**
-
-Add a new error details panel that displays when `state === 'error'`:
-
-```text
-Changes:
-- Add errorDetails state object to track: errorCode, errorMessage, batch, phase, timestamp, isRecoverable
-- Create ErrorDetailsPanel component showing:
-  • Error icon with severity color (red for critical, amber for retryable)
-  • Clear heading: "Generation Failed" or "Rate Limit Reached"
-  • Specific message explaining what happened
-  • Action buttons: "Retry", "Resume from Last Checkpoint", "Contact Support"
-  • Collapsible technical details for debugging
-- Modify SSE event handlers to capture detailed error info
-- Add retry countdown timer for rate limit errors
-```
-
-**2. `supabase/functions/generate-ma-guide/index.ts`**
-
-Add timeout awareness and enhanced error reporting:
-
-```text
-Changes:
-- Add FUNCTION_TIMEOUT_MS constant (~140s - below platform limit)
-- Track function start time and calculate remaining time
-- Send 'timeout_warning' SSE event when <30s remaining
-- On approaching timeout: gracefully complete current phase, save progress, return structured 'timeout' error
-- Add more specific error codes: 'phase_timeout', 'function_timeout', 'api_rate_limit', 'api_overload'
-- Include batch/phase context in all error events
-```
-
-**3. New: `src/components/remarketing/GuideGenerationErrorPanel.tsx`**
-
-Create a dedicated error display component:
-
-```text
-Contents:
-- ErrorPanel component with:
-  • Error type icons (AlertTriangle for timeout, Clock for rate limit, XCircle for critical)
-  • Error-specific messaging and suggested actions
-  • Retry button with countdown for rate-limited errors
-  • Resume button when checkpoint is available
-  • "What happened" expandable section with technical details
-  • Link to troubleshooting docs
-```
-
-### Error Type Mappings
-
-| Error Code | User Message | Action |
-|------------|--------------|--------|
-| `rate_limited` | "Rate limit reached. The AI service is processing too many requests." | Show countdown timer, auto-retry after delay |
-| `phase_timeout` | "Phase took too long to generate. This sometimes happens with complex industries." | Offer retry with faster model |
-| `function_timeout` | "Generation timed out. Progress has been saved." | Prominent resume button |
-| `payment_required` | "AI credits depleted. Add credits to continue." | Link to billing settings |
-| `service_overloaded` | "AI service is temporarily overloaded." | Retry button with 30s delay |
-| `network_error` | "Connection lost during generation." | Check connection, retry |
-
-### UI Mockup (Error State)
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ ⚠️  Generation Interrupted                             │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  Rate limit reached during Batch 3, Phase 6            │
-│                                                         │
-│  The AI service received too many requests. This is    │
-│  temporary and your progress has been saved.           │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ Progress saved: 12,450 words (Batches 1-2 done) │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                         │
-│  [ Resume in 28s ]  [ Retry Now ]  [ Cancel ]          │
-│                                                         │
-│  ▼ Technical Details                                    │
-│    Error code: rate_limited                             │
-│    Batch: 3 of 7                                        │
-│    Phase: 6 (Financial Attractiveness)                  │
-│    Timestamp: 2026-02-04 06:19:00                       │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
+Enhanced error handling to:
+- Save word count and batch index in error details
+- Display resume buttons with context about saved progress
+- Auto-retry with configurable backoff (30s for rate limits)
 
 ---
 
-## Technical Details
-
-### Edge Function Timeout Handling
-
-The Supabase edge function will be updated to track elapsed time:
-
-```javascript
-// At function start
-const FUNCTION_START = Date.now();
-const FUNCTION_TIMEOUT_MS = 140000; // 140s (below 150s hard limit)
-
-// Before each phase
-const elapsed = Date.now() - FUNCTION_START;
-const remaining = FUNCTION_TIMEOUT_MS - elapsed;
-
-if (remaining < 35000) {
-  // Not enough time for another phase (~30s needed)
-  send({
-    type: 'timeout_warning',
-    message: 'Approaching time limit, completing current batch...',
-    remaining_ms: remaining
-  });
-  
-  // Return partial success with resumption point
-  send({
-    type: 'batch_complete',
-    content: fullContent,
-    is_final: false,
-    next_batch_index: batch_index + 1,
-    timeout_approaching: true
-  });
-  break; // Exit phase loop gracefully
-}
-```
-
-### Frontend Error State Enhancement
-
-```typescript
-interface ErrorDetails {
-  code: string;
-  message: string;
-  batchIndex: number;
-  phaseIndex: number;
-  phaseName: string;
-  isRecoverable: boolean;
-  retryAfterMs?: number;
-  savedWordCount?: number;
-  timestamp: number;
-}
-
-// In catch block
-if ((error as any).isRateLimited) {
-  setErrorDetails({
-    code: 'rate_limited',
-    message: 'Rate limit reached. The AI service needs a brief cooldown.',
-    batchIndex: currentBatch,
-    phaseIndex: currentPhase,
-    phaseName,
-    isRecoverable: true,
-    retryAfterMs: 30000,
-    savedWordCount: wordCount,
-    timestamp: Date.now()
-  });
-}
-```
-
----
-
-## Summary of Changes
+## Files Changed
 
 | File | Change Type | Purpose |
 |------|-------------|---------|
-| `AIResearchSection.tsx` | Modify | Add error details state, error panel rendering |
-| `GuideGenerationErrorPanel.tsx` | New | Dedicated error display component |
-| `generate-ma-guide/index.ts` | Modify | Add timeout awareness, enhanced error events |
+| `src/components/remarketing/GuideGenerationErrorPanel.tsx` | **New** | Dedicated error display component with retry/resume |
+| `src/components/remarketing/AIResearchSection.tsx` | Modified | Added error details state, error panel rendering, handlers |
+| `supabase/functions/generate-ma-guide/index.ts` | Modified | Added timeout tracking, enhanced error events |
 
-This solution provides clear user feedback about what went wrong, whether it can be fixed, and exactly what action to take - eliminating the confusion of silent failures.
+---
+
+## Error Type Mappings
+
+| Error Code | User Message | Action |
+|------------|--------------|--------|
+| `rate_limited` | "Rate limit reached. The AI service received too many requests." | Countdown timer, auto-retry after delay |
+| `phase_timeout` | "Phase took too long to generate." | Retry button |
+| `function_timeout` | "Generation timed out. Progress has been saved." | Resume button |
+| `payment_required` | "AI credits depleted." | Link to billing settings |
+| `service_overloaded` | "AI service is temporarily overloaded." | Retry with delay |
+| `network_error` | "Connection lost during generation." | Check connection, retry |
+
+---
+
+## Technical Implementation
+
+### Edge Function Timeout Constants
+```javascript
+const FUNCTION_TIMEOUT_MS = 140000; // 140s (below 150s hard limit)
+const MIN_TIME_FOR_PHASE_MS = 35000; // Need 35s to safely complete a phase
+```
+
+### Timeout Check Logic
+```javascript
+const getRemainingTime = () => FUNCTION_TIMEOUT_MS - (Date.now() - FUNCTION_START);
+const hasTimeForPhase = () => getRemainingTime() > MIN_TIME_FOR_PHASE_MS;
+
+if (!hasTimeForPhase()) {
+  send({ type: 'timeout_warning', remaining_ms: getRemainingTime() });
+  send({ type: 'batch_complete', timeout_approaching: true, ... });
+  return;
+}
+```
+
+### Enhanced Error Event
+```javascript
+send({
+  type: 'error',
+  message: err.message,
+  error_code: errorCode,
+  recoverable,
+  batch_index,
+  saved_word_count: fullContent.split(/\s+/).length,
+  retry_after_ms: errorCode === 'rate_limited' ? 30000 : undefined
+});
+```
