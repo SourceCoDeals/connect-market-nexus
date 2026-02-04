@@ -37,8 +37,8 @@ serve(async (req) => {
 
     console.log('Processing buyer enrichment queue...');
 
-    // Recovery: reset stale processing items (stuck for 10+ minutes)
-    const staleCutoffIso = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    // Recovery: reset stale processing items (stuck for 3+ minutes)
+    const staleCutoffIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
     await supabase
       .from('buyer_enrichment_queue')
       .update({
