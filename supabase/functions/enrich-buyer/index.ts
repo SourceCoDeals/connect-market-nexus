@@ -222,14 +222,24 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 // CLAUDE AI EXTRACTION
 // ============================================================================
 
+// Inter-call delay to avoid Anthropic rate limits (RPM)
+const CLAUDE_INTER_CALL_DELAY_MS = 500;
+const CLAUDE_MAX_RETRIES = 2;
+const CLAUDE_RETRY_BASE_DELAY_MS = 2000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function callClaudeAI(
   systemPrompt: string,
   userPrompt: string,
   tool: { name: string; description: string; input_schema: any },
-  apiKey: string
+  apiKey: string,
+  retryCount: number = 0
 ): Promise<{ data: any | null; error?: { code: string; message: string } }> {
   try {
-    console.log(`Calling Claude with tool: ${tool.name}`);
+    console.log(`Calling Claude with tool: ${tool.name}${retryCount > 0 ? ` (retry ${retryCount})` : ''}`);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -253,9 +263,19 @@ async function callClaudeAI(
     if (response.status === 402) {
       return { data: null, error: { code: 'payment_required', message: 'AI credits depleted' } };
     }
+    
     if (response.status === 429) {
-      return { data: null, error: { code: 'rate_limited', message: 'Rate limit exceeded' } };
+      // Retry with exponential backoff for Anthropic rate limits
+      if (retryCount < CLAUDE_MAX_RETRIES) {
+        const retryDelay = CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
+        console.warn(`Claude rate limited, retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
+        await sleep(retryDelay);
+        return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
+      }
+      // After max retries, return the rate limit error
+      return { data: null, error: { code: 'rate_limited', message: 'Rate limit exceeded after retries' } };
     }
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Claude call failed: ${response.status}`, errorText.substring(0, 500));
@@ -271,6 +291,10 @@ async function callClaudeAI(
     }
 
     console.log(`Claude extracted ${Object.keys(toolUse.input).length} fields via ${tool.name}`);
+    
+    // Add delay after successful call to avoid hitting RPM limits
+    await sleep(CLAUDE_INTER_CALL_DELAY_MS);
+    
     return { data: toolUse.input };
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
