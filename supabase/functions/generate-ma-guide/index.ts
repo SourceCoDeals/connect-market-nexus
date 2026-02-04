@@ -619,6 +619,10 @@ const MAX_RETRIES = 0;
 // Inter-phase delay to prevent hitting rate limits
 const INTER_PHASE_DELAY_MS = 1500; // 1.5 seconds between API calls (reduced for efficiency)
 
+// Function-level timeout tracking - exit gracefully before platform hard timeout (~150s)
+const FUNCTION_TIMEOUT_MS = 140000; // 140 seconds - leave buffer before platform kills us
+const MIN_TIME_FOR_PHASE_MS = 35000; // Need at least 35s to safely complete another phase
+
 // Model selection: Use Sonnet for critical phases, Haiku for standard
 const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
 const getModelForPhase = (phaseId: string) => 
@@ -1015,6 +1019,7 @@ serve(async (req) => {
   }
 
   const encoder = new TextEncoder();
+  const FUNCTION_START = Date.now(); // Track when the function started
 
   try {
     const { 
@@ -1102,14 +1107,41 @@ serve(async (req) => {
         let fullContent = previous_content;
 
         try {
+          // Helper to check if we're approaching function timeout
+          const getRemainingTime = () => FUNCTION_TIMEOUT_MS - (Date.now() - FUNCTION_START);
+          const hasTimeForPhase = () => getRemainingTime() > MIN_TIME_FOR_PHASE_MS;
+
           // Send batch start
           send({
             type: 'batch_start',
             batch_index,
             total_batches: totalBatches,
             start_phase: startPhase + 1,
-            end_phase: endPhase
+            end_phase: endPhase,
+            remaining_time_ms: getRemainingTime()
           });
+
+          // Check if we have enough time to even start this batch
+          if (!hasTimeForPhase()) {
+            console.warn(`[TIMEOUT_WARNING] Not enough time to start batch ${batch_index + 1}. Remaining: ${getRemainingTime()}ms`);
+            send({
+              type: 'timeout_warning',
+              message: 'Approaching time limit, saving progress...',
+              remaining_ms: getRemainingTime()
+            });
+            send({
+              type: 'batch_complete',
+              batch_index,
+              content: fullContent,
+              wordCount: fullContent.split(/\s+/).length,
+              is_final: false,
+              next_batch_index: batch_index, // Re-start from this batch
+              timeout_approaching: true
+            });
+            clearInterval(heartbeatInterval);
+            controller.close();
+            return;
+          }
 
           // Generate phases in this batch - run in parallel if possible
           if (batchPhases.length === 2 && canRunInParallel(batchPhases[0].id, batchPhases[1].id)) {
@@ -1172,13 +1204,38 @@ serve(async (req) => {
               const phase = batchPhases[i];
               const globalPhaseIndex = startPhase + i;
               
+              // Check if we have enough time for another phase
+              if (!hasTimeForPhase()) {
+                console.warn(`[TIMEOUT_WARNING] Not enough time for phase ${phase.id}. Remaining: ${getRemainingTime()}ms`);
+                send({
+                  type: 'timeout_warning',
+                  message: `Approaching time limit after ${i} phases, saving progress...`,
+                  remaining_ms: getRemainingTime(),
+                  phases_completed_in_batch: i
+                });
+                // End batch early but save progress
+                send({
+                  type: 'batch_complete',
+                  batch_index,
+                  content: fullContent,
+                  wordCount: fullContent.split(/\s+/).length,
+                  is_final: false,
+                  next_batch_index: batch_index, // Client should resume from this batch
+                  timeout_approaching: true,
+                  phases_completed: i
+                });
+                clearInterval(heartbeatInterval);
+                controller.close();
+                return;
+              }
+              
               // Add delay between phases to prevent rate limiting (skip first phase)
               if (i > 0) {
                 send({ type: 'heartbeat', message: 'Cooling down before next phase...' });
                 await new Promise(r => setTimeout(r, INTER_PHASE_DELAY_MS));
               }
               
-              // Send phase start
+              // Send phase start with remaining time info
               send({ 
                 type: 'phase_start', 
                 phase: globalPhaseIndex + 1, 
@@ -1186,7 +1243,8 @@ serve(async (req) => {
                 id: phase.id,
                 name: phase.name,
                 batch: batch_index + 1,
-                total_batches: totalBatches
+                total_batches: totalBatches,
+                remaining_time_ms: getRemainingTime()
               });
 
               // Generate phase content with clarification context
@@ -1208,7 +1266,8 @@ serve(async (req) => {
                 wordCount: fullContent.split(/\s+/).length,
                 // Include full content so frontend can save progress after each phase
                 content: fullContent,
-                phaseId: phase.id
+                phaseId: phase.id,
+                remaining_time_ms: getRemainingTime()
               });
             }
           }
@@ -1276,16 +1335,23 @@ serve(async (req) => {
             recoverable,
             batch: batch_index,
             industry: industry_name,
+            elapsed_ms: Date.now() - FUNCTION_START,
             totalPhasesCompleted: batchPhases.findIndex(p => true), // How many phases completed before error
             stack: err.stack?.split('\n').slice(0, 3).join(' | ') // First 3 lines of stack trace
           });
 
+          // Send enhanced error event with more context
           send({
             type: 'error',
             message: err.message,
             error_code: errorCode,
             recoverable,
-            batch_index
+            batch_index,
+            saved_word_count: fullContent.split(/\s+/).length,
+            total_batches: totalBatches,
+            elapsed_ms: Date.now() - FUNCTION_START,
+            // Include retry timing hints for the client
+            retry_after_ms: errorCode === 'rate_limited' ? 30000 : (errorCode === 'service_overloaded' ? 15000 : undefined)
           });
         } finally {
           clearInterval(heartbeatInterval);
