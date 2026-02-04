@@ -343,7 +343,7 @@ export function ReMarketingChat({
   // Floating chat bubble (closed state)
   if (!isOpen) {
     return (
-      <div className={cn("fixed bottom-6 right-6 z-50", className)}>
+      <div className={cn("fixed bottom-8 right-8 z-50", className)}>
         <Button
           onClick={() => setIsOpen(true)}
           size="lg"
@@ -358,7 +358,7 @@ export function ReMarketingChat({
   // Minimized state
   if (isMinimized) {
     return (
-      <div className={cn("fixed bottom-6 right-6 z-50", className)}>
+      <div className={cn("fixed bottom-8 right-8 z-50", className)}>
         <Button
           onClick={() => setIsMinimized(false)}
           className="gap-2 shadow-lg rounded-full px-4"
@@ -378,8 +378,8 @@ export function ReMarketingChat({
 
   // Full chat panel
   return (
-    <div className={cn("fixed bottom-6 right-6 z-50 w-[420px] max-w-[calc(100vw-48px)]", className)}>
-      <Card className="flex flex-col h-[600px] max-h-[80vh] shadow-2xl border-2">
+    <div className={cn("fixed bottom-8 right-8 z-50 w-[480px] max-w-[calc(100vw-64px)]", className)}>
+      <Card className="flex flex-col h-[650px] max-h-[85vh] shadow-2xl border-2 bg-background">
         <CardHeader className="py-3 px-4 border-b flex-shrink-0 bg-gradient-to-r from-primary/10 to-transparent">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
