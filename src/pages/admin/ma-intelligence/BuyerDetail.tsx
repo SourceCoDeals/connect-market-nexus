@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Sparkles, Building2, FileText, Phone, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { IntelligenceBadge } from "@/components/ma-intelligence/IntelligenceBadge";
+import { IntelligenceBadge } from "@/components/ma-intelligence";
 import { getIntelligenceCoverage, calculateIntelligencePercentage } from "@/lib/ma-intelligence/types";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 

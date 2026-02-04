@@ -26,7 +26,6 @@ import {
   BuyerFitCriteriaDialog,
   AIResearchSection,
   ScoringStyleCard,
-  MatchCriteriaCard,
   BuyerFitCriteriaAccordion,
   CriteriaExtractionPanel,
   StructuredCriteriaPanel,
@@ -854,14 +853,6 @@ const ReMarketingUniverseDetail = () => {
               onScoringBehaviorChange={setScoringBehavior}
               onSave={() => saveMutation.mutate()}
               isSaving={saveMutation.isPending}
-            />
-
-            {/* Match Criteria - Quick Summary */}
-            <MatchCriteriaCard
-              sizeCriteria={sizeCriteria}
-              geographyCriteria={geographyCriteria}
-              serviceCriteria={serviceCriteria}
-              onEdit={() => setShowCriteriaEdit(true)}
             />
 
             {/* Buyer Fit Criteria - Full Detail with Target Buyer Types */}

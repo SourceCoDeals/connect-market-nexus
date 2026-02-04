@@ -12,7 +12,7 @@ import { Loader2, FileText, MoreHorizontal, Archive, Trash2, ArrowUp, ArrowDown,
 import { useToast } from "@/hooks/use-toast";
 import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 import { deleteDealWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
-import { DealScoreBadge } from "@/components/ma-intelligence/DealScoreBadge";
+import { DealScoreBadge } from "@/components/ma-intelligence";
 
 type SortColumn = "deal_name" | "tracker" | "geography" | "revenue" | "ebitda" | "score" | "date";
 type SortDirection = "asc" | "desc";
