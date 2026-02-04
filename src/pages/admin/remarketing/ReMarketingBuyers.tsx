@@ -53,7 +53,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
-import { BuyerCSVImport, IntelligenceBadge } from "@/components/remarketing";
+import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
@@ -560,6 +560,11 @@ const ReMarketingBuyers = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* AI Chat */}
+      <ReMarketingChat
+        context={{ type: "buyers", totalBuyers: filteredBuyers.length }}
+      />
     </div>
   );
 };

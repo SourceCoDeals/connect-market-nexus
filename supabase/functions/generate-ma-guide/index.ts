@@ -605,24 +605,37 @@ Be comprehensive and specific.`;
   return textBlock?.text || '';
 }
 
-// Batch configuration: 1 phase per batch to prevent timeouts
-// Each phase can take 20-60s, so 1 phase ensures we stay under timeout limits
-const BATCH_SIZE = 1;
+// Batch configuration: 2 phases per batch for faster generation
+// Phases within a batch run in parallel where possible
+const BATCH_SIZE = 2;
 
 // Phase timeout configuration
 // Keep this below the platform/edge hard timeout so we can still send a structured SSE error event.
-const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase
+const PHASE_TIMEOUT_MS = 50000; // 50 seconds per phase (slightly higher for parallel)
 // Retrying inside the same request can push the function over the hard timeout and kill the stream mid-flight.
 // Prefer failing fast and letting the client retry the batch.
 const MAX_RETRIES = 0;
 
 // Inter-phase delay to prevent hitting rate limits
-const INTER_PHASE_DELAY_MS = 2000; // 2 seconds between API calls
+const INTER_PHASE_DELAY_MS = 1500; // 1.5 seconds between API calls (reduced for efficiency)
 
 // Model selection: Use Sonnet for critical phases, Haiku for standard
 const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
 const getModelForPhase = (phaseId: string) => 
   CRITICAL_PHASES.includes(phaseId) ? DEFAULT_CLAUDE_MODEL : DEFAULT_CLAUDE_FAST_MODEL;
+
+// Define which phases can run in parallel (don't depend on each other's output)
+const PARALLEL_PHASE_GROUPS = [
+  ['1a', '1b'],      // Industry definition & terminology can run together
+  ['1c', '1d'],      // Economics & ecosystem can run together
+  ['2a', '2b'],      // Financial & operational attractiveness can run together
+];
+
+function canRunInParallel(phaseId1: string, phaseId2: string): boolean {
+  return PARALLEL_PHASE_GROUPS.some(group => 
+    group.includes(phaseId1) && group.includes(phaseId2)
+  );
+}
 
 // Timeout wrapper for phase generation
 async function generatePhaseWithTimeout(
@@ -1098,66 +1111,106 @@ serve(async (req) => {
             end_phase: endPhase
           });
 
-          // Generate each phase in this batch
-          for (let i = 0; i < batchPhases.length; i++) {
-            const phase = batchPhases[i];
-            const globalPhaseIndex = startPhase + i;
+          // Generate phases in this batch - run in parallel if possible
+          if (batchPhases.length === 2 && canRunInParallel(batchPhases[0].id, batchPhases[1].id)) {
+            // Parallel generation for independent phases
+            const globalPhaseIndex0 = startPhase;
+            const globalPhaseIndex1 = startPhase + 1;
 
-            // Add delay between phases to prevent rate limiting (skip first phase)
-            if (i > 0) {
-              send({ type: 'heartbeat', message: 'Cooling down before next phase...' });
-              await new Promise(r => setTimeout(r, INTER_PHASE_DELAY_MS));
-            }
-
-            // DIAGNOSTIC LOGGING: Phase start
-            const phaseStartTime = Date.now();
-            console.log(`[PHASE_START] ${phase.id} "${phase.name}" (phase ${globalPhaseIndex + 1}/${GENERATION_PHASES.length}, batch ${batch_index + 1}/${totalBatches})`);
-
-            // Send phase start
-            send({
-              type: 'phase_start',
-              phase: globalPhaseIndex + 1,
+            // Notify both phases are starting
+            send({ 
+              type: 'phase_start', 
+              phase: globalPhaseIndex0 + 1, 
               total: GENERATION_PHASES.length,
-              id: phase.id,
-              name: phase.name,
+              id: batchPhases[0].id,
+              name: batchPhases[0].name,
               batch: batch_index + 1,
-              total_batches: totalBatches
+              total_batches: totalBatches,
+              parallel: true
+            });
+            send({ 
+              type: 'phase_start', 
+              phase: globalPhaseIndex1 + 1, 
+              total: GENERATION_PHASES.length,
+              id: batchPhases[1].id,
+              name: batchPhases[1].name,
+              batch: batch_index + 1,
+              total_batches: totalBatches,
+              parallel: true
             });
 
-            // Generate phase content with clarification context
-            const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context);
-            fullContent += phaseContent + '\n\n';
+            // Generate both phases in parallel
+            const [content0, content1] = await Promise.all([
+              generatePhaseContent(batchPhases[0], industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context),
+              generatePhaseContent(batchPhases[1], industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context)
+            ]);
 
-            // DIAGNOSTIC LOGGING: Phase complete
-            const phaseDuration = Date.now() - phaseStartTime;
-            const phaseWordCount = phaseContent.split(/\s+/).length;
-            const totalWordCount = fullContent.split(/\s+/).length;
-            console.log(`[PHASE_COMPLETE] ${phase.id} - ${phaseDuration}ms, ${phaseWordCount} words (total: ${totalWordCount} words)`);
+            // Stream content from both phases
+            const allContent = content0 + '\n\n' + content1;
+            fullContent += allContent + '\n\n';
 
-            // DIAGNOSTIC WARNING: Slow phase
-            if (phaseDuration > 40000) {
-              console.warn(`[PHASE_SLOW] ${phase.id} took ${phaseDuration}ms (approaching ${PHASE_TIMEOUT_MS}ms timeout)`);
-            }
-
-            // Send content chunks
-            const chunks = phaseContent.match(/.{1,500}/g) || [];
+            const chunks = allContent.match(/.{1,500}/g) || [];
             for (const chunk of chunks) {
               send({ type: 'content', content: chunk });
-              // Small delay for smoother streaming
-              await new Promise(r => setTimeout(r, 30));
+              await new Promise(r => setTimeout(r, 20)); // Slightly faster streaming
             }
 
-            // Send phase complete with content for frontend progress saving
-            send({
-              type: 'phase_complete',
-              phase: globalPhaseIndex + 1,
-              wordCount: totalWordCount,
-              phaseDuration: phaseDuration,
-              phaseWordCount: phaseWordCount,
-              // Include full content so frontend can save progress after each phase
+            // Send phase complete for both
+            send({ 
+              type: 'phase_complete', 
+              phase: globalPhaseIndex1 + 1, // Use higher phase for progress
+              wordCount: fullContent.split(/\s+/).length,
               content: fullContent,
-              phaseId: phase.id
+              phaseId: batchPhases[1].id,
+              parallel: true,
+              phasesCompleted: [batchPhases[0].id, batchPhases[1].id]
             });
+
+          } else {
+            // Sequential generation for dependent phases
+            for (let i = 0; i < batchPhases.length; i++) {
+              const phase = batchPhases[i];
+              const globalPhaseIndex = startPhase + i;
+              
+              // Add delay between phases to prevent rate limiting (skip first phase)
+              if (i > 0) {
+                send({ type: 'heartbeat', message: 'Cooling down before next phase...' });
+                await new Promise(r => setTimeout(r, INTER_PHASE_DELAY_MS));
+              }
+              
+              // Send phase start
+              send({ 
+                type: 'phase_start', 
+                phase: globalPhaseIndex + 1, 
+                total: GENERATION_PHASES.length,
+                id: phase.id,
+                name: phase.name,
+                batch: batch_index + 1,
+                total_batches: totalBatches
+              });
+
+              // Generate phase content with clarification context
+              const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context);
+              fullContent += phaseContent + '\n\n';
+
+              // Send content chunks
+              const chunks = phaseContent.match(/.{1,500}/g) || [];
+              for (const chunk of chunks) {
+                send({ type: 'content', content: chunk });
+                // Small delay for smoother streaming
+                await new Promise(r => setTimeout(r, 30));
+              }
+
+              // Send phase complete with content for frontend progress saving
+              send({ 
+                type: 'phase_complete', 
+                phase: globalPhaseIndex + 1,
+                wordCount: fullContent.split(/\s+/).length,
+                // Include full content so frontend can save progress after each phase
+                content: fullContent,
+                phaseId: phase.id
+              });
+            }
           }
 
           // Send batch complete

@@ -7,7 +7,8 @@ interface EnrichmentProgressIndicatorProps {
   totalCount: number;
   progress: number;
   estimatedTimeRemaining?: string;
-  processingRate?: number; // deals per minute
+  processingRate?: number; // items per minute
+  itemLabel?: string; // "deals", "buyers", etc. - defaults to "deals"
 }
 
 export const EnrichmentProgressIndicator = ({
@@ -16,8 +17,10 @@ export const EnrichmentProgressIndicator = ({
   progress,
   estimatedTimeRemaining,
   processingRate,
+  itemLabel = 'deals',
 }: EnrichmentProgressIndicatorProps) => {
   const remainingCount = totalCount - completedCount;
+  const singularLabel = itemLabel.endsWith('s') ? itemLabel.slice(0, -1) : itemLabel;
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -28,7 +31,7 @@ export const EnrichmentProgressIndicator = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <p className="font-medium text-sm">
-                  Enriching deals...
+                  Enriching {itemLabel}...
                 </p>
                 {processingRate && processingRate > 0 && (
                   <span className="text-xs text-muted-foreground">
@@ -51,7 +54,7 @@ export const EnrichmentProgressIndicator = ({
             <Progress value={progress} className="h-2" />
             {remainingCount > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                {remainingCount} deal{remainingCount !== 1 ? 's' : ''} remaining
+                {remainingCount} {remainingCount === 1 ? singularLabel : itemLabel} remaining
               </p>
             )}
           </div>

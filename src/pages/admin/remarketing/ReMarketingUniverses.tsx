@@ -58,7 +58,7 @@ import {
   X
 } from "lucide-react";
 import { toast } from "sonner";
-import { IntelligenceCoverageBar } from "@/components/remarketing";
+import { IntelligenceCoverageBar, ReMarketingChat } from "@/components/remarketing";
 import { deleteUniverseWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
 
 type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
@@ -649,6 +649,11 @@ const ReMarketingUniverses = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Chat */}
+      <ReMarketingChat
+        context={{ type: "deals", totalDeals: universes?.length }}
+      />
     </div>
   );
 };

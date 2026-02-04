@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,8 @@ import {
   ScoringStyleCard,
   MatchCriteriaCard,
   StructuredCriteriaPanel,
-  EnrichmentProgressIndicator
+  EnrichmentProgressIndicator,
+  ReMarketingChat
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -158,23 +160,74 @@ const ReMarketingUniverseDetail = () => {
   });
 
   // Fetch buyers in this universe
-  const { data: buyers, refetch: refetchBuyers } = useQuery({
+  const { data: buyers, refetch: refetchBuyers, isLoading: buyersLoading } = useQuery({
     queryKey: ['remarketing', 'buyers', 'universe', id],
     queryFn: async () => {
       if (isNew) return [];
       
+      console.log('[BuyerQuery] Fetching buyers for universe:', id);
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at')
+        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
         .eq('universe_id', id)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('[BuyerQuery] Error fetching buyers:', error);
+        throw error;
+      }
+      console.log('[BuyerQuery] Fetched', data?.length || 0, 'buyers');
       return data || [];
     },
-    enabled: !isNew
+    enabled: !isNew,
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    staleTime: 0, // Always consider data stale to ensure fresh fetches after invalidation
   });
+
+  // Real-time subscription for buyer updates during enrichment
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  
+  useEffect(() => {
+    if (isNew || !id) return;
+    
+    // Cleanup any previous channel
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    
+    const channel = supabase
+      .channel(`universe-buyers:${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "remarketing_buyers",
+          filter: `universe_id=eq.${id}`,
+        },
+        (payload) => {
+          // Refetch buyers list on any change (INSERT, UPDATE, DELETE)
+          console.log('[Realtime] Buyer change detected:', payload.eventType);
+          refetchBuyers();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log('[Realtime] Subscribed to universe buyers');
+        }
+      });
+    
+    channelRef.current = channel;
+    
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [id, isNew, refetchBuyers]);
 
   // Fetch deals explicitly linked to this universe via junction table
   const { data: universeDeals, refetch: refetchDeals } = useQuery({
@@ -478,19 +531,6 @@ const ReMarketingUniverseDetail = () => {
 
           {/* TAB 1: Universe - Buyers & Deals */}
           <TabsContent value="universe" className="space-y-4">
-            {/* Prominent Enrichment Progress Bar - like All Deals page */}
-            {enrichmentProgress.isRunning && (
-              <EnrichmentProgressIndicator
-                completedCount={enrichmentProgress.current}
-                totalCount={enrichmentProgress.total}
-                progress={enrichmentProgress.total > 0 ? (enrichmentProgress.current / enrichmentProgress.total) * 100 : 0}
-                estimatedTimeRemaining={enrichmentProgress.total > 0 
-                  ? `~${Math.ceil((enrichmentProgress.total - enrichmentProgress.current) * 3 / 60)} min` 
-                  : undefined}
-                processingRate={enrichmentProgress.current > 0 ? 20 : 0}
-              />
-            )}
-
             <Tabs defaultValue="buyers" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="buyers">
@@ -770,25 +810,8 @@ const ReMarketingUniverseDetail = () => {
 
           {/* TAB 2: Configuration & Research */}
           <TabsContent value="configuration" className="space-y-6">
-            {/* Industry & Scoring Style */}
-            <ScoringStyleCard
-              scoringBehavior={scoringBehavior}
-              onScoringBehaviorChange={setScoringBehavior}
-              onStartAIResearch={() => setShowAIResearch(true)}
-              onSave={() => saveMutation.mutate()}
-              isSaving={saveMutation.isPending}
-            />
-
-            {/* Match Criteria */}
-            <MatchCriteriaCard
-              sizeCriteria={sizeCriteria}
-              geographyCriteria={geographyCriteria}
-              serviceCriteria={serviceCriteria}
-              onEdit={() => setShowCriteriaEdit(true)}
-            />
-
-            {/* AI Research (shown when triggered) */}
-            {id && showAIResearch && (
+            {/* AI Research & M&A Guide - Primary section */}
+            {id && (
               <AIResearchSection
                 universeName={formData.name}
                 existingContent={maGuideContent}
@@ -808,6 +831,22 @@ const ReMarketingUniverseDetail = () => {
                 }}
               />
             )}
+
+            {/* Industry & Scoring Style */}
+            <ScoringStyleCard
+              scoringBehavior={scoringBehavior}
+              onScoringBehaviorChange={setScoringBehavior}
+              onSave={() => saveMutation.mutate()}
+              isSaving={saveMutation.isPending}
+            />
+
+            {/* Match Criteria */}
+            <MatchCriteriaCard
+              sizeCriteria={sizeCriteria}
+              geographyCriteria={geographyCriteria}
+              serviceCriteria={serviceCriteria}
+              onEdit={() => setShowCriteriaEdit(true)}
+            />
 
             {/* Supporting Documents */}
             {id && (
@@ -1100,6 +1139,13 @@ const ReMarketingUniverseDetail = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* AI Chat - only show when not creating new */}
+      {!isNew && id && (
+        <ReMarketingChat
+          context={{ type: "universe", universeId: id, universeName: universe?.name }}
+        />
       )}
     </div>
   );

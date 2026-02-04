@@ -11,7 +11,7 @@ const corsHeaders = {
 // ============================================================================
 
 const AI_CONFIG = {
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-3-5-haiku-20241022',
   max_tokens: 4096,
   temperature: 0, // Deterministic extraction
 };
@@ -27,29 +27,20 @@ const TRANSCRIPT_PROTECTED_FIELDS = [
   'strategic_priorities',
   'thesis_confidence',
   
-  // Size Criteria
-  'min_revenue', 'max_revenue', 'revenue_sweet_spot',
-  'min_ebitda', 'max_ebitda', 'ebitda_sweet_spot', 'preferred_ebitda',
+  // Size Criteria (using actual column names)
+  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
+  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
   
   // Deal Structure
   'deal_breakers',
-  'owner_roll_requirement',
-  'owner_transition_goals',
+  'deal_preferences',
   
   // Geographic Targeting
   'target_geographies',
-  'geographic_exclusions',
-  'acquisition_geography',
   
   // Business Model Targeting
-  'target_business_model',
-  'business_model_prefs',
-  'business_model_exclusions',
-  
-  // Industry Targeting
   'target_industries',
   'target_services',
-  'industry_exclusions',
   
   // Activity
   'acquisition_appetite',
@@ -103,27 +94,33 @@ const REGION_MAP: Record<string, string> = {
   'AK': 'West', 'CA': 'West', 'HI': 'West', 'OR': 'West', 'WA': 'West',
 };
 
-// Valid columns in buyers table
+// Valid columns in remarketing_buyers table (verified against actual schema)
 const VALID_BUYER_COLUMNS = new Set([
   'company_name', 'company_website', 'platform_website', 'pe_firm_name', 'pe_firm_website',
   'business_summary', 'thesis_summary', 'thesis_confidence', 'buyer_type',
   'hq_city', 'hq_state', 'hq_country', 'hq_region',
-  'geographic_footprint', 'service_regions', 'operating_locations', 'other_office_locations',
+  'geographic_footprint', 'service_regions', 'operating_locations',
   'primary_customer_size', 'customer_geographic_reach', 'customer_industries', 'target_customer_profile',
-  'go_to_market_strategy', // BUG FIX: Added missing field
   'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
-  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot', 'preferred_ebitda',
-  'min_revenue', 'max_revenue', 'min_ebitda', 'max_ebitda',
+  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
   'target_services', 'target_industries', 'target_geographies',
   'deal_preferences', 'deal_breakers', 'acquisition_timeline', 'acquisition_appetite', 'acquisition_frequency',
-  'owner_roll_requirement', 'owner_transition_goals',
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions', 'num_platforms',
-  'last_acquisition_date', // BUG FIX: Added missing field
   'strategic_priorities', 'specialized_focus', 'industry_vertical',
   'data_completeness', 'data_last_updated', 'extraction_sources',
   'key_quotes', 'notes', 'has_fee_agreement',
-  'services_offered', 'business_type', 'revenue_model', 'platform_company_name',
+  'services_offered', 'business_type', 'revenue_model',
 ]);
+
+// Map AI-extracted field names to actual database columns
+const FIELD_TO_COLUMN_MAP: Record<string, string> = {
+  'platform_company_name': 'company_name',
+  'min_revenue': 'target_revenue_min',
+  'max_revenue': 'target_revenue_max',
+  'min_ebitda': 'target_ebitda_min',
+  'max_ebitda': 'target_ebitda_max',
+  'preferred_ebitda': 'ebitda_sweet_spot',
+};
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -294,7 +291,7 @@ const PROMPT_1_BUSINESS = {
   input_schema: {
     type: 'object',
     properties: {
-      platform_company_name: { type: 'string', description: 'Official company name as stated on website' },
+      company_name: { type: 'string', description: 'Official company name as stated on website' },
       services_offered: { type: 'string', description: "Comma-separated list of services (e.g., 'HVAC installation, repair, maintenance')" },
       business_summary: { type: 'string', description: '2-3 sentence overview of what the company does operationally' },
       business_type: { type: 'string', enum: ['Service Provider', 'Distributor', 'Manufacturer', 'Retailer', 'Software', 'Other'] },
@@ -330,7 +327,6 @@ const PROMPT_2_CUSTOMER = {
       customer_industries: { type: 'array', items: { type: 'string' }, description: "Industries served (e.g., ['Residential', 'Commercial', 'Industrial'])" },
       customer_geographic_reach: { type: 'string', description: "Geographic scope of customers (e.g., 'Southeast US', 'National')" },
       target_customer_profile: { type: 'string', description: 'Ideal customer description' },
-      go_to_market_strategy: { type: 'string', description: 'How they acquire customers' },
     },
   },
 };
@@ -360,7 +356,6 @@ const PROMPT_3A_GEOGRAPHY = {
       hq_country: { type: 'string', default: 'USA' },
       geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'Array of 2-letter state codes where company has PHYSICAL LOCATIONS' },
       service_regions: { type: 'array', items: { type: 'string' }, description: 'States where company provides services' },
-      other_office_locations: { type: 'array', items: { type: 'string' }, description: 'City, State format for each office' },
     },
   },
 };
@@ -409,7 +404,6 @@ const PROMPT_3B_ACQUISITIONS = {
       },
       total_acquisitions: { type: 'integer', description: 'Total number of acquisitions mentioned' },
       acquisition_frequency: { type: 'string', description: "e.g., '2-3 per year', 'Monthly'" },
-      last_acquisition_date: { type: 'string', description: 'YYYY-MM-DD format' },
     },
   },
 };
@@ -425,36 +419,41 @@ async function extractAcquisitions(content: string, apiKey: string): Promise<any
 }
 
 // ============================================================================
-// PROMPT 4: INVESTMENT THESIS (PE FIRM) - TRANSCRIPT PROTECTED
+// PROMPT 4: PE FIRM ACTIVITY (NO THESIS - thesis ONLY from transcripts)
 // ============================================================================
+// CRITICAL: thesis_summary, strategic_priorities, thesis_confidence are NEVER
+// extracted from websites. They MUST come from call transcripts or notes only.
+// This ensures the thesis reflects the platform company's perspective, not the
+// PE firm's marketing materials.
 
-const PROMPT_4_THESIS = {
-  name: 'extract_pe_thesis',
-  description: 'Extract PE firm investment thesis',
+const PROMPT_4_PE_ACTIVITY = {
+  name: 'extract_pe_activity',
+  description: 'Extract PE firm activity data (NOT thesis - thesis only from transcripts)',
   input_schema: {
     type: 'object',
     properties: {
-      thesis_summary: { type: 'string', description: '2-3 sentence summary of investment thesis' },
-      strategic_priorities: { type: 'array', items: { type: 'string' }, description: "Key investment themes (e.g., ['Recurring revenue', 'Fragmented markets'])" },
-      thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-      target_industries: { type: 'array', items: { type: 'string' } },
-      target_services: { type: 'array', items: { type: 'string' } },
-      acquisition_appetite: { type: 'string', description: "e.g., 'Very Active - 15-20 deals annually'" },
+      // ONLY non-thesis fields extracted from PE website
+      target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries the PE firm focuses on' },
+      target_services: { type: 'array', items: { type: 'string' }, description: 'Service types of interest' },
+      acquisition_appetite: { type: 'string', description: "Activity level, e.g., 'Very Active - 15-20 deals annually'" },
     },
   },
 };
 
-const PROMPT_4_SYSTEM = `You are analyzing a private equity firm's website to extract their investment thesis.
-Focus on EXPLICIT statements about:
-- What types of companies they invest in
-- Their strategic priorities
-- Investment criteria
-Do NOT infer thesis from portfolio company descriptions.`;
+const PROMPT_4_SYSTEM = `You are analyzing a private equity firm's website to extract their acquisition activity.
 
-async function extractPEThesis(content: string, apiKey: string): Promise<any> {
-  console.log('Running Prompt 4: Investment Thesis (PE Firm)');
-  const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the investment thesis and strategic priorities from this PE firm's website.`;
-  return await callClaudeAI(PROMPT_4_SYSTEM, userPrompt, PROMPT_4_THESIS, apiKey);
+CRITICAL: Do NOT extract investment thesis, strategic priorities, or thesis confidence.
+These fields MUST come from direct conversations with the platform company, not websites.
+
+Only extract:
+- Target industries they invest in
+- Target services/business types
+- Acquisition activity level`;
+
+async function extractPEActivity(content: string, apiKey: string): Promise<any> {
+  console.log('Running Prompt 4: PE Firm Activity (thesis excluded - transcript only)');
+  const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract acquisition activity data. Do NOT extract thesis, strategic priorities, or thesis confidence.`;
+  return await callClaudeAI(PROMPT_4_SYSTEM, userPrompt, PROMPT_4_PE_ACTIVITY, apiKey);
 }
 
 // ============================================================================
@@ -648,12 +647,15 @@ function buildUpdateObject(
 
   let fieldsUpdated = 0;
 
-  for (const [field, value] of Object.entries(extractedData)) {
+  for (const [rawField, value] of Object.entries(extractedData)) {
     if (value === null || value === undefined) continue;
+
+    // Remap extracted field names to actual database columns
+    const field = FIELD_TO_COLUMN_MAP[rawField] || rawField;
 
     // Check if valid column
     if (!VALID_BUYER_COLUMNS.has(field)) {
-      console.warn(`Skipping non-existent column: ${field}`);
+      console.warn(`Skipping non-existent column: ${rawField} (mapped to: ${field})`);
       continue;
     }
 
@@ -962,26 +964,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    // PE FIRM PROMPTS (4-6)
+    // PE FIRM PROMPTS (4-6) - NOTE: Prompt 4 no longer extracts thesis
     if (peContent && !billingError) {
-      // Prompt 4: Investment Thesis (only if not transcript-protected)
-      if (!hasTranscriptSource || !buyer.thesis_summary) {
-        promptsRun++;
-        const thesisResult = await extractPEThesis(peContent, anthropicApiKey);
-        if (thesisResult.error?.code === 'payment_required' || thesisResult.error?.code === 'rate_limited') {
-          billingError = thesisResult.error;
-        } else if (thesisResult.data) {
-          Object.assign(allExtracted, thesisResult.data);
-          promptsSuccessful++;
-          evidenceRecords.push({
-            type: 'website',
-            url: peFirmWebsite,
-            extracted_at: timestamp,
-            fields_extracted: Object.keys(thesisResult.data),
-          });
+      // Prompt 4: PE Activity (thesis fields NEVER extracted from website)
+      // thesis_summary, strategic_priorities, thesis_confidence ONLY from transcripts
+      promptsRun++;
+      const activityResult = await extractPEActivity(peContent, anthropicApiKey);
+      if (activityResult.error?.code === 'payment_required' || activityResult.error?.code === 'rate_limited') {
+        billingError = activityResult.error;
+      } else if (activityResult.data) {
+        // Filter out any thesis fields that might slip through
+        const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = activityResult.data;
+        if (thesis_summary || strategic_priorities || thesis_confidence) {
+          console.warn('WARNING: Prompt 4 returned thesis fields - these are being discarded (transcript-only)');
         }
-      } else {
-        console.log('Skipping Prompt 4: thesis_summary is transcript-protected');
+        Object.assign(allExtracted, safeData);
+        promptsSuccessful++;
+        evidenceRecords.push({
+          type: 'website',
+          url: peFirmWebsite,
+          extracted_at: timestamp,
+          fields_extracted: Object.keys(safeData),
+        });
       }
 
       // Prompt 5: Portfolio

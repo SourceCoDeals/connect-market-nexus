@@ -81,9 +81,10 @@ import {
   XCircle,
   Star,
   Zap,
+  Plus,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator } from "@/components/remarketing";
+import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat } from "@/components/remarketing";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import {
   DndContext,
@@ -619,6 +620,7 @@ const ReMarketingDeals = () => {
 
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showAddDealDialog, setShowAddDealDialog] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCalculating, setIsCalculating] = useState(false);
@@ -1336,6 +1338,10 @@ const ReMarketingDeals = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setShowAddDealDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Deal
+          </Button>
           <Button variant="outline" onClick={() => setShowImportDialog(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
@@ -1760,6 +1766,18 @@ const ReMarketingDeals = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Deal Dialog */}
+      <AddDealDialog
+        open={showAddDealDialog}
+        onOpenChange={setShowAddDealDialog}
+        onDealCreated={() => refetchListings()}
+      />
+
+      {/* AI Chat */}
+      <ReMarketingChat
+        context={{ type: "deals", totalDeals: listings?.length }}
+      />
     </div>
   );
 };

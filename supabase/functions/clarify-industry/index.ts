@@ -40,15 +40,17 @@ serve(async (req) => {
       throw new Error('ANTHROPIC_API_KEY is not configured');
     }
 
-    const systemPrompt = `You are an M&A industry expert helping clarify the scope of an industry research guide.
+const systemPrompt = `You are an M&A industry expert helping clarify the scope of an industry research guide.
 
 Given an industry name, generate 3-4 targeted clarifying questions to ensure the guide covers exactly the right segment and scope.
 
 Questions should:
-1. Disambiguate sub-segments if the industry has multiple (e.g., "residential vs commercial", "water damage vs mold")
-2. Ask for 1-2 example companies or websites to calibrate the scope
-3. Confirm primary geographic focus
+1. Disambiguate sub-segments if the industry has multiple (e.g., "residential vs commercial", "water damage vs mold") - ALWAYS use type "multiSelect" for this question since buyers often focus on multiple segments
+2. Ask for 1-2 example companies or websites to calibrate the scope (text input)
+3. Confirm primary geographic focus - use type "multiSelect" since buyers may target multiple regions
 4. Ask an open-ended question: "Is there anything else about this industry that would be helpful for our research?" (text input)
+
+IMPORTANT: For questions about segments/types and geography, ALWAYS use type "multiSelect" (not "select") since users typically target multiple options.
 
 DO NOT ask about revenue ranges or company sizes - we cover all sizes.
 DO NOT ask about regulatory or licensing considerations - keep it general.
@@ -195,7 +197,7 @@ function getDefaultQuestions(industryName: string): ClarifyQuestion[] {
     {
       id: 'geography',
       question: 'What is the primary geographic focus?',
-      type: 'select',
+      type: 'multiSelect',
       options: [
         'National (all US)',
         'Regional - Northeast',
