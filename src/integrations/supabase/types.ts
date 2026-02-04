@@ -3170,6 +3170,7 @@ export type Database = {
           admin_notes: string | null
           business_website: string | null
           company_name: string | null
+          contacted_owner: boolean | null
           converted_at: string | null
           converted_by: string | null
           converted_to_request_id: string | null
@@ -3200,6 +3201,7 @@ export type Database = {
           admin_notes?: string | null
           business_website?: string | null
           company_name?: string | null
+          contacted_owner?: boolean | null
           converted_at?: string | null
           converted_by?: string | null
           converted_to_request_id?: string | null
@@ -3230,6 +3232,7 @@ export type Database = {
           admin_notes?: string | null
           business_website?: string | null
           company_name?: string | null
+          contacted_owner?: boolean | null
           converted_at?: string | null
           converted_by?: string | null
           converted_to_request_id?: string | null
