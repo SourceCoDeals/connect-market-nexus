@@ -93,6 +93,8 @@ interface BuyerTableEnhancedProps {
   isEnriching?: string | null;
   showPEColumn?: boolean;
   scoringBuyerIds?: string[];
+  /** Set of buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel" */
+  buyerIdsWithTranscripts?: Set<string>;
 }
 
 export const BuyerTableEnhanced = ({
@@ -102,6 +104,7 @@ export const BuyerTableEnhanced = ({
   isEnriching,
   showPEColumn = true,
   scoringBuyerIds = [],
+  buyerIdsWithTranscripts = new Set(),
 }: BuyerTableEnhancedProps) => {
   const navigate = useNavigate();
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -377,7 +380,8 @@ export const BuyerTableEnhanced = ({
                   {/* Intel Column */}
                   <TableCell>
                     <IntelligenceBadge 
-                      completeness={buyer.data_completeness as DataCompleteness | null} 
+                      completeness={buyer.data_completeness as DataCompleteness | null}
+                      hasTranscript={buyerIdsWithTranscripts.has(buyer.id)}
                       size="sm"
                     />
                   </TableCell>

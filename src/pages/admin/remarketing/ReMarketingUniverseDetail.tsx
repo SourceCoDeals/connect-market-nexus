@@ -192,6 +192,29 @@ const ReMarketingUniverseDetail = () => {
     staleTime: 0, // Always consider data stale to ensure fresh fetches after invalidation
   });
 
+  // Fetch buyer IDs that have transcripts - needed to determine Intel level
+  // Without transcripts, max intel is "Some Intel" (not "Strong")
+  const { data: buyerIdsWithTranscripts } = useQuery({
+    queryKey: ['remarketing', 'buyer-transcripts', id],
+    queryFn: async () => {
+      if (isNew || !buyers?.length) return new Set<string>();
+      
+      const buyerIds = buyers.map(b => b.id);
+      const { data, error } = await supabase
+        .from('buyer_transcripts')
+        .select('buyer_id')
+        .in('buyer_id', buyerIds);
+      
+      if (error) {
+        console.error('Error fetching transcripts:', error);
+        return new Set<string>();
+      }
+      
+      return new Set((data || []).map((t: any) => t.buyer_id));
+    },
+    enabled: !isNew && !!buyers?.length,
+  });
+
   // Real-time subscription for buyer updates during enrichment
   const channelRef = useRef<RealtimeChannel | null>(null);
   
@@ -639,6 +662,7 @@ const ReMarketingUniverseDetail = () => {
                     <BuyerTableEnhanced
                       buyers={filteredBuyers}
                       showPEColumn={true}
+                      buyerIdsWithTranscripts={buyerIdsWithTranscripts}
                     />
                   </CardContent>
                 </Card>
