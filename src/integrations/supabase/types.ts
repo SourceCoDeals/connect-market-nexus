@@ -6121,6 +6121,50 @@ export type Database = {
           },
         ]
       }
+      tracker_activity_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          entity_id: string | null
+          entity_name: string | null
+          id: string
+          metadata: Json | null
+          tracker_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          entity_id?: string | null
+          entity_name?: string | null
+          id?: string
+          metadata?: Json | null
+          tracker_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          id?: string
+          metadata?: Json | null
+          tracker_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracker_activity_logs_tracker_id_fkey"
+            columns: ["tracker_id"]
+            isOneToOne: false
+            referencedRelation: "industry_trackers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trigger_logs: {
         Row: {
           created_at: string | null
