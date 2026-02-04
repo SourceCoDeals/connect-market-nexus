@@ -68,7 +68,8 @@ export const CriteriaReviewPanel = ({
   const loadSources = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      // Use type assertion to bypass missing table type definition
+      const { data, error } = await (supabase as any)
         .from('criteria_extraction_sources')
         .select('*')
         .eq('universe_id', universeId)
@@ -77,11 +78,11 @@ export const CriteriaReviewPanel = ({
 
       if (error) throw error;
 
-      setSources(data || []);
+      setSources((data || []) as ExtractionSource[]);
 
       // Auto-select unapplied sources
       const unapplied = new Set(
-        (data || [])
+        ((data || []) as ExtractionSource[])
           .filter(s => !s.applied_to_criteria)
           .map(s => s.id)
       );
@@ -142,8 +143,8 @@ export const CriteriaReviewPanel = ({
 
       if (updateError) throw updateError;
 
-      // Mark sources as applied
-      const { error: markError } = await supabase
+      // Mark sources as applied - use type assertion
+      const { error: markError } = await (supabase as any)
         .from('criteria_extraction_sources')
         .update({
           applied_to_criteria: true,
@@ -153,8 +154,8 @@ export const CriteriaReviewPanel = ({
 
       if (markError) throw markError;
 
-      // Create history record
-      await supabase.from('criteria_extraction_history').insert({
+      // Create history record - use type assertion
+      await (supabase as any).from('criteria_extraction_history').insert({
         universe_id: universeId,
         change_type: 'synthesis',
         changed_sections: ['size_criteria', 'geography_criteria', 'service_criteria', 'buyer_types_criteria'],

@@ -14,6 +14,14 @@ export interface QueueProgress {
   rateLimitResetAt?: string;
 }
 
+export interface EnrichmentSummary {
+  total: number;
+  successful: number;
+  failed: number;
+  errors: Array<{ buyerId: string; buyerName?: string; error: string }>;
+  completedAt: string;
+}
+
 const POLL_INTERVAL_MS = 3000;
 const PROCESS_INTERVAL_MS = 5000;
 
@@ -22,6 +30,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastCompletedRef = useRef<number>(0);
+  const wasRunningRef = useRef<boolean>(false);
 
   const [progress, setProgress] = useState<QueueProgress>({
     pending: 0,
@@ -33,6 +42,9 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     isRunning: false,
   });
 
+  const [summary, setSummary] = useState<EnrichmentSummary | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+
   // Fetch queue status
   const fetchQueueStatus = useCallback(async () => {
     if (!universeId) return;
@@ -40,7 +52,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     try {
       const { data, error } = await supabase
         .from('buyer_enrichment_queue')
-        .select('status, rate_limit_reset_at')
+        .select('buyer_id, status, rate_limit_reset_at, last_error')
         .eq('universe_id', universeId);
 
       if (error) throw error;
@@ -54,8 +66,9 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       };
 
       let rateLimitResetAt: string | undefined;
+      const failedItems: Array<{ buyerId: string; error: string }> = [];
 
-      (data || []).forEach((item: { status: string; rate_limit_reset_at?: string | null }) => {
+      (data || []).forEach((item: { buyer_id: string; status: string; rate_limit_reset_at?: string | null; last_error?: string | null }) => {
         if (item.status === 'rate_limited') {
           counts.rateLimited++;
           if (item.rate_limit_reset_at) {
@@ -69,6 +82,12 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
           counts.completed++;
         } else if (item.status === 'failed') {
           counts.failed++;
+          if (item.last_error) {
+            failedItems.push({
+              buyerId: item.buyer_id,
+              error: item.last_error
+            });
+          }
         }
       });
 
@@ -84,6 +103,34 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         });
       }
 
+      // Detect completion: was running, now stopped, and we have results
+      if (wasRunningRef.current && !isRunning && total > 0) {
+        // Generate summary
+        const newSummary: EnrichmentSummary = {
+          total,
+          successful: counts.completed,
+          failed: counts.failed,
+          errors: failedItems,
+          completedAt: new Date().toISOString()
+        };
+        setSummary(newSummary);
+        setShowSummary(true);
+        
+        // Show toast notification
+        if (counts.failed > 0) {
+          toast.warning(`Enrichment completed: ${counts.completed} successful, ${counts.failed} failed`, {
+            action: {
+              label: 'View Details',
+              onClick: () => setShowSummary(true)
+            }
+          });
+        } else {
+          toast.success(`Enrichment completed: ${counts.completed} buyers enriched`);
+        }
+      }
+
+      wasRunningRef.current = isRunning;
+
       setProgress({
         ...counts,
         total,
@@ -91,7 +138,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         rateLimitResetAt,
       });
 
-      return { counts, isRunning };
+      return { counts, isRunning, failedItems };
     } catch (error) {
       console.error('Error fetching buyer queue status:', error);
     }
@@ -292,8 +339,16 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     };
   }, [universeId, fetchQueueStatus, startPolling]);
 
+  // Dismiss summary
+  const dismissSummary = useCallback(() => {
+    setShowSummary(false);
+  }, []);
+
   return {
     progress,
+    summary,
+    showSummary,
+    dismissSummary,
     queueBuyers,
     cancel,
     reset,
