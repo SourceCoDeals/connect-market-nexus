@@ -295,10 +295,10 @@ export const BuyerTableEnhanced = ({
                     </TableCell>
                   )}
 
-                  {/* Description Column */}
+                  {/* Description Column - Platform company description, fallback to thesis */}
                   <TableCell>
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {buyer.thesis_summary || '—'}
+                      {buyer.business_summary || buyer.thesis_summary || '—'}
                     </p>
                   </TableCell>
 
