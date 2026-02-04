@@ -4056,6 +4056,59 @@ export type Database = {
           },
         ]
       }
+      ma_guide_generations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_phase: string | null
+          error: string | null
+          generated_content: Json | null
+          id: string
+          phases_completed: number
+          started_at: string
+          status: string
+          total_phases: number
+          universe_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_phase?: string | null
+          error?: string | null
+          generated_content?: Json | null
+          id?: string
+          phases_completed?: number
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_phase?: string | null
+          error?: string | null
+          generated_content?: Json | null
+          id?: string
+          phases_completed?: number
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ma_guide_generations_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nda_logs: {
         Row: {
           action_type: string

@@ -87,24 +87,8 @@ export function TrackerActivityFeed({ trackerId }: TrackerActivityFeedProps) {
   const { data: activities = [], isLoading } = useQuery<ActivityItem[]>({
     queryKey: ['tracker-activity', trackerId],
     queryFn: async () => {
-      // Try to fetch from activity logs table if it exists
-      const { data, error } = await supabase
-        .from('tracker_activity_logs')
-        .select('*')
-        .eq('tracker_id', trackerId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error && !error.message.includes('does not exist')) {
-        throw error;
-      }
-
-      // If table doesn't exist or no data, create mock activity from recent changes
-      if (!data || data.length === 0) {
-        return await fetchMockActivity(trackerId);
-      }
-
-      return data as ActivityItem[];
+      // Create activity from recent buyer/deal changes
+      return await fetchMockActivity(trackerId);
     },
     enabled: !!trackerId,
   });
@@ -144,11 +128,10 @@ export function TrackerActivityFeed({ trackerId }: TrackerActivityFeedProps) {
         }
       });
 
-      // Fetch recent deals
+      // Fetch recent deals from listings table
       const { data: deals } = await supabase
-        .from('deals')
-        .select('id, deal_name, created_at, last_enriched_at')
-        .eq('tracker_id', trackerId)
+        .from('listings')
+        .select('id, title, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -156,22 +139,11 @@ export function TrackerActivityFeed({ trackerId }: TrackerActivityFeedProps) {
         mockActivities.push({
           id: `deal-${deal.id}`,
           type: 'deal_added',
-          description: `Added deal: ${deal.deal_name}`,
+          description: `Added deal: ${deal.title || 'Untitled'}`,
           created_at: deal.created_at,
           entity_id: deal.id,
-          entity_name: deal.deal_name,
+          entity_name: deal.title || 'Untitled',
         });
-
-        if (deal.last_enriched_at) {
-          mockActivities.push({
-            id: `deal-enriched-${deal.id}`,
-            type: 'deal_enriched',
-            description: `Enriched deal: ${deal.deal_name}`,
-            created_at: deal.last_enriched_at,
-            entity_id: deal.id,
-            entity_name: deal.deal_name,
-          });
-        }
       });
     } catch (error) {
       console.error('Error fetching mock activity:', error);
