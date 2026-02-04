@@ -873,6 +873,12 @@ const ReMarketingUniverseDetail = () => {
               onTargetBuyerTypesChange={setTargetBuyerTypes}
               onEditCriteria={() => setShowCriteriaEdit(true)}
               defaultOpen={false}
+              universeId={id}
+              universeName={formData.name}
+              maGuideContent={maGuideContent}
+              onCriteriaExtracted={() => {
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
+              }}
             />
 
             {/* Criteria Extraction from Transcripts & Documents */}
