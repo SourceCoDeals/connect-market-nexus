@@ -756,8 +756,11 @@ function buildUpdateObject(
       }
     }
 
+    // Handle strings (with special cases for state codes and comma-separated array fields)
     if (typeof newValue === 'string') {
       let normalized = newValue.trim();
+      
+      // Skip placeholders
       if (!normalized || PLACEHOLDER_STRINGS.has(normalized.toLowerCase())) continue;
       
       // Normalize state codes for hq_state field
@@ -770,6 +773,45 @@ function buildUpdateObject(
         }
       }
       
+      // CRITICAL FIX: Claude sometimes returns comma-separated strings for array fields
+      // Convert to array if field should be an array in the database
+      const arrayFields = new Set([
+        'target_geographies', 'target_services', 'target_industries', 'geographic_footprint',
+        'service_regions', 'operating_locations', 'customer_industries', 'strategic_priorities'
+      ]);
+
+      if (arrayFields.has(field) && normalized.includes(',')) {
+        // Convert "A, B, C" to ["A", "B", "C"]
+        let arrayValue = normalized
+          .split(',')
+          .map(v => v.trim())
+          .filter(v => v && !PLACEHOLDER_STRINGS.has(v.toLowerCase()));
+
+        // Normalize state codes for geographic fields
+        if (field === 'geographic_footprint' || field === 'service_regions' || field === 'target_geographies') {
+          arrayValue = arrayValue.map(v => normalizeStateCode(v));
+        }
+
+        if (arrayValue.length > 0) {
+          // De-duplicate
+          const unique = [...new Set(arrayValue.map(v => v.toLowerCase()))].map(
+            lower => arrayValue.find(v => v.toLowerCase() === lower)
+          ).filter(Boolean);
+
+          if (!existingValue || !Array.isArray(existingValue) || unique.length > existingValue.length) {
+            updateData[field] = unique;
+          }
+        }
+        continue;
+      }
+
+      // Regular string field
+      if (!existingValue || normalized.length > (existingValue?.length || 0)) {
+        updateData[field] = normalized;
+      }
+      continue;
+    }
+
       if (!existingValue || normalized.length > (existingValue?.length || 0)) {
         updateData[field] = normalized;
       }
