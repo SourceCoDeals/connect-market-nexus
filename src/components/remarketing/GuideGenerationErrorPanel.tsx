@@ -230,18 +230,32 @@ export function GuideGenerationErrorPanel({
             </Button>
           )}
           
-          <Button 
-            variant={hasCheckpoint ? "outline" : "default"}
-            onClick={onRetry}
-            disabled={countdown !== null && countdown > 0}
-            className="gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            {countdown !== null && countdown > 0 
-              ? `Retry in ${formatCountdown(countdown)}`
-              : 'Retry Now'
-            }
-          </Button>
+          {/* Only show "Start Over" as a minor option when checkpoint exists */}
+          {hasCheckpoint ? (
+            <Button 
+              variant="ghost"
+              onClick={() => {
+                if (window.confirm('This will discard all progress and start from scratch. Are you sure?')) {
+                  onRetry();
+                }
+              }}
+              className="gap-2 text-muted-foreground"
+            >
+              Start Over
+            </Button>
+          ) : (
+            <Button 
+              onClick={onRetry}
+              disabled={countdown !== null && countdown > 0}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {countdown !== null && countdown > 0 
+                ? `Retry in ${formatCountdown(countdown)}`
+                : 'Retry Now'
+              }
+            </Button>
+          )}
           
           <Button variant="ghost" onClick={onCancel}>
             Cancel
