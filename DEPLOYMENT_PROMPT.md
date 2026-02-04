@@ -4,25 +4,32 @@ Hey there! You've got some incredible new features ready to deploy. Let's get th
 
 ## 🎯 What You're Deploying
 
-You've got **6 edge functions** ready to roll:
+You've got **7 edge functions** ready to roll:
+
+### 1 CRITICAL Function (MUST DEPLOY FIRST! ⚠️)
+1. **enrich-buyer** - The core enrichment engine that scrapes websites and extracts buyer data (REQUIRED for enrichment to work!)
 
 ### 3 Brand New Functions (Buyer Fit Criteria Magic! ✨)
-1. **extract-buyer-criteria** - Transforms 30,000-word AI guides into structured criteria
-2. **extract-deal-document** - Pulls buyer insights from uploaded PDFs and research reports
-3. **extract-buyer-transcript** - Captures gold from call transcripts (actual buyer quotes!)
+2. **extract-buyer-criteria** - Transforms 30,000-word AI guides into structured criteria
+3. **extract-deal-document** - Pulls buyer insights from uploaded PDFs and research reports
+4. **extract-buyer-transcript** - Captures gold from call transcripts (actual buyer quotes!)
 
 ### 3 Fixed Functions (Now Better Than Ever! 🔧)
-4. **generate-ma-guide** - Fixed context passing between phases (quality ⬆️ 60% → 80%!)
-5. **import-reference-data** - Corrected column names (CSV imports work perfectly now)
-6. **bulk-import-remarketing** - Corrected column names (no more schema errors!)
+5. **generate-ma-guide** - Fixed context passing between phases (quality ⬆️ 60% → 80%!)
+6. **import-reference-data** - Corrected column names (CSV imports work perfectly now)
+7. **bulk-import-remarketing** - Corrected column names (no more schema errors!)
 
 ## 💫 The Magic One-Liner
+
+⚠️ **CRITICAL:** Deploy `enrich-buyer` FIRST - it's required for buyer enrichment to work!
 
 Copy this beauty and paste it in your terminal:
 
 ```bash
 cd /path/to/connect-market-nexus
 
+# DEPLOY ENRICH-BUYER FIRST (REQUIRED FOR ENRICHMENT!)
+supabase functions deploy enrich-buyer --project-ref vhzipqarkmmfuqadefep && \
 supabase functions deploy extract-buyer-criteria --project-ref vhzipqarkmmfuqadefep && \
 supabase functions deploy extract-deal-document --project-ref vhzipqarkmmfuqadefep && \
 supabase functions deploy extract-buyer-transcript --project-ref vhzipqarkmmfuqadefep && \
@@ -34,6 +41,34 @@ supabase functions deploy bulk-import-remarketing --project-ref vhzipqarkmmfuqad
 ⏱️ **Time:** About 3-4 minutes total (grab a coffee! ☕)
 
 ## 🎨 What Each Function Does (The Fun Stuff!)
+
+### enrich-buyer 🔧 (THE CRITICAL ONE!)
+**The Core Enrichment Engine**
+
+**What it does:**
+- Scrapes buyer platform websites using Firecrawl
+- Extracts buyer data using Claude Sonnet 4 (6 specialized prompts)
+- Updates buyer profiles with comprehensive information
+- Runs automatically when you click "Enrich" or "Enrich All"
+
+**What you'll get:**
+```json
+{
+  "business_summary": "Multi-location HVAC services company...",
+  "services_offered": "HVAC installation, repair, maintenance",
+  "hq_state": "TX",
+  "geographic_footprint": ["TX", "OK", "LA"],
+  "target_revenue_min": 5000000,
+  "target_revenue_max": 20000000,
+  ...25+ more fields
+}
+```
+
+**Why it's critical:** Without this function deployed, ALL enrichments will fail with HTTP 401 errors!
+
+**Time:** ~30-45 seconds per buyer (runs 6 AI prompts)
+
+---
 
 ### extract-buyer-criteria 🎯
 **The Industry Pattern Finder**
@@ -147,7 +182,8 @@ All functions need these (already set in your project):
 ### 1. Check Supabase Dashboard
 Go to: **Edge Functions** tab
 
-You should see all 6 functions with green checkmarks:
+You should see all 7 functions with green checkmarks:
+- ✅ **enrich-buyer** (MOST IMPORTANT!)
 - ✅ extract-buyer-criteria
 - ✅ extract-deal-document
 - ✅ extract-buyer-transcript
@@ -231,6 +267,8 @@ supabase login
 Just run that magic one-liner from earlier:
 
 ```bash
+# DEPLOY ENRICH-BUYER FIRST (CRITICAL!)
+supabase functions deploy enrich-buyer --project-ref vhzipqarkmmfuqadefep && \
 supabase functions deploy extract-buyer-criteria --project-ref vhzipqarkmmfuqadefep && \
 supabase functions deploy extract-deal-document --project-ref vhzipqarkmmfuqadefep && \
 supabase functions deploy extract-buyer-transcript --project-ref vhzipqarkmmfuqadefep && \
@@ -239,7 +277,7 @@ supabase functions deploy import-reference-data --project-ref vhzipqarkmmfuqadef
 supabase functions deploy bulk-import-remarketing --project-ref vhzipqarkmmfuqadefep
 ```
 
-Watch the terminal output (it's weirdly satisfying), grab that coffee ☕, and in 3-4 minutes you'll have 6 deployed functions ready to rock!
+Watch the terminal output (it's weirdly satisfying), grab that coffee ☕, and in 3-4 minutes you'll have 7 deployed functions ready to rock!
 
 **Let's do this! 🎉🚀✨**
 
