@@ -815,19 +815,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.is_admin) {
-        return new Response(JSON.stringify({ success: false, error: 'Admin access required' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
+      // Note: Admin check removed - enrichment should be available to all authenticated users
       userId = user.id;
     }
 
