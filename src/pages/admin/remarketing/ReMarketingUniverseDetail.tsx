@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
 import { useDealEnrichment } from "@/hooks/useDealEnrichment";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
@@ -115,6 +116,7 @@ const ReMarketingUniverseDetail = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
+  const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking
   const { 
@@ -445,6 +447,35 @@ const ReMarketingUniverseDetail = () => {
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
 
+  // Handler for buyer enrichment with mode selection
+  const handleBuyerEnrichment = async (mode: 'all' | 'unenriched') => {
+    setShowBuyerEnrichDialog(false);
+    
+    if (!buyers?.length) {
+      toast.error('No buyers to enrich');
+      return;
+    }
+    
+    resetEnrichment();
+    
+    // Filter based on mode
+    const buyersToEnrich = mode === 'all' 
+      ? buyers 
+      : buyers.filter(b => b.data_completeness !== 'high');
+    
+    if (buyersToEnrich.length === 0) {
+      toast.info('All buyers are already enriched');
+      return;
+    }
+    
+    await enrichBuyers(buyersToEnrich.map(b => ({
+      id: b.id,
+      company_website: b.company_website,
+      platform_website: b.platform_website,
+      pe_firm_website: b.pe_firm_website
+    })));
+  };
+
   // Filter buyers by search
   const filteredBuyers = buyers?.filter(buyer => 
     !buyerSearch || 
@@ -552,24 +583,7 @@ const ReMarketingUniverseDetail = () => {
                       onSearchChange={setBuyerSearch}
                       onAddBuyer={() => navigate('/admin/remarketing/buyers')}
                       onImportCSV={() => setImportBuyersDialogOpen(true)}
-                      onEnrichAll={async () => {
-                        if (!buyers?.length) {
-                          toast.error('No buyers to enrich');
-                          return;
-                        }
-                        
-                        // Reset any previous enrichment state
-                        resetEnrichment();
-                        
-                        // Use the hook which handles batching, 402 errors, and progress
-                        // Pass all website fields so the hook can filter properly
-                        await enrichBuyers(buyers.map(b => ({
-                          id: b.id,
-                          company_website: b.company_website,
-                          platform_website: b.platform_website,
-                          pe_firm_website: b.pe_firm_website
-                        })));
-                      }}
+                      onEnrichAll={() => setShowBuyerEnrichDialog(true)}
                       onCancelEnrichment={cancelEnrichment}
                       onScoreAlignment={async () => {
                         if (!buyers?.length) {
@@ -1147,6 +1161,60 @@ const ReMarketingUniverseDetail = () => {
           context={{ type: "universe", universeId: id, universeName: universe?.name }}
         />
       )}
+
+      {/* Buyer Enrichment Selection Dialog */}
+      <Dialog open={showBuyerEnrichDialog} onOpenChange={setShowBuyerEnrichDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Enrich Buyers
+            </DialogTitle>
+            <DialogDescription>
+              Enrichment scrapes websites and extracts company data, 
+              investment criteria, and M&A intelligence.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              variant="default"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleBuyerEnrichment('all')}
+              disabled={enrichmentProgress.isRunning}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Enrich All</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Re-enrich all {buyers?.filter(b => 
+                    b.company_website || b.platform_website || b.pe_firm_website
+                  ).length || 0} buyers (resets existing data)
+                </span>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-4 px-4"
+              onClick={() => handleBuyerEnrichment('unenriched')}
+              disabled={enrichmentProgress.isRunning}
+            >
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-medium">Only Unenriched</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Only enrich {buyers?.filter(b => 
+                    b.data_completeness !== 'high' && 
+                    (b.company_website || b.platform_website || b.pe_firm_website)
+                  ).length || 0} buyers that haven't been enriched yet
+                </span>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowBuyerEnrichDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
