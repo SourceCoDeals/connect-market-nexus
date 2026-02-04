@@ -688,7 +688,7 @@ async function generatePhaseContentWithModel(
   model: string
 ): Promise<string> {
   const contextStr = buildClarificationContext(clarificationContext);
-  
+
   const systemPrompt = `You are an expert M&A advisor creating comprehensive industry research guides.
 Generate detailed, actionable content for the specified phase of an M&A guide.
 Use proper HTML formatting with h2, h3, h4 headings, tables, and bullet points.
@@ -696,8 +696,27 @@ Include specific numbers, ranges, and concrete examples wherever possible.
 Target 2,000-3,000 words per phase.
 Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
 
+  // CRITICAL FIX: Build context from previous phases
+  let contextPrefix = '';
+  if (existingContent && existingContent.length > 200) {
+    // Include last 8000 chars of previous content for context
+    const recentContext = existingContent.slice(-8000);
+    contextPrefix = `
+INDUSTRY CONTEXT (from previous phases):
+The following content has already been generated for "${industryName}". Build upon this foundation and maintain consistency. Reference specific details from earlier phases.
+
+${recentContext}
+
+---
+
+NOW GENERATE THE FOLLOWING SECTION:
+
+`;
+  }
+
   const phasePrompts: Record<string, string> = getPhasePrompts(industryName);
-  const userPrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
+  const basePrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
+  const userPrompt = contextPrefix + basePrompt;
 
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
@@ -1249,14 +1268,20 @@ serve(async (req) => {
           const err = error as Error & { code?: string; recoverable?: boolean };
           const errorCode = err.code || 'unknown';
           const recoverable = err.recoverable ?? true;
-          console.error('SSE generation error:', { 
-            message: err.message, 
-            code: errorCode, 
+
+          // DIAGNOSTIC LOGGING: Enhanced error logging
+          console.error(`[GUIDE_ERROR]`, {
+            message: err.message,
+            code: errorCode,
             recoverable,
-            batch: batch_index 
+            batch: batch_index,
+            industry: industry_name,
+            totalPhasesCompleted: batchPhases.findIndex(p => true), // How many phases completed before error
+            stack: err.stack?.split('\n').slice(0, 3).join(' | ') // First 3 lines of stack trace
           });
-          send({ 
-            type: 'error', 
+
+          send({
+            type: 'error',
             message: err.message,
             error_code: errorCode,
             recoverable,
