@@ -16,7 +16,7 @@ import { useNonMarketplaceUsers } from "@/hooks/admin/use-non-marketplace-users"
 import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
 import { UserViewSwitcher } from "@/components/admin/UserViewSwitcher";
 import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
-import { useOwnerLeads, useUpdateOwnerLeadStatus } from "@/hooks/admin/use-owner-leads";
+import { useOwnerLeads, useUpdateOwnerLeadStatus, useUpdateOwnerLeadContacted } from "@/hooks/admin/use-owner-leads";
 import { useUpdateOwnerLeadNotes } from "@/hooks/admin/use-update-owner-lead-notes";
 import { useMarkOwnerLeadsViewed } from "@/hooks/admin/use-mark-owner-leads-viewed";
 import { OwnerLeadsStats } from "@/components/admin/OwnerLeadsStats";
@@ -35,6 +35,7 @@ const AdminUsers = () => {
   const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads();
   const updateOwnerStatus = useUpdateOwnerLeadStatus();
   const updateOwnerNotes = useUpdateOwnerLeadNotes();
+  const updateOwnerContacted = useUpdateOwnerLeadContacted();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { isConnected } = useRealtimeAdmin();
@@ -104,6 +105,10 @@ const AdminUsers = () => {
 
   const handleOwnerNotesUpdate = (id: string, notes: string) => {
     updateOwnerNotes.mutate({ id, notes });
+  };
+
+  const handleOwnerContactedChange = (id: string, contacted: boolean) => {
+    updateOwnerContacted.mutate({ id, contacted });
   };
 
   if (error) {
@@ -276,6 +281,7 @@ const AdminUsers = () => {
                   leads={filteredOwnerLeads}
                   onStatusChange={handleOwnerStatusChange}
                   onNotesUpdate={handleOwnerNotesUpdate}
+                  onContactedChange={handleOwnerContactedChange}
                 />
               </div>
             )}

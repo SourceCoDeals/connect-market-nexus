@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { StatCard } from "@/components/ma-intelligence/StatCard";
-import { IntelligenceCoverageBar } from "@/components/ma-intelligence/IntelligenceBadge";
+import { StatCard, IntelligenceCoverageBar } from "@/components/ma-intelligence";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,15 +13,14 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import { getIntelligenceCoverage } from "@/lib/ma-intelligence/types";
-import type { MABuyer } from "@/lib/ma-intelligence/types";
 
 interface TrackerWithStats {
   id: string;
   industry_name: string;
   buyer_count: number;
   deal_count: number;
-  intelligent_buyer_count: number;
+  enriched_count: number;    // Buyers with website enrichment (contributes up to 50%)
+  transcript_count: number;  // Buyers with transcripts (contributes up to 50%)
 }
 
 export default function MADashboard() {
@@ -47,22 +45,31 @@ export default function MADashboard() {
 
       const trackersWithStats: TrackerWithStats[] = await Promise.all(
         (trackersData || []).map(async (tracker: any) => {
-          const [buyersResult, dealsResult] = await Promise.all([
-            supabase.from("remarketing_buyers").select("*").eq("industry_tracker_id", tracker.id),
+          const [buyersResult, dealsResult, transcriptsResult] = await Promise.all([
+            supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id),
             supabase.from("deals").select("id").eq("listing_id", tracker.id),
+            supabase.from("buyer_transcripts").select("buyer_id"),
           ]);
 
           const buyers = (buyersResult.data || []) as any[];
-          const intelligentBuyers = buyers.filter(
-            (b) => getIntelligenceCoverage(b as unknown as Partial<MABuyer>) !== "low"
-          );
+          const transcripts = transcriptsResult.data || [];
+          const buyerIdsWithTranscripts = new Set(transcripts.map((t: any) => t.buyer_id));
+          
+          // Count enriched buyers (high or medium data_completeness)
+          const enrichedCount = buyers.filter(b => 
+            b.data_completeness === 'high' || b.data_completeness === 'medium'
+          ).length;
+          
+          // Count buyers with transcripts
+          const transcriptCount = buyers.filter(b => buyerIdsWithTranscripts.has(b.id)).length;
 
           return {
             id: tracker.id,
             industry_name: tracker.name || tracker.industry_name || 'Unknown',
             buyer_count: buyers.length,
             deal_count: dealsResult.data?.length || 0,
-            intelligent_buyer_count: intelligentBuyers.length,
+            enriched_count: enrichedCount,
+            transcript_count: transcriptCount,
           };
         })
       );
@@ -90,8 +97,12 @@ export default function MADashboard() {
 
   const totalBuyers = trackers.reduce((sum, t) => sum + t.buyer_count, 0);
   const totalDeals = trackers.reduce((sum, t) => sum + t.deal_count, 0);
-  const totalIntelligent = trackers.reduce((sum, t) => sum + t.intelligent_buyer_count, 0);
-  const avgCoverage = totalBuyers > 0 ? Math.round((totalIntelligent / totalBuyers) * 100) : 0;
+  const totalEnriched = trackers.reduce((sum, t) => sum + t.enriched_count, 0);
+  const totalTranscripts = trackers.reduce((sum, t) => sum + t.transcript_count, 0);
+  // Two-tier intel: website (up to 50%) + transcripts (up to 50%)
+  const websiteIntel = totalBuyers > 0 ? Math.round((totalEnriched / totalBuyers) * 50) : 0;
+  const transcriptIntel = totalBuyers > 0 ? Math.round((totalTranscripts / totalBuyers) * 50) : 0;
+  const avgCoverage = websiteIntel + transcriptIntel;
 
   if (isLoading) {
     return (
@@ -144,7 +155,7 @@ export default function MADashboard() {
         <StatCard
           title="Intelligence Coverage"
           value={`${avgCoverage}%`}
-          subtitle={`${totalIntelligent} buyers with data`}
+          subtitle={`${totalTranscripts} with transcripts, ${totalEnriched} enriched`}
           icon={Brain}
           variant={avgCoverage >= 70 ? "success" : avgCoverage >= 40 ? "warning" : "default"}
         />
@@ -179,9 +190,14 @@ export default function MADashboard() {
         ) : (
           <div className="grid gap-4">
             {trackers.slice(0, 4).map((tracker) => {
-              const coverage = tracker.buyer_count > 0
-                ? Math.round((tracker.intelligent_buyer_count / tracker.buyer_count) * 100)
+              // Two-tier intel: website (up to 50%) + transcripts (up to 50%)
+              const websiteIntel = tracker.buyer_count > 0 
+                ? Math.round((tracker.enriched_count / tracker.buyer_count) * 50) 
                 : 0;
+              const transcriptIntel = tracker.buyer_count > 0 
+                ? Math.round((tracker.transcript_count / tracker.buyer_count) * 50) 
+                : 0;
+              const coverage = websiteIntel + transcriptIntel;
 
               return (
                 <Link
@@ -200,13 +216,14 @@ export default function MADashboard() {
                     <Badge
                       variant={coverage >= 75 ? "default" : coverage >= 50 ? "secondary" : "outline"}
                     >
-                      {coverage}% intelligent
+                      {coverage}% intel
                     </Badge>
                   </div>
                   <div className="mt-4">
                     <IntelligenceCoverageBar
-                      intelligentCount={tracker.intelligent_buyer_count}
+                      intelligentCount={tracker.transcript_count}
                       totalCount={tracker.buyer_count}
+                      enrichedCount={tracker.enriched_count}
                     />
                   </div>
                 </Link>

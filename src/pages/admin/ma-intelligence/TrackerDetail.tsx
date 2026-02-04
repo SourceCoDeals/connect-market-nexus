@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft } from "lucide-react";
+import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Activity, Target, Sliders, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TrackerBuyersTab } from "@/components/ma-intelligence/tracker/TrackerBuyersTab";
-import { TrackerDealsTab } from "@/components/ma-intelligence/tracker/TrackerDealsTab";
-import { StructuredCriteriaPanel } from "@/components/ma-intelligence/StructuredCriteriaPanel";
-import { ScoringBehaviorPanel } from "@/components/ma-intelligence/ScoringBehaviorPanel";
-import { KPIConfigPanel } from "@/components/ma-intelligence/KPIConfigPanel";
-import { TrackerQueryChat } from "@/components/ma-intelligence/TrackerQueryChat";
-import { InterruptedSessionBanner } from "@/components/ma-intelligence/tracker/InterruptedSessionBanner";
+import {
+  TrackerBuyersTab,
+  TrackerDealsTab,
+  StructuredCriteriaPanel,
+  ScoringBehaviorPanel,
+  KPIConfigPanel,
+  TrackerQueryChat,
+  InterruptedSessionBanner,
+  TrackerActivityFeed,
+} from "@/components/ma-intelligence";
 import type { SizeCriteria, ServiceCriteria, GeographyCriteria, ScoringBehavior, TrackerDocument } from "@/lib/ma-intelligence/types";
 
 interface TrackerData {
@@ -276,19 +279,19 @@ export default function TrackerDetail() {
           </TabsTrigger>
           <TabsTrigger value="criteria">
             <Settings className="w-4 h-4 mr-2" />
-            Fit Criteria
+            Criteria
           </TabsTrigger>
           <TabsTrigger value="scoring">
-            <Brain className="w-4 h-4 mr-2" />
+            <Sliders className="w-4 h-4 mr-2" />
             Scoring
           </TabsTrigger>
-          <TabsTrigger value="documents">
-            <Upload className="w-4 h-4 mr-2" />
-            Documents
+          <TabsTrigger value="query">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Query
           </TabsTrigger>
-          <TabsTrigger value="ai-chat">
-            <Brain className="w-4 h-4 mr-2" />
-            AI Research
+          <TabsTrigger value="activity">
+            <Activity className="w-4 h-4 mr-2" />
+            Activity
           </TabsTrigger>
         </TabsList>
 
@@ -309,47 +312,34 @@ export default function TrackerDetail() {
         <TabsContent value="criteria" className="space-y-4">
           <StructuredCriteriaPanel
             trackerId={tracker.id}
-            sizeCriteria={tracker.size_criteria}
-            serviceCriteria={tracker.service_criteria}
-            geographyCriteria={tracker.geography_criteria}
-            onSave={(criteria) => handleSaveTracker(criteria)}
+            tracker={{
+              size_criteria: tracker.size_criteria,
+              service_criteria: tracker.service_criteria,
+              geography_criteria: tracker.geography_criteria,
+            }}
+            onSave={() => loadTracker()}
           />
         </TabsContent>
 
         <TabsContent value="scoring" className="space-y-4">
-          <div className="space-y-6">
-            <ScoringBehaviorPanel
-              trackerId={tracker.id}
-              scoringBehavior={tracker.scoring_behavior}
-              onSave={(behavior) => handleSaveTracker({ scoring_behavior: behavior })}
-            />
-            <KPIConfigPanel
-              trackerId={tracker.id}
-              kpiConfig={tracker.kpi_config}
-              onSave={(config) => handleSaveTracker({ kpi_config: config })}
-            />
-          </div>
+          <ScoringBehaviorPanel
+            trackerId={tracker.id}
+            tracker={{
+              geography_weight: 1.0,
+              service_mix_weight: 1.0,
+              size_weight: 1.0,
+              owner_goals_weight: 1.0,
+            }}
+            onSave={() => loadTracker()}
+          />
         </TabsContent>
 
-        <TabsContent value="documents" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-              <CardDescription>
-                Upload CIMs, presentations, and other documents for AI analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Upload className="w-12 h-12 mx-auto mb-4" />
-                <p>Document upload and management coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="query" className="space-y-4">
+          <TrackerQueryChat trackerId={tracker.id} trackerName={tracker.industry_name} />
         </TabsContent>
 
-        <TabsContent value="ai-chat" className="space-y-4">
-          <TrackerQueryChat trackerId={tracker.id} />
+        <TabsContent value="activity" className="space-y-4">
+          <TrackerActivityFeed trackerId={tracker.id} />
         </TabsContent>
       </Tabs>
     </div>

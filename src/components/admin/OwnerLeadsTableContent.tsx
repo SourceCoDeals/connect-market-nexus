@@ -1,13 +1,21 @@
+import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Phone, Mail, Globe, Calendar, DollarSign, MessageSquare, ExternalLink, StickyNote } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Building2, Phone, Mail, Globe, Calendar, DollarSign, MessageSquare, ExternalLink, StickyNote, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
-import { OwnerLead, formatRevenueRange, formatSaleTimeline } from "@/hooks/admin/use-owner-leads";
+import { 
+  OwnerLead, 
+  formatRevenueRange, 
+  formatSaleTimeline,
+  REVENUE_PRIORITY,
+  TIMELINE_PRIORITY,
+  STATUS_PRIORITY
+} from "@/hooks/admin/use-owner-leads";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New", color: "bg-blue-100 text-blue-800" },
@@ -18,12 +26,45 @@ const STATUS_OPTIONS = [
   { value: "closed", label: "Closed", color: "bg-emerald-100 text-emerald-800" },
 ];
 
+type SortColumn = 'contacted' | 'contact' | 'company' | 'revenue' | 'timeline' | 'status' | 'date';
+type SortDirection = 'asc' | 'desc';
+
 function getStatusBadge(status: string) {
   const statusOption = STATUS_OPTIONS.find(s => s.value === status);
   return (
     <Badge variant="outline" className={statusOption?.color || "bg-gray-100 text-gray-800"}>
       {statusOption?.label || status}
     </Badge>
+  );
+}
+
+interface SortableHeaderProps {
+  column: SortColumn;
+  label: string;
+  currentSort: SortColumn | null;
+  direction: SortDirection;
+  onSort: (column: SortColumn) => void;
+}
+
+function SortableHeader({ column, label, currentSort, direction, onSort }: SortableHeaderProps) {
+  const isActive = currentSort === column;
+  
+  return (
+    <button
+      onClick={() => onSort(column)}
+      className="flex items-center gap-1 hover:text-foreground transition-colors group"
+    >
+      <span>{label}</span>
+      {isActive ? (
+        direction === 'asc' ? (
+          <ArrowUp className="h-4 w-4" />
+        ) : (
+          <ArrowDown className="h-4 w-4" />
+        )
+      ) : (
+        <ArrowUpDown className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
+      )}
+    </button>
   );
 }
 
@@ -138,25 +179,141 @@ interface OwnerLeadsTableContentProps {
   leads: OwnerLead[];
   onStatusChange: (id: string, status: string) => void;
   onNotesUpdate: (id: string, notes: string) => void;
+  onContactedChange: (id: string, contacted: boolean) => void;
 }
 
-export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate }: OwnerLeadsTableContentProps) {
+export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, onContactedChange }: OwnerLeadsTableContentProps) {
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedLeads = useMemo(() => {
+    if (!sortColumn) return leads;
+
+    return [...leads].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortColumn) {
+        case 'contacted':
+          comparison = (a.contacted_owner === b.contacted_owner) ? 0 : a.contacted_owner ? 1 : -1;
+          break;
+        case 'contact':
+          comparison = (a.name || '').localeCompare(b.name || '');
+          break;
+        case 'company':
+          comparison = (a.company_name || '').localeCompare(b.company_name || '');
+          break;
+        case 'revenue':
+          const aRevenue = REVENUE_PRIORITY[a.estimated_revenue_range || ''] || 0;
+          const bRevenue = REVENUE_PRIORITY[b.estimated_revenue_range || ''] || 0;
+          comparison = aRevenue - bRevenue;
+          break;
+        case 'timeline':
+          const aTimeline = TIMELINE_PRIORITY[a.sale_timeline || ''] || 0;
+          const bTimeline = TIMELINE_PRIORITY[b.sale_timeline || ''] || 0;
+          comparison = aTimeline - bTimeline;
+          break;
+        case 'status':
+          const aStatus = STATUS_PRIORITY[a.status] || 0;
+          const bStatus = STATUS_PRIORITY[b.status] || 0;
+          comparison = aStatus - bStatus;
+          break;
+        case 'date':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [leads, sortColumn, sortDirection]);
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Contact</TableHead>
-          <TableHead>Company</TableHead>
-          <TableHead>Revenue</TableHead>
-          <TableHead>Timeline</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Date</TableHead>
+          <TableHead className="w-[100px]">
+            <SortableHeader
+              column="contacted"
+              label="Contacted"
+              currentSort={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+            />
+          </TableHead>
+          <TableHead>
+            <SortableHeader
+              column="contact"
+              label="Contact"
+              currentSort={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+            />
+          </TableHead>
+          <TableHead>
+            <SortableHeader
+              column="company"
+              label="Company"
+              currentSort={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+            />
+          </TableHead>
+          <TableHead>
+            <SortableHeader
+              column="revenue"
+              label="Revenue"
+              currentSort={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+            />
+          </TableHead>
+          <TableHead>
+            <SortableHeader
+              column="timeline"
+              label="Timeline"
+              currentSort={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+            />
+          </TableHead>
+          <TableHead>
+            <SortableHeader
+              column="status"
+              label="Status"
+              currentSort={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+            />
+          </TableHead>
+          <TableHead>
+            <SortableHeader
+              column="date"
+              label="Date"
+              currentSort={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+            />
+          </TableHead>
           <TableHead className="w-[80px]"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {leads.map((lead) => (
+        {sortedLeads.map((lead) => (
           <TableRow key={lead.id}>
+            <TableCell>
+              <Checkbox
+                checked={lead.contacted_owner}
+                onCheckedChange={(checked) => onContactedChange(lead.id, checked === true)}
+              />
+            </TableCell>
             <TableCell>
               <div>
                 <p className="font-medium">{lead.name}</p>

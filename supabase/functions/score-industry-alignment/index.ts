@@ -59,10 +59,10 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Fetch universe data including M&A guide content
+    // Step 2: Fetch universe data including M&A guide content and documents
     const { data: universe, error: universeError } = await supabase
       .from("remarketing_buyer_universes")
-      .select("id, name, description, fit_criteria, ma_guide_content, size_criteria, geography_criteria, service_criteria")
+      .select("id, name, description, fit_criteria, ma_guide_content, documents, size_criteria, geography_criteria, service_criteria")
       .eq("id", universeId)
       .single();
 
@@ -74,8 +74,44 @@ serve(async (req) => {
       );
     }
 
+    // Step 2b: Get M&A guide content - check both ma_guide_content column AND documents array
+    let maGuideContent = universe.ma_guide_content?.trim() || "";
+
+    // If no inline content, check for M&A guide in documents
+    if (!maGuideContent && Array.isArray(universe.documents)) {
+      const maGuideDoc = universe.documents.find((doc: any) => doc.type === "ma_guide" && doc.url);
+      
+      if (maGuideDoc) {
+        console.log(`[score-industry-alignment] Found M&A guide document: ${maGuideDoc.name}`);
+        try {
+          // Fetch the HTML content from the document URL
+          const docResponse = await fetch(maGuideDoc.url);
+          if (docResponse.ok) {
+            const htmlContent = await docResponse.text();
+            // Extract text content from HTML (strip tags for cleaner AI input)
+            maGuideContent = htmlContent
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/&nbsp;/g, ' ')
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .replace(/\s+/g, ' ')
+              .trim();
+            console.log(`[score-industry-alignment] Extracted ${maGuideContent.length} chars from document`);
+          } else {
+            console.error(`[score-industry-alignment] Failed to fetch document: ${docResponse.status}`);
+          }
+        } catch (fetchError) {
+          console.error(`[score-industry-alignment] Error fetching M&A guide document:`, fetchError);
+        }
+      }
+    }
+
     // MANDATORY: Check for M&A guide - required for industry alignment scoring
-    if (!universe.ma_guide_content || universe.ma_guide_content.trim() === "") {
+    if (!maGuideContent) {
       console.log(`[score-industry-alignment] M&A guide missing for universe: ${universe.name}`);
       return new Response(
         JSON.stringify({
@@ -115,7 +151,7 @@ SCORING SCALE (be strict - most companies should NOT be a fit):
     // Include the FULL M&A guide as industry knowledge - no truncation
     const industryKnowledge = `
 M&A INDUSTRY GUIDE (PRIMARY REFERENCE - Use this to understand what belongs in the "${universe.name}" industry):
-${universe.ma_guide_content}
+${maGuideContent}
 `;
 
     // Build service criteria context

@@ -3,6 +3,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -11,9 +18,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { IntelligenceBadge } from "../IntelligenceBadge";
-import { RefreshCw, ExternalLink } from "lucide-react";
+import { RefreshCw, ExternalLink, MoreHorizontal, Sparkles, Archive, Trash2, Users } from "lucide-react";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { getIntelligenceCoverage, calculateIntelligencePercentage } from "@/lib/ma-intelligence/types";
+import { formatDistanceToNow } from "date-fns";
 
 interface TrackerBuyersTableProps {
   buyers: MABuyer[];
@@ -21,6 +29,9 @@ interface TrackerBuyersTableProps {
   onToggleSelect: (buyerId: string) => void;
   onSelectAll: () => void;
   onRefresh: () => void;
+  onEnrich: (buyerId: string) => void;
+  onArchive: (buyerId: string) => void;
+  onDelete: (buyerId: string) => void;
 }
 
 export function TrackerBuyersTable({
@@ -29,6 +40,9 @@ export function TrackerBuyersTable({
   onToggleSelect,
   onSelectAll,
   onRefresh,
+  onEnrich,
+  onArchive,
+  onDelete,
 }: TrackerBuyersTableProps) {
   const navigate = useNavigate();
 
@@ -57,11 +71,13 @@ export function TrackerBuyersTable({
                 aria-label="Select all"
               />
             </TableHead>
-            <TableHead className="w-[250px]">PE Firm / Platform</TableHead>
-            <TableHead className="w-[150px]">Location</TableHead>
-            <TableHead className="w-[120px]">Size Range</TableHead>
-            <TableHead className="w-[180px]">Intelligence</TableHead>
-            <TableHead className="w-[120px]">Last Updated</TableHead>
+            <TableHead className="w-[250px]">Name</TableHead>
+            <TableHead className="w-[180px]">PE Firm</TableHead>
+            <TableHead className="w-[120px]">Industry</TableHead>
+            <TableHead className="w-[140px]">Intelligence</TableHead>
+            <TableHead className="w-[120px]">Confidence</TableHead>
+            <TableHead className="w-[100px]">Contacts</TableHead>
+            <TableHead className="w-[140px]">Last Updated</TableHead>
             <TableHead className="w-[80px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -69,7 +85,7 @@ export function TrackerBuyersTable({
           {buyers.map((buyer) => {
             const coverage = getIntelligenceCoverage(buyer);
             const percentage = calculateIntelligencePercentage(buyer);
-            const location = [buyer.hq_city, buyer.hq_state].filter(Boolean).join(", ");
+            const contactsCount = 0; // TODO: Implement contacts counting from related table
 
             return (
               <TableRow
@@ -84,27 +100,25 @@ export function TrackerBuyersTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <div className="space-y-1">
-                    <div className="font-medium">{buyer.pe_firm_name}</div>
-                    {buyer.platform_company_name && (
-                      <div className="text-sm text-muted-foreground">
-                        {buyer.platform_company_name}
-                      </div>
-                    )}
+                  <div className="font-medium text-primary hover:underline">
+                    {buyer.platform_company_name || buyer.pe_firm_name}
                   </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">{location || "—"}</div>
-                </TableCell>
-                <TableCell>
-                  {buyer.min_revenue || buyer.max_revenue ? (
-                    <div className="text-sm">
-                      ${buyer.min_revenue ? `${buyer.min_revenue}M` : "0"}
-                      {" - "}
-                      ${buyer.max_revenue ? `${buyer.max_revenue}M` : "∞"}
+                  {buyer.platform_website && (
+                    <div className="text-xs text-muted-foreground truncate max-w-[230px]">
+                      {buyer.platform_website}
                     </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">{buyer.pe_firm_name}</div>
+                </TableCell>
+                <TableCell>
+                  {buyer.industry_vertical ? (
+                    <Badge variant="secondary" className="text-xs">
+                      {buyer.industry_vertical}
+                    </Badge>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground text-sm">—</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -114,19 +128,62 @@ export function TrackerBuyersTable({
                   </div>
                 </TableCell>
                 <TableCell>
+                  {buyer.thesis_confidence ? (
+                    <Badge
+                      variant={
+                        buyer.thesis_confidence === "High"
+                          ? "default"
+                          : buyer.thesis_confidence === "Medium"
+                          ? "secondary"
+                          : "outline"
+                      }
+                      className="text-xs"
+                    >
+                      {buyer.thesis_confidence}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Users className="w-3 h-3" />
+                    {contactsCount}
+                  </div>
+                </TableCell>
+                <TableCell>
                   <div className="text-sm text-muted-foreground">
-                    {new Date(buyer.data_last_updated || buyer.created_at).toLocaleDateString()}
+                    {formatDistanceToNow(new Date(buyer.data_last_updated || buyer.created_at), {
+                      addSuffix: true,
+                    })}
                   </div>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => navigate(`/admin/ma-intelligence/buyers/${buyer.id}`)}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEnrich(buyer.id)}>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Enrich
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onArchive(buyer.id)}>
+                        <Archive className="w-4 h-4 mr-2" />
+                        Archive
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDelete(buyer.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );

@@ -5,96 +5,201 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Save, RotateCcw } from "lucide-react";
+import { ChipInput } from "@/components/ui/chip-input";
+import { Sparkles, Save, RotateCcw, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { SizeCriteria, ServiceCriteria, GeographyCriteria } from "@/lib/ma-intelligence/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useMutation } from "@tanstack/react-query";
 
 interface StructuredCriteriaPanelProps {
   trackerId: string;
-  sizeCriteria: SizeCriteria | null;
-  serviceCriteria: ServiceCriteria | null;
-  geographyCriteria: GeographyCriteria | null;
-  onSave: (criteria: {
-    size_criteria?: SizeCriteria;
-    service_criteria?: ServiceCriteria;
-    geography_criteria?: GeographyCriteria;
-  }) => void;
+  tracker: {
+    size_criteria?: any;
+    service_criteria?: any;
+    geography_criteria?: any;
+    buyer_types_criteria?: any;
+  };
+  onSave?: () => void;
 }
 
 export function StructuredCriteriaPanel({
   trackerId,
-  sizeCriteria,
-  serviceCriteria,
-  geographyCriteria,
+  tracker,
   onSave,
 }: StructuredCriteriaPanelProps) {
-  const [size, setSize] = useState<SizeCriteria>(sizeCriteria || {});
-  const [service, setService] = useState<ServiceCriteria>(serviceCriteria || {});
-  const [geography, setGeography] = useState<GeographyCriteria>(geographyCriteria || {});
+  const [sizeCriteria, setSizeCriteria] = useState(tracker.size_criteria || {
+    min_revenue: "",
+    max_revenue: "",
+    min_ebitda: "",
+    max_ebitda: "",
+    min_employees: "",
+    max_employees: "",
+  });
+
+  const [serviceCriteria, setServiceCriteria] = useState(tracker.service_criteria || {
+    primary_focus: "",
+    target_services: [],
+    service_exclusions: [],
+  });
+
+  const [geographyCriteria, setGeographyCriteria] = useState(tracker.geography_criteria || {
+    target_geographies: [],
+    geographic_exclusions: [],
+    national_keywords: [],
+  });
+
+  const [buyerTypesCriteria, setBuyerTypesCriteria] = useState(tracker.buyer_types_criteria || {
+    addon_only: false,
+    platform_only: false,
+    other_preferences: "",
+  });
+
   const [hasChanges, setHasChanges] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<'valid' | 'invalid' | 'pending' | null>(null);
   const { toast } = useToast();
 
-  const handleSave = () => {
-    onSave({
-      size_criteria: size,
-      service_criteria: service,
-      geography_criteria: geography,
-    });
-    setHasChanges(false);
+  const validateCriteria = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("validate-criteria", {
+        body: {
+          tracker_id: trackerId,
+          size_criteria: sizeCriteria,
+          service_criteria: serviceCriteria,
+          geography_criteria: geographyCriteria,
+          buyer_types_criteria: buyerTypesCriteria,
+        },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setValidationStatus(data.valid ? 'valid' : 'invalid');
+      if (!data.valid) {
+        toast({
+          title: "Validation Issues",
+          description: data.message || "Some criteria may need adjustment",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: any) => {
+      setValidationStatus('invalid');
+      toast({
+        title: "Validation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from('industry_trackers')
+        .update({
+          size_criteria: sizeCriteria,
+          service_criteria: serviceCriteria,
+          geography_criteria: geographyCriteria,
+          buyer_types_criteria: buyerTypesCriteria,
+        })
+        .eq('id', trackerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Criteria saved successfully",
+      });
+
+      setHasChanges(false);
+      setIsEditMode(false);
+      onSave?.();
+
+      // Validate after save
+      validateCriteria.mutate();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReset = () => {
-    setSize(sizeCriteria || {});
-    setService(serviceCriteria || {});
-    setGeography(geographyCriteria || {});
+    setSizeCriteria(tracker.size_criteria || {});
+    setServiceCriteria(tracker.service_criteria || {});
+    setGeographyCriteria(tracker.geography_criteria || {});
+    setBuyerTypesCriteria(tracker.buyer_types_criteria || {});
     setHasChanges(false);
   };
 
-  const updateSize = (updates: Partial<SizeCriteria>) => {
-    setSize({ ...size, ...updates });
+  const markChanged = () => {
     setHasChanges(true);
-  };
-
-  const updateService = (updates: Partial<ServiceCriteria>) => {
-    setService({ ...service, ...updates });
-    setHasChanges(true);
-  };
-
-  const updateGeography = (updates: Partial<GeographyCriteria>) => {
-    setGeography({ ...geography, ...updates });
-    setHasChanges(true);
+    setValidationStatus(null);
   };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <CardTitle>Structured Fit Criteria</CardTitle>
             <CardDescription>
               Define structured criteria for scoring and matching
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {validationStatus === 'valid' && (
+              <Badge variant="default" className="bg-green-600">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Valid
+              </Badge>
+            )}
+            {validationStatus === 'invalid' && (
+              <Badge variant="destructive">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Issues
+              </Badge>
+            )}
+            {validateCriteria.isPending && (
+              <Badge variant="secondary">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Validating...
+              </Badge>
+            )}
             {hasChanges && <Badge variant="secondary">Unsaved changes</Badge>}
-            <Button variant="outline" size="sm" onClick={handleReset} disabled={!hasChanges}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
-            <Button size="sm" onClick={handleSave} disabled={!hasChanges}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
-            </Button>
+            {!isEditMode && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditMode(true)}>
+                Edit
+              </Button>
+            )}
+            {isEditMode && (
+              <>
+                <Button variant="outline" size="sm" onClick={handleReset} disabled={!hasChanges}>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Reset
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={!hasChanges}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="size" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="size">Size & Scale</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="size">Size</TabsTrigger>
             <TabsTrigger value="service">Services</TabsTrigger>
             <TabsTrigger value="geography">Geography</TabsTrigger>
+            <TabsTrigger value="buyer-types">Buyer Types</TabsTrigger>
           </TabsList>
 
           <TabsContent value="size" className="space-y-4 mt-4">
@@ -104,9 +209,13 @@ export function StructuredCriteriaPanel({
                 <Input
                   id="min-revenue"
                   type="number"
-                  value={size.min_revenue || ""}
-                  onChange={(e) => updateSize({ min_revenue: e.target.value })}
+                  value={sizeCriteria.min_revenue}
+                  onChange={(e) => {
+                    setSizeCriteria({ ...sizeCriteria, min_revenue: e.target.value });
+                    markChanged();
+                  }}
                   placeholder="e.g., 10"
+                  disabled={!isEditMode}
                 />
               </div>
               <div className="space-y-2">
@@ -114,32 +223,27 @@ export function StructuredCriteriaPanel({
                 <Input
                   id="max-revenue"
                   type="number"
-                  value={size.max_revenue || ""}
-                  onChange={(e) => updateSize({ max_revenue: e.target.value })}
+                  value={sizeCriteria.max_revenue}
+                  onChange={(e) => {
+                    setSizeCriteria({ ...sizeCriteria, max_revenue: e.target.value });
+                    markChanged();
+                  }}
                   placeholder="e.g., 100"
+                  disabled={!isEditMode}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ideal-revenue">Ideal Revenue ($M)</Label>
-                <Input
-                  id="ideal-revenue"
-                  type="number"
-                  value={size.ideal_revenue || ""}
-                  onChange={(e) => updateSize({ ideal_revenue: e.target.value })}
-                  placeholder="e.g., 50"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="min-ebitda">Minimum EBITDA ($M)</Label>
                 <Input
                   id="min-ebitda"
                   type="number"
-                  value={size.min_ebitda || ""}
-                  onChange={(e) => updateSize({ min_ebitda: e.target.value })}
+                  value={sizeCriteria.min_ebitda}
+                  onChange={(e) => {
+                    setSizeCriteria({ ...sizeCriteria, min_ebitda: e.target.value });
+                    markChanged();
+                  }}
                   placeholder="e.g., 2"
+                  disabled={!isEditMode}
                 />
               </div>
               <div className="space-y-2">
@@ -147,164 +251,197 @@ export function StructuredCriteriaPanel({
                 <Input
                   id="max-ebitda"
                   type="number"
-                  value={size.max_ebitda || ""}
-                  onChange={(e) => updateSize({ max_ebitda: e.target.value })}
+                  value={sizeCriteria.max_ebitda}
+                  onChange={(e) => {
+                    setSizeCriteria({ ...sizeCriteria, max_ebitda: e.target.value });
+                    markChanged();
+                  }}
                   placeholder="e.g., 20"
+                  disabled={!isEditMode}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ideal-ebitda">Ideal EBITDA ($M)</Label>
+                <Label htmlFor="min-employees">Minimum Employees</Label>
                 <Input
-                  id="ideal-ebitda"
+                  id="min-employees"
                   type="number"
-                  value={size.ideal_ebitda || ""}
-                  onChange={(e) => updateSize({ ideal_ebitda: e.target.value })}
-                  placeholder="e.g., 10"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="min-locations">Minimum Locations</Label>
-                <Input
-                  id="min-locations"
-                  type="number"
-                  value={size.min_locations || ""}
-                  onChange={(e) => updateSize({ min_locations: e.target.value })}
-                  placeholder="e.g., 1"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="max-locations">Maximum Locations</Label>
-                <Input
-                  id="max-locations"
-                  type="number"
-                  value={size.max_locations || ""}
-                  onChange={(e) => updateSize({ max_locations: e.target.value })}
+                  value={sizeCriteria.min_employees}
+                  onChange={(e) => {
+                    setSizeCriteria({ ...sizeCriteria, min_employees: e.target.value });
+                    markChanged();
+                  }}
                   placeholder="e.g., 50"
+                  disabled={!isEditMode}
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="size-notes">Size Notes</Label>
-              <Textarea
-                id="size-notes"
-                value={size.notes || ""}
-                onChange={(e) => updateSize({ notes: e.target.value })}
-                placeholder="Additional notes about size criteria..."
-                rows={3}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="max-employees">Maximum Employees</Label>
+                <Input
+                  id="max-employees"
+                  type="number"
+                  value={sizeCriteria.max_employees}
+                  onChange={(e) => {
+                    setSizeCriteria({ ...sizeCriteria, max_employees: e.target.value });
+                    markChanged();
+                  }}
+                  placeholder="e.g., 500"
+                  disabled={!isEditMode}
+                />
+              </div>
             </div>
           </TabsContent>
 
           <TabsContent value="service" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="primary-focus">Primary Focus (comma-separated)</Label>
+              <Label htmlFor="primary-focus">Primary Focus</Label>
               <Input
                 id="primary-focus"
-                value={service.primary_focus?.join(", ") || ""}
-                onChange={(e) => updateService({
-                  primary_focus: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                })}
-                placeholder="e.g., HVAC, Plumbing, Electrical"
+                value={serviceCriteria.primary_focus}
+                onChange={(e) => {
+                  setServiceCriteria({ ...serviceCriteria, primary_focus: e.target.value });
+                  markChanged();
+                }}
+                placeholder="e.g., HVAC Services"
+                disabled={!isEditMode}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="secondary-services">Secondary Services (comma-separated)</Label>
-              <Input
-                id="secondary-services"
-                value={service.secondary_services?.join(", ") || ""}
-                onChange={(e) => updateService({
-                  secondary_services: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                })}
-                placeholder="e.g., General Contracting, Property Management"
+              <Label htmlFor="target-services">Target Services</Label>
+              <ChipInput
+                value={serviceCriteria.target_services || []}
+                onChange={(value) => {
+                  setServiceCriteria({ ...serviceCriteria, target_services: value });
+                  markChanged();
+                }}
+                placeholder="Add service and press Enter..."
+                disabled={!isEditMode}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="excluded-services">Excluded Services (comma-separated)</Label>
-              <Input
-                id="excluded-services"
-                value={service.excluded_services?.join(", ") || ""}
-                onChange={(e) => updateService({
-                  excluded_services: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                })}
-                placeholder="e.g., Roofing, Landscaping"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="service-notes">Service Notes</Label>
-              <Textarea
-                id="service-notes"
-                value={service.notes || ""}
-                onChange={(e) => updateService({ notes: e.target.value })}
-                placeholder="Additional notes about service criteria..."
-                rows={3}
+              <Label htmlFor="service-exclusions">Service Exclusions</Label>
+              <ChipInput
+                value={serviceCriteria.service_exclusions || []}
+                onChange={(value) => {
+                  setServiceCriteria({ ...serviceCriteria, service_exclusions: value });
+                  markChanged();
+                }}
+                placeholder="Add exclusion and press Enter..."
+                disabled={!isEditMode}
               />
             </div>
           </TabsContent>
 
           <TabsContent value="geography" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="target-regions">Target Regions (comma-separated)</Label>
-              <Input
-                id="target-regions"
-                value={geography.target_regions?.join(", ") || ""}
-                onChange={(e) => updateGeography({
-                  target_regions: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                })}
-                placeholder="e.g., Northeast, Southeast, Midwest"
+              <Label htmlFor="target-geographies">Target Geographies</Label>
+              <ChipInput
+                value={geographyCriteria.target_geographies || []}
+                onChange={(value) => {
+                  setGeographyCriteria({ ...geographyCriteria, target_geographies: value });
+                  markChanged();
+                }}
+                placeholder="Add state/region and press Enter... (e.g., CA, TX, Northeast)"
+                disabled={!isEditMode}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter state codes (e.g., CA, TX) or region names (e.g., Northeast, Southeast)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="geographic-exclusions">Geographic Exclusions</Label>
+              <ChipInput
+                value={geographyCriteria.geographic_exclusions || []}
+                onChange={(value) => {
+                  setGeographyCriteria({ ...geographyCriteria, geographic_exclusions: value });
+                  markChanged();
+                }}
+                placeholder="Add exclusion and press Enter..."
+                disabled={!isEditMode}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="target-states">Target States (comma-separated)</Label>
-              <Input
-                id="target-states"
-                value={geography.target_states?.join(", ") || ""}
-                onChange={(e) => updateGeography({
-                  target_states: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                })}
-                placeholder="e.g., CA, TX, FL, NY"
+              <Label htmlFor="national-keywords">National Keywords</Label>
+              <ChipInput
+                value={geographyCriteria.national_keywords || []}
+                onChange={(value) => {
+                  setGeographyCriteria({ ...geographyCriteria, national_keywords: value });
+                  markChanged();
+                }}
+                placeholder="Add keyword and press Enter..."
+                disabled={!isEditMode}
               />
+              <p className="text-xs text-muted-foreground">
+                Keywords indicating national coverage (e.g., "nationwide", "national", "all states")
+              </p>
             </div>
+          </TabsContent>
 
-            <div className="space-y-2">
-              <Label htmlFor="excluded-regions">Excluded Regions (comma-separated)</Label>
-              <Input
-                id="excluded-regions"
-                value={geography.excluded_regions?.join(", ") || ""}
-                onChange={(e) => updateGeography({
-                  excluded_regions: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                })}
-                placeholder="e.g., International"
-              />
-            </div>
+          <TabsContent value="buyer-types" className="space-y-4 mt-4">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="addon-only"
+                  checked={buyerTypesCriteria.addon_only}
+                  onCheckedChange={(checked) => {
+                    setBuyerTypesCriteria({ ...buyerTypesCriteria, addon_only: checked });
+                    markChanged();
+                  }}
+                  disabled={!isEditMode}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label
+                    htmlFor="addon-only"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Add-on acquisitions only
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Only match buyers looking for add-on acquisitions
+                  </p>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="geographic-strategy">Geographic Strategy</Label>
-              <Textarea
-                id="geographic-strategy"
-                value={geography.geographic_strategy || ""}
-                onChange={(e) => updateGeography({ geographic_strategy: e.target.value })}
-                placeholder="Describe the geographic expansion strategy..."
-                rows={3}
-              />
-            </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="platform-only"
+                  checked={buyerTypesCriteria.platform_only}
+                  onCheckedChange={(checked) => {
+                    setBuyerTypesCriteria({ ...buyerTypesCriteria, platform_only: checked });
+                    markChanged();
+                  }}
+                  disabled={!isEditMode}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label
+                    htmlFor="platform-only"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Platform acquisitions only
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Only match buyers looking for platform/first acquisitions
+                  </p>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="geography-notes">Geography Notes</Label>
-              <Textarea
-                id="geography-notes"
-                value={geography.notes || ""}
-                onChange={(e) => updateGeography({ notes: e.target.value })}
-                placeholder="Additional notes about geography criteria..."
-                rows={3}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="other-preferences">Other Preferences</Label>
+                <Textarea
+                  id="other-preferences"
+                  value={buyerTypesCriteria.other_preferences}
+                  onChange={(e) => {
+                    setBuyerTypesCriteria({ ...buyerTypesCriteria, other_preferences: e.target.value });
+                    markChanged();
+                  }}
+                  placeholder="Additional buyer type preferences..."
+                  rows={4}
+                  disabled={!isEditMode}
+                />
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -315,11 +452,20 @@ export function StructuredCriteriaPanel({
             <div className="flex-1">
               <h4 className="font-medium mb-1">AI-Assisted Criteria Editing</h4>
               <p className="text-sm text-muted-foreground mb-3">
-                Ask Claude to help refine your criteria based on deal characteristics or buyer preferences
+                Get AI-powered suggestions to refine your criteria based on deal characteristics and buyer preferences
               </p>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  toast({
+                    title: "AI Assistant",
+                    description: "AI-powered criteria suggestions coming soon!",
+                  });
+                }}
+              >
                 <Sparkles className="w-4 h-4 mr-2" />
-                Open AI Assistant
+                Suggest Improvements
               </Button>
             </div>
           </div>

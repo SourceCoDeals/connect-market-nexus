@@ -8,11 +8,28 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, FileText, MoreHorizontal, Archive, Trash2, ArrowUp, ArrowDown, Sparkles, ThumbsUp, ThumbsDown, UserCheck, ArrowUpDown, Search } from "lucide-react";
+import { Loader2, FileText, MoreHorizontal, Archive, Trash2, ArrowUp, ArrowDown, Sparkles, ThumbsUp, ThumbsDown, UserCheck, ArrowUpDown, Search, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 import { deleteDealWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
-import { DealScoreBadge } from "@/components/ma-intelligence/DealScoreBadge";
+import { DealScoreBadge } from "@/components/ma-intelligence";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type SortColumn = "deal_name" | "tracker" | "geography" | "revenue" | "ebitda" | "score" | "date";
 type SortDirection = "asc" | "desc";
@@ -42,6 +59,7 @@ interface DealRow {
   status: string | null;
   last_enriched_at: string | null;
   created_at: string;
+  priority_rank: number | null;
 }
 
 export default function MAAllDeals() {
@@ -83,7 +101,14 @@ export default function MAAllDeals() {
       status: d.status ?? null,
       last_enriched_at: d.last_enriched_at ?? null,
       created_at: d.created_at,
+      priority_rank: d.priority_rank ?? null,
     }));
+    // Sort by priority_rank (nulls last) as default ordering
+    mappedDeals.sort((a, b) => {
+      if (a.priority_rank === null) return 1;
+      if (b.priority_rank === null) return -1;
+      return a.priority_rank - b.priority_rank;
+    });
     setDeals(mappedDeals);
 
     const trackerMap: Record<string, TrackerInfo> = {};
@@ -139,6 +164,76 @@ export default function MAAllDeals() {
 
     setDealDeleteDialogOpen(false);
     setDealToDelete(null);
+  };
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end - update priority_rank
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sortedDeals.findIndex((deal) => deal.id === active.id);
+    const newIndex = sortedDeals.findIndex((deal) => deal.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Reorder the array
+    const reordered = arrayMove(sortedDeals, oldIndex, newIndex);
+
+    // Update priority_rank for all affected deals
+    const updates = reordered.map((deal, index) => ({
+      id: deal.id,
+      priority_rank: index + 1,
+    }));
+
+    // Optimistically update UI
+    setDeals((currentDeals) => {
+      const updatedDeals = currentDeals.map((deal) => {
+        const update = updates.find((u) => u.id === deal.id);
+        return update ? { ...deal, priority_rank: update.priority_rank } : deal;
+      });
+      return updatedDeals;
+    });
+
+    // Persist to database
+    try {
+      // Update each deal's priority_rank individually (cast to bypass types until migration runs)
+      const updatePromises = updates.map((u) =>
+        supabase.from("deals").update({ priority_rank: u.priority_rank } as any).eq("id", u.id)
+      );
+      const results = await Promise.all(updatePromises);
+      const error = results.find((r) => r.error)?.error;
+
+      if (error) {
+        toast({
+          title: "Error updating ranks",
+          description: error.message,
+          variant: "destructive",
+        });
+        // Reload to revert optimistic update
+        loadDeals();
+      } else {
+        toast({
+          title: "Rank updated",
+          description: "Deal priority has been updated",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      loadDeals();
+    }
   };
 
   const filteredDeals = useMemo(() => {
@@ -228,6 +323,190 @@ export default function MAAllDeals() {
     return `$${value.toFixed(1)}M`;
   };
 
+  // Sortable Row Component for drag and drop
+  const SortableRow = ({ deal, trackers, buyerCounts }: { deal: DealRow; trackers: Record<string, TrackerInfo>; buyerCounts: Record<string, BuyerCounts> }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: deal.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    const tracker = trackers[deal.tracker_id];
+    const counts = buyerCounts[deal.id] || { approved: 0, interested: 0, passed: 0 };
+    const isEnriched = !!deal.last_enriched_at;
+
+    return (
+      <TableRow key={deal.id} ref={setNodeRef} style={style} className="group">
+        {/* Drag Handle & Rank Number */}
+        <TableCell className="w-[60px]">
+          <div className="flex items-center gap-2">
+            <button
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing touch-none"
+            >
+              <GripVertical className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
+            </button>
+            <span className="text-sm font-medium text-muted-foreground">
+              {deal.priority_rank || "—"}
+            </span>
+          </div>
+        </TableCell>
+
+        {/* Deal Name */}
+        <TableCell className="font-medium">
+          <Link to={`/admin/ma-intelligence/deals/${deal.id}`} className="hover:text-primary transition-colors flex items-center gap-2">
+            {deal.deal_name}
+            {isEnriched && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                </TooltipTrigger>
+                <TooltipContent>Enriched on {new Date(deal.last_enriched_at!).toLocaleDateString()}</TooltipContent>
+              </Tooltip>
+            )}
+          </Link>
+          {deal.company_website && (
+            <span className="text-xs text-muted-foreground">{normalizeDomain(deal.company_website)}</span>
+          )}
+        </TableCell>
+
+        {/* Buyer Universe */}
+        <TableCell>
+          <Link
+            to={`/admin/ma-intelligence/trackers/${deal.tracker_id}`}
+            className="text-sm text-primary hover:underline"
+          >
+            {tracker?.industry_name || "Unknown"}
+          </Link>
+        </TableCell>
+
+        {/* Description */}
+        <TableCell className="max-w-[250px]">
+          {deal.company_overview ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-sm text-muted-foreground truncate block cursor-default">
+                  {deal.company_overview}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-sm">
+                <p className="text-sm">{deal.company_overview}</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+
+        {/* Geography */}
+        <TableCell className="text-muted-foreground">
+          {deal.geography && deal.geography.length > 0 ? (
+            <span className="text-sm">{deal.geography.slice(0, 2).join(", ")}{deal.geography.length > 2 && ` +${deal.geography.length - 2}`}</span>
+          ) : "—"}
+        </TableCell>
+
+        {/* Revenue */}
+        <TableCell className="text-right tabular-nums">
+          {formatCurrency(deal.revenue)}
+        </TableCell>
+
+        {/* EBITDA */}
+        <TableCell className="text-right tabular-nums">
+          {deal.ebitda_amount ? formatCurrency(deal.ebitda_amount) : deal.ebitda_percentage ? `${deal.ebitda_percentage}%` : "—"}
+        </TableCell>
+
+        {/* Score */}
+        <TableCell className="text-right">
+          <DealScoreBadge score={deal.deal_score} size="sm" />
+        </TableCell>
+
+        {/* Engagement */}
+        <TableCell>
+          <div className="flex items-center justify-center gap-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 text-sm">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className={counts.approved > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
+                    {counts.approved}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Approved for outreach</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 text-sm">
+                  <ThumbsUp className="w-3.5 h-3.5 text-blue-500" />
+                  <span className={counts.interested > 0 ? "text-blue-600 font-medium" : "text-muted-foreground"}>
+                    {counts.interested}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Buyers interested</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 text-sm">
+                  <ThumbsDown className="w-3.5 h-3.5 text-rose-400" />
+                  <span className={counts.passed > 0 ? "text-rose-500" : "text-muted-foreground"}>
+                    {counts.passed}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Buyers passed</TooltipContent>
+            </Tooltip>
+          </div>
+        </TableCell>
+
+        {/* Added Date */}
+        <TableCell className="text-muted-foreground text-sm">
+          {new Date(deal.created_at).toLocaleDateString()}
+        </TableCell>
+
+        {/* Status */}
+        <TableCell>
+          <Badge variant={deal.status === "Active" ? "default" : deal.status === "Closed" ? "secondary" : "outline"}>
+            {deal.status || "Active"}
+          </Badge>
+        </TableCell>
+
+        {/* Actions */}
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => archiveDeal(e, deal.id, deal.deal_name)}>
+                <Archive className="w-4 h-4 mr-2" />
+                Archive
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => confirmDeleteDeal(e, deal.id, deal.deal_name)} className="text-destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -273,165 +552,45 @@ export default function MAAllDeals() {
           </div>
         ) : (
           <div className="bg-card rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <SortableHeader column="deal_name">Deal Name</SortableHeader>
-                  <SortableHeader column="tracker">Buyer Universe</SortableHeader>
-                  <TableHead>Description</TableHead>
-                  <SortableHeader column="geography">Geography</SortableHeader>
-                  <SortableHeader column="revenue" className="text-right">Revenue</SortableHeader>
-                  <SortableHeader column="ebitda" className="text-right">EBITDA</SortableHeader>
-                  <SortableHeader column="score" className="text-right">Score</SortableHeader>
-                  <TableHead className="text-center">Engagement</TableHead>
-                  <SortableHeader column="date">Added</SortableHeader>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedDeals.map((deal) => {
-                  const tracker = trackers[deal.tracker_id];
-                  const counts = buyerCounts[deal.id] || { approved: 0, interested: 0, passed: 0 };
-                  const isEnriched = !!deal.last_enriched_at;
-
-                  return (
-                    <TableRow key={deal.id} className="group">
-                      <TableCell className="font-medium">
-                        <Link to={`/admin/ma-intelligence/deals/${deal.id}`} className="hover:text-primary transition-colors flex items-center gap-2">
-                          {deal.deal_name}
-                          {isEnriched && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                              </TooltipTrigger>
-                              <TooltipContent>Enriched on {new Date(deal.last_enriched_at!).toLocaleDateString()}</TooltipContent>
-                            </Tooltip>
-                          )}
-                        </Link>
-                        {deal.company_website && (
-                          <span className="text-xs text-muted-foreground">{normalizeDomain(deal.company_website)}</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        <Link
-                          to={`/admin/ma-intelligence/trackers/${deal.tracker_id}`}
-                          className="text-sm text-primary hover:underline"
-                        >
-                          {tracker?.industry_name || "Unknown"}
-                        </Link>
-                      </TableCell>
-
-                      <TableCell className="max-w-[250px]">
-                        {deal.company_overview ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-sm text-muted-foreground truncate block cursor-default">
-                                {deal.company_overview}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm">
-                              <p className="text-sm">{deal.company_overview}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground">
-                        {deal.geography && deal.geography.length > 0 ? (
-                          <span className="text-sm">{deal.geography.slice(0, 2).join(", ")}{deal.geography.length > 2 && ` +${deal.geography.length - 2}`}</span>
-                        ) : "—"}
-                      </TableCell>
-
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(deal.revenue)}
-                      </TableCell>
-
-                      <TableCell className="text-right tabular-nums">
-                        {deal.ebitda_amount ? formatCurrency(deal.ebitda_amount) : deal.ebitda_percentage ? `${deal.ebitda_percentage}%` : "—"}
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <DealScoreBadge score={deal.deal_score} size="sm" />
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-3">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1 text-sm">
-                                <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-                                <span className={counts.approved > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
-                                  {counts.approved}
-                                </span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>Approved for outreach</TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1 text-sm">
-                                <ThumbsUp className="w-3.5 h-3.5 text-blue-500" />
-                                <span className={counts.interested > 0 ? "text-blue-600 font-medium" : "text-muted-foreground"}>
-                                  {counts.interested}
-                                </span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>Buyers interested</TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1 text-sm">
-                                <ThumbsDown className="w-3.5 h-3.5 text-rose-400" />
-                                <span className={counts.passed > 0 ? "text-rose-500" : "text-muted-foreground"}>
-                                  {counts.passed}
-                                </span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>Buyers passed</TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground text-sm">
-                        {new Date(deal.created_at).toLocaleDateString()}
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge variant={deal.status === "Active" ? "default" : deal.status === "Closed" ? "secondary" : "outline"}>
-                          {deal.status || "Active"}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => archiveDeal(e, deal.id, deal.deal_name)}>
-                              <Archive className="w-4 h-4 mr-2" />
-                              Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => confirmDeleteDeal(e, deal.id, deal.deal_name)} className="text-destructive">
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[60px]">#</TableHead>
+                    <SortableHeader column="deal_name">Deal Name</SortableHeader>
+                    <SortableHeader column="tracker">Buyer Universe</SortableHeader>
+                    <TableHead>Description</TableHead>
+                    <SortableHeader column="geography">Geography</SortableHeader>
+                    <SortableHeader column="revenue" className="text-right">Revenue</SortableHeader>
+                    <SortableHeader column="ebitda" className="text-right">EBITDA</SortableHeader>
+                    <SortableHeader column="score" className="text-right">Score</SortableHeader>
+                    <TableHead className="text-center">Engagement</TableHead>
+                    <SortableHeader column="date">Added</SortableHeader>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <SortableContext
+                    items={sortedDeals.map((d) => d.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {sortedDeals.map((deal) => (
+                      <SortableRow
+                        key={deal.id}
+                        deal={deal}
+                        trackers={trackers}
+                        buyerCounts={buyerCounts}
+                      />
+                    ))}
+                  </SortableContext>
+                </TableBody>
+              </Table>
+            </DndContext>
           </div>
         )}
 

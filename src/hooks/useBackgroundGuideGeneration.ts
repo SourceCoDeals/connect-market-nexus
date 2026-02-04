@@ -54,7 +54,7 @@ export function useBackgroundGuideGeneration({
         .single();
 
       if (!error && data) {
-        setCurrentGeneration(data);
+        setCurrentGeneration(data as GenerationStatus);
         setIsGenerating(true);
         startPolling(data.id);
       }
@@ -74,25 +74,19 @@ export function useBackgroundGuideGeneration({
     hasCompletedRef.current = false;
 
     try {
-      // Call the background generation endpoint
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide-background`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({ universe_id: universeId })
-        }
-      );
+      // Call the background generation endpoint using supabase functions invoke
+      const { data, error } = await supabase.functions.invoke('generate-ma-guide-background', {
+        body: { universe_id: universeId }
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start generation');
+      if (error) {
+        throw new Error(error.message || 'Failed to start generation');
       }
 
-      const data = await response.json();
+      toast.success('Guide generation started. You can navigate away - it will continue in the background.');
+
+      // Start polling for progress
+      startPolling(data.generation_id);
 
       toast.success('Guide generation started. You can navigate away - it will continue in the background.');
 
@@ -140,26 +134,27 @@ export function useBackgroundGuideGeneration({
         throw new Error('Generation not found');
       }
 
-      setCurrentGeneration(data);
+      const generation = data as GenerationStatus;
+      setCurrentGeneration(generation);
 
       // Calculate progress percentage
-      const progressPercent = Math.round((data.phases_completed / data.total_phases) * 100);
+      const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
       setProgress(progressPercent);
 
       // Handle completion
-      if (data.status === 'completed' && !hasCompletedRef.current) {
+      if (generation.status === 'completed' && !hasCompletedRef.current) {
         hasCompletedRef.current = true;
-        handleGenerationComplete(data);
+        handleGenerationComplete(generation);
       }
 
       // Handle failure
-      if (data.status === 'failed' && !hasCompletedRef.current) {
+      if (generation.status === 'failed' && !hasCompletedRef.current) {
         hasCompletedRef.current = true;
-        handleGenerationFailed(data);
+        handleGenerationFailed(generation);
       }
 
       // Stop polling if no longer processing
-      if (data.status !== 'pending' && data.status !== 'processing') {
+      if (generation.status !== 'pending' && generation.status !== 'processing') {
         if (pollIntervalRef.current) {
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;

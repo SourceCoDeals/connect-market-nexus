@@ -5,6 +5,8 @@ import { Loader2 } from "lucide-react";
 import { TrackerBuyersToolbar } from "./TrackerBuyersToolbar";
 import { TrackerBuyersTable } from "./TrackerBuyersTable";
 import { AddBuyerDialog } from "./AddBuyerDialog";
+import { DedupeDialog } from "./DedupeDialog";
+import { InterruptedSessionBanner, saveSessionState, clearSessionState } from "./InterruptedSessionBanner";
 import { useToast } from "@/hooks/use-toast";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { useRealtimeTrackerBuyers } from "@/hooks/ma-intelligence/useRealtimeTrackerBuyers";
@@ -14,14 +16,22 @@ interface TrackerBuyersTabProps {
   onBuyerCountChange?: (count: number) => void;
 }
 
+interface EnrichmentProgress {
+  current: number;
+  total: number;
+  isPaused: boolean;
+  completedIds: string[];
+}
+
 export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyersTabProps) {
   const [buyers, setBuyers] = useState<MABuyer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
-  const [isEnriching, setIsEnriching] = useState(false);
   const [addBuyerDialogOpen, setAddBuyerDialogOpen] = useState(false);
+  const [dedupeDialogOpen, setDedupeDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCoverage, setFilterCoverage] = useState<"all" | "high" | "medium" | "low">("all");
+  const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgress | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -65,7 +75,8 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
   });
 
   const handleBulkEnrich = async () => {
-    if (selectedBuyers.size === 0) {
+    const buyerIds = Array.from(selectedBuyers);
+    if (buyerIds.length === 0) {
       toast({
         title: "No buyers selected",
         description: "Please select buyers to enrich",
@@ -74,35 +85,122 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       return;
     }
 
-    setIsEnriching(true);
-    try {
-      const buyerIds = Array.from(selectedBuyers);
+    const progress: EnrichmentProgress = {
+      current: 0,
+      total: buyerIds.length,
+      isPaused: false,
+      completedIds: [],
+    };
+    setEnrichmentProgress(progress);
 
-      // Call enrichment edge function for each buyer
-      for (const buyerId of buyerIds) {
-        await supabase.functions.invoke("enrich-buyer", {
-          body: { buyer_id: buyerId },
-        });
+    try {
+      for (let i = 0; i < buyerIds.length; i++) {
+        if (progress.isPaused) break;
+
+        const buyerId = buyerIds[i];
+
+        try {
+          await supabase.functions.invoke("enrich-buyer", {
+            body: { buyerId },
+          });
+
+          progress.current = i + 1;
+          progress.completedIds.push(buyerId);
+          setEnrichmentProgress({ ...progress });
+
+          // Save progress to localStorage
+          saveSessionState(trackerId, "Bulk Enrichment", progress.current, progress.total);
+        } catch (error: any) {
+          console.error(`Error enriching buyer ${buyerId}:`, error);
+        }
       }
 
-      toast({
-        title: "Enrichment started",
-        description: `Enriching ${buyerIds.length} buyers in the background`,
-      });
+      clearSessionState(trackerId);
+      setEnrichmentProgress(null);
+      setSelectedBuyers(new Set());
+      loadBuyers();
 
-      // Reload buyers after a delay
-      setTimeout(() => {
-        loadBuyers();
-        setSelectedBuyers(new Set());
-      }, 2000);
+      toast({
+        title: "Enrichment complete",
+        description: `Successfully enriched ${progress.completedIds.length} of ${buyerIds.length} buyers`,
+      });
     } catch (error: any) {
       toast({
-        title: "Error enriching buyers",
+        title: "Error during enrichment",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsEnriching(false);
+    }
+  };
+
+  const handlePauseEnrichment = () => {
+    if (enrichmentProgress) {
+      setEnrichmentProgress({
+        ...enrichmentProgress,
+        isPaused: !enrichmentProgress.isPaused,
+      });
+    }
+  };
+
+  const handleEnrichSingle = async (buyerId: string) => {
+    try {
+      await supabase.functions.invoke("enrich-buyer", {
+        body: { buyerId },
+      });
+
+      toast({
+        title: "Enrichment started",
+        description: "Buyer enrichment in progress",
+      });
+
+      setTimeout(() => loadBuyers(), 2000);
+    } catch (error: any) {
+      toast({
+        title: "Enrichment failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleArchiveBuyer = async (buyerId: string) => {
+    try {
+      // remarketing_buyers doesn't have 'status' column - use 'archived' boolean instead
+      await supabase
+        .from("remarketing_buyers")
+        .update({ archived: true })
+        .eq("id", buyerId);
+
+      toast({ title: "Buyer archived" });
+      loadBuyers();
+    } catch (error: any) {
+      toast({
+        title: "Archive failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteBuyer = async (buyerId: string) => {
+    if (!confirm("Are you sure you want to delete this buyer? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await supabase
+        .from("remarketing_buyers")
+        .delete()
+        .eq("id", buyerId);
+
+      toast({ title: "Buyer deleted" });
+      loadBuyers();
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -198,6 +296,8 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
   return (
     <div className="space-y-4">
+      <InterruptedSessionBanner trackerId={trackerId} />
+
       <TrackerBuyersToolbar
         selectedCount={selectedBuyers.size}
         totalCount={buyers.length}
@@ -208,7 +308,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         onAddBuyer={() => setAddBuyerDialogOpen(true)}
         onBulkEnrich={handleBulkEnrich}
         onBulkScore={handleBulkScore}
-        isEnriching={isEnriching}
+        onDedupe={() => setDedupeDialogOpen(true)}
+        enrichmentProgress={enrichmentProgress}
+        onPauseEnrichment={handlePauseEnrichment}
       />
 
       <Card>
@@ -219,6 +321,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
             onToggleSelect={handleToggleSelect}
             onSelectAll={handleSelectAll}
             onRefresh={loadBuyers}
+            onEnrich={handleEnrichSingle}
+            onArchive={handleArchiveBuyer}
+            onDelete={handleDeleteBuyer}
           />
         </CardContent>
       </Card>
@@ -228,6 +333,12 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         onOpenChange={setAddBuyerDialogOpen}
         trackerId={trackerId}
         onBuyerAdded={loadBuyers}
+      />
+
+      <DedupeDialog
+        open={dedupeDialogOpen}
+        onOpenChange={setDedupeDialogOpen}
+        trackerId={trackerId}
       />
     </div>
   );

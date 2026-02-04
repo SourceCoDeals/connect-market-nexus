@@ -458,6 +458,69 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_criteria_extractions: {
+        Row: {
+          completed_at: string | null
+          confidence_scores: Json | null
+          current_phase: string | null
+          error: string | null
+          extracted_criteria: Json | null
+          id: string
+          phases_completed: number
+          source_id: string | null
+          started_at: string
+          status: string
+          total_phases: number
+          universe_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          confidence_scores?: Json | null
+          current_phase?: string | null
+          error?: string | null
+          extracted_criteria?: Json | null
+          id?: string
+          phases_completed?: number
+          source_id?: string | null
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          confidence_scores?: Json | null
+          current_phase?: string | null
+          error?: string | null
+          extracted_criteria?: Json | null
+          id?: string
+          phases_completed?: number
+          source_id?: string | null
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_criteria_extractions_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "criteria_extraction_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_criteria_extractions_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_deal_scores: {
         Row: {
           acquisition_score: number | null
@@ -1548,6 +1611,62 @@ export type Database = {
           },
         ]
       }
+      criteria_extraction_sources: {
+        Row: {
+          confidence_scores: Json | null
+          created_at: string | null
+          extracted_data: Json | null
+          extraction_completed_at: string | null
+          extraction_error: string | null
+          extraction_started_at: string | null
+          extraction_status: string
+          id: string
+          source_metadata: Json | null
+          source_name: string | null
+          source_type: string
+          universe_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_scores?: Json | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          extraction_completed_at?: string | null
+          extraction_error?: string | null
+          extraction_started_at?: string | null
+          extraction_status?: string
+          id?: string
+          source_metadata?: Json | null
+          source_name?: string | null
+          source_type?: string
+          universe_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_scores?: Json | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          extraction_completed_at?: string | null
+          extraction_error?: string | null
+          extraction_started_at?: string | null
+          extraction_status?: string
+          id?: string
+          source_metadata?: Json | null
+          source_name?: string | null
+          source_type?: string
+          universe_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criteria_extraction_sources_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cron_job_logs: {
         Row: {
           created_at: string | null
@@ -2377,22 +2496,28 @@ export type Database = {
         Row: {
           assigned_to: string | null
           buyer_priority_score: number | null
+          company_address: string | null
           connection_request_id: string | null
           contact_company: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
           contact_role: string | null
+          contact_title: string | null
           created_at: string | null
+          deal_score: number | null
           deleted_at: string | null
           description: string | null
           expected_close_date: string | null
+          extraction_sources: Json | null
           fee_agreement_status: string | null
           followed_up: boolean | null
           followed_up_at: string | null
           followed_up_by: string | null
           id: string
           inbound_lead_id: string | null
+          industry_kpis: Json | null
+          last_enriched_at: string | null
           listing_id: string | null
           metadata: Json | null
           nda_status: string | null
@@ -2413,22 +2538,28 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           buyer_priority_score?: number | null
+          company_address?: string | null
           connection_request_id?: string | null
           contact_company?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           contact_role?: string | null
+          contact_title?: string | null
           created_at?: string | null
+          deal_score?: number | null
           deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
+          extraction_sources?: Json | null
           fee_agreement_status?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
           inbound_lead_id?: string | null
+          industry_kpis?: Json | null
+          last_enriched_at?: string | null
           listing_id?: string | null
           metadata?: Json | null
           nda_status?: string | null
@@ -2449,22 +2580,28 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           buyer_priority_score?: number | null
+          company_address?: string | null
           connection_request_id?: string | null
           contact_company?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           contact_role?: string | null
+          contact_title?: string | null
           created_at?: string | null
+          deal_score?: number | null
           deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
+          extraction_sources?: Json | null
           fee_agreement_status?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
           inbound_lead_id?: string | null
+          industry_kpis?: Json | null
+          last_enriched_at?: string | null
           listing_id?: string | null
           metadata?: Json | null
           nda_status?: string | null
@@ -3033,6 +3170,7 @@ export type Database = {
           admin_notes: string | null
           business_website: string | null
           company_name: string | null
+          contacted_owner: boolean | null
           converted_at: string | null
           converted_by: string | null
           converted_to_request_id: string | null
@@ -3063,6 +3201,7 @@ export type Database = {
           admin_notes?: string | null
           business_website?: string | null
           company_name?: string | null
+          contacted_owner?: boolean | null
           converted_at?: string | null
           converted_by?: string | null
           converted_to_request_id?: string | null
@@ -3093,6 +3232,7 @@ export type Database = {
           admin_notes?: string | null
           business_website?: string | null
           company_name?: string | null
+          contacted_owner?: boolean | null
           converted_at?: string | null
           converted_by?: string | null
           converted_to_request_id?: string | null
@@ -3228,38 +3368,68 @@ export type Database = {
       }
       industry_trackers: {
         Row: {
+          archived: boolean | null
           buyer_count: number | null
+          buyer_types_criteria: Json | null
           color: string | null
           created_at: string | null
           deal_count: number | null
           description: string | null
+          geography_criteria: Json | null
+          geography_weight: number | null
           id: string
           is_active: boolean | null
+          kpi_scoring_config: Json | null
           name: string
+          owner_goals_weight: number | null
+          service_criteria: Json | null
+          service_mix_weight: number | null
+          size_criteria: Json | null
+          size_weight: number | null
           universe_id: string | null
           updated_at: string | null
         }
         Insert: {
+          archived?: boolean | null
           buyer_count?: number | null
+          buyer_types_criteria?: Json | null
           color?: string | null
           created_at?: string | null
           deal_count?: number | null
           description?: string | null
+          geography_criteria?: Json | null
+          geography_weight?: number | null
           id?: string
           is_active?: boolean | null
+          kpi_scoring_config?: Json | null
           name: string
+          owner_goals_weight?: number | null
+          service_criteria?: Json | null
+          service_mix_weight?: number | null
+          size_criteria?: Json | null
+          size_weight?: number | null
           universe_id?: string | null
           updated_at?: string | null
         }
         Update: {
+          archived?: boolean | null
           buyer_count?: number | null
+          buyer_types_criteria?: Json | null
           color?: string | null
           created_at?: string | null
           deal_count?: number | null
           description?: string | null
+          geography_criteria?: Json | null
+          geography_weight?: number | null
           id?: string
           is_active?: boolean | null
+          kpi_scoring_config?: Json | null
           name?: string
+          owner_goals_weight?: number | null
+          service_criteria?: Json | null
+          service_mix_weight?: number | null
+          size_criteria?: Json | null
+          size_weight?: number | null
           universe_id?: string | null
           updated_at?: string | null
         }
@@ -4052,6 +4222,59 @@ export type Database = {
             columns: ["referral_partner_id"]
             isOneToOne: false
             referencedRelation: "referral_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ma_guide_generations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_phase: string | null
+          error: string | null
+          generated_content: Json | null
+          id: string
+          phases_completed: number
+          started_at: string
+          status: string
+          total_phases: number
+          universe_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_phase?: string | null
+          error?: string | null
+          generated_content?: Json | null
+          id?: string
+          phases_completed?: number
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_phase?: string | null
+          error?: string | null
+          generated_content?: Json | null
+          id?: string
+          phases_completed?: number
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ma_guide_generations_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
             referencedColumns: ["id"]
           },
         ]
@@ -6020,6 +6243,50 @@ export type Database = {
           },
         ]
       }
+      tracker_activity_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          entity_id: string | null
+          entity_name: string | null
+          id: string
+          metadata: Json | null
+          tracker_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          entity_id?: string | null
+          entity_name?: string | null
+          id?: string
+          metadata?: Json | null
+          tracker_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          id?: string
+          metadata?: Json | null
+          tracker_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracker_activity_logs_tracker_id_fkey"
+            columns: ["tracker_id"]
+            isOneToOne: false
+            referencedRelation: "industry_trackers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trigger_logs: {
         Row: {
           created_at: string | null
@@ -7162,6 +7429,7 @@ export type Database = {
         }[]
       }
       cleanup_old_notifications: { Args: never; Returns: undefined }
+      cleanup_zombie_extractions: { Args: never; Returns: number }
       convert_inbound_lead_to_request: {
         Args: { p_lead_id: string; p_listing_id: string }
         Returns: string

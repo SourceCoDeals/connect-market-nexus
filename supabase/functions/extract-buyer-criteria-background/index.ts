@@ -191,22 +191,16 @@ async function processExtractionInBackground(
     // Call the shared extraction function directly (no HTTP overhead!)
     console.log(`[processExtractionInBackground] Calling direct extraction for universe ${universeId}`);
 
-    const criteria = await extractCriteriaFromGuide(guideContent, industryName);
-
-    extractedCriteria = criteria;
-    confidenceScores = {
-      size: criteria.size_criteria?.confidence_score || 0,
-      service: criteria.service_criteria?.confidence_score || 0,
-      geography: criteria.geography_criteria?.confidence_score || 0,
-      buyer_types: criteria.buyer_types_criteria?.confidence_score || 0,
-      overall: criteria.overall_confidence || 0
-    };
-
-    console.log(`[processExtractionInBackground] Extraction completed with ${criteria.overall_confidence}% confidence`);
-
-    // OPTIMIZATION: Batch all database updates into a single transaction
-    // This reduces round-trips from 4 individual updates to 1 transaction
-    const completedAt = new Date().toISOString();
+    // Update the universe with the extracted criteria
+    await supabase
+      .from('remarketing_buyer_universes')
+      .update({
+        size_criteria: extractedCriteria.size_criteria,
+        service_criteria: extractedCriteria.service_criteria,
+        geography_criteria: extractedCriteria.geography_criteria,
+        buyer_types_criteria: extractedCriteria.buyer_types_criteria
+      })
+      .eq('id', universeId);
 
     // Use a Supabase RPC function for atomic batch update
     // If RPC not available, use Promise.all to parallelize updates

@@ -4,20 +4,29 @@
 // This file re-exports them for backward compatibility and adds
 // M&A Intelligence-specific types that extend the base types.
 
-// Re-export canonical types from the main types file
-export {
-  type SizeCriteria,
-  type ServiceCriteria,
-  type GeographyCriteria,
-  type BuyerTypesCriteria,
-  type ScoringBehavior,
-  type AcquisitionRecord as BaseAcquisitionRecord,
-  type ExtractionSource,
-  type DataCompleteness,
-  type ThesisConfidence,
-  type ScoreTier,
-  type ScoreStatus,
+// Import and re-export canonical types from the main types file
+import type {
+  SizeCriteria as BaseSizeCriteria,
+  ServiceCriteria as BaseServiceCriteria,
+  GeographyCriteria as BaseGeographyCriteria,
+  BuyerTypesCriteria as BaseBuyerTypesCriteria,
+  ScoringBehavior as BaseScoringBehavior,
+  AcquisitionRecord as BaseAcquisitionRecord,
+  ExtractionSource as BaseExtractionSource,
+  DataCompleteness,
+  ThesisConfidence,
+  ScoreTier,
+  ScoreStatus,
 } from '@/types/remarketing';
+
+// Re-export with aliases for use in this file
+export type SizeCriteria = BaseSizeCriteria;
+export type ServiceCriteria = BaseServiceCriteria;
+export type GeographyCriteria = BaseGeographyCriteria;
+export type BuyerTypesCriteria = BaseBuyerTypesCriteria;
+export type ScoringBehavior = BaseScoringBehavior;
+export type ExtractionSource = BaseExtractionSource;
+export type { DataCompleteness, ThesisConfidence, ScoreTier, ScoreStatus };
 
 // Tracker document type (specific to M&A Intelligence)
 export interface TrackerDocument {
@@ -243,6 +252,140 @@ export interface BuyerDealScore {
 }
 
 // ============================================================
+// TRACKER TYPES
+// ============================================================
+
+export interface IndustryTracker {
+  id: string;
+  name: string;
+  industry_name?: string;
+  size_criteria?: SizeCriteria;
+  service_criteria?: ServiceCriteria;
+  geography_criteria?: GeographyCriteria;
+  buyer_types_criteria?: BuyerTypesCriteria;
+  kpi_scoring_config?: KPIScoringConfig;
+  geography_weight?: number;
+  service_mix_weight?: number;
+  size_weight?: number;
+  owner_goals_weight?: number;
+  archived?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface KPIScoringConfig {
+  kpis: Array<{
+    name: string;
+    operator: 'gt' | 'lt' | 'eq' | 'gte' | 'lte';
+    threshold: number;
+    points: number;
+    unit?: string;
+  }>;
+}
+
+// ============================================================
+// PE FIRM HIERARCHY TYPES
+// ============================================================
+
+export interface PEFirm {
+  id: string;
+  name: string;
+  website?: string;
+  linkedin?: string;
+  platforms: Platform[];
+}
+
+export interface Platform {
+  id: string;
+  pe_firm_id: string;
+  name: string;
+  website?: string;
+}
+
+// ============================================================
+// OUTREACH TRACKING
+// ============================================================
+
+export interface OutreachRecord {
+  id: string;
+  buyer_id: string;
+  deal_id: string;
+  sent_at: string;
+  email_subject?: string;
+  email_body?: string;
+  response_received?: boolean;
+}
+
+// ============================================================
+// DOCUMENT MANAGEMENT
+// ============================================================
+
+export interface DealTranscript {
+  id: string;
+  deal_id: string;
+  title: string;
+  transcript_type: 'link' | 'upload' | 'call';
+  url?: string;
+  notes?: string;
+  call_date?: string;
+  created_at: string;
+  extracted_data?: Record<string, any>;
+  extraction_evidence?: Record<string, any>;
+  processed_at?: string;
+}
+
+export interface BuyerTranscript {
+  id: string;
+  buyer_id: string;
+  title: string;
+  transcript_type: 'link' | 'upload' | 'call';
+  url?: string;
+  notes?: string;
+  call_date?: string;
+  created_at: string;
+  extracted_data?: Record<string, any>;
+  extraction_evidence?: Record<string, any>;
+  processed_at?: string;
+}
+
+// ============================================================
+// ENRICHMENT PROGRESS TRACKING
+// ============================================================
+
+export interface EnrichmentProgress {
+  current: number;
+  total: number;
+  isPaused: boolean;
+  completedIds: string[];
+}
+
+export interface BulkOperationProgress {
+  operation: 'enrich' | 'score';
+  current: number;
+  total: number;
+  isPaused: boolean;
+  completedIds: string[];
+  failedIds: string[];
+  startedAt: string;
+}
+
+// ============================================================
+// DEDUPLICATION
+// ============================================================
+
+export interface DedupeGroup {
+  strategy: 'pe_firm' | 'website' | 'platform';
+  buyers: MABuyer[];
+  recommendedBuyerId: string;
+}
+
+export interface DedupePreview {
+  buyerToKeep: MABuyer;
+  buyersToMerge: MABuyer[];
+  completenessScores: Record<string, number>;
+}
+
+// ============================================================
 // UI HELPER TYPES & FUNCTIONS
 // ============================================================
 
@@ -276,18 +419,39 @@ export function getIntelligenceCoverage(buyer: Partial<MABuyer>): IntelligenceCo
   return 'low';
 }
 
-export function calculateIntelligencePercentage(buyer: Partial<MABuyer>): number {
-  const fields = [
-    buyer.thesis_summary,
-    buyer.geo_preferences,
-    buyer.min_revenue,
-    buyer.max_revenue,
-    buyer.preferred_ebitda,
-    buyer.service_mix_prefs,
-    buyer.business_model_prefs,
-    buyer.deal_breakers,
+/**
+ * Calculate the intelligence percentage for a single buyer.
+ * 
+ * Two-tier system:
+ * - Website data (data fields filled) can contribute up to 50%
+ * - Transcript data is required to go above 50%
+ * 
+ * @param buyer - The buyer to evaluate
+ * @param hasTranscript - Whether the buyer has a call transcript
+ * @returns Intelligence percentage (0-100)
+ */
+export function calculateIntelligencePercentage(buyer: Partial<MABuyer>, hasTranscript: boolean = false): number {
+  // Fields that can be populated from website enrichment
+  const websiteFields = [
+    buyer.business_summary,
+    buyer.pe_firm_website || buyer.platform_website,
+    buyer.hq_state || buyer.hq_city,
+    buyer.services_offered,
+    buyer.industry_vertical,
+    buyer.min_revenue || buyer.max_revenue,
+    buyer.target_geographies,
+    buyer.geographic_footprint,
   ];
 
-  const filledFields = fields.filter(f => f !== null && f !== undefined && (Array.isArray(f) ? f.length > 0 : true)).length;
-  return Math.round((filledFields / fields.length) * 100);
+  const filledWebsiteFields = websiteFields.filter(f => 
+    f !== null && f !== undefined && (Array.isArray(f) ? f.length > 0 : true)
+  ).length;
+  
+  // Website intel: 0-50% based on filled website fields
+  const websiteIntel = Math.round((filledWebsiteFields / websiteFields.length) * 50);
+  
+  // Transcript intel: 50% if transcript exists
+  const transcriptIntel = hasTranscript ? 50 : 0;
+  
+  return websiteIntel + transcriptIntel;
 }

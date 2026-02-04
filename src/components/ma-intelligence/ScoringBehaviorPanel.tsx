@@ -2,61 +2,142 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Save, RotateCcw } from "lucide-react";
-import type { ScoringBehavior } from "@/lib/ma-intelligence/types";
+import { Save, RotateCcw, BarChart3 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ScoringBehaviorPanelProps {
   trackerId: string;
-  scoringBehavior: ScoringBehavior | null;
-  onSave: (behavior: ScoringBehavior) => void;
+  tracker: {
+    geography_weight?: number;
+    service_mix_weight?: number;
+    size_weight?: number;
+    owner_goals_weight?: number;
+  };
+  onSave?: () => void;
 }
+
+const DEFAULT_WEIGHTS = {
+  geography_weight: 1.0,
+  service_mix_weight: 1.0,
+  size_weight: 1.0,
+  owner_goals_weight: 1.0,
+};
 
 export function ScoringBehaviorPanel({
   trackerId,
-  scoringBehavior,
+  tracker,
   onSave,
 }: ScoringBehaviorPanelProps) {
-  const [behavior, setBehavior] = useState<ScoringBehavior>(scoringBehavior || {
-    size: { strictness: 'moderate', below_minimum_behavior: 'penalize', single_location_penalty: true },
-    services: { matching_mode: 'semantic', require_primary_focus_match: false, excluded_services_are_dealbreakers: true },
-    geography: { strictness: 'moderate', proximity_miles: 100, multi_location_rule: 'regional', single_location_rule: 'same_state', allow_national_for_attractive_deals: true },
-    engagement: { weight_multiplier: 1.5, override_geography: false, override_size: false },
+  const [weights, setWeights] = useState({
+    geography_weight: tracker.geography_weight ?? DEFAULT_WEIGHTS.geography_weight,
+    service_mix_weight: tracker.service_mix_weight ?? DEFAULT_WEIGHTS.service_mix_weight,
+    size_weight: tracker.size_weight ?? DEFAULT_WEIGHTS.size_weight,
+    owner_goals_weight: tracker.owner_goals_weight ?? DEFAULT_WEIGHTS.owner_goals_weight,
   });
-  const [hasChanges, setHasChanges] = useState(false);
 
-  const handleSave = () => {
-    onSave(behavior);
-    setHasChanges(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from('industry_trackers')
+        .update(weights)
+        .eq('id', trackerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Scoring weights saved successfully",
+      });
+
+      setHasChanges(false);
+      onSave?.();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReset = () => {
-    setBehavior(scoringBehavior || behavior);
+    setWeights({
+      geography_weight: tracker.geography_weight ?? DEFAULT_WEIGHTS.geography_weight,
+      service_mix_weight: tracker.service_mix_weight ?? DEFAULT_WEIGHTS.service_mix_weight,
+      size_weight: tracker.size_weight ?? DEFAULT_WEIGHTS.size_weight,
+      owner_goals_weight: tracker.owner_goals_weight ?? DEFAULT_WEIGHTS.owner_goals_weight,
+    });
     setHasChanges(false);
   };
 
-  const updateBehavior = (updates: Partial<ScoringBehavior>) => {
-    setBehavior({ ...behavior, ...updates });
+  const handleResetToDefaults = () => {
+    setWeights(DEFAULT_WEIGHTS);
     setHasChanges(true);
   };
+
+  const updateWeight = (key: keyof typeof weights, value: number) => {
+    setWeights({ ...weights, [key]: value });
+    setHasChanges(true);
+  };
+
+  const getStrictnessLabel = (value: number): string => {
+    if (value < 0.75) return "Very Lenient";
+    if (value < 1.0) return "Lenient";
+    if (value === 1.0) return "Standard";
+    if (value < 1.5) return "Strict";
+    return "Very Strict";
+  };
+
+  const getWeightColor = (value: number): string => {
+    if (value < 0.75) return "text-blue-600";
+    if (value < 1.0) return "text-green-600";
+    if (value === 1.0) return "text-gray-600";
+    if (value < 1.5) return "text-orange-600";
+    return "text-red-600";
+  };
+
+  // Calculate expected score distribution preview
+  const calculateScoreDistribution = () => {
+    const total = Object.values(weights).reduce((sum, w) => sum + w, 0);
+    return {
+      geography: Math.round((weights.geography_weight / total) * 100),
+      serviceMix: Math.round((weights.service_mix_weight / total) * 100),
+      size: Math.round((weights.size_weight / total) * 100),
+      ownerGoals: Math.round((weights.owner_goals_weight / total) * 100),
+    };
+  };
+
+  const distribution = calculateScoreDistribution();
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Scoring Behavior</CardTitle>
+            <CardTitle>Scoring Behavior & Weights</CardTitle>
             <CardDescription>
-              Configure how the v6.1 scoring algorithm evaluates deals
+              Configure how strictly each criterion is evaluated and weighted
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {hasChanges && <Badge variant="secondary">Unsaved changes</Badge>}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetToDefaults}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset to Defaults
+            </Button>
             <Button variant="outline" size="sm" onClick={handleReset} disabled={!hasChanges}>
               <RotateCcw className="w-4 h-4 mr-2" />
-              Reset
+              Cancel
             </Button>
             <Button size="sm" onClick={handleSave} disabled={!hasChanges}>
               <Save className="w-4 h-4 mr-2" />
@@ -65,149 +146,190 @@ export function ScoringBehaviorPanel({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Size Scoring */}
+      <CardContent className="space-y-8">
+        {/* Geography Weight */}
         <div className="space-y-4">
-          <h3 className="font-medium">Size & Scale Scoring</h3>
-          <div className="space-y-3 pl-4 border-l-2">
-            <div className="space-y-2">
-              <Label>Strictness Level</Label>
-              <RadioGroup
-                value={behavior.size?.strictness || 'moderate'}
-                onValueChange={(value) => updateBehavior({
-                  size: { ...behavior.size!, strictness: value as any }
-                })}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="strict" id="size-strict" />
-                  <Label htmlFor="size-strict">Strict - Heavy penalties outside range</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="moderate" id="size-moderate" />
-                  <Label htmlFor="size-moderate">Moderate - Gradual score reduction</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="lenient" id="size-lenient" />
-                  <Label htmlFor="size-lenient">Lenient - Minimal penalties</Label>
-                </div>
-              </RadioGroup>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-base font-medium">Geography Strictness</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                How strictly should geographic preferences be matched?
+              </p>
             </div>
-
-            <div className="space-y-2">
-              <Label>Below Minimum Behavior</Label>
-              <RadioGroup
-                value={behavior.size?.below_minimum_behavior || 'penalize'}
-                onValueChange={(value) => updateBehavior({
-                  size: { ...behavior.size!, below_minimum_behavior: value as any }
-                })}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="disqualify" id="size-disqualify" />
-                  <Label htmlFor="size-disqualify">Disqualify - Score = 0</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="penalize" id="size-penalize" />
-                  <Label htmlFor="size-penalize">Penalize - Reduce score proportionally</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="single-location-penalty">Penalize single-location deals</Label>
-              <Switch
-                id="single-location-penalty"
-                checked={behavior.size?.single_location_penalty || false}
-                onCheckedChange={(checked) => updateBehavior({
-                  size: { ...behavior.size!, single_location_penalty: checked }
-                })}
-              />
+            <Badge variant="outline" className={getWeightColor(weights.geography_weight)}>
+              {weights.geography_weight.toFixed(1)}x - {getStrictnessLabel(weights.geography_weight)}
+            </Badge>
+          </div>
+          <div className="space-y-2">
+            <Slider
+              value={[weights.geography_weight]}
+              onValueChange={([value]) => updateWeight('geography_weight', value)}
+              min={0.5}
+              max={2.0}
+              step={0.1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0.5 (More lenient)</span>
+              <span>1.0 (Standard)</span>
+              <span>2.0 (Stricter)</span>
             </div>
           </div>
         </div>
 
-        {/* Service Scoring */}
+        {/* Size Weight */}
         <div className="space-y-4">
-          <h3 className="font-medium">Service Matching</h3>
-          <div className="space-y-3 pl-4 border-l-2">
-            <div className="space-y-2">
-              <Label>Matching Mode</Label>
-              <RadioGroup
-                value={behavior.services?.matching_mode || 'semantic'}
-                onValueChange={(value) => updateBehavior({
-                  services: { ...behavior.services!, matching_mode: value as any }
-                })}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="exact" id="service-exact" />
-                  <Label htmlFor="service-exact">Exact - Keyword matching only</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="semantic" id="service-semantic" />
-                  <Label htmlFor="service-semantic">Semantic - AI-powered similarity</Label>
-                </div>
-              </RadioGroup>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-base font-medium">Size Strictness</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                How strictly should size criteria be matched?
+              </p>
             </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="require-primary">Require primary focus match</Label>
-              <Switch
-                id="require-primary"
-                checked={behavior.services?.require_primary_focus_match || false}
-                onCheckedChange={(checked) => updateBehavior({
-                  services: { ...behavior.services!, require_primary_focus_match: checked }
-                })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="excluded-dealbreakers">Excluded services are dealbreakers</Label>
-              <Switch
-                id="excluded-dealbreakers"
-                checked={behavior.services?.excluded_services_are_dealbreakers || false}
-                onCheckedChange={(checked) => updateBehavior({
-                  services: { ...behavior.services!, excluded_services_are_dealbreakers: checked }
-                })}
-              />
+            <Badge variant="outline" className={getWeightColor(weights.size_weight)}>
+              {weights.size_weight.toFixed(1)}x - {getStrictnessLabel(weights.size_weight)}
+            </Badge>
+          </div>
+          <div className="space-y-2">
+            <Slider
+              value={[weights.size_weight]}
+              onValueChange={([value]) => updateWeight('size_weight', value)}
+              min={0.5}
+              max={2.0}
+              step={0.1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0.5 (More lenient)</span>
+              <span>1.0 (Standard)</span>
+              <span>2.0 (Stricter)</span>
             </div>
           </div>
         </div>
 
-        {/* Geography Scoring */}
+        {/* Service Mix Weight */}
         <div className="space-y-4">
-          <h3 className="font-medium">Geographic Matching</h3>
-          <div className="space-y-3 pl-4 border-l-2">
-            <div className="space-y-2">
-              <Label>Strictness Level</Label>
-              <RadioGroup
-                value={behavior.geography?.strictness || 'moderate'}
-                onValueChange={(value) => updateBehavior({
-                  geography: { ...behavior.geography!, strictness: value as any }
-                })}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="strict" id="geo-strict" />
-                  <Label htmlFor="geo-strict">Strict - Must be in target areas</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="moderate" id="geo-moderate" />
-                  <Label htmlFor="geo-moderate">Moderate - Proximity-based scoring</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="lenient" id="geo-lenient" />
-                  <Label htmlFor="geo-lenient">Lenient - National buyers considered</Label>
-                </div>
-              </RadioGroup>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-base font-medium">Service Mix Strictness</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                How strictly should service alignment be matched?
+              </p>
             </div>
+            <Badge variant="outline" className={getWeightColor(weights.service_mix_weight)}>
+              {weights.service_mix_weight.toFixed(1)}x - {getStrictnessLabel(weights.service_mix_weight)}
+            </Badge>
+          </div>
+          <div className="space-y-2">
+            <Slider
+              value={[weights.service_mix_weight]}
+              onValueChange={([value]) => updateWeight('service_mix_weight', value)}
+              min={0.5}
+              max={2.0}
+              step={0.1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0.5 (More lenient)</span>
+              <span>1.0 (Standard)</span>
+              <span>2.0 (Stricter)</span>
+            </div>
+          </div>
+        </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="allow-national">Allow national buyers for attractive deals</Label>
-              <Switch
-                id="allow-national"
-                checked={behavior.geography?.allow_national_for_attractive_deals || false}
-                onCheckedChange={(checked) => updateBehavior({
-                  geography: { ...behavior.geography!, allow_national_for_attractive_deals: checked }
-                })}
-              />
+        {/* Owner Goals Weight */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-base font-medium">Owner Goals Importance</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                How important are owner transition goals?
+              </p>
+            </div>
+            <Badge variant="outline" className={getWeightColor(weights.owner_goals_weight)}>
+              {weights.owner_goals_weight.toFixed(1)}x - {getStrictnessLabel(weights.owner_goals_weight)}
+            </Badge>
+          </div>
+          <div className="space-y-2">
+            <Slider
+              value={[weights.owner_goals_weight]}
+              onValueChange={([value]) => updateWeight('owner_goals_weight', value)}
+              min={0}
+              max={2.0}
+              step={0.1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0.0 (Ignore)</span>
+              <span>1.0 (Standard)</span>
+              <span>2.0 (Critical)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Score Distribution Preview */}
+        <div className="mt-8 p-4 bg-muted rounded-lg">
+          <div className="flex items-start gap-3">
+            <BarChart3 className="w-5 h-5 text-primary mt-0.5" />
+            <div className="flex-1">
+              <h4 className="font-medium mb-3">Expected Score Distribution</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Based on current weights, here's how each criterion will contribute to the composite score:
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Geography</span>
+                    <span className="font-medium">{distribution.geography}%</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{ width: `${distribution.geography}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Service Mix</span>
+                    <span className="font-medium">{distribution.serviceMix}%</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div
+                      className="bg-green-600 h-2 rounded-full transition-all"
+                      style={{ width: `${distribution.serviceMix}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Size</span>
+                    <span className="font-medium">{distribution.size}%</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div
+                      className="bg-orange-600 h-2 rounded-full transition-all"
+                      style={{ width: `${distribution.size}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Owner Goals</span>
+                    <span className="font-medium">{distribution.ownerGoals}%</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div
+                      className="bg-purple-600 h-2 rounded-full transition-all"
+                      style={{ width: `${distribution.ownerGoals}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                Higher weights will amplify both positive and negative scores for that criterion.
+                Lower weights will have less impact on the final composite score.
+              </p>
             </div>
           </div>
         </div>

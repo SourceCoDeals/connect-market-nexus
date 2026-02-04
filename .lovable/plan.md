@@ -1,160 +1,91 @@
 
+# Make Owner Leads Table Sortable with "Contacted Owner" Checkbox
 
-# Fix: Prevent M&A Guide Generation Timeout Failures
+## Overview
+Add sorting functionality to every column in the Owner Leads table and introduce a new "Contacted Owner" checkbox column that persists to the database.
 
-## Problem Summary
+## Changes Required
 
-The guide generation fails with a "network error" because all 7 batches (13 phases) run inside a **single edge function invocation**. The function correctly checks remaining time before each phase, but the recursive `generateBatch()` call chains batches together, causing cumulative runtime to exceed Supabase's ~150s hard limit.
+### 1. Database Migration
+Add a `contacted_owner` boolean column to the `inbound_leads` table:
 
-### Timeline of Failure
-```text
-Batch 1 (phases 1-2): ~90s  ─┐
-Batch 2 (phases 3-4): ~90s   │
-Batch 3 (phases 5-6): ~90s   ├── Same HTTP request (~10 min total)
-Batch 4 (phases 7-8): ~90s   │
-Batch 5 (phase 9): KILLED ──┘ ← Supabase hard timeout hit
+```sql
+ALTER TABLE public.inbound_leads 
+ADD COLUMN IF NOT EXISTS contacted_owner BOOLEAN DEFAULT false;
+
+COMMENT ON COLUMN public.inbound_leads.contacted_owner IS 
+  'Tracks whether an admin has gotten in contact with the owner';
 ```
 
-## Solution: Separate HTTP Requests Per Batch
-
-Move the batch chaining logic to the **frontend** so each batch runs in a **fresh edge function invocation**, resetting the 150s limit each time.
-
-### Current Flow (Broken)
-```text
-Frontend: fetch(batch 0)
-  └─ Edge Function:
-       ├─ Generate batch 0
-       ├─ SSE: batch_complete, next_batch_index=1
-       └─ Stream ends
-  ← (Client receives batch_complete)
-  → (Client recursively calls generateBatch(1) INSIDE the same SSE handler)
-       └─ NEW fetch(batch 1) ← This starts a new request, but...
-          ...the old reader loop is still running, creating timing issues
-```
-
-### Fixed Flow
-```text
-Frontend: fetch(batch 0)
-  └─ Edge Function: Generate batch 0
-       └─ SSE: batch_complete, is_final=false, next_batch_index=1
-  ← Stream ends naturally
-
-Frontend: setTimeout → fetch(batch 1)  ← Separate invocation
-  └─ Edge Function: Generate batch 1
-       └─ SSE: batch_complete, is_final=false, next_batch_index=2
-...repeat...
-
-Frontend: fetch(batch 6)
-  └─ Edge Function: Generate batch 6
-       └─ SSE: batch_complete, is_final=true
-       └─ SSE: complete
-```
-
-## Implementation
-
-### Step 1: Remove Recursive Call Inside SSE Handler
-
-**File:** `src/components/remarketing/AIResearchSection.tsx`
-
-In the `batch_complete` handler (~lines 529-537), remove the recursive `generateBatch()` call. Instead, store the next batch index and content, then trigger it **after** the current stream fully closes.
+### 2. Update TypeScript Types
+Modify `src/hooks/admin/use-owner-leads.ts` to include the new field:
 
 ```typescript
-case 'batch_complete':
-  sawBatchComplete = true;
-  
-  if (batchRetryCountRef.current[batchIndex]) {
-    delete batchRetryCountRef.current[batchIndex];
-  }
-  
-  // Store info for next batch (don't call generateBatch here!)
-  if (!event.is_final && event.next_batch_index !== null) {
-    nextBatchInfo.current = {
-      index: event.next_batch_index,
-      content: event.content,
-      clarificationContext
-    };
-  }
-  break;
-```
-
-### Step 2: Chain Batches After Stream Ends
-
-After the `while (true)` reader loop exits, check if there's a next batch to process:
-
-```typescript
-// After the reader loop (~line 644)
-
-// If the stream ends without batch_complete, throw timeout error
-if (!sawBatchComplete) {
-  const timeoutError = new Error(...);
-  throw timeoutError;
-}
-
-// Chain to next batch OUTSIDE the stream handler
-if (nextBatchInfo.current) {
-  const { index, content, clarificationContext: ctx } = nextBatchInfo.current;
-  nextBatchInfo.current = null;
-  
-  // Small delay to ensure clean separation
-  await new Promise(r => setTimeout(r, 1000));
-  toast.info(`Starting batch ${index + 1}...`);
-  
-  // This now runs AFTER the previous stream fully closed
-  await generateBatch(index, content, ctx);
+export interface OwnerLead {
+  // ... existing fields
+  contacted_owner: boolean;
 }
 ```
 
-### Step 3: Add Ref for Next Batch Info
-
-Add a ref to store next batch info:
+Add a new mutation hook for updating the contacted status:
 
 ```typescript
-const nextBatchInfo = useRef<{
-  index: number;
-  content: string;
-  clarificationContext: ClarificationContext;
-} | null>(null);
+export function useUpdateOwnerLeadContacted() {
+  // Similar pattern to useUpdateOwnerLeadStatus
+}
 ```
 
-### Step 4: Reduce Batch Size as Safety Margin
+### 3. Refactor OwnerLeadsTableContent Component
+Update `src/components/admin/OwnerLeadsTableContent.tsx`:
 
-**File:** `supabase/functions/generate-ma-guide/index.ts`
+**Add sorting state and logic:**
+- Define column types: `contact`, `company`, `revenue`, `timeline`, `status`, `date`, `contacted`
+- Add sort state management
+- Create `SortableHeader` component with arrow indicators
 
-Change line 630:
-```typescript
-// Before
-const BATCH_SIZE = 2;
+**Add new "Contacted" column:**
+- Position as the first data column (after any selection checkboxes)
+- Render a Checkbox component
+- Wire up `onCheckedChange` to update database
 
-// After
-const BATCH_SIZE = 1;  // Single phase per batch = safer time budget
+**Updated columns (in order):**
+1. Contacted (new checkbox column)
+2. Contact - sortable by name
+3. Company - sortable alphabetically  
+4. Revenue - sortable by revenue range order
+5. Timeline - sortable by timeline priority
+6. Status - sortable by status
+7. Date - sortable by created_at
+8. Actions (View button)
+
+### 4. Wire Up Parent Component
+Update `src/pages/admin/AdminUsers.tsx` to pass the new `onContactedChange` handler.
+
+## Visual Design
+
+```text
++----------+----------+---------+---------+----------+--------+------+--------+
+| Contacted| Contact  | Company | Revenue | Timeline | Status | Date | Action |
++----------+----------+---------+---------+----------+--------+------+--------+
+|   [x]    | Name ↕   | ACME ↕  | $5M ↕   | 6mo ↕    | New ↕  | Jan ↕| View   |
+|   [ ]    | Jane     | Corp    | $10M    | 1yr      | New    | Feb  | View   |
++----------+----------+---------+---------+----------+--------+------+--------+
 ```
 
-This means 13 batches instead of 7, but each batch completes well within the 150s limit.
-
-## Trade-offs
-
-| Aspect | Before | After |
-|--------|--------|-------|
-| HTTP requests | 1 (all batches chained) | 13 (one per phase) |
-| Timeout risk | High (cumulative time) | Low (resets each request) |
-| Total generation time | Same | Same + ~13s delay overhead |
-| Progress saved | Per phase | Per phase (unchanged) |
-| Resumability | Broken (state lost on timeout) | Works (clean batch boundaries) |
+- Each sortable column header shows: current sort arrow (↑/↓) or neutral indicator (↕)
+- Clicking a header toggles between ascending and descending
+- Checkbox column updates immediately and shows toast confirmation
 
 ## Files to Modify
 
-1. **`src/components/remarketing/AIResearchSection.tsx`**
-   - Add `nextBatchInfo` ref
-   - Modify `batch_complete` handler to store (not call) next batch
-   - Move batch chaining to after stream closes
+| File | Changes |
+|------|---------|
+| `src/hooks/admin/use-owner-leads.ts` | Add `contacted_owner` to interface, add `useUpdateOwnerLeadContacted` hook |
+| `src/components/admin/OwnerLeadsTableContent.tsx` | Add sorting logic, SortableHeader component, Contacted checkbox column |
+| `src/pages/admin/AdminUsers.tsx` | Pass `onContactedChange` handler to table component |
 
-2. **`supabase/functions/generate-ma-guide/index.ts`**
-   - Change `BATCH_SIZE` from 2 to 1
+## Technical Notes
 
-## Testing
-
-1. Start guide generation for any industry
-2. Observe batches completing as separate requests (each batch toast after ~60-90s)
-3. Verify all 13 phases complete without timeout
-4. Confirm final guide saves to Supporting Documents
-
+- Revenue and Timeline sorting will use a priority map (e.g., `50m_plus` = 6, `under_1m` = 1) for logical ordering
+- The existing `useSortableTable` hook from `src/hooks/ma-intelligence/` could be reused, but for simplicity we'll follow the inline pattern from `AllBuyers.tsx`
+- Checkbox state changes will trigger immediate database updates with optimistic UI feedback

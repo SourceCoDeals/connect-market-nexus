@@ -26,7 +26,6 @@ import {
   BuyerFitCriteriaDialog,
   AIResearchSection,
   ScoringStyleCard,
-  MatchCriteriaCard,
   BuyerFitCriteriaAccordion,
   CriteriaExtractionPanel,
   StructuredCriteriaPanel,
@@ -191,6 +190,29 @@ const ReMarketingUniverseDetail = () => {
     enabled: !isNew,
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
     staleTime: 0, // Always consider data stale to ensure fresh fetches after invalidation
+  });
+
+  // Fetch buyer IDs that have transcripts - needed to determine Intel level
+  // Without transcripts, max intel is "Some Intel" (not "Strong")
+  const { data: buyerIdsWithTranscripts } = useQuery({
+    queryKey: ['remarketing', 'buyer-transcripts', id],
+    queryFn: async () => {
+      if (isNew || !buyers?.length) return new Set<string>();
+      
+      const buyerIds = buyers.map(b => b.id);
+      const { data, error } = await supabase
+        .from('buyer_transcripts')
+        .select('buyer_id')
+        .in('buyer_id', buyerIds);
+      
+      if (error) {
+        console.error('Error fetching transcripts:', error);
+        return new Set<string>();
+      }
+      
+      return new Set((data || []).map((t: any) => t.buyer_id));
+    },
+    enabled: !isNew && !!buyers?.length,
   });
 
   // Real-time subscription for buyer updates during enrichment
@@ -450,6 +472,25 @@ const ReMarketingUniverseDetail = () => {
     }
   });
 
+  // Handler for removing buyers from this universe (sets universe_id to null)
+  // They remain in the all buyers list - just unlinked from this universe
+  const handleRemoveBuyersFromUniverse = async (buyerIds: string[]) => {
+    if (!buyerIds.length) return;
+    
+    const { error } = await supabase
+      .from('remarketing_buyers')
+      .update({ universe_id: null })
+      .in('id', buyerIds);
+    
+    if (error) {
+      toast.error('Failed to remove buyers from universe');
+      throw error;
+    }
+    
+    toast.success(`Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`);
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
+  };
+
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
 
@@ -640,6 +681,9 @@ const ReMarketingUniverseDetail = () => {
                     <BuyerTableEnhanced
                       buyers={filteredBuyers}
                       showPEColumn={true}
+                      buyerIdsWithTranscripts={buyerIdsWithTranscripts}
+                      selectable={true}
+                      onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
                     />
                   </CardContent>
                 </Card>
@@ -856,14 +900,6 @@ const ReMarketingUniverseDetail = () => {
               isSaving={saveMutation.isPending}
             />
 
-            {/* Match Criteria - Quick Summary */}
-            <MatchCriteriaCard
-              sizeCriteria={sizeCriteria}
-              geographyCriteria={geographyCriteria}
-              serviceCriteria={serviceCriteria}
-              onEdit={() => setShowCriteriaEdit(true)}
-            />
-
             {/* Buyer Fit Criteria - Full Detail with Target Buyer Types */}
             <BuyerFitCriteriaAccordion
               sizeCriteria={sizeCriteria}
@@ -873,6 +909,13 @@ const ReMarketingUniverseDetail = () => {
               onTargetBuyerTypesChange={setTargetBuyerTypes}
               onEditCriteria={() => setShowCriteriaEdit(true)}
               defaultOpen={false}
+              universeId={id}
+              universeName={formData.name}
+              maGuideContent={maGuideContent}
+              maGuideDocument={documents.find(d => d.type === 'ma_guide')}
+              onCriteriaExtracted={() => {
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
+              }}
             />
 
             {/* Criteria Extraction from Transcripts & Documents */}
