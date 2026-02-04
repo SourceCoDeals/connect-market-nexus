@@ -37,8 +37,11 @@ const TRANSCRIPT_PROTECTED_FIELDS = [
   'key_quotes',
 ];
 
-// Fields that should NEVER be updated from website (only from transcripts)
+// Fields that should NEVER be updated from website (only from transcripts/notes)
 const NEVER_UPDATE_FROM_WEBSITE = [
+  'thesis_summary',           // Platform acquisition thesis - transcript/notes only
+  'thesis_confidence',        // Confidence level - transcript/notes only
+  'strategic_priorities',     // Strategic priorities - transcript/notes only
   'target_geographies',
   'geographic_exclusions',
   'deal_breakers',
@@ -639,10 +642,10 @@ function getPEFirmIntelligencePrompt() {
         parameters: {
           type: 'object',
           properties: {
-            // Investment Thesis - about the PE FIRM, not the platform
-            thesis_summary: { type: 'string', description: 'Summary of the PE FIRM\'s investment thesis - what types of companies they look to acquire, their strategy (2-3 sentences)' },
-            strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities for acquisitions' },
-            thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity of thesis' },
+            // NOTE: thesis_summary, thesis_confidence, strategic_priorities are EXCLUDED
+            // These fields should ONLY come from transcripts/notes, never from website scraping
+            
+            // Target criteria (what they look for in acquisitions)
             target_services: { type: 'array', items: { type: 'string' }, description: 'Services/products they seek in acquisition targets' },
             target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries they invest in' },
             acquisition_appetite: { type: 'string', description: 'How active they are in acquiring (e.g., Very Active, Selective)' },
@@ -678,19 +681,17 @@ function getPEFirmIntelligencePrompt() {
     system: `You are a senior M&A analyst extracting investment intelligence from a PRIVATE EQUITY FIRM website.
 
 Extract information about the PE FIRM'S investment approach:
-1. INVESTMENT THESIS: What sectors they focus on, strategic priorities, target criteria
-2. DEAL STRUCTURE: Revenue/EBITDA ranges, deal timelines, structure preferences
+1. TARGET CRITERIA: What services/industries they look for in acquisitions
+2. DEAL STRUCTURE: Revenue/EBITDA ranges, deal timelines, structure preferences  
 3. PORTFOLIO: Current portfolio companies they own
 
+IMPORTANT: Do NOT extract thesis_summary, thesis_confidence, or strategic_priorities - these come from transcripts only.
+
 CRITICAL RULES:
-- thesis_summary should describe the PE FIRM's investment strategy, NOT an operating company's business
-- Example GOOD thesis: "Focused on acquiring and growing regional HVAC service businesses with $5-20M revenue in the Southeast"
-- Example BAD thesis: "Provides residential and commercial HVAC services" (This describes an operating company, not PE thesis)
 - Convert ALL financial figures to actual numbers: "$5M" = 5000000, "$10-20M" = min:10000000, max:20000000
-- Rate thesis_confidence: high (specific criteria stated), medium (general focus areas), low (vague/generic)
 - Do NOT make up information that isn't clearly stated on the website.`,
     user: (content: string) => 
-      `PE Firm Website Content:\n\n${content.substring(0, 20000)}\n\nExtract investment intelligence about THIS PE FIRM's acquisition strategy and thesis. Do NOT describe what their portfolio companies do operationally.`
+      `PE Firm Website Content:\n\n${content.substring(0, 20000)}\n\nExtract investment criteria and portfolio information. Do NOT extract thesis_summary or strategic_priorities.`
   };
 }
 
@@ -809,13 +810,6 @@ function buildUpdateObject(
       if (!existingValue || normalized.length > (existingValue?.length || 0)) {
         updateData[field] = normalized;
       }
-      continue;
-    }
-
-      if (!existingValue || normalized.length > (existingValue?.length || 0)) {
-        updateData[field] = normalized;
-      }
-      continue;
     }
 
     // Handle arrays - Claude sometimes returns comma-separated strings instead of arrays
