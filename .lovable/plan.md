@@ -1,118 +1,50 @@
 
-# Deployment Plan: Fix and Deploy Criteria Extraction Components
+# Fix Build Error: AllDeals.tsx Priority Rank Update
 
-## Summary
+## Problem
 
-The branch `claude/analyze-industry-fit-TBMvC` has components with **incorrect table references** that need to be fixed before deployment. The migration and edge function both reference `remarketing_universes` but the actual table is `remarketing_buyer_universes`.
+The `AllDeals.tsx` file at line 209 uses `upsert()` with only `{ id, priority_rank }`, but the Supabase-generated types require `stage_id` and `title` as mandatory fields for upsert operations.
 
----
+## Root Cause
 
-## Current Deployment Status
+The `upsert` operation in Supabase expects all required columns to be present because it can perform an INSERT if the row doesn't exist. Since we're only updating existing deals, we should use `update()` instead.
 
-| Component | Status | Action Needed |
-|-----------|--------|---------------|
-| `buyer_criteria_extractions` table | ❌ Missing | Run fixed migration |
-| `extract-buyer-criteria-background` function | ⚠️ Deployed with wrong table name | Redeploy with fix |
-| `extract-buyer-criteria` function | ✅ Working | Already deployed with latest changes |
-| `criteria_extraction_sources` table | ✅ Exists | None |
-| `ma_guide_generations` table | ✅ Exists | None |
+## Solution
 
----
+Change the database update from `upsert()` to individual `update()` calls (or a transaction pattern).
 
-## Step 1: Create buyer_criteria_extractions Table (Migration)
+## Code Changes
 
-The migration file references the wrong table name. This will be fixed:
+### File: `src/pages/admin/ma-intelligence/AllDeals.tsx`
 
-```text
-BEFORE (broken):
-  REFERENCES remarketing_universes(id)
-
-AFTER (fixed):
-  REFERENCES remarketing_buyer_universes(id)
+**Before (lines 207-210):**
+```typescript
+const { error } = await supabase.from("deals").upsert(
+  updates.map((u) => ({ id: u.id, priority_rank: u.priority_rank }))
+);
 ```
 
-**Migration creates:**
-- `buyer_criteria_extractions` table with columns:
-  - `id`, `universe_id`, `source_id`, `status`
-  - `current_phase`, `phases_completed`, `total_phases`
-  - `extracted_criteria` (JSONB), `confidence_scores` (JSONB)
-  - `error`, `started_at`, `updated_at`, `completed_at`
-- Indexes for fast lookups
-- RLS policies for user-based access control
-- Zombie cleanup function (marks stuck extractions as failed after 10 min)
-
----
-
-## Step 2: Fix and Redeploy extract-buyer-criteria-background
-
-The edge function also has the wrong table reference that needs fixing:
-
-```text
-BEFORE (line 269):
-  .from('remarketing_universes')
-
-AFTER:
-  .from('remarketing_buyer_universes')
+**After:**
+```typescript
+// Update each deal's priority_rank individually
+const updatePromises = updates.map((u) =>
+  supabase.from("deals").update({ priority_rank: u.priority_rank }).eq("id", u.id)
+);
+const results = await Promise.all(updatePromises);
+const error = results.find((r) => r.error)?.error;
 ```
 
-This function:
-- Accepts universe_id, guide_content, source_name, industry_name
-- Returns 202 immediately with extraction_id
-- Processes extraction in background (no timeout)
-- Updates progress in buyer_criteria_extractions table
-- Saves final criteria to remarketing_buyer_universes
+## Notes
 
----
+- This fix resolves the TypeScript error by using `update()` which only requires the fields being updated
+- The `priority_rank` column still needs to be added to the database via migration for the feature to work at runtime
+- The edge functions are deployed and working (session-heartbeat and process-enrichment-queue show active logs)
 
-## Step 3: Verify extract-buyer-criteria (Already Deployed)
+## Database Migration Still Required
 
-This function is already deployed with the latest changes:
-- ✅ Removed 100,000 character truncation (uses full guide)
-- ✅ Added retry logic with exponential backoff (3 attempts)
-- ✅ Added 120s timeout per attempt
-- ✅ Handles transient errors (429, 500+)
+After approving this fix, you'll also need to run the migration to add the `priority_rank` column:
 
----
-
-## Files to Modify
-
-### Migration File
-**File:** `supabase/migrations/20260204190000_create_criteria_extractions_tracking.sql`
-
-Fix table references:
-- Line 6: Change `remarketing_universes` → `remarketing_buyer_universes`
-- Lines 43, 55, 66: Change `remarketing_universes` → `remarketing_buyer_universes`
-
-### Edge Function
-**File:** `supabase/functions/extract-buyer-criteria-background/index.ts`
-
-Fix table reference:
-- Line 261-269: Change `remarketing_universes` → `remarketing_buyer_universes`
-
----
-
-## Expected Result After Deployment
-
-| Feature | Before | After |
-|---------|--------|-------|
-| Extraction starts | ❌ 500 error (missing table) | ✅ Returns 202 with extraction_id |
-| Progress tracking | ❌ Not possible | ✅ Poll buyer_criteria_extractions table |
-| Resume on refresh | ❌ Lost | ✅ Auto-resumes |
-| Navigate away | ❌ Cancels extraction | ✅ Continues in background |
-| Full guide content | ⚠️ Truncated to 100k | ✅ Uses complete guide |
-| Error recovery | ❌ No retries | ✅ 3 retries with backoff |
-
----
-
-## Testing Steps After Deployment
-
-1. Go to a universe with an M&A guide saved
-2. Click "Extract from Guide" in Buyer Fit Criteria section
-3. Verify:
-   - Progress bar appears with percentage
-   - Toast shows "Extraction started in background"
-   - Can navigate to another page
-   - Return to page → progress continues
-   - Refresh page → auto-resumes
-   - Completes with success dialog showing confidence score
-
+```sql
+ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS priority_rank INTEGER;
+CREATE INDEX IF NOT EXISTS idx_deals_priority_rank ON public.deals(priority_rank);
+```
