@@ -193,6 +193,9 @@ export const AIResearchSection = ({
     clarificationContext: ClarificationContext;
   } | null>(null);
 
+  // Ref for background polling interval
+  const pollIntervalRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
@@ -205,6 +208,121 @@ export const AIResearchSection = ({
       setWordCount(existingContent.split(/\s+/).length);
     }
   }, [existingContent]);
+
+  // Check for existing generation in progress on mount
+  useEffect(() => {
+    if (universeId) {
+      checkExistingGeneration();
+    }
+  }, [universeId]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  const checkExistingGeneration = async () => {
+    if (!universeId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('ma_guide_generations')
+        .select('*')
+        .eq('universe_id', universeId)
+        .in('status', ['pending', 'processing'])
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        // Found an existing generation - resume monitoring
+        toast.info('Resuming M&A guide generation in progress...');
+        setState('generating');
+        resumeBackgroundGeneration(data.id);
+      }
+    } catch (err) {
+      // No existing generation, that's fine
+    }
+  };
+
+  const resumeBackgroundGeneration = (generationId: string) => {
+    // Clear any existing poll interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+
+    // Poll for progress
+    pollIntervalRef.current = window.setInterval(async () => {
+      const { data: generation, error } = await supabase
+        .from('ma_guide_generations')
+        .select('*')
+        .eq('id', generationId)
+        .single();
+
+      if (error || !generation) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        return;
+      }
+
+      // Update progress
+      setCurrentPhase(generation.phases_completed);
+      setTotalPhases(generation.total_phases);
+      setPhaseName(generation.current_phase || '');
+
+      if (generation.generated_content?.content) {
+        setContent(generation.generated_content.content);
+        setWordCount(generation.generated_content.content.split(/\s+/).length);
+      }
+
+      // Handle completion
+      if (generation.status === 'completed') {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setState('complete');
+
+        const finalContent = generation.generated_content?.content || '';
+        const criteria = generation.generated_content?.criteria;
+
+        setContent(finalContent);
+        setWordCount(finalContent.split(/\s+/).length);
+
+        if (criteria) {
+          setExtractedCriteria(criteria);
+          onGuideGenerated(finalContent, criteria, criteria.target_buyer_types);
+        }
+
+        toast.success('M&A Guide generation completed!', { duration: 5000 });
+      }
+
+      // Handle failure
+      if (generation.status === 'failed') {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setState('error');
+        setErrorDetails({
+          message: generation.error || 'Generation failed',
+          error_code: 'generation_failed',
+          recoverable: true,
+          batch_index: 0,
+          saved_word_count: 0,
+          total_batches: 1
+        });
+        toast.error(`Generation failed: ${generation.error}`);
+      }
+    }, 2000);
+  };
 
   // Check for existing guide and confirm before regenerating
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -355,6 +473,13 @@ export const AIResearchSection = ({
   };
 
   const handleGenerate = async (clarificationContext: ClarificationContext) => {
+    // Use background generation to avoid timeouts
+    if (universeId) {
+      await handleBackgroundGenerate(clarificationContext);
+      return;
+    }
+
+    // Fallback to streaming mode if no universeId
     setState('generating');
     setCurrentPhase(0);
     setCurrentBatch(0);
@@ -379,6 +504,47 @@ export const AIResearchSection = ({
 
     // Start batch generation
     await generateBatch(0, "", clarificationContext);
+  };
+
+  const handleBackgroundGenerate = async (clarificationContext: ClarificationContext) => {
+    setState('generating');
+    setCurrentPhase(0);
+    setContent("");
+    setWordCount(0);
+    setErrorDetails(null);
+    setGenerationSummary(null);
+    generationStartTimeRef.current = Date.now();
+
+    try {
+      // Start background generation
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide-background`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({ universe_id: universeId })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to start generation: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const generationId = data.generation_id;
+
+      toast.success('Guide generation started in background. You can navigate away - it will continue.');
+
+      // Start polling for progress
+      resumeBackgroundGeneration(generationId);
+
+    } catch (error: any) {
+      setState('error');
+      toast.error(error.message || 'Failed to start background generation');
+    }
   };
 
   const resumeGeneration = (progress: typeof savedProgress) => {
