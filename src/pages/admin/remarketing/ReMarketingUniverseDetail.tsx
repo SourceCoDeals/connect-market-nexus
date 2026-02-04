@@ -166,7 +166,7 @@ const ReMarketingUniverseDetail = () => {
       
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at')
+        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
         .eq('universe_id', id)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
