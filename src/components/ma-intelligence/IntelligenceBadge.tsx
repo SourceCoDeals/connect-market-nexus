@@ -87,34 +87,67 @@ export function IntelligenceIndicator({ coverage, className }: IntelligenceIndic
   );
 }
 
+/**
+ * Intelligence Coverage Scoring System:
+ * 
+ * - Website data (enrichedCount) can contribute up to 50% intel
+ * - Transcript data (transcriptCount) is required to go above 50%
+ * - 100% intel requires all buyers to have transcripts
+ */
 interface IntelligenceCoverageBarProps {
+  /** Number of buyers with transcripts (contributes to 51-100% intel) */
   intelligentCount: number;
+  /** Total number of buyers */
   totalCount: number;
+  /** Number of buyers with website enrichment (contributes to 0-50% intel) */
+  enrichedCount?: number;
   className?: string;
 }
 
-export function IntelligenceCoverageBar({ intelligentCount, totalCount, className }: IntelligenceCoverageBarProps) {
-  const percentage = totalCount > 0 ? Math.round((intelligentCount / totalCount) * 100) : 0;
+export function IntelligenceCoverageBar({ 
+  intelligentCount: transcriptCount, 
+  totalCount: total, 
+  enrichedCount = 0,
+  className 
+}: IntelligenceCoverageBarProps) {
+  // Calculate two-tier intelligence score
+  // Website enrichment can provide up to 50%
+  const websiteIntel = total > 0 ? Math.round((enrichedCount / total) * 50) : 0;
+  // Transcripts provide the other 50%
+  const transcriptIntel = total > 0 ? Math.round((transcriptCount / total) * 50) : 0;
+  // Total percentage
+  const percentage = websiteIntel + transcriptIntel;
 
   let colorClass = "bg-slate-400";
   if (percentage >= 75) colorClass = "bg-emerald-500";
   else if (percentage >= 50) colorClass = "bg-amber-500";
-  else if (percentage > 0) colorClass = "bg-red-400";
+  else if (percentage > 0) colorClass = "bg-orange-400";
 
   return (
     <div className={cn("space-y-1", className)}>
       <div className="flex items-center justify-between text-xs">
         <span className="text-muted-foreground">Intelligence Coverage</span>
-        <span className="font-medium">{intelligentCount} of {totalCount} buyers</span>
+        <span className="font-medium">{transcriptCount} of {total} with transcripts</span>
       </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all", colorClass)}
-          style={{ width: `${percentage}%` }}
-        />
+      {/* Progress bar with two segments */}
+      <div className="h-2 bg-muted rounded-full overflow-hidden flex">
+        {/* Website intel segment (blue) */}
+        {websiteIntel > 0 && (
+          <div
+            className="h-full bg-blue-400 transition-all"
+            style={{ width: `${websiteIntel}%` }}
+          />
+        )}
+        {/* Transcript intel segment */}
+        {transcriptIntel > 0 && (
+          <div
+            className={cn("h-full transition-all", colorClass)}
+            style={{ width: `${transcriptIntel}%` }}
+          />
+        )}
       </div>
       <p className="text-xs text-muted-foreground">
-        {percentage}% intelligent
+        {percentage}% intel ({websiteIntel}% web + {transcriptIntel}% transcripts)
       </p>
     </div>
   );
