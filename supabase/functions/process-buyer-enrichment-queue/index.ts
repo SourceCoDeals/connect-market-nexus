@@ -246,18 +246,23 @@ serve(async (req) => {
       }
     }
 
-    // If we hit rate limit, mark remaining pending items
-    if (hitRateLimit) {
+    // If we hit rate limit, mark remaining items from this batch only
+    // Note: We don't mark ALL pending items globally as that would affect other universes
+    if (hitRateLimit && queueItems.length > results.processed) {
       const resetAt = new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
-      await supabase
-        .from('buyer_enrichment_queue')
-        .update({
-          status: 'rate_limited',
-          rate_limit_reset_at: resetAt,
-          last_error: 'Rate limited - will retry after reset',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('status', 'pending');
+      const remainingIds = queueItems.slice(results.processed).map(item => item.id);
+
+      if (remainingIds.length > 0) {
+        await supabase
+          .from('buyer_enrichment_queue')
+          .update({
+            status: 'rate_limited',
+            rate_limit_reset_at: resetAt,
+            last_error: 'Rate limited - will retry after reset',
+            updated_at: new Date().toISOString(),
+          })
+          .in('id', remainingIds);
+      }
     }
 
     console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed, ${results.rateLimited} rate limited`);
