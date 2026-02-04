@@ -810,25 +810,8 @@ const ReMarketingUniverseDetail = () => {
 
           {/* TAB 2: Configuration & Research */}
           <TabsContent value="configuration" className="space-y-6">
-            {/* Industry & Scoring Style */}
-            <ScoringStyleCard
-              scoringBehavior={scoringBehavior}
-              onScoringBehaviorChange={setScoringBehavior}
-              onStartAIResearch={() => setShowAIResearch(true)}
-              onSave={() => saveMutation.mutate()}
-              isSaving={saveMutation.isPending}
-            />
-
-            {/* Match Criteria */}
-            <MatchCriteriaCard
-              sizeCriteria={sizeCriteria}
-              geographyCriteria={geographyCriteria}
-              serviceCriteria={serviceCriteria}
-              onEdit={() => setShowCriteriaEdit(true)}
-            />
-
-            {/* AI Research (shown when triggered) */}
-            {id && showAIResearch && (
+            {/* AI Research & M&A Guide - Primary section */}
+            {id && (
               <AIResearchSection
                 universeName={formData.name}
                 existingContent={maGuideContent}
@@ -848,6 +831,22 @@ const ReMarketingUniverseDetail = () => {
                 }}
               />
             )}
+
+            {/* Industry & Scoring Style */}
+            <ScoringStyleCard
+              scoringBehavior={scoringBehavior}
+              onScoringBehaviorChange={setScoringBehavior}
+              onSave={() => saveMutation.mutate()}
+              isSaving={saveMutation.isPending}
+            />
+
+            {/* Match Criteria */}
+            <MatchCriteriaCard
+              sizeCriteria={sizeCriteria}
+              geographyCriteria={geographyCriteria}
+              serviceCriteria={serviceCriteria}
+              onEdit={() => setShowCriteriaEdit(true)}
+            />
 
             {/* Supporting Documents */}
             {id && (
