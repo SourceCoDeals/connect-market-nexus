@@ -116,7 +116,7 @@ verify_jwt = true
 [functions.map-csv-columns]
 verify_jwt = true
 [functions.enrich-buyer]
-verify_jwt = true
+verify_jwt = false
 [functions.parse-fit-criteria]
 verify_jwt = true
 [functions.generate-ma-guide]

@@ -142,7 +142,7 @@ serve(async (req) => {
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${supabaseServiceKey}`,
-                'apikey': supabaseAnonKey,
+                'apikey': supabaseServiceKey,
               },
               body: JSON.stringify({ buyerId: item.buyer_id }),
               signal: controller.signal,
@@ -150,7 +150,16 @@ serve(async (req) => {
 
             clearTimeout(timeoutId);
 
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
+
+            if (response.status === 401) {
+              console.error('enrich-buyer returned 401', {
+                buyerId: item.buyer_id,
+                bodyKeys: typeof data === 'object' && data ? Object.keys(data) : [],
+                error: (data as any)?.error,
+                success: (data as any)?.success,
+              });
+            }
 
             if (response.status === 429 || data.error_code === 'rate_limited') {
               return { item, rateLimited: true, resetTime: data.resetTime };

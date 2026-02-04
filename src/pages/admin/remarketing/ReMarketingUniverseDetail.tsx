@@ -32,7 +32,6 @@ import {
   EnrichmentSummaryDialog,
   ReMarketingChat
 } from "@/components/remarketing";
-import { EnrichmentSummaryDialog } from "@/components/remarketing/EnrichmentSummaryDialog";
 import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichment";
 import { 
   SizeCriteria, 
@@ -621,27 +620,7 @@ const ReMarketingUniverseDetail = () => {
                         );
                       }}
                       onCancelAlignment={cancelAlignmentScoring}
-                      onDedupe={async () => {
-                        if (!buyers?.length || buyers.length < 2) {
-                          toast.error('Need at least 2 buyers to dedupe');
-                          return;
-                        }
-                        setIsDeduping(true);
-                        try {
-                          const { data, error } = await supabase.functions.invoke('dedupe-buyers', {
-                            body: { universeId: id }
-                          });
-                          if (error) throw error;
-                          toast.success(data?.message || 'Deduplication complete');
-                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
-                        } catch (error) {
-                          toast.error('Failed to dedupe buyers');
-                        } finally {
-                          setIsDeduping(false);
-                        }
-                      }}
                       isEnriching={queueProgress.isRunning}
-                      isDeduping={isDeduping}
                       isScoringAlignment={isScoringAlignment}
                       enrichmentProgress={{
                         current: queueProgress.completed + queueProgress.failed,

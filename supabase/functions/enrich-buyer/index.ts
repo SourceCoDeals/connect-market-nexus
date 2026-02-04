@@ -754,6 +754,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('[enrich-buyer] request received');
     const { buyerId } = await req.json();
 
     if (!buyerId) {
@@ -777,13 +778,57 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Rate limit check
-    const authHeader = req.headers.get('Authorization');
+    // ----------------------------------------------------------------------
+    // AUTH
+    // ----------------------------------------------------------------------
+    // NOTE: This function is invoked in 2 ways:
+    // 1) From the browser (admin-only): Authorization Bearer <user JWT>
+    // 2) From the queue worker:        Authorization Bearer <service role key>
+    //
+    // We disable platform JWT verification (config.toml) so the worker can call
+    // this function. Therefore we MUST enforce auth here.
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+    const isInternalWorkerCall = !!token && token === supabaseServiceKey;
+
+    console.log('[enrich-buyer] auth info', {
+      hasAuthHeader: !!authHeader,
+      tokenLength: token?.length ?? 0,
+      isInternalWorkerCall,
+    });
+
     let userId = 'system';
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) userId = user.id;
+
+    if (!isInternalWorkerCall) {
+      if (!token) {
+        return new Response(JSON.stringify({ success: false, error: 'No authorization header' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        return new Response(JSON.stringify({ success: false, error: 'Admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      userId = user.id;
     }
 
     const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', false);
