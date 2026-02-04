@@ -279,19 +279,27 @@ export default function TrackerDetail() {
           </TabsTrigger>
           <TabsTrigger value="criteria">
             <Settings className="w-4 h-4 mr-2" />
-            Fit Criteria
+            Criteria
+          </TabsTrigger>
+          <TabsTrigger value="kpis">
+            <Target className="w-4 h-4 mr-2" />
+            KPIs
           </TabsTrigger>
           <TabsTrigger value="scoring">
-            <Brain className="w-4 h-4 mr-2" />
+            <Sliders className="w-4 h-4 mr-2" />
             Scoring
           </TabsTrigger>
           <TabsTrigger value="documents">
             <Upload className="w-4 h-4 mr-2" />
-            Documents
+            Docs
           </TabsTrigger>
-          <TabsTrigger value="ai-chat">
-            <Brain className="w-4 h-4 mr-2" />
-            AI Research
+          <TabsTrigger value="query">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Query
+          </TabsTrigger>
+          <TabsTrigger value="activity">
+            <Activity className="w-4 h-4 mr-2" />
+            Activity
           </TabsTrigger>
           <TabsTrigger value="activity">
             <Activity className="w-4 h-4 mr-2" />
@@ -314,7 +322,7 @@ export default function TrackerDetail() {
         </TabsContent>
 
         <TabsContent value="criteria" className="space-y-4">
-          <StructuredCriteriaPanel
+          <TrackerFitCriteriaTab
             trackerId={tracker.id}
             sizeCriteria={tracker.size_criteria}
             serviceCriteria={tracker.service_criteria}
@@ -323,40 +331,32 @@ export default function TrackerDetail() {
           />
         </TabsContent>
 
+        <TabsContent value="kpis" className="space-y-4">
+          <TrackerKPIConfigTab
+            trackerId={tracker.id}
+            kpiConfig={tracker.kpi_config}
+            onSave={(config) => handleSaveTracker({ kpi_config: config })}
+          />
+        </TabsContent>
+
         <TabsContent value="scoring" className="space-y-4">
-          <div className="space-y-6">
-            <ScoringBehaviorPanel
-              trackerId={tracker.id}
-              scoringBehavior={tracker.scoring_behavior}
-              onSave={(behavior) => handleSaveTracker({ scoring_behavior: behavior })}
-            />
-            <KPIConfigPanel
-              trackerId={tracker.id}
-              kpiConfig={tracker.kpi_config}
-              onSave={(config) => handleSaveTracker({ kpi_config: config })}
-            />
-          </div>
+          <TrackerScoringBehaviorTab
+            trackerId={tracker.id}
+            scoringBehavior={tracker.scoring_behavior}
+            onSave={(behavior) => handleSaveTracker({ scoring_behavior: behavior })}
+          />
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-              <CardDescription>
-                Upload CIMs, presentations, and other documents for AI analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Upload className="w-12 h-12 mx-auto mb-4" />
-                <p>Document upload and management coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+          <TrackerDocumentsTab trackerId={tracker.id} />
         </TabsContent>
 
-        <TabsContent value="ai-chat" className="space-y-4">
-          <TrackerQueryChat trackerId={tracker.id} />
+        <TabsContent value="query" className="space-y-4">
+          <TrackerQueryTab trackerId={tracker.id} />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <TrackerActivityTab trackerId={tracker.id} />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">
