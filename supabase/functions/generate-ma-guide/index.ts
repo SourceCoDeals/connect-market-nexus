@@ -630,18 +630,19 @@ Be comprehensive and specific.`;
 const BATCH_SIZE = 1;
 
 // Phase timeout configuration
-// Keep this below the platform/edge hard timeout so we can still send a structured SSE error event.
-const PHASE_TIMEOUT_MS = 50000; // 50 seconds per phase (slightly higher for parallel)
+// CRITICAL: Keep well below 150s hard limit. Single phase should complete in ~40-60s max.
+const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase (reduced from 50s for more buffer)
 // Retrying inside the same request can push the function over the hard timeout and kill the stream mid-flight.
 // Prefer failing fast and letting the client retry the batch.
 const MAX_RETRIES = 0;
 
 // Inter-phase delay to prevent hitting rate limits
-const INTER_PHASE_DELAY_MS = 1500; // 1.5 seconds between API calls (reduced for efficiency)
+const INTER_PHASE_DELAY_MS = 1000; // 1 second between API calls (reduced for efficiency)
 
 // Function-level timeout tracking - exit gracefully before platform hard timeout (~150s)
-const FUNCTION_TIMEOUT_MS = 140000; // 140 seconds - leave buffer before platform kills us
-const MIN_TIME_FOR_PHASE_MS = 35000; // Need at least 35s to safely complete another phase
+// With BATCH_SIZE=1, each batch = 1 phase, so we have ~100s overhead for streaming + setup
+const FUNCTION_TIMEOUT_MS = 120000; // 120 seconds - exit earlier to avoid hard cutoff
+const MIN_TIME_FOR_PHASE_MS = 50000; // Need at least 50s to safely complete a phase
 
 // Model selection: Use Sonnet for critical phases, Haiku for standard
 const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
@@ -748,7 +749,7 @@ NOW GENERATE THE FOLLOWING SECTION:
       headers: getAnthropicHeaders(apiKey),
       body: JSON.stringify({
         model,
-        max_tokens: CRITICAL_PHASES.includes(phase.id) ? 5200 : 4200,
+        max_tokens: CRITICAL_PHASES.includes(phase.id) ? 4000 : 3500, // Reduced for faster responses
         system: systemPrompt,
         messages: [
           { role: "user", content: userPrompt }
