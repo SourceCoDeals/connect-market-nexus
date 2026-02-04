@@ -754,6 +754,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('[enrich-buyer] request received');
     const { buyerId } = await req.json();
 
     if (!buyerId) {
@@ -789,6 +790,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
     const isInternalWorkerCall = !!token && token === supabaseServiceKey;
+
+    console.log('[enrich-buyer] auth info', {
+      hasAuthHeader: !!authHeader,
+      tokenLength: token?.length ?? 0,
+      isInternalWorkerCall,
+    });
 
     let userId = 'system';
 
