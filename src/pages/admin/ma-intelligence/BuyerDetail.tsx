@@ -36,7 +36,7 @@ import {
   Info,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { IntelligenceBadge } from "@/components/ma-intelligence/IntelligenceBadge";
+import { IntelligenceBadge } from "@/components/ma-intelligence";
 import { getIntelligenceCoverage, calculateIntelligencePercentage } from "@/lib/ma-intelligence/types";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { BuyerDataSection } from "@/components/ma-intelligence/BuyerDataSection";

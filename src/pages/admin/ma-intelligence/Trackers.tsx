@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Building2, Loader2, Users, FileText, ArrowUpDown, Archive, ArchiveRestore, MoreHorizontal, Trash2 } from "lucide-react";
 import { IntelligenceCoverageBar } from "@/components/ma-intelligence/IntelligenceBadge";
-import { getIntelligenceCoverage } from "@/lib/ma-intelligence/types";
-import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -29,7 +27,8 @@ interface TrackerWithStats {
   updated_at: string;
   buyer_count: number;
   deal_count: number;
-  intelligent_count: number;
+  enriched_count: number;    // Buyers with website enrichment (contributes up to 50%)
+  transcript_count: number;  // Buyers with transcripts (contributes up to 50%)
 }
 
 export default function MATrackers() {
@@ -53,20 +52,32 @@ export default function MATrackers() {
 
     const withStats = await Promise.all(
       (trackersData || []).map(async (tracker: any) => {
-        const [buyersRes, dealsRes] = await Promise.all([
-          supabase.from("remarketing_buyers").select("*").eq("industry_tracker_id", tracker.id),
+        const [buyersRes, dealsRes, transcriptsRes] = await Promise.all([
+          supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id),
           supabase.from("deals").select("id").eq("listing_id", tracker.id),
+          supabase.from("buyer_transcripts").select("buyer_id"),
         ]);
         const buyers = (buyersRes.data || []) as any[];
-        const intelligent = buyers.filter((b) => getIntelligenceCoverage(b as unknown as Partial<MABuyer>) !== "low").length;
+        const transcripts = transcriptsRes.data || [];
+        const buyerIdsWithTranscripts = new Set(transcripts.map((t: any) => t.buyer_id));
+        
+        // Count enriched buyers (high or medium data_completeness)
+        const enrichedCount = buyers.filter(b => 
+          b.data_completeness === 'high' || b.data_completeness === 'medium'
+        ).length;
+        
+        // Count buyers with transcripts
+        const transcriptCount = buyers.filter(b => buyerIdsWithTranscripts.has(b.id)).length;
+        
         return {
           id: tracker.id,
           industry_name: tracker.name || tracker.industry_name || 'Unknown',
-          archived: !tracker.is_active, // Derive archived from is_active
+          archived: !tracker.is_active,
           updated_at: tracker.updated_at,
           buyer_count: buyers.length,
           deal_count: dealsRes.data?.length || 0,
-          intelligent_count: intelligent
+          enriched_count: enrichedCount,
+          transcript_count: transcriptCount
         } as TrackerWithStats;
       })
     );
@@ -196,7 +207,10 @@ export default function MATrackers() {
             </TableHeader>
             <TableBody>
               {filteredTrackers.map((t) => {
-                const intelligencePercent = t.buyer_count > 0 ? Math.round((t.intelligent_count / t.buyer_count) * 100) : 0;
+                // Two-tier intel: website (up to 50%) + transcripts (up to 50%)
+                const websiteIntel = t.buyer_count > 0 ? Math.round((t.enriched_count / t.buyer_count) * 50) : 0;
+                const transcriptIntel = t.buyer_count > 0 ? Math.round((t.transcript_count / t.buyer_count) * 50) : 0;
+                const intelligencePercent = websiteIntel + transcriptIntel;
                 return (
                   <TableRow
                     key={t.id}
@@ -213,7 +227,11 @@ export default function MATrackers() {
                     <TableCell className="text-center">{t.buyer_count}</TableCell>
                     <TableCell className="text-center">{t.deal_count}</TableCell>
                     <TableCell>
-                      <IntelligenceCoverageBar intelligentCount={t.intelligent_count} totalCount={t.buyer_count} />
+                      <IntelligenceCoverageBar 
+                        intelligentCount={t.transcript_count} 
+                        totalCount={t.buyer_count}
+                        enrichedCount={t.enriched_count}
+                      />
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={intelligencePercent >= 70 ? "default" : intelligencePercent >= 40 ? "secondary" : "outline"}>

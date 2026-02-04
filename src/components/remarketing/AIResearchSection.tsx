@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
 import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
 import { GenerationSummaryPanel, type GenerationSummary } from "./GenerationSummaryPanel";
+import { useGuideGenerationState } from "@/hooks/remarketing/useGuideGenerationState";
 
 type GenerationState = 'idle' | 'clarifying' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
 
@@ -168,6 +169,16 @@ export const AIResearchSection = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Database persistence for guide generation (survives page reload/navigation)
+  const { 
+    dbProgress, 
+    isLoadingProgress, 
+    saveProgress: saveProgressToDb, 
+    markCompleted: markCompletedInDb, 
+    clearProgress: clearProgressInDb,
+    getResumableProgress 
+  } = useGuideGenerationState(universeId);
+
   // Error details state for enhanced error panel
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
 
@@ -183,7 +194,7 @@ export const AIResearchSection = ({
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string | string[]>>({});
 
   // Auto-retry configuration (prevents manual Resume for transient stream cut-offs)
-  const MAX_BATCH_RETRIES = 3;
+  const MAX_BATCH_RETRIES = 5; // Increased from 3 to 5 for better reliability
   const batchRetryCountRef = useRef<Record<number, number>>({});
 
   // Ref to store next batch info for chaining AFTER stream closes (prevents timeout accumulation)
@@ -192,6 +203,12 @@ export const AIResearchSection = ({
     content: string;
     clarificationContext: ClarificationContext;
   } | null>(null);
+
+  // Ref for background polling interval
+  const pollIntervalRef = useRef<number | null>(null);
+
+  // Criteria extraction state
+  const [isExtracting, setIsExtracting] = useState(false);
 
   useEffect(() => {
     if (universeName && !industryName) {
@@ -205,6 +222,124 @@ export const AIResearchSection = ({
       setWordCount(existingContent.split(/\s+/).length);
     }
   }, [existingContent]);
+
+  // Check for existing generation in progress on mount
+  useEffect(() => {
+    if (universeId) {
+      checkExistingGeneration();
+    }
+  }, [universeId]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  const checkExistingGeneration = async () => {
+    if (!universeId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('ma_guide_generations')
+        .select('*')
+        .eq('universe_id', universeId)
+        .in('status', ['pending', 'processing'])
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        // Found an existing generation - resume monitoring
+        toast.info('Resuming M&A guide generation in progress...');
+        setState('generating');
+        resumeBackgroundGeneration(data.id);
+      }
+    } catch (err) {
+      // No existing generation, that's fine
+    }
+  };
+
+  const resumeBackgroundGeneration = (generationId: string) => {
+    // Clear any existing poll interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+
+    // Poll for progress
+    pollIntervalRef.current = window.setInterval(async () => {
+      const { data: generation, error } = await supabase
+        .from('ma_guide_generations')
+        .select('*')
+        .eq('id', generationId)
+        .single();
+
+      if (error || !generation) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        return;
+      }
+
+      // Update progress
+      setCurrentPhase(generation.phases_completed);
+      setTotalPhases(generation.total_phases);
+      setPhaseName(generation.current_phase || '');
+
+      // Type-safe access to generated_content JSON field
+      const generatedContent = generation.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
+      
+      if (generatedContent?.content) {
+        setContent(generatedContent.content);
+        setWordCount(generatedContent.content.split(/\s+/).length);
+      }
+
+      // Handle completion
+      if (generation.status === 'completed') {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setState('complete');
+
+        const finalContent = generatedContent?.content || '';
+        const criteria = generatedContent?.criteria;
+
+        setContent(finalContent);
+        setWordCount(finalContent.split(/\s+/).length);
+
+        if (criteria) {
+          setExtractedCriteria(criteria);
+          onGuideGenerated(finalContent, criteria, criteria.target_buyer_types);
+        }
+
+        toast.success('M&A Guide generation completed!', { duration: 5000 });
+      }
+
+      // Handle failure
+      if (generation.status === 'failed') {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setState('error');
+        setErrorDetails({
+          code: 'generation_failed',
+          message: generation.error || 'Generation failed',
+          batchIndex: 0,
+          isRecoverable: true,
+          savedWordCount: 0,
+          timestamp: Date.now()
+        });
+        toast.error(`Generation failed: ${generation.error}`);
+      }
+    }, 2000);
+  };
 
   // Check for existing guide and confirm before regenerating
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -333,8 +468,23 @@ export const AIResearchSection = ({
     clarificationContext: ClarificationContext;
   } | null>(null);
 
-  // Check for saved progress on mount
+  // Check for saved progress on mount - prioritize database over localStorage
   useEffect(() => {
+    // First check database (survives page reload/navigation)
+    if (!isLoadingProgress) {
+      const dbResumable = getResumableProgress();
+      if (dbResumable && dbResumable.content) {
+        setSavedProgress({
+          industryName: universeName || industryName,
+          batchIndex: dbResumable.batchIndex,
+          content: dbResumable.content,
+          clarificationContext: {}
+        });
+        return; // DB takes priority
+      }
+    }
+
+    // Fallback to localStorage for same-session recovery
     const saved = localStorage.getItem('ma_guide_progress');
     if (saved) {
       try {
@@ -347,14 +497,40 @@ export const AIResearchSection = ({
         localStorage.removeItem('ma_guide_progress');
       }
     }
-  }, [industryName, universeName]);
+  }, [industryName, universeName, isLoadingProgress, getResumableProgress]);
 
   const clearProgress = () => {
     localStorage.removeItem('ma_guide_progress');
     setSavedProgress(null);
+    clearProgressInDb(); // Also clear from database
+  };
+
+  // Helper to save progress to both localStorage and database
+  const saveProgressBoth = (progressData: {
+    industryName: string;
+    batchIndex: number;
+    content: string;
+    clarificationContext: ClarificationContext;
+    lastPhaseId?: string;
+    lastPhase?: number;
+    wordCount?: number;
+  }) => {
+    // Save to localStorage (immediate, same-session backup)
+    localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
+    setSavedProgress(progressData);
+    
+    // Save to database (survives page reload/navigation)
+    saveProgressToDb(progressData);
   };
 
   const handleGenerate = async (clarificationContext: ClarificationContext) => {
+    // Use background generation to avoid timeouts
+    if (universeId) {
+      await handleBackgroundGenerate(clarificationContext);
+      return;
+    }
+
+    // Fallback to streaming mode if no universeId
     setState('generating');
     setCurrentPhase(0);
     setCurrentBatch(0);
@@ -379,6 +555,47 @@ export const AIResearchSection = ({
 
     // Start batch generation
     await generateBatch(0, "", clarificationContext);
+  };
+
+  const handleBackgroundGenerate = async (clarificationContext: ClarificationContext) => {
+    setState('generating');
+    setCurrentPhase(0);
+    setContent("");
+    setWordCount(0);
+    setErrorDetails(null);
+    setGenerationSummary(null);
+    generationStartTimeRef.current = Date.now();
+
+    try {
+      // Start background generation
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide-background`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({ universe_id: universeId })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to start generation: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const generationId = data.generation_id;
+
+      toast.success('Guide generation started in background. You can navigate away - it will continue.');
+
+      // Start polling for progress
+      resumeBackgroundGeneration(generationId);
+
+    } catch (error: any) {
+      setState('error');
+      toast.error(error.message || 'Failed to start background generation');
+    }
   };
 
   const resumeGeneration = (progress: typeof savedProgress) => {
@@ -534,9 +751,8 @@ export const AIResearchSection = ({
                     lastPhase: event.phase,
                     wordCount: accumulatedWordCount
                   };
-                  localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
-                  // CRITICAL: Also update savedProgress state so Resume works without reload
-                  setSavedProgress(progressData);
+                  // Save to BOTH localStorage and database
+                  saveProgressBoth(progressData);
                 }
                 break;
 
@@ -566,8 +782,8 @@ export const AIResearchSection = ({
                     lastPhase: batchIndex + 1,
                     wordCount: event.wordCount || event.content?.split(/\s+/).length || 0
                   };
-                  localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
-                  setSavedProgress(progressData);
+                  // Save to BOTH localStorage and database
+                  saveProgressBoth(progressData);
                 }
                 break;
 
@@ -605,9 +821,10 @@ export const AIResearchSection = ({
                 const finalWordCount = event.totalWords || finalContent.split(/\s+/).length;
                 setContent(finalContent);
                 setWordCount(finalWordCount);
-                // Clear saved progress on successful completion
+                // Clear saved progress on successful completion (both localStorage and DB)
                 localStorage.removeItem('ma_guide_progress');
                 setSavedProgress(null);
+                markCompletedInDb();
                 
                 // Set success summary
                 setGenerationSummary({
@@ -691,14 +908,17 @@ export const AIResearchSection = ({
       if (nextBatchInfo.current) {
         const { index, content: nextContent, clarificationContext: ctx } = nextBatchInfo.current;
         nextBatchInfo.current = null;
-        
-        // Small delay to ensure clean separation between requests
-        await new Promise(r => setTimeout(r, 1000));
-        toast.info(`Batch ${batchIndex + 1} complete, starting batch ${index + 1}...`);
-        
+
+        // Progressive delay: longer delays for later batches to avoid consecutive timeouts
+        // Batches 0-7: 1s delay, Batches 8-10: 3s delay, Batches 11+: 5s delay
+        const interBatchDelay = index >= 11 ? 5000 : (index >= 8 ? 3000 : 1000);
+        await new Promise(r => setTimeout(r, interBatchDelay));
+
+        toast.info(`Batch ${batchIndex + 1} complete, starting batch ${index + 1}${interBatchDelay > 1000 ? ` (${interBatchDelay / 1000}s delay for stability)` : ''}...`);
+
         // Create fresh abort controller for the new request
         abortControllerRef.current = new AbortController();
-        
+
         // This now runs AFTER the previous stream fully closed
         await generateBatch(index, nextContent, ctx);
         return; // Exit after chaining to prevent falling into error handling
@@ -734,18 +954,23 @@ export const AIResearchSection = ({
         const currentRetries = batchRetryCountRef.current[batchIndex] ?? 0;
         if (state === 'generating' && (isStreamCutoff || isRateLimited) && currentRetries < MAX_BATCH_RETRIES) {
           batchRetryCountRef.current[batchIndex] = currentRetries + 1;
-          
-          // Use longer backoff for rate limits (30s) vs stream cutoffs (1-3s)
-          const backoffMs = isRateLimited 
-            ? ((error as any).retryAfterMs || 30000)
-            : 1000 * (currentRetries + 1);
-          
+
+          // Use exponential backoff with longer delays for rate limits and later batches
+          // Later batches (10+) get extra delay since they're processing more content
+          const baseBackoff = isRateLimited
+            ? 30000 // 30s base for rate limits
+            : Math.min(5000 * Math.pow(2, currentRetries), 30000); // Exponential: 5s, 10s, 20s, 30s (capped)
+
+          // Add extra delay for later batches (batch 8+) that are more likely to timeout
+          const batchPenalty = batchIndex >= 8 ? 5000 * (batchIndex - 7) : 0; // 5s, 10s, 15s extra for batches 8, 9, 10...
+          const backoffMs = (error as any).retryAfterMs || (baseBackoff + batchPenalty);
+
           toast.info(
             isRateLimited
               ? `Rate limit hit. Waiting ${Math.round(backoffMs / 1000)}s before retry (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
-              : `Connection dropped during batch ${batchIndex + 1}. Retrying (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+              : `Batch ${batchIndex + 1} timeout. Retrying with ${Math.round(backoffMs / 1000)}s delay (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
           );
-          
+
           await new Promise((r) => setTimeout(r, backoffMs));
 
           // New controller for the retry to ensure the previous stream is fully abandoned.
@@ -817,6 +1042,77 @@ export const AIResearchSection = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Extract buyer fit criteria from the generated guide
+  const handleExtractCriteria = async () => {
+    const guideContent = existingContent || content;
+    
+    if (!guideContent || guideContent.length < 1000) {
+      toast.error("Guide must have at least 1,000 characters to extract criteria");
+      return;
+    }
+
+    if (!universeId) {
+      toast.error("Universe ID is required for criteria extraction");
+      return;
+    }
+
+    setIsExtracting(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-buyer-criteria', {
+        body: {
+          universe_id: universeId,
+          guide_content: guideContent,
+          source_name: `${universeName || industryName} M&A Guide`,
+          industry_name: universeName || industryName
+        }
+      });
+
+      if (error) {
+        // Handle rate limits and payment required
+        if (error.message?.includes('402') || error.message?.includes('Payment')) {
+          toast.error("AI credits depleted. Please add credits in Settings → Workspace → Usage.", {
+            duration: 10000
+          });
+          return;
+        }
+        if (error.message?.includes('429') || error.message?.includes('Rate')) {
+          toast.warning("Rate limit reached. Please wait a moment and try again.");
+          return;
+        }
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Extraction failed');
+      }
+
+      // Map extracted data to component's interface
+      const mappedCriteria: ExtractedCriteria = {
+        size_criteria: data.criteria?.size_criteria,
+        geography_criteria: data.criteria?.geography_criteria,
+        service_criteria: data.criteria?.service_criteria,
+        buyer_types_criteria: data.criteria?.buyer_types_criteria
+      };
+
+      const confidence = data.confidence || 0;
+      
+      // Update local state
+      setExtractedCriteria(mappedCriteria);
+      
+      // Pass to parent component
+      onGuideGenerated(guideContent, mappedCriteria, data.target_buyer_types);
+      
+      toast.success(`Criteria extracted successfully (${confidence}% confidence)`, { duration: 5000 });
+
+    } catch (error) {
+      console.error('Criteria extraction error:', error);
+      toast.error(`Failed to extract criteria: ${(error as Error).message}`);
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   // Error panel handlers
@@ -945,7 +1241,7 @@ export const AIResearchSection = ({
               <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
                 <div>
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    Previous generation was interrupted at batch {savedProgress.batchIndex + 1}
+                    Previous generation was interrupted at phase {savedProgress.batchIndex + 1} of 13
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     {savedProgress.content.split(/\s+/).length.toLocaleString()} words generated

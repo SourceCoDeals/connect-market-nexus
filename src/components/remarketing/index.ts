@@ -32,7 +32,6 @@ export { BuyerFitCriteriaAccordion } from './BuyerFitCriteriaAccordion';
 export { BuyerFitCriteriaDialog } from './BuyerFitCriteriaDialog';
 export { BuyerTableToolbar } from './BuyerTableToolbar';
 export { ScoringStyleCard } from './ScoringStyleCard';
-export { MatchCriteriaCard } from './MatchCriteriaCard';
 // Match Card Components
 export { BuyerMatchCard } from './BuyerMatchCard';
 

@@ -99,15 +99,17 @@ const ReMarketingUniverses = () => {
   });
 
   // Fetch buyer counts per universe
-  // Intelligence coverage is based on TRANSCRIPTS, not data_completeness
-  // Website scraping can only provide ~50% intel; 100% requires call transcripts
+  // Intelligence coverage is a two-tier system:
+  // - Website enrichment (data_completeness = 'high') contributes up to 50%
+  // - Call transcripts contribute the remaining 50%
+  // 100% intel requires ALL buyers to have transcripts
   const { data: buyerStats } = useQuery({
     queryKey: ['remarketing', 'universe-buyer-stats'],
     queryFn: async () => {
-      // Get all buyers
+      // Get all buyers with data_completeness
       const { data: buyers, error: buyersError } = await supabase
         .from('remarketing_buyers')
-        .select('id, universe_id')
+        .select('id, universe_id, data_completeness')
         .eq('archived', false);
 
       if (buyersError) throw buyersError;
@@ -121,17 +123,23 @@ const ReMarketingUniverses = () => {
 
       const buyersWithTranscripts = new Set(transcripts?.map(t => t.buyer_id) || []);
 
-      // Aggregate by universe
-      const stats: Record<string, { total: number; intelligent: number }> = {};
+      // Aggregate by universe with both enriched and transcript counts
+      const stats: Record<string, { total: number; enriched: number; withTranscripts: number }> = {};
       buyers?.forEach(buyer => {
         if (!buyer.universe_id) return;
         if (!stats[buyer.universe_id]) {
-          stats[buyer.universe_id] = { total: 0, intelligent: 0 };
+          stats[buyer.universe_id] = { total: 0, enriched: 0, withTranscripts: 0 };
         }
         stats[buyer.universe_id].total++;
-        // A buyer has full intel only if they have a transcript
+        
+        // Count enriched buyers (website data provides up to 50% intel)
+        if (buyer.data_completeness === 'high' || buyer.data_completeness === 'medium') {
+          stats[buyer.universe_id].enriched++;
+        }
+        
+        // Count buyers with transcripts (provides remaining 50% intel)
         if (buyersWithTranscripts.has(buyer.id)) {
-          stats[buyer.universe_id].intelligent++;
+          stats[buyer.universe_id].withTranscripts++;
         }
       });
       return stats;
@@ -296,8 +304,13 @@ const ReMarketingUniverses = () => {
         case 'coverage':
           const aStats = buyerStats?.[a.id];
           const bStats = buyerStats?.[b.id];
-          aVal = aStats && aStats.total > 0 ? (aStats.intelligent / aStats.total) * 100 : 0;
-          bVal = bStats && bStats.total > 0 ? (bStats.intelligent / bStats.total) * 100 : 0;
+          // Calculate coverage using two-tier system: website (50%) + transcripts (50%)
+          const aWebsite = aStats && aStats.total > 0 ? (aStats.enriched / aStats.total) * 50 : 0;
+          const aTranscript = aStats && aStats.total > 0 ? (aStats.withTranscripts / aStats.total) * 50 : 0;
+          const bWebsite = bStats && bStats.total > 0 ? (bStats.enriched / bStats.total) * 50 : 0;
+          const bTranscript = bStats && bStats.total > 0 ? (bStats.withTranscripts / bStats.total) * 50 : 0;
+          aVal = aWebsite + aTranscript;
+          bVal = bWebsite + bTranscript;
           break;
         default:
           return 0;
@@ -474,11 +487,12 @@ const ReMarketingUniverses = () => {
                 </TableRow>
               ) : (
                 sortedUniverses.map((universe) => {
-                  const stats = buyerStats?.[universe.id] || { total: 0, intelligent: 0 };
+                  const stats = buyerStats?.[universe.id] || { total: 0, enriched: 0, withTranscripts: 0 };
                   const deals = dealStats?.[universe.id] || 0;
-                  const coverage = stats.total > 0 
-                    ? Math.round((stats.intelligent / stats.total) * 100) 
-                    : 0;
+                  // Two-tier intel: website (up to 50%) + transcripts (up to 50%)
+                  const websiteIntel = stats.total > 0 ? Math.round((stats.enriched / stats.total) * 50) : 0;
+                  const transcriptIntel = stats.total > 0 ? Math.round((stats.withTranscripts / stats.total) * 50) : 0;
+                  const coverage = websiteIntel + transcriptIntel;
                   const isSelected = selectedIds.has(universe.id);
 
                   return (
@@ -524,8 +538,9 @@ const ReMarketingUniverses = () => {
                       <TableCell>
                         <div className="w-40">
                           <IntelligenceCoverageBar 
-                            current={stats.intelligent} 
-                            total={stats.total} 
+                            current={stats.withTranscripts} 
+                            total={stats.total}
+                            enrichedCount={stats.enriched}
                           />
                         </div>
                       </TableCell>

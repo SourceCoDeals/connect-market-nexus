@@ -37,12 +37,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { DealScoreBadge } from "@/components/ma-intelligence/DealScoreBadge";
-import { DealDataSection } from "@/components/ma-intelligence/DealDataSection";
-import { DealMatchedBuyersTab } from "@/components/ma-intelligence/DealMatchedBuyersTab";
-import { DealTranscriptsTab } from "@/components/ma-intelligence/DealTranscriptsTab";
-import { DealActivitySection } from "@/components/ma-intelligence/DealActivitySection";
-import { AddTranscriptDialog } from "@/components/ma-intelligence/AddTranscriptDialog";
+import { DealScoreBadge } from "@/components/ma-intelligence";
 import type { MADeal } from "@/lib/ma-intelligence/types";
 
 export default function DealDetail() {

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -9,25 +10,32 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, GitMerge, AlertCircle, Building2, ExternalLink } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, AlertCircle, CheckCircle2, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { MABuyer } from "@/lib/ma-intelligence/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DedupeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trackerId: string;
-  onDedupeComplete?: () => void;
 }
 
 interface DuplicateGroup {
   id: string;
-  buyers: MABuyer[];
-  similarityScore: number;
+  buyers: Array<{
+    id: string;
+    pe_firm_name: string;
+    platform_company_name?: string;
+    pe_firm_website?: string;
+    created_at: string;
+    data_last_updated?: string;
+    has_enriched_data: boolean;
+  }>;
+  similarity: number;
   matchReason: string;
 }
 
@@ -35,348 +43,331 @@ export function DedupeDialog({
   open,
   onOpenChange,
   trackerId,
-  onDedupeComplete,
 }: DedupeDialogProps) {
-  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
-  const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
-  const [selectedBuyerId, setSelectedBuyerId] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMerging, setIsMerging] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
+  const [selectedPrimaries, setSelectedPrimaries] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (open && trackerId) {
-      findDuplicates();
-    }
-  }, [open, trackerId]);
-
-  const findDuplicates = async () => {
-    if (!trackerId || trackerId === 'new') return;
-
-    setIsLoading(true);
-    try {
-      // Load all buyers for this tracker
+  // Find duplicate buyers
+  const { data: duplicateGroups = [], isLoading } = useQuery<DuplicateGroup[]>({
+    queryKey: ['buyer-duplicates', trackerId],
+    queryFn: async () => {
+      // Fetch all buyers for this tracker
       const { data: buyers, error } = await supabase
-        .from("remarketing_buyers")
-        .select("*")
-        .eq("industry_tracker_id", trackerId);
+        .from('buyers')
+        .select('id, pe_firm_name, platform_company_name, pe_firm_website, created_at, data_last_updated')
+        .eq('tracker_id', trackerId);
 
       if (error) throw error;
+      if (!buyers || buyers.length === 0) return [];
 
-      // Find duplicate groups using simple matching logic
+      // Find duplicates based on:
+      // 1. Exact match on pe_firm_name
+      // 2. Similar pe_firm_name (fuzzy matching)
+      // 3. Same pe_firm_website
       const groups: DuplicateGroup[] = [];
       const processed = new Set<string>();
 
-      (buyers || []).forEach((buyer, index) => {
+      buyers.forEach((buyer, index) => {
         if (processed.has(buyer.id)) return;
 
-        const duplicates = (buyers || []).filter((other, otherIndex) => {
+        const duplicates = buyers.filter((other, otherIndex) => {
           if (otherIndex <= index || processed.has(other.id)) return false;
 
-          // Match by PE firm name similarity
-          const firmMatch = buyer.pe_firm_name?.toLowerCase() === other.pe_firm_name?.toLowerCase();
+          // Exact name match
+          if (buyer.pe_firm_name?.toLowerCase() === other.pe_firm_name?.toLowerCase()) {
+            return true;
+          }
 
-          // Match by website (domain)
-          const websiteMatch = buyer.platform_website && other.platform_website &&
-            extractDomain(buyer.platform_website) === extractDomain(other.platform_website);
+          // Same website
+          if (buyer.pe_firm_website && other.pe_firm_website &&
+              buyer.pe_firm_website === other.pe_firm_website) {
+            return true;
+          }
 
-          // Match by platform name similarity
-          const platformMatch = buyer.platform_company_name && other.platform_company_name &&
-            buyer.platform_company_name.toLowerCase() === other.platform_company_name.toLowerCase();
+          // Fuzzy name matching (remove punctuation, extra spaces)
+          const normalizeName = (name: string) =>
+            name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
 
-          return firmMatch || websiteMatch || platformMatch;
+          const normalizedBuyer = normalizeName(buyer.pe_firm_name || '');
+          const normalizedOther = normalizeName(other.pe_firm_name || '');
+
+          if (normalizedBuyer && normalizedOther && normalizedBuyer === normalizedOther) {
+            return true;
+          }
+
+          return false;
         });
 
         if (duplicates.length > 0) {
           const allBuyers = [buyer, ...duplicates];
           allBuyers.forEach(b => processed.add(b.id));
 
-          let matchReason = '';
-          if (duplicates.some(d => d.pe_firm_name?.toLowerCase() === buyer.pe_firm_name?.toLowerCase())) {
-            matchReason = 'Same PE firm name';
-          } else if (duplicates.some(d => d.platform_website && extractDomain(d.platform_website) === extractDomain(buyer.platform_website || ''))) {
-            matchReason = 'Same website domain';
-          } else if (duplicates.some(d => d.platform_company_name?.toLowerCase() === buyer.platform_company_name?.toLowerCase())) {
-            matchReason = 'Same platform name';
+          // Determine match reason
+          let matchReason = 'Exact name match';
+          if (allBuyers.some(b => b.pe_firm_website === buyer.pe_firm_website)) {
+            matchReason = 'Same website';
           }
 
           groups.push({
-            id: `group-${groups.length}`,
-            buyers: allBuyers as MABuyer[],
-            similarityScore: 95,
+            id: `group-${index}`,
+            buyers: allBuyers.map(b => ({
+              ...b,
+              has_enriched_data: !!(b.data_last_updated && b.data_last_updated !== b.created_at),
+            })),
+            similarity: 100, // Percentage similarity
             matchReason,
           });
         }
       });
 
-      setDuplicateGroups(groups);
+      return groups;
+    },
+    enabled: open && !!trackerId,
+  });
 
-      if (groups.length === 0) {
-        toast({
-          title: "No duplicates found",
-          description: "All buyers appear to be unique",
-        });
-        onOpenChange(false);
-      } else {
-        // Auto-select the most complete buyer
-        const firstGroup = groups[0];
-        const mostComplete = findMostCompleteBuyer(firstGroup.buyers);
-        setSelectedBuyerId(mostComplete.id);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error finding duplicates",
-        description: error.message,
-        variant: "destructive",
+  // Merge duplicates mutation
+  const mergeMutation = useMutation({
+    mutationFn: async () => {
+      const mergeOperations = Array.from(selectedGroups).map(async (groupId) => {
+        const group = duplicateGroups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const primaryId = selectedPrimaries[groupId];
+        if (!primaryId) {
+          throw new Error(`No primary buyer selected for group ${groupId}`);
+        }
+
+        const duplicateIds = group.buyers
+          .filter(b => b.id !== primaryId)
+          .map(b => b.id);
+
+        // Update all references to point to the primary buyer
+        // This includes buyer_deal_scores, buyer_contacts, etc.
+        await Promise.all([
+          // Update buyer_deal_scores
+          supabase
+            .from('buyer_deal_scores')
+            .update({ buyer_id: primaryId })
+            .in('buyer_id', duplicateIds),
+
+          // Update buyer_contacts
+          supabase
+            .from('buyer_contacts')
+            .update({ buyer_id: primaryId })
+            .in('buyer_id', duplicateIds),
+
+          // Update any other tables referencing buyer_id
+          // Add more as needed
+        ]);
+
+        // Delete the duplicate buyers
+        const { error } = await supabase
+          .from('buyers')
+          .delete()
+          .in('id', duplicateIds);
+
+        if (error) throw error;
+
+        return {
+          groupId,
+          primaryId,
+          mergedCount: duplicateIds.length,
+        };
       });
-    } finally {
-      setIsLoading(false);
+
+      return await Promise.all(mergeOperations);
+    },
+    onSuccess: (results) => {
+      const totalMerged = results?.reduce((sum, r) => sum + (r?.mergedCount || 0), 0) || 0;
+      toast({
+        title: "Duplicates merged successfully",
+        description: `Merged ${totalMerged} duplicate buyer${totalMerged !== 1 ? 's' : ''}`,
+      });
+
+      // Reset selections
+      setSelectedGroups(new Set());
+      setSelectedPrimaries({});
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['buyer-duplicates', trackerId] });
+      queryClient.invalidateQueries({ queryKey: ['tracker-buyers', trackerId] });
+      queryClient.invalidateQueries({ queryKey: ['tracker-stats', trackerId] });
+
+      // Close dialog
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error merging duplicates",
+        description: error.message,
+      });
+    },
+  });
+
+  const toggleGroupSelection = (groupId: string) => {
+    const newSelected = new Set(selectedGroups);
+    if (newSelected.has(groupId)) {
+      newSelected.delete(groupId);
+      // Remove primary selection
+      const newPrimaries = { ...selectedPrimaries };
+      delete newPrimaries[groupId];
+      setSelectedPrimaries(newPrimaries);
+    } else {
+      newSelected.add(groupId);
+      // Auto-select the most enriched buyer as primary
+      const group = duplicateGroups.find(g => g.id === groupId);
+      if (group) {
+        const mostEnriched = group.buyers.reduce((best, current) =>
+          current.has_enriched_data && !best.has_enriched_data ? current : best
+        );
+        setSelectedPrimaries({
+          ...selectedPrimaries,
+          [groupId]: mostEnriched.id,
+        });
+      }
     }
+    setSelectedGroups(newSelected);
   };
 
-  const extractDomain = (url: string): string => {
-    try {
-      const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
-      return domain.replace('www.', '');
-    } catch {
-      return url;
-    }
-  };
-
-  const findMostCompleteBuyer = (buyers: MABuyer[]): MABuyer => {
-    return buyers.reduce((best, current) => {
-      const bestScore = calculateCompletenessScore(best);
-      const currentScore = calculateCompletenessScore(current);
-      return currentScore > bestScore ? current : best;
+  const setPrimaryBuyer = (groupId: string, buyerId: string) => {
+    setSelectedPrimaries({
+      ...selectedPrimaries,
+      [groupId]: buyerId,
     });
   };
 
-  const calculateCompletenessScore = (buyer: MABuyer): number => {
-    let score = 0;
-    if (buyer.thesis_summary) score += 10;
-    if (buyer.min_revenue) score += 5;
-    if (buyer.max_revenue) score += 5;
-    if (buyer.target_geographies?.length) score += 5;
-    if (buyer.target_services?.length) score += 5;
-    if (buyer.business_summary) score += 10;
-    if (buyer.platform_website) score += 5;
-    if (buyer.recent_acquisitions?.length) score += 10;
-    return score;
-  };
-
-  const handleMerge = async () => {
-    if (!selectedBuyerId) {
-      toast({
-        title: "No buyer selected",
-        description: "Please select which buyer to keep",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const currentGroup = duplicateGroups[currentGroupIndex];
-    const buyersToDelete = currentGroup.buyers
-      .filter(b => b.id !== selectedBuyerId)
-      .map(b => b.id);
-
-    setIsMerging(true);
-    try {
-      // Delete duplicate buyers
-      const { error } = await supabase
-        .from("remarketing_buyers")
-        .delete()
-        .in("id", buyersToDelete);
-
-      if (error) throw error;
-
-      toast({
-        title: "Buyers merged",
-        description: `Merged ${buyersToDelete.length} duplicate${buyersToDelete.length > 1 ? 's' : ''}`,
-      });
-
-      // Move to next group or close
-      if (currentGroupIndex < duplicateGroups.length - 1) {
-        const nextIndex = currentGroupIndex + 1;
-        setCurrentGroupIndex(nextIndex);
-        const nextGroup = duplicateGroups[nextIndex];
-        const mostComplete = findMostCompleteBuyer(nextGroup.buyers);
-        setSelectedBuyerId(mostComplete.id);
-      } else {
-        onDedupeComplete?.();
-        onOpenChange(false);
-        toast({
-          title: "Deduplication complete",
-          description: `Processed ${duplicateGroups.length} duplicate group${duplicateGroups.length > 1 ? 's' : ''}`,
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Merge failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsMerging(false);
-    }
-  };
-
-  const handleSkip = () => {
-    if (currentGroupIndex < duplicateGroups.length - 1) {
-      const nextIndex = currentGroupIndex + 1;
-      setCurrentGroupIndex(nextIndex);
-      const nextGroup = duplicateGroups[nextIndex];
-      const mostComplete = findMostCompleteBuyer(nextGroup.buyers);
-      setSelectedBuyerId(mostComplete.id);
-    } else {
-      onOpenChange(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin" />
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (duplicateGroups.length === 0) {
-    return null;
-  }
-
-  const currentGroup = duplicateGroups[currentGroupIndex];
+  const canMerge = selectedGroups.size > 0 &&
+    Array.from(selectedGroups).every(groupId => selectedPrimaries[groupId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <GitMerge className="w-5 h-5" />
-            Merge Duplicate Buyers
+            <Users className="h-5 w-5" />
+            Find and Merge Duplicate Buyers
           </DialogTitle>
           <DialogDescription>
-            Found {duplicateGroups.length} duplicate group{duplicateGroups.length > 1 ? 's' : ''}.
-            Reviewing group {currentGroupIndex + 1} of {duplicateGroups.length}.
+            Select duplicate groups to merge. The primary buyer will be kept, and all data from duplicates will be transferred.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Match reason:</strong> {currentGroup.matchReason}
-            </AlertDescription>
-          </Alert>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : duplicateGroups.length === 0 ? (
+          <div className="text-center py-12">
+            <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Duplicates Found</h3>
+            <p className="text-muted-foreground">
+              All buyers in this tracker appear to be unique.
+            </p>
+          </div>
+        ) : (
+          <>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Found {duplicateGroups.length} group{duplicateGroups.length !== 1 ? 's' : ''} of potential duplicates
+              </AlertDescription>
+            </Alert>
 
-          <div>
-            <Label className="text-base mb-3 block">
-              Select which buyer to keep (others will be deleted):
-            </Label>
-            <RadioGroup value={selectedBuyerId} onValueChange={setSelectedBuyerId}>
-              <div className="space-y-3">
-                {currentGroup.buyers.map((buyer) => {
-                  const completeness = calculateCompletenessScore(buyer);
-                  const isRecommended = buyer.id === findMostCompleteBuyer(currentGroup.buyers).id;
-
-                  return (
-                    <div
-                      key={buyer.id}
-                      className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-colors ${
-                        selectedBuyerId === buyer.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value={buyer.id} id={buyer.id} className="mt-1" />
-                      <Label htmlFor={buyer.id} className="flex-1 cursor-pointer">
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-muted-foreground" />
-                                <span className="font-medium">
-                                  {buyer.platform_company_name || buyer.pe_firm_name}
-                                </span>
-                                {isRecommended && (
-                                  <Badge variant="default" className="text-xs">
-                                    Most Complete
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {buyer.pe_firm_name}
-                              </p>
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-4">
+                {duplicateGroups.map((group) => (
+                  <Card key={group.id} className={selectedGroups.has(group.id) ? 'border-primary' : ''}>
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            id={group.id}
+                            checked={selectedGroups.has(group.id)}
+                            onCheckedChange={() => toggleGroupSelection(group.id)}
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline">{group.matchReason}</Badge>
+                              <Badge>{group.similarity}% match</Badge>
                             </div>
-                            <Badge variant="secondary" className="text-xs">
-                              {completeness}% complete
-                            </Badge>
-                          </div>
 
-                          {buyer.platform_website && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <ExternalLink className="w-3 h-3" />
-                              {buyer.platform_website}
+                            <div className="space-y-2">
+                              {group.buyers.map((buyer) => (
+                                <div
+                                  key={buyer.id}
+                                  className={`p-3 rounded-lg border ${
+                                    selectedPrimaries[group.id] === buyer.id
+                                      ? 'border-primary bg-primary/5'
+                                      : 'border-border'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium">{buyer.pe_firm_name}</p>
+                                        {buyer.has_enriched_data && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            Enriched
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      {buyer.platform_company_name && (
+                                        <p className="text-sm text-muted-foreground">
+                                          Platform: {buyer.platform_company_name}
+                                        </p>
+                                      )}
+                                      {buyer.pe_firm_website && (
+                                        <p className="text-sm text-muted-foreground">
+                                          {buyer.pe_firm_website}
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-muted-foreground">
+                                        Created {new Date(buyer.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    {selectedGroups.has(group.id) && (
+                                      <Button
+                                        size="sm"
+                                        variant={selectedPrimaries[group.id] === buyer.id ? "default" : "outline"}
+                                        onClick={() => setPrimaryBuyer(group.id, buyer.id)}
+                                      >
+                                        {selectedPrimaries[group.id] === buyer.id ? "Primary" : "Set as Primary"}
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          )}
-
-                          {buyer.thesis_summary && (
-                            <p className="text-sm line-clamp-2">{buyer.thesis_summary}</p>
-                          )}
-
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {buyer.min_revenue && (
-                              <Badge variant="outline" className="text-xs">
-                                Min: ${(buyer.min_revenue / 1000000).toFixed(1)}M
-                              </Badge>
-                            )}
-                            {buyer.max_revenue && (
-                              <Badge variant="outline" className="text-xs">
-                                Max: ${(buyer.max_revenue / 1000000).toFixed(1)}M
-                              </Badge>
-                            )}
-                            {buyer.target_geographies && buyer.target_geographies.length > 0 && (
-                              <Badge variant="outline" className="text-xs">
-                                {buyer.target_geographies.length} geo{buyer.target_geographies.length > 1 ? 's' : ''}
-                              </Badge>
-                            )}
                           </div>
                         </div>
-                      </Label>
-                    </div>
-                  );
-                })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            </RadioGroup>
-          </div>
-        </div>
+            </ScrollArea>
 
-        <DialogFooter className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {currentGroupIndex + 1} of {duplicateGroups.length} groups
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleSkip} disabled={isMerging}>
-              Skip
-            </Button>
-            <Button onClick={handleMerge} disabled={isMerging || !selectedBuyerId}>
-              {isMerging ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Merging...
-                </>
-              ) : (
-                <>
-                  <GitMerge className="w-4 h-4 mr-2" />
-                  Merge & Continue
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogFooter>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={mergeMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => mergeMutation.mutate()}
+                disabled={!canMerge || mergeMutation.isPending}
+              >
+                {mergeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Merge {selectedGroups.size} Group{selectedGroups.size !== 1 ? 's' : ''}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -26,7 +26,6 @@ import {
   BuyerFitCriteriaDialog,
   AIResearchSection,
   ScoringStyleCard,
-  MatchCriteriaCard,
   BuyerFitCriteriaAccordion,
   CriteriaExtractionPanel,
   StructuredCriteriaPanel,
@@ -856,14 +855,6 @@ const ReMarketingUniverseDetail = () => {
               isSaving={saveMutation.isPending}
             />
 
-            {/* Match Criteria - Quick Summary */}
-            <MatchCriteriaCard
-              sizeCriteria={sizeCriteria}
-              geographyCriteria={geographyCriteria}
-              serviceCriteria={serviceCriteria}
-              onEdit={() => setShowCriteriaEdit(true)}
-            />
-
             {/* Buyer Fit Criteria - Full Detail with Target Buyer Types */}
             <BuyerFitCriteriaAccordion
               sizeCriteria={sizeCriteria}
@@ -873,6 +864,13 @@ const ReMarketingUniverseDetail = () => {
               onTargetBuyerTypesChange={setTargetBuyerTypes}
               onEditCriteria={() => setShowCriteriaEdit(true)}
               defaultOpen={false}
+              universeId={id}
+              universeName={formData.name}
+              maGuideContent={maGuideContent}
+              maGuideDocument={documents.find(d => d.type === 'ma_guide')}
+              onCriteriaExtracted={() => {
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
+              }}
             />
 
             {/* Criteria Extraction from Transcripts & Documents */}

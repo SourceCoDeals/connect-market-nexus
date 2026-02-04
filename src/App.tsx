@@ -52,7 +52,7 @@ import ReMarketingBulkImport from "@/pages/admin/remarketing/ReMarketingBulkImpo
 
 import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
 import { ReMarketingLayout } from "@/components/remarketing";
-import { MAIntelligenceLayout } from "@/components/ma-intelligence/MAIntelligenceLayout";
+import { MAIntelligenceLayout } from "@/components/ma-intelligence";
 import { MADashboard, MATrackers, MATrackerDetail, MAAllBuyers, MABuyerDetail, MAAllDeals, MADealDetail } from "@/pages/admin/ma-intelligence";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";

@@ -5,17 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Target, Activity, MessageSquare, Sliders } from "lucide-react";
+import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TrackerBuyersTab } from "@/components/ma-intelligence/tracker/TrackerBuyersTab";
-import { TrackerDealsTab } from "@/components/ma-intelligence/tracker/TrackerDealsTab";
-import { TrackerFitCriteriaTab } from "@/components/ma-intelligence/tracker/TrackerFitCriteriaTab";
-import { TrackerKPIConfigTab } from "@/components/ma-intelligence/tracker/TrackerKPIConfigTab";
-import { TrackerScoringBehaviorTab } from "@/components/ma-intelligence/tracker/TrackerScoringBehaviorTab";
-import { TrackerDocumentsTab } from "@/components/ma-intelligence/tracker/TrackerDocumentsTab";
-import { TrackerQueryTab } from "@/components/ma-intelligence/tracker/TrackerQueryTab";
-import { TrackerActivityTab } from "@/components/ma-intelligence/tracker/TrackerActivityTab";
-import { InterruptedSessionBanner } from "@/components/ma-intelligence/tracker/InterruptedSessionBanner";
+import {
+  TrackerBuyersTab,
+  TrackerDealsTab,
+  StructuredCriteriaPanel,
+  ScoringBehaviorPanel,
+  KPIConfigPanel,
+  TrackerQueryChat,
+  InterruptedSessionBanner,
+  TrackerActivityFeed,
+} from "@/components/ma-intelligence";
 import type { SizeCriteria, ServiceCriteria, GeographyCriteria, ScoringBehavior, TrackerDocument } from "@/lib/ma-intelligence/types";
 
 interface TrackerData {
@@ -267,7 +268,7 @@ export default function TrackerDetail() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="buyers">
             <Users className="w-4 h-4 mr-2" />
             Buyers
@@ -295,6 +296,10 @@ export default function TrackerDetail() {
           <TabsTrigger value="query">
             <MessageSquare className="w-4 h-4 mr-2" />
             Query
+          </TabsTrigger>
+          <TabsTrigger value="activity">
+            <Activity className="w-4 h-4 mr-2" />
+            Activity
           </TabsTrigger>
           <TabsTrigger value="activity">
             <Activity className="w-4 h-4 mr-2" />
@@ -352,6 +357,10 @@ export default function TrackerDetail() {
 
         <TabsContent value="activity" className="space-y-4">
           <TrackerActivityTab trackerId={tracker.id} />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <TrackerActivityFeed trackerId={tracker.id} />
         </TabsContent>
       </Tabs>
     </div>

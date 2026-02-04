@@ -410,18 +410,39 @@ export function getIntelligenceCoverage(buyer: Partial<MABuyer>): IntelligenceCo
   return 'low';
 }
 
-export function calculateIntelligencePercentage(buyer: Partial<MABuyer>): number {
-  const fields = [
-    buyer.thesis_summary,
-    buyer.geo_preferences,
-    buyer.min_revenue,
-    buyer.max_revenue,
-    buyer.preferred_ebitda,
-    buyer.service_mix_prefs,
-    buyer.business_model_prefs,
-    buyer.deal_breakers,
+/**
+ * Calculate the intelligence percentage for a single buyer.
+ * 
+ * Two-tier system:
+ * - Website data (data fields filled) can contribute up to 50%
+ * - Transcript data is required to go above 50%
+ * 
+ * @param buyer - The buyer to evaluate
+ * @param hasTranscript - Whether the buyer has a call transcript
+ * @returns Intelligence percentage (0-100)
+ */
+export function calculateIntelligencePercentage(buyer: Partial<MABuyer>, hasTranscript: boolean = false): number {
+  // Fields that can be populated from website enrichment
+  const websiteFields = [
+    buyer.business_summary,
+    buyer.pe_firm_website || buyer.platform_website,
+    buyer.hq_state || buyer.hq_city,
+    buyer.services_offered,
+    buyer.industry_vertical,
+    buyer.min_revenue || buyer.max_revenue,
+    buyer.target_geographies,
+    buyer.geographic_footprint,
   ];
 
-  const filledFields = fields.filter(f => f !== null && f !== undefined && (Array.isArray(f) ? f.length > 0 : true)).length;
-  return Math.round((filledFields / fields.length) * 100);
+  const filledWebsiteFields = websiteFields.filter(f => 
+    f !== null && f !== undefined && (Array.isArray(f) ? f.length > 0 : true)
+  ).length;
+  
+  // Website intel: 0-50% based on filled website fields
+  const websiteIntel = Math.round((filledWebsiteFields / websiteFields.length) * 50);
+  
+  // Transcript intel: 50% if transcript exists
+  const transcriptIntel = hasTranscript ? 50 : 0;
+  
+  return websiteIntel + transcriptIntel;
 }
