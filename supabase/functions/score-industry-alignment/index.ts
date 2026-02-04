@@ -108,10 +108,9 @@ Universe: "Fire & Water Restoration"
     // Build the industry knowledge context from M&A guide if available
     let industryKnowledge = "";
     if (universe.ma_guide_content) {
-      // Truncate to avoid token limits
       industryKnowledge = `
 INDUSTRY KNOWLEDGE BASE (from M&A Research Guide):
-${universe.ma_guide_content.slice(0, 6000)}
+${universe.ma_guide_content}
 `;
     }
 
