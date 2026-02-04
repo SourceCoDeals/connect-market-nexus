@@ -830,6 +830,15 @@ const ReMarketingUniverseDetail = () => {
               <AIResearchSection
                 universeName={formData.name}
                 existingContent={maGuideContent}
+                universeId={id}
+                onDocumentAdded={(doc) => {
+                  // Add the auto-generated guide document to the documents list
+                  setDocuments(prev => {
+                    // Remove any existing auto-generated guide to avoid duplicates
+                    const filtered = prev.filter(d => !(d as any).type || (d as any).type !== 'ma_guide');
+                    return [...filtered, doc];
+                  });
+                }}
                 onGuideGenerated={(guide, extractedCriteria, buyerProfiles) => {
                   setMaGuideContent(guide);
                   if (extractedCriteria) {
