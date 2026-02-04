@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft } from "lucide-react";
+import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TrackerBuyersTab } from "@/components/ma-intelligence/tracker/TrackerBuyersTab";
 import { TrackerDealsTab } from "@/components/ma-intelligence/tracker/TrackerDealsTab";
@@ -14,6 +14,7 @@ import { ScoringBehaviorPanel } from "@/components/ma-intelligence/ScoringBehavi
 import { KPIConfigPanel } from "@/components/ma-intelligence/KPIConfigPanel";
 import { TrackerQueryChat } from "@/components/ma-intelligence/TrackerQueryChat";
 import { InterruptedSessionBanner } from "@/components/ma-intelligence/tracker/InterruptedSessionBanner";
+import { TrackerActivityFeed } from "@/components/ma-intelligence/TrackerActivityFeed";
 import type { SizeCriteria, ServiceCriteria, GeographyCriteria, ScoringBehavior, TrackerDocument } from "@/lib/ma-intelligence/types";
 
 interface TrackerData {
@@ -265,7 +266,7 @@ export default function TrackerDetail() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="buyers">
             <Users className="w-4 h-4 mr-2" />
             Buyers
@@ -289,6 +290,10 @@ export default function TrackerDetail() {
           <TabsTrigger value="ai-chat">
             <Brain className="w-4 h-4 mr-2" />
             AI Research
+          </TabsTrigger>
+          <TabsTrigger value="activity">
+            <Activity className="w-4 h-4 mr-2" />
+            Activity
           </TabsTrigger>
         </TabsList>
 
@@ -350,6 +355,10 @@ export default function TrackerDetail() {
 
         <TabsContent value="ai-chat" className="space-y-4">
           <TrackerQueryChat trackerId={tracker.id} />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <TrackerActivityFeed trackerId={tracker.id} />
         </TabsContent>
       </Tabs>
     </div>

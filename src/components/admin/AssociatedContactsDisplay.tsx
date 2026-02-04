@@ -7,18 +7,26 @@ import { Separator } from "@/components/ui/separator";
 import { ChevronDown, ChevronUp, Users, Mail, Phone, Building2, User, Plus } from "lucide-react";
 import { useAssociatedContactsQuery } from "@/hooks/admin/use-associated-contacts";
 import { AdminConnectionRequest } from "@/types/admin";
+import { AddAssociatedContactDialog } from "./AddAssociatedContactDialog";
 
 interface AssociatedContactsDisplayProps {
   connectionRequest: AdminConnectionRequest;
   className?: string;
 }
 
-export const AssociatedContactsDisplay = ({ 
-  connectionRequest, 
-  className = "" 
+export const AssociatedContactsDisplay = ({
+  connectionRequest,
+  className = ""
 }: AssociatedContactsDisplayProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data: contacts = [], isLoading } = useAssociatedContactsQuery(connectionRequest.id);
+
+  // Get company name from connection request
+  const companyName = connectionRequest.lead_company ||
+                      connectionRequest.user?.company_name ||
+                      connectionRequest.source_metadata?.company ||
+                      'Unknown Company';
 
   if (isLoading) {
     return (
@@ -124,10 +132,7 @@ export const AssociatedContactsDisplay = ({
               size="sm"
               variant="outline"
               className="w-full flex items-center gap-2 text-xs"
-              onClick={() => {
-                // TODO: Implement add contact functionality
-                console.log('Add contact for request:', connectionRequest.id);
-              }}
+              onClick={() => setIsDialogOpen(true)}
             >
               <Plus className="h-3 w-3" />
               Add Another Contact from Same Firm
@@ -135,6 +140,13 @@ export const AssociatedContactsDisplay = ({
           </div>
         </CollapsibleContent>
       </Collapsible>
+
+      <AddAssociatedContactDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        connectionRequestId={connectionRequest.id}
+        companyName={companyName}
+      />
     </div>
   );
 };
