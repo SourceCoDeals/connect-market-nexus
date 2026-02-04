@@ -498,7 +498,7 @@ const ReMarketingBuyers = () => {
                       {/* Description Column */}
                       <TableCell>
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {buyer.thesis_summary || '—'}
+                          {buyer.business_summary || buyer.thesis_summary || '—'}
                         </p>
                       </TableCell>
 

@@ -176,6 +176,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // CRITICAL FIX: Detect if same URL is used for both platform and PE firm
+    // This causes PE firm content to be extracted as platform intelligence
+    if (platformWebsite && peFirmWebsite && platformWebsite === peFirmWebsite) {
+      console.warn(`⚠️  URL conflict detected: Same URL used for platform and PE firm: ${platformWebsite}`);
+      console.warn(`This will cause PE firm information to appear in platform fields`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Platform website and PE firm website are the same URL. Please provide separate URLs for the operating platform company and the parent PE firm.',
+          error_code: 'url_conflict'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // SECURITY: Validate URLs to prevent SSRF attacks
     if (platformWebsite) {
       const platformUrlValidation = validateUrl(platformWebsite);
@@ -221,12 +236,29 @@ Deno.serve(async (req) => {
     }
 
     const scrapeResults = await Promise.all(scrapePromises);
-    
+
     for (const { type, result } of scrapeResults) {
       if (type === 'platform') {
         if (result.success) {
           platformContent = result.content ?? null;
-          if (platformContent) console.log(`Scraped platform website: ${platformContent.length} chars`);
+          if (platformContent) {
+            console.log(`Scraped platform website: ${platformContent.length} chars`);
+
+            // CRITICAL FIX: Detect if "platform" content is actually PE firm content
+            const detection = detectPEFirmContent(platformContent);
+            if (detection.isPEFirm) {
+              console.warn(`⚠️  Platform website content appears to be PE firm (confidence: ${(detection.confidence * 100).toFixed(0)}%)`);
+              console.warn(`Indicators found: ${detection.indicators.join(', ')}`);
+              warnings.push(`Platform website appears to contain PE firm information. Please verify the platform_website URL points to the operating company, not the PE firm.`);
+
+              // If confidence is very high and no PE firm website, treat this as PE firm content
+              if (detection.confidence >= 0.6 && !peFirmWebsite) {
+                console.log(`High confidence PE firm detection - treating platform content as PE firm content`);
+                peFirmContent = platformContent;
+                platformContent = null; // Don't extract platform intelligence from PE firm content
+              }
+            }
+          }
         } else {
           warnings.push(`Platform website could not be scraped: ${result.error}`);
           console.warn(`Platform scrape failed: ${result.error}`);
@@ -420,6 +452,60 @@ const MIN_CONTENT_LENGTH = 200;
 const SCRAPE_TIMEOUT_MS = 15000; // 15 seconds (reduced from 30s to fit in 60s edge function limit)
 const AI_TIMEOUT_MS = 20000; // 20 seconds (reduced from 45s to fit in 60s edge function limit)
 
+// PE firm indicators for content detection
+const PE_FIRM_INDICATORS = [
+  'private equity',
+  'investment firm',
+  'portfolio companies',
+  'portfolio company',
+  'portfolio investments',
+  'capital partners',
+  'equity partners',
+  'investment strategy',
+  'fund size',
+  'assets under management',
+  'aum',
+  'investment thesis',
+  'lower middle market',
+  'middle market investor',
+  'buy and build',
+  'platform acquisition',
+  'add-on acquisition'
+];
+
+/**
+ * Detect if content appears to be from a PE firm website rather than an operating company
+ * Returns confidence score: 0 = definitely not PE firm, 1 = definitely PE firm
+ */
+function detectPEFirmContent(content: string): { isPEFirm: boolean; confidence: number; indicators: string[] } {
+  const lowerContent = content.toLowerCase();
+  const foundIndicators: string[] = [];
+  let score = 0;
+
+  for (const indicator of PE_FIRM_INDICATORS) {
+    if (lowerContent.includes(indicator)) {
+      foundIndicators.push(indicator);
+      // Weight certain indicators more heavily
+      if (indicator === 'private equity' || indicator === 'investment firm') {
+        score += 0.15;
+      } else if (indicator === 'portfolio companies' || indicator === 'investment thesis') {
+        score += 0.12;
+      } else {
+        score += 0.08;
+      }
+    }
+  }
+
+  // Cap at 1.0
+  score = Math.min(score, 1.0);
+
+  return {
+    isPEFirm: score >= 0.4, // Threshold for classification
+    confidence: score,
+    indicators: foundIndicators
+  };
+}
+
 async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     let formattedUrl = url.trim();
@@ -606,7 +692,7 @@ function getPlatformIntelligencePrompt() {
         }
       }
     },
-    system: `You are a senior M&A analyst extracting structured business intelligence from company websites.
+    system: `You are a senior M&A analyst extracting structured business intelligence from OPERATING COMPANY websites.
 
 Extract ALL available information about:
 1. BUSINESS OVERVIEW: What they do, services, business model, industry focus
@@ -619,7 +705,9 @@ CRITICAL RULES:
 - hq_state MUST be a 2-letter state code (GA, TX, AZ)
 - All geographic_footprint and service_regions entries MUST be 2-letter state codes
 - Be concise and factual. If information is not available, omit that field.
-- Do NOT make up information that isn't clearly stated on the website.`,
+- Do NOT make up information that isn't clearly stated on the website.
+
+⚠️  IMPORTANT: If this website appears to be a PRIVATE EQUITY FIRM or INVESTMENT COMPANY (mentions "investment", "portfolio companies", "capital management", "fund"), omit ALL fields. We only extract platform company information from operating company websites, not from PE firm websites.`,
     user: (content: string, companyName: string) => 
       `Website Content for "${companyName}":\n\n${content.substring(0, 20000)}\n\nExtract all available business intelligence.`
   };
