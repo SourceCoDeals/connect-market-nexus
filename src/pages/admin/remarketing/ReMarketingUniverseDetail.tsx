@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { 
+import {
   DocumentUploadSection,
   MAGuideEditor,
   UniverseTemplates,
@@ -32,6 +32,8 @@ import {
   EnrichmentSummaryDialog,
   ReMarketingChat
 } from "@/components/remarketing";
+import { EnrichmentSummaryDialog } from "@/components/remarketing/EnrichmentSummaryDialog";
+import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichment";
 import { 
   SizeCriteria, 
   GeographyCriteria, 

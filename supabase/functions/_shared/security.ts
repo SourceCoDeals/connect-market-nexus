@@ -17,23 +17,24 @@ interface RateLimitConfig {
 }
 
 // Rate limit configurations for AI operations
+// NOTE: Limits set to 999999 = effectively unlimited while still tracking usage
 export const AI_RATE_LIMITS: Record<string, RateLimitConfig> = {
-  // Per-user limits (normal users)
-  ai_enrichment: { limit: 200, windowMinutes: 60 },      // 200 AI enrichments per hour
-  ai_scoring: { limit: 200, windowMinutes: 60 },         // 200 scoring calls per hour
-  ai_transcript: { limit: 50, windowMinutes: 60 },       // 50 transcript extractions per hour
-  ai_document_parse: { limit: 50, windowMinutes: 60 },   // 50 document parses per hour
-  ai_query: { limit: 100, windowMinutes: 60 },           // 100 AI queries per hour
+  // Per-user limits (effectively unlimited)
+  ai_enrichment: { limit: 999999, windowMinutes: 60 },     // Unlimited AI enrichments
+  ai_scoring: { limit: 999999, windowMinutes: 60 },        // Unlimited scoring calls
+  ai_transcript: { limit: 999999, windowMinutes: 60 },     // Unlimited transcript extractions
+  ai_document_parse: { limit: 999999, windowMinutes: 60 }, // Unlimited document parses
+  ai_query: { limit: 999999, windowMinutes: 60 },          // Unlimited AI queries
 
-  // Admin limits (higher)
-  admin_ai_enrichment: { limit: 500, windowMinutes: 60 },
-  admin_ai_scoring: { limit: 1000, windowMinutes: 60 },
-  admin_ai_transcript: { limit: 200, windowMinutes: 60 },
-  admin_ai_document_parse: { limit: 200, windowMinutes: 60 },
-  admin_ai_query: { limit: 500, windowMinutes: 60 },
+  // Admin limits (same as regular - unlimited)
+  admin_ai_enrichment: { limit: 999999, windowMinutes: 60 },
+  admin_ai_scoring: { limit: 999999, windowMinutes: 60 },
+  admin_ai_transcript: { limit: 999999, windowMinutes: 60 },
+  admin_ai_document_parse: { limit: 999999, windowMinutes: 60 },
+  admin_ai_query: { limit: 999999, windowMinutes: 60 },
 
-  // Global budget limits (all users combined)
-  global_ai_calls: { limit: 5000, windowMinutes: 60 },   // 5000 AI calls per hour globally
+  // Global budget limits (effectively unlimited)
+  global_ai_calls: { limit: 999999, windowMinutes: 60 },   // Unlimited globally
 };
 
 interface RateLimitResult {

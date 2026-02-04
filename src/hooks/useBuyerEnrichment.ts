@@ -24,6 +24,24 @@ export interface EnrichmentProgress {
   resetTime?: string;
 }
 
+export interface EnrichmentSummary {
+  total: number;
+  successful: number;
+  failed: number;
+  warnings: number;
+  results: Array<{
+    buyerId: string;
+    buyerName?: string;
+    status: 'success' | 'error' | 'warning';
+    error?: string;
+    errorCode?: string;
+    fieldsExtracted?: number;
+  }>;
+  creditsDepleted?: boolean;
+  rateLimited?: boolean;
+  resetTime?: string;
+}
+
 // Claude has much higher rate limits than Gemini - can process more buyers in parallel
 const BATCH_SIZE = 3; // Increased from 2 now that we use Claude (only 2 AI calls per buyer instead of 6)
 const BATCH_DELAY_MS = 1500; // Reduced delay since Claude has ~100 RPM vs Gemini's 15 RPM
@@ -346,29 +364,45 @@ export function useBuyerEnrichment(universeId?: string) {
     // Complete
     if (!creditsDepleted && !rateLimited && !cancelledRef.current) {
       setProgress(prev => ({ ...prev, isRunning: false }));
-      
-      if (successful > 0) {
-        toast.success(`Enriched ${successful} of ${enrichableBuyers.length} buyers`);
-      }
-      if (failed > 0 && !creditsDepleted) {
-        toast.warning(`${failed} buyers failed to enrich`);
-      }
     }
 
     // Invalidate queries
-    await queryClient.invalidateQueries({ 
-      queryKey: ['remarketing', 'buyers'], 
-      refetchType: 'active' 
+    await queryClient.invalidateQueries({
+      queryKey: ['remarketing', 'buyers'],
+      refetchType: 'active'
     });
     if (universeId) {
-      await queryClient.invalidateQueries({ 
-        queryKey: ['remarketing', 'buyers', 'universe', universeId], 
-        refetchType: 'active' 
+      await queryClient.invalidateQueries({
+        queryKey: ['remarketing', 'buyers', 'universe', universeId],
+        refetchType: 'active'
       });
     }
 
-    return { successful, failed, creditsDepleted };
-  }, [queryClient, universeId, updateStatus]);
+    // Build enrichment summary for results dialog
+    const warnings = Array.from(progress.statuses.values()).filter(s => s.status === 'warning').length;
+    const results = Array.from(progress.statuses.values()).map(status => ({
+      buyerId: status.buyerId,
+      status: status.status === 'success' ? 'success' as const
+        : status.status === 'warning' ? 'warning' as const
+        : 'error' as const,
+      error: status.error,
+      errorCode: status.errorCode,
+      fieldsExtracted: status.fieldsExtracted
+    }));
+
+    const summary: EnrichmentSummary = {
+      total: enrichableBuyers.length,
+      successful,
+      failed,
+      warnings,
+      results,
+      creditsDepleted,
+      rateLimited,
+      resetTime: abortState.resetTime
+    };
+
+    return { successful, failed, creditsDepleted, summary };
+  }, [queryClient, universeId, updateStatus, progress.statuses]);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
