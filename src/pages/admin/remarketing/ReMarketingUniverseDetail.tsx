@@ -523,19 +523,6 @@ const ReMarketingUniverseDetail = () => {
 
           {/* TAB 1: Universe - Buyers & Deals */}
           <TabsContent value="universe" className="space-y-4">
-            {/* Prominent Enrichment Progress Bar - like All Deals page */}
-            {enrichmentProgress.isRunning && (
-              <EnrichmentProgressIndicator
-                completedCount={enrichmentProgress.current}
-                totalCount={enrichmentProgress.total}
-                progress={enrichmentProgress.total > 0 ? (enrichmentProgress.current / enrichmentProgress.total) * 100 : 0}
-                estimatedTimeRemaining={enrichmentProgress.total > 0 
-                  ? `~${Math.ceil((enrichmentProgress.total - enrichmentProgress.current) * 3 / 60)} min` 
-                  : undefined}
-                processingRate={enrichmentProgress.current > 0 ? 20 : 0}
-              />
-            )}
-
             <Tabs defaultValue="buyers" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="buyers">
