@@ -29,6 +29,7 @@ import {
   MatchCriteriaCard,
   StructuredCriteriaPanel,
   EnrichmentProgressIndicator,
+  EnrichmentSummaryDialog,
   ReMarketingChat
 } from "@/components/remarketing";
 import { 
@@ -130,6 +131,9 @@ const ReMarketingUniverseDetail = () => {
   // Use the queue-based enrichment for persistent background processing
   const {
     progress: queueProgress,
+    summary: enrichmentSummary,
+    showSummary: showEnrichmentSummary,
+    dismissSummary: dismissEnrichmentSummary,
     queueBuyers,
     cancel: cancelQueueEnrichment,
     reset: resetQueueEnrichment,
@@ -1227,6 +1231,31 @@ const ReMarketingUniverseDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Enrichment Summary Dialog */}
+      <EnrichmentSummaryDialog
+        open={showEnrichmentSummary}
+        onOpenChange={dismissEnrichmentSummary}
+        summary={enrichmentSummary}
+        onRetryFailed={async () => {
+          dismissEnrichmentSummary();
+          if (!buyers?.length || !enrichmentSummary?.errors.length) return;
+          
+          // Get failed buyer IDs from summary
+          const failedBuyerIds = new Set(enrichmentSummary.errors.map(e => e.buyerId));
+          const failedBuyers = buyers.filter(b => failedBuyerIds.has(b.id));
+          
+          if (failedBuyers.length > 0) {
+            resetQueueEnrichment();
+            await queueBuyers(failedBuyers.map(b => ({
+              id: b.id,
+              company_website: b.company_website,
+              platform_website: b.platform_website,
+              pe_firm_website: b.pe_firm_website
+            })));
+          }
+        }}
+      />
     </div>
   );
 };
