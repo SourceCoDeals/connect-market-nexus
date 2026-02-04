@@ -186,6 +186,13 @@ export const AIResearchSection = ({
   const MAX_BATCH_RETRIES = 3;
   const batchRetryCountRef = useRef<Record<number, number>>({});
 
+  // Ref to store next batch info for chaining AFTER stream closes (prevents timeout accumulation)
+  const nextBatchInfo = useRef<{
+    index: number;
+    content: string;
+    clarificationContext: ClarificationContext;
+  } | null>(null);
+
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
@@ -526,14 +533,14 @@ export const AIResearchSection = ({
                   delete batchRetryCountRef.current[batchIndex];
                 }
 
-                // If not final, automatically start next batch
+                // Store next batch info for chaining AFTER stream closes (not inside the handler!)
+                // This ensures each batch runs in a fresh HTTP request, resetting the 150s edge timeout.
                 if (!event.is_final && event.next_batch_index !== null) {
-                  // Small delay before starting next batch
-                  await new Promise(r => setTimeout(r, 500));
-                  toast.info(`Batch ${event.batch_index + 1} complete, starting batch ${event.next_batch_index + 1}...`);
-                  // Recursively call for next batch
-                  await generateBatch(event.next_batch_index, event.content, clarificationContext);
-                  return; // Exit this batch's processing
+                  nextBatchInfo.current = {
+                    index: event.next_batch_index,
+                    content: event.content,
+                    clarificationContext
+                  };
                 }
                 break;
 
@@ -650,6 +657,24 @@ export const AIResearchSection = ({
         );
         (timeoutError as any).code = 'function_timeout';
         throw timeoutError;
+      }
+
+      // Chain to next batch OUTSIDE the stream handler (after stream fully closes).
+      // This ensures each batch runs in a FRESH HTTP request, resetting the 150s edge timeout.
+      if (nextBatchInfo.current) {
+        const { index, content: nextContent, clarificationContext: ctx } = nextBatchInfo.current;
+        nextBatchInfo.current = null;
+        
+        // Small delay to ensure clean separation between requests
+        await new Promise(r => setTimeout(r, 1000));
+        toast.info(`Batch ${batchIndex + 1} complete, starting batch ${index + 1}...`);
+        
+        // Create fresh abort controller for the new request
+        abortControllerRef.current = new AbortController();
+        
+        // This now runs AFTER the previous stream fully closed
+        await generateBatch(index, nextContent, ctx);
+        return; // Exit after chaining to prevent falling into error handling
       }
 
     } catch (error) {

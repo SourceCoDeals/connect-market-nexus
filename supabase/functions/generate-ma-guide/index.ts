@@ -625,9 +625,9 @@ Be comprehensive and specific.`;
   }
 }
 
-// Batch configuration: 2 phases per batch for faster generation
-// Phases within a batch run in parallel where possible
-const BATCH_SIZE = 2;
+// Batch configuration: 1 phase per batch for safer timeout budget
+// Each batch runs in a separate HTTP request, resetting the 150s edge timeout
+const BATCH_SIZE = 1;
 
 // Phase timeout configuration
 // Keep this below the platform/edge hard timeout so we can still send a structured SSE error event.
