@@ -159,11 +159,12 @@ const ReMarketingUniverseDetail = () => {
   });
 
   // Fetch buyers in this universe
-  const { data: buyers, refetch: refetchBuyers } = useQuery({
+  const { data: buyers, refetch: refetchBuyers, isLoading: buyersLoading } = useQuery({
     queryKey: ['remarketing', 'buyers', 'universe', id],
     queryFn: async () => {
       if (isNew) return [];
       
+      console.log('[BuyerQuery] Fetching buyers for universe:', id);
       const { data, error } = await supabase
         .from('remarketing_buyers')
         .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
@@ -171,10 +172,16 @@ const ReMarketingUniverseDetail = () => {
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('[BuyerQuery] Error fetching buyers:', error);
+        throw error;
+      }
+      console.log('[BuyerQuery] Fetched', data?.length || 0, 'buyers');
       return data || [];
     },
-    enabled: !isNew
+    enabled: !isNew,
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    staleTime: 0, // Always consider data stale to ensure fresh fetches after invalidation
   });
 
   // Real-time subscription for buyer updates during enrichment

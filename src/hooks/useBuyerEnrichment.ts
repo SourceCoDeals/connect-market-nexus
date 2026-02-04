@@ -222,9 +222,15 @@ export function useBuyerEnrichment(universeId?: string) {
             );
             
             // Invalidate queries to show partial results
-            queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+            await queryClient.invalidateQueries({ 
+              queryKey: ['remarketing', 'buyers'], 
+              refetchType: 'active' 
+            });
             if (universeId) {
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', universeId] });
+              await queryClient.invalidateQueries({ 
+                queryKey: ['remarketing', 'buyers', 'universe', universeId], 
+                refetchType: 'active' 
+              });
             }
             
             return { successful, failed, creditsDepleted: true };
@@ -255,9 +261,15 @@ export function useBuyerEnrichment(universeId?: string) {
             );
 
             // Invalidate queries to show partial results
-            queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+            await queryClient.invalidateQueries({ 
+              queryKey: ['remarketing', 'buyers'], 
+              refetchType: 'active' 
+            });
             if (universeId) {
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', universeId] });
+              await queryClient.invalidateQueries({ 
+                queryKey: ['remarketing', 'buyers', 'universe', universeId], 
+                refetchType: 'active' 
+              });
             }
 
             return { successful, failed, creditsDepleted: false };
@@ -274,9 +286,17 @@ export function useBuyerEnrichment(universeId?: string) {
       }));
 
       // Invalidate queries after each batch to update table in real-time
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+      // Use refetchType: 'active' to immediately refetch active queries
+      console.log('[Enrichment] Invalidating buyer queries after batch', { universeId, batch: i + BATCH_SIZE });
+      await queryClient.invalidateQueries({ 
+        queryKey: ['remarketing', 'buyers'], 
+        refetchType: 'active' 
+      });
       if (universeId) {
-        queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', universeId] });
+        await queryClient.invalidateQueries({ 
+          queryKey: ['remarketing', 'buyers', 'universe', universeId], 
+          refetchType: 'active' 
+        });
       }
 
       // Delay between batches (not after last batch)
@@ -298,9 +318,15 @@ export function useBuyerEnrichment(universeId?: string) {
     }
 
     // Invalidate queries
-    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+    await queryClient.invalidateQueries({ 
+      queryKey: ['remarketing', 'buyers'], 
+      refetchType: 'active' 
+    });
     if (universeId) {
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', universeId] });
+      await queryClient.invalidateQueries({ 
+        queryKey: ['remarketing', 'buyers', 'universe', universeId], 
+        refetchType: 'active' 
+      });
     }
 
     return { successful, failed, creditsDepleted };
