@@ -74,25 +74,19 @@ export function useBackgroundGuideGeneration({
     hasCompletedRef.current = false;
 
     try {
-      // Call the background generation endpoint
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide-background`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({ universe_id: universeId })
-        }
-      );
+      // Call the background generation endpoint using supabase functions invoke
+      const { data, error } = await supabase.functions.invoke('generate-ma-guide-background', {
+        body: { universe_id: universeId }
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start generation');
+      if (error) {
+        throw new Error(error.message || 'Failed to start generation');
       }
 
-      const data = await response.json();
+      toast.success('Guide generation started. You can navigate away - it will continue in the background.');
+
+      // Start polling for progress
+      startPolling(data.generation_id);
 
       toast.success('Guide generation started. You can navigate away - it will continue in the background.');
 
