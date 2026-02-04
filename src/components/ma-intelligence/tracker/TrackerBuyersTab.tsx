@@ -5,7 +5,6 @@ import { Loader2 } from "lucide-react";
 import { TrackerBuyersToolbar } from "./TrackerBuyersToolbar";
 import { TrackerBuyersTable } from "./TrackerBuyersTable";
 import { AddBuyerDialog } from "./AddBuyerDialog";
-import { DedupeDialog } from "./DedupeDialog";
 import { useToast } from "@/hooks/use-toast";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { useRealtimeTrackerBuyers } from "@/hooks/ma-intelligence/useRealtimeTrackerBuyers";
@@ -21,7 +20,6 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
   const [isEnriching, setIsEnriching] = useState(false);
   const [addBuyerDialogOpen, setAddBuyerDialogOpen] = useState(false);
-  const [dedupeDialogOpen, setDedupeDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCoverage, setFilterCoverage] = useState<"all" | "high" | "medium" | "low">("all");
   const { toast } = useToast();
@@ -210,7 +208,6 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         onAddBuyer={() => setAddBuyerDialogOpen(true)}
         onBulkEnrich={handleBulkEnrich}
         onBulkScore={handleBulkScore}
-        onDedupe={() => setDedupeDialogOpen(true)}
         isEnriching={isEnriching}
       />
 
@@ -231,13 +228,6 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         onOpenChange={setAddBuyerDialogOpen}
         trackerId={trackerId}
         onBuyerAdded={loadBuyers}
-      />
-
-      <DedupeDialog
-        open={dedupeDialogOpen}
-        onOpenChange={setDedupeDialogOpen}
-        trackerId={trackerId}
-        onDedupeComplete={loadBuyers}
       />
     </div>
   );

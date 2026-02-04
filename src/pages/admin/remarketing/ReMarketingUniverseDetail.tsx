@@ -32,7 +32,6 @@ import {
   EnrichmentSummaryDialog,
   ReMarketingChat
 } from "@/components/remarketing";
-import { EnrichmentSummaryDialog } from "@/components/remarketing/EnrichmentSummaryDialog";
 import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichment";
 import { 
   SizeCriteria, 

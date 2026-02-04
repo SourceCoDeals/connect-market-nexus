@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Sparkles, Target, FileUp, GitMerge, MoreVertical } from "lucide-react";
+import { Search, Plus, Sparkles, Target, FileUp, MoreVertical } from "lucide-react";
 
 interface TrackerBuyersToolbarProps {
   selectedCount: number;
@@ -26,7 +26,6 @@ interface TrackerBuyersToolbarProps {
   onAddBuyer: () => void;
   onBulkEnrich: () => void;
   onBulkScore: (dealId: string) => void;
-  onDedupe: () => void;
   isEnriching: boolean;
 }
 
@@ -40,7 +39,6 @@ export function TrackerBuyersToolbar({
   onAddBuyer,
   onBulkEnrich,
   onBulkScore,
-  onDedupe,
   isEnriching,
 }: TrackerBuyersToolbarProps) {
   return (
@@ -102,11 +100,6 @@ export function TrackerBuyersToolbar({
               <DropdownMenuItem>
                 <FileUp className="w-4 h-4 mr-2" />
                 Export Selected
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDedupe}>
-                <GitMerge className="w-4 h-4 mr-2" />
-                Find Duplicates
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
