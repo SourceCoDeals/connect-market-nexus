@@ -101,6 +101,7 @@ interface BuyerData {
   customer_industries: string[] | null;
   target_customer_profile: string | null;
   key_quotes: string[] | null;
+  investment_date: string | null;
 }
 
 interface Contact {
@@ -463,6 +464,7 @@ const ReMarketingBuyerDetail = () => {
         hqCity={buyer?.hq_city}
         hqState={buyer?.hq_state}
         hqCountry={buyer?.hq_country}
+        investmentDate={buyer?.investment_date}
         dataCompleteness={dataCompleteness}
         onEdit={() => setActiveEditDialog('business')}
         onEnrich={() => enrichMutation.mutate()}

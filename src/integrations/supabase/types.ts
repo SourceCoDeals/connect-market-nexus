@@ -5015,6 +5015,7 @@ export type Database = {
           id: string
           industry_tracker_id: string | null
           industry_vertical: string | null
+          investment_date: string | null
           key_quotes: string[] | null
           last_contact_discovery_at: string | null
           notes: string | null
@@ -5088,6 +5089,7 @@ export type Database = {
           id?: string
           industry_tracker_id?: string | null
           industry_vertical?: string | null
+          investment_date?: string | null
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
@@ -5161,6 +5163,7 @@ export type Database = {
           id?: string
           industry_tracker_id?: string | null
           industry_vertical?: string | null
+          investment_date?: string | null
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
