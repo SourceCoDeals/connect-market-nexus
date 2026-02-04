@@ -27,6 +27,8 @@ import {
   AIResearchSection,
   ScoringStyleCard,
   MatchCriteriaCard,
+  BuyerFitCriteriaAccordion,
+  CriteriaExtractionPanel,
   StructuredCriteriaPanel,
   EnrichmentProgressIndicator,
   EnrichmentSummaryDialog,
@@ -864,13 +866,38 @@ const ReMarketingUniverseDetail = () => {
               isSaving={saveMutation.isPending}
             />
 
-            {/* Match Criteria */}
+            {/* Match Criteria - Quick Summary */}
             <MatchCriteriaCard
               sizeCriteria={sizeCriteria}
               geographyCriteria={geographyCriteria}
               serviceCriteria={serviceCriteria}
               onEdit={() => setShowCriteriaEdit(true)}
             />
+
+            {/* Buyer Fit Criteria - Full Detail with Target Buyer Types */}
+            <BuyerFitCriteriaAccordion
+              sizeCriteria={sizeCriteria}
+              geographyCriteria={geographyCriteria}
+              serviceCriteria={serviceCriteria}
+              targetBuyerTypes={targetBuyerTypes}
+              onTargetBuyerTypesChange={setTargetBuyerTypes}
+              onEditCriteria={() => setShowCriteriaEdit(true)}
+              defaultOpen={false}
+            />
+
+            {/* Criteria Extraction from Transcripts & Documents */}
+            {id && maGuideContent && (
+              <CriteriaExtractionPanel
+                universeId={id}
+                universeName={name}
+                maGuideContent={maGuideContent}
+                onExtractionComplete={() => {
+                  // Refresh universe data to get updated criteria
+                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
+                  toast.success('Criteria updated from extraction');
+                }}
+              />
+            )}
 
             {/* Supporting Documents */}
             {id && (

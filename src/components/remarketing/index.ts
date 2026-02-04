@@ -119,4 +119,5 @@ export { UnlinkedListingsWidget } from './UnlinkedListingsWidget';
 // Guide & Criteria Input Components
 export { TrackerNotesSection } from './TrackerNotesSection';
 export { AIResearchSection } from './AIResearchSection';
+export { CriteriaExtractionPanel } from './CriteriaExtractionPanel';
 export { CriteriaValidationAlert, CriteriaValidationBadge } from './CriteriaValidationAlert';
