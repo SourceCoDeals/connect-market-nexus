@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   MoreHorizontal, 
   Sparkles, 
@@ -34,7 +35,10 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  GripVertical
+  GripVertical,
+  XCircle,
+  Loader2,
+  Unlink
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { AlignmentScoreBadge } from "./AlignmentScoreBadge";
@@ -95,6 +99,12 @@ interface BuyerTableEnhancedProps {
   scoringBuyerIds?: string[];
   /** Set of buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel" */
   buyerIdsWithTranscripts?: Set<string>;
+  /** Enable multi-select mode with checkboxes */
+  selectable?: boolean;
+  /** Called when selection changes */
+  onSelectionChange?: (selectedIds: string[]) => void;
+  /** Called when user clicks "Remove from Universe" on selected items */
+  onRemoveFromUniverse?: (buyerIds: string[]) => Promise<void>;
 }
 
 export const BuyerTableEnhanced = ({
@@ -105,6 +115,9 @@ export const BuyerTableEnhanced = ({
   showPEColumn = true,
   scoringBuyerIds = [],
   buyerIdsWithTranscripts = new Set(),
+  selectable = false,
+  onSelectionChange,
+  onRemoveFromUniverse,
 }: BuyerTableEnhancedProps) => {
   const navigate = useNavigate();
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -113,6 +126,54 @@ export const BuyerTableEnhanced = ({
   });
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
   const resizingRef = useRef<{ column: keyof ColumnWidths; startX: number; startWidth: number } | null>(null);
+  
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const handleToggleSelect = useCallback((buyerId: string, checked: boolean) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(buyerId);
+      } else {
+        newSet.delete(buyerId);
+      }
+      onSelectionChange?.(Array.from(newSet));
+      return newSet;
+    });
+  }, [onSelectionChange]);
+
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(buyers.map(b => b.id));
+      setSelectedIds(allIds);
+      onSelectionChange?.(Array.from(allIds));
+    } else {
+      setSelectedIds(new Set());
+      onSelectionChange?.([]);
+    }
+  }, [buyers, onSelectionChange]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    onSelectionChange?.([]);
+  }, [onSelectionChange]);
+
+  const handleRemoveFromUniverse = useCallback(async () => {
+    if (!onRemoveFromUniverse || selectedIds.size === 0) return;
+    setIsRemoving(true);
+    try {
+      await onRemoveFromUniverse(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      onSelectionChange?.([]);
+    } finally {
+      setIsRemoving(false);
+    }
+  }, [onRemoveFromUniverse, selectedIds, onSelectionChange]);
+
+  const isAllSelected = buyers.length > 0 && selectedIds.size === buyers.length;
+  const isSomeSelected = selectedIds.size > 0 && selectedIds.size < buyers.length;
 
   const getLocation = (buyer: BuyerRow) => {
     const parts = [];
@@ -231,11 +292,62 @@ export const BuyerTableEnhanced = ({
     </div>
   );
 
+  // Calculate colSpan for empty state
+  const colSpan = (selectable ? 1 : 0) + 1 + 1 + (showPEColumn ? 1 : 0) + 1 + 1 + 1; // checkbox + platform + industryFit + peFirm? + description + intel + actions
+
   return (
     <TooltipProvider>
+      {/* Bulk Action Bar */}
+      {selectable && selectedIds.size > 0 && (
+        <div className="sticky top-0 z-20 bg-background border rounded-lg p-3 shadow-sm mb-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="text-sm font-medium">
+              {selectedIds.size} selected
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearSelection}
+              className="text-muted-foreground"
+            >
+              <XCircle className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={handleRemoveFromUniverse}
+            disabled={isRemoving}
+          >
+            {isRemoving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Unlink className="h-4 w-4 mr-1" />
+            )}
+            Remove from Universe
+          </Button>
+        </div>
+      )}
+      
       <Table className="table-fixed">
         <TableHeader>
           <TableRow>
+            {selectable && (
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={isAllSelected}
+                  ref={(ref) => {
+                    if (ref) {
+                      (ref as any).indeterminate = isSomeSelected;
+                    }
+                  }}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
+            )}
             <TableHead className="relative" style={{ width: columnWidths.platform }}>
               <SortButton label="Platform / Buyer" sortKey="company_name" />
               <ResizeHandle column="platform" />
@@ -264,7 +376,7 @@ export const BuyerTableEnhanced = ({
         <TableBody>
           {sortedBuyers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={showPEColumn ? 6 : 5} className="text-center py-12 text-muted-foreground">
+              <TableCell colSpan={colSpan} className="text-center py-12 text-muted-foreground">
                 <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">No buyers found</p>
                 <p className="text-sm">Add buyers manually or import from CSV</p>
@@ -275,13 +387,23 @@ export const BuyerTableEnhanced = ({
               const location = getLocation(buyer);
               const isCurrentlyEnriching = isEnriching === buyer.id;
               const isCurrentlyScoring = scoringBuyerIds.includes(buyer.id);
+              const isSelected = selectedIds.has(buyer.id);
 
               return (
                 <TableRow
                   key={buyer.id}
-                  className="cursor-pointer hover:bg-muted/50 group"
+                  className={`cursor-pointer hover:bg-muted/50 group ${isSelected ? 'bg-muted/30' : ''}`}
                   onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
                 >
+                  {selectable && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => handleToggleSelect(buyer.id, !!checked)}
+                        aria-label={`Select ${buyer.company_name}`}
+                      />
+                    </TableCell>
+                  )}
                   {/* Platform / Buyer Column */}
                   <TableCell>
                     <div className="flex items-start gap-3">
