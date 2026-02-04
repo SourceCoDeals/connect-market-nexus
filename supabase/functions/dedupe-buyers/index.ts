@@ -108,10 +108,37 @@ serve(async (req) => {
       });
     }
 
-    const { buyers } = await req.json();
+    const { buyers: inputBuyers, universeId } = await req.json();
 
-    if (!buyers || !Array.isArray(buyers)) {
-      return new Response(JSON.stringify({ error: 'buyers array is required' }), {
+    let buyers: Array<{ company_name: string; company_website?: string }>;
+
+    // If universeId is provided, fetch buyers from the database
+    if (universeId) {
+      const { data: universeBuyers, error: fetchError } = await supabase
+        .from('remarketing_buyers')
+        .select('id, company_name, company_website')
+        .eq('universe_id', universeId)
+        .eq('archived', false);
+
+      if (fetchError) throw fetchError;
+      
+      if (!universeBuyers || universeBuyers.length === 0) {
+        return new Response(JSON.stringify({ 
+          success: true,
+          totalChecked: 0,
+          duplicatesFound: 0,
+          results: [],
+          message: 'No buyers found in universe'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      buyers = universeBuyers;
+    } else if (inputBuyers && Array.isArray(inputBuyers)) {
+      buyers = inputBuyers;
+    } else {
+      return new Response(JSON.stringify({ error: 'buyers array or universeId is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

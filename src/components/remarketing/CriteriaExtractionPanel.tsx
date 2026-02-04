@@ -59,7 +59,8 @@ export const CriteriaExtractionPanel = ({
 
   // Load existing extraction sources
   const loadExtractionSources = async () => {
-    const { data, error } = await supabase
+    // Use type assertion to bypass missing table type definition
+    const { data, error } = await (supabase as any)
       .from('criteria_extraction_sources')
       .select('*')
       .eq('universe_id', universeId)
@@ -71,7 +72,7 @@ export const CriteriaExtractionPanel = ({
       return;
     }
 
-    setExtractionSources(data || []);
+    setExtractionSources((data || []) as ExtractionSource[]);
   };
 
   // Extract criteria from AI-generated guide
