@@ -221,9 +221,33 @@ export default function BuyerDetail() {
     if (!buyer) return;
 
     try {
+      // Extract only schema-compatible fields to avoid type errors
+      const updateData: Record<string, unknown> = {};
+      const schemaFields = [
+        'pe_firm_name', 'pe_firm_website', 'pe_firm_linkedin', 'platform_company_name',
+        'platform_website', 'buyer_linkedin', 'hq_city', 'hq_state', 'hq_country',
+        'hq_region', 'other_office_locations', 'business_summary', 'industry_vertical',
+        'business_type', 'services_offered', 'business_model', 'revenue_model',
+        'go_to_market_strategy', 'specialized_focus', 'num_platforms', 'total_acquisitions',
+        'last_acquisition_date', 'acquisition_frequency', 'acquisition_appetite',
+        'acquisition_timeline', 'min_revenue', 'max_revenue', 'revenue_sweet_spot',
+        'min_ebitda', 'max_ebitda', 'ebitda_sweet_spot', 'preferred_ebitda',
+        'target_geographies', 'geographic_footprint', 'geographic_exclusions',
+        'acquisition_geography', 'service_regions', 'target_services', 'target_industries',
+        'industry_exclusions', 'thesis_summary', 'thesis_confidence', 'strategic_priorities',
+        'service_mix_prefs', 'business_model_prefs', 'deal_breakers', 'key_quotes',
+        'addon_only', 'platform_only', 'has_fee_agreement', 'fee_agreement_status'
+      ];
+      
+      for (const key of schemaFields) {
+        if (key in formData) {
+          updateData[key] = (formData as Record<string, unknown>)[key];
+        }
+      }
+
       const { error } = await supabase
         .from("remarketing_buyers")
-        .update(formData)
+        .update(updateData)
         .eq("id", buyer.id);
 
       if (error) throw error;

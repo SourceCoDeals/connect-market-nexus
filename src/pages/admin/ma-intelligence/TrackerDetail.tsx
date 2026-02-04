@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Activity } from "lucide-react";
+import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Activity, Target, Sliders, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   TrackerBuyersTab,
@@ -268,7 +268,7 @@ export default function TrackerDetail() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="buyers">
             <Users className="w-4 h-4 mr-2" />
             Buyers
@@ -281,25 +281,13 @@ export default function TrackerDetail() {
             <Settings className="w-4 h-4 mr-2" />
             Criteria
           </TabsTrigger>
-          <TabsTrigger value="kpis">
-            <Target className="w-4 h-4 mr-2" />
-            KPIs
-          </TabsTrigger>
           <TabsTrigger value="scoring">
             <Sliders className="w-4 h-4 mr-2" />
             Scoring
           </TabsTrigger>
-          <TabsTrigger value="documents">
-            <Upload className="w-4 h-4 mr-2" />
-            Docs
-          </TabsTrigger>
           <TabsTrigger value="query">
             <MessageSquare className="w-4 h-4 mr-2" />
             Query
-          </TabsTrigger>
-          <TabsTrigger value="activity">
-            <Activity className="w-4 h-4 mr-2" />
-            Activity
           </TabsTrigger>
           <TabsTrigger value="activity">
             <Activity className="w-4 h-4 mr-2" />
@@ -322,41 +310,32 @@ export default function TrackerDetail() {
         </TabsContent>
 
         <TabsContent value="criteria" className="space-y-4">
-          <TrackerFitCriteriaTab
+          <StructuredCriteriaPanel
             trackerId={tracker.id}
-            sizeCriteria={tracker.size_criteria}
-            serviceCriteria={tracker.service_criteria}
-            geographyCriteria={tracker.geography_criteria}
-            onSave={(criteria) => handleSaveTracker(criteria)}
-          />
-        </TabsContent>
-
-        <TabsContent value="kpis" className="space-y-4">
-          <TrackerKPIConfigTab
-            trackerId={tracker.id}
-            kpiConfig={tracker.kpi_config}
-            onSave={(config) => handleSaveTracker({ kpi_config: config })}
+            tracker={{
+              size_criteria: tracker.size_criteria,
+              service_criteria: tracker.service_criteria,
+              geography_criteria: tracker.geography_criteria,
+            }}
+            onSave={() => loadTracker()}
           />
         </TabsContent>
 
         <TabsContent value="scoring" className="space-y-4">
-          <TrackerScoringBehaviorTab
+          <ScoringBehaviorPanel
             trackerId={tracker.id}
-            scoringBehavior={tracker.scoring_behavior}
-            onSave={(behavior) => handleSaveTracker({ scoring_behavior: behavior })}
+            tracker={{
+              geography_weight: 1.0,
+              service_mix_weight: 1.0,
+              size_weight: 1.0,
+              owner_goals_weight: 1.0,
+            }}
+            onSave={() => loadTracker()}
           />
         </TabsContent>
 
-        <TabsContent value="documents" className="space-y-4">
-          <TrackerDocumentsTab trackerId={tracker.id} />
-        </TabsContent>
-
         <TabsContent value="query" className="space-y-4">
-          <TrackerQueryTab trackerId={tracker.id} />
-        </TabsContent>
-
-        <TabsContent value="activity" className="space-y-4">
-          <TrackerActivityTab trackerId={tracker.id} />
+          <TrackerQueryChat trackerId={tracker.id} trackerName={tracker.industry_name} />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">

@@ -6,11 +6,7 @@ interface TrackerFitCriteriaTabProps {
   sizeCriteria: SizeCriteria | null;
   serviceCriteria: ServiceCriteria | null;
   geographyCriteria: GeographyCriteria | null;
-  onSave: (criteria: {
-    size_criteria?: SizeCriteria;
-    service_criteria?: ServiceCriteria;
-    geography_criteria?: GeographyCriteria;
-  }) => Promise<void>;
+  onSave?: () => void;
 }
 
 export function TrackerFitCriteriaTab({
@@ -23,9 +19,11 @@ export function TrackerFitCriteriaTab({
   return (
     <StructuredCriteriaPanel
       trackerId={trackerId}
-      sizeCriteria={sizeCriteria}
-      serviceCriteria={serviceCriteria}
-      geographyCriteria={geographyCriteria}
+      tracker={{
+        size_criteria: sizeCriteria,
+        service_criteria: serviceCriteria,
+        geography_criteria: geographyCriteria,
+      }}
       onSave={onSave}
     />
   );

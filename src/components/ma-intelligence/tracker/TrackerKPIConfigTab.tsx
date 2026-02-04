@@ -3,7 +3,7 @@ import { KPIConfigPanel } from "@/components/ma-intelligence/KPIConfigPanel";
 interface TrackerKPIConfigTabProps {
   trackerId: string;
   kpiConfig: Record<string, unknown> | null;
-  onSave: (config: Record<string, unknown>) => Promise<void>;
+  onSave?: () => void;
 }
 
 export function TrackerKPIConfigTab({
@@ -14,7 +14,9 @@ export function TrackerKPIConfigTab({
   return (
     <KPIConfigPanel
       trackerId={trackerId}
-      kpiConfig={kpiConfig}
+      tracker={{
+        kpi_scoring_config: kpiConfig as any,
+      }}
       onSave={onSave}
     />
   );
