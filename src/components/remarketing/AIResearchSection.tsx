@@ -183,7 +183,7 @@ export const AIResearchSection = ({
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string | string[]>>({});
 
   // Auto-retry configuration (prevents manual Resume for transient stream cut-offs)
-  const MAX_BATCH_RETRIES = 3;
+  const MAX_BATCH_RETRIES = 5; // Increased from 3 to 5 for better reliability
   const batchRetryCountRef = useRef<Record<number, number>>({});
 
   // Ref to store next batch info for chaining AFTER stream closes (prevents timeout accumulation)
@@ -691,14 +691,17 @@ export const AIResearchSection = ({
       if (nextBatchInfo.current) {
         const { index, content: nextContent, clarificationContext: ctx } = nextBatchInfo.current;
         nextBatchInfo.current = null;
-        
-        // Small delay to ensure clean separation between requests
-        await new Promise(r => setTimeout(r, 1000));
-        toast.info(`Batch ${batchIndex + 1} complete, starting batch ${index + 1}...`);
-        
+
+        // Progressive delay: longer delays for later batches to avoid consecutive timeouts
+        // Batches 0-7: 1s delay, Batches 8-10: 3s delay, Batches 11+: 5s delay
+        const interBatchDelay = index >= 11 ? 5000 : (index >= 8 ? 3000 : 1000);
+        await new Promise(r => setTimeout(r, interBatchDelay));
+
+        toast.info(`Batch ${batchIndex + 1} complete, starting batch ${index + 1}${interBatchDelay > 1000 ? ` (${interBatchDelay / 1000}s delay for stability)` : ''}...`);
+
         // Create fresh abort controller for the new request
         abortControllerRef.current = new AbortController();
-        
+
         // This now runs AFTER the previous stream fully closed
         await generateBatch(index, nextContent, ctx);
         return; // Exit after chaining to prevent falling into error handling
@@ -734,18 +737,23 @@ export const AIResearchSection = ({
         const currentRetries = batchRetryCountRef.current[batchIndex] ?? 0;
         if (state === 'generating' && (isStreamCutoff || isRateLimited) && currentRetries < MAX_BATCH_RETRIES) {
           batchRetryCountRef.current[batchIndex] = currentRetries + 1;
-          
-          // Use longer backoff for rate limits (30s) vs stream cutoffs (1-3s)
-          const backoffMs = isRateLimited 
-            ? ((error as any).retryAfterMs || 30000)
-            : 1000 * (currentRetries + 1);
-          
+
+          // Use exponential backoff with longer delays for rate limits and later batches
+          // Later batches (10+) get extra delay since they're processing more content
+          const baseBackoff = isRateLimited
+            ? 30000 // 30s base for rate limits
+            : Math.min(5000 * Math.pow(2, currentRetries), 30000); // Exponential: 5s, 10s, 20s, 30s (capped)
+
+          // Add extra delay for later batches (batch 8+) that are more likely to timeout
+          const batchPenalty = batchIndex >= 8 ? 5000 * (batchIndex - 7) : 0; // 5s, 10s, 15s extra for batches 8, 9, 10...
+          const backoffMs = (error as any).retryAfterMs || (baseBackoff + batchPenalty);
+
           toast.info(
             isRateLimited
               ? `Rate limit hit. Waiting ${Math.round(backoffMs / 1000)}s before retry (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
-              : `Connection dropped during batch ${batchIndex + 1}. Retrying (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
+              : `Batch ${batchIndex + 1} timeout. Retrying with ${Math.round(backoffMs / 1000)}s delay (${currentRetries + 1}/${MAX_BATCH_RETRIES})...`
           );
-          
+
           await new Promise((r) => setTimeout(r, backoffMs));
 
           // New controller for the retry to ensure the previous stream is fully abandoned.
