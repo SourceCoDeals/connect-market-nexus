@@ -137,11 +137,11 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         });
       });
 
-      // Load transcripts
+      // Load transcripts - use listing_id per actual schema
       const { data: transcripts } = await supabase
         .from("deal_transcripts")
         .select("*")
-        .eq("deal_id", dealId)
+        .eq("listing_id", dealId)
         .order("created_at", { ascending: false });
 
       transcripts?.forEach((transcript) => {

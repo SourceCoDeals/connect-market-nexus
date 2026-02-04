@@ -4,20 +4,29 @@
 // This file re-exports them for backward compatibility and adds
 // M&A Intelligence-specific types that extend the base types.
 
-// Re-export canonical types from the main types file
-export {
-  type SizeCriteria,
-  type ServiceCriteria,
-  type GeographyCriteria,
-  type BuyerTypesCriteria,
-  type ScoringBehavior,
-  type AcquisitionRecord as BaseAcquisitionRecord,
-  type ExtractionSource,
-  type DataCompleteness,
-  type ThesisConfidence,
-  type ScoreTier,
-  type ScoreStatus,
+// Import and re-export canonical types from the main types file
+import type {
+  SizeCriteria as BaseSizeCriteria,
+  ServiceCriteria as BaseServiceCriteria,
+  GeographyCriteria as BaseGeographyCriteria,
+  BuyerTypesCriteria as BaseBuyerTypesCriteria,
+  ScoringBehavior as BaseScoringBehavior,
+  AcquisitionRecord as BaseAcquisitionRecord,
+  ExtractionSource as BaseExtractionSource,
+  DataCompleteness,
+  ThesisConfidence,
+  ScoreTier,
+  ScoreStatus,
 } from '@/types/remarketing';
+
+// Re-export with aliases for use in this file
+export type SizeCriteria = BaseSizeCriteria;
+export type ServiceCriteria = BaseServiceCriteria;
+export type GeographyCriteria = BaseGeographyCriteria;
+export type BuyerTypesCriteria = BaseBuyerTypesCriteria;
+export type ScoringBehavior = BaseScoringBehavior;
+export type ExtractionSource = BaseExtractionSource;
+export type { DataCompleteness, ThesisConfidence, ScoreTier, ScoreStatus };
 
 // Tracker document type (specific to M&A Intelligence)
 export interface TrackerDocument {

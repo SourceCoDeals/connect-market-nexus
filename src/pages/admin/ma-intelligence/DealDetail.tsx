@@ -38,6 +38,11 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DealScoreBadge } from "@/components/ma-intelligence";
+import { DealDataSection } from "@/components/ma-intelligence/DealDataSection";
+import { DealActivitySection } from "@/components/ma-intelligence/DealActivitySection";
+import { DealTranscriptsTab } from "@/components/ma-intelligence/DealTranscriptsTab";
+import { DealMatchedBuyersTab } from "@/components/ma-intelligence/DealMatchedBuyersTab";
+import { AddTranscriptDialog } from "@/components/ma-intelligence/AddTranscriptDialog";
 import type { MADeal } from "@/lib/ma-intelligence/types";
 
 export default function DealDetail() {
@@ -104,16 +109,17 @@ export default function DealDetail() {
       const { data, error } = await supabase
         .from("deal_scoring_adjustments")
         .select("*")
-        .eq("deal_id", id)
+        .eq("listing_id", id)
         .maybeSingle();
 
       if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
-        setGeoWeightMultiplier(data.geography_weight_multiplier || 1.0);
-        setSizeWeightMultiplier(data.size_weight_multiplier || 1.0);
-        setServiceWeightMultiplier(data.service_weight_multiplier || 1.0);
-        setCustomScoringInstructions(data.custom_scoring_instructions || "");
+        // Map from actual schema (adjustment_value) to UI state
+        setGeoWeightMultiplier(data.adjustment_value || 1.0);
+        setSizeWeightMultiplier(1.0);
+        setServiceWeightMultiplier(1.0);
+        setCustomScoringInstructions(data.reason || "");
       }
     } catch (error: any) {
       console.error("Error loading scoring adjustments:", error);
@@ -175,9 +181,10 @@ export default function DealDetail() {
     if (!confirm("Are you sure you want to archive this deal?")) return;
 
     try {
+      // Use deleted_at timestamp for soft delete (deals table doesn't have 'archived' column)
       const { error } = await supabase
         .from("deals")
-        .update({ status: "archived" })
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", deal.id);
 
       if (error) throw error;
@@ -230,9 +237,28 @@ export default function DealDetail() {
     if (!deal) return;
 
     try {
+      // Extract only schema-compatible fields
+      const updateData: Record<string, unknown> = {};
+      const schemaFields = [
+        'deal_name', 'company_website', 'company_address', 'company_overview',
+        'industry_type', 'service_mix', 'business_model', 'end_market_customers',
+        'customer_concentration', 'customer_geography', 'headquarters', 'location_count',
+        'employee_count', 'founded_year', 'ownership_structure', 'revenue',
+        'revenue_confidence', 'ebitda_amount', 'ebitda_percentage', 'ebitda_confidence',
+        'financial_notes', 'owner_goals', 'special_requirements', 'contact_name',
+        'contact_title', 'contact_email', 'contact_phone', 'contact_linkedin',
+        'additional_info', 'transcript_link', 'geography'
+      ];
+      
+      for (const key of schemaFields) {
+        if (key in formData) {
+          updateData[key] = (formData as Record<string, unknown>)[key];
+        }
+      }
+
       const { error } = await supabase
         .from("deals")
-        .update(formData)
+        .update(updateData)
         .eq("id", deal.id);
 
       if (error) throw error;
@@ -262,12 +288,12 @@ export default function DealDetail() {
     if (!deal) return;
 
     try {
+      // Use the actual schema: listing_id, adjustment_type, adjustment_value, reason
       const { error } = await supabase.from("deal_scoring_adjustments").upsert({
-        deal_id: deal.id,
-        geography_weight_multiplier: geoWeightMultiplier,
-        size_weight_multiplier: sizeWeightMultiplier,
-        service_weight_multiplier: serviceWeightMultiplier,
-        custom_scoring_instructions: customScoringInstructions || null,
+        listing_id: deal.id,
+        adjustment_type: "weight_multiplier",
+        adjustment_value: geoWeightMultiplier,
+        reason: customScoringInstructions || null,
       });
 
       if (error) throw error;

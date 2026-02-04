@@ -1,10 +1,9 @@
 import { ScoringBehaviorPanel } from "@/components/ma-intelligence/ScoringBehaviorPanel";
-import type { ScoringBehavior } from "@/lib/ma-intelligence/types";
 
 interface TrackerScoringBehaviorTabProps {
   trackerId: string;
-  scoringBehavior: ScoringBehavior | null;
-  onSave: (behavior: ScoringBehavior) => Promise<void>;
+  scoringBehavior: Record<string, unknown> | null;
+  onSave?: () => void;
 }
 
 export function TrackerScoringBehaviorTab({
@@ -15,7 +14,12 @@ export function TrackerScoringBehaviorTab({
   return (
     <ScoringBehaviorPanel
       trackerId={trackerId}
-      scoringBehavior={scoringBehavior}
+      tracker={{
+        geography_weight: (scoringBehavior as any)?.geography_weight ?? 1.0,
+        service_mix_weight: (scoringBehavior as any)?.service_mix_weight ?? 1.0,
+        size_weight: (scoringBehavior as any)?.size_weight ?? 1.0,
+        owner_goals_weight: (scoringBehavior as any)?.owner_goals_weight ?? 1.0,
+      }}
       onSave={onSave}
     />
   );
