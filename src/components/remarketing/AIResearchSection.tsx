@@ -406,6 +406,9 @@ export const AIResearchSection = ({
     previousContent: string, 
     clarificationContext: ClarificationContext
   ) => {
+    // Track accumulated word count outside try/catch so it's available in error handling
+    let batchWordCount = previousContent ? previousContent.split(/\s+/).length : 0;
+    
     try {
       setCurrentBatch(batchIndex);
       
@@ -458,6 +461,9 @@ export const AIResearchSection = ({
       let buffer = "";
       let fullContent = previousContent;
       let sawBatchComplete = false;
+      // Track accumulated word count locally (not from React state) for accurate error reporting
+      // Also update batchWordCount so it's available in catch block
+      let accumulatedWordCount = previousContent ? previousContent.split(/\s+/).length : 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -500,8 +506,10 @@ export const AIResearchSection = ({
 
               case 'content':
                 fullContent += event.content;
+                accumulatedWordCount = fullContent.split(/\s+/).length;
+                batchWordCount = accumulatedWordCount; // Sync for catch block
                 setContent(fullContent);
-                setWordCount(fullContent.split(/\s+/).length);
+                setWordCount(accumulatedWordCount);
                 // Auto-scroll
                 if (contentRef.current) {
                   contentRef.current.scrollTop = contentRef.current.scrollHeight;
@@ -509,10 +517,13 @@ export const AIResearchSection = ({
                 break;
 
               case 'phase_complete':
-                setWordCount(event.wordCount || fullContent.split(/\s+/).length);
+                accumulatedWordCount = event.wordCount || fullContent.split(/\s+/).length;
+                batchWordCount = accumulatedWordCount; // Sync for catch block
+                setWordCount(accumulatedWordCount);
                 // Save progress AFTER each phase completes (fixes race condition)
                 if (event.content) {
                   fullContent = event.content;
+                  accumulatedWordCount = fullContent.split(/\s+/).length;
                   localStorage.setItem('ma_guide_progress', JSON.stringify({
                     industryName,
                     // Use the batchIndex argument to avoid state timing issues.
@@ -520,7 +531,8 @@ export const AIResearchSection = ({
                     content: event.content,
                     clarificationContext,
                     lastPhaseId: event.phaseId,
-                    lastPhase: event.phase
+                    lastPhase: event.phase,
+                    wordCount: accumulatedWordCount
                   }));
                 }
                 break;
@@ -732,14 +744,14 @@ export const AIResearchSection = ({
         // Determine outcome type for summary
         const outcomeType = isRateLimited ? 'rate_limited' : (isStreamCutoff ? 'timeout' : 'error');
 
-        // Set generation summary
+        // Set generation summary - use batchWordCount which is tracked locally, not stale React state
         setGenerationSummary({
           outcome: outcomeType,
           startTime: generationStartTimeRef.current,
           endTime: Date.now(),
           batchesCompleted: batchIndex,
           totalBatches,
-          wordCount: wordCount,
+          wordCount: batchWordCount,
           errorMessage: message,
           isRecoverable: isRateLimited || isStreamCutoff
         });
@@ -753,7 +765,7 @@ export const AIResearchSection = ({
             phaseName: phaseName || undefined,
             isRecoverable: isRateLimited || isStreamCutoff,
             retryAfterMs: isRateLimited ? ((error as any).retryAfterMs || 30000) : undefined,
-            savedWordCount: wordCount,
+            savedWordCount: batchWordCount, // Use local tracking, not stale React state
             timestamp: Date.now()
           });
         }
