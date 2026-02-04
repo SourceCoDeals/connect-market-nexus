@@ -67,18 +67,19 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to generate verification link for: ${email}`);
 
     // For existing users, we need to use a different approach
-    // First, try to get user info to see if they exist
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(email);
+    // First, try to list users to see if they exist (getUserByEmail doesn't exist)
+    const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
+    const userData = usersData?.users?.find(u => u.email === email);
     console.log("User lookup result - error:", userError);
-    console.log("User exists:", !!userData.user);
+    console.log("User exists:", !!userData);
 
     let verificationLink: string;
 
-    if (userData.user && !userData.user.email_confirmed_at) {
-      // User exists but email is not verified - use email_change type
-      console.log("User exists but not verified, generating email_change link");
+    if (userData && !userData.email_confirmed_at) {
+      // User exists but email is not verified - use email_change_new type
+      console.log("User exists but not verified, generating email_change_new link");
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: 'email_change',
+        type: 'email_change_new',
         email: email,
         newEmail: email, // Keep same email, just verify it
         options: {
@@ -106,7 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         verificationLink = linkData.properties.action_link;
       }
-    } else if (userData.user && userData.user.email_confirmed_at) {
+    } else if (userData && userData.email_confirmed_at) {
       // User exists and is already verified - use recovery link to let them log in
       console.log("User exists and verified, generating recovery link");
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -123,10 +124,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
       verificationLink = linkData.properties.action_link;
     } else {
-      // User doesn't exist - use signup
-      console.log("User doesn't exist, generating signup link");
+      // User doesn't exist - use magiclink instead of signup (signup requires password)
+      console.log("User doesn't exist, generating magiclink");
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: 'signup',
+        type: 'magiclink',
         email: email,
         options: {
           redirectTo: 'https://marketplace.sourcecodeals.com/'
