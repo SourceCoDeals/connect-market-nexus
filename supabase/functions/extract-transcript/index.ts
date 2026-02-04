@@ -1,8 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
-import { validateExtraction } from "../_shared/validation.ts";
-import { buildPriorityUpdates } from "../_shared/source-priority.ts";
+import { 
+  ANTHROPIC_API_URL, 
+  getAnthropicHeaders, 
+  DEFAULT_CLAUDE_FAST_MODEL,
+  callClaudeWithTool
+} from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,15 +17,34 @@ interface ExtractTranscriptRequest {
   entity_type?: 'deal' | 'buyer' | 'both';
 }
 
+interface DealInsights {
+  revenue?: number;
+  ebitda?: number;
+  growth_rate?: string;
+  owner_involvement?: string;
+  transition_timeline?: string;
+  key_concerns?: string[];
+  selling_motivation?: string;
+}
+
+interface BuyerInsights {
+  investment_criteria?: string;
+  target_industries?: string[];
+  target_geography?: string[];
+  deal_size_range?: string;
+  acquisition_timeline?: string;
+  strategic_priorities?: string[];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -53,7 +75,7 @@ serve(async (req) => {
       .eq('id', transcript_id);
 
     const transcriptText = transcript.transcript_text;
-    const insights: any = {};
+    const insights: Record<string, unknown> = {};
     const keyQuotes: string[] = [];
 
     // Detect CEO involvement
@@ -77,7 +99,7 @@ serve(async (req) => {
     // Extract based on entity type
     if ((entity_type === 'deal' || entity_type === 'both') && transcript.listing_id) {
       console.log(`[TranscriptExtraction] Extracting deal insights from transcript ${transcript_id}`);
-      const dealInsights = await extractDealInsights(transcriptText, GEMINI_API_KEY);
+      const dealInsights = await extractDealInsights(transcriptText, ANTHROPIC_API_KEY);
       insights.deal = dealInsights;
 
       // Extract key quotes
@@ -95,7 +117,7 @@ serve(async (req) => {
 
     if ((entity_type === 'buyer' || entity_type === 'both') && transcript.buyer_id) {
       console.log(`[TranscriptExtraction] Extracting buyer insights from transcript ${transcript_id}`);
-      const buyerInsights = await extractBuyerInsights(transcriptText, GEMINI_API_KEY);
+      const buyerInsights = await extractBuyerInsights(transcriptText, ANTHROPIC_API_KEY);
       insights.buyer = buyerInsights;
 
       // Extract key quotes
@@ -184,7 +206,7 @@ function extractKeyQuotes(transcript: string, entityType: 'deal' | 'buyer'): str
 
 // Create engagement signal for CEO involvement
 async function createEngagementSignal(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   listingId: string,
   buyerId: string,
   signalType: string,
@@ -205,5 +227,158 @@ async function createEngagementSignal(
     console.error("Failed to create engagement signal:", error);
   } else {
     console.log(`[EngagementSignal] Created ${signalType} signal (+${signalValue} pts)`);
+  }
+}
+
+// Extract deal insights from transcript using Claude
+async function extractDealInsights(transcriptText: string, apiKey: string): Promise<DealInsights> {
+  const systemPrompt = `You are an M&A analyst extracting structured deal information from call transcripts. 
+Extract financial metrics, owner details, and deal-relevant information.
+Be precise with numbers - convert "two million" to 2000000, etc.`;
+
+  const tool = {
+    type: "function",
+    function: {
+      name: "extract_deal_insights",
+      description: "Extract structured deal information from a transcript",
+      parameters: {
+        type: "object",
+        properties: {
+          revenue: { type: "number", description: "Annual revenue in USD" },
+          ebitda: { type: "number", description: "EBITDA in USD" },
+          growth_rate: { type: "string", description: "YoY growth rate mentioned" },
+          owner_involvement: { type: "string", description: "Level of owner involvement (full-time, part-time, passive)" },
+          transition_timeline: { type: "string", description: "Owner's desired transition timeline" },
+          key_concerns: { type: "array", items: { type: "string" }, description: "Key concerns or risks mentioned" },
+          selling_motivation: { type: "string", description: "Primary reason for selling" }
+        }
+      }
+    }
+  };
+
+  const result = await callClaudeWithTool(
+    systemPrompt,
+    `Extract deal insights from this transcript:\n\n${transcriptText.substring(0, 8000)}`,
+    tool,
+    apiKey,
+    DEFAULT_CLAUDE_FAST_MODEL,
+    30000
+  );
+
+  return (result.data as DealInsights) || {};
+}
+
+// Extract buyer insights from transcript using Claude
+async function extractBuyerInsights(transcriptText: string, apiKey: string): Promise<BuyerInsights> {
+  const systemPrompt = `You are an M&A analyst extracting buyer criteria and investment preferences from call transcripts.
+Focus on what the buyer is looking for in potential acquisitions.`;
+
+  const tool = {
+    type: "function",
+    function: {
+      name: "extract_buyer_insights",
+      description: "Extract structured buyer criteria from a transcript",
+      parameters: {
+        type: "object",
+        properties: {
+          investment_criteria: { type: "string", description: "Summary of investment criteria" },
+          target_industries: { type: "array", items: { type: "string" }, description: "Industries of interest" },
+          target_geography: { type: "array", items: { type: "string" }, description: "Geographic preferences" },
+          deal_size_range: { type: "string", description: "Preferred deal size range" },
+          acquisition_timeline: { type: "string", description: "Timeline for making acquisitions" },
+          strategic_priorities: { type: "array", items: { type: "string" }, description: "Key strategic priorities" }
+        }
+      }
+    }
+  };
+
+  const result = await callClaudeWithTool(
+    systemPrompt,
+    `Extract buyer insights from this transcript:\n\n${transcriptText.substring(0, 8000)}`,
+    tool,
+    apiKey,
+    DEFAULT_CLAUDE_FAST_MODEL,
+    30000
+  );
+
+  return (result.data as BuyerInsights) || {};
+}
+
+// Update listing with extracted transcript data
+async function updateListingFromTranscript(
+  supabase: ReturnType<typeof createClient>,
+  listingId: string,
+  insights: DealInsights,
+  transcriptId: string
+) {
+  const updates: Record<string, unknown> = {};
+
+  if (insights.revenue) {
+    updates.revenue = insights.revenue;
+  }
+  if (insights.ebitda) {
+    updates.ebitda = insights.ebitda;
+  }
+  if (insights.owner_involvement) {
+    updates.owner_involvement = insights.owner_involvement;
+  }
+  if (insights.transition_timeline) {
+    updates.transition_timeline = insights.transition_timeline;
+  }
+  if (insights.selling_motivation) {
+    updates.selling_motivation = insights.selling_motivation;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.extraction_sources = { transcript_id: transcriptId, extracted_at: new Date().toISOString() };
+    
+    const { error } = await supabase
+      .from('listings')
+      .update(updates)
+      .eq('id', listingId);
+
+    if (error) {
+      console.error("Failed to update listing from transcript:", error);
+    } else {
+      console.log(`[TranscriptExtraction] Updated listing ${listingId} with ${Object.keys(updates).length} fields`);
+    }
+  }
+}
+
+// Update buyer with extracted transcript data
+async function updateBuyerFromTranscript(
+  supabase: ReturnType<typeof createClient>,
+  buyerId: string,
+  insights: BuyerInsights,
+  transcriptId: string
+) {
+  const updates: Record<string, unknown> = {};
+
+  if (insights.target_industries?.length) {
+    updates.target_industries = insights.target_industries;
+  }
+  if (insights.target_geography?.length) {
+    updates.target_geographies = insights.target_geography;
+  }
+  if (insights.strategic_priorities?.length) {
+    updates.strategic_priorities = insights.strategic_priorities.join(', ');
+  }
+  if (insights.acquisition_timeline) {
+    updates.acquisition_timeline = insights.acquisition_timeline;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.extraction_sources = { transcript_id: transcriptId, extracted_at: new Date().toISOString() };
+    
+    const { error } = await supabase
+      .from('buyers')
+      .update(updates)
+      .eq('id', buyerId);
+
+    if (error) {
+      console.error("Failed to update buyer from transcript:", error);
+    } else {
+      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields`);
+    }
   }
 }

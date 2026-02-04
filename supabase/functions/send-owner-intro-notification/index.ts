@@ -126,8 +126,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const primaryOwner = listing.primary_owner;
-    const ownerName = `${primaryOwner.first_name} ${primaryOwner.last_name}`.trim();
+    // Handle primary_owner which could be an array or single object from the join
+    const primaryOwnerData = Array.isArray(listing.primary_owner) ? listing.primary_owner[0] : listing.primary_owner;
+    const ownerName = `${primaryOwnerData.first_name} ${primaryOwnerData.last_name}`.trim();
     const companyName = listing.internal_company_name || listing.title;
 
     // Format deal value
@@ -278,11 +279,11 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("BREVO_API_KEY is not set");
     }
     
-    console.log("Sending owner intro notification to:", primaryOwner.email);
+    console.log("Sending owner intro notification to:", primaryOwnerData.email);
     
     const emailPayload = {
       sender: { name: "SourceCo Notifications", email: "notifications@sourcecodeals.com" },
-      to: [{ email: primaryOwner.email, name: ownerName }],
+      to: [{ email: primaryOwnerData.email, name: ownerName }],
       subject: subject,
       htmlContent: htmlContent,
     };
@@ -327,7 +328,7 @@ const handler = async (req: Request): Promise<Response> => {
         message: 'Owner intro notification sent successfully',
         primary_owner_name: ownerName,
         message_id: emailResult.messageId,
-        recipient: primaryOwner.email
+        recipient: primaryOwnerData.email
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
