@@ -1,157 +1,160 @@
 
-# Fix: Auto-Save Generated Guide to Supporting Documents
+
+# Fix: Prevent M&A Guide Generation Timeout Failures
 
 ## Problem Summary
 
-When the M&A Research Guide completes generation, it never appears in the Supporting Documents because:
+The guide generation fails with a "network error" because all 7 batches (13 phases) run inside a **single edge function invocation**. The function correctly checks remaining time before each phase, but the recursive `generateBatch()` call chains batches together, causing cumulative runtime to exceed Supabase's ~150s hard limit.
 
-1. **Edge function only handles storage** - `generate-guide-pdf` uploads the HTML file to Supabase Storage but doesn't update the database
-2. **State-only update** - The `onDocumentAdded` callback only updates React state (`setDocuments`) 
-3. **No auto-persist** - The document reference is lost on page refresh unless user manually clicks "Save"
-
-## Current Flow (Broken)
-
+### Timeline of Failure
 ```text
-Guide completes
-    │
-    ▼
-saveGuideToDocuments() called
-    │
-    ▼
-Edge function uploads HTML to storage ✓
-    │
-    ▼
-Returns document reference
-    │
-    ▼
-onDocumentAdded() → setDocuments() (React state only)
-    │
-    ▼
-User navigates away or refreshes → Document lost
+Batch 1 (phases 1-2): ~90s  ─┐
+Batch 2 (phases 3-4): ~90s   │
+Batch 3 (phases 5-6): ~90s   ├── Same HTTP request (~10 min total)
+Batch 4 (phases 7-8): ~90s   │
+Batch 5 (phase 9): KILLED ──┘ ← Supabase hard timeout hit
 ```
 
-## Solution: Direct Database Persistence
+## Solution: Separate HTTP Requests Per Batch
 
-Modify `saveGuideToDocuments` in `AIResearchSection.tsx` to immediately persist the document to the database after the edge function succeeds, rather than relying on the parent's state-only callback.
+Move the batch chaining logic to the **frontend** so each batch runs in a **fresh edge function invocation**, resetting the 150s limit each time.
 
-## Implementation Plan
+### Current Flow (Broken)
+```text
+Frontend: fetch(batch 0)
+  └─ Edge Function:
+       ├─ Generate batch 0
+       ├─ SSE: batch_complete, next_batch_index=1
+       └─ Stream ends
+  ← (Client receives batch_complete)
+  → (Client recursively calls generateBatch(1) INSIDE the same SSE handler)
+       └─ NEW fetch(batch 1) ← This starts a new request, but...
+          ...the old reader loop is still running, creating timing issues
+```
 
-### Step 1: Update `saveGuideToDocuments` Function
+### Fixed Flow
+```text
+Frontend: fetch(batch 0)
+  └─ Edge Function: Generate batch 0
+       └─ SSE: batch_complete, is_final=false, next_batch_index=1
+  ← Stream ends naturally
+
+Frontend: setTimeout → fetch(batch 1)  ← Separate invocation
+  └─ Edge Function: Generate batch 1
+       └─ SSE: batch_complete, is_final=false, next_batch_index=2
+...repeat...
+
+Frontend: fetch(batch 6)
+  └─ Edge Function: Generate batch 6
+       └─ SSE: batch_complete, is_final=true
+       └─ SSE: complete
+```
+
+## Implementation
+
+### Step 1: Remove Recursive Call Inside SSE Handler
 
 **File:** `src/components/remarketing/AIResearchSection.tsx`
 
-Current behavior (lines 68-106):
-- Calls `generate-guide-pdf` edge function
-- On success, calls the callback which only updates state
-- Silently ignores errors
-
-New behavior:
-- Call edge function (unchanged)
-- After success, read current documents from database
-- Filter out any existing `ma_guide` type documents (avoid duplicates)
-- Append the new document reference
-- Write updated array back to database
-- Still call callback for immediate UI update
-- Show error toast on failure (not silent)
-
-### Step 2: Add Supabase Import
-
-Add the Supabase client import to the file if not already present:
+In the `batch_complete` handler (~lines 529-537), remove the recursive `generateBatch()` call. Instead, store the next batch index and content, then trigger it **after** the current stream fully closes.
 
 ```typescript
-import { supabase } from "@/integrations/supabase/client";
-```
-
-### Step 3: Update Function Logic
-
-Replace the `saveGuideToDocuments` helper function with:
-
-```typescript
-const saveGuideToDocuments = async (
-  content: string,
-  industryName: string,
-  universeId: string,
-  onDocumentAdded: (doc: { id: string; name: string; url: string; uploaded_at: string }) => void
-) => {
-  try {
-    // 1. Call edge function to upload HTML to storage
-    const response = await fetch(
-      `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/generate-guide-pdf`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`,
-        },
-        body: JSON.stringify({ universeId, industryName, content }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to generate guide: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (!data.success || !data.document) {
-      throw new Error(data.error || 'No document returned');
-    }
-
-    // 2. Read current documents from database
-    const { data: universe, error: readError } = await supabase
-      .from('remarketing_buyer_universes')
-      .select('documents')
-      .eq('id', universeId)
-      .single();
-
-    if (readError) {
-      throw new Error(`Failed to read universe: ${readError.message}`);
-    }
-
-    // 3. Build updated documents array (replace any existing ma_guide)
-    const currentDocs = (universe?.documents as any[]) || [];
-    const filteredDocs = currentDocs.filter(
-      d => !(d as any).type || (d as any).type !== 'ma_guide'
-    );
-    const updatedDocs = [...filteredDocs, data.document];
-
-    // 4. Write back to database
-    const { error: updateError } = await supabase
-      .from('remarketing_buyer_universes')
-      .update({ documents: updatedDocs })
-      .eq('id', universeId);
-
-    if (updateError) {
-      throw new Error(`Failed to save document: ${updateError.message}`);
-    }
-
-    // 5. Update local state for immediate UI feedback
-    onDocumentAdded(data.document);
-    toast.success("Guide saved to Supporting Documents");
-
-  } catch (error) {
-    console.error('Error saving guide to documents:', error);
-    toast.error(`Failed to save guide: ${(error as Error).message}`);
+case 'batch_complete':
+  sawBatchComplete = true;
+  
+  if (batchRetryCountRef.current[batchIndex]) {
+    delete batchRetryCountRef.current[batchIndex];
   }
-};
+  
+  // Store info for next batch (don't call generateBatch here!)
+  if (!event.is_final && event.next_batch_index !== null) {
+    nextBatchInfo.current = {
+      index: event.next_batch_index,
+      content: event.content,
+      clarificationContext
+    };
+  }
+  break;
 ```
 
-### Key Changes Summary
+### Step 2: Chain Batches After Stream Ends
+
+After the `while (true)` reader loop exits, check if there's a next batch to process:
+
+```typescript
+// After the reader loop (~line 644)
+
+// If the stream ends without batch_complete, throw timeout error
+if (!sawBatchComplete) {
+  const timeoutError = new Error(...);
+  throw timeoutError;
+}
+
+// Chain to next batch OUTSIDE the stream handler
+if (nextBatchInfo.current) {
+  const { index, content, clarificationContext: ctx } = nextBatchInfo.current;
+  nextBatchInfo.current = null;
+  
+  // Small delay to ensure clean separation
+  await new Promise(r => setTimeout(r, 1000));
+  toast.info(`Starting batch ${index + 1}...`);
+  
+  // This now runs AFTER the previous stream fully closed
+  await generateBatch(index, content, ctx);
+}
+```
+
+### Step 3: Add Ref for Next Batch Info
+
+Add a ref to store next batch info:
+
+```typescript
+const nextBatchInfo = useRef<{
+  index: number;
+  content: string;
+  clarificationContext: ClarificationContext;
+} | null>(null);
+```
+
+### Step 4: Reduce Batch Size as Safety Margin
+
+**File:** `supabase/functions/generate-ma-guide/index.ts`
+
+Change line 630:
+```typescript
+// Before
+const BATCH_SIZE = 2;
+
+// After
+const BATCH_SIZE = 1;  // Single phase per batch = safer time budget
+```
+
+This means 13 batches instead of 7, but each batch completes well within the 150s limit.
+
+## Trade-offs
 
 | Aspect | Before | After |
 |--------|--------|-------|
-| Storage upload | Edge function | Edge function (unchanged) |
-| Database write | None (state only) | Direct Supabase update |
-| Error handling | Silent console.error | Visible toast.error |
-| Duplicate handling | Callback filters | DB-side filter before insert |
-| Persistence | Lost on refresh | Survives refresh |
-
-### No Schema Changes Required
-
-The `documents` column already exists as JSONB on `remarketing_buyer_universes` table and is used by `DocumentUploadSection` for manual uploads.
+| HTTP requests | 1 (all batches chained) | 13 (one per phase) |
+| Timeout risk | High (cumulative time) | Low (resets each request) |
+| Total generation time | Same | Same + ~13s delay overhead |
+| Progress saved | Per phase | Per phase (unchanged) |
+| Resumability | Broken (state lost on timeout) | Works (clean batch boundaries) |
 
 ## Files to Modify
 
-1. **`src/components/remarketing/AIResearchSection.tsx`** (lines 68-106)
-   - Add supabase import
-   - Update `saveGuideToDocuments` to persist directly to database
-   - Replace silent error handling with toast notifications
+1. **`src/components/remarketing/AIResearchSection.tsx`**
+   - Add `nextBatchInfo` ref
+   - Modify `batch_complete` handler to store (not call) next batch
+   - Move batch chaining to after stream closes
+
+2. **`supabase/functions/generate-ma-guide/index.ts`**
+   - Change `BATCH_SIZE` from 2 to 1
+
+## Testing
+
+1. Start guide generation for any industry
+2. Observe batches completing as separate requests (each batch toast after ~60-90s)
+3. Verify all 13 phases complete without timeout
+4. Confirm final guide saves to Supporting Documents
+
