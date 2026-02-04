@@ -524,7 +524,7 @@ export const AIResearchSection = ({
                 if (event.content) {
                   fullContent = event.content;
                   accumulatedWordCount = fullContent.split(/\s+/).length;
-                  localStorage.setItem('ma_guide_progress', JSON.stringify({
+                  const progressData = {
                     industryName,
                     // Use the batchIndex argument to avoid state timing issues.
                     batchIndex,
@@ -533,7 +533,10 @@ export const AIResearchSection = ({
                     lastPhaseId: event.phaseId,
                     lastPhase: event.phase,
                     wordCount: accumulatedWordCount
-                  }));
+                  };
+                  localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
+                  // CRITICAL: Also update savedProgress state so Resume works without reload
+                  setSavedProgress(progressData);
                 }
                 break;
 
@@ -553,6 +556,18 @@ export const AIResearchSection = ({
                     content: event.content,
                     clarificationContext
                   };
+                  // Update savedProgress to point to NEXT batch so Resume picks up correctly
+                  const progressData = {
+                    industryName,
+                    batchIndex: event.next_batch_index, // Resume from NEXT batch
+                    content: event.content,
+                    clarificationContext,
+                    lastPhaseId: `batch_${batchIndex}_complete`,
+                    lastPhase: batchIndex + 1,
+                    wordCount: event.wordCount || event.content?.split(/\s+/).length || 0
+                  };
+                  localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
+                  setSavedProgress(progressData);
                 }
                 break;
 
