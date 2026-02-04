@@ -819,9 +819,12 @@ Deno.serve(async (req) => {
       userId = user.id;
     }
 
-    const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', false);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResponse(rateLimitResult);
+    // Skip rate limiting for internal worker calls (userId = 'system' is not a valid UUID)
+    if (!isInternalWorkerCall) {
+      const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', false);
+      if (!rateLimitResult.allowed) {
+        return rateLimitResponse(rateLimitResult);
+      }
     }
 
     // Fetch buyer
