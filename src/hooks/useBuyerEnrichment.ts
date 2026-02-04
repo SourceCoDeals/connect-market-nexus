@@ -122,7 +122,7 @@ export function useBuyerEnrichment(universeId?: string) {
         updateStatus(buyer.id, { buyerId: buyer.id, status: 'enriching' });
       });
 
-      // Process batch in parallel
+      // Process batch in parallel with timeout protection
       const results = await Promise.allSettled(
         batch.map(async (buyer) => {
           const { data, error } = await supabase.functions.invoke('enrich-buyer', {
@@ -148,7 +148,7 @@ export function useBuyerEnrichment(universeId?: string) {
             (errorObj as any).resetTime = data?.resetTime;
             throw errorObj;
           }
-          
+
           return data;
         })
       );

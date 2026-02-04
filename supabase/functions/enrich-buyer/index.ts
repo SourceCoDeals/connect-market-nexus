@@ -417,8 +417,8 @@ Deno.serve(async (req) => {
 // ============= Helper Functions =============
 
 const MIN_CONTENT_LENGTH = 200;
-const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds
-const AI_TIMEOUT_MS = 45000; // 45 seconds
+const SCRAPE_TIMEOUT_MS = 15000; // 15 seconds (reduced from 30s to fit in 60s edge function limit)
+const AI_TIMEOUT_MS = 20000; // 20 seconds (reduced from 45s to fit in 60s edge function limit)
 
 async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
