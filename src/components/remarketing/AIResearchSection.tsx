@@ -74,7 +74,7 @@ export const AIResearchSection = ({
   universeName,
   existingContent
 }: AIResearchSectionProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(!!existingContent && existingContent.length > 100);
   const [industryName, setIndustryName] = useState(universeName || "");
   const [state, setState] = useState<GenerationState>('idle');
   const [currentPhase, setCurrentPhase] = useState(0);
@@ -576,40 +576,75 @@ export const AIResearchSection = ({
   const progressPercent = totalPhases > 0 ? (currentPhase / totalPhases) * 100 : 0;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <div>
-                  <CardTitle className="text-base">AI Research (M&A Guide)</CardTitle>
-                  <CardDescription>
-                    Generate comprehensive 30,000+ word industry research guide
-                  </CardDescription>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {state === 'complete' && (
-                  <Badge variant="default" className="bg-green-600">
-                    <Check className="h-3 w-3 mr-1" />
-                    Complete
-                  </Badge>
-                )}
-                {wordCount > 0 && (
-                  <Badge variant="secondary">{wordCount.toLocaleString()} words</Badge>
-                )}
-                {isOpen ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                )}
-              </div>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
-          </CardHeader>
-        </CollapsibleTrigger>
+            <div>
+              <CardTitle className="text-base">M&A Research Guide</CardTitle>
+              <CardDescription>
+                {existingContent && existingContent.length > 100 
+                  ? `${wordCount.toLocaleString()} word industry research guide`
+                  : 'Generate comprehensive 30,000+ word industry research guide'
+                }
+              </CardDescription>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {state === 'complete' && (
+              <Badge variant="default" className="bg-green-600">
+                <Check className="h-3 w-3 mr-1" />
+                Complete
+              </Badge>
+            )}
+            {wordCount > 0 && state !== 'complete' && (
+              <Badge variant="secondary">{wordCount.toLocaleString()} words</Badge>
+            )}
+            {/* Generate/Regenerate button always visible in header */}
+            {(state === 'idle' || state === 'complete' || state === 'error') && !isOpen && (
+              <Button 
+                size="sm" 
+                variant={existingContent && existingContent.length > 100 ? "outline" : "default"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(true);
+                  if (!existingContent || existingContent.length < 100) {
+                    // Auto-trigger for new guides
+                  }
+                }}
+              >
+                <Sparkles className="h-4 w-4 mr-1" />
+                {existingContent && existingContent.length > 100 ? 'View Guide' : 'Run AI Research'}
+              </Button>
+            )}
+            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  {isOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+            </Collapsible>
+          </div>
+        </div>
+        
+        {/* Preview when collapsed and has content */}
+        {!isOpen && existingContent && existingContent.length > 100 && (
+          <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {existingContent.replace(/[#*`]/g, '').substring(0, 200)}...
+            </p>
+          </div>
+        )}
+      </CardHeader>
 
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleContent>
           <CardContent className="space-y-4">
             {/* Duplicate guide warning */}
@@ -892,7 +927,7 @@ export const AIResearchSection = ({
             )}
           </CardContent>
         </CollapsibleContent>
-      </Card>
-    </Collapsible>
+      </Collapsible>
+    </Card>
   );
 };

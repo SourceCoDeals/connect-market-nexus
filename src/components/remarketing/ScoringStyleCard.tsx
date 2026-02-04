@@ -12,7 +12,6 @@ import type { ScoringBehavior } from "@/types/remarketing";
 interface ScoringStyleCardProps {
   scoringBehavior: ScoringBehavior;
   onScoringBehaviorChange: (behavior: ScoringBehavior) => void;
-  onStartAIResearch?: () => void;
   onSave?: () => void;
   isSaving?: boolean;
 }
@@ -20,7 +19,6 @@ interface ScoringStyleCardProps {
 export const ScoringStyleCard = ({
   scoringBehavior,
   onScoringBehaviorChange,
-  onStartAIResearch,
   onSave,
   isSaving = false,
 }: ScoringStyleCardProps) => {
@@ -102,22 +100,6 @@ export const ScoringStyleCard = ({
             </div>
           </RadioGroup>
         </div>
-
-        {/* AI Research CTA */}
-        {onStartAIResearch && (
-          <div className="flex items-center justify-between p-4 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
-            <div>
-              <p className="text-sm font-medium">Auto-populate criteria with AI Research</p>
-              <p className="text-xs text-muted-foreground">
-                Generates industry-specific buyer profiles and match criteria
-              </p>
-            </div>
-            <Button variant="default" size="sm" onClick={onStartAIResearch}>
-              <Sparkles className="h-4 w-4 mr-1" />
-              Run AI Research
-            </Button>
-          </div>
-        )}
 
         {/* Advanced Settings Toggle */}
         <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
