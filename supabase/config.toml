@@ -181,3 +181,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.chat-buyer-query]
 verify_jwt = true
+[functions.chat-remarketing]
+verify_jwt = true

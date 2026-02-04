@@ -28,7 +28,8 @@ import {
   ScoringStyleCard,
   MatchCriteriaCard,
   StructuredCriteriaPanel,
-  EnrichmentProgressIndicator
+  EnrichmentProgressIndicator,
+  ReMarketingChat
 } from "@/components/remarketing";
 import { 
   SizeCriteria, 
@@ -1139,6 +1140,13 @@ const ReMarketingUniverseDetail = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* AI Chat - only show when not creating new */}
+      {!isNew && id && (
+        <ReMarketingChat
+          context={{ type: "universe", universeId: id, universeName: universe?.name }}
+        />
       )}
     </div>
   );
