@@ -1,9 +1,9 @@
 # Complete Small TODOs: Component Organization, Bug Fixes, and New Features
 
 ## Summary
-This PR addresses several small improvements and TODOs across the M&A Intelligence platform, including code organization, bug fixes, removal of redundant components, and new features for tracker management and contact handling.
+This PR addresses several small improvements and TODOs across the M&A Intelligence platform, including code organization, bug fixes, removal of redundant components, and new features for tracker management, contact handling, and deal ranking.
 
-**Changes:** 16 files changed, 877 insertions(+), 264 deletions(-)
+**Changes:** 18 files changed, 1,218 insertions(+), 424 deletions(-)
 
 ## Changes by Category
 
@@ -119,6 +119,55 @@ This PR addresses several small improvements and TODOs across the M&A Intelligen
 
 ---
 
+### 🎯 6. Implemented Persistent Deal Ranking System
+
+**Problem:** The All Deals page had no way to manually rank/prioritize deals. Row numbers were implicit (based on sort order), so when sorting by different columns, the "rankings" would change with the row positions.
+
+**Solution:**
+Implemented a persistent ranking system where each deal has a `priority_rank` field that stays with the deal regardless of table sorting.
+
+**Key Features:**
+- **Persistent Ranks**: Each deal has a priority_rank (1=highest, 2=second, etc.) stored in the database
+- **Drag & Drop Reordering**:
+  - Drag handle (≡ icon) on left side of each row
+  - Drag deals to reorder them
+  - Updates all affected ranks in database
+  - Optimistic UI updates for instant feedback
+- **Rank Display**: "#" column shows the persistent rank number next to drag handle
+- **Sortable Columns Preserved**: All columns remain sortable (Deal Name, Universe, Geography, Revenue, EBITDA, Score, Date)
+- **Rank Independence**: When sorting by any column, rows rearrange but rank numbers stay with their deals
+
+**Example Behavior:**
+```
+Initial state (sorted by rank):
+#1  NES (High EBITDA $4.0M)
+#24 Air & Ground Aviation (Low EBITDA $3.0M)
+
+Sort by EBITDA ascending:
+#24 Air & Ground Aviation ← Now at top, still shows "#24"
+#1  NES ← Now lower down, still shows "#1"
+
+The rank #24 stays with "Air & Ground Aviation" regardless of table sorting.
+```
+
+**Database Changes:**
+- Added `priority_rank INTEGER` column to `deals` table
+- Created index for efficient sorting by rank
+- Auto-assigned sequential ranks to existing deals (ordered by created_at)
+
+**Frontend Changes:**
+- Integrated @dnd-kit for drag-and-drop functionality
+- Created `SortableRow` component with drag handles
+- Implemented `handleDragEnd` to persist rank updates
+- Toast notifications for successful updates
+- Error handling with rollback on failures
+
+**Files:**
+- `supabase/migrations/*_add_priority_rank_to_deals.sql` (new migration)
+- `src/pages/admin/ma-intelligence/AllDeals.tsx` (+341 lines, -160 lines)
+
+---
+
 ## Testing
 
 ### Build Verification
@@ -133,6 +182,9 @@ This PR addresses several small improvements and TODOs across the M&A Intelligen
 - [ ] AI Research Guide completes batch 10+ without timeout
 - [ ] AddAssociatedContactDialog creates contacts successfully
 - [ ] No regressions in ReMarketing Universe Detail
+- [ ] Deal ranking: Drag & drop updates ranks correctly
+- [ ] Deal ranking: Ranks persist when sorting by different columns
+- [ ] Deal ranking: Existing deals receive sequential ranks after migration
 
 ---
 
@@ -147,7 +199,13 @@ This PR addresses several small improvements and TODOs across the M&A Intelligen
 
 ## Migration Notes
 
-No database migrations required. All changes are frontend-only.
+**Database Migration Required:**
+- `*_add_priority_rank_to_deals.sql` - Adds `priority_rank` column to deals table
+  - Automatically assigns sequential ranks to existing deals
+  - Creates index for efficient sorting
+  - Safe to run - handles NULL values gracefully
+
+All other changes are frontend-only.
 
 ---
 
