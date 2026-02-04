@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -32,6 +33,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Search, 
   Plus, 
@@ -43,10 +54,12 @@ import {
   Archive,
   ArchiveRestore,
   Trash2,
-  ArrowUpDown
+  ArrowUpDown,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceCoverageBar } from "@/components/remarketing";
+import { deleteUniverseWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
 
 type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
 type SortOrder = 'asc' | 'desc';
@@ -60,6 +73,10 @@ const ReMarketingUniverses = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   
   // New universe dialog
   const showNewDialog = searchParams.get('new') === 'true';
@@ -195,19 +212,34 @@ const ReMarketingUniverses = () => {
     }
   });
 
-  // Delete mutation
+  // Delete mutation (single)
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('remarketing_buyer_universes')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const result = await deleteUniverseWithRelated(id);
+      if (result.error) throw result.error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });
       toast.success("Universe deleted");
+    }
+  });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.all(ids.map(id => deleteUniverseWithRelated(id)));
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) {
+        throw new Error(`Failed to delete ${errors.length} universe(s)`);
+      }
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      setSelectedIds(new Set());
+      toast.success(`${ids.length} universe(s) deleted`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     }
   });
 
@@ -277,6 +309,29 @@ const ReMarketingUniverses = () => {
     </TableHead>
   );
 
+  // Selection helpers
+  const allSelected = sortedUniverses.length > 0 && sortedUniverses.every(u => selectedIds.has(u.id));
+  const someSelected = sortedUniverses.some(u => selectedIds.has(u.id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedUniverses.map(u => u.id)));
+    }
+  };
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -320,12 +375,53 @@ const ReMarketingUniverses = () => {
         </CardContent>
       </Card>
 
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium">
+                  {selectedIds.size} universe{selectedIds.size > 1 ? 's' : ''} selected
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="h-7 px-2 text-muted-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Selected
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Universes Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                    className={someSelected && !allSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                  />
+                </TableHead>
                 <SortableHeader field="name">Industry / Universe</SortableHeader>
                 <SortableHeader field="buyers">Buyers</SortableHeader>
                 <SortableHeader field="deals">Deals</SortableHeader>
@@ -338,6 +434,7 @@ const ReMarketingUniverses = () => {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-12" /></TableCell>
@@ -348,7 +445,7 @@ const ReMarketingUniverses = () => {
                 ))
               ) : sortedUniverses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     <Globe2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>No universes found</p>
                     <p className="text-sm">Create your first buyer universe to get started</p>
@@ -369,13 +466,21 @@ const ReMarketingUniverses = () => {
                   const coverage = stats.total > 0 
                     ? Math.round((stats.intelligent / stats.total) * 100) 
                     : 0;
+                  const isSelected = selectedIds.has(universe.id);
 
                   return (
                     <TableRow 
                       key={universe.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => navigate(`/admin/remarketing/universes/${universe.id}`)}
                     >
+                      <TableCell onClick={(e) => toggleSelect(universe.id, e)}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => {}}
+                          aria-label={`Select ${universe.name}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -519,6 +624,31 @@ const ReMarketingUniverses = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} Universe{selectedIds.size > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected universe{selectedIds.size > 1 ? 's' : ''} and all associated buyers, scores, and data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={bulkDeleteMutation.isPending}
+              onClick={() => {
+                bulkDeleteMutation.mutate(Array.from(selectedIds));
+                setShowBulkDeleteDialog(false);
+              }}
+            >
+              {bulkDeleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
