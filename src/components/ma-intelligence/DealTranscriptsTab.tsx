@@ -40,14 +40,15 @@ import { AddTranscriptDialog } from "./AddTranscriptDialog";
 
 interface Transcript {
   id: string;
-  deal_id: string;
-  title: string;
-  type: "Link" | "Upload" | "Call";
-  url: string | null;
+  listing_id: string;
+  title: string | null;
+  source: string | null;
+  transcript_url: string | null;
   call_date: string | null;
-  processed_status: "Pending" | "Processing" | "Ready";
+  transcript_text: string;
   extracted_data: Record<string, any> | null;
-  notes: string | null;
+  applied_to_deal: boolean | null;
+  processed_at: string | null;
   created_at: string;
 }
 
@@ -69,14 +70,15 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   const loadTranscripts = async () => {
     try {
+      // deal_transcripts uses listing_id, not deal_id
       const { data, error } = await supabase
         .from("deal_transcripts")
         .select("*")
-        .eq("deal_id", dealId)
+        .eq("listing_id", dealId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setTranscripts((data as Transcript[]) || []);
+      setTranscripts((data || []) as unknown as Transcript[]);
     } catch (error: any) {
       toast({
         title: "Error loading transcripts",
@@ -90,10 +92,10 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   const handleProcessTranscript = async (transcriptId: string) => {
     try {
-      // Update status to Processing
+      // Update processed_at timestamp instead of non-existent processed_status
       const { error: updateError } = await supabase
         .from("deal_transcripts")
-        .update({ processed_status: "Processing" })
+        .update({ processed_at: new Date().toISOString() })
         .eq("id", transcriptId);
 
       if (updateError) throw updateError;
@@ -157,33 +159,16 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
     setIsViewDialogOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Ready":
-        return <Badge variant="default">Ready</Badge>;
-      case "Processing":
-        return (
-          <Badge variant="secondary">
-            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            Processing
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">Pending</Badge>;
+  const getStatusBadge = (transcript: Transcript) => {
+    if (transcript.processed_at) {
+      return <Badge variant="default">Processed</Badge>;
     }
+    return <Badge variant="outline">Pending</Badge>;
   };
 
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case "Link":
-        return <Badge variant="secondary">Link</Badge>;
-      case "Upload":
-        return <Badge variant="secondary">Upload</Badge>;
-      case "Call":
-        return <Badge variant="secondary">Call</Badge>;
-      default:
-        return <Badge variant="outline">{type}</Badge>;
-    }
+  const getSourceBadge = (source: string | null) => {
+    if (!source) return <Badge variant="outline">Unknown</Badge>;
+    return <Badge variant="secondary">{source}</Badge>;
   };
 
   if (isLoading) {
@@ -230,7 +215,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Call Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Added</TableHead>
@@ -242,10 +227,10 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
                   <TableRow key={transcript.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{transcript.title}</div>
-                        {transcript.url && (
+                        <div className="font-medium">{transcript.title || "Untitled"}</div>
+                        {transcript.transcript_url && (
                           <a
-                            href={transcript.url}
+                            href={transcript.transcript_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
@@ -256,13 +241,13 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{getTypeBadge(transcript.type)}</TableCell>
+                    <TableCell>{getSourceBadge(transcript.source)}</TableCell>
                     <TableCell>
                       {transcript.call_date
                         ? new Date(transcript.call_date).toLocaleDateString()
                         : "—"}
                     </TableCell>
-                    <TableCell>{getStatusBadge(transcript.processed_status)}</TableCell>
+                    <TableCell>{getStatusBadge(transcript)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDistanceToNow(new Date(transcript.created_at), {
                         addSuffix: true,
@@ -276,7 +261,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {transcript.processed_status === "Ready" && (
+                          {transcript.processed_at && (
                             <DropdownMenuItem
                               onClick={() => handleViewExtractedData(transcript)}
                             >
@@ -284,7 +269,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
                               View Extracted Data
                             </DropdownMenuItem>
                           )}
-                          {transcript.processed_status === "Pending" && (
+                          {!transcript.processed_at && (
                             <DropdownMenuItem
                               onClick={() => handleProcessTranscript(transcript.id)}
                             >

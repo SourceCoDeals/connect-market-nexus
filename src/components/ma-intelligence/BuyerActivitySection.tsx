@@ -53,20 +53,20 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
     try {
       const activityEvents: ActivityEvent[] = [];
 
-      // Load enrichment history
+      // Load enrichment history from buyer_learning_history
       const { data: enrichments } = await supabase
         .from("buyer_learning_history")
         .select("*")
         .eq("buyer_id", buyerId)
-        .order("learned_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
       enrichments?.forEach((enrich) => {
         activityEvents.push({
           id: `enrich-${enrich.id}`,
           type: "enrichment",
-          title: "Buyer Enriched",
-          description: `Data enriched from ${enrich.source || "unknown source"}`,
-          timestamp: enrich.learned_at,
+          title: "Buyer Learning Captured",
+          description: `Action: ${enrich.action || "unknown"}`,
+          timestamp: enrich.created_at,
           metadata: enrich,
         });
       });

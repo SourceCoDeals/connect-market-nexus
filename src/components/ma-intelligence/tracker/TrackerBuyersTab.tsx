@@ -165,9 +165,10 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
   const handleArchiveBuyer = async (buyerId: string) => {
     try {
+      // remarketing_buyers doesn't have 'status' column - use 'archived' boolean instead
       await supabase
         .from("remarketing_buyers")
-        .update({ status: "archived" })
+        .update({ archived: true })
         .eq("id", buyerId);
 
       toast({ title: "Buyer archived" });
@@ -338,7 +339,6 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         open={dedupeDialogOpen}
         onOpenChange={setDedupeDialogOpen}
         trackerId={trackerId}
-        onDedupeComplete={loadBuyers}
       />
     </div>
   );

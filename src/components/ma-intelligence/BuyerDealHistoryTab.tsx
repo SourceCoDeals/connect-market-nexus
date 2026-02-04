@@ -56,8 +56,8 @@ interface BuyerDealScore {
   hidden_from_deal: boolean | null;
   deal?: {
     id: string;
-    deal_name: string;
-    tracker_id: string;
+    title: string;
+    listing_id: string | null;
   };
   tracker?: {
     id: string;
@@ -91,36 +91,30 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
 
       if (scoresError) throw scoresError;
 
-      // Load deal and tracker info
+      // Load deal info (deals table uses 'title', not 'deal_name')
       const dealIds = scoresData?.map((s) => s.deal_id) || [];
-      const trackerIds = new Set<string>();
-
+      
       const { data: dealsData } = await supabase
         .from("deals")
-        .select("id, deal_name, tracker_id")
+        .select("id, title, listing_id")
         .in("id", dealIds);
 
-      dealsData?.forEach((d) => {
-        if (d.tracker_id) trackerIds.add(d.tracker_id);
-      });
-
-      const { data: trackersData } = await supabase
-        .from("industry_trackers")
-        .select("id, name")
-        .in("id", Array.from(trackerIds));
-
+      // For now, skip tracker lookup since deals don't have tracker_id
       // Map data
       const enrichedScores = scoresData?.map((score) => {
         const deal = dealsData?.find((d) => d.id === score.deal_id);
-        const tracker = trackersData?.find((t) => t.id === deal?.tracker_id);
         return {
           ...score,
-          deal,
-          tracker,
+          deal: deal ? {
+            id: deal.id,
+            title: deal.title || 'Unknown Deal',
+            listing_id: deal.listing_id
+          } : undefined,
+          tracker: undefined,
         };
       });
 
-      setDealScores(enrichedScores || []);
+      setDealScores((enrichedScores || []) as BuyerDealScore[]);
     } catch (error: any) {
       toast({
         title: "Error loading deal history",
@@ -255,7 +249,7 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
                       to={`/admin/ma-intelligence/deals/${score.deal_id}`}
                       className="text-primary hover:underline font-medium"
                     >
-                      {score.deal?.deal_name || "Unknown Deal"}
+                      {score.deal?.title || "Unknown Deal"}
                     </Link>
                   </TableCell>
                   <TableCell>

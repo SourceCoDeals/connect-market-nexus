@@ -55,7 +55,7 @@ interface BuyerContact {
   buyer_id: string;
   name: string;
   title: string | null;
-  company_type: "PE Firm" | "Platform" | "Other" | null;
+  company_type: string | null;
   priority_level: number | null;
   email: string | null;
   email_confidence: string | null;
@@ -66,9 +66,10 @@ interface BuyerContact {
   last_contacted_date: string | null;
   fee_agreement_status: string | null;
   salesforce_id: string | null;
-  notes: string | null;
+  source: string | null;
+  source_url: string | null;
+  role_category: string | null;
   created_at: string;
-  updated_at: string;
 }
 
 interface BuyerContactsTabProps {
@@ -266,7 +267,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
     setFormData({
       name: contact.name,
       title: contact.title || "",
-      company_type: contact.company_type || "PE Firm",
+      company_type: (contact.company_type as "PE Firm" | "Platform" | "Other") || "PE Firm",
       priority_level: contact.priority_level || 2,
       email: contact.email || "",
       email_confidence: contact.email_confidence || "medium",
@@ -276,7 +277,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       is_primary_contact: contact.is_primary_contact || false,
       fee_agreement_status: contact.fee_agreement_status || "",
       salesforce_id: contact.salesforce_id || "",
-      notes: contact.notes || "",
+      notes: "",
     });
     setEditingContact(contact);
     setIsAddDialogOpen(true);

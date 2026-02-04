@@ -90,7 +90,7 @@ export function KPIConfigPanel({ trackerId, tracker, onSave }: KPIConfigPanelPro
       const { error } = await supabase
         .from('industry_trackers')
         .update({
-          kpi_scoring_config: { kpis },
+          kpi_scoring_config: JSON.parse(JSON.stringify({ kpis })),
         })
         .eq('id', trackerId);
 
