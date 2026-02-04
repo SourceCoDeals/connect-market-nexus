@@ -209,7 +209,7 @@ function extractKeyQuotes(transcript: string, entityType: 'deal' | 'buyer'): str
 
 // Create engagement signal for CEO involvement
 async function createEngagementSignal(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   listingId: string,
   buyerId: string,
   signalType: string,
@@ -373,7 +373,7 @@ OUTPUT FORMAT:
 
 // Update listing with extracted transcript data
 async function updateListingFromTranscript(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   listingId: string,
   insights: DealInsights,
   transcriptId: string
@@ -415,7 +415,7 @@ async function updateListingFromTranscript(
 // Update buyer with extracted transcript data
 // CRITICAL: This is the ONLY place thesis_summary should be saved from
 async function updateBuyerFromTranscript(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   buyerId: string,
   insights: BuyerInsights,
   transcriptId: string
