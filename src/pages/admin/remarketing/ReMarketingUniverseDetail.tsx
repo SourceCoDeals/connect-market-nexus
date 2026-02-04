@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { 
+import {
   DocumentUploadSection,
   MAGuideEditor,
   UniverseTemplates,
@@ -31,6 +31,8 @@ import {
   EnrichmentProgressIndicator,
   ReMarketingChat
 } from "@/components/remarketing";
+import { EnrichmentSummaryDialog } from "@/components/remarketing/EnrichmentSummaryDialog";
+import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichment";
 import { 
   SizeCriteria, 
   GeographyCriteria, 
@@ -115,6 +117,8 @@ const ReMarketingUniverseDetail = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
+  const [enrichmentSummary, setEnrichmentSummary] = useState<EnrichmentSummary | null>(null);
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking
   const { 
@@ -557,18 +561,33 @@ const ReMarketingUniverseDetail = () => {
                           toast.error('No buyers to enrich');
                           return;
                         }
-                        
+
                         // Reset any previous enrichment state
                         resetEnrichment();
-                        
+
                         // Use the hook which handles batching, 402 errors, and progress
                         // Pass all website fields so the hook can filter properly
-                        await enrichBuyers(buyers.map(b => ({
+                        const result = await enrichBuyers(buyers.map(b => ({
                           id: b.id,
                           company_website: b.company_website,
                           platform_website: b.platform_website,
                           pe_firm_website: b.pe_firm_website
                         })));
+
+                        // Show summary dialog with results
+                        if (result?.summary) {
+                          // Enhance summary with buyer names
+                          const enhancedResults = result.summary.results.map(r => ({
+                            ...r,
+                            buyerName: buyers.find(b => b.id === r.buyerId)?.company_name
+                          }));
+
+                          setEnrichmentSummary({
+                            ...result.summary,
+                            results: enhancedResults
+                          });
+                          setShowSummaryDialog(true);
+                        }
                       }}
                       onCancelEnrichment={cancelEnrichment}
                       onScoreAlignment={async () => {
@@ -1145,6 +1164,50 @@ const ReMarketingUniverseDetail = () => {
       {!isNew && id && (
         <ReMarketingChat
           context={{ type: "universe", universeId: id, universeName: universe?.name }}
+        />
+      )}
+
+      {/* Enrichment Summary Dialog */}
+      {enrichmentSummary && (
+        <EnrichmentSummaryDialog
+          open={showSummaryDialog}
+          onOpenChange={setShowSummaryDialog}
+          summary={enrichmentSummary}
+          onRetryFailed={async () => {
+            if (!buyers) return;
+
+            // Get failed buyer IDs
+            const failedBuyerIds = enrichmentSummary.results
+              .filter(r => r.status === 'error')
+              .map(r => r.buyerId);
+
+            const failedBuyers = buyers.filter(b => failedBuyerIds.includes(b.id));
+
+            if (failedBuyers.length === 0) return;
+
+            // Reset and retry
+            resetEnrichment();
+            const result = await enrichBuyers(failedBuyers.map(b => ({
+              id: b.id,
+              company_website: b.company_website,
+              platform_website: b.platform_website,
+              pe_firm_website: b.pe_firm_website
+            })));
+
+            // Show new summary
+            if (result?.summary) {
+              const enhancedResults = result.summary.results.map(r => ({
+                ...r,
+                buyerName: buyers.find(b => b.id === r.buyerId)?.company_name
+              }));
+
+              setEnrichmentSummary({
+                ...result.summary,
+                results: enhancedResults
+              });
+              setShowSummaryDialog(true);
+            }
+          }}
         />
       )}
     </div>
