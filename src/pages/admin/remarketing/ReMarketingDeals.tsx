@@ -372,7 +372,7 @@ const SortableTableRow = ({
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
           <span className="font-medium text-muted-foreground w-5 text-center">
-            {index + 1}
+            {listing.manual_rank_override || index + 1}
           </span>
         </div>
       </TableCell>
