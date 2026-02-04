@@ -149,6 +149,21 @@ serve(async (req) => {
 </body>
 </html>`;
 
+    // Ensure bucket exists (create if needed)
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(b => b.name === 'universe-documents');
+    
+    if (!bucketExists) {
+      const { error: createBucketError } = await supabase.storage.createBucket('universe-documents', {
+        public: true,
+        fileSizeLimit: 52428800, // 50MB
+        allowedMimeTypes: ['text/html', 'application/pdf', 'text/plain', 'text/markdown']
+      });
+      if (createBucketError && !createBucketError.message.includes('already exists')) {
+        console.error('Failed to create bucket:', createBucketError);
+      }
+    }
+
     // Upload the HTML file to storage
     const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
     const { error: uploadError } = await supabase.storage
