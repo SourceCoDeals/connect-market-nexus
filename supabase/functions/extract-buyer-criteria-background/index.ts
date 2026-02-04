@@ -23,10 +23,23 @@ serve(async (req) => {
 
     if (!guide_content || guide_content.length < 1000) {
       return new Response(
-        JSON.stringify({ error: 'guide_content must have at least 1000 characters' }),
+        JSON.stringify({
+          error: 'guide_content must have at least 1000 characters',
+          actual_length: guide_content?.length || 0,
+          suggestion: 'Generate a comprehensive M&A guide first before extracting criteria'
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Check if guide contains buyer-related keywords
+    const hasRelevantContent = /buyer|acqui|purchase|private equity|PE|platform|strategic|target|criteri/i.test(guide_content);
+    if (!hasRelevantContent) {
+      console.warn(`[VALIDATION_WARNING] Guide may not contain buyer criteria. Length: ${guide_content.length}`);
+      // Don't fail, but log warning - the extraction will handle this
+    }
+
+    console.log(`[VALIDATION_PASSED] Guide content: ${guide_content.length} chars, has buyer keywords: ${hasRelevantContent}`);
 
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

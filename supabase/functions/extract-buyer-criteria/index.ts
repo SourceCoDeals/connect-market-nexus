@@ -75,6 +75,27 @@ async function extractCriteriaFromGuide(
   console.log('[EXTRACTION_START] Beginning criteria extraction');
   console.log(`[GUIDE_LENGTH] ${guideContent.length} characters, ~${Math.round(guideContent.split(/\s+/).length)} words`);
 
+  // Log guide content sample and keyword analysis for debugging
+  console.log('[GUIDE_SAMPLE] First 500 chars:', guideContent.substring(0, 500));
+
+  const keywordAnalysis = {
+    hasBuyer: /buyer|acqui|purchase/i.test(guideContent),
+    hasRevenue: /revenue|\$\d+M|\$\d+\s*million/i.test(guideContent),
+    hasEBITDA: /ebitda|earnings/i.test(guideContent),
+    hasPE: /private equity|PE firm|PE-backed/i.test(guideContent),
+    hasPlatform: /platform|roll-up|consolidat/i.test(guideContent),
+    hasGeography: /state|region|market|geographic/i.test(guideContent),
+    hasService: /service|offering|product/i.test(guideContent),
+    hasSize: /small|mid-market|middle market|large|size/i.test(guideContent),
+  };
+
+  console.log('[GUIDE_KEYWORDS]', keywordAnalysis);
+
+  const hasRelevantContent = Object.values(keywordAnalysis).some(v => v);
+  if (!hasRelevantContent) {
+    console.warn('[WARNING] Guide may not contain extractable buyer criteria - no relevant keywords found');
+  }
+
   // Claude function calling for structured extraction
   const systemPrompt = `You are an expert M&A advisor specializing in buyer universe analysis. Your task is to extract structured buyer fit criteria from comprehensive industry M&A guides.
 
@@ -84,25 +105,72 @@ EXTRACTION GUIDELINES:
 3. Geography Criteria: Extract geographic preferences (regions, states) and exclusions
 4. Buyer Types: Identify different buyer categories (PE firms, platforms, strategics) with detailed profiles
 
-CONFIDENCE SCORING:
-- 90-100: Explicit numerical ranges and clear statements
-- 70-89: Strong contextual evidence with some specificity
-- 50-69: General patterns but lacking specific numbers
-- Below 50: Weak or conflicting evidence
+EXTRACTION PHILOSOPHY - BE PERMISSIVE:
+- Extract QUALITATIVE information even without explicit numbers
+- Infer reasonable ranges from descriptive terms (e.g., "mid-market" = $10M-$100M revenue)
+- Buyer profiles with descriptions are VALUABLE even without exact size ranges
+- Geographic mentions (states, regions) are useful even without priorities
+- Service/industry focus is extractable from narrative descriptions
 
-Be specific and quantitative. Extract actual numbers, not vague terms like "small" or "large".`;
+CONFIDENCE SCORING GUIDELINES:
+- 90-100: Multiple explicit numerical ranges with supporting context and clear buyer profiles
+- 70-89: At least one numerical range OR strong descriptive patterns with specific buyer types
+- 50-69: Qualitative descriptions that imply criteria (e.g., "mid-market", "regional focus", "PE-backed platforms")
+- 30-49: General industry patterns or single buyer mentions without much detail
+- Below 30: Minimal or conflicting buyer information
+
+CRITICAL: Score based on USEFUL information extracted, not just explicit numbers.
+A well-described buyer profile with qualitative criteria is MORE VALUABLE than no information.
+If you extract buyer types, service preferences, or geographic focus, score at least 50%.
+
+INFERENCE RULES:
+- "Small companies" = revenue $1M-$10M (score 40%)
+- "Mid-market" = revenue $10M-$100M (score 50%)
+- "Lower middle market" = revenue $10M-$50M (score 50%)
+- "Upper middle market" = revenue $50M-$250M (score 50%)
+- "Regional focus" = extract mentioned states/regions (score 60%)
+- "National platform" = coverage: national (score 60%)
+- "PE firms" or "Private equity" = buyer_type: pe_firm (score 70%)
+- "Strategic buyers" = buyer_type: strategic (score 70%)
+
+Be specific and quantitative WHERE AVAILABLE, but extract qualitative information as well.`;
 
   const userPrompt = `Extract comprehensive buyer fit criteria from this ${industryName} M&A guide:
 
 ${guideContent}
 
-Extract:
-1. SIZE CRITERIA: Revenue ranges, EBITDA ranges, location counts, employee counts
-2. SERVICE CRITERIA: Specific services buyers target and avoid
-3. GEOGRAPHY CRITERIA: Regions/states buyers prefer and avoid
-4. BUYER TYPE PROFILES: Different buyer categories with detailed profiles
+Extract ALL available information across these categories:
 
-Provide specific numbers and ranges where available. Include confidence scores (0-100) for each section.`;
+1. SIZE CRITERIA:
+   - Revenue ranges (explicit numbers OR inferred from terms like "mid-market")
+   - EBITDA ranges where mentioned
+   - Location/branch counts
+   - Employee counts
+   - Any size-related qualifiers
+
+2. SERVICE CRITERIA:
+   - Specific services/industries buyers target
+   - Services to avoid or exclude
+   - Service mix preferences
+   - Business model preferences (B2B, B2C, recurring revenue, etc.)
+
+3. GEOGRAPHY CRITERIA:
+   - Regions mentioned (Northeast, Southeast, West Coast, etc.)
+   - Specific states or cities
+   - Coverage preferences (local, regional, national)
+   - Geographic exclusions
+
+4. BUYER TYPE PROFILES:
+   - Types: PE firms, platforms, strategic buyers, family offices
+   - For each type: description, typical size focus, motivations
+   - Deal structure preferences
+   - Growth strategies
+
+IMPORTANT:
+- Include confidence scores (0-100) for each section
+- Extract qualitative descriptions even without numbers
+- Infer ranges from contextual clues
+- A partially complete extraction is better than nothing`;
 
   const tools = [{
     name: "extract_buyer_criteria",
@@ -123,9 +191,9 @@ Provide specific numbers and ranges where available. Include confidence scores (
             location_count_max: { type: "number", description: "Maximum number of locations" },
             employee_count_min: { type: "number", description: "Minimum employees" },
             employee_count_max: { type: "number", description: "Maximum employees" },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
+            confidence_score: { type: "number", description: "Confidence score 0-100", default: 0 }
           },
-          required: ["confidence_score"]
+          required: []
         },
         service_criteria: {
           type: "object",
@@ -152,9 +220,9 @@ Provide specific numbers and ranges where available. Include confidence scores (
                 required: ["service", "priority", "reasoning"]
               }
             },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
+            confidence_score: { type: "number", description: "Confidence score 0-100", default: 0 }
           },
-          required: ["target_services", "confidence_score"]
+          required: []
         },
         geography_criteria: {
           type: "object",
@@ -186,9 +254,9 @@ Provide specific numbers and ranges where available. Include confidence scores (
                 required: ["location", "priority", "reasoning"]
               }
             },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
+            confidence_score: { type: "number", description: "Confidence score 0-100", default: 0 }
           },
-          required: ["confidence_score"]
+          required: []
         },
         buyer_types_criteria: {
           type: "object",
@@ -249,9 +317,9 @@ Provide specific numbers and ranges where available. Include confidence scores (
                 required: ["buyer_type", "profile_name", "description", "priority_rank"]
               }
             },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
+            confidence_score: { type: "number", description: "Confidence score 0-100", default: 0 }
           },
-          required: ["buyer_types", "confidence_score"]
+          required: []
         },
         overall_confidence: {
           type: "number",
@@ -339,7 +407,89 @@ Provide specific numbers and ranges where available. Include confidence scores (
     throw new Error('No tool use found in Claude response');
   }
 
-  return toolUse.input as BuyerCriteria;
+  const criteria = toolUse.input as BuyerCriteria;
+
+  // Log extracted confidence scores for debugging
+  console.log('[CONFIDENCE_SCORES]', {
+    overall: criteria.overall_confidence,
+    size: criteria.size_criteria?.confidence_score,
+    service: criteria.service_criteria?.confidence_score,
+    geography: criteria.geography_criteria?.confidence_score,
+    buyer_types: criteria.buyer_types_criteria?.confidence_score,
+  });
+
+  // Log what was actually extracted
+  console.log('[EXTRACTED_DATA]', {
+    has_size_criteria: !!(criteria.size_criteria?.revenue_min || criteria.size_criteria?.revenue_max),
+    has_services: !!(criteria.service_criteria?.target_services?.length),
+    has_geography: !!(criteria.geography_criteria?.target_states?.length || criteria.geography_criteria?.target_regions?.length),
+    has_buyer_types: !!(criteria.buyer_types_criteria?.buyer_types?.length),
+  });
+
+  // If extraction returned very low confidence, try retry with simplified approach
+  if (criteria.overall_confidence < 30) {
+    console.log(`[RETRY] Very low confidence (${criteria.overall_confidence}%), retrying with simplified extraction`);
+
+    try {
+      const simplifiedSystemPrompt = `You are extracting buyer criteria from an M&A guide. BE GENEROUS with scoring - any useful information is valuable.
+
+Extract ANYTHING you find about:
+1. What types of companies buyers look for (size, services, location)
+2. Who the buyers are (PE firms, strategics, platforms)
+3. What makes a company attractive
+
+Even vague information like "mid-market companies" or "Southeast focus" is worth extracting with 50-60% confidence.`;
+
+      const simplifiedUserPrompt = `From this ${industryName} guide, extract ANY buyer preferences, criteria, or patterns:
+
+${guideContent.substring(0, 8000)}
+
+What can you tell me about what buyers are looking for in this industry?`;
+
+      const retryResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY!,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: DEFAULT_CLAUDE_MODEL,
+          max_tokens: 4096,
+          system: simplifiedSystemPrompt,
+          messages: [{ role: 'user', content: simplifiedUserPrompt }],
+          tools: tools,
+          tool_choice: { type: 'tool', name: 'extract_buyer_criteria' }
+        }),
+        signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
+      });
+
+      if (retryResponse.ok) {
+        const retryResult = await retryResponse.json();
+        const retryToolUse = retryResult.content.find((c: any) => c.type === 'tool_use');
+
+        if (retryToolUse) {
+          const retriedCriteria = retryToolUse.input as BuyerCriteria;
+
+          console.log('[RETRY_RESULT]', {
+            original_confidence: criteria.overall_confidence,
+            retry_confidence: retriedCriteria.overall_confidence,
+          });
+
+          // Use retry result if it has better confidence
+          if (retriedCriteria.overall_confidence > criteria.overall_confidence) {
+            console.log(`[RETRY_SUCCESS] Improved confidence from ${criteria.overall_confidence}% to ${retriedCriteria.overall_confidence}%`);
+            return retriedCriteria;
+          }
+        }
+      }
+    } catch (retryError) {
+      console.error('[RETRY_ERROR] Retry failed, using original result:', retryError);
+      // Fall through to use original result
+    }
+  }
+
+  return criteria;
 }
 
 serve(async (req) => {

@@ -147,9 +147,29 @@ export const CriteriaExtractionPanel = ({
         setCurrentExtractionId(null);
 
         const confidenceScore = data.confidence_scores?.overall || 0;
-        toast.success('Criteria extracted successfully!', {
-          description: `Overall confidence: ${confidenceScore}%`
-        });
+
+        // Provide context-aware feedback based on confidence score
+        if (confidenceScore >= 70) {
+          toast.success('Criteria extracted successfully!', {
+            description: `High confidence extraction (${confidenceScore}%). Criteria ready to use.`
+          });
+        } else if (confidenceScore >= 50) {
+          toast.success('Criteria extracted with moderate confidence', {
+            description: `${confidenceScore}% confidence. Review and refine the criteria as needed.`
+          });
+        } else if (confidenceScore >= 30) {
+          toast.warning('Partial criteria extracted', {
+            description: `${confidenceScore}% confidence. Guide may need more specific buyer information. Check and manually enhance criteria.`
+          });
+        } else if (confidenceScore > 0) {
+          toast.warning('Low confidence extraction', {
+            description: `Only ${confidenceScore}% confidence. Limited buyer criteria found in guide. Consider regenerating guide with more buyer focus.`
+          });
+        } else {
+          toast.error('No criteria could be extracted', {
+            description: 'Guide may not contain buyer criteria. Try enriching the guide with specific buyer requirements, deal sizes, and target profiles.'
+          });
+        }
 
         loadExtractionSources();
         onExtractionComplete?.();
