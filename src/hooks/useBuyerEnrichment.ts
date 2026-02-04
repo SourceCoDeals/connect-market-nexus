@@ -66,11 +66,28 @@ export function useBuyerEnrichment(universeId?: string) {
     const anyErr = err as any;
     const status = anyErr?.context?.status as number | undefined;
     const json = anyErr?.context?.json as any | undefined;
+
+    // Build a helpful error message based on status code
+    let message = json?.error || anyErr?.message || 'Request failed';
+
+    // Add context for common HTTP status codes
+    if (status === 401) {
+      const detail = json?.error || 'Unauthorized';
+      message = `Authentication failed: ${detail}. The enrich-buyer function requires authentication. Make sure you're logged in and the function is properly deployed.`;
+    } else if (status === 403) {
+      message = `Permission denied: ${json?.error || 'Forbidden'}. You may not have access to this feature.`;
+    } else if (status === 429) {
+      message = `Rate limit exceeded. Too many requests. Try again later.`;
+    } else if (status === 402) {
+      message = `API credits depleted. Please add credits to your Anthropic account.`;
+    } else if (status === 500) {
+      message = `Server error: ${json?.error || 'Internal server error'}. Check the edge function logs.`;
+    } else if (status && !json?.error) {
+      message = `Request failed (HTTP ${status})`;
+    }
+
     return {
-      message:
-        json?.error ||
-        anyErr?.message ||
-        (status ? `Request failed (HTTP ${status})` : 'Request failed'),
+      message,
       status,
       code: json?.code,
       resetTime: json?.resetTime,
