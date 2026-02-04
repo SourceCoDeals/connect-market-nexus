@@ -10,7 +10,8 @@ import {
   SizeCriteria, 
   GeographyCriteria, 
   ServiceCriteria,
-  TargetBuyerTypeConfig 
+  TargetBuyerTypeConfig,
+  DocumentReference 
 } from "@/types/remarketing";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ interface BuyerFitCriteriaAccordionProps {
   universeId?: string;
   universeName?: string;
   maGuideContent?: string;
+  maGuideDocument?: DocumentReference;
   onCriteriaExtracted?: () => void;
 }
 
@@ -43,6 +45,7 @@ export const BuyerFitCriteriaAccordion = ({
   universeId,
   universeName,
   maGuideContent,
+  maGuideDocument,
   onCriteriaExtracted
 }: BuyerFitCriteriaAccordionProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -50,16 +53,11 @@ export const BuyerFitCriteriaAccordion = ({
 
   const enabledTypesCount = targetBuyerTypes.filter(t => t.enabled).length;
 
-  // Check if guide exists and has sufficient content
-  const hasGuide = maGuideContent && maGuideContent.length > 1000;
+  // Check if guide exists - either as content or as a document
+  const hasGuide = (maGuideContent && maGuideContent.length > 1000) || !!maGuideDocument;
 
   // Extract buyer fit criteria from the M&A guide
   const handleExtractCriteria = async () => {
-    if (!maGuideContent || maGuideContent.length < 1000) {
-      toast.error("M&A Guide must have at least 1,000 characters to extract criteria");
-      return;
-    }
-
     if (!universeId) {
       toast.error("Universe ID is required for criteria extraction");
       return;
@@ -68,10 +66,28 @@ export const BuyerFitCriteriaAccordion = ({
     setIsExtracting(true);
 
     try {
+      // If we have content directly, use it; otherwise fetch from document URL
+      let guideContent = maGuideContent;
+      
+      if ((!guideContent || guideContent.length < 1000) && maGuideDocument?.url) {
+        toast.info("Fetching guide content...");
+        const response = await fetch(maGuideDocument.url);
+        if (!response.ok) {
+          throw new Error("Failed to fetch guide document");
+        }
+        guideContent = await response.text();
+      }
+      
+      if (!guideContent || guideContent.length < 1000) {
+        toast.error("M&A Guide must have at least 1,000 characters to extract criteria");
+        setIsExtracting(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('extract-buyer-criteria', {
         body: {
           universe_id: universeId,
-          guide_content: maGuideContent,
+          guide_content: guideContent,
           source_name: `${universeName || 'Universe'} M&A Guide`,
           industry_name: universeName || 'Unknown Industry'
         }
