@@ -100,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const listing = deal.listing;
+    const listing = Array.isArray(deal.listing) ? deal.listing[0] : deal.listing;
 
     if (!listing) {
       console.error('Deal is not linked to a listing');

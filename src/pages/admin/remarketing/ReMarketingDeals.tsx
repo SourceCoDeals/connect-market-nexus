@@ -141,6 +141,7 @@ interface ColumnWidths {
   rank: number;
   dealName: number;
   industry: number;
+  description: number;
   location: number;
   revenue: number;
   ebitda: number;
@@ -159,6 +160,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   rank: 60,
   dealName: 200,
   industry: 120,
+  description: 180,
   location: 100,
   revenue: 90,
   ebitda: 90,
@@ -407,6 +409,24 @@ const SortableTableRow = ({
           <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
             {listing.category.length > 18 ? listing.category.substring(0, 18) + '...' : listing.category}
           </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      {/* Description */}
+      <TableCell style={{ width: columnWidths.description, minWidth: 120 }}>
+        {listing.description ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-sm text-muted-foreground leading-tight line-clamp-3 cursor-default" style={{ maxWidth: columnWidths.description - 16 }}>
+                {listing.description}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="text-xs">{listing.description}</p>
+            </TooltipContent>
+          </Tooltip>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -808,8 +828,8 @@ const ReMarketingDeals = () => {
   const kpiStats = useMemo(() => {
     const totalDeals = listings?.length || 0;
 
-    const hotDeals = listings?.filter(listing =>
-      listing.deal_total_score !== null && listing.deal_total_score >= 80
+    const priorityDeals = listings?.filter(listing =>
+      listing.is_priority_target === true
     ).length || 0;
 
     let totalScore = 0;
@@ -826,7 +846,7 @@ const ReMarketingDeals = () => {
       listing.deal_total_score === null
     ).length || 0;
 
-    return { totalDeals, hotDeals, avgScore, needsScoring };
+    return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [listings]);
 
   // Helper functions
@@ -950,9 +970,22 @@ const ReMarketingDeals = () => {
           aVal = a.ebitda || 0;
           bVal = b.ebitda || 0;
           break;
-        case "employees":
+        case "linkedinCount":
           aVal = a.linkedin_employee_count || 0;
           bVal = b.linkedin_employee_count || 0;
+          break;
+        case "linkedinRange":
+          const parseRangeA = (r: string | null) => {
+            if (!r) return 0;
+            const match = r.match(/^(\d+)/);
+            return match ? parseInt(match[1], 10) : 0;
+          };
+          aVal = parseRangeA(a.linkedin_employee_range);
+          bVal = parseRangeA(b.linkedin_employee_range);
+          break;
+        case "googleReviews":
+          aVal = a.google_review_count || 0;
+          bVal = b.google_review_count || 0;
           break;
         case "score":
           aVal = a.deal_total_score ?? 0;
@@ -1358,12 +1391,12 @@ const ReMarketingDeals = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Star className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Hot Deals (80+)</p>
-                <p className="text-2xl font-bold text-green-600">{kpiStats.hotDeals}</p>
+                <p className="text-sm text-muted-foreground">Priority Deals</p>
+                <p className="text-2xl font-bold text-amber-600">{kpiStats.priorityDeals}</p>
               </div>
             </div>
           </CardContent>
@@ -1536,6 +1569,9 @@ const ReMarketingDeals = () => {
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.industry} onResize={(w) => handleColumnResize('industry', w)} minWidth={60}>
                       <SortableHeader column="industry" label="Industry" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.description} onResize={(w) => handleColumnResize('description', w)} minWidth={100}>
+                      <span className="text-muted-foreground font-medium">Description</span>
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.location} onResize={(w) => handleColumnResize('location', w)} minWidth={60}>
                       <span className="text-muted-foreground font-medium">Location</span>

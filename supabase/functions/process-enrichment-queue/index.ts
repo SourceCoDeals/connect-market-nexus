@@ -41,14 +41,35 @@ serve(async (req) => {
 
     console.log('Processing enrichment queue (PARALLEL MODE)...');
 
+    // Recovery: reset any items that were left in `processing` due to timeouts/crashes.
+    // This prevents the UI from showing a stuck "processing" count forever.
+    const staleCutoffIso = new Date(Date.now() - 10 * 60 * 1000).toISOString(); // 10 min
+    const { error: staleResetError } = await supabase
+      .from('enrichment_queue')
+      .update({
+        status: 'pending',
+        started_at: null,
+        updated_at: new Date().toISOString(),
+        last_error: 'Recovered from stale processing state',
+      })
+      .eq('status', 'processing')
+      .lt('started_at', staleCutoffIso);
+
+    if (staleResetError) {
+      console.warn('Failed to reset stale processing items:', staleResetError);
+    }
+
     // Use RPC to atomically claim items (prevents race conditions)
     const { data: claimedItems, error: claimError } = await supabase.rpc(
       'claim_enrichment_queue_items',
       { batch_size: BATCH_SIZE, max_attempts: MAX_ATTEMPTS }
     );
 
+    // Define type for queue items
+    type QueueItem = { id: string; listing_id: string; status: string; attempts: number; queued_at: string };
+    
     // Fallback to regular query if RPC doesn't exist yet
-    let queueItems = claimedItems;
+    let queueItems: QueueItem[] = claimedItems as QueueItem[] || [];
     if (claimError?.code === 'PGRST202') {
       console.log('Using fallback queue fetch (RPC not available)');
 
@@ -162,30 +183,35 @@ serve(async (req) => {
       // Process entire chunk in parallel
       const chunkResults = await Promise.allSettled(
         chunk.map(async (item: { id: string; listing_id: string; attempts: number }) => {
-          console.log(`Processing queue item ${item.id} for listing ${item.listing_id}`);
+          try {
+            console.log(`Processing queue item ${item.id} for listing ${item.listing_id}`);
 
-          // Fetch listing context
-          const { data: listing, error: listingError } = await supabase
-            .from('listings')
-            .select('internal_company_name, title, address_city, address_state, address, linkedin_url')
-            .eq('id', item.listing_id)
-            .single();
+            // Fetch listing context
+            const { data: listing, error: listingError } = await supabase
+              .from('listings')
+              .select('internal_company_name, title, address_city, address_state, address, linkedin_url, website')
+              .eq('id', item.listing_id)
+              .single();
 
-          if (listingError || !listing) {
-            throw new Error(`Failed to fetch listing context: ${listingError?.message || 'not found'}`);
+            if (listingError || !listing) {
+              throw new Error(`Failed to fetch listing context: ${listingError?.message || 'not found'}`);
+            }
+
+            const pipeline = await runListingEnrichmentPipeline(
+              {
+                supabaseUrl,
+                serviceRoleKey: supabaseServiceKey,
+                listingId: item.listing_id,
+                timeoutMs: PROCESSING_TIMEOUT_MS,
+              },
+              listing
+            );
+
+            return { item, pipeline };
+          } catch (error) {
+            // Re-throw with item context so the allSettled rejected branch can still update the row.
+            throw { item, error };
           }
-
-          const pipeline = await runListingEnrichmentPipeline(
-            {
-              supabaseUrl,
-              serviceRoleKey: supabaseServiceKey,
-              listingId: item.listing_id,
-              timeoutMs: PROCESSING_TIMEOUT_MS,
-            },
-            listing
-          );
-
-          return { item, pipeline };
         })
       );
 
@@ -227,13 +253,43 @@ serve(async (req) => {
             results.failed++;
             results.errors.push(`${item.listing_id}: ${pipeline.error}`);
           }
-        } else {
-          // Promise rejected - network/timeout error
-          const errorMsg = result.reason instanceof Error ? result.reason.message : 'Unknown error';
-          console.error(`Processing error:`, result.reason);
-          results.failed++;
-          results.errors.push(`chunk item: ${errorMsg}`);
-        }
+         } else {
+           // Promise rejected - network/timeout/uncaught error.
+           // IMPORTANT: still update the queue row so it doesn't get stuck in `processing`.
+           const reason = result.reason as any;
+           const item = reason?.item as { id: string; listing_id: string; attempts: number } | undefined;
+           const underlying = reason?.error;
+
+           const errorMsg =
+             underlying instanceof Error
+               ? underlying.message
+               : typeof underlying === 'string'
+                 ? underlying
+                 : (result.reason instanceof Error ? result.reason.message : 'Unknown error');
+
+           console.error('Processing error:', result.reason);
+
+           if (item?.id) {
+             const currentAttempts = claimedItems ? item.attempts : item.attempts + 1;
+             const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+             await supabase
+               .from('enrichment_queue')
+               .update({
+                 status: newStatus,
+                 last_error: `worker_error: ${errorMsg}`,
+                 // Clear started_at so it can be re-claimed
+                 started_at: null,
+                 updated_at: new Date().toISOString(),
+               })
+               .eq('id', item.id);
+
+             results.errors.push(`${item.listing_id}: ${errorMsg}`);
+           } else {
+             results.errors.push(`chunk item: ${errorMsg}`);
+           }
+
+           results.failed++;
+         }
       }
     }
 

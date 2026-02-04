@@ -1,5 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { callClaudeWithTool, DEFAULT_CLAUDE_MODEL } from "../_shared/ai-providers.ts";
+import { 
+  ANTHROPIC_API_URL, 
+  getAnthropicHeaders, 
+  DEFAULT_CLAUDE_FAST_MODEL,
+  toAnthropicTool,
+  parseAnthropicToolResponse
+} from "../_shared/ai-providers.ts";
 import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
@@ -42,34 +48,53 @@ const NEVER_UPDATE_FROM_WEBSITE = [
 ];
 
 const PLACEHOLDER_STRINGS = new Set([
-  'not specified', 'n/a', 'na', 'unknown', 'none', 'tbd', 'not available', ''
+  'not specified', 'n/a', 'na', 'unknown', 'none', 'tbd', 'not available', '',
+  '<unknown>', '<UNKNOWN>', 'undefined', 'null'
 ]);
 
+// State name to code mapping for normalization
+const STATE_NAME_TO_CODE: Record<string, string> = {
+  'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+  'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+  'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+  'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+  'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+  'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
+  'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
+  'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY'
+};
+
+const VALID_STATE_CODES = new Set(Object.values(STATE_NAME_TO_CODE));
+
+function normalizeStateCode(value: string): string {
+  const trimmed = value.trim();
+  // Already a valid 2-letter code
+  if (trimmed.length === 2 && VALID_STATE_CODES.has(trimmed.toUpperCase())) {
+    return trimmed.toUpperCase();
+  }
+  // Try to map from full name
+  const code = STATE_NAME_TO_CODE[trimmed.toLowerCase()];
+  return code || trimmed; // Return original if not found
+}
+
 // Valid columns in remarketing_buyers table - prevents schema mismatch errors
-// When AI extracts a field that doesn't exist in DB, the entire update fails
 const VALID_BUYER_COLUMNS = new Set([
-  // Core business fields
   'company_name', 'company_website', 'platform_website', 'pe_firm_name', 'pe_firm_website',
   'business_summary', 'thesis_summary', 'thesis_confidence', 'buyer_type',
-  // Location fields
   'hq_city', 'hq_state', 'hq_country', 'hq_region',
   'geographic_footprint', 'service_regions', 'operating_locations',
-  // Customer/Market fields
   'primary_customer_size', 'customer_geographic_reach', 'customer_industries', 'target_customer_profile',
-  // Investment criteria
   'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
   'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
   'target_services', 'target_industries', 'target_geographies',
-  // Deal preferences
   'deal_preferences', 'deal_breakers', 'acquisition_timeline', 'acquisition_appetite', 'acquisition_frequency',
   'owner_roll_requirement', 'owner_transition_goals',
-  // Acquisition history
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions', 'num_platforms',
-  // Metadata
   'strategic_priorities', 'specialized_focus', 'industry_vertical',
   'data_completeness', 'data_last_updated', 'extraction_sources',
   'key_quotes', 'notes', 'has_fee_agreement',
-  // New enrichment columns (added to schema)
   'services_offered', 'business_type', 'revenue_model',
 ]);
 
@@ -112,7 +137,6 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
     // SECURITY: Check rate limit before making expensive AI calls
-    // Default to 'system' identifier if no auth header (service-to-service call)
     const authHeader = req.headers.get('Authorization');
     let userId = 'system';
     if (authHeader) {
@@ -127,7 +151,7 @@ Deno.serve(async (req) => {
       return rateLimitResponse(rateLimitResult);
     }
 
-    // Fetch buyer with version for optimistic locking
+    // Fetch buyer
     const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select('*')
@@ -142,10 +166,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Capture version for optimistic locking (use updated_at or data_last_updated)
-    const lockVersion = buyer.data_last_updated || buyer.created_at;
-
-    // Get primary website - prefer platform_website, fall back to company_website
     const platformWebsite = buyer.platform_website || buyer.company_website;
     const peFirmWebsite = buyer.pe_firm_website;
 
@@ -176,7 +196,6 @@ Deno.serve(async (req) => {
     console.log(`Platform website: ${platformWebsite || 'none'}`);
     console.log(`PE Firm website: ${peFirmWebsite || 'none'}`);
 
-    // Check for transcript data protection
     const existingSources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
     const hasTranscriptSource = existingSources.some(
       (src: any) => src.type === 'transcript' || src.type === 'buyer_transcript'
@@ -187,31 +206,39 @@ Deno.serve(async (req) => {
     let platformContent: string | null = null;
     let peFirmContent: string | null = null;
 
-    // Step 1: Scrape Platform Website
+    // Step 1: Scrape websites in PARALLEL for speed
+    const scrapePromises: Promise<{ type: string; result: { success: boolean; content?: string; error?: string } }>[] = [];
+    
     if (platformWebsite) {
-      const platformResult = await scrapeWebsite(platformWebsite, firecrawlApiKey);
-      if (platformResult.success) {
-        platformContent = platformResult.content ?? null;
-        if (platformContent) {
-          console.log(`Scraped platform website: ${platformContent.length} chars`);
-        }
-      } else {
-        warnings.push(`Platform website could not be scraped: ${platformResult.error}`);
-        console.warn(`Platform scrape failed: ${platformResult.error}`);
-      }
+      scrapePromises.push(
+        scrapeWebsite(platformWebsite, firecrawlApiKey).then(result => ({ type: 'platform', result }))
+      );
+    }
+    if (peFirmWebsite && peFirmWebsite !== platformWebsite) {
+      scrapePromises.push(
+        scrapeWebsite(peFirmWebsite, firecrawlApiKey).then(result => ({ type: 'peFirm', result }))
+      );
     }
 
-    // Step 2: Scrape PE Firm Website (if different from platform)
-    if (peFirmWebsite && peFirmWebsite !== platformWebsite) {
-      const peFirmResult = await scrapeWebsite(peFirmWebsite, firecrawlApiKey);
-      if (peFirmResult.success) {
-        peFirmContent = peFirmResult.content ?? null;
-        if (peFirmContent) {
-          console.log(`Scraped PE firm website: ${peFirmContent.length} chars`);
+    const scrapeResults = await Promise.all(scrapePromises);
+    
+    for (const { type, result } of scrapeResults) {
+      if (type === 'platform') {
+        if (result.success) {
+          platformContent = result.content ?? null;
+          if (platformContent) console.log(`Scraped platform website: ${platformContent.length} chars`);
+        } else {
+          warnings.push(`Platform website could not be scraped: ${result.error}`);
+          console.warn(`Platform scrape failed: ${result.error}`);
         }
-      } else {
-        warnings.push(`PE firm website could not be scraped: ${peFirmResult.error}`);
-        console.warn(`PE firm scrape failed: ${peFirmResult.error}`);
+      } else if (type === 'peFirm') {
+        if (result.success) {
+          peFirmContent = result.content ?? null;
+          if (peFirmContent) console.log(`Scraped PE firm website: ${peFirmContent.length} chars`);
+        } else {
+          warnings.push(`PE firm website could not be scraped: ${result.error}`);
+          console.warn(`PE firm scrape failed: ${result.error}`);
+        }
       }
     }
 
@@ -226,186 +253,72 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 3: Run 6-prompt extraction strategy with fail-fast on billing errors
+    // Step 2: Run ONLY 2 consolidated AI prompts (vs 6 previously)
+    // This reduces rate limit risk and improves speed
     const extractedData: Record<string, any> = {};
     const evidenceRecords: Array<{ type: string; url: string; extracted_at: string; fields_extracted: string[] }> = [];
     let billingError: { code: string; message: string } | null = null;
     let promptsRun = 0;
     let promptsSuccessful = 0;
 
-    // Delay between prompts to avoid rate limiting (Claude has 50 RPM limit, so 1.2s between batches)
-    const INTER_PROMPT_DELAY_MS = 300; // Reduced from 600ms since Claude has higher rate limit
-    const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-    
-    // Helper to check for billing errors and stop if found
-    const checkBillingError = (result: { data: any; error?: { code: string; message: string } }) => {
-      if (result.error && (result.error.code === 'payment_required' || result.error.code === 'rate_limited')) {
-        billingError = result.error;
-        return true;
-      }
-      return false;
-    };
-
-    // Prompts 1-3b: Platform website extractions
+    // Prompt 1: Platform Company Intelligence (combines Business + Customers + Geography + Acquisitions)
     if (platformContent && !billingError) {
-      console.log('Extracting from platform website...');
-      
-      // Prompt 1: Business Overview
+      console.log('Extracting platform company intelligence...');
       promptsRun++;
-      const overviewResult = await callAIWithRetry(
-        getBusinessOverviewPrompt().system,
-        getBusinessOverviewPrompt().user(platformContent, buyer.company_name),
-        getBusinessOverviewPrompt().tool,
+      
+      const platformResult = await callClaudeAI(
+        getPlatformIntelligencePrompt().system,
+        getPlatformIntelligencePrompt().user(platformContent, buyer.company_name),
+        getPlatformIntelligencePrompt().tool,
         anthropicApiKey
       );
-      if (checkBillingError(overviewResult)) {
-        console.error('Billing error during business overview extraction');
-      } else if (overviewResult.data) {
-        Object.assign(extractedData, overviewResult.data);
+      
+      if (platformResult.error) {
+        if (platformResult.error.code === 'payment_required' || platformResult.error.code === 'rate_limited') {
+          billingError = platformResult.error;
+          console.error(`Billing/rate error during platform extraction: ${platformResult.error.code}`);
+        }
+      } else if (platformResult.data) {
+        Object.assign(extractedData, platformResult.data);
         promptsSuccessful++;
-        console.log('Extracted business overview:', Object.keys(overviewResult.data));
-      }
-
-      // Prompt 2: Customers/End Market (with delay)
-      if (!billingError) {
-        await delay(INTER_PROMPT_DELAY_MS);
-        promptsRun++;
-        const customersResult = await callAIWithRetry(
-          getCustomersEndMarketPrompt().system,
-          getCustomersEndMarketPrompt().user(platformContent),
-          getCustomersEndMarketPrompt().tool,
-          anthropicApiKey
-        );
-        if (checkBillingError(customersResult)) {
-          console.error('Billing error during customers extraction');
-        } else if (customersResult.data) {
-          Object.assign(extractedData, customersResult.data);
-          promptsSuccessful++;
-          console.log('Extracted customers:', Object.keys(customersResult.data));
-        }
-      }
-
-      // Prompt 3: Geography/Footprint (with delay)
-      if (!billingError) {
-        await delay(INTER_PROMPT_DELAY_MS);
-        promptsRun++;
-        const geographyResult = await callAIWithRetry(
-          getGeographyFootprintPrompt().system,
-          getGeographyFootprintPrompt().user(platformContent),
-          getGeographyFootprintPrompt().tool,
-          anthropicApiKey
-        );
-        if (checkBillingError(geographyResult)) {
-          console.error('Billing error during geography extraction');
-        } else if (geographyResult.data) {
-          Object.assign(extractedData, geographyResult.data);
-          promptsSuccessful++;
-          console.log('Extracted geography:', Object.keys(geographyResult.data));
-        }
-      }
-
-      // Prompt 3b: Platform Acquisitions (with delay)
-      if (!billingError) {
-        await delay(INTER_PROMPT_DELAY_MS);
-        promptsRun++;
-        const acquisitionsResult = await callAIWithRetry(
-          getPlatformAcquisitionsPrompt().system,
-          getPlatformAcquisitionsPrompt().user(platformContent),
-          getPlatformAcquisitionsPrompt().tool,
-          anthropicApiKey
-        );
-        if (checkBillingError(acquisitionsResult)) {
-          console.error('Billing error during acquisitions extraction');
-        } else if (acquisitionsResult.data) {
-          Object.assign(extractedData, acquisitionsResult.data);
-          promptsSuccessful++;
-          console.log('Extracted acquisitions:', Object.keys(acquisitionsResult.data));
-        }
-      }
-
-      // Only add evidence if we extracted at least one field from platform
-      const platformExtractedFields = Object.keys(extractedData);
-      if (platformExtractedFields.length > 0) {
+        console.log('Extracted platform intelligence:', Object.keys(platformResult.data));
+        
         evidenceRecords.push({
           type: 'website',
           url: platformWebsite!,
           extracted_at: new Date().toISOString(),
-          fields_extracted: platformExtractedFields
+          fields_extracted: Object.keys(platformResult.data)
         });
       }
     }
 
-    // Prompts 4-6: PE Firm website extractions
-    const preExtractionFieldCount = Object.keys(extractedData).length;
+    // Prompt 2: PE Firm Intelligence (combines Thesis + Deal Structure + Portfolio)
     if (peFirmContent && !billingError) {
-      console.log('Extracting from PE firm website...');
-      const peFirmFields: string[] = [];
-
-      // Prompt 4: PE Investment Thesis (with delay from platform prompts)
-      await delay(INTER_PROMPT_DELAY_MS);
+      console.log('Extracting PE firm intelligence...');
       promptsRun++;
-      const thesisResult = await callAIWithRetry(
-        getPEInvestmentThesisPrompt().system,
-        getPEInvestmentThesisPrompt().user(peFirmContent),
-        getPEInvestmentThesisPrompt().tool,
+      
+      const peFirmResult = await callClaudeAI(
+        getPEFirmIntelligencePrompt().system,
+        getPEFirmIntelligencePrompt().user(peFirmContent),
+        getPEFirmIntelligencePrompt().tool,
         anthropicApiKey
       );
-      if (checkBillingError(thesisResult)) {
-        console.error('Billing error during PE thesis extraction');
-      } else if (thesisResult.data) {
-        Object.assign(extractedData, thesisResult.data);
-        peFirmFields.push(...Object.keys(thesisResult.data));
+      
+      if (peFirmResult.error) {
+        if (peFirmResult.error.code === 'payment_required' || peFirmResult.error.code === 'rate_limited') {
+          billingError = peFirmResult.error;
+          console.error(`Billing/rate error during PE firm extraction: ${peFirmResult.error.code}`);
+        }
+      } else if (peFirmResult.data) {
+        Object.assign(extractedData, peFirmResult.data);
         promptsSuccessful++;
-        console.log('Extracted PE thesis:', Object.keys(thesisResult.data));
-      }
-
-      // Prompt 5: PE Deal Structure (with delay)
-      if (!billingError) {
-        await delay(INTER_PROMPT_DELAY_MS);
-        promptsRun++;
-        const dealStructureResult = await callAIWithRetry(
-          getPEDealStructurePrompt().system,
-          getPEDealStructurePrompt().user(peFirmContent),
-          getPEDealStructurePrompt().tool,
-          anthropicApiKey
-        );
-        if (checkBillingError(dealStructureResult)) {
-          console.error('Billing error during deal structure extraction');
-        } else if (dealStructureResult.data) {
-          Object.assign(extractedData, dealStructureResult.data);
-          peFirmFields.push(...Object.keys(dealStructureResult.data));
-          promptsSuccessful++;
-          console.log('Extracted deal structure:', Object.keys(dealStructureResult.data));
-        }
-      }
-
-      // Prompt 6: PE Portfolio (with delay)
-      if (!billingError) {
-        await delay(INTER_PROMPT_DELAY_MS);
-        promptsRun++;
-        const portfolioResult = await callAIWithRetry(
-          getPEPortfolioPrompt().system,
-          getPEPortfolioPrompt().user(peFirmContent),
-          getPEPortfolioPrompt().tool,
-          anthropicApiKey
-        );
-        if (checkBillingError(portfolioResult)) {
-          console.error('Billing error during portfolio extraction');
-        } else if (portfolioResult.data) {
-          Object.assign(extractedData, portfolioResult.data);
-          peFirmFields.push(...Object.keys(portfolioResult.data));
-          promptsSuccessful++;
-          console.log('Extracted portfolio:', Object.keys(portfolioResult.data));
-        }
-      }
-
-      // Only add PE firm evidence if we extracted at least one field from PE firm
-      if (peFirmFields.length > 0) {
+        console.log('Extracted PE firm intelligence:', Object.keys(peFirmResult.data));
+        
         evidenceRecords.push({
           type: 'website',
           url: peFirmWebsite!,
           extracted_at: new Date().toISOString(),
-          fields_extracted: peFirmFields
+          fields_extracted: Object.keys(peFirmResult.data)
         });
       }
     }
@@ -414,56 +327,35 @@ Deno.serve(async (req) => {
 
     // If billing error occurred, return partial data with error code
     if (billingError) {
-      // Still save any partial data we extracted (with optimistic lock)
       if (Object.keys(extractedData).length > 0) {
         const partialUpdateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
-        const { data: partialResult, count } = await supabase
+        await supabase
           .from('remarketing_buyers')
           .update(partialUpdateData)
-          .eq('id', buyerId)
-          .or(`data_last_updated.eq.${lockVersion},data_last_updated.is.null`)
-          .select('id');
-
-        if (!partialResult || partialResult.length === 0) {
-          console.warn('Optimistic lock conflict during partial save - record was modified by another process');
-        }
+          .eq('id', buyerId);
       }
 
-      const errCode = (billingError as { code: string; message: string }).code || 'unknown';
-      const errMessage = (billingError as { code: string; message: string }).message || 'Billing error';
-      const statusCode = errCode === 'payment_required' ? 402 : 429;
+      const statusCode = billingError.code === 'payment_required' ? 402 : 429;
       return new Response(
         JSON.stringify({
           success: false,
-          error: errMessage,
-          error_code: errCode,
+          error: billingError.message,
+          error_code: billingError.code,
           partial_data: extractedData,
           fields_extracted: Object.keys(extractedData).length,
-          recoverable: errCode === 'rate_limited'
+          recoverable: billingError.code === 'rate_limited'
         }),
         { status: statusCode, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Step 4: Apply intelligent merge logic
+    // Step 3: Apply intelligent merge logic and save
     const updateData = buildUpdateObject(buyer, extractedData, hasTranscriptSource, existingSources, evidenceRecords);
 
-    // Update buyer record with optimistic locking
-    // The lock prevents concurrent enrichment processes from overwriting each other
-    let updateQuery = supabase
+    const { error: updateError } = await supabase
       .from('remarketing_buyers')
       .update(updateData)
       .eq('id', buyerId);
-
-    // Apply optimistic lock: only update if version hasn't changed
-    if (lockVersion) {
-      updateQuery = updateQuery.eq('data_last_updated', lockVersion);
-    } else {
-      // If no previous update, ensure it's still null (first enrichment)
-      updateQuery = updateQuery.is('data_last_updated', null);
-    }
-
-    const { data: updateResult, error: updateError } = await updateQuery.select('id');
 
     if (updateError) {
       console.error('Failed to update buyer:', updateError);
@@ -479,20 +371,6 @@ Deno.serve(async (req) => {
           }
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check for optimistic lock conflict
-    if (!updateResult || updateResult.length === 0) {
-      console.warn(`Optimistic lock conflict for buyer ${buyerId} - record was modified by another process`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Record was modified by another process. Please refresh and try again.',
-          error_code: 'concurrent_modification',
-          recoverable: true
-        }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -538,7 +416,6 @@ Deno.serve(async (req) => {
 
 // ============= Helper Functions =============
 
-// Minimum content length required before proceeding with AI extraction
 const MIN_CONTENT_LENGTH = 200;
 const SCRAPE_TIMEOUT_MS = 15000; // 15 seconds (reduced from 30s to fit in 60s edge function limit)
 const AI_TIMEOUT_MS = 20000; // 20 seconds (reduced from 45s to fit in 60s edge function limit)
@@ -572,14 +449,12 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
     const data = await response.json();
     const content = data.data?.markdown || data.markdown || '';
     
-    // Validate minimum content length to avoid wasted AI calls
     if (!content || content.length < MIN_CONTENT_LENGTH) {
       return { success: false, error: `Insufficient content (${content.length} chars, need ${MIN_CONTENT_LENGTH}+)` };
     }
 
     return { success: true, content };
   } catch (error) {
-    // Handle timeout specifically
     if (error instanceof Error && error.name === 'TimeoutError') {
       return { success: false, error: `Scrape timed out after ${SCRAPE_TIMEOUT_MS / 1000}s` };
     }
@@ -587,192 +462,132 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
   }
 }
 
-// Enhanced AI call with comprehensive logging (using Claude Haiku)
-async function callAI(
-  systemPrompt: string,
-  userPrompt: string,
-  tool: any,
-  apiKey: string
-): Promise<{ data: any | null; error?: { code: string; message: string } }> {
-  console.log(`Calling Claude with tool: ${tool.function.name}`);
-
-  // Use the shared Claude API call function with timeout
-  return await callClaudeWithTool(
-    systemPrompt,
-    userPrompt,
-    tool,
-    apiKey,
-    DEFAULT_CLAUDE_MODEL,
-    AI_TIMEOUT_MS
-  );
-}
-
-// Retry wrapper with exponential backoff
-async function callAIWithRetry(
+// Claude AI call with proper Anthropic API format
+async function callClaudeAI(
   systemPrompt: string, 
   userPrompt: string, 
   tool: any, 
-  apiKey: string,
-  maxRetries = 3
+  apiKey: string
 ): Promise<{ data: any | null; error?: { code: string; message: string } }> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const result = await callAI(systemPrompt, userPrompt, tool, apiKey);
+  try {
+    console.log(`Calling Claude with tool: ${tool.function.name}`);
+    
+    // Convert OpenAI tool format to Anthropic format
+    const anthropicTool = toAnthropicTool(tool);
+    
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: getAnthropicHeaders(apiKey),
+      body: JSON.stringify({
+        model: DEFAULT_CLAUDE_FAST_MODEL,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [
+          { role: 'user', content: userPrompt }
+        ],
+        tools: [anthropicTool],
+        tool_choice: { type: 'tool', name: anthropicTool.name }
+      }),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+    });
 
-    // Success
-    if (result.data !== null) return result;
-
-    // Billing error: never retry
-    if (result.error?.code === 'payment_required') return result;
-
-    // Rate limit: backoff + retry
-    if (result.error?.code === 'rate_limited') {
-      if (attempt < maxRetries) {
-        // Claude rate limits: Use exponential backoff + jitter
-        const baseMs = 10_000 * Math.pow(2, attempt - 1); // 10s, 20s, 40s... (shorter than Gemini)
-        const jitterMs = Math.floor(Math.random() * 2_000);
-        const waitMs = baseMs + jitterMs;
-        console.log(`Rate limited for ${tool.function.name}. Waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries}...`);
-        await new Promise(r => setTimeout(r, waitMs));
-        continue;
-      }
-      return result;
+    // Handle billing/rate limit errors
+    if (response.status === 402) {
+      console.error('Claude credits depleted (402)');
+      return { 
+        data: null, 
+        error: { code: 'payment_required', message: 'AI credits depleted' } 
+      };
+    }
+    
+    if (response.status === 429) {
+      console.error('Claude rate limited (429)');
+      return { 
+        data: null, 
+        error: { code: 'rate_limited', message: 'Rate limit exceeded' } 
+      };
+    }
+    
+    if (response.status === 529) {
+      console.error('Claude overloaded (529)');
+      return { 
+        data: null, 
+        error: { code: 'service_overloaded', message: 'AI service temporarily overloaded' } 
+      };
     }
 
-    // Other transient failures (e.g., parse issues). Short backoff.
-    if (attempt < maxRetries) {
-      const waitMs = attempt * 1000;
-      console.log(`Attempt ${attempt} for ${tool.function.name} failed, retrying in ${waitMs}ms...`);
-      await new Promise(r => setTimeout(r, waitMs));
-      continue;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Claude call failed: ${response.status}`, errorText.substring(0, 500));
+      return { data: null };
     }
 
-    console.warn(`All ${maxRetries} attempts failed for ${tool.function.name}`);
+    const responseText = await response.text();
+    console.log(`Claude response status: ${response.status}, length: ${responseText.length}`);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Claude response JSON:', responseText.substring(0, 500));
+      return { data: null };
+    }
+
+    // Parse Anthropic tool_use response
+    const toolResult = parseAnthropicToolResponse(data);
+    
+    if (!toolResult) {
+      console.warn(`No tool_use in Claude response. Stop reason: ${data.stop_reason}`);
+      return { data: null };
+    }
+
+    console.log(`Successfully parsed Claude tool call for ${tool.function.name}: ${Object.keys(toolResult as object).length} fields`);
+    return { data: toolResult };
+    
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      console.error(`Claude call timed out after ${AI_TIMEOUT_MS / 1000}s`);
+      return { data: null, error: { code: 'timeout', message: 'AI request timed out' } };
+    }
+    console.error('Claude extraction error:', error);
     return { data: null };
   }
-
-  return { data: null };
 }
 
-// ============= Prompt Definitions =============
+// ============= Consolidated Prompt Definitions (2 prompts vs 6) =============
 
-function getBusinessOverviewPrompt() {
+function getPlatformIntelligencePrompt() {
   return {
     tool: {
       type: 'function',
       function: {
-        name: 'extract_business_overview',
-        description: 'Extract business overview from platform company website',
+        name: 'extract_platform_intelligence',
+        description: 'Extract comprehensive business intelligence from a platform company website',
         parameters: {
           type: 'object',
           properties: {
+            // Business Overview
             services_offered: { type: 'string', description: 'Primary services or products offered' },
-            business_summary: { type: 'string', description: 'Brief summary of what the company does' },
+            business_summary: { type: 'string', description: 'Brief summary of what the company does (2-3 sentences)' },
             business_type: { type: 'string', description: 'Type of business (e.g., Service Provider, Manufacturer)' },
             revenue_model: { type: 'string', description: 'How the company generates revenue' },
             industry_vertical: { type: 'string', description: 'Primary industry vertical' },
             specialized_focus: { type: 'string', description: 'Any specialized focus areas or niches' },
-            pe_firm_name: { type: 'string', description: 'Name of the parent PE firm if mentioned' }
-          }
-        }
-      }
-    },
-    system: `You are a business analyst extracting structured data from company websites.
-Extract business overview information from the provided website content.
-Focus on: core services, business model, industry classification, and specialized niches.
-Be concise and factual. If information is not available, omit that field.`,
-    user: (content: string, companyName: string) => 
-      `Website Content for "${companyName}":\n\n${content.substring(0, 12000)}\n\nExtract business overview.`
-  };
-}
-
-function getCustomersEndMarketPrompt() {
-  return {
-    tool: {
-      type: 'function',
-      function: {
-        name: 'extract_customers_end_market',
-        description: 'Extract customer and end market information',
-        parameters: {
-          type: 'object',
-          properties: {
+            pe_firm_name: { type: 'string', description: 'Name of the parent PE firm if mentioned on the site' },
+            
+            // Customer/End Market
             primary_customer_size: { type: 'string', description: 'Primary customer size segment (SMB, Mid-market, Enterprise)' },
-            customer_industries: { type: 'array', items: { type: 'string' }, description: 'Industries served by the company' },
+            customer_industries: { type: 'array', items: { type: 'string' }, description: 'Industries served' },
             customer_geographic_reach: { type: 'string', description: 'Geographic reach of customer base' },
-            target_customer_profile: { type: 'string', description: 'Description of ideal customer profile' }
-          }
-        }
-      }
-    },
-    system: `Extract customer and market information from the company website.
-Focus on: types and sizes of customers, industries served, geographic reach.
-Be specific. Use actual industry names, not generic terms.`,
-    user: (content: string) => 
-      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract customer information.`
-  };
-}
-
-function getGeographyFootprintPrompt() {
-  return {
-    tool: {
-      type: 'function',
-      function: {
-        name: 'extract_geography_footprint',
-        description: 'Extract CURRENT geographic locations where company has physical presence',
-        parameters: {
-          type: 'object',
-          properties: {
-            hq_city: { 
-              type: 'string', 
-              description: 'ACTUAL headquarters city name (e.g., "Atlanta", "Dallas", "Phoenix"). NEVER use regions like Southeast, Midwest, etc. Must be a real city name.' 
-            },
-            hq_state: { 
-              type: 'string', 
-              description: 'Headquarters state as 2-letter abbreviation (TX, CA, GA, etc.). NEVER use region names.' 
-            },
-            geographic_footprint: { 
-              type: 'array', 
-              items: { type: 'string' }, 
-              description: 'US 2-letter state codes ONLY where they have physical locations. MUST be valid 2-letter codes.'
-            },
-            service_regions: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'US states where company actively serves customers. Use 2-letter codes ONLY.'
-            }
-          }
-        }
-      }
-    },
-    system: `Extract geographic information about where the company CURRENTLY operates.
-
-CRITICAL RULES FOR HEADQUARTERS:
-1. hq_city MUST be an actual city name like "Atlanta", "Dallas", "Phoenix", "Nashville"
-2. hq_city must NEVER be a region like "Southeast", "Midwest", "Northeast", "Southwest", "Western"
-3. hq_state MUST be a 2-letter state code like "GA", "TX", "AZ", "TN"
-4. If exact city is not found, look for contact info, address footer, or "About Us" section
-5. If no specific city can be determined, omit hq_city entirely (do not guess a region)
-
-OTHER RULES:
-6. geographic_footprint: ONLY 2-letter state codes where they have physical offices/locations
-7. service_regions: ONLY states they serve FROM their physical locations
-8. DO NOT include aspirational or marketing language about "serving nationwide"
-9. Be conservative - regional companies are NOT national
-10. All state codes MUST be valid 2-letter abbreviations (TX, CA, NY, etc.)`,
-    user: (content: string) => 
-      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract CURRENT geographic presence. Remember: hq_city must be an ACTUAL city name (like Atlanta, Dallas, Phoenix) - NEVER a region name like Southeast or Midwest.`
-  };
-}
-
-function getPlatformAcquisitionsPrompt() {
-  return {
-    tool: {
-      type: 'function',
-      function: {
-        name: 'extract_platform_acquisitions',
-        description: 'Extract acquisition history for the platform company itself',
-        parameters: {
-          type: 'object',
-          properties: {
+            target_customer_profile: { type: 'string', description: 'Description of ideal customer profile' },
+            
+            // Geography/Footprint
+            hq_city: { type: 'string', description: 'Headquarters city name (actual city like Atlanta, not region)' },
+            hq_state: { type: 'string', description: 'Headquarters state as 2-letter code (e.g., GA, TX)' },
+            geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'US 2-letter state codes where they have physical presence' },
+            service_regions: { type: 'array', items: { type: 'string' }, description: 'US state codes where company serves customers' },
+            
+            // Acquisitions
             recent_acquisitions: {
               type: 'array',
               items: {
@@ -786,88 +601,59 @@ function getPlatformAcquisitionsPrompt() {
               description: 'List of companies acquired by this platform'
             },
             total_acquisitions: { type: 'number', description: 'Total number of acquisitions made' },
-            acquisition_frequency: { type: 'string', description: 'How often they acquire' }
+            acquisition_frequency: { type: 'string', description: 'How often they acquire (e.g., 1-2 per year)' }
           }
         }
       }
     },
-    system: `Extract acquisition history for THIS company (not their PE firm owner).
-Look for press releases, news, or lists of acquired brands. Be specific with dates and locations.`,
-    user: (content: string) => 
-      `Website Content:\n\n${content.substring(0, 12000)}\n\nExtract acquisition history.`
+    system: `You are a senior M&A analyst extracting structured business intelligence from company websites.
+
+Extract ALL available information about:
+1. BUSINESS OVERVIEW: What they do, services, business model, industry focus
+2. CUSTOMERS: Who they sell to, customer size, industries served
+3. GEOGRAPHY: Where they are located and operate (use 2-letter state codes ONLY)
+4. ACQUISITIONS: Any mentions of companies they've acquired
+
+CRITICAL RULES:
+- hq_city MUST be an actual city name (Atlanta, Dallas, Phoenix) - NEVER a region (Southeast, Midwest)
+- hq_state MUST be a 2-letter state code (GA, TX, AZ)
+- All geographic_footprint and service_regions entries MUST be 2-letter state codes
+- Be concise and factual. If information is not available, omit that field.
+- Do NOT make up information that isn't clearly stated on the website.`,
+    user: (content: string, companyName: string) => 
+      `Website Content for "${companyName}":\n\n${content.substring(0, 20000)}\n\nExtract all available business intelligence.`
   };
 }
 
-function getPEInvestmentThesisPrompt() {
+function getPEFirmIntelligencePrompt() {
   return {
     tool: {
       type: 'function',
       function: {
-        name: 'extract_pe_investment_thesis',
-        description: "Extract PE firm's investment thesis and strategy",
+        name: 'extract_pe_firm_intelligence',
+        description: 'Extract comprehensive investment intelligence from a PE firm website',
         parameters: {
           type: 'object',
           properties: {
-            pe_firm_name: { type: 'string', description: 'EXACT name of this PE firm (extract from site header, logo, about page, or footer - be precise)' },
-            thesis_summary: { type: 'string', description: 'Summary of investment thesis and focus' },
+            // Investment Thesis
+            thesis_summary: { type: 'string', description: 'Summary of investment thesis and focus (2-3 sentences)' },
             strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities' },
-            thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity' },
-            target_services: { type: 'array', items: { type: 'string' }, description: 'Services/products they seek in targets' },
+            thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity of thesis' },
+            target_services: { type: 'array', items: { type: 'string' }, description: 'Services/products they seek in acquisition targets' },
             target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries they invest in' },
-            acquisition_appetite: { type: 'string', description: 'How active they are in acquiring' }
-          }
-        }
-      }
-    },
-    system: `Extract the PE firm's name and investment thesis from their website.
-CRITICAL: Extract pe_firm_name from site header, logo, "About" page, or footer (e.g., "Acme Capital Partners", "Summit Equity").
-Look for: firm name, investment focus statements, target sectors, strategic priorities.
-Rate thesis_confidence: High (specific criteria), Medium (general focus), Low (vague info).`,
-    user: (content: string) => 
-      `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract investment thesis.`
-  };
-}
-
-function getPEDealStructurePrompt() {
-  return {
-    tool: {
-      type: 'function',
-      function: {
-        name: 'extract_pe_deal_structure',
-        description: 'Extract deal structure preferences and financial criteria',
-        parameters: {
-          type: 'object',
-          properties: {
-            target_revenue_min: { type: 'number', description: 'Minimum revenue in dollars' },
-            target_revenue_max: { type: 'number', description: 'Maximum revenue in dollars' },
-            revenue_sweet_spot: { type: 'number', description: 'Preferred revenue level in dollars' },
-            target_ebitda_min: { type: 'number', description: 'Minimum EBITDA in dollars' },
-            target_ebitda_max: { type: 'number', description: 'Maximum EBITDA in dollars' },
-            ebitda_sweet_spot: { type: 'number', description: 'Preferred EBITDA level in dollars' },
+            acquisition_appetite: { type: 'string', description: 'How active they are in acquiring (e.g., Very Active, Selective)' },
+            
+            // Deal Structure
+            target_revenue_min: { type: 'number', description: 'Minimum target revenue in dollars (e.g., 5000000 for $5M)' },
+            target_revenue_max: { type: 'number', description: 'Maximum target revenue in dollars' },
+            revenue_sweet_spot: { type: 'number', description: 'Preferred/ideal revenue level in dollars' },
+            target_ebitda_min: { type: 'number', description: 'Minimum target EBITDA in dollars' },
+            target_ebitda_max: { type: 'number', description: 'Maximum target EBITDA in dollars' },
+            ebitda_sweet_spot: { type: 'number', description: 'Preferred/ideal EBITDA level in dollars' },
             acquisition_timeline: { type: 'string', description: 'Typical timeline from LOI to close' },
-            deal_preferences: { type: 'string', description: 'Preferred deal structures or terms' }
-          }
-        }
-      }
-    },
-    system: `Extract deal structure preferences and financial criteria from PE firm website.
-Look for: revenue and EBITDA ranges, deal timelines, structure preferences.
-Convert financial figures to actual numbers (e.g., "$5M" -> 5000000).`,
-    user: (content: string) => 
-      `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract deal structure preferences.`
-  };
-}
-
-function getPEPortfolioPrompt() {
-  return {
-    tool: {
-      type: 'function',
-      function: {
-        name: 'extract_pe_portfolio',
-        description: 'Extract PE firm portfolio information',
-        parameters: {
-          type: 'object',
-          properties: {
+            deal_preferences: { type: 'string', description: 'Preferred deal structures or terms' },
+            
+            // Portfolio
             portfolio_companies: {
               type: 'array',
               items: {
@@ -878,21 +664,31 @@ function getPEPortfolioPrompt() {
                   locations: { type: 'array', items: { type: 'string' } }
                 }
               },
-              description: 'Portfolio companies'
+              description: 'Current portfolio companies'
             },
-            num_platforms: { type: 'number', description: 'Number of platform companies' }
+            num_platforms: { type: 'number', description: 'Number of platform companies in portfolio' }
           }
         }
       }
     },
-    system: `Extract portfolio information about the PE firm's current investments.
-Look for: lists of portfolio companies, number of platforms. Only include confirmed companies.`,
+    system: `You are a senior M&A analyst extracting investment intelligence from private equity firm websites.
+
+Extract ALL available information about:
+1. INVESTMENT THESIS: What sectors they focus on, strategic priorities, target criteria
+2. DEAL STRUCTURE: Revenue/EBITDA ranges, deal timelines, structure preferences
+3. PORTFOLIO: Current portfolio companies
+
+CRITICAL RULES:
+- Convert ALL financial figures to actual numbers: "$5M" = 5000000, "$10-20M" = min:10000000, max:20000000
+- Rate thesis_confidence: high (specific criteria stated), medium (general focus areas), low (vague/generic)
+- Be concise and factual. If information is not available, omit that field.
+- Do NOT make up information that isn't clearly stated on the website.`,
     user: (content: string) => 
-      `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract portfolio.`
+      `PE Firm Website Content:\n\n${content.substring(0, 20000)}\n\nExtract all available investment intelligence.`
   };
 }
 
-// Intelligent merge logic with FIXED data completeness calculation
+// Intelligent merge logic
 function buildUpdateObject(
   buyer: any,
   extractedData: Record<string, any>,
@@ -905,7 +701,6 @@ function buildUpdateObject(
     extraction_sources: [...existingSources, ...evidenceRecords]
   };
 
-  // FIX: Calculate data completeness based on EXTRACTED data, not existing buyer data
   const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state', 'pe_firm_name', 'business_summary'];
   const extractedFields = keyFields.filter(f => extractedData[f]);
   const existingFields = keyFields.filter(f => buyer[f]);
@@ -913,20 +708,15 @@ function buildUpdateObject(
   console.log(`Data completeness check: ${extractedFields.length} new fields, ${existingFields.length} existing fields`);
   console.log(`Extracted key fields: ${extractedFields.join(', ') || 'none'}`);
   
-  // Only upgrade completeness if we actually extracted something
   if (extractedFields.length >= 4) {
     updateData.data_completeness = 'high';
   } else if (extractedFields.length >= 2) {
     updateData.data_completeness = 'medium';
   } else if (extractedFields.length === 0) {
-    // If no extraction happened, don't change existing completeness
-    // Only set to 'low' if this is first enrichment and nothing was extracted
     if (existingFields.length === 0) {
       updateData.data_completeness = 'low';
     }
-    // Otherwise, leave it unchanged
   } else {
-    // 1 field extracted - set to medium only if we didn't have medium/high already
     if (buyer.data_completeness !== 'medium' && buyer.data_completeness !== 'high') {
       updateData.data_completeness = 'medium';
     }
@@ -936,23 +726,18 @@ function buildUpdateObject(
     const newValue = extractedData[field];
     const existingValue = buyer[field];
 
-    // Skip null/undefined values
     if (newValue === undefined || newValue === null) continue;
 
-    // SAFETY NET: Skip fields that don't exist in the database schema
-    // This prevents PGRST204 errors that cause the entire update to fail
     if (!VALID_BUYER_COLUMNS.has(field)) {
       console.warn(`Skipping non-existent column: ${field}`);
       continue;
     }
 
-    // Skip fields that should NEVER come from website
     if (NEVER_UPDATE_FROM_WEBSITE.includes(field)) {
       console.log(`Skipping ${field}: never update from website`);
       continue;
     }
 
-    // Check transcript protection
     if (hasTranscriptSource && TRANSCRIPT_PROTECTED_FIELDS.includes(field)) {
       const hasExistingData = existingValue !== null && 
                               existingValue !== undefined &&
@@ -965,42 +750,48 @@ function buildUpdateObject(
       }
     }
 
-    // Handle strings
     if (typeof newValue === 'string') {
-      const normalized = newValue.trim();
-      
-      // Skip placeholders
+      let normalized = newValue.trim();
       if (!normalized || PLACEHOLDER_STRINGS.has(normalized.toLowerCase())) continue;
       
-      // Only update if empty OR new is longer/better
+      // Normalize state codes for hq_state field
+      if (field === 'hq_state') {
+        normalized = normalizeStateCode(normalized);
+        // For state codes, always prefer the normalized 2-letter code
+        if (VALID_STATE_CODES.has(normalized)) {
+          updateData[field] = normalized;
+          continue;
+        }
+      }
+      
       if (!existingValue || normalized.length > (existingValue?.length || 0)) {
         updateData[field] = normalized;
       }
       continue;
     }
 
-    // Handle arrays
     if (Array.isArray(newValue)) {
-      const normalized = newValue
+      let normalized = newValue
         .filter(v => v && typeof v === 'string')
         .map(v => v.trim())
         .filter(v => v && !PLACEHOLDER_STRINGS.has(v.toLowerCase()));
       
-      // De-duplicate
+      // Normalize state codes for geographic fields
+      if (field === 'geographic_footprint' || field === 'service_regions') {
+        normalized = normalized.map(v => normalizeStateCode(v));
+      }
+      
       const unique = [...new Set(normalized.map(v => v.toLowerCase()))].map(
         lower => normalized.find(v => v.toLowerCase() === lower)
       ).filter(Boolean);
       
       if (unique.length === 0) continue;
-      
-      // Only update if empty OR new has more items
       if (!existingValue || !Array.isArray(existingValue) || unique.length > existingValue.length) {
         updateData[field] = unique;
       }
       continue;
     }
 
-    // Handle numbers
     if (typeof newValue === 'number') {
       if (existingValue === null || existingValue === undefined) {
         updateData[field] = newValue;
@@ -1008,7 +799,6 @@ function buildUpdateObject(
       continue;
     }
 
-    // Handle objects (like recent_acquisitions, portfolio_companies)
     if (typeof newValue === 'object' && !Array.isArray(newValue)) {
       if (!existingValue) {
         updateData[field] = newValue;

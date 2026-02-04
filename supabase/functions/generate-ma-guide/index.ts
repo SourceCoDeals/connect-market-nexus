@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_PRO_MODEL } from "../_shared/ai-providers.ts";
+import { 
+  ANTHROPIC_API_URL, 
+  getAnthropicHeaders, 
+  DEFAULT_CLAUDE_MODEL, 
+  DEFAULT_CLAUDE_FAST_MODEL,
+  toAnthropicTool,
+  parseAnthropicToolResponse
+} from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -196,79 +203,79 @@ async function extractCriteria(content: string, apiKey: string): Promise<Extract
     return criteria;
   }
 
-  // Fallback to AI extraction with tool calling
-  const response = await fetch(GEMINI_API_URL, {
-    method: "POST",
-    headers: getGeminiHeaders(apiKey),
-    body: JSON.stringify({
-      model: DEFAULT_GEMINI_MODEL,
-      messages: [
-        { 
-          role: "system", 
-          content: "Extract structured buyer universe criteria from the provided M&A guide content." 
+  // Fallback to AI extraction with tool calling (Anthropic format)
+  const tool = toAnthropicTool({
+    type: "function",
+    function: {
+      name: "extract_criteria",
+      description: "Extract structured buyer fit criteria",
+      parameters: {
+        type: "object",
+        properties: {
+          size_criteria: {
+            type: "object",
+            properties: {
+              revenue_min: { type: "number" },
+              revenue_max: { type: "number" },
+              ebitda_min: { type: "number" },
+              ebitda_max: { type: "number" },
+              locations_min: { type: "number" },
+              locations_max: { type: "number" }
+            }
+          },
+          geography_criteria: {
+            type: "object",
+            properties: {
+              target_states: { type: "array", items: { type: "string" } },
+              target_regions: { type: "array", items: { type: "string" } },
+              coverage: { type: "string" }
+            }
+          },
+          service_criteria: {
+            type: "object",
+            properties: {
+              primary_focus: { 
+                type: "array", 
+                items: { type: "string" },
+                description: "REQUIRED: The core service lines this buyer universe targets"
+              },
+              required_services: { type: "array", items: { type: "string" } },
+              preferred_services: { type: "array", items: { type: "string" } },
+              excluded_services: { type: "array", items: { type: "string" } },
+              business_model: { type: "string" }
+            },
+            required: ["primary_focus"]
+          },
+          buyer_types_criteria: {
+            type: "object",
+            properties: {
+              include_pe_firms: { type: "boolean" },
+              include_platforms: { type: "boolean" },
+              include_strategic: { type: "boolean" },
+              include_family_office: { type: "boolean" }
+            }
+          }
         },
+        required: ["size_criteria", "geography_criteria", "service_criteria", "buyer_types_criteria"]
+      }
+    }
+  });
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: "POST",
+    headers: getAnthropicHeaders(apiKey),
+    body: JSON.stringify({
+      model: DEFAULT_CLAUDE_FAST_MODEL,
+      max_tokens: 4096,
+      system: "Extract structured buyer universe criteria from the provided M&A guide content.",
+      messages: [
         { 
           role: "user", 
           content: `Extract criteria from this M&A guide:\n\n${content.slice(-15000)}` 
         }
       ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "extract_criteria",
-          description: "Extract structured buyer fit criteria",
-          parameters: {
-            type: "object",
-            properties: {
-              size_criteria: {
-                type: "object",
-                properties: {
-                  revenue_min: { type: "number" },
-                  revenue_max: { type: "number" },
-                  ebitda_min: { type: "number" },
-                  ebitda_max: { type: "number" },
-                  locations_min: { type: "number" },
-                  locations_max: { type: "number" }
-                }
-              },
-              geography_criteria: {
-                type: "object",
-                properties: {
-                  target_states: { type: "array", items: { type: "string" } },
-                  target_regions: { type: "array", items: { type: "string" } },
-                  coverage: { type: "string" }
-                }
-              },
-              service_criteria: {
-                type: "object",
-                properties: {
-                  primary_focus: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "REQUIRED: The core service lines this buyer universe targets"
-                  },
-                  required_services: { type: "array", items: { type: "string" } },
-                  preferred_services: { type: "array", items: { type: "string" } },
-                  excluded_services: { type: "array", items: { type: "string" } },
-                  business_model: { type: "string" }
-                },
-                required: ["primary_focus"]
-              },
-              buyer_types_criteria: {
-                type: "object",
-                properties: {
-                  include_pe_firms: { type: "boolean" },
-                  include_platforms: { type: "boolean" },
-                  include_strategic: { type: "boolean" },
-                  include_family_office: { type: "boolean" }
-                }
-              }
-            },
-            required: ["size_criteria", "geography_criteria", "service_criteria", "buyer_types_criteria"]
-          }
-        }
-      }],
-      tool_choice: { type: "function", function: { name: "extract_criteria" } }
+      tools: [tool],
+      tool_choice: { type: "tool", name: "extract_criteria" }
     }),
   });
 
@@ -278,16 +285,12 @@ async function extractCriteria(content: string, apiKey: string): Promise<Extract
   }
 
   const result = await response.json();
-  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-  if (toolCall?.function?.arguments) {
-    try {
-      criteria = JSON.parse(toolCall.function.arguments);
-      // Also try to extract buyer profiles
-      criteria.target_buyer_types = await extractBuyerProfilesWithAI(content, apiKey);
-      return criteria;
-    } catch {
-      return getDefaultCriteria();
-    }
+  const extracted = parseAnthropicToolResponse(result);
+  if (extracted) {
+    criteria = extracted as ExtractedCriteria;
+    // Also try to extract buyer profiles
+    criteria.target_buyer_types = await extractBuyerProfilesWithAI(content, apiKey);
+    return criteria;
   }
   return getDefaultCriteria();
 }
@@ -358,61 +361,61 @@ function parseBuyerProfilesBlock(block: string): BuyerProfile[] {
   return profiles.sort((a, b) => a.rank - b.rank);
 }
 
-// Extract buyer profiles using AI
+// Extract buyer profiles using AI (Anthropic)
 async function extractBuyerProfilesWithAI(content: string, apiKey: string): Promise<BuyerProfile[]> {
   // Look for buyer profile content in the guide
   const relevantContent = content.match(/PHASE 1E[\s\S]*?(?=##\s*PHASE|$)/i)?.[0] || 
                           content.match(/BUYER TYPE[\s\S]*?(?=##\s*PHASE|$)/i)?.[0] ||
                           content.slice(-20000);
   
-  const response = await fetch(GEMINI_API_URL, {
-    method: "POST",
-    headers: getGeminiHeaders(apiKey),
-    body: JSON.stringify({
-      model: DEFAULT_GEMINI_MODEL,
-      messages: [
-        { 
-          role: "system", 
-          content: "Extract industry-specific buyer profiles from the M&A guide content. These are the types of BUYERS active in the industry." 
+  const tool = toAnthropicTool({
+    type: "function",
+    function: {
+      name: "extract_buyer_profiles",
+      description: "Extract industry-specific buyer type profiles",
+      parameters: {
+        type: "object",
+        properties: {
+          buyer_profiles: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string", description: "snake_case id (e.g., large_mso, pe_platform)" },
+                rank: { type: "number", description: "Priority rank 1-6" },
+                name: { type: "string", description: "Display name" },
+                description: { type: "string", description: "2-3 sentence description" },
+                locations_min: { type: "number" },
+                locations_max: { type: "number" },
+                revenue_per_location: { type: "number", description: "Revenue per location in dollars" },
+                deal_requirements: { type: "string", description: "Key deal requirements" },
+                enabled: { type: "boolean", default: true }
+              },
+              required: ["id", "rank", "name", "description"]
+            },
+            description: "4-6 buyer profiles specific to this industry"
+          }
         },
+        required: ["buyer_profiles"]
+      }
+    }
+  });
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: "POST",
+    headers: getAnthropicHeaders(apiKey),
+    body: JSON.stringify({
+      model: DEFAULT_CLAUDE_FAST_MODEL,
+      max_tokens: 4096,
+      system: "Extract industry-specific buyer profiles from the M&A guide content. These are the types of BUYERS active in the industry.",
+      messages: [
         { 
           role: "user", 
           content: `Extract buyer profiles from this M&A guide section:\n\n${relevantContent}` 
         }
       ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "extract_buyer_profiles",
-          description: "Extract industry-specific buyer type profiles",
-          parameters: {
-            type: "object",
-            properties: {
-              buyer_profiles: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string", description: "snake_case id (e.g., large_mso, pe_platform)" },
-                    rank: { type: "number", description: "Priority rank 1-6" },
-                    name: { type: "string", description: "Display name" },
-                    description: { type: "string", description: "2-3 sentence description" },
-                    locations_min: { type: "number" },
-                    locations_max: { type: "number" },
-                    revenue_per_location: { type: "number", description: "Revenue per location in dollars" },
-                    deal_requirements: { type: "string", description: "Key deal requirements" },
-                    enabled: { type: "boolean", default: true }
-                  },
-                  required: ["id", "rank", "name", "description"]
-                },
-                description: "4-6 buyer profiles specific to this industry"
-              }
-            },
-            required: ["buyer_profiles"]
-          }
-        }
-      }],
-      tool_choice: { type: "function", function: { name: "extract_buyer_profiles" } }
+      tools: [tool],
+      tool_choice: { type: "tool", name: "extract_buyer_profiles" }
     }),
   });
 
@@ -422,16 +425,8 @@ async function extractBuyerProfilesWithAI(content: string, apiKey: string): Prom
   }
 
   const result = await response.json();
-  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-  if (toolCall?.function?.arguments) {
-    try {
-      const parsed = JSON.parse(toolCall.function.arguments);
-      return parsed.buyer_profiles || getDefaultBuyerProfiles();
-    } catch {
-      return getDefaultBuyerProfiles();
-    }
-  }
-  return getDefaultBuyerProfiles();
+  const extracted = parseAnthropicToolResponse(result) as { buyer_profiles?: BuyerProfile[] } | null;
+  return extracted?.buyer_profiles || getDefaultBuyerProfiles();
 }
 
 // Default buyer profiles (fallback)
@@ -571,7 +566,7 @@ function getDefaultCriteria(): ExtractedCriteria {
   };
 }
 
-// Generate gap-fill content for missing elements
+// Generate gap-fill content for missing elements (Anthropic)
 async function generateGapFill(
   missingElements: string[],
   industryName: string,
@@ -587,16 +582,16 @@ Focus especially on:
 
 Be comprehensive and specific.`;
 
-  const response = await fetch(GEMINI_API_URL, {
+  const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
-    headers: getGeminiHeaders(apiKey),
+    headers: getAnthropicHeaders(apiKey),
     body: JSON.stringify({
-      model: DEFAULT_GEMINI_MODEL,
+      model: DEFAULT_CLAUDE_FAST_MODEL,
+      max_tokens: 4000,
+      system: "You are an M&A advisor filling gaps in an industry guide. Be specific and detailed.",
       messages: [
-        { role: "system", content: "You are an M&A advisor filling gaps in an industry guide. Be specific and detailed." },
         { role: "user", content: prompt }
-      ],
-      max_tokens: 4000
+      ]
     }),
   });
 
@@ -605,7 +600,9 @@ Be comprehensive and specific.`;
   }
 
   const result = await response.json();
-  return result.choices?.[0]?.message?.content || '';
+  // Anthropic returns text in content[0].text
+  const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
+  return textBlock?.text || '';
 }
 
 // Batch configuration: 1 phase per batch to prevent timeouts
@@ -619,13 +616,13 @@ const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase
 // Prefer failing fast and letting the client retry the batch.
 const MAX_RETRIES = 0;
 
-// Inter-phase delay to prevent hitting Gemini rate limits
+// Inter-phase delay to prevent hitting rate limits
 const INTER_PHASE_DELAY_MS = 2000; // 2 seconds between API calls
 
-// Model selection: Use PRO model for critical phases
+// Model selection: Use Sonnet for critical phases, Haiku for standard
 const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
 const getModelForPhase = (phaseId: string) => 
-  CRITICAL_PHASES.includes(phaseId) ? DEFAULT_GEMINI_PRO_MODEL : DEFAULT_GEMINI_MODEL;
+  CRITICAL_PHASES.includes(phaseId) ? DEFAULT_CLAUDE_MODEL : DEFAULT_CLAUDE_FAST_MODEL;
 
 // Timeout wrapper for phase generation
 async function generatePhaseWithTimeout(
@@ -668,7 +665,7 @@ async function generatePhaseWithTimeout(
   }
 }
 
-// Phase generation with model parameter
+// Phase generation with model parameter (Anthropic)
 async function generatePhaseContentWithModel(
   phase: typeof GENERATION_PHASES[0],
   industryName: string,
@@ -689,17 +686,16 @@ Do NOT use placeholders like [X] or TBD - use realistic example values.${context
   const phasePrompts: Record<string, string> = getPhasePrompts(industryName);
   const userPrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
 
-  const response = await fetch(GEMINI_API_URL, {
+  const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
-    headers: getGeminiHeaders(apiKey),
+    headers: getAnthropicHeaders(apiKey),
     body: JSON.stringify({
       model,
+      max_tokens: CRITICAL_PHASES.includes(phase.id) ? 5200 : 4200,
+      system: systemPrompt,
       messages: [
-        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
-      ],
-      // Keep tokens conservative to reduce long-tail latency and avoid edge hard timeouts.
-      max_tokens: CRITICAL_PHASES.includes(phase.id) ? 5200 : 4200
+      ]
     }),
   });
 
@@ -713,6 +709,13 @@ Do NOT use placeholders like [X] or TBD - use realistic example values.${context
       (err as any).recoverable = true;
       throw err;
     }
+    if (response.status === 529) {
+      // Anthropic-specific overload error
+      const err = new Error(`AI service overloaded. Please try again later.`);
+      (err as any).code = 'service_overloaded';
+      (err as any).recoverable = true;
+      throw err;
+    }
     if (response.status === 402) {
       const err = new Error(`AI credits depleted. Please add credits to continue.`);
       (err as any).code = 'payment_required';
@@ -723,7 +726,9 @@ Do NOT use placeholders like [X] or TBD - use realistic example values.${context
   }
 
   const result = await response.json();
-  return result.choices?.[0]?.message?.content || '';
+  // Anthropic returns text in content[0].text
+  const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
+  return textBlock?.text || '';
 }
 
 // Extract phase prompts to separate function for cleaner code
@@ -997,10 +1002,10 @@ serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    console.log(`GEMINI_API_KEY configured: ${!!GEMINI_API_KEY}, length: ${GEMINI_API_KEY?.length || 0}`);
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    console.log(`ANTHROPIC_API_KEY configured: ${!!ANTHROPIC_API_KEY}, length: ${ANTHROPIC_API_KEY?.length || 0}`);
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     // Calculate which phases to generate for this batch
@@ -1018,14 +1023,14 @@ serve(async (req) => {
     if (!stream) {
       let fullContent = previous_content;
       for (const phase of batchPhases) {
-        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, clarification_context);
+        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context);
         fullContent += phaseContent + '\n\n';
       }
       
       // Only validate and extract on last batch
       if (isLastBatch) {
         const quality = validateQuality(fullContent);
-        const criteria = await extractCriteria(fullContent, GEMINI_API_KEY);
+        const criteria = await extractCriteria(fullContent, ANTHROPIC_API_KEY);
         
         return new Response(
           JSON.stringify({ 
@@ -1097,7 +1102,7 @@ serve(async (req) => {
             });
 
             // Generate phase content with clarification context
-            const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, clarification_context);
+            const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context);
             fullContent += phaseContent + '\n\n';
 
             // Send content chunks
@@ -1140,7 +1145,7 @@ serve(async (req) => {
             if (!quality.passed && quality.missingElements.length > 0) {
               send({ type: 'gap_fill_start', missingElements: quality.missingElements });
               
-              const gapContent = await generateGapFill(quality.missingElements, industry_name, GEMINI_API_KEY);
+              const gapContent = await generateGapFill(quality.missingElements, industry_name, ANTHROPIC_API_KEY);
               fullContent += '\n\n## GAP FILL CONTENT\n\n' + gapContent;
               
               // Stream gap fill content
@@ -1159,7 +1164,7 @@ serve(async (req) => {
 
             // Extract criteria
             send({ type: 'criteria_extraction_start' });
-            const criteria = await extractCriteria(fullContent, GEMINI_API_KEY);
+            const criteria = await extractCriteria(fullContent, ANTHROPIC_API_KEY);
             send({ type: 'criteria', criteria });
 
             // Complete

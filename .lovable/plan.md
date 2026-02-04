@@ -1,65 +1,130 @@
 
-Problem diagnosis (what’s happening and why)
-- Your data pipeline is now correct: PapaParse is detecting 28 headers (confirmed in console logs) and `columnMappings` contains 28 entries (your UI badges also show “Showing 28 of 28”).
-- The reason you only visually see ~5 rows is a layout/scroll containment bug:
-  - The dialog’s content area is height-constrained (`max-h-[85vh]`) and uses `overflow-hidden` in the inner wrapper.
-  - The mapping list container (`ScrollArea`) is currently using `max-h-[400px]` and `flex-1`, but in this specific layout Radix ScrollArea ends up expanding to content height rather than becoming the scroll container you expect.
-  - Result: the table grows beyond the available dialog height, but the dialog clips it (because the dialog body is overflow-hidden), and no scrollbar appears because the ScrollArea itself is not the element with a fixed height.
+# Fix Edge Function Build Errors
 
-Why this is consistent with your screenshot
-- Badge says “Showing 28 of 28” → React is rendering 28 rows logically.
-- You can only see the first few rows → the rest are clipped out of view.
-- No scrollbar → the element that should scroll doesn’t have an actual fixed height in the final computed layout.
+## Summary
+Fix 7 build errors across 6 edge functions that are preventing deployment. These are TypeScript type mismatches, syntax errors, and outdated API usage.
 
-Fix strategy (UI-first, deterministic, no AI involved)
-We will make the mapping step layout enforce a real scroll container by:
-1) Giving the dialog a concrete height (not only max-height), so flex children can compute remaining space.
-2) Ensuring the mapping step wrapper has `min-h-0` (so children are allowed to shrink) and that the ScrollArea is the element that receives the constrained height.
-3) Removing the ambiguous `max-h-[400px]` approach (which is easily defeated by the surrounding clipping) and instead using either:
-   - `flex-1 min-h-0` (preferred) inside a `h-[85vh]` dialog, or
-   - a simple `h-[50vh]` fixed height on the ScrollArea if we want maximum predictability.
-4) (Optional but recommended) Make the table header sticky so the column titles remain visible while scrolling.
+---
 
-Implementation details (what I will change)
-A) DealImportDialog (route you’re on: /admin/remarketing/deals)
-- Update `DialogContent` sizing:
-  - Change from: `max-h-[85vh]`
-  - To: `h-[85vh]` (or `h-[85svh]` for better mobile behavior) plus `max-h` if desired.
-  - Keep `flex flex-col` so the mapping list can occupy remaining space.
-- Ensure the mapping step container uses:
-  - `className="flex-1 flex flex-col min-h-0"`
-- Update ScrollArea to become the scroll container:
-  - Replace `max-h-[400px]` with `flex-1 min-h-0` (or a fixed `h-[50vh]` if we want absolute certainty).
-  - Add `overflow-hidden` only where needed; the ScrollArea viewport will handle actual scrolling.
-- Add “always visible” scrollbar styling (optional):
-  - Radix scrollbars can feel subtle; we can increase contrast/width if needed.
+## Errors to Fix
 
-B) DealCSVImport (the universe import component)
-- Apply the exact same layout fixes for consistency:
-  - Dialog/container height enforcement (if it uses a dialog)
-  - `min-h-0` parent
-  - ScrollArea gets real constrained height (`flex-1 min-h-0` or `h-[50vh]`)
+### 1. `apify-linkedin-scrape/index.ts` (Line 341)
+**Error:** `Type 'number | null' is not assignable to type 'number | undefined'`
 
-C) Verification (end-to-end)
-- After changes:
-  1) Upload `Test_deals-4.csv`
-  2) Confirm you can scroll through the mapping list and reach the last columns (e.g., “Fireflies Recording”, “Appointment Booked”, “Buyers Shown”, “Data Source”).
-  3) Confirm “Showing 28 of 28” still matches visible scrollable content (and not clipped).
-  4) Confirm the scrollbar is visible and functional with mouse wheel + trackpad + drag.
-  5) Confirm the dialog itself does not scroll weirdly (only the mapping list scrolls).
+**Root Cause:** The interface `ApifyLinkedInResult` defines `employeeCount?: number` (optional, undefined), but `rawEmployeeCount` is typed as `number | null`.
 
-Edge cases we’ll explicitly protect against
-- Large number of columns (50–200): the list must remain scrollable without expanding the dialog.
-- Short viewport heights (smaller laptops): the mapping list should still scroll and not clip.
-- Long sample values: ensure row height doesn’t blow up (keep truncation; optionally add tooltip on hover later).
+**Fix:** Change `null` to `undefined`:
+```typescript
+// Line 320: Change
+let rawEmployeeCount: number | null = null;
+// To:
+let rawEmployeeCount: number | undefined = undefined;
+```
 
-Files to change
-- src/components/remarketing/DealImportDialog.tsx
-- src/components/remarketing/DealCSVImport.tsx
-(Optional if needed for consistent scrollbar visibility/contrast)
-- src/components/ui/scroll-area.tsx (only if the scrollbar is too subtle after the layout fix)
+---
 
-Success criteria (non-negotiable)
-- The mapping screen shows all columns via scrolling every time.
-- No clipping of rows below the fold.
-- Scrollbar is present and usable without needing the dialog itself to scroll.
+### 2. `enrich-deal/index.ts` (Lines 779, 832)
+**Error:** `Type 'string | null' is not assignable to type 'string'` for `authHeader`
+
+**Root Cause:** `req.headers.get('Authorization')` returns `string | null`, but fetch headers require `string`.
+
+**Fix:** Add null check or assertion since auth is validated earlier:
+```typescript
+// Lines 779 and 832: Change
+'Authorization': authHeader,
+// To:
+'Authorization': authHeader!,
+```
+
+---
+
+### 3. `extract-transcript/index.ts` (Line 62)
+**Error:** `Unterminated template` - syntax error with backticks
+
+**Root Cause:** The file has corrupted backticks (showing as `\`` instead of proper backticks).
+
+**Fix:** Replace escaped backticks with proper template literals:
+```typescript
+// Line 62: Change
+console.log(\`[TranscriptExtraction] CEO detected...
+// To:
+console.log(`[TranscriptExtraction] CEO detected in transcript ${transcript_id}`);
+```
+
+---
+
+### 4. `map-csv-columns/index.ts` (Line 169)
+**Error:** `Expression expected` - syntax error in ternary chain
+
+**Root Cause:** The ternary operator chain appears to have malformed syntax - there's a triple-nested ternary that's broken.
+
+**Fix:** The file has a broken ternary chain. Looking at lines 120-169, there are three conditions:
+- `targetType === 'deal'` 
+- Then another condition for 'buyer'
+- Then a fallback
+
+The fix is to properly structure the ternary or use if/else.
+
+---
+
+### 5. `process-enrichment-queue/index.ts` (Lines 166, 182)
+**Error:** `Type 'unknown' is not assignable to type '{ id: string; ... }'`
+
+**Root Cause:** The `chunk` array from `.map()` has type `unknown[]` because the parent array type isn't properly typed.
+
+**Fix:** Add proper type annotation to `queueItems`:
+```typescript
+// Define the type and cast queueItems
+type QueueItem = { id: string; listing_id: string; attempts: number };
+const queueItems = data as QueueItem[];
+```
+
+---
+
+### 6. `parse-tracker-documents/index.ts` (Line 118)
+**Error:** `Type '"document"' is not assignable to type '"text" | "image" | ..."'`
+
+**Root Cause:** The Anthropic SDK version (0.30.1) doesn't support the `document` content type - this is a newer API feature.
+
+**Fix:** Use base64 image approach or upgrade SDK. Since PDFs can't be sent as images directly, we need to use a different approach - convert to text or upgrade the SDK:
+```typescript
+// Change document type to use the PDF as base64 with proper typing
+// OR upgrade Anthropic SDK to latest version that supports documents
+```
+
+---
+
+### 7. `send-owner-intro-notification/index.ts` (Lines 117+)
+**Error:** `Property 'primary_owner_id' does not exist on type '...'`
+
+**Root Cause:** The Supabase query returns an array for nested relations (even with `.single()`), so `listing` is actually `listing[]`.
+
+**Fix:** Access the first element of the array:
+```typescript
+// Line 103: Change
+const listing = deal.listing;
+// To:
+const listing = Array.isArray(deal.listing) ? deal.listing[0] : deal.listing;
+```
+
+---
+
+## Technical Changes Summary
+
+| File | Line(s) | Issue | Fix |
+|------|---------|-------|-----|
+| `apify-linkedin-scrape` | 320 | `null` vs `undefined` | Change to `undefined` |
+| `enrich-deal` | 779, 832 | Nullable `authHeader` | Add `!` assertion |
+| `extract-transcript` | 62 | Corrupted backticks | Fix template literal |
+| `map-csv-columns` | 169 | Broken ternary | Restructure conditionals |
+| `process-enrichment-queue` | 166, 182 | Untyped array | Add `QueueItem` type |
+| `parse-tracker-documents` | 118 | SDK doesn't support `document` | Use alternative approach |
+| `send-owner-intro-notification` | 103+ | Array vs object | Handle array response |
+
+---
+
+## Implementation Order
+1. Fix simple type issues first (apify-linkedin-scrape, enrich-deal)
+2. Fix syntax errors (extract-transcript, map-csv-columns)
+3. Fix array typing (process-enrichment-queue, send-owner-intro-notification)
+4. Fix Anthropic SDK issue (parse-tracker-documents)

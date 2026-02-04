@@ -22,31 +22,33 @@ export interface EnrichmentProgress {
   creditsDepleted: boolean;
 }
 
-const BATCH_SIZE = 5; // Claude allows 50 RPM (vs Gemini's 15 RPM), so we can batch 5 buyers (30 prompts)
-const BATCH_DELAY_MS = 1000; // Reduced from 2000ms - Claude's higher rate limit allows faster batching
-const EDGE_FUNCTION_TIMEOUT_MS = 90000; // 90 seconds (edge function has 60s limit + 30s buffer)
-
-/**
- * Invoke edge function with timeout protection
- * Prevents client from hanging indefinitely if edge function stalls
- */
-async function invokeWithTimeout<T>(
-  invokePromise: Promise<T>,
-  timeoutMs: number,
-  operationName: string
-): Promise<T> {
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(new Error(`${operationName} timed out after ${timeoutMs / 1000}s`));
-    }, timeoutMs);
-  });
-
-  return Promise.race([invokePromise, timeoutPromise]);
-}
+// Claude has much higher rate limits than Gemini - can process more buyers in parallel
+const BATCH_SIZE = 3; // Increased from 2 now that we use Claude (only 2 AI calls per buyer instead of 6)
+const BATCH_DELAY_MS = 1500; // Reduced delay since Claude has ~100 RPM vs Gemini's 15 RPM
 
 export function useBuyerEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
   const cancelledRef = useRef(false);
+
+  const parseInvokeError = (err: unknown): {
+    message: string;
+    status?: number;
+    code?: string;
+    resetTime?: string;
+  } => {
+    const anyErr = err as any;
+    const status = anyErr?.context?.status as number | undefined;
+    const json = anyErr?.context?.json as any | undefined;
+    return {
+      message:
+        json?.error ||
+        anyErr?.message ||
+        (status ? `Request failed (HTTP ${status})` : 'Request failed'),
+      status,
+      code: json?.code,
+      resetTime: json?.resetTime,
+    };
+  };
   
   const [progress, setProgress] = useState<EnrichmentProgress>({
     current: 0,
@@ -123,20 +125,27 @@ export function useBuyerEnrichment(universeId?: string) {
       // Process batch in parallel with timeout protection
       const results = await Promise.allSettled(
         batch.map(async (buyer) => {
-          const { data, error } = await invokeWithTimeout(
-            supabase.functions.invoke('enrich-buyer', {
-              body: { buyerId: buyer.id }
-            }),
-            EDGE_FUNCTION_TIMEOUT_MS,
-            `Enrich buyer ${buyer.id}`
-          );
-
-          if (error) throw error;
-
+          const { data, error } = await supabase.functions.invoke('enrich-buyer', {
+            body: { buyerId: buyer.id }
+          });
+          
+          if (error) {
+            // Preserve status/code/resetTime for downstream fail-fast handling
+            const parsed = parseInvokeError(error);
+            const e = new Error(parsed.message);
+            (e as any).status = parsed.status;
+            (e as any).code = parsed.code;
+            (e as any).resetTime = parsed.resetTime;
+            throw e;
+          }
+          
           // Check for error in response body (edge function may return 200 with error in body)
           if (data && !data.success) {
             const errorObj = new Error(data.error || 'Enrichment failed');
             (errorObj as any).errorCode = data.error_code;
+            (errorObj as any).status = data?.status;
+            (errorObj as any).code = data?.code;
+            (errorObj as any).resetTime = data?.resetTime;
             throw errorObj;
           }
 
@@ -174,19 +183,25 @@ export function useBuyerEnrichment(universeId?: string) {
         } else {
           failed++;
           const error = result.reason;
-          const errorMessage = error?.message || 'Unknown error';
-          const errorCode = (error as any)?.errorCode;
+          const parsed = parseInvokeError(error);
+          const status = (error as any)?.status as number | undefined;
+          const code = (error as any)?.code as string | undefined;
+          const resetTime = (error as any)?.resetTime as string | undefined;
+          const errorMessage = parsed.message || 'Unknown error';
+          const errorCode = (error as any)?.errorCode || code;
+          const extra = resetTime ? ` (reset: ${new Date(resetTime).toLocaleTimeString()})` : '';
           
           updateStatus(buyer.id, { 
             buyerId: buyer.id, 
             status: 'error', 
-            error: errorMessage,
+            error: `${errorMessage}${extra}`,
             errorCode 
           });
 
           // Check for payment/credits error - fail fast
           if (
             errorCode === 'payment_required' ||
+            status === 402 ||
             errorMessage.includes('402') ||
             errorMessage.includes('credits') ||
             errorMessage.includes('payment')
@@ -218,6 +233,7 @@ export function useBuyerEnrichment(universeId?: string) {
           // Check for rate limit error - fail fast (avoid hammering the API)
           if (
             errorCode === 'rate_limited' ||
+            status === 429 ||
             errorMessage.includes('429') ||
             errorMessage.toLowerCase().includes('rate limit')
           ) {
@@ -232,7 +248,9 @@ export function useBuyerEnrichment(universeId?: string) {
             }));
 
             toast.warning(
-              'Rate limit reached. Please wait ~1–2 minutes and run enrichment again.',
+              resetTime
+                ? `Rate limit reached. Try again after ${new Date(resetTime).toLocaleTimeString()}.`
+                : 'Rate limit reached. Please wait ~1–2 minutes and run enrichment again.',
               { duration: 10000 }
             );
 

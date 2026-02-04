@@ -19,21 +19,21 @@ interface RateLimitConfig {
 // Rate limit configurations for AI operations
 export const AI_RATE_LIMITS: Record<string, RateLimitConfig> = {
   // Per-user limits (normal users)
-  ai_enrichment: { limit: 10, windowMinutes: 60 },       // 10 AI enrichments per hour
-  ai_scoring: { limit: 50, windowMinutes: 60 },          // 50 scoring calls per hour
-  ai_transcript: { limit: 5, windowMinutes: 60 },        // 5 transcript extractions per hour
-  ai_document_parse: { limit: 10, windowMinutes: 60 },   // 10 document parses per hour
-  ai_query: { limit: 20, windowMinutes: 60 },            // 20 AI queries per hour
+  ai_enrichment: { limit: 200, windowMinutes: 60 },      // 200 AI enrichments per hour
+  ai_scoring: { limit: 200, windowMinutes: 60 },         // 200 scoring calls per hour
+  ai_transcript: { limit: 50, windowMinutes: 60 },       // 50 transcript extractions per hour
+  ai_document_parse: { limit: 50, windowMinutes: 60 },   // 50 document parses per hour
+  ai_query: { limit: 100, windowMinutes: 60 },           // 100 AI queries per hour
 
   // Admin limits (higher)
-  admin_ai_enrichment: { limit: 100, windowMinutes: 60 },
-  admin_ai_scoring: { limit: 500, windowMinutes: 60 },
-  admin_ai_transcript: { limit: 50, windowMinutes: 60 },
-  admin_ai_document_parse: { limit: 100, windowMinutes: 60 },
-  admin_ai_query: { limit: 200, windowMinutes: 60 },
+  admin_ai_enrichment: { limit: 500, windowMinutes: 60 },
+  admin_ai_scoring: { limit: 1000, windowMinutes: 60 },
+  admin_ai_transcript: { limit: 200, windowMinutes: 60 },
+  admin_ai_document_parse: { limit: 200, windowMinutes: 60 },
+  admin_ai_query: { limit: 500, windowMinutes: 60 },
 
   // Global budget limits (all users combined)
-  global_ai_calls: { limit: 1000, windowMinutes: 60 },   // 1000 AI calls per hour globally
+  global_ai_calls: { limit: 5000, windowMinutes: 60 },   // 5000 AI calls per hour globally
 };
 
 interface RateLimitResult {
@@ -330,6 +330,10 @@ export function rateLimitResponse(result: RateLimitResult): Response {
     {
       status: 429,
       headers: {
+        // IMPORTANT: include CORS headers so browsers can read the 429 response
+        // (otherwise the client just sees a generic "Failed to fetch")
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
         'Content-Type': 'application/json',
         'X-RateLimit-Limit': result.limit.toString(),
         'X-RateLimit-Remaining': result.remaining.toString(),
@@ -352,7 +356,12 @@ export function ssrfErrorResponse(reason: string): Response {
     }),
     {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        // IMPORTANT: include CORS headers so browsers can read the 400 response
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Content-Type': 'application/json',
+      },
     }
   );
 }

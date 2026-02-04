@@ -50,8 +50,9 @@ export const EnrichmentButton = ({
       toast.success(`Enriched ${buyerName}`, {
         description: `Updated ${data.data.fieldsUpdated} fields with ${data.data.dataCompleteness} confidence`
       });
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyerId] });
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+      // Force an immediate refetch for active queries so the UI updates right away
+      void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyerId], refetchType: 'active' });
+      void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'], refetchType: 'active' });
       onSuccess?.();
       
       // Reset status after 3 seconds
@@ -59,8 +60,13 @@ export const EnrichmentButton = ({
     },
     onError: (error: Error) => {
       setEnrichmentResult('error');
+      const anyErr = error as any;
+      const status = anyErr?.context?.status as number | undefined;
+      const json = anyErr?.context?.json as any | undefined;
+      const msg = json?.error || error.message;
+      const reset = json?.resetTime ? ` (reset: ${new Date(json.resetTime).toLocaleTimeString()})` : '';
       toast.error('Enrichment failed', {
-        description: error.message
+        description: status === 429 ? `${msg}${reset}` : msg,
       });
       
       // Reset status after 3 seconds

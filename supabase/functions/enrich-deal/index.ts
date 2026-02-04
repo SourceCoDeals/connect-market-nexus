@@ -776,7 +776,7 @@ Extract all available business information using the provided tool. The address_
         const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
           method: 'POST',
           headers: {
-            'Authorization': authHeader,
+            'Authorization': authHeader!,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -829,7 +829,7 @@ Extract all available business information using the provided tool. The address_
         const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
           method: 'POST',
           headers: {
-            'Authorization': authHeader,
+            'Authorization': authHeader!,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

@@ -95,7 +95,7 @@ serve(async (req) => {
       );
     }
 
-    const { linkedinUrl, companyName, city, state, dealId } = await req.json();
+    const { linkedinUrl, companyName, city, state, dealId, companyWebsite } = await req.json();
 
     if (!linkedinUrl && !companyName) {
       return new Response(
@@ -103,6 +103,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`LinkedIn scrape request: companyName="${companyName}", website="${companyWebsite}", linkedinUrl="${linkedinUrl}"`)
 
     let targetUrl = linkedinUrl;
     let foundViaSearch = false;
@@ -169,6 +171,31 @@ serve(async (req) => {
       );
     }
 
+    // WEBSITE VERIFICATION: Check if the LinkedIn profile's website matches the company's website
+    // This prevents matching wrong companies with similar names (e.g., "NES Navy" vs "NES Fircroft")
+    if (companyWebsite && companyData.website) {
+      const websiteMatch = doWebsitesMatch(companyWebsite, companyData.website);
+      if (!websiteMatch) {
+        console.warn(`WEBSITE MISMATCH: Company website "${companyWebsite}" does not match LinkedIn website "${companyData.website}". Rejecting this LinkedIn profile.`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `LinkedIn profile website (${companyData.website}) does not match company website (${companyWebsite}). This may be the wrong company.`,
+            scraped: false,
+            websiteMismatch: true,
+            linkedinWebsite: companyData.website,
+            expectedWebsite: companyWebsite,
+            needsManualUrl: true
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log(`Website verification PASSED: "${companyWebsite}" matches LinkedIn "${companyData.website}"`);
+    } else if (foundViaSearch && !companyData.website) {
+      // If we found via search but LinkedIn has no website, log a warning but allow it
+      console.warn('LinkedIn profile found via search has no website to verify against');
+    }
+
     // Parse employee data from Apify result
     const { employeeCount, employeeRange } = parseEmployeeData(companyData);
 
@@ -179,6 +206,7 @@ serve(async (req) => {
       success: true,
       scraped: true,
       foundViaSearch,
+      websiteVerified: !!(companyWebsite && companyData.website),
       linkedin_url: normalizedLinkedinUrl,
       linkedin_employee_count: employeeCount,
       linkedin_employee_range: employeeRange,
@@ -289,7 +317,7 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
     console.log('Apify Industry:', companyProfile?.Industry);
 
     // Parse numberOfEmployees - can be number or string like "37 on LinkedIn" or "2,500 on LinkedIn"
-    let rawEmployeeCount: number | null = null;
+    let rawEmployeeCount: number | undefined = undefined;
     if (companyProfile?.numberOfEmployees) {
       const empValue = companyProfile.numberOfEmployees;
       if (typeof empValue === 'number') {
@@ -498,4 +526,48 @@ function generateLinkedInUrlVariations(companyName: string): string[] {
   }
 
   return [...new Set(variations)].slice(0, 5);
+}
+
+/**
+ * Check if two website URLs refer to the same domain
+ * Handles variations like www., trailing slashes, http vs https
+ */
+function doWebsitesMatch(website1: string, website2: string): boolean {
+  const extractDomain = (url: string): string => {
+    try {
+      let normalized = url.toLowerCase().trim();
+      // Add protocol if missing
+      if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+        normalized = 'https://' + normalized;
+      }
+      const parsed = new URL(normalized);
+      // Remove www. prefix and get just the hostname
+      return parsed.hostname.replace(/^www\./, '');
+    } catch {
+      // Fallback: just clean up the string
+      return url.toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .replace(/\/.*$/, '')
+        .trim();
+    }
+  };
+
+  const domain1 = extractDomain(website1);
+  const domain2 = extractDomain(website2);
+  
+  console.log(`Comparing domains: "${domain1}" vs "${domain2}"`);
+  
+  // Exact match
+  if (domain1 === domain2) {
+    return true;
+  }
+  
+  // Check if one is a subdomain of the other (e.g., "jobs.company.com" vs "company.com")
+  // Allow the LinkedIn website to be a parent domain of the company website
+  if (domain1.endsWith('.' + domain2) || domain2.endsWith('.' + domain1)) {
+    return true;
+  }
+  
+  return false;
 }
