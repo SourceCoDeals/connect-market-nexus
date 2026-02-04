@@ -20,11 +20,20 @@ export interface EnrichmentProgress {
   isRunning: boolean;
   isCancelled: boolean;
   creditsDepleted: boolean;
+  rateLimited: boolean;
+  resetTime?: string;
 }
 
 // Claude has much higher rate limits than Gemini - can process more buyers in parallel
 const BATCH_SIZE = 3; // Increased from 2 now that we use Claude (only 2 AI calls per buyer instead of 6)
 const BATCH_DELAY_MS = 1500; // Reduced delay since Claude has ~100 RPM vs Gemini's 15 RPM
+
+// Shared abort signal for immediate fail-fast across parallel requests
+interface AbortState {
+  aborted: boolean;
+  reason?: 'rate_limited' | 'credits_depleted' | 'cancelled';
+  resetTime?: string;
+}
 
 export function useBuyerEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
@@ -59,6 +68,7 @@ export function useBuyerEnrichment(universeId?: string) {
     isRunning: false,
     isCancelled: false,
     creditsDepleted: false,
+    rateLimited: false,
   });
 
   const updateStatus = useCallback((buyerId: string, status: EnrichmentStatus) => {
@@ -99,8 +109,12 @@ export function useBuyerEnrichment(universeId?: string) {
       isRunning: true,
       isCancelled: false,
       creditsDepleted: false,
+      rateLimited: false,
     });
 
+    // Shared abort state for immediate fail-fast across parallel requests
+    const abortState: AbortState = { aborted: false };
+    
     let successful = 0;
     let failed = 0;
     let creditsDepleted = false;
@@ -108,10 +122,14 @@ export function useBuyerEnrichment(universeId?: string) {
 
     // Process in parallel batches
     for (let i = 0; i < enrichableBuyers.length; i += BATCH_SIZE) {
-      // Check for cancellation
-      if (cancelledRef.current) {
-        setProgress(prev => ({ ...prev, isRunning: false, isCancelled: true }));
-        toast.info(`Enrichment cancelled. ${successful} of ${enrichableBuyers.length} buyers enriched.`);
+      // Check for cancellation or abort (rate limit/credits)
+      if (cancelledRef.current || abortState.aborted) {
+        if (abortState.aborted) {
+          // Already handled via toast in the batch processing
+        } else {
+          setProgress(prev => ({ ...prev, isRunning: false, isCancelled: true }));
+          toast.info(`Enrichment cancelled. ${successful} of ${enrichableBuyers.length} buyers enriched.`);
+        }
         break;
       }
 
@@ -122,9 +140,17 @@ export function useBuyerEnrichment(universeId?: string) {
         updateStatus(buyer.id, { buyerId: buyer.id, status: 'enriching' });
       });
 
-      // Process batch in parallel with timeout protection
+      // Process batch in parallel with immediate abort on rate limit/credits
       const results = await Promise.allSettled(
         batch.map(async (buyer) => {
+          // Check abort state BEFORE making request (for subsequent items in same batch)
+          if (abortState.aborted) {
+            const abortError = new Error(abortState.reason === 'rate_limited' ? 'Rate limit exceeded' : 'Aborted');
+            (abortError as any).aborted = true;
+            (abortError as any).reason = abortState.reason;
+            throw abortError;
+          }
+          
           const { data, error } = await supabase.functions.invoke('enrich-buyer', {
             body: { buyerId: buyer.id }
           });
@@ -136,6 +162,19 @@ export function useBuyerEnrichment(universeId?: string) {
             (e as any).status = parsed.status;
             (e as any).code = parsed.code;
             (e as any).resetTime = parsed.resetTime;
+            
+            // IMMEDIATE abort on rate limit - set flag so other parallel requests skip
+            if (parsed.status === 429 || parsed.code === 'RATE_LIMIT_EXCEEDED' || parsed.code === 'rate_limited') {
+              abortState.aborted = true;
+              abortState.reason = 'rate_limited';
+              abortState.resetTime = parsed.resetTime;
+            }
+            // IMMEDIATE abort on payment required
+            if (parsed.status === 402 || parsed.code === 'payment_required') {
+              abortState.aborted = true;
+              abortState.reason = 'credits_depleted';
+            }
+            
             throw e;
           }
           
@@ -146,6 +185,19 @@ export function useBuyerEnrichment(universeId?: string) {
             (errorObj as any).status = data?.status;
             (errorObj as any).code = data?.code;
             (errorObj as any).resetTime = data?.resetTime;
+            
+            // Check for rate limit in response body
+            if (data.code === 'RATE_LIMIT_EXCEEDED' || data.code === 'rate_limited' || data.error?.includes('Rate limit')) {
+              abortState.aborted = true;
+              abortState.reason = 'rate_limited';
+              abortState.resetTime = data.resetTime;
+            }
+            // Check for payment required in response body
+            if (data.code === 'payment_required' || data.error_code === 'payment_required') {
+              abortState.aborted = true;
+              abortState.reason = 'credits_depleted';
+            }
+            
             throw errorObj;
           }
 
@@ -181,8 +233,19 @@ export function useBuyerEnrichment(universeId?: string) {
             });
           }
         } else {
-          failed++;
           const error = result.reason;
+          
+          // Skip counting if this was an abort (already handled)
+          if ((error as any)?.aborted) {
+            // Mark as skipped/pending, not failed
+            updateStatus(buyer.id, { 
+              buyerId: buyer.id, 
+              status: 'pending',
+            });
+            continue;
+          }
+          
+          failed++;
           const parsed = parseInvokeError(error);
           const status = (error as any)?.status as number | undefined;
           const code = (error as any)?.code as string | undefined;
@@ -197,84 +260,59 @@ export function useBuyerEnrichment(universeId?: string) {
             error: `${errorMessage}${extra}`,
             errorCode 
           });
-
-          // Check for payment/credits error - fail fast
-          if (
-            errorCode === 'payment_required' ||
-            status === 402 ||
-            errorMessage.includes('402') ||
-            errorMessage.includes('credits') ||
-            errorMessage.includes('payment')
-          ) {
-            creditsDepleted = true;
-            setProgress(prev => ({ 
-              ...prev, 
-              current: i + batch.length,
-              successful,
-              failed,
-              isRunning: false,
-              creditsDepleted: true
-            }));
-            
-            toast.error(
-              'AI credits depleted. Please add credits in Settings → Workspace → Usage to continue enrichment.',
-              { duration: 10000 }
-            );
-            
-            // Invalidate queries to show partial results
-            await queryClient.invalidateQueries({ 
-              queryKey: ['remarketing', 'buyers'], 
-              refetchType: 'active' 
-            });
-            if (universeId) {
-              await queryClient.invalidateQueries({ 
-                queryKey: ['remarketing', 'buyers', 'universe', universeId], 
-                refetchType: 'active' 
-              });
-            }
-            
-            return { successful, failed, creditsDepleted: true };
-          }
-
-          // Check for rate limit error - fail fast (avoid hammering the API)
-          if (
-            errorCode === 'rate_limited' ||
-            status === 429 ||
-            errorMessage.includes('429') ||
-            errorMessage.toLowerCase().includes('rate limit')
-          ) {
-            rateLimited = true;
-
-            setProgress(prev => ({
-              ...prev,
-              current: i + batch.length,
-              successful,
-              failed,
-              isRunning: false,
-            }));
-
-            toast.warning(
-              resetTime
-                ? `Rate limit reached. Try again after ${new Date(resetTime).toLocaleTimeString()}.`
-                : 'Rate limit reached. Please wait ~1–2 minutes and run enrichment again.',
-              { duration: 10000 }
-            );
-
-            // Invalidate queries to show partial results
-            await queryClient.invalidateQueries({ 
-              queryKey: ['remarketing', 'buyers'], 
-              refetchType: 'active' 
-            });
-            if (universeId) {
-              await queryClient.invalidateQueries({ 
-                queryKey: ['remarketing', 'buyers', 'universe', universeId], 
-                refetchType: 'active' 
-              });
-            }
-
-            return { successful, failed, creditsDepleted: false };
-          }
         }
+      }
+
+      // After processing batch, check if we need to abort due to rate limit or credits
+      if (abortState.aborted) {
+        if (abortState.reason === 'credits_depleted') {
+          creditsDepleted = true;
+          setProgress(prev => ({ 
+            ...prev, 
+            current: i + batch.length,
+            successful,
+            failed,
+            isRunning: false,
+            creditsDepleted: true
+          }));
+          
+          toast.error(
+            'AI credits depleted. Please add credits in Settings → Workspace → Usage to continue enrichment.',
+            { duration: 10000 }
+          );
+        } else if (abortState.reason === 'rate_limited') {
+          rateLimited = true;
+          setProgress(prev => ({
+            ...prev,
+            current: i + batch.length,
+            successful,
+            failed,
+            isRunning: false,
+            rateLimited: true,
+            resetTime: abortState.resetTime,
+          }));
+
+          toast.warning(
+            abortState.resetTime
+              ? `Rate limit reached (200/hour). Try again after ${new Date(abortState.resetTime).toLocaleTimeString()}.`
+              : 'Rate limit reached (200/hour). Please wait ~1 hour and run enrichment again.',
+            { duration: 10000 }
+          );
+        }
+        
+        // Invalidate queries to show partial results
+        await queryClient.invalidateQueries({ 
+          queryKey: ['remarketing', 'buyers'], 
+          refetchType: 'active' 
+        });
+        if (universeId) {
+          await queryClient.invalidateQueries({ 
+            queryKey: ['remarketing', 'buyers', 'universe', universeId], 
+            refetchType: 'active' 
+          });
+        }
+        
+        return { successful, failed, creditsDepleted };
       }
 
       // Update progress
@@ -347,6 +385,7 @@ export function useBuyerEnrichment(universeId?: string) {
       isRunning: false,
       isCancelled: false,
       creditsDepleted: false,
+      rateLimited: false,
     });
   }, []);
 

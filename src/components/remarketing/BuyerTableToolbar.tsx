@@ -21,6 +21,8 @@ interface EnrichmentProgress {
   successful?: number;
   failed?: number;
   creditsDepleted?: boolean;
+  rateLimited?: boolean;
+  resetTime?: string;
 }
 
 interface AlignmentProgress {
@@ -211,6 +213,17 @@ export const BuyerTableToolbar = ({
             <Badge variant="destructive" className="gap-1 shrink-0">
               <AlertCircle className="h-3 w-3" />
               Credits Depleted
+            </Badge>
+          )}
+          {enrichmentProgress.rateLimited && (
+            <Badge variant="outline" className="gap-1 shrink-0 border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950/30">
+              <AlertCircle className="h-3 w-3" />
+              Rate Limited
+              {enrichmentProgress.resetTime && (
+                <span className="text-xs">
+                  (reset: {new Date(enrichmentProgress.resetTime).toLocaleTimeString()})
+                </span>
+              )}
             </Badge>
           )}
         </div>
