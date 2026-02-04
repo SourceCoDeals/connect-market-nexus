@@ -64,16 +64,60 @@ interface ClarificationContext {
   [key: string]: string | string[] | undefined;
 }
 
+// Helper function to save guide to Supporting Documents
+const saveGuideToDocuments = async (
+  content: string,
+  industryName: string,
+  universeId: string,
+  onDocumentAdded: (doc: { id: string; name: string; url: string; uploaded_at: string }) => void
+) => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-guide-pdf`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          universeId,
+          industryName,
+          content
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Failed to save guide to documents:', response.status);
+      return;
+    }
+
+    const data = await response.json();
+    if (data.success && data.document) {
+      onDocumentAdded(data.document);
+      toast.success("Guide saved to Supporting Documents");
+    }
+  } catch (error) {
+    console.error('Error saving guide to documents:', error);
+    // Don't show error toast - this is a background operation
+  }
+};
+
 interface AIResearchSectionProps {
   onGuideGenerated: (content: string, criteria: ExtractedCriteria, targetBuyerTypes?: TargetBuyerTypeConfig[]) => void;
   universeName?: string;
   existingContent?: string;
+  universeId?: string;
+  onDocumentAdded?: (doc: { id: string; name: string; url: string; uploaded_at: string }) => void;
 }
 
 export const AIResearchSection = ({ 
   onGuideGenerated,
   universeName,
-  existingContent
+  existingContent,
+  universeId,
+  onDocumentAdded
 }: AIResearchSectionProps) => {
   const [isOpen, setIsOpen] = useState(!!existingContent && existingContent.length > 100);
   const [industryName, setIndustryName] = useState(universeName || "");
@@ -470,12 +514,18 @@ export const AIResearchSection = ({
 
               case 'complete':
                 setState('complete');
-                setContent(event.content || fullContent);
-                setWordCount(event.totalWords || fullContent.split(/\s+/).length);
+                const finalContent = event.content || fullContent;
+                setContent(finalContent);
+                setWordCount(event.totalWords || finalContent.split(/\s+/).length);
                 // Clear saved progress on successful completion
                 localStorage.removeItem('ma_guide_progress');
                 setSavedProgress(null);
                 toast.success("M&A Guide generated successfully!");
+                
+                // Auto-save guide to Supporting Documents
+                if (universeId && onDocumentAdded) {
+                  saveGuideToDocuments(finalContent, industryName, universeId, onDocumentAdded);
+                }
                 break;
 
               case 'error':
