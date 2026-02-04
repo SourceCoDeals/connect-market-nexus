@@ -23,6 +23,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
 import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
 import { GenerationSummaryPanel, type GenerationSummary } from "./GenerationSummaryPanel";
@@ -65,7 +66,7 @@ interface ClarificationContext {
   [key: string]: string | string[] | undefined;
 }
 
-// Helper function to save guide to Supporting Documents
+// Helper function to save guide to Supporting Documents with direct DB persistence
 const saveGuideToDocuments = async (
   content: string,
   industryName: string,
@@ -73,6 +74,7 @@ const saveGuideToDocuments = async (
   onDocumentAdded: (doc: { id: string; name: string; url: string; uploaded_at: string }) => void
 ) => {
   try {
+    // 1. Call edge function to upload HTML to storage
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-guide-pdf`,
       {
@@ -90,18 +92,49 @@ const saveGuideToDocuments = async (
     );
 
     if (!response.ok) {
-      console.error('Failed to save guide to documents:', response.status);
-      return;
+      throw new Error(`Failed to generate guide: ${response.status}`);
     }
 
     const data = await response.json();
-    if (data.success && data.document) {
-      onDocumentAdded(data.document);
-      toast.success("Guide saved to Supporting Documents");
+    if (!data.success || !data.document) {
+      throw new Error(data.error || 'No document returned');
     }
+
+    // 2. Read current documents from database
+    const { data: universe, error: readError } = await supabase
+      .from('remarketing_buyer_universes')
+      .select('documents')
+      .eq('id', universeId)
+      .single();
+
+    if (readError) {
+      throw new Error(`Failed to read universe: ${readError.message}`);
+    }
+
+    // 3. Build updated documents array (replace any existing ma_guide)
+    const currentDocs = (universe?.documents as any[]) || [];
+    const filteredDocs = currentDocs.filter(
+      d => !(d as any).type || (d as any).type !== 'ma_guide'
+    );
+    const updatedDocs = [...filteredDocs, data.document];
+
+    // 4. Write back to database
+    const { error: updateError } = await supabase
+      .from('remarketing_buyer_universes')
+      .update({ documents: updatedDocs })
+      .eq('id', universeId);
+
+    if (updateError) {
+      throw new Error(`Failed to save document: ${updateError.message}`);
+    }
+
+    // 5. Update local state for immediate UI feedback
+    onDocumentAdded(data.document);
+    toast.success("Guide saved to Supporting Documents");
+
   } catch (error) {
     console.error('Error saving guide to documents:', error);
-    // Don't show error toast - this is a background operation
+    toast.error(`Failed to save guide: ${(error as Error).message}`);
   }
 };
 
