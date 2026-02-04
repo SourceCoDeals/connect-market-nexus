@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
+import { requireServiceRole } from "../_shared/auth-middleware.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,11 +32,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ✅ SERVICE ROLE AUTHENTICATION (ADDED 2026-02-04)
+  // This function should ONLY be called by cron jobs or internal workers
+  const authResult = await requireServiceRole(req, corsHeaders);
+  if (authResult !== true) {
+    return authResult; // Return error response
+  }
+
   try {
     const startedAt = Date.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     // Use service role for background processing
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 

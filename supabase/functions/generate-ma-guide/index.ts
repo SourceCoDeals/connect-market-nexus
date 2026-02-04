@@ -1,12 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { 
-  ANTHROPIC_API_URL, 
-  getAnthropicHeaders, 
-  DEFAULT_CLAUDE_MODEL, 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  ANTHROPIC_API_URL,
+  getAnthropicHeaders,
+  DEFAULT_CLAUDE_MODEL,
   DEFAULT_CLAUDE_FAST_MODEL,
   toAnthropicTool,
   parseAnthropicToolResponse
 } from "../_shared/ai-providers.ts";
+import { authenticateRequest } from "../_shared/auth-middleware.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1062,11 +1064,29 @@ serve(async (req) => {
   const FUNCTION_START = Date.now(); // Track when the function started
 
   try {
-    const { 
+    // ✅ AUTHENTICATION + RATE LIMITING (ADDED 2026-02-04)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const auth = await authenticateRequest(req, supabase, {
+      requireAuth: true,
+      requireAdmin: true, // Only admins can generate guides
+      rateLimitKey: 'ma_guide_generation',
+      rateLimitAdmin: false, // Apply rate limits even to admins
+      corsHeaders,
+    });
+
+    if (!auth.authenticated || auth.errorResponse) {
+      return auth.errorResponse!;
+    }
+
+    const {
       industry_name,
       industry_description,
-      universe_id, 
-      existing_content, 
+      universe_id,
+      existing_content,
       clarification_context,
       stream = true,
       batch_index = 0, // Which batch to generate (0, 1, 2)

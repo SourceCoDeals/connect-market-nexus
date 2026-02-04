@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { extractCriteriaFromGuide } from '../_shared/buyer-criteria-extraction.ts';
+import { authenticateRequest } from '../_shared/auth-middleware.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,23 @@ serve(async (req) => {
   }
 
   try {
+    // ✅ AUTHENTICATION + RATE LIMITING (ADDED 2026-02-04)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const auth = await authenticateRequest(req, supabase, {
+      requireAuth: true,
+      requireAdmin: true, // Only admins can trigger background extraction
+      allowServiceRole: true, // Also allow service role for background workers
+      rateLimitKey: 'buyer_criteria_extraction',
+      corsHeaders,
+    });
+
+    if (!auth.authenticated || auth.errorResponse) {
+      return auth.errorResponse!;
+    }
+
     const { universe_id, guide_content, source_name, industry_name } = await req.json();
 
     if (!universe_id) {
