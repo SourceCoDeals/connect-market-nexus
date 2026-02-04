@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Clock, Pencil, Sparkles, Loader2 } from "lucide-react";
 import { TargetBuyerTypesPanel } from "./TargetBuyerTypesPanel";
 import { AdditionalCriteriaDisplay } from "./AdditionalCriteriaDisplay";
+import { CriteriaExtractionProgress } from "./CriteriaExtractionProgress";
+import { CriteriaExtractionSummaryDialog, ExtractionResult } from "./CriteriaExtractionSummaryDialog";
 import { 
   SizeCriteria, 
   GeographyCriteria, 
@@ -50,6 +52,8 @@ export const BuyerFitCriteriaAccordion = ({
 }: BuyerFitCriteriaAccordionProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false);
 
   const enabledTypesCount = targetBuyerTypes.filter(t => t.enabled).length;
 
@@ -114,20 +118,43 @@ export const BuyerFitCriteriaAccordion = ({
 
       const confidence = data.confidence || 0;
       
-      toast.success(`Criteria extracted successfully (${confidence}% confidence)`, { duration: 5000 });
+      // Build extraction result for summary dialog
+      const result: ExtractionResult = {
+        success: true,
+        confidence,
+        extractedCriteria: data.extracted_data || {},
+        warnings: data.warnings || []
+      };
+      
+      setExtractionResult(result);
+      setShowSummaryDialog(true);
       
       // Notify parent to refresh data
       onCriteriaExtracted?.();
 
     } catch (error) {
       console.error('Criteria extraction error:', error);
-      toast.error(`Failed to extract criteria: ${(error as Error).message}`);
+      const errorMessage = (error as Error).message;
+      
+      // Show error in summary dialog
+      setExtractionResult({
+        success: false,
+        confidence: 0,
+        error: errorMessage
+      });
+      setShowSummaryDialog(true);
     } finally {
       setIsExtracting(false);
     }
   };
 
   return (
+    <>
+    {/* Progress indicator shown during extraction */}
+    {isExtracting && (
+      <CriteriaExtractionProgress universeName={universeName} />
+    )}
+    
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className={className}>
       <Card>
         <CollapsibleTrigger asChild>
@@ -207,6 +234,15 @@ export const BuyerFitCriteriaAccordion = ({
         </CollapsibleContent>
       </Card>
     </Collapsible>
+    
+    {/* Summary Dialog */}
+    <CriteriaExtractionSummaryDialog
+      open={showSummaryDialog}
+      onOpenChange={setShowSummaryDialog}
+      result={extractionResult}
+      universeName={universeName}
+    />
+    </>
   );
 };
 
