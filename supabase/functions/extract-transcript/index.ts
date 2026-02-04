@@ -28,12 +28,15 @@ interface DealInsights {
 }
 
 interface BuyerInsights {
+  thesis_summary?: string;
+  thesis_confidence?: 'high' | 'medium' | 'low' | 'insufficient';
+  strategic_priorities?: string[];
   investment_criteria?: string;
   target_industries?: string[];
   target_geography?: string[];
   deal_size_range?: string;
   acquisition_timeline?: string;
-  strategic_priorities?: string[];
+  missing_information?: string[];
 }
 
 serve(async (req) => {
@@ -268,25 +271,75 @@ Be precise with numbers - convert "two million" to 2000000, etc.`;
   return (result.data as DealInsights) || {};
 }
 
-// Extract buyer insights from transcript using Claude
+// Extract buyer thesis and insights from transcript using Claude
+// CRITICAL: This is the ONLY source for thesis_summary - never from websites
 async function extractBuyerInsights(transcriptText: string, apiKey: string): Promise<BuyerInsights> {
-  const systemPrompt = `You are an M&A analyst extracting buyer criteria and investment preferences from call transcripts.
-Focus on what the buyer is looking for in potential acquisitions.`;
+  const systemPrompt = `You are an M&A analyst extracting the PLATFORM COMPANY'S acquisition thesis from a call transcript.
+
+CRITICAL REQUIREMENTS:
+1. The thesis_summary MUST be derived ONLY from what was explicitly stated in this call transcript.
+2. Write entirely from the PLATFORM COMPANY'S operating perspective, as expressed verbally in the call.
+3. If the PE firm sponsor is mentioned, it should be incidental context only.
+4. DO NOT infer, fill gaps, or "round out" the thesis with:
+   - Typical PE investment criteria
+   - Website language
+   - Generic industry knowledge
+   - Comparable platforms
+
+5. If information is insufficient, set thesis_confidence to "insufficient" and list specific missing questions.
+6. Every statement MUST be directly traceable to the transcript.
+
+OUTPUT FORMAT:
+- thesis_summary: 1-2 tight paragraphs, plain factual call-derived language, no marketing speak
+- strategic_priorities: Array of specific priorities mentioned in the call
+- thesis_confidence: "high" (comprehensive data), "medium" (partial data), "low" (minimal data), "insufficient" (cannot form thesis)
+- missing_information: Questions that must be answered on a future call if data is insufficient`;
 
   const tool = {
     type: "function",
     function: {
-      name: "extract_buyer_insights",
-      description: "Extract structured buyer criteria from a transcript",
+      name: "extract_buyer_thesis",
+      description: "Extract platform company thesis and acquisition criteria from call transcript",
       parameters: {
         type: "object",
         properties: {
-          investment_criteria: { type: "string", description: "Summary of investment criteria" },
-          target_industries: { type: "array", items: { type: "string" }, description: "Industries of interest" },
-          target_geography: { type: "array", items: { type: "string" }, description: "Geographic preferences" },
-          deal_size_range: { type: "string", description: "Preferred deal size range" },
-          acquisition_timeline: { type: "string", description: "Timeline for making acquisitions" },
-          strategic_priorities: { type: "array", items: { type: "string" }, description: "Key strategic priorities" }
+          thesis_summary: { 
+            type: "string", 
+            description: "1-2 paragraph summary of the platform company's acquisition strategy as stated in the call. Write: 'Based on our conversation, [Company] is focused on...' Do NOT use marketing language or infer from website content." 
+          },
+          thesis_confidence: { 
+            type: "string", 
+            enum: ["high", "medium", "low", "insufficient"],
+            description: "Confidence level based on data completeness from transcript"
+          },
+          strategic_priorities: { 
+            type: "array", 
+            items: { type: "string" }, 
+            description: "Specific strategic priorities mentioned in the call" 
+          },
+          target_industries: { 
+            type: "array", 
+            items: { type: "string" }, 
+            description: "Industries explicitly mentioned as targets" 
+          },
+          target_geography: { 
+            type: "array", 
+            items: { type: "string" }, 
+            description: "Geographic preferences explicitly mentioned" 
+          },
+          deal_size_range: { 
+            type: "string", 
+            description: "Preferred deal size if mentioned (revenue/EBITDA ranges)" 
+          },
+          acquisition_timeline: { 
+            type: "string", 
+            description: "Timeline for making acquisitions if mentioned" 
+          },
+          missing_information: {
+            type: "array",
+            items: { type: "string" },
+            description: "Questions that need to be answered on a future call if thesis_confidence is insufficient"
+          }
         }
       }
     }
@@ -294,14 +347,28 @@ Focus on what the buyer is looking for in potential acquisitions.`;
 
   const result = await callClaudeWithTool(
     systemPrompt,
-    `Extract buyer insights from this transcript:\n\n${transcriptText.substring(0, 8000)}`,
+    `Extract the PLATFORM COMPANY'S thesis and acquisition criteria from this call transcript. Remember: every statement must be traceable to what was said in the call.\n\n${transcriptText.substring(0, 12000)}`,
     tool,
     apiKey,
     DEFAULT_CLAUDE_FAST_MODEL,
-    30000
+    45000
   );
 
-  return (result.data as BuyerInsights) || {};
+  const insights = (result.data as BuyerInsights) || {};
+  
+  // Validate: if thesis_confidence is insufficient, ensure missing_information is populated
+  if (insights.thesis_confidence === 'insufficient' && (!insights.missing_information || insights.missing_information.length === 0)) {
+    insights.missing_information = [
+      "What specific services/verticals are you targeting for add-ons?",
+      "What geographic markets are you prioritizing?",
+      "What is your target size range (revenue/EBITDA)?",
+      "What is your acquisition timeline?",
+      "What are your deal structure preferences?"
+    ];
+    insights.thesis_summary = "Insufficient source data. See missing_information for required follow-up questions.";
+  }
+  
+  return insights;
 }
 
 // Update listing with extracted transcript data
@@ -346,6 +413,7 @@ async function updateListingFromTranscript(
 }
 
 // Update buyer with extracted transcript data
+// CRITICAL: This is the ONLY place thesis_summary should be saved from
 async function updateBuyerFromTranscript(
   supabase: ReturnType<typeof createClient>,
   buyerId: string,
@@ -354,31 +422,71 @@ async function updateBuyerFromTranscript(
 ) {
   const updates: Record<string, unknown> = {};
 
+  // THESIS FIELDS - Only saved from transcripts, never from websites
+  if (insights.thesis_summary && insights.thesis_confidence !== 'insufficient') {
+    updates.thesis_summary = insights.thesis_summary;
+  }
+  if (insights.thesis_confidence) {
+    updates.thesis_confidence = insights.thesis_confidence;
+  }
+  if (insights.strategic_priorities?.length) {
+    updates.strategic_priorities = insights.strategic_priorities;
+  }
+  
+  // Other buyer criteria
   if (insights.target_industries?.length) {
     updates.target_industries = insights.target_industries;
   }
   if (insights.target_geography?.length) {
     updates.target_geographies = insights.target_geography;
   }
-  if (insights.strategic_priorities?.length) {
-    updates.strategic_priorities = insights.strategic_priorities.join(', ');
-  }
   if (insights.acquisition_timeline) {
     updates.acquisition_timeline = insights.acquisition_timeline;
   }
 
   if (Object.keys(updates).length > 0) {
-    updates.extraction_sources = { transcript_id: transcriptId, extracted_at: new Date().toISOString() };
+    // Mark extraction source as transcript (highest priority)
+    updates.extraction_sources = [{ 
+      type: 'transcript',
+      transcript_id: transcriptId, 
+      extracted_at: new Date().toISOString(),
+      fields_extracted: Object.keys(updates).filter(k => k !== 'extraction_sources')
+    }];
+    updates.data_last_updated = new Date().toISOString();
     
     const { error } = await supabase
-      .from('buyers')
+      .from('remarketing_buyers')
       .update(updates)
       .eq('id', buyerId);
 
     if (error) {
       console.error("Failed to update buyer from transcript:", error);
     } else {
-      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields`);
+      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary})`);
+    }
+  } else if (insights.thesis_confidence === 'insufficient') {
+    // Save insufficient flag and missing questions
+    const insufficientUpdate = {
+      thesis_confidence: 'insufficient',
+      notes: `Insufficient transcript data. Follow-up questions needed:\n${(insights.missing_information || []).map((q, i) => `${i + 1}. ${q}`).join('\n')}`,
+      extraction_sources: [{ 
+        type: 'transcript',
+        transcript_id: transcriptId, 
+        extracted_at: new Date().toISOString(),
+        status: 'insufficient_data'
+      }],
+      data_last_updated: new Date().toISOString(),
+    };
+    
+    const { error } = await supabase
+      .from('remarketing_buyers')
+      .update(insufficientUpdate)
+      .eq('id', buyerId);
+
+    if (error) {
+      console.error("Failed to update buyer with insufficient status:", error);
+    } else {
+      console.log(`[TranscriptExtraction] Marked buyer ${buyerId} as insufficient - follow-up needed`);
     }
   }
 }
