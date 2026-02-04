@@ -62,6 +62,24 @@ serve(async (req) => {
       .eq('status', 'rate_limited')
       .lt('rate_limit_reset_at', now);
 
+    // Mark items that have exhausted attempts as failed
+    const { data: exhaustedItems, error: exhaustedError } = await supabase
+      .from('buyer_enrichment_queue')
+      .update({
+        status: 'failed',
+        last_error: 'Max attempts reached',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('status', 'pending')
+      .gte('attempts', MAX_ATTEMPTS)
+      .select('id');
+
+    if (exhaustedError) {
+      console.error('Error marking exhausted items as failed:', exhaustedError);
+    } else if (exhaustedItems && exhaustedItems.length > 0) {
+      console.log(`Marked ${exhaustedItems.length} exhausted items as failed`);
+    }
+
     // Fetch pending items
     const { data: queueItems, error: fetchError } = await supabase
       .from('buyer_enrichment_queue')
