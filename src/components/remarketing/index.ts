@@ -70,6 +70,7 @@ export { TranscriptSection } from './TranscriptSection';
 
 // AI Chat Components
 export { BuyerQueryChat } from './BuyerQueryChat';
+export { DealBuyerChat } from './DealBuyerChat';
 
 // Outreach/Introduction Components
 export { OutreachTimeline } from './OutreachTimeline';
