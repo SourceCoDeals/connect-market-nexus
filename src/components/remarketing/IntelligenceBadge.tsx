@@ -11,6 +11,8 @@ import type { DataCompleteness } from "@/types/remarketing";
 
 interface IntelligenceBadgeProps {
   completeness: DataCompleteness | null;
+  /** Whether the buyer has at least one transcript. Without a transcript, max intel is "Some Intel" (medium). */
+  hasTranscript?: boolean;
   missingFields?: string[];
   showTooltip?: boolean;
   size?: "sm" | "md";
@@ -28,9 +30,9 @@ const config: Record<DataCompleteness, {
   borderColor: string;
 }> = {
   'high': {
-    label: 'Strong Thesis Data',
+    label: 'Strong Intel',
     shortLabel: 'Strong',
-    description: 'Comprehensive buyer data: thesis, targets, recent activity',
+    description: 'High-fidelity data from call transcripts - investment thesis and preferences are well understood',
     icon: CheckCircle2,
     dotColor: 'bg-emerald-500',
     bgColor: 'bg-emerald-50',
@@ -38,9 +40,9 @@ const config: Record<DataCompleteness, {
     borderColor: 'border-emerald-200',
   },
   'medium': {
-    label: 'Partial Thesis Data',
-    shortLabel: 'Partial',
-    description: 'Some buyer data is missing; score may be less reliable',
+    label: 'Some Intel',
+    shortLabel: 'Some Intel',
+    description: 'Website data available. Add call transcripts to unlock investment thesis insights.',
     icon: Info,
     dotColor: 'bg-amber-500',
     bgColor: 'bg-amber-50',
@@ -66,12 +68,20 @@ const sizeConfig = {
 
 export const IntelligenceBadge = ({
   completeness,
+  hasTranscript = false,
   missingFields = [],
   showTooltip = true,
   size = "sm",
   className,
 }: IntelligenceBadgeProps) => {
-  if (!completeness) {
+  // CRITICAL RULE: Without a transcript, max intel is "medium" (Some Intel)
+  // "Strong" (high) intel REQUIRES call transcripts to understand investment thesis
+  let effectiveCompleteness = completeness;
+  if (completeness === 'high' && !hasTranscript) {
+    effectiveCompleteness = 'medium';
+  }
+
+  if (!effectiveCompleteness) {
     return (
       <Badge
         variant="outline"
@@ -82,12 +92,12 @@ export const IntelligenceBadge = ({
         )}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground mr-1.5" />
-        Unknown
+        Needs Research
       </Badge>
     );
   }
 
-  const { label, shortLabel, description, icon: Icon, dotColor, bgColor, textColor, borderColor } = config[completeness];
+  const { label, shortLabel, description, icon: Icon, dotColor, bgColor, textColor, borderColor } = config[effectiveCompleteness];
   const displayLabel = size === "sm" ? shortLabel : label;
   
   // Limit missing fields shown to first 5 with "+N more" indicator

@@ -116,6 +116,23 @@ const ReMarketingBuyers = () => {
     }
   });
 
+  // Fetch buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel"
+  const { data: buyerIdsWithTranscripts } = useQuery({
+    queryKey: ['remarketing', 'all-buyer-transcripts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('buyer_transcripts')
+        .select('buyer_id');
+      
+      if (error) {
+        console.error('Error fetching transcripts:', error);
+        return new Set<string>();
+      }
+      
+      return new Set((data || []).map((t: any) => t.buyer_id));
+    },
+  });
+
   // Fetch universes for filter/dropdown
   const { data: universes } = useQuery({
     queryKey: ['remarketing', 'universes'],
@@ -506,6 +523,7 @@ const ReMarketingBuyers = () => {
                       <TableCell>
                         <IntelligenceBadge 
                           completeness={buyer.data_completeness as DataCompleteness | null}
+                          hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
                           size="sm"
                         />
                       </TableCell>
