@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -175,6 +176,50 @@ const ReMarketingUniverseDetail = () => {
     },
     enabled: !isNew
   });
+
+  // Real-time subscription for buyer updates during enrichment
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  
+  useEffect(() => {
+    if (isNew || !id) return;
+    
+    // Cleanup any previous channel
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    
+    const channel = supabase
+      .channel(`universe-buyers:${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "remarketing_buyers",
+          filter: `universe_id=eq.${id}`,
+        },
+        (payload) => {
+          // Refetch buyers list on any change (INSERT, UPDATE, DELETE)
+          console.log('[Realtime] Buyer change detected:', payload.eventType);
+          refetchBuyers();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log('[Realtime] Subscribed to universe buyers');
+        }
+      });
+    
+    channelRef.current = channel;
+    
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [id, isNew, refetchBuyers]);
 
   // Fetch deals explicitly linked to this universe via junction table
   const { data: universeDeals, refetch: refetchDeals } = useQuery({
