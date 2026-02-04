@@ -7,8 +7,7 @@ import {
   Search, 
   Plus, 
   Upload, 
-  Sparkles, 
-  GitMerge,
+  Sparkles,
   Loader2,
   X,
   AlertCircle,
@@ -40,12 +39,10 @@ interface BuyerTableToolbarProps {
   onAddBuyer?: () => void;
   onImportCSV?: () => void;
   onEnrichAll?: () => void;
-  onDedupe?: () => void;
   onCancelEnrichment?: () => void;
   onScoreAlignment?: () => void;
   onCancelAlignment?: () => void;
   isEnriching?: boolean;
-  isDeduping?: boolean;
   isScoringAlignment?: boolean;
   selectedCount?: number;
   enrichmentProgress?: EnrichmentProgress;
@@ -60,12 +57,10 @@ export const BuyerTableToolbar = ({
   onAddBuyer,
   onImportCSV,
   onEnrichAll,
-  onDedupe,
   onCancelEnrichment,
   onScoreAlignment,
   onCancelAlignment,
   isEnriching = false,
-  isDeduping = false,
   isScoringAlignment = false,
   selectedCount = 0,
   enrichmentProgress,
@@ -171,21 +166,6 @@ export const BuyerTableToolbar = ({
             >
               <X className="h-4 w-4 mr-1" />
               Cancel
-            </Button>
-          )}
-          {onDedupe && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onDedupe}
-              disabled={isDeduping}
-            >
-              {isDeduping ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <GitMerge className="h-4 w-4 mr-1" />
-              )}
-              Dedupe
             </Button>
           )}
         </div>
