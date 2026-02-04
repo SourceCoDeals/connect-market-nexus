@@ -458,6 +458,69 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_criteria_extractions: {
+        Row: {
+          completed_at: string | null
+          confidence_scores: Json | null
+          current_phase: string | null
+          error: string | null
+          extracted_criteria: Json | null
+          id: string
+          phases_completed: number
+          source_id: string | null
+          started_at: string
+          status: string
+          total_phases: number
+          universe_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          confidence_scores?: Json | null
+          current_phase?: string | null
+          error?: string | null
+          extracted_criteria?: Json | null
+          id?: string
+          phases_completed?: number
+          source_id?: string | null
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          confidence_scores?: Json | null
+          current_phase?: string | null
+          error?: string | null
+          extracted_criteria?: Json | null
+          id?: string
+          phases_completed?: number
+          source_id?: string | null
+          started_at?: string
+          status?: string
+          total_phases?: number
+          universe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_criteria_extractions_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "criteria_extraction_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_criteria_extractions_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_deal_scores: {
         Row: {
           acquisition_score: number | null
@@ -7363,6 +7426,7 @@ export type Database = {
         }[]
       }
       cleanup_old_notifications: { Args: never; Returns: undefined }
+      cleanup_zombie_extractions: { Args: never; Returns: number }
       convert_inbound_lead_to_request: {
         Args: { p_lead_id: string; p_listing_id: string }
         Returns: string
