@@ -188,7 +188,7 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
   const scoreMap = new Map(scores.map((s: any) => [s.buyer_id, s]));
   
   const buyerSummaries = buyers.map((buyer: any) => {
-    const score = scoreMap.get(buyer.id);
+    const score = scoreMap.get(buyer.id) as any;
     return {
       id: buyer.id,
       name: buyer.company_name || buyer.pe_firm_name,
