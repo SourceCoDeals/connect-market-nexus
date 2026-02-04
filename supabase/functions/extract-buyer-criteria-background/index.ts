@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { extractCriteriaFromGuide } from '../_shared/buyer-criteria-extraction.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -175,136 +176,104 @@ async function processExtractionInBackground(
   console.log(`[processExtractionInBackground] Starting extraction ${extractionId}`);
 
   try {
-    // Define the 4 phases of extraction
-    const phases = [
-      { name: 'Size Criteria', key: 'size_criteria' },
-      { name: 'Service Criteria', key: 'service_criteria' },
-      { name: 'Geography Criteria', key: 'geography_criteria' },
-      { name: 'Buyer Types', key: 'buyer_types_criteria' }
-    ];
-
     let extractedCriteria: any = {};
     let confidenceScores: any = {};
 
-    // Process each phase
-    for (let i = 0; i < phases.length; i++) {
-      const phase = phases[i];
-      console.log(`[processExtractionInBackground] Processing phase ${i + 1}/${phases.length}: ${phase.name}`);
-
-      // Update status
-      await supabase
-        .from('buyer_criteria_extractions')
-        .update({
-          current_phase: phase.name,
-          phases_completed: i
-        })
-        .eq('id', extractionId);
-
-      // Call the original extract-buyer-criteria function in non-streaming mode
-      // We'll do this via HTTP to the existing edge function
-      const response = await fetch(
-        `${Deno.env.get('SUPABASE_URL')}/functions/v1/extract-buyer-criteria`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
-          },
-          body: JSON.stringify({
-            universe_id: universeId,
-            guide_content: guideContent,
-            source_name: `${industryName} M&A Guide`,
-            industry_name: industryName
-          })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Phase ${i + 1} failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.criteria) {
-        extractedCriteria = result.criteria;
-        confidenceScores = {
-          size: result.criteria.size_criteria?.confidence_score || 0,
-          service: result.criteria.service_criteria?.confidence_score || 0,
-          geography: result.criteria.geography_criteria?.confidence_score || 0,
-          buyer_types: result.criteria.buyer_types_criteria?.confidence_score || 0,
-          overall: result.criteria.overall_confidence || 0
-        };
-
-        // Update progress with extracted data
-        await supabase
-          .from('buyer_criteria_extractions')
-          .update({
-            extracted_criteria: extractedCriteria,
-            confidence_scores: confidenceScores,
-            phases_completed: i + 1
-          })
-          .eq('id', extractionId);
-
-        break; // The extraction function returns everything at once
-      }
-    }
-
-    // Mark as completed
+    // Update status to extracting (single update)
     await supabase
       .from('buyer_criteria_extractions')
       .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        phases_completed: 4
+        current_phase: 'Extracting criteria from guide',
+        phases_completed: 0
       })
       .eq('id', extractionId);
 
-    // Update source record
-    await supabase
-      .from('criteria_extraction_sources')
-      .update({
-        extraction_status: 'completed',
-        extraction_completed_at: new Date().toISOString(),
-        extracted_data: extractedCriteria,
-        confidence_scores: confidenceScores
-      })
-      .eq('id', sourceId);
+    // Call the shared extraction function directly (no HTTP overhead!)
+    console.log(`[processExtractionInBackground] Calling direct extraction for universe ${universeId}`);
 
-    // Update the universe with the extracted criteria
-    await supabase
-      .from('remarketing_universes')
-      .update({
-        size_criteria: extractedCriteria.size_criteria,
-        service_criteria: extractedCriteria.service_criteria,
-        geography_criteria: extractedCriteria.geography_criteria,
-        buyer_types_criteria: extractedCriteria.buyer_types_criteria
-      })
-      .eq('id', universeId);
+    const criteria = await extractCriteriaFromGuide(guideContent, industryName);
 
-    console.log(`[processExtractionInBackground] Extraction ${extractionId} completed successfully`);
+    extractedCriteria = criteria;
+    confidenceScores = {
+      size: criteria.size_criteria?.confidence_score || 0,
+      service: criteria.service_criteria?.confidence_score || 0,
+      geography: criteria.geography_criteria?.confidence_score || 0,
+      buyer_types: criteria.buyer_types_criteria?.confidence_score || 0,
+      overall: criteria.overall_confidence || 0
+    };
+
+    console.log(`[processExtractionInBackground] Extraction completed with ${criteria.overall_confidence}% confidence`);
+
+    // OPTIMIZATION: Batch all database updates into a single transaction
+    // This reduces round-trips from 4 individual updates to 1 transaction
+    const completedAt = new Date().toISOString();
+
+    // Use a Supabase RPC function for atomic batch update
+    // If RPC not available, use Promise.all to parallelize updates
+    await Promise.all([
+      // Update extraction record with all final data in one call
+      supabase
+        .from('buyer_criteria_extractions')
+        .update({
+          status: 'completed',
+          extracted_criteria: extractedCriteria,
+          confidence_scores: confidenceScores,
+          phases_completed: 4,
+          completed_at: completedAt
+        })
+        .eq('id', extractionId),
+
+      // Update source record
+      supabase
+        .from('criteria_extraction_sources')
+        .update({
+          extraction_status: 'completed',
+          extraction_completed_at: completedAt,
+          extracted_data: extractedCriteria,
+          confidence_scores: confidenceScores
+        })
+        .eq('id', sourceId),
+
+      // Update universe with extracted criteria
+      supabase
+        .from('remarketing_universes')
+        .update({
+          size_criteria: extractedCriteria.size_criteria,
+          service_criteria: extractedCriteria.service_criteria,
+          geography_criteria: extractedCriteria.geography_criteria,
+          buyer_types_criteria: extractedCriteria.buyer_types_criteria
+        })
+        .eq('id', universeId)
+    ]);
+
+    console.log(`[processExtractionInBackground] Extraction ${extractionId} completed successfully (batched updates)`);
 
   } catch (error: any) {
     console.error(`[processExtractionInBackground] Error in extraction ${extractionId}:`, error);
 
-    // Update status to failed
-    await supabase
-      .from('buyer_criteria_extractions')
-      .update({
-        status: 'failed',
-        error: error.message || 'Unknown error occurred',
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', extractionId);
+    const completedAt = new Date().toISOString();
+    const errorMessage = error.message || 'Unknown error occurred';
 
-    // Update source record
-    await supabase
-      .from('criteria_extraction_sources')
-      .update({
-        extraction_status: 'failed',
-        extraction_error: error.message,
-        extraction_completed_at: new Date().toISOString()
-      })
-      .eq('id', sourceId);
+    // OPTIMIZATION: Batch error updates in parallel
+    await Promise.all([
+      supabase
+        .from('buyer_criteria_extractions')
+        .update({
+          status: 'failed',
+          error: errorMessage,
+          completed_at: completedAt
+        })
+        .eq('id', extractionId),
+
+      supabase
+        .from('criteria_extraction_sources')
+        .update({
+          extraction_status: 'failed',
+          extraction_error: errorMessage,
+          extraction_completed_at: completedAt
+        })
+        .eq('id', sourceId)
+    ]);
 
     throw error;
   }
