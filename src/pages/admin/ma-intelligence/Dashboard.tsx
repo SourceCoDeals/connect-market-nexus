@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { StatCard } from "@/components/ma-intelligence/StatCard";
-import { IntelligenceCoverageBar } from "@/components/ma-intelligence/IntelligenceBadge";
+import { StatCard, IntelligenceCoverageBar } from "@/components/ma-intelligence";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Sparkles, Building2, DollarSign, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { DealScoreBadge } from "@/components/ma-intelligence/DealScoreBadge";
+import { DealScoreBadge } from "@/components/ma-intelligence";
 import type { MADeal } from "@/lib/ma-intelligence/types";
 
 export default function DealDetail() {

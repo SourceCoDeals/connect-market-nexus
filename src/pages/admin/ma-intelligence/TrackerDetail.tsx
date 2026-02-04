@@ -7,14 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TrackerBuyersTab } from "@/components/ma-intelligence/tracker/TrackerBuyersTab";
-import { TrackerDealsTab } from "@/components/ma-intelligence/tracker/TrackerDealsTab";
-import { StructuredCriteriaPanel } from "@/components/ma-intelligence/StructuredCriteriaPanel";
-import { ScoringBehaviorPanel } from "@/components/ma-intelligence/ScoringBehaviorPanel";
-import { KPIConfigPanel } from "@/components/ma-intelligence/KPIConfigPanel";
-import { TrackerQueryChat } from "@/components/ma-intelligence/TrackerQueryChat";
-import { InterruptedSessionBanner } from "@/components/ma-intelligence/tracker/InterruptedSessionBanner";
-import { TrackerActivityFeed } from "@/components/ma-intelligence/TrackerActivityFeed";
+import {
+  TrackerBuyersTab,
+  TrackerDealsTab,
+  StructuredCriteriaPanel,
+  ScoringBehaviorPanel,
+  KPIConfigPanel,
+  TrackerQueryChat,
+  InterruptedSessionBanner,
+  TrackerActivityFeed,
+} from "@/components/ma-intelligence";
 import type { SizeCriteria, ServiceCriteria, GeographyCriteria, ScoringBehavior, TrackerDocument } from "@/lib/ma-intelligence/types";
 
 interface TrackerData {
