@@ -369,15 +369,15 @@ serve(async (req) => {
           
           const buyerData = {
             universe_id: mappedUniverseId,
-            company_name: row.platform_company_name || 'Unknown',
+            company_name: row.platform_company_name || row.company_name || 'Unknown',
             company_website: row.platform_website || null,
             buyer_type: row.pe_firm_name ? 'platform' : 'strategic',
             thesis_summary: row.thesis_summary || null,
             thesis_confidence: mapConfidence(row.thesis_confidence),
-            target_revenue_min: parseFloat(row.min_revenue) || null,
-            target_revenue_max: parseFloat(row.max_revenue) || null,
-            target_ebitda_min: parseFloat(row.min_ebitda) || null,
-            target_ebitda_max: parseFloat(row.max_ebitda) || null,
+            min_revenue: parseFloat(row.min_revenue) || null,
+            max_revenue: parseFloat(row.max_revenue) || null,
+            min_ebitda: parseFloat(row.min_ebitda) || null,
+            max_ebitda: parseFloat(row.max_ebitda) || null,
             target_geographies: parseArray(row.target_geographies) || [],
             target_services: parseArray(row.services_offered) || [],
             target_industries: parseArray(row.target_industries) || [],
@@ -413,13 +413,13 @@ serve(async (req) => {
             .single();
 
           if (error) {
-            results.buyers.errors.push(`Buyer ${row.platform_company_name}: ${error.message}`);
+            results.buyers.errors.push(`Buyer ${row.platform_company_name || row.company_name}: ${error.message}`);
           } else {
             buyerIdMap[row.id] = inserted.id;
             results.buyers.imported++;
           }
         } catch (e) {
-          results.buyers.errors.push(`Buyer ${row.platform_company_name}: ${getErrorMessage(e)}`);
+          results.buyers.errors.push(`Buyer ${row.platform_company_name || row.company_name}: ${getErrorMessage(e)}`);
         }
       }
       console.log(`Imported ${results.buyers.imported} buyers`);
