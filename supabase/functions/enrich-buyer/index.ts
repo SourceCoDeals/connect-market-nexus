@@ -567,8 +567,8 @@ function getPlatformIntelligencePrompt() {
           type: 'object',
           properties: {
             // Business Overview
-            services_offered: { type: 'string', description: 'Primary services or products offered' },
-            business_summary: { type: 'string', description: 'Brief summary of what the company does (2-3 sentences)' },
+            services_offered: { type: 'string', description: 'Primary services or products offered by the PLATFORM COMPANY (not the PE firm)' },
+            business_summary: { type: 'string', description: 'Brief summary of what the PLATFORM COMPANY does operationally (2-3 sentences). Focus on their actual business operations, services, and customers - NOT investment thesis or PE firm description.' },
             business_type: { type: 'string', description: 'Type of business (e.g., Service Provider, Manufacturer)' },
             revenue_model: { type: 'string', description: 'How the company generates revenue' },
             industry_vertical: { type: 'string', description: 'Primary industry vertical' },
@@ -606,22 +606,26 @@ function getPlatformIntelligencePrompt() {
         }
       }
     },
-    system: `You are a senior M&A analyst extracting structured business intelligence from company websites.
+    system: `You are a senior M&A analyst extracting structured business intelligence from a PLATFORM COMPANY website.
 
-Extract ALL available information about:
-1. BUSINESS OVERVIEW: What they do, services, business model, industry focus
-2. CUSTOMERS: Who they sell to, customer size, industries served
-3. GEOGRAPHY: Where they are located and operate (use 2-letter state codes ONLY)
-4. ACQUISITIONS: Any mentions of companies they've acquired
+A "platform company" is an OPERATING BUSINESS that actually delivers services or products to customers. It may be owned by a private equity firm.
+
+Extract information about THIS OPERATING COMPANY - NOT about any PE firm that owns them:
+1. BUSINESS OVERVIEW: What this company actually DOES, their services, business model
+2. CUSTOMERS: Who THEY sell to, customer size, industries served  
+3. GEOGRAPHY: Where THEY are located and operate (use 2-letter state codes ONLY)
+4. ACQUISITIONS: Companies THEY have acquired (not deals the PE firm did with other platforms)
 
 CRITICAL RULES:
-- hq_city MUST be an actual city name (Atlanta, Dallas, Phoenix) - NEVER a region (Southeast, Midwest)
+- business_summary must describe the OPERATING COMPANY's actual business operations
+- Do NOT describe what a PE firm invests in - describe what THIS COMPANY does day-to-day
+- Example GOOD summary: "ABC Services provides commercial HVAC installation and maintenance to mid-market businesses across Texas and Oklahoma."
+- Example BAD summary: "Backed by XYZ Capital, the company focuses on consolidating regional service providers." (This is PE-speak, not operational description)
+- hq_city MUST be an actual city name (Atlanta, Dallas, Phoenix) - NEVER a region
 - hq_state MUST be a 2-letter state code (GA, TX, AZ)
-- All geographic_footprint and service_regions entries MUST be 2-letter state codes
-- Be concise and factual. If information is not available, omit that field.
-- Do NOT make up information that isn't clearly stated on the website.`,
+- Be concise and factual. If information is not available, omit that field.`,
     user: (content: string, companyName: string) => 
-      `Website Content for "${companyName}":\n\n${content.substring(0, 20000)}\n\nExtract all available business intelligence.`
+      `Website Content for platform company "${companyName}":\n\n${content.substring(0, 20000)}\n\nExtract business intelligence about THIS OPERATING COMPANY. Focus on their actual services, customers, and operations - NOT PE firm investment thesis.`
   };
 }
 
@@ -635,9 +639,9 @@ function getPEFirmIntelligencePrompt() {
         parameters: {
           type: 'object',
           properties: {
-            // Investment Thesis
-            thesis_summary: { type: 'string', description: 'Summary of investment thesis and focus (2-3 sentences)' },
-            strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities' },
+            // Investment Thesis - about the PE FIRM, not the platform
+            thesis_summary: { type: 'string', description: 'Summary of the PE FIRM\'s investment thesis - what types of companies they look to acquire, their strategy (2-3 sentences)' },
+            strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities for acquisitions' },
             thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity of thesis' },
             target_services: { type: 'array', items: { type: 'string' }, description: 'Services/products they seek in acquisition targets' },
             target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries they invest in' },
@@ -671,20 +675,22 @@ function getPEFirmIntelligencePrompt() {
         }
       }
     },
-    system: `You are a senior M&A analyst extracting investment intelligence from private equity firm websites.
+    system: `You are a senior M&A analyst extracting investment intelligence from a PRIVATE EQUITY FIRM website.
 
-Extract ALL available information about:
+Extract information about the PE FIRM'S investment approach:
 1. INVESTMENT THESIS: What sectors they focus on, strategic priorities, target criteria
 2. DEAL STRUCTURE: Revenue/EBITDA ranges, deal timelines, structure preferences
-3. PORTFOLIO: Current portfolio companies
+3. PORTFOLIO: Current portfolio companies they own
 
 CRITICAL RULES:
+- thesis_summary should describe the PE FIRM's investment strategy, NOT an operating company's business
+- Example GOOD thesis: "Focused on acquiring and growing regional HVAC service businesses with $5-20M revenue in the Southeast"
+- Example BAD thesis: "Provides residential and commercial HVAC services" (This describes an operating company, not PE thesis)
 - Convert ALL financial figures to actual numbers: "$5M" = 5000000, "$10-20M" = min:10000000, max:20000000
 - Rate thesis_confidence: high (specific criteria stated), medium (general focus areas), low (vague/generic)
-- Be concise and factual. If information is not available, omit that field.
 - Do NOT make up information that isn't clearly stated on the website.`,
     user: (content: string) => 
-      `PE Firm Website Content:\n\n${content.substring(0, 20000)}\n\nExtract all available investment intelligence.`
+      `PE Firm Website Content:\n\n${content.substring(0, 20000)}\n\nExtract investment intelligence about THIS PE FIRM's acquisition strategy and thesis. Do NOT describe what their portfolio companies do operationally.`
   };
 }
 
