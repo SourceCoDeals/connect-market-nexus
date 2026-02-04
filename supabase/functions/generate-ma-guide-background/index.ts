@@ -47,7 +47,7 @@ serve(async (req) => {
 
     // Fetch universe details
     const { data: universe, error: universeError } = await supabase
-      .from('remarketing_universes')
+      .from('remarketing_buyer_universes')
       .select('name, description, clarification_context')
       .eq('id', universe_id)
       .single();
@@ -205,7 +205,7 @@ async function processGenerationInBackground(
 
         // Also update the universe with the generated content
         await supabase
-          .from('remarketing_universes')
+          .from('remarketing_buyer_universes')
           .update({
             ma_guide_content: fullContent,
             fit_criteria: result.criteria
