@@ -70,6 +70,7 @@ const TARGET_FIELDS = [
   { value: 'pe_firm_website', label: 'PE Firm Website', required: false, description: 'Website URL of the PE firm' },
   { value: 'company_website', label: 'Company Website (General)', required: false, description: 'General website URL' },
   { value: 'buyer_type', label: 'Buyer Type', required: false, description: 'Type of buyer (PE firm, platform, strategic, family office)' },
+  { value: 'investment_date', label: 'Investment Date', required: false, description: 'Date PE firm invested in the platform' },
   { value: 'hq_city_state', label: 'HQ City & State (combined)', required: false, description: 'Combined city and state (will be parsed)' },
   { value: 'hq_city', label: 'HQ City', required: false, description: 'Headquarters city' },
   { value: 'hq_state', label: 'HQ State', required: false, description: 'Headquarters state (2-letter code preferred)' },
@@ -297,6 +298,11 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     if (lower.includes('service') || lower.includes('industry') || lower.includes('sector')) return 'target_services';
     if (lower.includes('footprint') || lower.includes('location') || lower.includes('presence') || lower.includes('current')) return 'geographic_footprint';
     
+    // Investment date
+    if (lower.includes('investment') && lower.includes('date')) return 'investment_date';
+    if (lower.includes('invested') && lower.includes('date')) return 'investment_date';
+    if (lower === 'investment date') return 'investment_date';
+    
     // Notes
     if (lower.includes('note')) return 'notes';
     
@@ -373,6 +379,32 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
           else if (lower.includes('strategic')) buyer.buyer_type = 'strategic';
           else if (lower.includes('family')) buyer.buyer_type = 'family_office';
           else buyer.buyer_type = 'other';
+          return;
+        }
+        
+        // Handle investment date - parse various formats
+        if (mapping.targetField === 'investment_date') {
+          // Try to parse the date in various formats
+          let dateValue = value;
+          
+          // Handle "2025-11" format (YYYY-MM) by adding day
+          if (/^\d{4}-\d{1,2}$/.test(value)) {
+            dateValue = `${value}-01`;
+          }
+          // Handle "11/2025" or "11-2025" format (MM/YYYY)
+          else if (/^\d{1,2}[\/\-]\d{4}$/.test(value)) {
+            const parts = value.split(/[\/\-]/);
+            dateValue = `${parts[1]}-${parts[0].padStart(2, '0')}-01`;
+          }
+          // Handle "Nov 2025" or "November 2025" format
+          else if (/^[a-zA-Z]+\s+\d{4}$/.test(value)) {
+            const parsed = new Date(value + ' 01');
+            if (!isNaN(parsed.getTime())) {
+              dateValue = parsed.toISOString().split('T')[0];
+            }
+          }
+          
+          buyer[mapping.targetField] = dateValue;
           return;
         }
         

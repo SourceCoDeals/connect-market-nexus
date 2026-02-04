@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { format, parseISO } from "date-fns";
 
 interface BuyerDetailHeaderProps {
   companyName: string;
@@ -10,6 +11,7 @@ interface BuyerDetailHeaderProps {
   hqCity?: string | null;
   hqState?: string | null;
   hqCountry?: string | null;
+  investmentDate?: string | null;
   dataCompleteness: number;
   onEdit: () => void;
   onEnrich: () => void;
@@ -23,12 +25,25 @@ export const BuyerDetailHeader = ({
   hqCity,
   hqState,
   hqCountry,
+  investmentDate,
   dataCompleteness,
   onEdit,
   onEnrich,
   isEnriching = false,
 }: BuyerDetailHeaderProps) => {
   const hqLocation = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
+  
+  const formatInvestmentDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return null;
+    try {
+      const date = parseISO(dateStr);
+      return format(date, "MMM yyyy");
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formattedInvestmentDate = formatInvestmentDate(investmentDate);
   
   const getCompletenessColor = (value: number) => {
     if (value >= 70) return "bg-green-100 text-green-800 border-green-200";
@@ -67,7 +82,7 @@ export const BuyerDetailHeader = ({
               </div>
             )}
             
-            {/* Platform Website + HQ Location */}
+            {/* Platform Website + HQ Location + Investment Date */}
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               {platformWebsite && (
                 <a 
@@ -84,6 +99,12 @@ export const BuyerDetailHeader = ({
                 <div className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" />
                   <span>HQ: {hqLocation}</span>
+                </div>
+              )}
+              {formattedInvestmentDate && (
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>Invested: {formattedInvestmentDate}</span>
                 </div>
               )}
             </div>
