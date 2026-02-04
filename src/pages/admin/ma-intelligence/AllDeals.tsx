@@ -205,9 +205,12 @@ export default function MAAllDeals() {
 
     // Persist to database
     try {
-      const { error } = await supabase.from("deals").upsert(
-        updates.map((u) => ({ id: u.id, priority_rank: u.priority_rank }))
+      // Update each deal's priority_rank individually (cast to bypass types until migration runs)
+      const updatePromises = updates.map((u) =>
+        supabase.from("deals").update({ priority_rank: u.priority_rank } as any).eq("id", u.id)
       );
+      const results = await Promise.all(updatePromises);
+      const error = results.find((r) => r.error)?.error;
 
       if (error) {
         toast({
