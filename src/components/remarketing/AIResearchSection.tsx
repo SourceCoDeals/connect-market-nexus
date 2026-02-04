@@ -990,7 +990,7 @@ export const AIResearchSection = ({
               <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
                 <div>
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    Previous generation was interrupted at batch {savedProgress.batchIndex + 1}
+                    Previous generation was interrupted at phase {savedProgress.batchIndex + 1} of 13
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     {savedProgress.content.split(/\s+/).length.toLocaleString()} words generated
