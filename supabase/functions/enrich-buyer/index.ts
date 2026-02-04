@@ -770,8 +770,25 @@ function buildUpdateObject(
       continue;
     }
 
-    if (Array.isArray(newValue)) {
-      let normalized = newValue
+    // Handle arrays - Claude sometimes returns comma-separated strings instead of arrays
+    // Convert to array if it's a comma-separated string for known array fields
+    const ARRAY_FIELDS = new Set([
+      'customer_industries', 'geographic_footprint', 'service_regions', 
+      'target_services', 'target_industries', 'strategic_priorities',
+      'target_geographies', 'service_mix_prefs', 'industry_exclusions',
+      'geographic_exclusions', 'deal_breakers', 'portfolio_companies',
+      'recent_acquisitions', 'other_office_locations'
+    ]);
+    
+    let processedValue = newValue;
+    
+    // Convert comma-separated strings to arrays for array fields
+    if (typeof newValue === 'string' && ARRAY_FIELDS.has(field)) {
+      processedValue = newValue.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    }
+    
+    if (Array.isArray(processedValue)) {
+      let normalized = processedValue
         .filter(v => v && typeof v === 'string')
         .map(v => v.trim())
         .filter(v => v && !PLACEHOLDER_STRINGS.has(v.toLowerCase()));
