@@ -1548,6 +1548,62 @@ export type Database = {
           },
         ]
       }
+      criteria_extraction_sources: {
+        Row: {
+          confidence_scores: Json | null
+          created_at: string | null
+          extracted_data: Json | null
+          extraction_completed_at: string | null
+          extraction_error: string | null
+          extraction_started_at: string | null
+          extraction_status: string
+          id: string
+          source_metadata: Json | null
+          source_name: string | null
+          source_type: string
+          universe_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_scores?: Json | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          extraction_completed_at?: string | null
+          extraction_error?: string | null
+          extraction_started_at?: string | null
+          extraction_status?: string
+          id?: string
+          source_metadata?: Json | null
+          source_name?: string | null
+          source_type?: string
+          universe_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_scores?: Json | null
+          created_at?: string | null
+          extracted_data?: Json | null
+          extraction_completed_at?: string | null
+          extraction_error?: string | null
+          extraction_started_at?: string | null
+          extraction_status?: string
+          id?: string
+          source_metadata?: Json | null
+          source_name?: string | null
+          source_type?: string
+          universe_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criteria_extraction_sources_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cron_job_logs: {
         Row: {
           created_at: string | null
