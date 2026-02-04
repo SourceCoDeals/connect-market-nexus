@@ -41,6 +41,11 @@ export function IntelligenceCoverageBar({
           style={{ width: `${percentage}%` }}
         />
       </div>
+      {showLabel && percentage === 0 && total > 0 && (
+        <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+          Add call transcripts for full intel
+        </p>
+      )}
     </div>
   );
 }

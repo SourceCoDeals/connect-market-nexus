@@ -99,25 +99,38 @@ const ReMarketingUniverses = () => {
   });
 
   // Fetch buyer counts per universe
+  // Intelligence coverage is based on TRANSCRIPTS, not data_completeness
+  // Website scraping can only provide ~50% intel; 100% requires call transcripts
   const { data: buyerStats } = useQuery({
     queryKey: ['remarketing', 'universe-buyer-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get all buyers
+      const { data: buyers, error: buyersError } = await supabase
         .from('remarketing_buyers')
-        .select('universe_id, data_completeness')
+        .select('id, universe_id')
         .eq('archived', false);
 
-      if (error) throw error;
+      if (buyersError) throw buyersError;
+
+      // Get buyer IDs that have transcripts
+      const { data: transcripts, error: transcriptsError } = await supabase
+        .from('buyer_transcripts')
+        .select('buyer_id');
+
+      if (transcriptsError) throw transcriptsError;
+
+      const buyersWithTranscripts = new Set(transcripts?.map(t => t.buyer_id) || []);
 
       // Aggregate by universe
       const stats: Record<string, { total: number; intelligent: number }> = {};
-      data?.forEach(buyer => {
+      buyers?.forEach(buyer => {
         if (!buyer.universe_id) return;
         if (!stats[buyer.universe_id]) {
           stats[buyer.universe_id] = { total: 0, intelligent: 0 };
         }
         stats[buyer.universe_id].total++;
-        if (buyer.data_completeness === 'high') {
+        // A buyer has full intel only if they have a transcript
+        if (buyersWithTranscripts.has(buyer.id)) {
           stats[buyer.universe_id].intelligent++;
         }
       });
