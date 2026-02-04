@@ -177,6 +177,8 @@ export interface DocumentReference {
   name: string;
   url?: string;
   uploaded_at: string;
+  type?: string;
+  auto_generated?: boolean;
 }
 
 export type BuyerType = 'pe_firm' | 'platform' | 'strategic' | 'family_office' | 'other';

@@ -876,6 +876,7 @@ const ReMarketingUniverseDetail = () => {
               universeId={id}
               universeName={formData.name}
               maGuideContent={maGuideContent}
+              maGuideDocument={documents.find(d => d.type === 'ma_guide')}
               onCriteriaExtracted={() => {
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
               }}
