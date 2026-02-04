@@ -1,0 +1,3 @@
+# Allow the queue processor to call this function without JWT
+# The queue processor uses the service role key instead
+verify_jwt = false
