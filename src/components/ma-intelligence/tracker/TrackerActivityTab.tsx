@@ -42,44 +42,17 @@ export function TrackerActivityTab({ trackerId }: TrackerActivityTabProps) {
 
     setIsLoading(true);
     try {
-      let query = supabase
-        .from("tracker_activities")
-        .select("*")
-        .eq("tracker_id", trackerId)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      // Apply activity type filter
-      if (filterType !== 'all') {
-        query = query.eq("activity_type", filterType);
-      }
-
-      // Apply date range filter
-      if (dateRange !== 'all') {
-        const now = new Date();
-        let startDate: Date;
-
-        switch (dateRange) {
-          case 'today':
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            break;
-          case 'week':
-            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            break;
-          case 'month':
-            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            break;
-          default:
-            startDate = new Date(0);
-        }
-
-        query = query.gte("created_at", startDate.toISOString());
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setActivities(data || []);
+      // tracker_activities table doesn't exist yet - stub implementation
+      // When the table is created, uncomment and use:
+      // const { data, error } = await supabase
+      //   .from("tracker_activities")
+      //   .select("*")
+      //   .eq("tracker_id", trackerId)
+      //   .order("created_at", { ascending: false })
+      //   .limit(100);
+      
+      // For now, return empty array
+      setActivities([]);
     } catch (error: any) {
       toast({
         title: "Error loading activities",

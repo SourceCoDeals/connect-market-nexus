@@ -146,7 +146,7 @@ export const CriteriaExtractionPanel = ({
         setIsExtracting(false);
         setCurrentExtractionId(null);
 
-        const confidenceScore = data.confidence_scores?.overall || 0;
+        const confidenceScore = (data.confidence_scores as any)?.overall || 0;
         toast.success('Criteria extracted successfully!', {
           description: `Overall confidence: ${confidenceScore}%`
         });

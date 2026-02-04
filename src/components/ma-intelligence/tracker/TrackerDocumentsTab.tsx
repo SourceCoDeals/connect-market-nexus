@@ -42,14 +42,9 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("tracker_documents")
-        .select("*")
-        .eq("tracker_id", trackerId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setDocuments(data || []);
+      // tracker_documents table doesn't exist yet - stub implementation
+      // When the table is created, uncomment and use the actual query
+      setDocuments([]);
     } catch (error: any) {
       toast({
         title: "Error loading documents",
@@ -65,66 +60,14 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload PDF, TXT, or DOC files only",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please upload files smaller than 10MB",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsUploading(true);
     try {
-      // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${trackerId}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('tracker-documents')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('tracker-documents')
-        .getPublicUrl(filePath);
-
-      // Create document record
-      const { error: insertError } = await supabase
-        .from("tracker_documents")
-        .insert({
-          tracker_id: trackerId,
-          name: file.name,
-          file_type: file.type,
-          file_url: publicUrl,
-          status: 'ready',
-        });
-
-      if (insertError) throw insertError;
-
+      // tracker_documents table doesn't exist yet - stub implementation
       toast({
-        title: "Document uploaded",
-        description: "Your document has been uploaded successfully",
+        title: "Feature coming soon",
+        description: "Document upload will be available once the tracker_documents table is created.",
+        variant: "destructive",
       });
-
-      loadDocuments();
-
-      // Reset file input
-      event.target.value = '';
     } catch (error: any) {
       toast({
         title: "Upload failed",
@@ -133,81 +76,26 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
       });
     } finally {
       setIsUploading(false);
+      event.target.value = '';
     }
   };
 
   const handleProcessDocument = async (documentId: string) => {
-    setIsProcessing(documentId);
-    try {
-      const { error } = await supabase.functions.invoke("process-tracker-document", {
-        body: {
-          document_id: documentId,
-          tracker_id: trackerId,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Processing started",
-        description: "Extracting criteria from document. This may take a few moments...",
-      });
-
-      // Update document status
-      await supabase
-        .from("tracker_documents")
-        .update({ status: 'processing' })
-        .eq("id", documentId);
-
-      // Poll for completion
-      setTimeout(() => {
-        loadDocuments();
-      }, 3000);
-    } catch (error: any) {
-      toast({
-        title: "Processing failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(null);
-    }
+    // Stub - table doesn't exist yet
+    toast({
+      title: "Feature coming soon",
+      description: "Document processing will be available once the tracker_documents table is created.",
+      variant: "destructive",
+    });
   };
 
   const handleDeleteDocument = async (documentId: string, fileUrl: string) => {
-    if (!confirm("Are you sure you want to delete this document?")) return;
-
-    try {
-      // Extract file path from URL
-      const urlParts = fileUrl.split('/');
-      const filePath = urlParts.slice(-2).join('/');
-
-      // Delete from storage
-      await supabase.storage
-        .from('tracker-documents')
-        .remove([filePath]);
-
-      // Delete record
-      const { error } = await supabase
-        .from("tracker_documents")
-        .delete()
-        .eq("id", documentId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Document deleted",
-        description: "The document has been removed",
-      });
-
-      loadDocuments();
-    } catch (error: any) {
-      toast({
-        title: "Delete failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    // Stub - table doesn't exist yet
+    toast({
+      title: "Feature coming soon",
+      description: "Document deletion will be available once the tracker_documents table is created.",
+      variant: "destructive",
+    });
   };
 
   const getStatusBadge = (status: Document['status']) => {

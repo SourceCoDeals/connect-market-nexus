@@ -39,10 +39,10 @@ export function AddTranscriptDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    type: "Link" as "Link" | "Upload" | "Call",
-    url: "",
+    source: "call" as string,
+    transcript_url: "",
     call_date: "",
-    notes: "",
+    transcript_text: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,19 +54,15 @@ export function AddTranscriptDialog({
       if (!formData.title) {
         throw new Error("Title is required");
       }
-      if (formData.type === "Link" && !formData.url) {
-        throw new Error("URL is required for Link type");
-      }
 
-      // Insert into deal_transcripts table
+      // Insert into deal_transcripts table (uses listing_id, not deal_id)
       const { error } = await supabase.from("deal_transcripts").insert({
-        deal_id: dealId,
+        listing_id: dealId,
         title: formData.title,
-        type: formData.type,
-        url: formData.type === "Link" ? formData.url : null,
+        source: formData.source,
+        transcript_url: formData.transcript_url || null,
         call_date: formData.call_date || null,
-        notes: formData.notes || null,
-        processed_status: "Pending",
+        transcript_text: formData.transcript_text || "",
       });
 
       if (error) throw error;
@@ -79,10 +75,10 @@ export function AddTranscriptDialog({
       // Reset form
       setFormData({
         title: "",
-        type: "Link",
-        url: "",
+        source: "call",
+        transcript_url: "",
         call_date: "",
-        notes: "",
+        transcript_text: "",
       });
 
       onAdd();
@@ -102,10 +98,10 @@ export function AddTranscriptDialog({
     if (!isSubmitting) {
       setFormData({
         title: "",
-        type: "Link",
-        url: "",
+        source: "call",
+        transcript_url: "",
         call_date: "",
-        notes: "",
+        transcript_text: "",
       });
       onClose();
     }
@@ -137,51 +133,37 @@ export function AddTranscriptDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="type">Type *</Label>
+              <Label htmlFor="source">Source</Label>
               <Select
-                value={formData.type}
-                onValueChange={(value: "Link" | "Upload" | "Call") =>
-                  setFormData({ ...formData, type: value })
+                value={formData.source}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, source: value })
                 }
               >
-                <SelectTrigger id="type">
+                <SelectTrigger id="source">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Link">Link (URL)</SelectItem>
-                  <SelectItem value="Upload">Upload File</SelectItem>
-                  <SelectItem value="Call">Call Recording</SelectItem>
+                  <SelectItem value="call">Call Recording</SelectItem>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                  <SelectItem value="email">Email Thread</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {formData.type === "Link" && (
-              <div className="space-y-2">
-                <Label htmlFor="url">URL *</Label>
-                <Input
-                  id="url"
-                  type="url"
-                  value={formData.url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, url: e.target.value })
-                  }
-                  placeholder="https://..."
-                  required
-                />
-              </div>
-            )}
-
-            {formData.type === "Upload" && (
-              <div className="space-y-2">
-                <Label htmlFor="file">Upload File</Label>
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    File upload coming soon
-                  </p>
-                </div>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="transcript_url">Transcript URL (optional)</Label>
+              <Input
+                id="transcript_url"
+                type="url"
+                value={formData.transcript_url}
+                onChange={(e) =>
+                  setFormData({ ...formData, transcript_url: e.target.value })
+                }
+                placeholder="https://..."
+              />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="call_date">Call Date</Label>
@@ -196,15 +178,15 @@ export function AddTranscriptDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="transcript_text">Transcript Text</Label>
               <Textarea
-                id="notes"
-                value={formData.notes}
+                id="transcript_text"
+                value={formData.transcript_text}
                 onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
+                  setFormData({ ...formData, transcript_text: e.target.value })
                 }
-                placeholder="Add any additional notes..."
-                rows={3}
+                placeholder="Paste transcript content here..."
+                rows={5}
               />
             </div>
           </div>

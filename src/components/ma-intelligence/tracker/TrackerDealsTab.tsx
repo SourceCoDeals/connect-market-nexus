@@ -212,9 +212,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
   const handleArchiveDeal = async (dealId: string) => {
     try {
+      // deals table doesn't have 'status' column - use soft delete via deleted_at
       await supabase
         .from("deals")
-        .update({ status: "archived" })
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", dealId);
 
       toast({ title: "Deal archived" });
