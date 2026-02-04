@@ -600,6 +600,10 @@ const ReMarketingUniverseDetail = () => {
                       onImportCSV={() => setImportBuyersDialogOpen(true)}
                       onEnrichAll={() => setShowBuyerEnrichDialog(true)}
                       onCancelEnrichment={cancelQueueEnrichment}
+                      onResetQueue={async () => {
+                        await resetQueueEnrichment();
+                        toast.success('Enrichment queue reset');
+                      }}
                       onScoreAlignment={async () => {
                         if (!buyers?.length) {
                           toast.error('No buyers to score');
