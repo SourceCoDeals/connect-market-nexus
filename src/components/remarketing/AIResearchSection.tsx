@@ -207,6 +207,9 @@ export const AIResearchSection = ({
   // Ref for background polling interval
   const pollIntervalRef = useRef<number | null>(null);
 
+  // Criteria extraction state
+  const [isExtracting, setIsExtracting] = useState(false);
+
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
@@ -288,9 +291,12 @@ export const AIResearchSection = ({
       setTotalPhases(generation.total_phases);
       setPhaseName(generation.current_phase || '');
 
-      if (generation.generated_content?.content) {
-        setContent(generation.generated_content.content);
-        setWordCount(generation.generated_content.content.split(/\s+/).length);
+      // Type-safe access to generated_content JSON field
+      const generatedContent = generation.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
+      
+      if (generatedContent?.content) {
+        setContent(generatedContent.content);
+        setWordCount(generatedContent.content.split(/\s+/).length);
       }
 
       // Handle completion
@@ -301,8 +307,8 @@ export const AIResearchSection = ({
         }
         setState('complete');
 
-        const finalContent = generation.generated_content?.content || '';
-        const criteria = generation.generated_content?.criteria;
+        const finalContent = generatedContent?.content || '';
+        const criteria = generatedContent?.criteria;
 
         setContent(finalContent);
         setWordCount(finalContent.split(/\s+/).length);
@@ -323,12 +329,12 @@ export const AIResearchSection = ({
         }
         setState('error');
         setErrorDetails({
+          code: 'generation_failed',
           message: generation.error || 'Generation failed',
-          error_code: 'generation_failed',
-          recoverable: true,
-          batch_index: 0,
-          saved_word_count: 0,
-          total_batches: 1
+          batchIndex: 0,
+          isRecoverable: true,
+          savedWordCount: 0,
+          timestamp: Date.now()
         });
         toast.error(`Generation failed: ${generation.error}`);
       }
@@ -1030,6 +1036,77 @@ export const AIResearchSection = ({
     URL.revokeObjectURL(url);
   };
 
+  // Extract buyer fit criteria from the generated guide
+  const handleExtractCriteria = async () => {
+    const guideContent = existingContent || content;
+    
+    if (!guideContent || guideContent.length < 1000) {
+      toast.error("Guide must have at least 1,000 characters to extract criteria");
+      return;
+    }
+
+    if (!universeId) {
+      toast.error("Universe ID is required for criteria extraction");
+      return;
+    }
+
+    setIsExtracting(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-buyer-criteria', {
+        body: {
+          universe_id: universeId,
+          guide_content: guideContent,
+          source_name: `${universeName || industryName} M&A Guide`,
+          industry_name: universeName || industryName
+        }
+      });
+
+      if (error) {
+        // Handle rate limits and payment required
+        if (error.message?.includes('402') || error.message?.includes('Payment')) {
+          toast.error("AI credits depleted. Please add credits in Settings → Workspace → Usage.", {
+            duration: 10000
+          });
+          return;
+        }
+        if (error.message?.includes('429') || error.message?.includes('Rate')) {
+          toast.warning("Rate limit reached. Please wait a moment and try again.");
+          return;
+        }
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Extraction failed');
+      }
+
+      // Map extracted data to component's interface
+      const mappedCriteria: ExtractedCriteria = {
+        size_criteria: data.criteria?.size_criteria,
+        geography_criteria: data.criteria?.geography_criteria,
+        service_criteria: data.criteria?.service_criteria,
+        buyer_types_criteria: data.criteria?.buyer_types_criteria
+      };
+
+      const confidence = data.confidence || 0;
+      
+      // Update local state
+      setExtractedCriteria(mappedCriteria);
+      
+      // Pass to parent component
+      onGuideGenerated(guideContent, mappedCriteria, data.target_buyer_types);
+      
+      toast.success(`Criteria extracted successfully (${confidence}% confidence)`, { duration: 5000 });
+
+    } catch (error) {
+      console.error('Criteria extraction error:', error);
+      toast.error(`Failed to extract criteria: ${(error as Error).message}`);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   // Error panel handlers
   const handleErrorRetry = () => {
     setErrorDetails(null);
@@ -1083,6 +1160,30 @@ export const AIResearchSection = ({
             )}
             {wordCount > 0 && state !== 'complete' && (
               <Badge variant="secondary">{wordCount.toLocaleString()} words</Badge>
+            )}
+            {/* Extract Criteria button - visible when guide exists */}
+            {existingContent && existingContent.length > 1000 && (state === 'idle' || state === 'complete') && !isOpen && (
+              <Button 
+                size="sm" 
+                variant="secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleExtractCriteria();
+                }}
+                disabled={isExtracting}
+              >
+                {isExtracting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Extracting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Extract Criteria
+                  </>
+                )}
+              </Button>
             )}
             {/* Generate/Regenerate button always visible in header */}
             {(state === 'idle' || state === 'complete' || state === 'error') && !isOpen && (
