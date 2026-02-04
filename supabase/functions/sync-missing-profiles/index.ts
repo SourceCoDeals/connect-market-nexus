@@ -182,11 +182,12 @@ Deno.serve(async (req) => {
         status: 200,
       },
     )
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in sync-missing-profiles function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Unknown error occurred' 
+        error: errorMessage 
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
