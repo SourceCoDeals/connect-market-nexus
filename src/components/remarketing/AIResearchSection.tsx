@@ -1161,30 +1161,6 @@ export const AIResearchSection = ({
             {wordCount > 0 && state !== 'complete' && (
               <Badge variant="secondary">{wordCount.toLocaleString()} words</Badge>
             )}
-            {/* Extract Criteria button - visible when guide exists */}
-            {existingContent && existingContent.length > 1000 && (state === 'idle' || state === 'complete') && !isOpen && (
-              <Button 
-                size="sm" 
-                variant="secondary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleExtractCriteria();
-                }}
-                disabled={isExtracting}
-              >
-                {isExtracting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    Extracting...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-1" />
-                    Extract Criteria
-                  </>
-                )}
-              </Button>
-            )}
             {/* Generate/Regenerate button always visible in header */}
             {(state === 'idle' || state === 'complete' || state === 'error') && !isOpen && (
               <Button 
