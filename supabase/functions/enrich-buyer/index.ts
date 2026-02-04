@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { callClaudeWithTool, DEFAULT_CLAUDE_MODEL } from "../_shared/ai-providers.ts";
 import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     }
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -101,10 +101,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!geminiApiKey) {
-      console.error('GEMINI_API_KEY not configured');
+    if (!anthropicApiKey) {
+      console.error('ANTHROPIC_API_KEY not configured');
       return new Response(
-        JSON.stringify({ success: false, error: 'Gemini API key not configured' }),
+        JSON.stringify({ success: false, error: 'Anthropic API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -233,8 +233,8 @@ Deno.serve(async (req) => {
     let promptsRun = 0;
     let promptsSuccessful = 0;
 
-    // Delay between prompts to avoid rate limiting (Gemini has ~10 RPM for free tier)
-    const INTER_PROMPT_DELAY_MS = 600;
+    // Delay between prompts to avoid rate limiting (Claude has 50 RPM limit, so 1.2s between batches)
+    const INTER_PROMPT_DELAY_MS = 300; // Reduced from 600ms since Claude has higher rate limit
     const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
     
     // Helper to check for billing errors and stop if found
@@ -256,7 +256,7 @@ Deno.serve(async (req) => {
         getBusinessOverviewPrompt().system,
         getBusinessOverviewPrompt().user(platformContent, buyer.company_name),
         getBusinessOverviewPrompt().tool,
-        geminiApiKey
+        anthropicApiKey
       );
       if (checkBillingError(overviewResult)) {
         console.error('Billing error during business overview extraction');
@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
           getCustomersEndMarketPrompt().system,
           getCustomersEndMarketPrompt().user(platformContent),
           getCustomersEndMarketPrompt().tool,
-          geminiApiKey
+          anthropicApiKey
         );
         if (checkBillingError(customersResult)) {
           console.error('Billing error during customers extraction');
@@ -293,7 +293,7 @@ Deno.serve(async (req) => {
           getGeographyFootprintPrompt().system,
           getGeographyFootprintPrompt().user(platformContent),
           getGeographyFootprintPrompt().tool,
-          geminiApiKey
+          anthropicApiKey
         );
         if (checkBillingError(geographyResult)) {
           console.error('Billing error during geography extraction');
@@ -312,7 +312,7 @@ Deno.serve(async (req) => {
           getPlatformAcquisitionsPrompt().system,
           getPlatformAcquisitionsPrompt().user(platformContent),
           getPlatformAcquisitionsPrompt().tool,
-          geminiApiKey
+          anthropicApiKey
         );
         if (checkBillingError(acquisitionsResult)) {
           console.error('Billing error during acquisitions extraction');
@@ -348,7 +348,7 @@ Deno.serve(async (req) => {
         getPEInvestmentThesisPrompt().system,
         getPEInvestmentThesisPrompt().user(peFirmContent),
         getPEInvestmentThesisPrompt().tool,
-        geminiApiKey
+        anthropicApiKey
       );
       if (checkBillingError(thesisResult)) {
         console.error('Billing error during PE thesis extraction');
@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
           getPEDealStructurePrompt().system,
           getPEDealStructurePrompt().user(peFirmContent),
           getPEDealStructurePrompt().tool,
-          geminiApiKey
+          anthropicApiKey
         );
         if (checkBillingError(dealStructureResult)) {
           console.error('Billing error during deal structure extraction');
@@ -387,7 +387,7 @@ Deno.serve(async (req) => {
           getPEPortfolioPrompt().system,
           getPEPortfolioPrompt().user(peFirmContent),
           getPEPortfolioPrompt().tool,
-          geminiApiKey
+          anthropicApiKey
         );
         if (checkBillingError(portfolioResult)) {
           console.error('Billing error during portfolio extraction');
@@ -540,8 +540,8 @@ Deno.serve(async (req) => {
 
 // Minimum content length required before proceeding with AI extraction
 const MIN_CONTENT_LENGTH = 200;
-const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds
-const AI_TIMEOUT_MS = 45000; // 45 seconds
+const SCRAPE_TIMEOUT_MS = 15000; // 15 seconds (reduced from 30s to fit in 60s edge function limit)
+const AI_TIMEOUT_MS = 20000; // 20 seconds (reduced from 45s to fit in 60s edge function limit)
 
 async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
@@ -587,89 +587,24 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
   }
 }
 
-// Enhanced AI call with comprehensive logging
+// Enhanced AI call with comprehensive logging (using Claude Haiku)
 async function callAI(
-  systemPrompt: string, 
-  userPrompt: string, 
-  tool: any, 
+  systemPrompt: string,
+  userPrompt: string,
+  tool: any,
   apiKey: string
 ): Promise<{ data: any | null; error?: { code: string; message: string } }> {
-  try {
-    console.log(`Calling AI with tool: ${tool.function.name}`);
-    
-    const response = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(apiKey),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        tools: [tool],
-        tool_choice: { type: 'function', function: { name: tool.function.name } }
-      }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
+  console.log(`Calling Claude with tool: ${tool.function.name}`);
 
-    // Handle billing/rate limit errors
-    if (response.status === 402) {
-      console.error('AI credits depleted (402)');
-      return { 
-        data: null, 
-        error: { code: 'payment_required', message: 'AI credits depleted' } 
-      };
-    }
-    
-    if (response.status === 429) {
-      console.error('Rate limited (429)');
-      return { 
-        data: null, 
-        error: { code: 'rate_limited', message: 'Rate limit exceeded' } 
-      };
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`AI call failed: ${response.status}`, errorText.substring(0, 500));
-      return { data: null };
-    }
-
-    // Parse response with detailed logging
-    const responseText = await response.text();
-    console.log(`AI response status: ${response.status}, length: ${responseText.length}`);
-    
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse AI response JSON:', responseText.substring(0, 500));
-      return { data: null };
-    }
-
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall) {
-      // Log what we actually received for debugging
-      const messageContent = data.choices?.[0]?.message?.content || 'no content';
-      const finishReason = data.choices?.[0]?.finish_reason || 'unknown';
-      console.warn(`No tool call in AI response. Finish reason: ${finishReason}. Message content: ${JSON.stringify(messageContent).substring(0, 200)}`);
-      return { data: null };
-    }
-
-    // Parse tool arguments
-    try {
-      const parsed = JSON.parse(toolCall.function.arguments);
-      console.log(`Successfully parsed tool call for ${tool.function.name}: ${Object.keys(parsed).length} fields`);
-      return { data: parsed };
-    } catch (argParseError) {
-      console.error(`Failed to parse tool arguments for ${tool.function.name}:`, toolCall.function.arguments?.substring(0, 500));
-      return { data: null };
-    }
-  } catch (error) {
-    console.error('AI extraction error:', error);
-    return { data: null };
-  }
+  // Use the shared Claude API call function with timeout
+  return await callClaudeWithTool(
+    systemPrompt,
+    userPrompt,
+    tool,
+    apiKey,
+    DEFAULT_CLAUDE_MODEL,
+    AI_TIMEOUT_MS
+  );
 }
 
 // Retry wrapper with exponential backoff
@@ -692,8 +627,8 @@ async function callAIWithRetry(
     // Rate limit: backoff + retry
     if (result.error?.code === 'rate_limited') {
       if (attempt < maxRetries) {
-        // Gemini rate limits can require a longer cool-down. Use exponential backoff + jitter.
-        const baseMs = 30_000 * Math.pow(2, attempt - 1); // 30s, 60s, 120s...
+        // Claude rate limits: Use exponential backoff + jitter
+        const baseMs = 10_000 * Math.pow(2, attempt - 1); // 10s, 20s, 40s... (shorter than Gemini)
         const jitterMs = Math.floor(Math.random() * 2_000);
         const waitMs = baseMs + jitterMs;
         console.log(`Rate limited for ${tool.function.name}. Waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries}...`);
@@ -873,6 +808,7 @@ function getPEInvestmentThesisPrompt() {
         parameters: {
           type: 'object',
           properties: {
+            pe_firm_name: { type: 'string', description: 'EXACT name of this PE firm (extract from site header, logo, about page, or footer - be precise)' },
             thesis_summary: { type: 'string', description: 'Summary of investment thesis and focus' },
             strategic_priorities: { type: 'array', items: { type: 'string' }, description: 'Key strategic priorities' },
             thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence based on specificity' },
@@ -883,8 +819,9 @@ function getPEInvestmentThesisPrompt() {
         }
       }
     },
-    system: `Extract the PE firm's investment thesis and target criteria.
-Look for: investment focus statements, target sectors, strategic priorities.
+    system: `Extract the PE firm's name and investment thesis from their website.
+CRITICAL: Extract pe_firm_name from site header, logo, "About" page, or footer (e.g., "Acme Capital Partners", "Summit Equity").
+Look for: firm name, investment focus statements, target sectors, strategic priorities.
 Rate thesis_confidence: High (specific criteria), Medium (general focus), Low (vague info).`,
     user: (content: string) => 
       `PE Firm Website Content:\n\n${content.substring(0, 12000)}\n\nExtract investment thesis.`

@@ -22,8 +22,27 @@ export interface EnrichmentProgress {
   creditsDepleted: boolean;
 }
 
-const BATCH_SIZE = 2; // Reduced from 5 to avoid Gemini rate limits (each buyer makes 6 API calls)
-const BATCH_DELAY_MS = 2000; // Increased from 1000ms for better rate limit handling
+const BATCH_SIZE = 5; // Claude allows 50 RPM (vs Gemini's 15 RPM), so we can batch 5 buyers (30 prompts)
+const BATCH_DELAY_MS = 1000; // Reduced from 2000ms - Claude's higher rate limit allows faster batching
+const EDGE_FUNCTION_TIMEOUT_MS = 90000; // 90 seconds (edge function has 60s limit + 30s buffer)
+
+/**
+ * Invoke edge function with timeout protection
+ * Prevents client from hanging indefinitely if edge function stalls
+ */
+async function invokeWithTimeout<T>(
+  invokePromise: Promise<T>,
+  timeoutMs: number,
+  operationName: string
+): Promise<T> {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${operationName} timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([invokePromise, timeoutPromise]);
+}
 
 export function useBuyerEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
@@ -101,22 +120,26 @@ export function useBuyerEnrichment(universeId?: string) {
         updateStatus(buyer.id, { buyerId: buyer.id, status: 'enriching' });
       });
 
-      // Process batch in parallel
+      // Process batch in parallel with timeout protection
       const results = await Promise.allSettled(
         batch.map(async (buyer) => {
-          const { data, error } = await supabase.functions.invoke('enrich-buyer', {
-            body: { buyerId: buyer.id }
-          });
-          
+          const { data, error } = await invokeWithTimeout(
+            supabase.functions.invoke('enrich-buyer', {
+              body: { buyerId: buyer.id }
+            }),
+            EDGE_FUNCTION_TIMEOUT_MS,
+            `Enrich buyer ${buyer.id}`
+          );
+
           if (error) throw error;
-          
+
           // Check for error in response body (edge function may return 200 with error in body)
           if (data && !data.success) {
             const errorObj = new Error(data.error || 'Enrichment failed');
             (errorObj as any).errorCode = data.error_code;
             throw errorObj;
           }
-          
+
           return data;
         })
       );

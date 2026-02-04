@@ -560,10 +560,24 @@ const ReMarketingUniverseDetail = () => {
                       toast.error('No buyers to enrich');
                       return;
                     }
-                    
+
+                    // Show time estimate before starting
+                    const enrichableBuyers = buyers.filter(b => b.company_website || (b as any).platform_website || (b as any).pe_firm_website);
+                    if (enrichableBuyers.length === 0) {
+                      toast.error('No buyers with websites to enrich');
+                      return;
+                    }
+
+                    // Calculate estimated time (with Claude Haiku API: ~0.15 min/buyer)
+                    const estimatedMinutes = Math.ceil(enrichableBuyers.length * 0.15);
+                    toast.info(
+                      `Enriching ${enrichableBuyers.length} buyers. Estimated time: ${estimatedMinutes} minute${estimatedMinutes !== 1 ? 's' : ''}`,
+                      { duration: 5000 }
+                    );
+
                     // Reset any previous enrichment state
                     resetEnrichment();
-                    
+
                     // Use the hook which handles batching, 402 errors, and progress
                     await enrichBuyers(buyers.map(b => ({
                       id: b.id,
