@@ -273,6 +273,12 @@ export function useBuyerEnrichment(universeId?: string) {
         failed,
       }));
 
+      // Invalidate queries after each batch to update table in real-time
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+      if (universeId) {
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', universeId] });
+      }
+
       // Delay between batches (not after last batch)
       if (i + BATCH_SIZE < enrichableBuyers.length && !cancelledRef.current) {
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
