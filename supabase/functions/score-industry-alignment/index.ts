@@ -74,12 +74,12 @@ serve(async (req) => {
       );
     }
 
-    // M&A Guide is MANDATORY for industry fit scoring
-    if (!universe.ma_guide_content || universe.ma_guide_content.trim().length === 0) {
-      console.error("[score-industry-alignment] M&A guide is empty for universe:", universe.name);
+    // MANDATORY: Check for M&A guide - required for industry alignment scoring
+    if (!universe.ma_guide_content || universe.ma_guide_content.trim() === "") {
+      console.log(`[score-industry-alignment] M&A guide missing for universe: ${universe.name}`);
       return new Response(
         JSON.stringify({
-          error: "M&A guide required",
+          error: "M&A Guide required",
           error_code: "ma_guide_missing",
           message: "Please create an M&A guide for this universe before scoring industry fit. The guide defines what companies belong in this industry."
         }),
@@ -89,38 +89,34 @@ serve(async (req) => {
 
     console.log(`[score-industry-alignment] Scoring ${buyer.company_name} against ${universe.name}`);
 
-    // Step 3: Build AI prompt with all available context
+    // Step 3: Build AI prompt - industry-agnostic, uses M&A guide as source of truth
     const systemPrompt = `You are an M&A industry expert specializing in evaluating company fit for buyer universes. Your job is to score how well a company aligns with a specific target industry.
 
-You will be provided with an M&A Industry Guide that defines what this industry is. Use this guide as your primary reference for determining fit.
+PRIMARY SOURCE OF TRUTH:
+Use the M&A Industry Guide provided below as your primary reference for understanding what companies belong in this industry. The guide contains detailed research on market segments, typical buyers, services, and business models for this specific industry.
 
 CRITICAL RULES:
-1. Be STRICT - adjacent or related industries should score LOW
-2. Keywords in company names can be misleading (e.g., "restoration" appears in many unrelated industries)
-3. Equipment/product suppliers are NOT the same as service providers
-4. Consider business model (B2B vs B2C), service type, and target customers
-5. A company that USES services from this industry is NOT the same as a company that PROVIDES those services
-6. Use all available context: company data, business summary, and the M&A Industry Guide
+1. Be STRICT - adjacent or tangentially related industries should score LOW (under 40)
+2. Company names and keywords can be MISLEADING - "ABC Restoration" could be car restoration, furniture restoration, art restoration, or disaster restoration. Always evaluate the actual business activities.
+3. Distinguish between companies that PROVIDE services in this industry vs companies that USE or PURCHASE those services. Customers of this industry are NOT in this industry.
+4. Equipment suppliers, software vendors, and vendors TO this industry are NOT the same as service providers IN this industry
+5. Consider business model (B2B vs B2C), service type, target customers, and operational footprint
+6. Use all available context: company data, existing enrichment, and the M&A guide knowledge
 
-SCORING SCALE:
-- 95-100: Perfect fit - clearly operates in the exact target industry with matching business model
-- 85-94: Excellent fit - right industry, minor variations in focus or service mix
+SCORING SCALE (be strict - most companies should NOT be a fit):
+- 95-100: Perfect fit - clearly operates in exact target industry with matching business model and services
+- 85-94: Excellent fit - right industry, minor variations in focus, geography, or service mix
 - 70-84: Good fit - right industry, some differences in service mix or business model
-- 55-69: Partial fit - adjacent industry or significantly different business model
+- 55-69: Partial fit - adjacent industry segment or significantly different business model
 - 40-54: Weak fit - related but distinctly different industry or business model
-- 20-39: Poor fit - different industry with only superficial connection (e.g., similar keyword in name)
-- 0-19: Non-fit - completely unrelated industry
+- 20-39: Poor fit - different industry with only superficial connection (adjacent industry, vendors to industry)
+- 0-19: Non-fit - completely unrelated industry or a customer of the industry rather than a provider`;
 
-The M&A Industry Guide provided below is your source of truth for what companies belong in this industry.`;
-
-    // Build the industry knowledge context from M&A guide if available
-    let industryKnowledge = "";
-    if (universe.ma_guide_content) {
-      industryKnowledge = `
-INDUSTRY KNOWLEDGE BASE (from M&A Research Guide):
+    // Include the FULL M&A guide as industry knowledge - no truncation
+    const industryKnowledge = `
+M&A INDUSTRY GUIDE (PRIMARY REFERENCE - Use this to understand what belongs in the "${universe.name}" industry):
 ${universe.ma_guide_content}
 `;
-    }
 
     // Build service criteria context
     let serviceCriteriaContext = "";
@@ -171,9 +167,17 @@ ${buyer.target_geographies?.length ? `
 Target Geographies: ${buyer.target_geographies.join(", ")}
 ` : ""}
 
-TASK: Analyze this company and determine its alignment score (0-100) with the target industry "${universe.name}". Use the score_alignment tool to return your evaluation.`;
+TASK: Analyze this company and determine its alignment score (0-100) with the target industry "${universe.name}". 
 
-    // Step 4: Call Lovable AI Gateway with tool calling
+REMEMBER:
+- Use the M&A Industry Guide above as your primary reference
+- Be STRICT - adjacent industries, vendors to the industry, and customers of the industry should score LOW
+- Keywords in company names can be misleading - evaluate actual business activities
+- Companies that PURCHASE services from this industry are NOT part of this industry
+
+Use the score_alignment tool to return your evaluation.`;
+
+    // Step 4: Call Gemini API with tool calling
     const toolDefinition = {
       type: "function",
       function: {
