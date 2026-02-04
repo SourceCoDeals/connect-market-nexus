@@ -121,6 +121,7 @@ export const AIResearchSection = ({
 }: AIResearchSectionProps) => {
   const [isOpen, setIsOpen] = useState(!!existingContent && existingContent.length > 100);
   const [industryName, setIndustryName] = useState(universeName || "");
+  const [industryDescription, setIndustryDescription] = useState("");
   const [state, setState] = useState<GenerationState>('idle');
   const [currentPhase, setCurrentPhase] = useState(0);
   const [totalPhases, setTotalPhases] = useState(12);
@@ -193,7 +194,10 @@ export const AIResearchSection = ({
             "Content-Type": "application/json",
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ industry_name: industryName }),
+          body: JSON.stringify({ 
+            industry_name: industryName,
+            industry_description: industryDescription || undefined
+          }),
         }
       );
 
@@ -363,6 +367,7 @@ export const AIResearchSection = ({
           },
           body: JSON.stringify({
             industry_name: industryName,
+            industry_description: industryDescription || undefined,
             existing_content: existingContent,
             clarification_context: clarificationContext,
             stream: true,
@@ -834,21 +839,34 @@ export const AIResearchSection = ({
 
             {/* Industry Input - shown in idle state or error state without error panel */}
             {(state === 'idle' || state === 'complete' || (state === 'error' && !errorDetails)) && (
-              <div className="flex gap-4 items-end">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="industry-name">Industry Name</Label>
-                  <Input
-                    id="industry-name"
-                    placeholder="e.g., Collision Repair, HVAC, Pest Control, Restoration"
-                    value={industryName}
-                    onChange={(e) => setIndustryName(e.target.value)}
-                  />
+              <div className="space-y-4">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="industry-name">Industry Name</Label>
+                    <Input
+                      id="industry-name"
+                      placeholder="e.g., Collision Repair, HVAC, Pest Control, Restoration"
+                      value={industryName}
+                      onChange={(e) => setIndustryName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <Button onClick={handleStartClarification} disabled={!industryName.trim()}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {state === 'complete' ? 'Regenerate' : 'Generate Guide'}
+                  </Button>
                 </div>
                 
-                <Button onClick={handleStartClarification} disabled={!industryName.trim()}>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  {state === 'complete' ? 'Regenerate' : 'Generate Guide'}
-                </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="industry-description">Industry Description <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Textarea
+                    id="industry-description"
+                    placeholder="Provide a 2-3 sentence description of this industry to help guide the AI research. For example: 'Water damage restoration and mold remediation services for residential and commercial properties. Companies typically respond to insurance claims and emergency situations.'"
+                    value={industryDescription}
+                    onChange={(e) => setIndustryDescription(e.target.value)}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
               </div>
             )}
 

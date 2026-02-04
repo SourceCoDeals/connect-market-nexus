@@ -141,6 +141,10 @@ function buildClarificationContext(context: any): string {
 
   const parts: string[] = [];
   
+  // Include industry overview/description if provided
+  if (context.industry_overview) {
+    parts.push(`INDUSTRY OVERVIEW: ${context.industry_overview}`);
+  }
   if (context.segments?.length > 0) {
     parts.push(`FOCUS SEGMENTS: ${context.segments.join(', ')}`);
   }
@@ -156,7 +160,7 @@ function buildClarificationContext(context: any): string {
 
   // Include any other custom answers
   Object.entries(context).forEach(([key, value]) => {
-    if (!['segments', 'example_companies', 'geography_focus', 'revenue_range'].includes(key) && value) {
+    if (!['segments', 'example_companies', 'geography_focus', 'revenue_range', 'industry_overview'].includes(key) && value) {
       const label = key.replace(/_/g, ' ').toUpperCase();
       parts.push(`${label}: ${Array.isArray(value) ? value.join(', ') : value}`);
     }
@@ -1023,7 +1027,8 @@ serve(async (req) => {
 
   try {
     const { 
-      industry_name, 
+      industry_name,
+      industry_description,
       universe_id, 
       existing_content, 
       clarification_context,
@@ -1031,6 +1036,12 @@ serve(async (req) => {
       batch_index = 0, // Which batch to generate (0, 1, 2)
       previous_content = '' // Content from previous batches
     } = await req.json();
+
+    // Merge industry_description into clarification_context if provided
+    const enrichedContext = {
+      ...clarification_context,
+      ...(industry_description ? { industry_overview: industry_description } : {})
+    };
 
     if (!industry_name) {
       return new Response(
@@ -1053,14 +1064,14 @@ serve(async (req) => {
     const totalBatches = Math.ceil(GENERATION_PHASES.length / BATCH_SIZE);
 
     console.log(`Generating M&A Guide batch ${batch_index + 1}/${totalBatches} for: ${industry_name}`, 
-      clarification_context ? 'with context' : 'without context',
+      enrichedContext ? 'with context' : 'without context',
       `phases ${startPhase + 1}-${endPhase}`);
 
     // If not streaming, generate batch at once
     if (!stream) {
       let fullContent = previous_content;
       for (const phase of batchPhases) {
-        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context);
+        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext);
         fullContent += phaseContent + '\n\n';
       }
       
@@ -1173,8 +1184,8 @@ serve(async (req) => {
 
             // Generate both phases in parallel
             const [content0, content1] = await Promise.all([
-              generatePhaseContent(batchPhases[0], industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context),
-              generatePhaseContent(batchPhases[1], industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context)
+              generatePhaseContent(batchPhases[0], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext),
+              generatePhaseContent(batchPhases[1], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext)
             ]);
 
             // Stream content from both phases
@@ -1248,7 +1259,7 @@ serve(async (req) => {
               });
 
               // Generate phase content with clarification context
-              const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, clarification_context);
+              const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext);
               fullContent += phaseContent + '\n\n';
 
               // Send content chunks

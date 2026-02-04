@@ -26,7 +26,7 @@ serve(async (req) => {
   }
 
   try {
-    const { industry_name } = await req.json();
+    const { industry_name, industry_description } = await req.json();
     
     if (!industry_name) {
       return new Response(
@@ -34,6 +34,11 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Build context string from description if provided
+    const descriptionContext = industry_description 
+      ? `\n\nUser provided description: "${industry_description}"`
+      : '';
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (!ANTHROPIC_API_KEY) {
@@ -110,7 +115,7 @@ Return questions as JSON matching this schema exactly.`;
         max_tokens: 4096,
         system: systemPrompt,
         messages: [
-          { role: "user", content: `Generate clarifying questions for the industry: "${industry_name}"` }
+          { role: "user", content: `Generate clarifying questions for the industry: "${industry_name}"${descriptionContext}` }
         ],
         tools: [tool],
         tool_choice: { type: "tool", name: "generate_questions" }
