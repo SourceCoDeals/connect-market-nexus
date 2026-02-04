@@ -10,6 +10,8 @@ const corsHeaders = {
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 const EXTRACTION_TIMEOUT_MS = 120000; // 2 minutes per extraction
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000; // 2 seconds between retries
 
 interface ExtractionRequest {
   universe_id: string;
@@ -92,7 +94,7 @@ Be specific and quantitative. Extract actual numbers, not vague terms like "smal
 
   const userPrompt = `Extract comprehensive buyer fit criteria from this ${industryName} M&A guide:
 
-${guideContent.slice(0, 100000)} <!-- Limit to first 100k chars to avoid token limits -->
+${guideContent}
 
 Extract:
 1. SIZE CRITERIA: Revenue ranges, EBITDA ranges, location counts, employee counts
@@ -262,26 +264,67 @@ Provide specific numbers and ranges where available. Include confidence scores (
 
   const startTime = Date.now();
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: DEFAULT_CLAUDE_MODEL,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      tools: tools,
-      tool_choice: { type: 'tool', name: 'extract_buyer_criteria' }
-    }),
-  });
+  // Retry logic with exponential backoff
+  let lastError: Error | null = null;
+  let response: any = null;
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Claude API error: ${response.status} - ${error}`);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[EXTRACTION_ATTEMPT] ${attempt}/${MAX_RETRIES}`);
+
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY!,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: DEFAULT_CLAUDE_MODEL,
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+          tools: tools,
+          tool_choice: { type: 'tool', name: 'extract_buyer_criteria' }
+        }),
+        signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        // Check if it's a rate limit or transient error
+        if (response.status === 429 || response.status >= 500) {
+          throw new Error(`Transient error: ${response.status} - ${errorText}`);
+        }
+
+        // Permanent error - don't retry
+        throw new Error(`Claude API error: ${response.status} - ${errorText}`);
+      }
+
+      // Success - break out of retry loop
+      break;
+
+    } catch (error: any) {
+      lastError = error;
+      console.error(`[EXTRACTION_ERROR] Attempt ${attempt} failed:`, error.message);
+
+      // Don't retry on permanent errors
+      if (!error.message.includes('Transient') && !error.message.includes('timeout')) {
+        throw error;
+      }
+
+      // Wait before retrying (exponential backoff)
+      if (attempt < MAX_RETRIES) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        console.log(`[RETRY_WAIT] Waiting ${delay}ms before retry ${attempt + 1}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  if (!response || !response.ok) {
+    throw lastError || new Error('Extraction failed after all retries');
   }
 
   const result = await response.json();

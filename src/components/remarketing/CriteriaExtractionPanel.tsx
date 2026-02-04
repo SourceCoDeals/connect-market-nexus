@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,122 @@ export const CriteriaExtractionPanel = ({
   const [transcriptText, setTranscriptText] = useState('');
   const [participants, setParticipants] = useState('');
 
+  // Background extraction tracking
+  const [currentExtractionId, setCurrentExtractionId] = useState<string | null>(null);
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState('');
+  const pollIntervalRef = useRef<number | null>(null);
+
+  // Check for existing extraction in progress on mount
+  useEffect(() => {
+    checkExistingExtraction();
+  }, [universeId]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Check if there's an extraction already running
+  const checkExistingExtraction = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('buyer_criteria_extractions')
+        .select('*')
+        .eq('universe_id', universeId)
+        .in('status', ['pending', 'processing'])
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        toast.info('Resuming criteria extraction in progress...');
+        setCurrentExtractionId(data.id);
+        setIsExtracting(true);
+        startPolling(data.id);
+      }
+    } catch (err) {
+      // No existing extraction, that's fine
+    }
+  };
+
+  // Start polling for extraction progress
+  const startPolling = (extractionId: string) => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+
+    pollIntervalRef.current = window.setInterval(async () => {
+      await checkExtractionStatus(extractionId);
+    }, 2000);
+
+    // Also check immediately
+    checkExtractionStatus(extractionId);
+  };
+
+  // Check status of extraction
+  const checkExtractionStatus = async (extractionId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('buyer_criteria_extractions')
+        .select('*')
+        .eq('id', extractionId)
+        .single();
+
+      if (error || !data) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        return;
+      }
+
+      // Update progress
+      const progress = Math.round((data.phases_completed / data.total_phases) * 100);
+      setExtractionProgress(progress);
+      setCurrentPhase(data.current_phase || '');
+
+      // Handle completion
+      if (data.status === 'completed') {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setIsExtracting(false);
+        setCurrentExtractionId(null);
+
+        const confidenceScore = data.confidence_scores?.overall || 0;
+        toast.success('Criteria extracted successfully!', {
+          description: `Overall confidence: ${confidenceScore}%`
+        });
+
+        loadExtractionSources();
+        onExtractionComplete?.();
+      }
+
+      // Handle failure
+      if (data.status === 'failed') {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setIsExtracting(false);
+        setCurrentExtractionId(null);
+
+        toast.error('Extraction failed', {
+          description: data.error || 'Unknown error occurred'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error checking extraction status:', error);
+    }
+  };
+
   // Load existing extraction sources
   const loadExtractionSources = async () => {
     // Use type assertion to bypass missing table type definition
@@ -75,7 +191,7 @@ export const CriteriaExtractionPanel = ({
     setExtractionSources((data || []) as ExtractionSource[]);
   };
 
-  // Extract criteria from AI-generated guide
+  // Extract criteria from AI-generated guide (background processing)
   const handleExtractFromGuide = async () => {
     if (!maGuideContent || maGuideContent.length < 1000) {
       toast.error('M&A guide must have at least 1000 characters to extract criteria');
@@ -83,30 +199,45 @@ export const CriteriaExtractionPanel = ({
     }
 
     setIsExtracting(true);
+    setExtractionProgress(0);
+    setCurrentPhase('Initializing');
+
     try {
-      const { data, error } = await supabase.functions.invoke('extract-buyer-criteria', {
-        body: {
-          universe_id: universeId,
-          guide_content: maGuideContent,
-          source_name: `${universeName} M&A Guide`,
-          industry_name: universeName
+      // Call background extraction endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-buyer-criteria-background`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({
+            universe_id: universeId,
+            guide_content: maGuideContent,
+            source_name: `${universeName} M&A Guide`,
+            industry_name: universeName
+          })
         }
-      });
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start extraction');
+      }
 
-      toast.success('Criteria extracted from guide successfully', {
-        description: `Overall confidence: ${data.criteria.overall_confidence}%`
-      });
+      const data = await response.json();
 
-      loadExtractionSources();
-      onExtractionComplete?.();
+      toast.success('Extraction started in background. You can navigate away - it will continue.');
+
+      setCurrentExtractionId(data.extraction_id);
+      startPolling(data.extraction_id);
+
     } catch (error: any) {
       console.error('Guide extraction error:', error);
-      toast.error('Failed to extract criteria from guide', {
+      toast.error('Failed to start extraction', {
         description: error.message
       });
-    } finally {
       setIsExtracting(false);
     }
   };
@@ -273,6 +404,19 @@ export const CriteriaExtractionPanel = ({
                   </div>
                 </div>
 
+                {isExtracting && (
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{currentPhase}</span>
+                      <span className="font-medium">{extractionProgress}%</span>
+                    </div>
+                    <Progress value={extractionProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground">
+                      Extraction running in background. You can navigate away.
+                    </p>
+                  </div>
+                )}
+
                 <Button
                   onClick={handleExtractFromGuide}
                   disabled={isExtracting}
@@ -281,7 +425,7 @@ export const CriteriaExtractionPanel = ({
                   {isExtracting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Extracting Criteria...
+                      Extracting Criteria... {extractionProgress}%
                     </>
                   ) : (
                     <>
