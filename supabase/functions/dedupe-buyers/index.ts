@@ -33,7 +33,9 @@ function normalizeDomain(input: string | null): string | null {
 }
 
 // Normalize company name for comparison
-function normalizeCompanyName(name: string): string {
+function normalizeCompanyName(name: string | null | undefined): string {
+  if (!name) return '';
+
   return name
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric
