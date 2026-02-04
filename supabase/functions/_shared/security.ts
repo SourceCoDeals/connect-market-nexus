@@ -18,22 +18,22 @@ interface RateLimitConfig {
 
 // Rate limit configurations for AI operations
 export const AI_RATE_LIMITS: Record<string, RateLimitConfig> = {
-  // Per-user limits (normal users)
-  ai_enrichment: { limit: 200, windowMinutes: 60 },      // 200 AI enrichments per hour
-  ai_scoring: { limit: 200, windowMinutes: 60 },         // 200 scoring calls per hour
-  ai_transcript: { limit: 50, windowMinutes: 60 },       // 50 transcript extractions per hour
-  ai_document_parse: { limit: 50, windowMinutes: 60 },   // 50 document parses per hour
-  ai_query: { limit: 100, windowMinutes: 60 },           // 100 AI queries per hour
+  // Per-user limits (normal users) - INCREASED FOR TESTING
+  ai_enrichment: { limit: 1000, windowMinutes: 60 },     // 1000 AI enrichments per hour (increased from 200)
+  ai_scoring: { limit: 1000, windowMinutes: 60 },        // 1000 scoring calls per hour (increased from 200)
+  ai_transcript: { limit: 200, windowMinutes: 60 },      // 200 transcript extractions per hour (increased from 50)
+  ai_document_parse: { limit: 200, windowMinutes: 60 },  // 200 document parses per hour (increased from 50)
+  ai_query: { limit: 500, windowMinutes: 60 },           // 500 AI queries per hour (increased from 100)
 
   // Admin limits (higher)
-  admin_ai_enrichment: { limit: 500, windowMinutes: 60 },
-  admin_ai_scoring: { limit: 1000, windowMinutes: 60 },
-  admin_ai_transcript: { limit: 200, windowMinutes: 60 },
-  admin_ai_document_parse: { limit: 200, windowMinutes: 60 },
-  admin_ai_query: { limit: 500, windowMinutes: 60 },
+  admin_ai_enrichment: { limit: 2000, windowMinutes: 60 },
+  admin_ai_scoring: { limit: 2000, windowMinutes: 60 },
+  admin_ai_transcript: { limit: 500, windowMinutes: 60 },
+  admin_ai_document_parse: { limit: 500, windowMinutes: 60 },
+  admin_ai_query: { limit: 1000, windowMinutes: 60 },
 
   // Global budget limits (all users combined)
-  global_ai_calls: { limit: 5000, windowMinutes: 60 },   // 5000 AI calls per hour globally
+  global_ai_calls: { limit: 10000, windowMinutes: 60 },  // 10000 AI calls per hour globally (increased from 5000)
 };
 
 interface RateLimitResult {
