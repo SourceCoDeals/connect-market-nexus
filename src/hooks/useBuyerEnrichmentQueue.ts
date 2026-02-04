@@ -24,11 +24,13 @@ export interface EnrichmentSummary {
 
 const POLL_INTERVAL_MS = 3000;
 const PROCESS_INTERVAL_MS = 5000;
+const MAX_POLLING_DURATION_MS = 5 * 60 * 1000; // 5 minutes safety timeout
 
 export function useBuyerEnrichmentQueue(universeId?: string) {
   const queryClient = useQueryClient();
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingStartTimeRef = useRef<number | null>(null);
   const lastCompletedRef = useRef<number>(0);
   const wasRunningRef = useRef<boolean>(false);
 
@@ -236,15 +238,31 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     if (processingIntervalRef.current) clearInterval(processingIntervalRef.current);
 
+    // Track polling start time
+    pollingStartTimeRef.current = Date.now();
+
     // Poll for status
     pollIntervalRef.current = setInterval(async () => {
       const result = await fetchQueueStatus();
-      if (result && !result.isRunning) {
-        // Stop polling when done
+
+      // Check if we've exceeded the max polling duration (safety timeout)
+      const pollingDuration = Date.now() - (pollingStartTimeRef.current || 0);
+      const timedOut = pollingDuration > MAX_POLLING_DURATION_MS;
+
+      if (timedOut) {
+        console.warn('Enrichment polling timed out after 5 minutes - force stopping');
+        toast.warning('Enrichment process timed out. Some items may still be processing.', {
+          description: 'Please refresh to see the latest status'
+        });
+      }
+
+      if ((result && !result.isRunning) || timedOut) {
+        // Stop polling when done or timed out
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
         if (processingIntervalRef.current) clearInterval(processingIntervalRef.current);
         pollIntervalRef.current = null;
         processingIntervalRef.current = null;
+        pollingStartTimeRef.current = null;
       }
     }, POLL_INTERVAL_MS);
 
@@ -269,6 +287,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       if (processingIntervalRef.current) clearInterval(processingIntervalRef.current);
       pollIntervalRef.current = null;
       processingIntervalRef.current = null;
+      pollingStartTimeRef.current = null;
 
       await fetchQueueStatus();
       toast.info('Enrichment cancelled');
