@@ -74,44 +74,51 @@ serve(async (req) => {
       );
     }
 
+    // M&A Guide is MANDATORY for industry fit scoring
+    if (!universe.ma_guide_content || universe.ma_guide_content.trim().length === 0) {
+      console.error("[score-industry-alignment] M&A guide is empty for universe:", universe.name);
+      return new Response(
+        JSON.stringify({
+          error: "M&A guide required",
+          error_code: "ma_guide_missing",
+          message: "Please create an M&A guide for this universe before scoring industry fit. The guide defines what companies belong in this industry."
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log(`[score-industry-alignment] Scoring ${buyer.company_name} against ${universe.name}`);
 
     // Step 3: Build AI prompt with all available context
     const systemPrompt = `You are an M&A industry expert specializing in evaluating company fit for buyer universes. Your job is to score how well a company aligns with a specific target industry.
 
+You will be provided with an M&A Industry Guide that defines what this industry is. Use this guide as your primary reference for determining fit.
+
 CRITICAL RULES:
 1. Be STRICT - adjacent or related industries should score LOW
-2. "Restoration" is NOT the same as "Fire & Water Restoration"
-3. Equipment suppliers are NOT the same as service providers
+2. Keywords in company names can be misleading (e.g., "restoration" appears in many unrelated industries)
+3. Equipment/product suppliers are NOT the same as service providers
 4. Consider business model (B2B vs B2C), service type, and target customers
-5. Use all available context: company data, existing enrichment, and industry knowledge
+5. A company that USES services from this industry is NOT the same as a company that PROVIDES those services
+6. Use all available context: company data, business summary, and the M&A Industry Guide
 
 SCORING SCALE:
-- 95-100: Perfect fit - clearly operates in exact target industry with matching business model
-- 85-94: Excellent fit - right industry, minor variations in focus or geography
+- 95-100: Perfect fit - clearly operates in the exact target industry with matching business model
+- 85-94: Excellent fit - right industry, minor variations in focus or service mix
 - 70-84: Good fit - right industry, some differences in service mix or business model
 - 55-69: Partial fit - adjacent industry or significantly different business model
 - 40-54: Weak fit - related but distinctly different industry or business model
-- 20-39: Poor fit - different industry with only superficial connection
+- 20-39: Poor fit - different industry with only superficial connection (e.g., similar keyword in name)
 - 0-19: Non-fit - completely unrelated industry
 
-EXAMPLES:
-Universe: "Fire & Water Restoration"
-- Fire damage restoration company → Score: 98 (perfect fit)
-- Water damage + mold remediation → Score: 90 (excellent fit, includes target services)
-- General disaster restoration → Score: 75 (good fit, broader but includes target)
-- Mold remediation only → Score: 60 (partial fit, adjacent service)
-- Property management → Score: 35 (poor fit, uses services but doesn't provide)
-- Equipment supplier to restoration → Score: 25 (poor fit, wrong business model)
-- Classic car restoration → Score: 5 (non-fit, completely different industry)`;
+The M&A Industry Guide provided below is your source of truth for what companies belong in this industry.`;
 
     // Build the industry knowledge context from M&A guide if available
     let industryKnowledge = "";
     if (universe.ma_guide_content) {
-      // Truncate to avoid token limits
       industryKnowledge = `
 INDUSTRY KNOWLEDGE BASE (from M&A Research Guide):
-${universe.ma_guide_content.slice(0, 6000)}
+${universe.ma_guide_content}
 `;
     }
 

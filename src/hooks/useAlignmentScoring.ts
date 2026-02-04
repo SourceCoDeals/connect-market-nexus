@@ -100,6 +100,16 @@ export function useAlignmentScoring(universeId: string | undefined) {
             if (result.status === "fulfilled") {
               const response = result.value;
               
+              // Check for M&A guide missing error
+              if (response.data?.error_code === "ma_guide_missing") {
+                toast.error(
+                  "M&A Guide required. Please create an industry guide before scoring.",
+                  { duration: 10000 }
+                );
+                cancelRef.current = true;
+                break;
+              }
+
               // Check for credit errors
               if (response.data?.error_code === "payment_required") {
                 setProgress((prev) => ({ ...prev, creditsDepleted: true }));
