@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ScoreTierBadge, getTierFromScore, PipelineSummaryCard } from "@/components/remarketing";
+import { ScoreTierBadge, getTierFromScore, PipelineSummaryCard, DealBuyerChat } from "@/components/remarketing";
 import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
 import {
   GeneralNotesSection,
@@ -823,6 +823,17 @@ const ReMarketingDealDetail = () => {
           Updated: {format(new Date(deal.updated_at), 'MMM d, yyyy')}
         </span>
       </div>
+
+      {/* AI Buyer Chat */}
+      <DealBuyerChat
+        listingId={dealId!}
+        dealName={deal.internal_company_name || deal.title}
+        dealGeography={deal.address_state ? [deal.address_state] : []}
+        dealRevenue={deal.revenue}
+        approvedCount={scoreStats?.approved || 0}
+        passedCount={scoreStats?.passed || 0}
+        pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}
+      />
     </div>
   );
 };
