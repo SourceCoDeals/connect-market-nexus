@@ -472,6 +472,25 @@ const ReMarketingUniverseDetail = () => {
     }
   });
 
+  // Handler for removing buyers from this universe (sets universe_id to null)
+  // They remain in the all buyers list - just unlinked from this universe
+  const handleRemoveBuyersFromUniverse = async (buyerIds: string[]) => {
+    if (!buyerIds.length) return;
+    
+    const { error } = await supabase
+      .from('remarketing_buyers')
+      .update({ universe_id: null })
+      .in('id', buyerIds);
+    
+    if (error) {
+      toast.error('Failed to remove buyers from universe');
+      throw error;
+    }
+    
+    toast.success(`Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`);
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
+  };
+
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
 
@@ -663,6 +682,8 @@ const ReMarketingUniverseDetail = () => {
                       buyers={filteredBuyers}
                       showPEColumn={true}
                       buyerIdsWithTranscripts={buyerIdsWithTranscripts}
+                      selectable={true}
+                      onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
                     />
                   </CardContent>
                 </Card>
