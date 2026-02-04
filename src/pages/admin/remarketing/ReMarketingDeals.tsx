@@ -84,7 +84,7 @@ import {
   Plus,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog } from "@/components/remarketing";
+import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat } from "@/components/remarketing";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import {
   DndContext,
@@ -1772,6 +1772,11 @@ const ReMarketingDeals = () => {
         open={showAddDealDialog}
         onOpenChange={setShowAddDealDialog}
         onDealCreated={() => refetchListings()}
+      />
+
+      {/* AI Chat */}
+      <ReMarketingChat
+        context={{ type: "deals", totalDeals: listings?.length }}
       />
     </div>
   );
