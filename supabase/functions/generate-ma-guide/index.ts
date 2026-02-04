@@ -265,38 +265,43 @@ async function extractCriteria(content: string, apiKey: string): Promise<Extract
     }
   });
 
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: getAnthropicHeaders(apiKey),
-    body: JSON.stringify({
-      model: DEFAULT_CLAUDE_FAST_MODEL,
-      max_tokens: 4096,
-      system: "Extract structured buyer universe criteria from the provided M&A guide content.",
-      messages: [
-        { 
-          role: "user", 
-          content: `Extract criteria from this M&A guide:\n\n${content.slice(-15000)}` 
-        }
-      ],
-      tools: [tool],
-      tool_choice: { type: "tool", name: "extract_criteria" }
-    }),
-  });
+  try {
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: getAnthropicHeaders(apiKey),
+      body: JSON.stringify({
+        model: DEFAULT_CLAUDE_FAST_MODEL,
+        max_tokens: 4096,
+        system: "Extract structured buyer universe criteria from the provided M&A guide content.",
+        messages: [
+          {
+            role: "user",
+            content: `Extract criteria from this M&A guide:\n\n${content.slice(-15000)}`
+          }
+        ],
+        tools: [tool],
+        tool_choice: { type: "tool", name: "extract_criteria" }
+      }),
+    });
 
-  if (!response.ok) {
-    console.error("Criteria extraction failed");
+    if (!response.ok) {
+      console.error("Criteria extraction failed");
+      return getDefaultCriteria();
+    }
+
+    const result = await response.json();
+    const extracted = parseAnthropicToolResponse(result);
+    if (extracted) {
+      criteria = extracted as ExtractedCriteria;
+      // Also try to extract buyer profiles
+      criteria.target_buyer_types = await extractBuyerProfilesWithAI(content, apiKey);
+      return criteria;
+    }
+    return getDefaultCriteria();
+  } catch (error) {
+    console.error("Error extracting criteria:", error instanceof Error ? error.message : String(error));
     return getDefaultCriteria();
   }
-
-  const result = await response.json();
-  const extracted = parseAnthropicToolResponse(result);
-  if (extracted) {
-    criteria = extracted as ExtractedCriteria;
-    // Also try to extract buyer profiles
-    criteria.target_buyer_types = await extractBuyerProfilesWithAI(content, apiKey);
-    return criteria;
-  }
-  return getDefaultCriteria();
 }
 
 // Parse buyer profiles from structured block
@@ -405,32 +410,37 @@ async function extractBuyerProfilesWithAI(content: string, apiKey: string): Prom
     }
   });
 
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: getAnthropicHeaders(apiKey),
-    body: JSON.stringify({
-      model: DEFAULT_CLAUDE_FAST_MODEL,
-      max_tokens: 4096,
-      system: "Extract industry-specific buyer profiles from the M&A guide content. These are the types of BUYERS active in the industry.",
-      messages: [
-        { 
-          role: "user", 
-          content: `Extract buyer profiles from this M&A guide section:\n\n${relevantContent}` 
-        }
-      ],
-      tools: [tool],
-      tool_choice: { type: "tool", name: "extract_buyer_profiles" }
-    }),
-  });
+  try {
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: getAnthropicHeaders(apiKey),
+      body: JSON.stringify({
+        model: DEFAULT_CLAUDE_FAST_MODEL,
+        max_tokens: 4096,
+        system: "Extract industry-specific buyer profiles from the M&A guide content. These are the types of BUYERS active in the industry.",
+        messages: [
+          {
+            role: "user",
+            content: `Extract buyer profiles from this M&A guide section:\n\n${relevantContent}`
+          }
+        ],
+        tools: [tool],
+        tool_choice: { type: "tool", name: "extract_buyer_profiles" }
+      }),
+    });
 
-  if (!response.ok) {
-    console.error("Buyer profiles extraction failed");
+    if (!response.ok) {
+      console.error("Buyer profiles extraction failed");
+      return getDefaultBuyerProfiles();
+    }
+
+    const result = await response.json();
+    const extracted = parseAnthropicToolResponse(result) as { buyer_profiles?: BuyerProfile[] } | null;
+    return extracted?.buyer_profiles || getDefaultBuyerProfiles();
+  } catch (error) {
+    console.error("Error extracting buyer profiles:", error instanceof Error ? error.message : String(error));
     return getDefaultBuyerProfiles();
   }
-
-  const result = await response.json();
-  const extracted = parseAnthropicToolResponse(result) as { buyer_profiles?: BuyerProfile[] } | null;
-  return extracted?.buyer_profiles || getDefaultBuyerProfiles();
 }
 
 // Default buyer profiles (fallback)
@@ -586,27 +596,33 @@ Focus especially on:
 
 Be comprehensive and specific.`;
 
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: getAnthropicHeaders(apiKey),
-    body: JSON.stringify({
-      model: DEFAULT_CLAUDE_FAST_MODEL,
-      max_tokens: 4000,
-      system: "You are an M&A advisor filling gaps in an industry guide. Be specific and detailed.",
-      messages: [
-        { role: "user", content: prompt }
-      ]
-    }),
-  });
+  try {
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: getAnthropicHeaders(apiKey),
+      body: JSON.stringify({
+        model: DEFAULT_CLAUDE_FAST_MODEL,
+        max_tokens: 4000,
+        system: "You are an M&A advisor filling gaps in an industry guide. Be specific and detailed.",
+        messages: [
+          { role: "user", content: prompt }
+        ]
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error("Gap fill generation failed");
+    if (!response.ok) {
+      throw new Error("Gap fill generation failed");
+    }
+
+    const result = await response.json();
+    // Anthropic returns text in content[0].text
+    const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
+    return textBlock?.text || '';
+  } catch (error) {
+    console.error("Error in gap fill generation:", error instanceof Error ? error.message : String(error));
+    // Return empty string on error so the generation can continue
+    return '';
   }
-
-  const result = await response.json();
-  // Anthropic returns text in content[0].text
-  const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
-  return textBlock?.text || '';
 }
 
 // Batch configuration: 2 phases per batch for faster generation
@@ -726,49 +742,68 @@ NOW GENERATE THE FOLLOWING SECTION:
   const basePrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
   const userPrompt = contextPrefix + basePrompt;
 
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: getAnthropicHeaders(apiKey),
-    body: JSON.stringify({
-      model,
-      max_tokens: CRITICAL_PHASES.includes(phase.id) ? 5200 : 4200,
-      system: systemPrompt,
-      messages: [
-        { role: "user", content: userPrompt }
-      ]
-    }),
-  });
+  try {
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: getAnthropicHeaders(apiKey),
+      body: JSON.stringify({
+        model,
+        max_tokens: CRITICAL_PHASES.includes(phase.id) ? 5200 : 4200,
+        system: systemPrompt,
+        messages: [
+          { role: "user", content: userPrompt }
+        ]
+      }),
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`Phase ${phase.id} generation failed:`, response.status, text);
-    
-    if (response.status === 429) {
-      const err = new Error(`Rate limit exceeded for phase ${phase.id}`);
-      (err as any).code = 'rate_limited';
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`Phase ${phase.id} generation failed:`, response.status, text);
+
+      if (response.status === 429) {
+        const err = new Error(`Rate limit exceeded for phase ${phase.id}`);
+        (err as any).code = 'rate_limited';
+        (err as any).recoverable = true;
+        throw err;
+      }
+      if (response.status === 529) {
+        // Anthropic-specific overload error
+        const err = new Error(`AI service overloaded. Please try again later.`);
+        (err as any).code = 'service_overloaded';
+        (err as any).recoverable = true;
+        throw err;
+      }
+      if (response.status === 402) {
+        const err = new Error(`AI credits depleted. Please add credits to continue.`);
+        (err as any).code = 'payment_required';
+        (err as any).recoverable = false;
+        throw err;
+      }
+      throw new Error(`Failed to generate phase ${phase.id}`);
+    }
+
+    const result = await response.json();
+    // Anthropic returns text in content[0].text
+    const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
+    return textBlock?.text || '';
+  } catch (error) {
+    // Handle network errors and other exceptions
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      const err = new Error(`Network error while generating phase ${phase.id}: ${error.message}`);
+      (err as any).code = 'network_error';
       (err as any).recoverable = true;
       throw err;
     }
-    if (response.status === 529) {
-      // Anthropic-specific overload error
-      const err = new Error(`AI service overloaded. Please try again later.`);
-      (err as any).code = 'service_overloaded';
-      (err as any).recoverable = true;
-      throw err;
+    // Re-throw other errors (like rate limit errors) with their codes intact
+    if (error instanceof Error && (error as any).code) {
+      throw error;
     }
-    if (response.status === 402) {
-      const err = new Error(`AI credits depleted. Please add credits to continue.`);
-      (err as any).code = 'payment_required';
-      (err as any).recoverable = false;
-      throw err;
-    }
-    throw new Error(`Failed to generate phase ${phase.id}`);
+    // Wrap unexpected errors
+    const err = new Error(`Error generating phase ${phase.id}: ${error instanceof Error ? error.message : String(error)}`);
+    (err as any).code = 'generation_error';
+    (err as any).recoverable = true;
+    throw err;
   }
-
-  const result = await response.json();
-  // Anthropic returns text in content[0].text
-  const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
-  return textBlock?.text || '';
 }
 
 // Extract phase prompts to separate function for cleaner code
