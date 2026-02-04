@@ -11,7 +11,8 @@ import {
   Loader2,
   X,
   AlertCircle,
-  Target
+  Target,
+  RotateCcw
 } from "lucide-react";
 
 interface EnrichmentProgress {
@@ -40,6 +41,7 @@ interface BuyerTableToolbarProps {
   onImportCSV?: () => void;
   onEnrichAll?: () => void;
   onCancelEnrichment?: () => void;
+  onResetQueue?: () => void;
   onScoreAlignment?: () => void;
   onCancelAlignment?: () => void;
   isEnriching?: boolean;
@@ -58,6 +60,7 @@ export const BuyerTableToolbar = ({
   onImportCSV,
   onEnrichAll,
   onCancelEnrichment,
+  onResetQueue,
   onScoreAlignment,
   onCancelAlignment,
   isEnriching = false,
@@ -137,6 +140,17 @@ export const BuyerTableToolbar = ({
             >
               <X className="h-4 w-4 mr-1" />
               Cancel
+            </Button>
+          )}
+          {isEnriching && onResetQueue && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onResetQueue}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              Reset Queue
             </Button>
           )}
           {onScoreAlignment && (
