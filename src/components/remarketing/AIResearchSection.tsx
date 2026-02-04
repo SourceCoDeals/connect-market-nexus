@@ -109,12 +109,26 @@ export const AIResearchSection = ({
     }
   }, [existingContent]);
 
+  // Check for existing guide and confirm before regenerating
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+
   const handleStartClarification = async () => {
     if (!industryName.trim()) {
       toast.error("Please enter an industry name");
       return;
     }
 
+    // Check if guide already exists
+    if (existingContent && existingContent.length > 1000) {
+      setShowDuplicateWarning(true);
+      return;
+    }
+
+    await proceedWithClarification();
+  };
+
+  const proceedWithClarification = async () => {
+    setShowDuplicateWarning(false);
     setState('clarifying');
     setClarifyingQuestions([]);
     setClarifyAnswers({});
@@ -598,8 +612,31 @@ export const AIResearchSection = ({
 
         <CollapsibleContent>
           <CardContent className="space-y-4">
+            {/* Duplicate guide warning */}
+            {showDuplicateWarning && (
+              <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    A guide already exists ({(existingContent?.split(/\s+/).length || 0).toLocaleString()} words)
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Regenerating will replace the existing content.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="destructive" onClick={proceedWithClarification}>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Regenerate Anyway
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowDuplicateWarning(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Resume interrupted generation */}
-            {savedProgress && state === 'idle' && (
+            {savedProgress && state === 'idle' && !showDuplicateWarning && (
               <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
                 <div>
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
