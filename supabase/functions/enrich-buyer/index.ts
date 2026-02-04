@@ -419,36 +419,41 @@ async function extractAcquisitions(content: string, apiKey: string): Promise<any
 }
 
 // ============================================================================
-// PROMPT 4: INVESTMENT THESIS (PE FIRM) - TRANSCRIPT PROTECTED
+// PROMPT 4: PE FIRM ACTIVITY (NO THESIS - thesis ONLY from transcripts)
 // ============================================================================
+// CRITICAL: thesis_summary, strategic_priorities, thesis_confidence are NEVER
+// extracted from websites. They MUST come from call transcripts or notes only.
+// This ensures the thesis reflects the platform company's perspective, not the
+// PE firm's marketing materials.
 
-const PROMPT_4_THESIS = {
-  name: 'extract_pe_thesis',
-  description: 'Extract PE firm investment thesis',
+const PROMPT_4_PE_ACTIVITY = {
+  name: 'extract_pe_activity',
+  description: 'Extract PE firm activity data (NOT thesis - thesis only from transcripts)',
   input_schema: {
     type: 'object',
     properties: {
-      thesis_summary: { type: 'string', description: '2-3 sentence summary of investment thesis' },
-      strategic_priorities: { type: 'array', items: { type: 'string' }, description: "Key investment themes (e.g., ['Recurring revenue', 'Fragmented markets'])" },
-      thesis_confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-      target_industries: { type: 'array', items: { type: 'string' } },
-      target_services: { type: 'array', items: { type: 'string' } },
-      acquisition_appetite: { type: 'string', description: "e.g., 'Very Active - 15-20 deals annually'" },
+      // ONLY non-thesis fields extracted from PE website
+      target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries the PE firm focuses on' },
+      target_services: { type: 'array', items: { type: 'string' }, description: 'Service types of interest' },
+      acquisition_appetite: { type: 'string', description: "Activity level, e.g., 'Very Active - 15-20 deals annually'" },
     },
   },
 };
 
-const PROMPT_4_SYSTEM = `You are analyzing a private equity firm's website to extract their investment thesis.
-Focus on EXPLICIT statements about:
-- What types of companies they invest in
-- Their strategic priorities
-- Investment criteria
-Do NOT infer thesis from portfolio company descriptions.`;
+const PROMPT_4_SYSTEM = `You are analyzing a private equity firm's website to extract their acquisition activity.
 
-async function extractPEThesis(content: string, apiKey: string): Promise<any> {
-  console.log('Running Prompt 4: Investment Thesis (PE Firm)');
-  const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the investment thesis and strategic priorities from this PE firm's website.`;
-  return await callClaudeAI(PROMPT_4_SYSTEM, userPrompt, PROMPT_4_THESIS, apiKey);
+CRITICAL: Do NOT extract investment thesis, strategic priorities, or thesis confidence.
+These fields MUST come from direct conversations with the platform company, not websites.
+
+Only extract:
+- Target industries they invest in
+- Target services/business types
+- Acquisition activity level`;
+
+async function extractPEActivity(content: string, apiKey: string): Promise<any> {
+  console.log('Running Prompt 4: PE Firm Activity (thesis excluded - transcript only)');
+  const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract acquisition activity data. Do NOT extract thesis, strategic priorities, or thesis confidence.`;
+  return await callClaudeAI(PROMPT_4_SYSTEM, userPrompt, PROMPT_4_PE_ACTIVITY, apiKey);
 }
 
 // ============================================================================
@@ -959,26 +964,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    // PE FIRM PROMPTS (4-6)
+    // PE FIRM PROMPTS (4-6) - NOTE: Prompt 4 no longer extracts thesis
     if (peContent && !billingError) {
-      // Prompt 4: Investment Thesis (only if not transcript-protected)
-      if (!hasTranscriptSource || !buyer.thesis_summary) {
-        promptsRun++;
-        const thesisResult = await extractPEThesis(peContent, anthropicApiKey);
-        if (thesisResult.error?.code === 'payment_required' || thesisResult.error?.code === 'rate_limited') {
-          billingError = thesisResult.error;
-        } else if (thesisResult.data) {
-          Object.assign(allExtracted, thesisResult.data);
-          promptsSuccessful++;
-          evidenceRecords.push({
-            type: 'website',
-            url: peFirmWebsite,
-            extracted_at: timestamp,
-            fields_extracted: Object.keys(thesisResult.data),
-          });
+      // Prompt 4: PE Activity (thesis fields NEVER extracted from website)
+      // thesis_summary, strategic_priorities, thesis_confidence ONLY from transcripts
+      promptsRun++;
+      const activityResult = await extractPEActivity(peContent, anthropicApiKey);
+      if (activityResult.error?.code === 'payment_required' || activityResult.error?.code === 'rate_limited') {
+        billingError = activityResult.error;
+      } else if (activityResult.data) {
+        // Filter out any thesis fields that might slip through
+        const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = activityResult.data;
+        if (thesis_summary || strategic_priorities || thesis_confidence) {
+          console.warn('WARNING: Prompt 4 returned thesis fields - these are being discarded (transcript-only)');
         }
-      } else {
-        console.log('Skipping Prompt 4: thesis_summary is transcript-protected');
+        Object.assign(allExtracted, safeData);
+        promptsSuccessful++;
+        evidenceRecords.push({
+          type: 'website',
+          url: peFirmWebsite,
+          extracted_at: timestamp,
+          fields_extracted: Object.keys(safeData),
+        });
       }
 
       // Prompt 5: Portfolio
