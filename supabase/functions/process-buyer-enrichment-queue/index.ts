@@ -31,7 +31,8 @@ serve(async (req) => {
     const startedAt = Date.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log('Processing buyer enrichment queue...');
@@ -141,6 +142,7 @@ serve(async (req) => {
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${supabaseServiceKey}`,
+                'apikey': supabaseAnonKey,
               },
               body: JSON.stringify({ buyerId: item.buyer_id }),
               signal: controller.signal,
