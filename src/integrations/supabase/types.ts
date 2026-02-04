@@ -5488,6 +5488,53 @@ export type Database = {
           },
         ]
       }
+      remarketing_guide_generation_state: {
+        Row: {
+          created_at: string | null
+          current_batch: number | null
+          current_phase: number | null
+          id: string
+          last_error: Json | null
+          phase_name: string | null
+          saved_content: string | null
+          status: string | null
+          universe_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_batch?: number | null
+          current_phase?: number | null
+          id?: string
+          last_error?: Json | null
+          phase_name?: string | null
+          saved_content?: string | null
+          status?: string | null
+          universe_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_batch?: number | null
+          current_phase?: number | null
+          id?: string
+          last_error?: Json | null
+          phase_name?: string | null
+          saved_content?: string | null
+          status?: string | null
+          universe_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_guide_generation_state_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remarketing_outreach: {
         Row: {
           buyer_id: string
