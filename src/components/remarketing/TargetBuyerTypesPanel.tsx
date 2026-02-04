@@ -31,75 +31,6 @@ interface TargetBuyerTypesPanelProps {
   readOnly?: boolean;
 }
 
-const DEFAULT_BUYER_TYPES: TargetBuyerTypeConfig[] = [
-  {
-    id: 'national_consolidator',
-    rank: 1,
-    name: 'National Consolidators',
-    description: 'Large operators actively acquiring across multiple regions.',
-    locations_min: 20,
-    locations_max: 500,
-    revenue_per_location: 2000000,
-    deal_requirements: 'Run AI Research to populate industry-specific criteria',
-    enabled: true,
-  },
-  {
-    id: 'regional_platform',
-    rank: 2,
-    name: 'Regional Platforms',
-    description: 'Regional operators expanding within their geographic footprint.',
-    locations_min: 5,
-    locations_max: 50,
-    revenue_per_location: 1500000,
-    deal_requirements: 'Run AI Research to populate industry-specific criteria',
-    enabled: true,
-  },
-  {
-    id: 'pe_backed',
-    rank: 3,
-    name: 'PE-Backed Platforms',
-    description: 'Private equity portfolio companies deploying capital.',
-    locations_min: 3,
-    locations_max: 100,
-    revenue_per_location: 1500000,
-    deal_requirements: 'Run AI Research to populate industry-specific criteria',
-    enabled: true,
-  },
-  {
-    id: 'independent_sponsor',
-    rank: 4,
-    name: 'Independent Sponsors',
-    description: 'Dealmakers seeking platform investments.',
-    locations_min: 1,
-    locations_max: 10,
-    revenue_per_location: 1000000,
-    deal_requirements: 'Run AI Research to populate industry-specific criteria',
-    enabled: true,
-  },
-  {
-    id: 'strategic_buyer',
-    rank: 5,
-    name: 'Strategic Buyers',
-    description: 'Industry operators seeking synergistic acquisitions.',
-    locations_min: 1,
-    locations_max: 20,
-    revenue_per_location: 1000000,
-    deal_requirements: 'Run AI Research to populate industry-specific criteria',
-    enabled: true,
-  },
-  {
-    id: 'owner_operator',
-    rank: 6,
-    name: 'Owner-Operators',
-    description: 'Individuals looking to acquire and operate a business.',
-    locations_min: 1,
-    locations_max: 5,
-    revenue_per_location: 800000,
-    deal_requirements: 'Run AI Research to populate industry-specific criteria',
-    enabled: true,
-  },
-];
-
 const BUYER_TYPE_ICONS: Record<string, typeof Building2> = {
   large_mso: Building2,
   regional_mso: TrendingUp,
@@ -110,7 +41,7 @@ const BUYER_TYPE_ICONS: Record<string, typeof Building2> = {
 };
 
 export const TargetBuyerTypesPanel = ({
-  buyerTypes = DEFAULT_BUYER_TYPES,
+  buyerTypes = [],
   onBuyerTypesChange,
   readOnly = false,
 }: TargetBuyerTypesPanelProps) => {
@@ -148,9 +79,21 @@ export const TargetBuyerTypesPanel = ({
         </div>
       </div>
 
+      {/* Empty State */}
+      {buyerTypes.length === 0 && (
+        <div className="text-center py-8 border-2 border-dashed rounded-lg">
+          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+          <h4 className="font-medium text-sm mb-2">No Buyer Types Defined</h4>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            Run AI Research to automatically generate industry-specific buyer types based on your M&A guide.
+          </p>
+        </div>
+      )}
+
       {/* 2-Column Grid of Buyer Type Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {buyerTypes.sort((a, b) => a.rank - b.rank).map((buyerType) => {
+      {buyerTypes.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {buyerTypes.sort((a, b) => a.rank - b.rank).map((buyerType) => {
           const Icon = BUYER_TYPE_ICONS[buyerType.id] || Building2;
           
           return (
@@ -260,7 +203,8 @@ export const TargetBuyerTypesPanel = ({
             </Card>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -69,16 +69,6 @@ import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
 import { useDealEnrichment } from "@/hooks/useDealEnrichment";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
 
-// Default buyer types configuration (industry-agnostic, will be replaced by AI Research)
-const DEFAULT_BUYER_TYPES: TargetBuyerTypeConfig[] = [
-  { id: 'national_consolidator', rank: 1, name: 'National Consolidators', description: 'Large operators actively acquiring across multiple regions.', locations_min: 20, locations_max: 500, revenue_per_location: 2000000, deal_requirements: 'Run AI Research to populate', enabled: true },
-  { id: 'regional_platform', rank: 2, name: 'Regional Platforms', description: 'Regional operators expanding within their footprint.', locations_min: 5, locations_max: 50, revenue_per_location: 1500000, deal_requirements: 'Run AI Research to populate', enabled: true },
-  { id: 'pe_backed', rank: 3, name: 'PE-Backed Platforms', description: 'Private equity portfolio companies deploying capital.', locations_min: 3, locations_max: 100, revenue_per_location: 1500000, deal_requirements: 'Run AI Research to populate', enabled: true },
-  { id: 'independent_sponsor', rank: 4, name: 'Independent Sponsors', description: 'Dealmakers seeking platform investments.', locations_min: 1, locations_max: 10, revenue_per_location: 1000000, deal_requirements: 'Run AI Research to populate', enabled: true },
-  { id: 'strategic_buyer', rank: 5, name: 'Strategic Buyers', description: 'Industry operators seeking synergistic acquisitions.', locations_min: 1, locations_max: 20, revenue_per_location: 1000000, deal_requirements: 'Run AI Research to populate', enabled: true },
-  { id: 'owner_operator', rank: 6, name: 'Owner-Operators', description: 'Individuals looking to acquire and operate a business.', locations_min: 1, locations_max: 5, revenue_per_location: 800000, deal_requirements: 'Run AI Research to populate', enabled: true },
-];
-
 const ReMarketingUniverseDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -108,7 +98,7 @@ const ReMarketingUniverseDetail = () => {
   const [scoringBehavior, setScoringBehavior] = useState<ScoringBehavior>({});
   const [documents, setDocuments] = useState<DocumentReference[]>([]);
   const [maGuideContent, setMaGuideContent] = useState("");
-  const [targetBuyerTypes, setTargetBuyerTypes] = useState<TargetBuyerTypeConfig[]>(DEFAULT_BUYER_TYPES);
+  const [targetBuyerTypes, setTargetBuyerTypes] = useState<TargetBuyerTypeConfig[]>([]);
   const [buyerSearch, setBuyerSearch] = useState("");
   const [addDealDialogOpen, setAddDealDialogOpen] = useState(false);
   const [addDealDefaultTab, setAddDealDefaultTab] = useState<'existing' | 'new'>('existing');
