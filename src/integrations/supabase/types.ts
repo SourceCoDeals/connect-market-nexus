@@ -2377,22 +2377,28 @@ export type Database = {
         Row: {
           assigned_to: string | null
           buyer_priority_score: number | null
+          company_address: string | null
           connection_request_id: string | null
           contact_company: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
           contact_role: string | null
+          contact_title: string | null
           created_at: string | null
+          deal_score: number | null
           deleted_at: string | null
           description: string | null
           expected_close_date: string | null
+          extraction_sources: Json | null
           fee_agreement_status: string | null
           followed_up: boolean | null
           followed_up_at: string | null
           followed_up_by: string | null
           id: string
           inbound_lead_id: string | null
+          industry_kpis: Json | null
+          last_enriched_at: string | null
           listing_id: string | null
           metadata: Json | null
           nda_status: string | null
@@ -2413,22 +2419,28 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           buyer_priority_score?: number | null
+          company_address?: string | null
           connection_request_id?: string | null
           contact_company?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           contact_role?: string | null
+          contact_title?: string | null
           created_at?: string | null
+          deal_score?: number | null
           deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
+          extraction_sources?: Json | null
           fee_agreement_status?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
           inbound_lead_id?: string | null
+          industry_kpis?: Json | null
+          last_enriched_at?: string | null
           listing_id?: string | null
           metadata?: Json | null
           nda_status?: string | null
@@ -2449,22 +2461,28 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           buyer_priority_score?: number | null
+          company_address?: string | null
           connection_request_id?: string | null
           contact_company?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           contact_role?: string | null
+          contact_title?: string | null
           created_at?: string | null
+          deal_score?: number | null
           deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
+          extraction_sources?: Json | null
           fee_agreement_status?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
           inbound_lead_id?: string | null
+          industry_kpis?: Json | null
+          last_enriched_at?: string | null
           listing_id?: string | null
           metadata?: Json | null
           nda_status?: string | null
