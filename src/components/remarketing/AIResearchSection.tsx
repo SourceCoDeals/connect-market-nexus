@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
 import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
 import { GenerationSummaryPanel, type GenerationSummary } from "./GenerationSummaryPanel";
+import { useGuideGenerationState } from "@/hooks/remarketing/useGuideGenerationState";
 
 type GenerationState = 'idle' | 'clarifying' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
 
@@ -167,6 +168,16 @@ export const AIResearchSection = ({
   const [missingElements, setMissingElements] = useState<string[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Database persistence for guide generation (survives page reload/navigation)
+  const { 
+    dbProgress, 
+    isLoadingProgress, 
+    saveProgress: saveProgressToDb, 
+    markCompleted: markCompletedInDb, 
+    clearProgress: clearProgressInDb,
+    getResumableProgress 
+  } = useGuideGenerationState(universeId);
 
   // Error details state for enhanced error panel
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
@@ -333,8 +344,23 @@ export const AIResearchSection = ({
     clarificationContext: ClarificationContext;
   } | null>(null);
 
-  // Check for saved progress on mount
+  // Check for saved progress on mount - prioritize database over localStorage
   useEffect(() => {
+    // First check database (survives page reload/navigation)
+    if (!isLoadingProgress) {
+      const dbResumable = getResumableProgress();
+      if (dbResumable && dbResumable.content) {
+        setSavedProgress({
+          industryName: universeName || industryName,
+          batchIndex: dbResumable.batchIndex,
+          content: dbResumable.content,
+          clarificationContext: {}
+        });
+        return; // DB takes priority
+      }
+    }
+
+    // Fallback to localStorage for same-session recovery
     const saved = localStorage.getItem('ma_guide_progress');
     if (saved) {
       try {
@@ -347,11 +373,30 @@ export const AIResearchSection = ({
         localStorage.removeItem('ma_guide_progress');
       }
     }
-  }, [industryName, universeName]);
+  }, [industryName, universeName, isLoadingProgress, getResumableProgress]);
 
   const clearProgress = () => {
     localStorage.removeItem('ma_guide_progress');
     setSavedProgress(null);
+    clearProgressInDb(); // Also clear from database
+  };
+
+  // Helper to save progress to both localStorage and database
+  const saveProgressBoth = (progressData: {
+    industryName: string;
+    batchIndex: number;
+    content: string;
+    clarificationContext: ClarificationContext;
+    lastPhaseId?: string;
+    lastPhase?: number;
+    wordCount?: number;
+  }) => {
+    // Save to localStorage (immediate, same-session backup)
+    localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
+    setSavedProgress(progressData);
+    
+    // Save to database (survives page reload/navigation)
+    saveProgressToDb(progressData);
   };
 
   const handleGenerate = async (clarificationContext: ClarificationContext) => {
@@ -534,9 +579,8 @@ export const AIResearchSection = ({
                     lastPhase: event.phase,
                     wordCount: accumulatedWordCount
                   };
-                  localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
-                  // CRITICAL: Also update savedProgress state so Resume works without reload
-                  setSavedProgress(progressData);
+                  // Save to BOTH localStorage and database
+                  saveProgressBoth(progressData);
                 }
                 break;
 
@@ -566,8 +610,8 @@ export const AIResearchSection = ({
                     lastPhase: batchIndex + 1,
                     wordCount: event.wordCount || event.content?.split(/\s+/).length || 0
                   };
-                  localStorage.setItem('ma_guide_progress', JSON.stringify(progressData));
-                  setSavedProgress(progressData);
+                  // Save to BOTH localStorage and database
+                  saveProgressBoth(progressData);
                 }
                 break;
 
@@ -605,9 +649,10 @@ export const AIResearchSection = ({
                 const finalWordCount = event.totalWords || finalContent.split(/\s+/).length;
                 setContent(finalContent);
                 setWordCount(finalWordCount);
-                // Clear saved progress on successful completion
+                // Clear saved progress on successful completion (both localStorage and DB)
                 localStorage.removeItem('ma_guide_progress');
                 setSavedProgress(null);
+                markCompletedInDb();
                 
                 // Set success summary
                 setGenerationSummary({
