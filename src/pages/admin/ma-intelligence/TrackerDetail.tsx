@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft } from "lucide-react";
+import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Target, Activity, MessageSquare, Sliders } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TrackerBuyersTab } from "@/components/ma-intelligence/tracker/TrackerBuyersTab";
 import { TrackerDealsTab } from "@/components/ma-intelligence/tracker/TrackerDealsTab";
-import { StructuredCriteriaPanel } from "@/components/ma-intelligence/StructuredCriteriaPanel";
-import { ScoringBehaviorPanel } from "@/components/ma-intelligence/ScoringBehaviorPanel";
-import { KPIConfigPanel } from "@/components/ma-intelligence/KPIConfigPanel";
-import { TrackerQueryChat } from "@/components/ma-intelligence/TrackerQueryChat";
+import { TrackerFitCriteriaTab } from "@/components/ma-intelligence/tracker/TrackerFitCriteriaTab";
+import { TrackerKPIConfigTab } from "@/components/ma-intelligence/tracker/TrackerKPIConfigTab";
+import { TrackerScoringBehaviorTab } from "@/components/ma-intelligence/tracker/TrackerScoringBehaviorTab";
+import { TrackerDocumentsTab } from "@/components/ma-intelligence/tracker/TrackerDocumentsTab";
+import { TrackerQueryTab } from "@/components/ma-intelligence/tracker/TrackerQueryTab";
+import { TrackerActivityTab } from "@/components/ma-intelligence/tracker/TrackerActivityTab";
 import { InterruptedSessionBanner } from "@/components/ma-intelligence/tracker/InterruptedSessionBanner";
 import type { SizeCriteria, ServiceCriteria, GeographyCriteria, ScoringBehavior, TrackerDocument } from "@/lib/ma-intelligence/types";
 
@@ -265,7 +267,7 @@ export default function TrackerDetail() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="buyers">
             <Users className="w-4 h-4 mr-2" />
             Buyers
@@ -276,19 +278,27 @@ export default function TrackerDetail() {
           </TabsTrigger>
           <TabsTrigger value="criteria">
             <Settings className="w-4 h-4 mr-2" />
-            Fit Criteria
+            Criteria
+          </TabsTrigger>
+          <TabsTrigger value="kpis">
+            <Target className="w-4 h-4 mr-2" />
+            KPIs
           </TabsTrigger>
           <TabsTrigger value="scoring">
-            <Brain className="w-4 h-4 mr-2" />
+            <Sliders className="w-4 h-4 mr-2" />
             Scoring
           </TabsTrigger>
           <TabsTrigger value="documents">
             <Upload className="w-4 h-4 mr-2" />
-            Documents
+            Docs
           </TabsTrigger>
-          <TabsTrigger value="ai-chat">
-            <Brain className="w-4 h-4 mr-2" />
-            AI Research
+          <TabsTrigger value="query">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Query
+          </TabsTrigger>
+          <TabsTrigger value="activity">
+            <Activity className="w-4 h-4 mr-2" />
+            Activity
           </TabsTrigger>
         </TabsList>
 
@@ -307,7 +317,7 @@ export default function TrackerDetail() {
         </TabsContent>
 
         <TabsContent value="criteria" className="space-y-4">
-          <StructuredCriteriaPanel
+          <TrackerFitCriteriaTab
             trackerId={tracker.id}
             sizeCriteria={tracker.size_criteria}
             serviceCriteria={tracker.service_criteria}
@@ -316,40 +326,32 @@ export default function TrackerDetail() {
           />
         </TabsContent>
 
+        <TabsContent value="kpis" className="space-y-4">
+          <TrackerKPIConfigTab
+            trackerId={tracker.id}
+            kpiConfig={tracker.kpi_config}
+            onSave={(config) => handleSaveTracker({ kpi_config: config })}
+          />
+        </TabsContent>
+
         <TabsContent value="scoring" className="space-y-4">
-          <div className="space-y-6">
-            <ScoringBehaviorPanel
-              trackerId={tracker.id}
-              scoringBehavior={tracker.scoring_behavior}
-              onSave={(behavior) => handleSaveTracker({ scoring_behavior: behavior })}
-            />
-            <KPIConfigPanel
-              trackerId={tracker.id}
-              kpiConfig={tracker.kpi_config}
-              onSave={(config) => handleSaveTracker({ kpi_config: config })}
-            />
-          </div>
+          <TrackerScoringBehaviorTab
+            trackerId={tracker.id}
+            scoringBehavior={tracker.scoring_behavior}
+            onSave={(behavior) => handleSaveTracker({ scoring_behavior: behavior })}
+          />
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-              <CardDescription>
-                Upload CIMs, presentations, and other documents for AI analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Upload className="w-12 h-12 mx-auto mb-4" />
-                <p>Document upload and management coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+          <TrackerDocumentsTab trackerId={tracker.id} />
         </TabsContent>
 
-        <TabsContent value="ai-chat" className="space-y-4">
-          <TrackerQueryChat trackerId={tracker.id} />
+        <TabsContent value="query" className="space-y-4">
+          <TrackerQueryTab trackerId={tracker.id} />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <TrackerActivityTab trackerId={tracker.id} />
         </TabsContent>
       </Tabs>
     </div>

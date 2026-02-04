@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { TrackerDealsToolbar } from "./TrackerDealsToolbar";
 import { TrackerDealsTable } from "./TrackerDealsTable";
 import { DealCSVImport } from "../DealCSVImport";
+import { InterruptedSessionBanner, saveSessionState, clearSessionState } from "./InterruptedSessionBanner";
 import { useToast } from "@/hooks/use-toast";
 import type { MADeal } from "@/lib/ma-intelligence/types";
 
@@ -13,14 +14,22 @@ interface TrackerDealsTabProps {
   onDealCountChange?: (count: number) => void;
 }
 
+interface ScoringProgress {
+  current: number;
+  total: number;
+  isPaused: boolean;
+  completedIds: string[];
+}
+
 export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTabProps) {
   const [deals, setDeals] = useState<MADeal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
-  const [isEnriching, setIsEnriching] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterScore, setFilterScore] = useState<string>("all");
+  const [scoringProgress, setScoringProgress] = useState<ScoringProgress | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,7 +65,8 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
   };
 
   const handleBulkEnrich = async () => {
-    if (selectedDeals.size === 0) {
+    const dealIds = Array.from(selectedDeals);
+    if (dealIds.length === 0) {
       toast({
         title: "No deals selected",
         description: "Please select deals to enrich",
@@ -65,14 +75,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       return;
     }
 
-    setIsEnriching(true);
     try {
-      const dealIds = Array.from(selectedDeals);
-
-      // Call enrichment edge function for each deal
       for (const dealId of dealIds) {
         await supabase.functions.invoke("enrich-deal", {
-          body: { deal_id: dealId },
+          body: { dealId },
         });
       }
 
@@ -81,7 +87,6 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         description: `Enriching ${dealIds.length} deals in the background`,
       });
 
-      // Reload deals after a delay
       setTimeout(() => {
         loadDeals();
         setSelectedDeals(new Set());
@@ -92,13 +97,12 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsEnriching(false);
     }
   };
 
   const handleBulkScore = async () => {
-    if (selectedDeals.size === 0) {
+    const dealIds = Array.from(selectedDeals);
+    if (dealIds.length === 0) {
       toast({
         title: "No deals selected",
         description: "Please select deals to score",
@@ -107,28 +111,139 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       return;
     }
 
-    try {
-      const dealIds = Array.from(selectedDeals);
+    const progress: ScoringProgress = {
+      current: 0,
+      total: dealIds.length,
+      isPaused: false,
+      completedIds: [],
+    };
+    setScoringProgress(progress);
 
-      // Call scoring edge function for each deal
-      for (const dealId of dealIds) {
-        await supabase.functions.invoke("score-deal", {
-          body: {
-            deal_id: dealId,
-            tracker_id: trackerId,
-          },
-        });
+    try {
+      for (let i = 0; i < dealIds.length; i++) {
+        if (progress.isPaused) break;
+
+        const dealId = dealIds[i];
+
+        try {
+          await supabase.functions.invoke("score-deal", {
+            body: { dealId },
+          });
+
+          progress.current = i + 1;
+          progress.completedIds.push(dealId);
+          setScoringProgress({ ...progress });
+
+          // Save progress to localStorage
+          saveSessionState(trackerId, "Bulk Scoring", progress.current, progress.total);
+        } catch (error: any) {
+          console.error(`Error scoring deal ${dealId}:`, error);
+        }
       }
+
+      clearSessionState(trackerId);
+      setScoringProgress(null);
+      setSelectedDeals(new Set());
+      loadDeals();
+
+      toast({
+        title: "Scoring complete",
+        description: `Successfully scored ${progress.completedIds.length} of ${dealIds.length} deals`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error during scoring",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePauseScoring = () => {
+    if (scoringProgress) {
+      setScoringProgress({
+        ...scoringProgress,
+        isPaused: !scoringProgress.isPaused,
+      });
+    }
+  };
+
+  const handleScoreSingle = async (dealId: string) => {
+    try {
+      await supabase.functions.invoke("score-deal", {
+        body: { dealId },
+      });
 
       toast({
         title: "Scoring started",
-        description: `Scoring ${dealIds.length} deals against all buyers`,
+        description: "Deal scoring in progress",
       });
 
-      setSelectedDeals(new Set());
+      setTimeout(() => loadDeals(), 2000);
     } catch (error: any) {
       toast({
-        title: "Error scoring deals",
+        title: "Scoring failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEnrichSingle = async (dealId: string) => {
+    try {
+      await supabase.functions.invoke("enrich-deal", {
+        body: { dealId },
+      });
+
+      toast({
+        title: "Enrichment started",
+        description: "Deal enrichment in progress",
+      });
+
+      setTimeout(() => loadDeals(), 2000);
+    } catch (error: any) {
+      toast({
+        title: "Enrichment failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleArchiveDeal = async (dealId: string) => {
+    try {
+      await supabase
+        .from("deals")
+        .update({ status: "archived" })
+        .eq("id", dealId);
+
+      toast({ title: "Deal archived" });
+      loadDeals();
+    } catch (error: any) {
+      toast({
+        title: "Archive failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteDeal = async (dealId: string) => {
+    if (!confirm("Are you sure you want to delete this deal? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await supabase
+        .from("deals")
+        .delete()
+        .eq("id", dealId);
+
+      toast({ title: "Deal deleted" });
+      loadDeals();
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
         description: error.message,
         variant: "destructive",
       });
@@ -170,6 +285,16 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       return false;
     }
 
+    // Score filter
+    if (filterScore !== "all") {
+      const score = deal.deal_score;
+      if (filterScore === "hot" && (score === null || score < 85)) return false;
+      if (filterScore === "high" && (score === null || score < 70 || score >= 85)) return false;
+      if (filterScore === "medium" && (score === null || score < 40 || score >= 70)) return false;
+      if (filterScore === "low" && (score === null || score >= 40)) return false;
+      if (filterScore === "unscored" && score !== null) return false;
+    }
+
     return true;
   });
 
@@ -183,6 +308,8 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
   return (
     <div className="space-y-4">
+      <InterruptedSessionBanner trackerId={trackerId} />
+
       <TrackerDealsToolbar
         selectedCount={selectedDeals.size}
         totalCount={deals.length}
@@ -190,10 +317,13 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         onSearchChange={setSearchQuery}
         filterStatus={filterStatus}
         onFilterStatusChange={setFilterStatus}
+        filterScore={filterScore}
+        onFilterScoreChange={setFilterScore}
         onAddDeal={() => setImportDialogOpen(true)}
         onBulkEnrich={handleBulkEnrich}
         onBulkScore={handleBulkScore}
-        isEnriching={isEnriching}
+        scoringProgress={scoringProgress}
+        onPauseScoring={handlePauseScoring}
       />
 
       <Card>
@@ -204,6 +334,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
             onToggleSelect={handleToggleSelect}
             onSelectAll={handleSelectAll}
             onRefresh={loadDeals}
+            onScore={handleScoreSingle}
+            onEnrich={handleEnrichSingle}
+            onArchive={handleArchiveDeal}
+            onDelete={handleDeleteDeal}
           />
         </CardContent>
       </Card>
