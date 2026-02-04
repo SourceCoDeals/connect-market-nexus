@@ -1,130 +1,143 @@
 
-# Fix Edge Function Build Errors
+# Plan: Add Enrichment Selection Dialog for Buyers
 
 ## Summary
-Fix 7 build errors across 6 edge functions that are preventing deployment. These are TypeScript type mismatches, syntax errors, and outdated API usage.
 
----
+The "Enrich All" button on the Universe Buyers tab currently triggers enrichment directly for all buyers with websites. This plan adds a selection dialog (matching the pattern from the All Deals page) that gives users two options:
+1. **Enrich All** - Re-enrich all buyers (resets existing data)
+2. **Only Unenriched** - Only enrich buyers that haven't been enriched yet
 
-## Errors to Fix
+## Current Behavior
 
-### 1. `apify-linkedin-scrape/index.ts` (Line 341)
-**Error:** `Type 'number | null' is not assignable to type 'number | undefined'`
+When clicking "Enrich All" in the Buyers tab:
+- Immediately calls `enrichBuyers()` with all buyers that have websites
+- No option to skip already-enriched buyers
 
-**Root Cause:** The interface `ApifyLinkedInResult` defines `employeeCount?: number` (optional, undefined), but `rawEmployeeCount` is typed as `number | null`.
+## Proposed Changes
 
-**Fix:** Change `null` to `undefined`:
-```typescript
-// Line 320: Change
-let rawEmployeeCount: number | null = null;
-// To:
-let rawEmployeeCount: number | undefined = undefined;
+### 1. Add State for Enrich Dialog in ReMarketingUniverseDetail.tsx
+
+Add a new state variable to control the dialog visibility:
+```tsx
+const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
 ```
 
----
+### 2. Update BuyerTableToolbar Button Handler
 
-### 2. `enrich-deal/index.ts` (Lines 779, 832)
-**Error:** `Type 'string | null' is not assignable to type 'string'` for `authHeader`
-
-**Root Cause:** `req.headers.get('Authorization')` returns `string | null`, but fetch headers require `string`.
-
-**Fix:** Add null check or assertion since auth is validated earlier:
-```typescript
-// Lines 779 and 832: Change
-'Authorization': authHeader,
-// To:
-'Authorization': authHeader!,
+Change the `onEnrichAll` handler to open the dialog instead of directly enriching:
+```tsx
+onEnrichAll={() => setShowBuyerEnrichDialog(true)}
 ```
 
----
+### 3. Add Enrichment Handler Function
 
-### 3. `extract-transcript/index.ts` (Line 62)
-**Error:** `Unterminated template` - syntax error with backticks
-
-**Root Cause:** The file has corrupted backticks (showing as `\`` instead of proper backticks).
-
-**Fix:** Replace escaped backticks with proper template literals:
-```typescript
-// Line 62: Change
-console.log(\`[TranscriptExtraction] CEO detected...
-// To:
-console.log(`[TranscriptExtraction] CEO detected in transcript ${transcript_id}`);
+Create a handler that processes the user's selection:
+```tsx
+const handleBuyerEnrichment = async (mode: 'all' | 'unenriched') => {
+  setShowBuyerEnrichDialog(false);
+  
+  if (!buyers?.length) {
+    toast.error('No buyers to enrich');
+    return;
+  }
+  
+  resetEnrichment();
+  
+  // Filter based on mode
+  const buyersToEnrich = mode === 'all' 
+    ? buyers 
+    : buyers.filter(b => b.data_completeness !== 'high');
+  
+  if (buyersToEnrich.length === 0) {
+    toast.info('All buyers are already enriched');
+    return;
+  }
+  
+  await enrichBuyers(buyersToEnrich.map(b => ({
+    id: b.id,
+    company_website: b.company_website,
+    platform_website: b.platform_website,
+    pe_firm_website: b.pe_firm_website
+  })));
+};
 ```
 
----
+### 4. Add Enrich Buyers Dialog Component
 
-### 4. `map-csv-columns/index.ts` (Line 169)
-**Error:** `Expression expected` - syntax error in ternary chain
-
-**Root Cause:** The ternary operator chain appears to have malformed syntax - there's a triple-nested ternary that's broken.
-
-**Fix:** The file has a broken ternary chain. Looking at lines 120-169, there are three conditions:
-- `targetType === 'deal'` 
-- Then another condition for 'buyer'
-- Then a fallback
-
-The fix is to properly structure the ternary or use if/else.
-
----
-
-### 5. `process-enrichment-queue/index.ts` (Lines 166, 182)
-**Error:** `Type 'unknown' is not assignable to type '{ id: string; ... }'`
-
-**Root Cause:** The `chunk` array from `.map()` has type `unknown[]` because the parent array type isn't properly typed.
-
-**Fix:** Add proper type annotation to `queueItems`:
-```typescript
-// Define the type and cast queueItems
-type QueueItem = { id: string; listing_id: string; attempts: number };
-const queueItems = data as QueueItem[];
+Add the dialog at the bottom of the component (before the closing `</div>`):
+```tsx
+<Dialog open={showBuyerEnrichDialog} onOpenChange={setShowBuyerEnrichDialog}>
+  <DialogContent className="sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2">
+        <Sparkles className="h-5 w-5" />
+        Enrich Buyers
+      </DialogTitle>
+      <DialogDescription>
+        Enrichment scrapes websites and extracts company data, 
+        investment criteria, and M&A intelligence.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="flex flex-col gap-3 py-4">
+      <Button
+        variant="default"
+        className="w-full justify-start h-auto py-4 px-4"
+        onClick={() => handleBuyerEnrichment('all')}
+        disabled={enrichmentProgress.isRunning}
+      >
+        <div className="flex flex-col items-start gap-1">
+          <span className="font-medium">Enrich All</span>
+          <span className="text-xs text-muted-foreground font-normal">
+            Re-enrich all {buyers?.filter(b => 
+              b.company_website || b.platform_website || b.pe_firm_website
+            ).length || 0} buyers (resets existing data)
+          </span>
+        </div>
+      </Button>
+      <Button
+        variant="outline"
+        className="w-full justify-start h-auto py-4 px-4"
+        onClick={() => handleBuyerEnrichment('unenriched')}
+        disabled={enrichmentProgress.isRunning}
+      >
+        <div className="flex flex-col items-start gap-1">
+          <span className="font-medium">Only Unenriched</span>
+          <span className="text-xs text-muted-foreground font-normal">
+            Only enrich {buyers?.filter(b => 
+              b.data_completeness !== 'high' && 
+              (b.company_website || b.platform_website || b.pe_firm_website)
+            ).length || 0} buyers that haven't been enriched yet
+          </span>
+        </div>
+      </Button>
+    </div>
+    <DialogFooter>
+      <Button variant="ghost" onClick={() => setShowBuyerEnrichDialog(false)}>
+        Cancel
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 ```
 
----
+### 5. Update Imports
 
-### 6. `parse-tracker-documents/index.ts` (Line 118)
-**Error:** `Type '"document"' is not assignable to type '"text" | "image" | ..."'`
-
-**Root Cause:** The Anthropic SDK version (0.30.1) doesn't support the `document` content type - this is a newer API feature.
-
-**Fix:** Use base64 image approach or upgrade SDK. Since PDFs can't be sent as images directly, we need to use a different approach - convert to text or upgrade the SDK:
-```typescript
-// Change document type to use the PDF as base64 with proper typing
-// OR upgrade Anthropic SDK to latest version that supports documents
+Add the Dialog components to the imports:
+```tsx
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 ```
 
----
+## Technical Details
 
-### 7. `send-owner-intro-notification/index.ts` (Lines 117+)
-**Error:** `Property 'primary_owner_id' does not exist on type '...'`
+| Aspect | Detail |
+|--------|--------|
+| Enriched Detection | Uses `data_completeness === 'high'` as the enrichment indicator |
+| Website Check | Filters by `company_website || platform_website || pe_firm_website` |
+| Dialog Pattern | Matches the existing pattern from ReMarketingDeals.tsx |
+| Count Display | Shows dynamic counts for both options |
 
-**Root Cause:** The Supabase query returns an array for nested relations (even with `.single()`), so `listing` is actually `listing[]`.
+## Files to Modify
 
-**Fix:** Access the first element of the array:
-```typescript
-// Line 103: Change
-const listing = deal.listing;
-// To:
-const listing = Array.isArray(deal.listing) ? deal.listing[0] : deal.listing;
-```
-
----
-
-## Technical Changes Summary
-
-| File | Line(s) | Issue | Fix |
-|------|---------|-------|-----|
-| `apify-linkedin-scrape` | 320 | `null` vs `undefined` | Change to `undefined` |
-| `enrich-deal` | 779, 832 | Nullable `authHeader` | Add `!` assertion |
-| `extract-transcript` | 62 | Corrupted backticks | Fix template literal |
-| `map-csv-columns` | 169 | Broken ternary | Restructure conditionals |
-| `process-enrichment-queue` | 166, 182 | Untyped array | Add `QueueItem` type |
-| `parse-tracker-documents` | 118 | SDK doesn't support `document` | Use alternative approach |
-| `send-owner-intro-notification` | 103+ | Array vs object | Handle array response |
-
----
-
-## Implementation Order
-1. Fix simple type issues first (apify-linkedin-scrape, enrich-deal)
-2. Fix syntax errors (extract-transcript, map-csv-columns)
-3. Fix array typing (process-enrichment-queue, send-owner-intro-notification)
-4. Fix Anthropic SDK issue (parse-tracker-documents)
+| File | Changes |
+|------|---------|
+| `src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx` | Add state, handler, dialog, and update imports |
