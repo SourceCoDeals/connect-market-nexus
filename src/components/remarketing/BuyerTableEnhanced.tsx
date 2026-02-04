@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,8 @@ import {
   DollarSign,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  GripVertical
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { AlignmentScoreBadge } from "./AlignmentScoreBadge";
@@ -67,6 +68,24 @@ interface SortConfig {
   direction: SortDirection;
 }
 
+interface ColumnWidths {
+  platform: number;
+  industryFit: number;
+  peFirm: number;
+  description: number;
+  intel: number;
+}
+
+const DEFAULT_WIDTHS: ColumnWidths = {
+  platform: 280,
+  industryFit: 120,
+  peFirm: 160,
+  description: 400,
+  intel: 120,
+};
+
+const MIN_WIDTH = 80;
+
 interface BuyerTableEnhancedProps {
   buyers: BuyerRow[];
   onEnrich?: (buyerId: string) => void;
@@ -89,6 +108,8 @@ export const BuyerTableEnhanced = ({
     key: 'company_name',
     direction: 'asc'
   });
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
+  const resizingRef = useRef<{ column: keyof ColumnWidths; startX: number; startWidth: number } | null>(null);
 
   const getLocation = (buyer: BuyerRow) => {
     const parts = [];
@@ -103,6 +124,39 @@ export const BuyerTableEnhanced = ({
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
   };
+
+  const handleMouseDown = useCallback((column: keyof ColumnWidths, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = {
+      column,
+      startX: e.clientX,
+      startWidth: columnWidths[column],
+    };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const delta = moveEvent.clientX - resizingRef.current.startX;
+      const newWidth = Math.max(MIN_WIDTH, resizingRef.current.startWidth + delta);
+      setColumnWidths((prev) => ({
+        ...prev,
+        [resizingRef.current!.column]: newWidth,
+      }));
+    };
+
+    const handleMouseUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [columnWidths]);
 
   const sortedBuyers = useMemo(() => {
     return [...buyers].sort((a, b) => {
@@ -163,25 +217,43 @@ export const BuyerTableEnhanced = ({
     );
   };
 
+  const ResizeHandle = ({ column }: { column: keyof ColumnWidths }) => (
+    <div
+      className="absolute right-0 top-0 h-full w-1 cursor-col-resize group/resize hover:bg-primary/50 z-10"
+      onMouseDown={(e) => handleMouseDown(column, e)}
+    >
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/resize:opacity-100 transition-opacity">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+    </div>
+  );
+
   return (
     <TooltipProvider>
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[280px]">
+            <TableHead className="relative" style={{ width: columnWidths.platform }}>
               <SortButton label="Platform / Buyer" sortKey="company_name" />
+              <ResizeHandle column="platform" />
             </TableHead>
-            <TableHead className="w-[140px]">
+            <TableHead className="relative" style={{ width: columnWidths.industryFit }}>
               <SortButton label="Industry Fit" sortKey="alignment_score" />
+              <ResizeHandle column="industryFit" />
             </TableHead>
             {showPEColumn && (
-              <TableHead className="w-[180px]">
+              <TableHead className="relative" style={{ width: columnWidths.peFirm }}>
                 <SortButton label="PE Firm" sortKey="pe_firm_name" />
+                <ResizeHandle column="peFirm" />
               </TableHead>
             )}
-            <TableHead>Description</TableHead>
-            <TableHead className="w-[130px]">
+            <TableHead className="relative" style={{ width: columnWidths.description }}>
+              Description
+              <ResizeHandle column="description" />
+            </TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.intel }}>
               <SortButton label="Intel" sortKey="data_completeness" />
+              <ResizeHandle column="intel" />
             </TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
