@@ -889,7 +889,7 @@ const ReMarketingUniverseDetail = () => {
             {id && maGuideContent && (
               <CriteriaExtractionPanel
                 universeId={id}
-                universeName={name}
+                universeName={formData.name}
                 maGuideContent={maGuideContent}
                 onExtractionComplete={() => {
                   // Refresh universe data to get updated criteria

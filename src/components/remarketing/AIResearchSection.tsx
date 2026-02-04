@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
 import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
+import { GenerationSummaryPanel, type GenerationSummary } from "./GenerationSummaryPanel";
 
 type GenerationState = 'idle' | 'clarifying' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
 
@@ -136,6 +137,10 @@ export const AIResearchSection = ({
 
   // Error details state for enhanced error panel
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
+
+  // Generation summary state for completion/timeout/error feedback
+  const [generationSummary, setGenerationSummary] = useState<GenerationSummary | null>(null);
+  const generationStartTimeRef = useRef<number>(0);
 
   // Track last clarification context for resume/retry
   const lastClarificationContextRef = useRef<ClarificationContext>({});
@@ -319,10 +324,14 @@ export const AIResearchSection = ({
     setExtractedCriteria(null);
     setMissingElements([]);
     setErrorDetails(null); // Clear any previous error
+    setGenerationSummary(null); // Clear any previous summary
     clearProgress();
 
     // Save context for potential retry/resume
     lastClarificationContextRef.current = clarificationContext;
+
+    // Track start time for summary
+    generationStartTimeRef.current = Date.now();
 
     batchRetryCountRef.current = {};
 
@@ -339,6 +348,12 @@ export const AIResearchSection = ({
     setCurrentBatch(progress.batchIndex);
     setContent(progress.content);
     setWordCount(progress.content.split(/\s+/).length);
+    setGenerationSummary(null); // Clear any previous summary
+    
+    // Track start time for summary (continuing from where we left off)
+    if (!generationStartTimeRef.current) {
+      generationStartTimeRef.current = Date.now();
+    }
     
     abortControllerRef.current = new AbortController();
     
@@ -520,11 +535,24 @@ export const AIResearchSection = ({
               case 'complete':
                 setState('complete');
                 const finalContent = event.content || fullContent;
+                const finalWordCount = event.totalWords || finalContent.split(/\s+/).length;
                 setContent(finalContent);
-                setWordCount(event.totalWords || finalContent.split(/\s+/).length);
+                setWordCount(finalWordCount);
                 // Clear saved progress on successful completion
                 localStorage.removeItem('ma_guide_progress');
                 setSavedProgress(null);
+                
+                // Set success summary
+                setGenerationSummary({
+                  outcome: 'success',
+                  startTime: generationStartTimeRef.current,
+                  endTime: Date.now(),
+                  batchesCompleted: totalBatches,
+                  totalBatches,
+                  wordCount: finalWordCount,
+                  isRecoverable: false
+                });
+                
                 toast.success("M&A Guide generated successfully!");
                 
                 // Auto-save guide to Supporting Documents
@@ -593,6 +621,16 @@ export const AIResearchSection = ({
 
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
+        // User cancelled - set cancelled summary
+        setGenerationSummary({
+          outcome: 'cancelled',
+          startTime: generationStartTimeRef.current,
+          endTime: Date.now(),
+          batchesCompleted: batchIndex,
+          totalBatches,
+          wordCount: wordCount,
+          isRecoverable: true
+        });
         toast.info("Generation cancelled");
         setState('idle');
         setErrorDetails(null);
@@ -632,6 +670,21 @@ export const AIResearchSection = ({
         }
 
         console.error('Generation error:', error);
+
+        // Determine outcome type for summary
+        const outcomeType = isRateLimited ? 'rate_limited' : (isStreamCutoff ? 'timeout' : 'error');
+
+        // Set generation summary
+        setGenerationSummary({
+          outcome: outcomeType,
+          startTime: generationStartTimeRef.current,
+          endTime: Date.now(),
+          batchesCompleted: batchIndex,
+          totalBatches,
+          wordCount: wordCount,
+          errorMessage: message,
+          isRecoverable: isRateLimited || isStreamCutoff
+        });
 
         // Set error details if not already set by SSE event
         if (!errorDetails) {
@@ -825,8 +878,18 @@ export const AIResearchSection = ({
               </div>
             )}
 
+            {/* Generation Summary Panel - shown when generation completes/stops/times out */}
+            {generationSummary && state !== 'generating' && (
+              <GenerationSummaryPanel
+                summary={generationSummary}
+                onResume={generationSummary.isRecoverable ? handleErrorResume : undefined}
+                onDismiss={() => setGenerationSummary(null)}
+                hasCheckpoint={!!savedProgress || (content.length > 0 && generationSummary.wordCount > 0)}
+              />
+            )}
+
             {/* Error Panel - shown when state is error and we have error details */}
-            {state === 'error' && errorDetails && (
+            {state === 'error' && errorDetails && !generationSummary && (
               <GuideGenerationErrorPanel
                 errorDetails={errorDetails}
                 onRetry={handleErrorRetry}
