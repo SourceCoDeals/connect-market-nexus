@@ -137,12 +137,13 @@ serve(async (req) => {
             console.log(`Enriching buyer ${item.buyer_id}`);
 
             // Call the enrich-buyer function
+            // Note: apikey must be the anon key for gateway routing, Authorization carries the service role key for internal auth
             const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${supabaseServiceKey}`,
-                'apikey': supabaseServiceKey,
+                'apikey': supabaseAnonKey,
               },
               body: JSON.stringify({ buyerId: item.buyer_id }),
               signal: controller.signal,
