@@ -3246,38 +3246,68 @@ export type Database = {
       }
       industry_trackers: {
         Row: {
+          archived: boolean | null
           buyer_count: number | null
+          buyer_types_criteria: Json | null
           color: string | null
           created_at: string | null
           deal_count: number | null
           description: string | null
+          geography_criteria: Json | null
+          geography_weight: number | null
           id: string
           is_active: boolean | null
+          kpi_scoring_config: Json | null
           name: string
+          owner_goals_weight: number | null
+          service_criteria: Json | null
+          service_mix_weight: number | null
+          size_criteria: Json | null
+          size_weight: number | null
           universe_id: string | null
           updated_at: string | null
         }
         Insert: {
+          archived?: boolean | null
           buyer_count?: number | null
+          buyer_types_criteria?: Json | null
           color?: string | null
           created_at?: string | null
           deal_count?: number | null
           description?: string | null
+          geography_criteria?: Json | null
+          geography_weight?: number | null
           id?: string
           is_active?: boolean | null
+          kpi_scoring_config?: Json | null
           name: string
+          owner_goals_weight?: number | null
+          service_criteria?: Json | null
+          service_mix_weight?: number | null
+          size_criteria?: Json | null
+          size_weight?: number | null
           universe_id?: string | null
           updated_at?: string | null
         }
         Update: {
+          archived?: boolean | null
           buyer_count?: number | null
+          buyer_types_criteria?: Json | null
           color?: string | null
           created_at?: string | null
           deal_count?: number | null
           description?: string | null
+          geography_criteria?: Json | null
+          geography_weight?: number | null
           id?: string
           is_active?: boolean | null
+          kpi_scoring_config?: Json | null
           name?: string
+          owner_goals_weight?: number | null
+          service_criteria?: Json | null
+          service_mix_weight?: number | null
+          size_criteria?: Json | null
+          size_weight?: number | null
           universe_id?: string | null
           updated_at?: string | null
         }
