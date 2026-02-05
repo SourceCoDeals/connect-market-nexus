@@ -43,7 +43,6 @@ import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
   MainContactCard,
-  FeeAgreementToggle,
   BusinessDescriptionCard,
   InvestmentCriteriaCard,
   GeographicFootprintCard,
@@ -510,7 +509,7 @@ const ReMarketingBuyerDetail = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <BuyerDetailHeader
         companyName={buyer?.company_name || ""}
@@ -534,53 +533,49 @@ const ReMarketingBuyerDetail = () => {
         isEnriching={enrichMutation.isPending}
       />
 
-      {/* Company Overview Card - NEW POSITION (at top) */}
-      <BuyerCompanyOverviewCard
-        website={buyer?.platform_website || buyer?.company_website}
-        hqCity={buyer?.hq_city}
-        hqState={buyer?.hq_state}
-        hqCountry={buyer?.hq_country}
-        foundedYear={buyer?.founded_year}
-        employeeCount={buyer?.num_employees}
-        employeeRange={buyer?.employee_range}
-        industryVertical={buyer?.industry_vertical}
-        numberOfLocations={buyer?.number_of_locations}
-        operatingLocations={buyer?.operating_locations}
-        onEdit={() => setActiveEditDialog('companyOverview')}
-      />
-
-      {/* Main Contact Card - MOVED BELOW Company Overview */}
-      <MainContactCard
-        contacts={contacts}
-        onAddContact={() => setIsContactDialogOpen(true)}
-      />
-
-      {/* Fee Agreement Toggle */}
-      <FeeAgreementToggle
-        hasFeeAgreement={buyer?.has_fee_agreement || false}
-        onChange={(value) => updateFeeAgreementMutation.mutate(value)}
-        disabled={updateFeeAgreementMutation.isPending}
-      />
+      {/* Company Overview + Main Contact - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <BuyerCompanyOverviewCard
+          website={buyer?.platform_website || buyer?.company_website}
+          hqCity={buyer?.hq_city}
+          hqState={buyer?.hq_state}
+          hqCountry={buyer?.hq_country}
+          foundedYear={buyer?.founded_year}
+          employeeCount={buyer?.num_employees}
+          employeeRange={buyer?.employee_range}
+          industryVertical={buyer?.industry_vertical}
+          numberOfLocations={buyer?.number_of_locations}
+          operatingLocations={buyer?.operating_locations}
+          onEdit={() => setActiveEditDialog('companyOverview')}
+        />
+        <MainContactCard
+          contacts={contacts}
+          onAddContact={() => setIsContactDialogOpen(true)}
+          hasFeeAgreement={buyer?.has_fee_agreement || false}
+          onFeeAgreementChange={(value) => updateFeeAgreementMutation.mutate(value)}
+          feeAgreementDisabled={updateFeeAgreementMutation.isPending}
+        />
+      </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="intelligence" className="space-y-6">
+      <Tabs defaultValue="intelligence" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="intelligence">
-            <BarChart2 className="mr-2 h-4 w-4" />
+          <TabsTrigger value="intelligence" className="text-sm">
+            <BarChart2 className="mr-1.5 h-3.5 w-3.5" />
             Intelligence
           </TabsTrigger>
-          <TabsTrigger value="history">
-            <Clock className="mr-2 h-4 w-4" />
+          <TabsTrigger value="history" className="text-sm">
+            <Clock className="mr-1.5 h-3.5 w-3.5" />
             Deal History ({recentScores?.length || 0})
           </TabsTrigger>
-          <TabsTrigger value="contacts">
-            <Users className="mr-2 h-4 w-4" />
+          <TabsTrigger value="contacts" className="text-sm">
+            <Users className="mr-1.5 h-3.5 w-3.5" />
             Contacts ({contacts?.length || 0})
           </TabsTrigger>
         </TabsList>
 
         {/* Intelligence Tab */}
-        <TabsContent value="intelligence" className="space-y-6">
+        <TabsContent value="intelligence" className="space-y-4">
           {/* Full Width Cards - Stacked Vertically */}
           <BusinessDescriptionCard
             industryVertical={buyer?.industry_vertical}
