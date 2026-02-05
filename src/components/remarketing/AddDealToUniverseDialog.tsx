@@ -94,6 +94,7 @@ export const AddDealToUniverseDialog = ({
   const [search, setSearch] = useState("");
   const [selectedListings, setSelectedListings] = useState<string[]>([]);
   const [transcriptFile, setTranscriptFile] = useState<File | null>(null);
+  const [createDealError, setCreateDealError] = useState<string | null>(null);
   const [newDealForm, setNewDealForm] = useState({
     title: "",
     website: "",
@@ -242,9 +243,23 @@ export const AddDealToUniverseDialog = ({
   // Create new deal and add to universe
   const createDealMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      setCreateDealError(null);
 
-      // Create the listing with proper typing
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("You must be signed in to create a deal.");
+
+      // Admin-only guard (matches RLS policies on listings/universe_deals/deal_transcripts)
+      const { data: profile, error: profileError } = await (supabase as any)
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile?.is_admin) {
+        throw new Error("Admin access required: your account is not permitted to create deals in a universe.");
+      }
+
       const insertData = {
         title: newDealForm.title,
         website: newDealForm.website || null,
@@ -262,9 +277,10 @@ export const AddDealToUniverseDialog = ({
         .from("listings")
         .insert(insertData)
         .select()
-        .single();
+        .maybeSingle();
 
       if (listingError) throw listingError;
+      if (!listing) throw new Error("Failed to create listing (no row returned). This is usually an RLS or policy issue.");
 
       // Link to universe
       const { error: linkError } = await supabase
@@ -272,13 +288,13 @@ export const AddDealToUniverseDialog = ({
         .insert({
           universe_id: universeId,
           listing_id: listing.id,
-          added_by: user?.id,
+          added_by: user.id,
           status: "active",
         });
 
       if (linkError) throw linkError;
 
-      return { listing, userId: user?.id };
+      return { listing, userId: user.id };
     },
     onSuccess: async ({ listing, userId }) => {
       queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
@@ -383,10 +399,15 @@ export const AddDealToUniverseDialog = ({
       onDealAdded?.();
       onOpenChange(false);
     },
-    onError: (error) => {
-      console.error("Failed to create deal:", error);
-      toast.error("Failed to create deal");
-    },
+      onError: (error: any) => {
+        console.error("Failed to create deal:", error);
+        const message =
+          typeof error?.message === "string" && error.message.trim()
+            ? error.message
+            : "Failed to create deal";
+        setCreateDealError(message);
+        toast.error(message);
+      },
   });
 
   const toggleListing = (id: string) => {
@@ -735,6 +756,12 @@ export const AddDealToUniverseDialog = ({
                   </p>
                 </div>
               </div>
+
+              {createDealError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  {createDealError}
+                </div>
+              )}
 
               <Button
                 onClick={() => createDealMutation.mutate()}
