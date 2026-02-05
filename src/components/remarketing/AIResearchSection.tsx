@@ -685,6 +685,15 @@ export const AIResearchSection = ({
     generationStartTimeRef.current = Date.now();
 
     try {
+      // Save clarification context to the universe so the queue processor can use it
+      // (process-ma-guide-queue reads ma_guide_qa_context from the universe row)
+      if (universeId && Object.keys(clarificationContext).length > 0) {
+        await supabase
+          .from('remarketing_buyer_universes')
+          .update({ ma_guide_qa_context: clarificationContext })
+          .eq('id', universeId);
+      }
+
       // Start background generation
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide-background`,
