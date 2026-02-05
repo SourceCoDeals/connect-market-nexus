@@ -3,7 +3,9 @@ import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
 import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { Globe, Lock } from "lucide-react";
 
 interface EditorTopBarProps {
   form: UseFormReturn<any>;
@@ -12,6 +14,7 @@ interface EditorTopBarProps {
 export function EditorTopBar({ form }: EditorTopBarProps) {
   const acquisitionType = form.watch('acquisition_type');
   const status = form.watch('status');
+  const publishToMarketplace = form.watch('publish_to_marketplace');
 
   return (
     <div className="bg-white border-b border-border/40 -mx-10 px-10 py-6 mb-6">
@@ -103,11 +106,45 @@ export function EditorTopBar({ form }: EditorTopBarProps) {
             </button>
           </div>
           
+          {/* MARKETPLACE PUBLISH TOGGLE - Critical for data isolation */}
+          <FormField
+            control={form.control}
+            name="publish_to_marketplace"
+            render={({ field }) => (
+              <FormItem className="flex items-center gap-2">
+                <FormControl>
+                  <div className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors",
+                    field.value 
+                      ? "border-primary/30 bg-primary/5" 
+                      : "border-border bg-muted/20"
+                  )}>
+                    {field.value ? (
+                      <Globe className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className={cn(
+                      "text-sm font-medium",
+                      field.value ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {field.value ? "Public" : "Internal"}
+                    </span>
+                    <Switch
+                      checked={field.value ?? true}
+                      onCheckedChange={field.onChange}
+                    />
+                  </div>
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
           {/* Status indicator */}
           <div className="flex items-center gap-2">
             <div className={cn(
               "h-2 w-2 rounded-full",
-              status === 'active' ? "bg-green-500" : "bg-muted-foreground/40"
+              status === 'active' ? "bg-primary" : "bg-muted-foreground/40"
             )} />
             <span className="text-sm text-muted-foreground">
               {status === 'active' ? 'Active' : 'Inactive'}
