@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -26,7 +26,11 @@ import {
   Loader2,
   DollarSign,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Link2,
+  Upload,
+  X,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -86,8 +90,10 @@ export const AddDealToUniverseDialog = ({
   onDealAdded,
 }: AddDealToUniverseDialogProps) => {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [selectedListings, setSelectedListings] = useState<string[]>([]);
+  const [transcriptFile, setTranscriptFile] = useState<File | null>(null);
   const [newDealForm, setNewDealForm] = useState({
     title: "",
     website: "",
@@ -95,6 +101,7 @@ export const AddDealToUniverseDialog = ({
     revenue: "",
     ebitda: "",
     description: "",
+    transcriptLink: "",
   });
 
   // Fetch available listings (not already in universe)
@@ -283,13 +290,71 @@ export const AddDealToUniverseDialog = ({
 
       if (linkError) throw linkError;
 
-      return listing;
+      return { listing, userId: user?.id };
     },
-    onSuccess: async (listing) => {
+    onSuccess: async ({ listing, userId }) => {
       queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals", "universe", universeId] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       toast.success(`Created "${listing.title}" and added to universe`);
+      
+      // Handle transcript file upload
+      if (transcriptFile && userId) {
+        try {
+          const fileExt = transcriptFile.name.split('.').pop();
+          const filePath = `${listing.id}/${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('deal-transcripts')
+            .upload(filePath, transcriptFile);
+          
+          if (uploadError) {
+            console.error("Transcript upload error:", uploadError);
+            toast.error("Failed to upload transcript file");
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from('deal-transcripts')
+              .getPublicUrl(filePath);
+            
+            // Read file content if it's a text file
+            let transcriptText = "";
+            if (['txt', 'vtt', 'srt'].includes(fileExt?.toLowerCase() || '')) {
+              transcriptText = await transcriptFile.text();
+            }
+            
+            // Save transcript record
+            await supabase.from('deal_transcripts').insert({
+              listing_id: listing.id,
+              transcript_url: publicUrl,
+              transcript_text: transcriptText || "Pending text extraction",
+              title: transcriptFile.name,
+              created_by: userId,
+              source: 'file_upload',
+            });
+            
+            toast.success("Transcript uploaded");
+          }
+        } catch (err) {
+          console.error("Transcript handling error:", err);
+        }
+      }
+      
+      // Handle transcript link
+      if (newDealForm.transcriptLink) {
+        try {
+          await supabase.from('deal_transcripts').insert({
+            listing_id: listing.id,
+            transcript_url: newDealForm.transcriptLink,
+            transcript_text: "Pending text extraction from link",
+            title: "Linked Transcript",
+            created_by: userId,
+            source: 'link',
+          });
+          toast.success("Transcript link saved");
+        } catch (err) {
+          console.error("Transcript link error:", err);
+        }
+      }
       
       // Trigger AI enrichment immediately if website provided
       if (listing.website) {
@@ -325,7 +390,8 @@ export const AddDealToUniverseDialog = ({
         }
       });
       
-      setNewDealForm({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "" });
+      setNewDealForm({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
+      setTranscriptFile(null);
       onDealAdded?.();
       onOpenChange(false);
     },
@@ -598,6 +664,88 @@ export const AddDealToUniverseDialog = ({
                   }
                   rows={3}
                 />
+              </div>
+
+              {/* Transcript Section */}
+              <div className="space-y-3 border-t pt-4">
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Call Transcript (Optional)
+                </Label>
+                
+                {/* Transcript Link */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="transcriptLink"
+                      placeholder="Fireflies, Otter.ai, or other transcript link..."
+                      value={newDealForm.transcriptLink}
+                      onChange={(e) =>
+                        setNewDealForm((prev) => ({ ...prev, transcriptLink: e.target.value }))
+                      }
+                      disabled={!!transcriptFile}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex-1 border-t" />
+                  <span>or</span>
+                  <div className="flex-1 border-t" />
+                </div>
+                
+                {/* File Upload */}
+                <div className="space-y-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.vtt,.srt,.pdf,.doc,.docx"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setTranscriptFile(file);
+                        setNewDealForm(prev => ({ ...prev, transcriptLink: "" }));
+                      }
+                    }}
+                    className="hidden"
+                    id="transcript-file-universe"
+                  />
+                  
+                  {transcriptFile ? (
+                    <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="text-sm flex-1 truncate">{transcriptFile.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setTranscriptFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={!!newDealForm.transcriptLink}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Transcript File
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Supports .txt, .vtt, .srt, .pdf, .doc, .docx
+                  </p>
+                </div>
               </div>
 
               <Button
