@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
+import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -810,14 +810,6 @@ Deno.serve(async (req) => {
       // Accept any request with auth header
       // Rate limiting prevents abuse
       userId = token.substring(0, 20);
-    }
-
-    // Skip rate limiting for internal worker calls (userId = 'system' is not a valid UUID)
-    if (!isInternalWorkerCall) {
-      const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', false);
-      if (!rateLimitResult.allowed) {
-        return rateLimitResponse(rateLimitResult);
-      }
     }
 
     // Fetch buyer

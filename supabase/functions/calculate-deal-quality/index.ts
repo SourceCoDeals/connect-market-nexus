@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
-import { checkRateLimit, checkGlobalRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -245,22 +244,6 @@ serve(async (req) => {
 
     const body = await req.json();
     const { listingId, calculateAll, forceRecalculate, triggerEnrichment } = body;
-
-    // Rate limit check
-    const rateLimitResult = await checkRateLimit(supabase, userId, 'deal_scoring', false);
-    if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for user ${userId} on deal_scoring`);
-      return rateLimitResponse(rateLimitResult);
-    }
-
-    // If calculating for all deals, check global rate limit
-    if (calculateAll || forceRecalculate) {
-      const globalRateLimit = await checkGlobalRateLimit(supabase, 'global_ai_calls');
-      if (!globalRateLimit.allowed) {
-        console.error('Global rate limit exceeded for bulk deal scoring');
-        return rateLimitResponse(globalRateLimit);
-      }
-    }
 
     let listingsToScore: any[] = [];
     let enrichmentQueued = 0;

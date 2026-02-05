@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -157,12 +156,6 @@ serve(async (req) => {
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    // Rate limiting
-    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_enrichment', true);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResponse(rateLimitResult);
     }
 
     const { dealId } = await req.json();
