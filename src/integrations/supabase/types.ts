@@ -3761,7 +3761,7 @@ export type Database = {
           description: string
           description_html: string | null
           description_json: Json | null
-          ebitda: number
+          ebitda: number | null
           ebitda_confidence: string | null
           ebitda_is_inferred: boolean | null
           ebitda_margin: number | null
@@ -3821,7 +3821,7 @@ export type Database = {
           linkedin_employee_count: number | null
           linkedin_employee_range: string | null
           linkedin_url: string | null
-          location: string
+          location: string | null
           location_radius_requirement: string | null
           management_depth: string | null
           manual_rank_override: number | null
@@ -3860,7 +3860,7 @@ export type Database = {
           real_estate_info: string | null
           recurring_revenue_percentage: number | null
           referral_partner_id: string | null
-          revenue: number
+          revenue: number | null
           revenue_confidence: string | null
           revenue_is_inferred: boolean | null
           revenue_metric_subtitle: string | null
@@ -3923,7 +3923,7 @@ export type Database = {
           description: string
           description_html?: string | null
           description_json?: Json | null
-          ebitda: number
+          ebitda?: number | null
           ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
           ebitda_margin?: number | null
@@ -3983,7 +3983,7 @@ export type Database = {
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
           linkedin_url?: string | null
-          location: string
+          location?: string | null
           location_radius_requirement?: string | null
           management_depth?: string | null
           manual_rank_override?: number | null
@@ -4022,7 +4022,7 @@ export type Database = {
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
           referral_partner_id?: string | null
-          revenue: number
+          revenue?: number | null
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
@@ -4085,7 +4085,7 @@ export type Database = {
           description?: string
           description_html?: string | null
           description_json?: Json | null
-          ebitda?: number
+          ebitda?: number | null
           ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
           ebitda_margin?: number | null
@@ -4145,7 +4145,7 @@ export type Database = {
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
           linkedin_url?: string | null
-          location?: string
+          location?: string | null
           location_radius_requirement?: string | null
           management_depth?: string | null
           manual_rank_override?: number | null
@@ -4184,7 +4184,7 @@ export type Database = {
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
           referral_partner_id?: string | null
-          revenue?: number
+          revenue?: number | null
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
