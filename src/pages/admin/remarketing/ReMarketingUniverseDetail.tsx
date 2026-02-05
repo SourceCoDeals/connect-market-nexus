@@ -110,6 +110,8 @@ const ReMarketingUniverseDetail = () => {
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
+   const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
+   const [isRemovingSelected, setIsRemovingSelected] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
   const { 
@@ -580,6 +582,19 @@ const ReMarketingUniverseDetail = () => {
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
   };
 
+   // Handler for bulk removal of selected buyers from universe
+   const handleRemoveSelectedBuyers = async () => {
+     if (!selectedBuyerIds.length) return;
+     
+     setIsRemovingSelected(true);
+     try {
+       await handleRemoveBuyersFromUniverse(selectedBuyerIds);
+       setSelectedBuyerIds([]);
+     } finally {
+       setIsRemovingSelected(false);
+     }
+   };
+
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
 
@@ -764,6 +779,9 @@ const ReMarketingUniverseDetail = () => {
                         failed: alignmentProgress.failed,
                         creditsDepleted: alignmentProgress.creditsDepleted
                       }}
+                       selectedCount={selectedBuyerIds.length}
+                       onRemoveSelected={handleRemoveSelectedBuyers}
+                       isRemovingSelected={isRemovingSelected}
                     />
                   </CardHeader>
                   <CardContent className="p-0">
@@ -775,6 +793,7 @@ const ReMarketingUniverseDetail = () => {
                       onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
                       onEnrich={handleEnrichSingleBuyer}
                       onDelete={handleDeleteBuyer}
+                       onSelectionChange={setSelectedBuyerIds}
                     />
                   </CardContent>
                 </Card>

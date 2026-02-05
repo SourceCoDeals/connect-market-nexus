@@ -13,7 +13,8 @@ import {
   AlertCircle,
   Target,
   RotateCcw,
-  Clock
+   Clock,
+   Unlink
 } from "lucide-react";
 
 interface EnrichmentProgress {
@@ -49,6 +50,8 @@ interface BuyerTableToolbarProps {
   isEnriching?: boolean;
   isScoringAlignment?: boolean;
   selectedCount?: number;
+   onRemoveSelected?: () => void;
+   isRemovingSelected?: boolean;
   enrichmentProgress?: EnrichmentProgress;
   alignmentProgress?: AlignmentProgress;
   className?: string;
@@ -68,6 +71,8 @@ export const BuyerTableToolbar = ({
   isEnriching = false,
   isScoringAlignment = false,
   selectedCount = 0,
+   onRemoveSelected,
+   isRemovingSelected = false,
   enrichmentProgress,
   alignmentProgress,
   className = ""
@@ -162,6 +167,22 @@ export const BuyerTableToolbar = ({
         </div>
 
         <div className="flex items-center gap-2">
+           {onRemoveSelected && (
+             <Button 
+               variant="outline" 
+               size="sm" 
+               onClick={onRemoveSelected}
+               disabled={selectedCount === 0 || isRemovingSelected}
+               className="text-destructive border-destructive/30 hover:bg-destructive/10"
+             >
+               {isRemovingSelected ? (
+                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+               ) : (
+                 <Unlink className="h-4 w-4 mr-1" />
+               )}
+               Remove Selected{selectedCount > 0 ? ` (${selectedCount})` : ''}
+             </Button>
+           )}
           {onAddBuyer && (
             <Button onClick={onAddBuyer} size="sm">
               <Plus className="h-4 w-4 mr-1" />
