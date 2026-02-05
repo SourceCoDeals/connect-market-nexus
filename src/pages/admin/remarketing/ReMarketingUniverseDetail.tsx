@@ -27,7 +27,6 @@ import {
   AIResearchSection,
   ScoringStyleCard,
   BuyerFitCriteriaAccordion,
-  CriteriaExtractionPanel,
   StructuredCriteriaPanel,
   EnrichmentProgressIndicator,
   EnrichmentSummaryDialog,
@@ -53,6 +52,7 @@ import {
   Plus,
   Sparkles,
   Loader2,
+  Unlink,
   BookOpen,
   Briefcase,
   ChevronDown,
@@ -111,6 +111,8 @@ const ReMarketingUniverseDetail = () => {
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
+   const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
+   const [isRemovingSelected, setIsRemovingSelected] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
   const { 
@@ -361,6 +363,74 @@ const ReMarketingUniverseDetail = () => {
     }
   }, [universe]);
 
+  // Auto-sync M&A guide to Supporting Documents if guide exists but document entry is missing
+  useEffect(() => {
+    const syncGuideToDocuments = async () => {
+      if (!id || isNew || !universe) return;
+      
+      const guideContent = universe.ma_guide_content;
+      const existingDocs = (universe.documents as unknown as DocumentReference[]) || [];
+      const hasGuideDoc = existingDocs.some((d: any) => d.type === 'ma_guide');
+      
+      // If there's substantial guide content but no document entry, create one
+      if (guideContent && guideContent.length > 1000 && !hasGuideDoc) {
+        console.log('[ReMarketingUniverseDetail] Guide exists but no document entry - syncing to Supporting Documents');
+        
+        try {
+          // Call edge function to upload HTML to storage
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-guide-pdf`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({
+                universeId: id,
+                industryName: universe.name || 'M&A Guide',
+                content: guideContent
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            console.error('[ReMarketingUniverseDetail] Failed to generate guide document:', response.status);
+            return;
+          }
+
+          const data = await response.json();
+          if (!data.success || !data.document) {
+            console.error('[ReMarketingUniverseDetail] No document returned from generate-guide-pdf');
+            return;
+          }
+
+          // Build updated documents array
+          const updatedDocs = [...existingDocs, data.document];
+
+          // Write back to database
+          const { error: updateError } = await supabase
+            .from('remarketing_buyer_universes')
+            .update({ documents: updatedDocs })
+            .eq('id', id);
+
+          if (updateError) {
+            console.error('[ReMarketingUniverseDetail] Failed to save document:', updateError);
+            return;
+          }
+
+          // Update local state for immediate UI feedback
+          setDocuments(updatedDocs);
+          console.log('[ReMarketingUniverseDetail] Guide synced to Supporting Documents successfully');
+        } catch (error) {
+          console.error('[ReMarketingUniverseDetail] Error syncing guide to documents:', error);
+        }
+      }
+    };
+
+    syncGuideToDocuments();
+  }, [universe, id, isNew]);
+
   // Handle template application
   const handleApplyTemplate = (templateConfig: {
     name: string;
@@ -490,6 +560,41 @@ const ReMarketingUniverseDetail = () => {
     toast.success(`Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`);
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
   };
+
+  // Handler for single buyer enrichment via row dropdown
+  const handleEnrichSingleBuyer = async (buyerId: string) => {
+    await queueBuyers([{ id: buyerId }]);
+  };
+
+  // Handler for single buyer removal from universe via row dropdown
+  // Just unlinks from universe - buyer remains in All Buyers
+  const handleDeleteBuyer = async (buyerId: string) => {
+    const { error } = await supabase
+      .from('remarketing_buyers')
+      .update({ universe_id: null })
+      .eq('id', buyerId);
+    
+    if (error) {
+      toast.error('Failed to remove buyer');
+      return;
+    }
+    
+    toast.success('Buyer removed from universe');
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+  };
+
+   // Handler for bulk removal of selected buyers from universe
+   const handleRemoveSelectedBuyers = async () => {
+     if (!selectedBuyerIds.length) return;
+     
+     setIsRemovingSelected(true);
+     try {
+       await handleRemoveBuyersFromUniverse(selectedBuyerIds);
+       setSelectedBuyerIds([]);
+     } finally {
+       setIsRemovingSelected(false);
+     }
+   };
 
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
@@ -675,6 +780,9 @@ const ReMarketingUniverseDetail = () => {
                         failed: alignmentProgress.failed,
                         creditsDepleted: alignmentProgress.creditsDepleted
                       }}
+                       selectedCount={selectedBuyerIds.length}
+                       onRemoveSelected={handleRemoveSelectedBuyers}
+                       isRemovingSelected={isRemovingSelected}
                     />
                   </CardHeader>
                   <CardContent className="p-0">
@@ -684,9 +792,29 @@ const ReMarketingUniverseDetail = () => {
                       buyerIdsWithTranscripts={buyerIdsWithTranscripts}
                       selectable={true}
                       onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
+                      onEnrich={handleEnrichSingleBuyer}
+                      onDelete={handleDeleteBuyer}
+                       onSelectionChange={setSelectedBuyerIds}
                     />
                   </CardContent>
                 </Card>
+
+                {/* Always-visible bulk action button (requested) */}
+                <div className="fixed bottom-6 right-6 z-50">
+                  <Button
+                    variant="outline"
+                    onClick={handleRemoveSelectedBuyers}
+                    disabled={selectedBuyerIds.length === 0 || isRemovingSelected}
+                    className="bg-background/95 backdrop-blur border shadow-sm text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    {isRemovingSelected ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Unlink className="h-4 w-4 mr-2" />
+                    )}
+                    Remove Selected{selectedBuyerIds.length ? ` (${selectedBuyerIds.length})` : ""}
+                  </Button>
+                </div>
               </TabsContent>
 
               <TabsContent value="deals">
@@ -917,20 +1045,6 @@ const ReMarketingUniverseDetail = () => {
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
               }}
             />
-
-            {/* Criteria Extraction from Transcripts & Documents */}
-            {id && maGuideContent && (
-              <CriteriaExtractionPanel
-                universeId={id}
-                universeName={formData.name}
-                maGuideContent={maGuideContent}
-                onExtractionComplete={() => {
-                  // Refresh universe data to get updated criteria
-                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
-                  toast.success('Criteria updated from extraction');
-                }}
-              />
-            )}
 
             {/* Supporting Documents */}
             {id && (

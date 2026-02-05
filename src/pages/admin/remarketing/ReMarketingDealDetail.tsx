@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAutoEnrichment } from "@/hooks/useAutoEnrichment";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +79,13 @@ const ReMarketingDealDetail = () => {
       return data;
     },
     enabled: !!dealId
+  });
+
+  // Auto-enrichment on page load per spec (must be after deal query)
+  const { isAutoEnriching, enrichmentReason } = useAutoEnrichment({
+    dealId: dealId || '',
+    deal: deal || null,
+    enabled: !!dealId && !dealLoading,
   });
 
   // Fetch score stats for this deal
@@ -286,6 +294,26 @@ const ReMarketingDealDetail = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Auto-Enrichment Banner */}
+      {isAutoEnriching && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center gap-3">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span className="text-sm text-primary">
+            Auto-enriching deal from website... {enrichmentReason && `(${enrichmentReason})`}
+          </span>
+        </div>
+      )}
+
+      {/* Financial Data Warning Banner per spec */}
+      {deal && (deal.revenue_confidence === 'low' || deal.ebitda_confidence === 'low') && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-3">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <span className="text-sm text-destructive">
+            Financial Data Needs Clarification — Some financial figures have low confidence. Review source quotes and consider follow-up.
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

@@ -43,7 +43,8 @@ export function useCreateListing() {
           tags: tagsArray, // PostgreSQL array - never null
           owner_notes: listing.owner_notes || null,
           status: listing.status || 'active',
-          image_url: null
+          image_url: null,
+          is_internal_deal: false, // Admin-created listings are for the marketplace
         };
 
         console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));

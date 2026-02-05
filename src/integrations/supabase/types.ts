@@ -3764,6 +3764,7 @@ export type Database = {
           ebitda: number
           ebitda_confidence: string | null
           ebitda_is_inferred: boolean | null
+          ebitda_margin: number | null
           ebitda_metric_subtitle: string | null
           ebitda_source_quote: string | null
           enriched_at: string | null
@@ -3780,6 +3781,8 @@ export type Database = {
           extraction_sources: Json | null
           files: string[] | null
           final_rank: number | null
+          financial_followup_questions: string[] | null
+          financial_notes: string | null
           fireflies_url: string | null
           founded_year: number | null
           full_time_employees: number | null
@@ -3806,10 +3809,12 @@ export type Database = {
           internal_primary_owner: string | null
           internal_salesforce_link: string | null
           investment_thesis: string | null
+          is_internal_deal: boolean | null
           is_owner_dependent: boolean | null
           is_priority_target: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
+          last_enriched_at: string | null
           last_ranked_at: string | null
           lead_source_id: string | null
           lead_source_notes: string | null
@@ -3919,6 +3924,7 @@ export type Database = {
           ebitda: number
           ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
+          ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
           enriched_at?: string | null
@@ -3935,6 +3941,8 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          financial_followup_questions?: string[] | null
+          financial_notes?: string | null
           fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
@@ -3961,10 +3969,12 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          is_internal_deal?: boolean | null
           is_owner_dependent?: boolean | null
           is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
+          last_enriched_at?: string | null
           last_ranked_at?: string | null
           lead_source_id?: string | null
           lead_source_notes?: string | null
@@ -4074,6 +4084,7 @@ export type Database = {
           ebitda?: number
           ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
+          ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
           enriched_at?: string | null
@@ -4090,6 +4101,8 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          financial_followup_questions?: string[] | null
+          financial_notes?: string | null
           fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
@@ -4116,10 +4129,12 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          is_internal_deal?: boolean | null
           is_owner_dependent?: boolean | null
           is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
+          last_enriched_at?: string | null
           last_ranked_at?: string | null
           lead_source_id?: string | null
           lead_source_notes?: string | null
@@ -5491,8 +5506,10 @@ export type Database = {
           detected_email_pattern: string | null
           ebitda_sweet_spot: number | null
           email_domain: string | null
+          employee_range: string | null
           extraction_sources: Json | null
           fee_agreement_status: string | null
+          founded_year: number | null
           geographic_footprint: string[] | null
           has_fee_agreement: boolean | null
           hq_city: string | null
@@ -5506,7 +5523,9 @@ export type Database = {
           key_quotes: string[] | null
           last_contact_discovery_at: string | null
           notes: string | null
+          num_employees: number | null
           num_platforms: number | null
+          number_of_locations: number | null
           operating_locations: string[] | null
           pe_firm_acquisitions: Json | null
           pe_firm_id: string | null
@@ -5565,8 +5584,10 @@ export type Database = {
           detected_email_pattern?: string | null
           ebitda_sweet_spot?: number | null
           email_domain?: string | null
+          employee_range?: string | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
+          founded_year?: number | null
           geographic_footprint?: string[] | null
           has_fee_agreement?: boolean | null
           hq_city?: string | null
@@ -5580,7 +5601,9 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
+          num_employees?: number | null
           num_platforms?: number | null
+          number_of_locations?: number | null
           operating_locations?: string[] | null
           pe_firm_acquisitions?: Json | null
           pe_firm_id?: string | null
@@ -5639,8 +5662,10 @@ export type Database = {
           detected_email_pattern?: string | null
           ebitda_sweet_spot?: number | null
           email_domain?: string | null
+          employee_range?: string | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
+          founded_year?: number | null
           geographic_footprint?: string[] | null
           has_fee_agreement?: boolean | null
           hq_city?: string | null
@@ -5654,7 +5679,9 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
+          num_employees?: number | null
           num_platforms?: number | null
+          number_of_locations?: number | null
           operating_locations?: string[] | null
           pe_firm_acquisitions?: Json | null
           pe_firm_id?: string | null

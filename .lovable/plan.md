@@ -1,103 +1,122 @@
 
+## Fix Buyer Table Actions - Row Dropdown + Bulk Delete
 
-# Fix: M&A Guide Generation 401 Authentication Error
+### Problem Summary
 
-## Problem
-The M&A guide generation fails immediately with:
-```
-401 - {"code":401,"message":"Missing authorization header"}
-```
+On the Buyer Universe detail page, the buyer table has non-functional row-level actions:
+1. **Row dropdown menu is empty** - The three-dot menu on each buyer row shows no options because the required `onEnrich` and `onDelete` props are not passed to `BuyerTableEnhanced`
+2. **No bulk delete option** - Users can select multiple buyers but can only "Remove from Universe" (unlink), not permanently delete them
 
-When `process-ma-guide-queue` calls `generate-ma-guide`, it only sends the `apikey` header but **not** the `Authorization` header. Supabase's Edge Function gateway requires **both headers** for server-to-server calls.
+### Solution
 
-## Root Cause
+#### 1. Add Missing Props to BuyerTableEnhanced Usage
+
+Pass `onEnrich` and `onDelete` handlers to the `BuyerTableEnhanced` component in `ReMarketingUniverseDetail.tsx`:
 
 ```text
-┌─────────────────────────────┐
-│  process-ma-guide-queue     │
-│                             │
-│  fetch('generate-ma-guide') │
-│  headers: {                 │
-│    apikey: ✓                │
-│    Authorization: ✗ MISSING │
-│  }                          │
-└──────────────┬──────────────┘
-               │
-               ▼
-┌─────────────────────────────┐
-│  Supabase Gateway           │
-│                             │
-│  → 401 Missing auth header  │
-└─────────────────────────────┘
+File: src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx
+
+Current (lines 748-754):
+  <BuyerTableEnhanced
+    buyers={filteredBuyers}
+    showPEColumn={true}
+    buyerIdsWithTranscripts={buyerIdsWithTranscripts}
+    selectable={true}
+    onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
+  />
+
+Change to:
+  <BuyerTableEnhanced
+    buyers={filteredBuyers}
+    showPEColumn={true}
+    buyerIdsWithTranscripts={buyerIdsWithTranscripts}
+    selectable={true}
+    onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
+    onEnrich={handleEnrichSingleBuyer}
+    onDelete={handleDeleteBuyer}
+  />
 ```
 
-## Solution
+#### 2. Add Handler Functions
 
-Add the `Authorization` header with the service role key to all server-to-server Edge Function calls.
+Create the missing handler functions in `ReMarketingUniverseDetail.tsx`:
 
-### Files to Modify
+```text
+// Single buyer enrichment handler
+const handleEnrichSingleBuyer = async (buyerId: string) => {
+  await queueBuyers([{ id: buyerId }]);
+};
 
-**1. `supabase/functions/process-ma-guide-queue/index.ts`**
-
-Change lines 86-91 from:
-```typescript
-const response = await fetch(`${supabaseUrl}/functions/v1/generate-ma-guide`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-  },
-  ...
+// Single buyer delete handler (with cascade)
+const handleDeleteBuyer = async (buyerId: string) => {
+  if (!confirm('Are you sure you want to permanently delete this buyer?')) return;
+  
+  const { error } = await deleteBuyerWithRelated(buyerId);
+  if (error) {
+    toast.error('Failed to delete buyer');
+    return;
+  }
+  
+  toast.success('Buyer deleted');
+  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
+};
 ```
 
-To:
-```typescript
-const response = await fetch(`${supabaseUrl}/functions/v1/generate-ma-guide`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${supabaseServiceKey}`,
-  },
-  ...
+#### 3. Add Bulk Delete to BuyerTableEnhanced
+
+Update `BuyerTableEnhanced.tsx` to include a bulk delete button alongside "Remove from Universe":
+
+```text
+File: src/components/remarketing/BuyerTableEnhanced.tsx
+
+Add new prop:
+  onBulkDelete?: (buyerIds: string[]) => Promise<void>;
+
+Add delete button next to Remove from Universe button (in bulk action bar):
+  <Button
+    size="sm"
+    variant="destructive"
+    onClick={handleBulkDelete}
+    disabled={isDeleting}
+  >
+    <Trash2 className="h-4 w-4 mr-1" />
+    Delete {selectedIds.size} Permanently
+  </Button>
 ```
 
-**2. `supabase/functions/generate-ma-guide-background/index.ts`**
+#### 4. Add Bulk Delete Handler to Universe Detail Page
 
-Change lines 91-96 from:
-```typescript
-fetch(`${supabaseUrl}/functions/v1/process-ma-guide-queue`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-  },
-  ...
+```text
+File: src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx
+
+const handleBulkDeleteBuyers = async (buyerIds: string[]) => {
+  for (const buyerId of buyerIds) {
+    await deleteBuyerWithRelated(buyerId);
+  }
+  toast.success(`Deleted ${buyerIds.length} buyers`);
+  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
+};
+
+// Pass to BuyerTableEnhanced:
+onBulkDelete={handleBulkDeleteBuyers}
 ```
 
-To:
-```typescript
-fetch(`${supabaseUrl}/functions/v1/process-ma-guide-queue`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${supabaseServiceKey}`,
-  },
-  ...
-```
+### Files Changed
 
-### Deployment
+| File | Change |
+|------|--------|
+| `src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx` | Add `onEnrich`, `onDelete`, `onBulkDelete` handlers and pass to table |
+| `src/components/remarketing/BuyerTableEnhanced.tsx` | Add `onBulkDelete` prop and bulk delete button in action bar |
 
-After making the changes, deploy both functions:
-```bash
-supabase functions deploy process-ma-guide-queue generate-ma-guide-background
-```
+### Technical Details
 
-## Technical Notes
+- Uses existing `deleteBuyerWithRelated()` from `cascadeDelete.ts` which properly cleans up related records (contacts, transcripts, scores, call intelligence)
+- Uses existing `queueBuyers()` from the enrichment queue hook for single-buyer enrichment
+- Bulk delete requires confirmation dialog before proceeding
+- All operations invalidate the buyers query to refresh the table
 
-- The `apikey` header is used for project routing
-- The `Authorization: Bearer <key>` header is used for authentication
-- Even with `verify_jwt = false`, Supabase gateway still validates the presence of the Authorization header for edge function calls
-- Using the service role key allows bypassing RLS, which is appropriate for background processing
+### Result
 
+After implementation:
+- Row dropdown will show "Enrich Data" and "Delete" options
+- Bulk action bar will show both "Remove from Universe" and "Delete Permanently" buttons when buyers are selected

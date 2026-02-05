@@ -5,13 +5,27 @@ import { Badge } from "@/components/ui/badge";
 
 interface GeographicFootprintCardProps {
   targetGeographies?: string[] | null;
+  operatingLocations?: string[] | null;
   onEdit: () => void;
 }
 
 export const GeographicFootprintCard = ({
   targetGeographies,
+  operatingLocations,
   onEdit,
 }: GeographicFootprintCardProps) => {
+  // Group operating locations by state
+  const locationsByState = operatingLocations?.reduce((acc, loc) => {
+    const parts = loc.split(", ");
+    const state = parts[parts.length - 1] || "Other";
+    if (!acc[state]) acc[state] = [];
+    acc[state].push(parts.slice(0, -1).join(", ") || loc);
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  const hasLocations = operatingLocations && operatingLocations.length > 0;
+  const hasTargetGeos = targetGeographies && targetGeographies.length > 0;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -25,13 +39,33 @@ export const GeographicFootprintCard = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        {!targetGeographies || targetGeographies.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">No geographic preferences specified</p>
-        ) : (
+      <CardContent className="space-y-4">
+        {/* Operating Locations (City, State pairs) */}
+        {hasLocations && locationsByState && (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              Target Geographies
+              Operating Locations ({operatingLocations.length})
+            </p>
+            <div className="space-y-2">
+              {Object.entries(locationsByState).map(([state, cities]) => (
+                <div key={state} className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant="secondary" className="text-xs font-semibold">
+                    {state} ({cities.length})
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {cities.join(", ")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Target Geographies (State codes) */}
+        {hasTargetGeos && (
+          <div className={hasLocations ? "pt-3 border-t" : ""}>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              Target Acquisition Geographies
             </p>
             <div className="flex flex-wrap gap-2">
               {targetGeographies.map((geo, index) => (
@@ -45,6 +79,11 @@ export const GeographicFootprintCard = ({
               ))}
             </div>
           </div>
+        )}
+
+        {/* Empty State */}
+        {!hasLocations && !hasTargetGeos && (
+          <p className="text-sm text-muted-foreground italic">No geographic preferences specified</p>
         )}
       </CardContent>
     </Card>

@@ -2,30 +2,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PaginationState } from './use-simple-pagination';
 import { Listing, ListingStatus } from '@/types';
-import { useEffect } from 'react';
 import { expandLocations } from '@/lib/location-hierarchy';
 
 async function fetchListings(state: PaginationState) {
   console.log('🔍 Fetching listings for state:', state);
 
-  // CRITICAL FIX: Get IDs of listings that are in remarketing universes
-  const { data: remarketingListings } = await supabase
-    .from('remarketing_universe_deals')
-    .select('listing_id');
-
-  const remarketingIds = new Set(remarketingListings?.map(r => r.listing_id) || []);
-  console.log('🚫 Excluding', remarketingIds.size, 'remarketing listings from marketplace');
-
   let query = supabase
     .from('listings')
     .select('*', { count: 'exact' })
     .eq('status', 'active')
-    .is('deleted_at', null);
-
-  // CRITICAL: Exclude remarketing deals from marketplace
-  if (remarketingIds.size > 0) {
-    query = query.not('id', 'in', `("${Array.from(remarketingIds).join('","')}")`);
-  }
+    .is('deleted_at', null)
+    .eq('is_internal_deal', false); // Only show marketplace deals, not internal/research deals
 
   // Apply filters
   if (state.search) {
@@ -97,22 +84,12 @@ async function fetchListings(state: PaginationState) {
 }
 
 async function fetchMetadata() {
-  // Exclude remarketing deals
-  const { data: remarketingListings } = await supabase
-    .from('remarketing_universe_deals')
-    .select('listing_id');
-
-  const remarketingIds = new Set(remarketingListings?.map(r => r.listing_id) || []);
-
   let query = supabase
     .from('listings')
     .select('category, location')
     .eq('status', 'active')
-    .is('deleted_at', null);
-
-  if (remarketingIds.size > 0) {
-    query = query.not('id', 'in', `("${Array.from(remarketingIds).join('","')}")`);
-  }
+    .is('deleted_at', null)
+    .eq('is_internal_deal', false); // Only show marketplace deals
 
   const { data: listings, error } = await query;
 

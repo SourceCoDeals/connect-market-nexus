@@ -126,12 +126,77 @@ export const BuyerTableEnhanced = ({
   });
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
   const resizingRef = useRef<{ column: keyof ColumnWidths; startX: number; startWidth: number } | null>(null);
+
+  const sortedBuyers = useMemo(() => {
+    return [...buyers].sort((a, b) => {
+      const { key, direction } = sortConfig;
+      const multiplier = direction === 'asc' ? 1 : -1;
+
+      switch (key) {
+        case 'company_name':
+          return multiplier * (a.company_name || '').localeCompare(b.company_name || '');
+
+        case 'pe_firm_name':
+          const peA = a.pe_firm_name || '';
+          const peB = b.pe_firm_name || '';
+          if (!peA && !peB) return 0;
+          if (!peA) return 1;
+          if (!peB) return -1;
+          return multiplier * peA.localeCompare(peB);
+
+        case 'data_completeness':
+          const orderMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
+          const compA = orderMap[a.data_completeness || 'low'] || 0;
+          const compB = orderMap[b.data_completeness || 'low'] || 0;
+          return multiplier * (compA - compB);
+
+        case 'alignment_score':
+          // Null scores go to the end
+          if (a.alignment_score === null && b.alignment_score === null) return 0;
+          if (a.alignment_score === null) return 1;
+          if (b.alignment_score === null) return -1;
+          return multiplier * (a.alignment_score - b.alignment_score);
+
+        default:
+          return 0;
+      }
+    });
+  }, [buyers, sortConfig]);
   
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isRemoving, setIsRemoving] = useState(false);
+  const lastClickedIndexRef = useRef<number | null>(null);
 
-  const handleToggleSelect = useCallback((buyerId: string, checked: boolean) => {
+  const handleToggleSelect = useCallback((buyerId: string, checked: boolean, event?: React.MouseEvent) => {
+    // IMPORTANT: range selection must use the *visible row order* (sortedBuyers)
+    // otherwise Shift+click appears to “skip” rows when the table is sorted.
+    const currentIndex = sortedBuyers.findIndex(b => b.id === buyerId);
+    
+    // Shift+click: select range from last clicked to current
+    if (event?.shiftKey && lastClickedIndexRef.current !== null && currentIndex !== -1) {
+      const start = Math.min(lastClickedIndexRef.current, currentIndex);
+      const end = Math.max(lastClickedIndexRef.current, currentIndex);
+      const rangeIds = sortedBuyers.slice(start, end + 1).map(b => b.id);
+      
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        rangeIds.forEach(id => {
+          if (checked) {
+            newSet.add(id);
+          } else {
+            newSet.delete(id);
+          }
+        });
+        onSelectionChange?.(Array.from(newSet));
+        return newSet;
+      });
+      lastClickedIndexRef.current = currentIndex;
+      return;
+    }
+    
+    // Normal click: toggle single item
+    lastClickedIndexRef.current = currentIndex;
     setSelectedIds(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -142,7 +207,7 @@ export const BuyerTableEnhanced = ({
       onSelectionChange?.(Array.from(newSet));
       return newSet;
     });
-  }, [onSelectionChange]);
+  }, [sortedBuyers, onSelectionChange]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -153,11 +218,13 @@ export const BuyerTableEnhanced = ({
       setSelectedIds(new Set());
       onSelectionChange?.([]);
     }
+    lastClickedIndexRef.current = null;
   }, [buyers, onSelectionChange]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
     onSelectionChange?.([]);
+    lastClickedIndexRef.current = null;
   }, [onSelectionChange]);
 
   const handleRemoveFromUniverse = useCallback(async () => {
@@ -222,42 +289,6 @@ export const BuyerTableEnhanced = ({
     document.body.style.userSelect = 'none';
   }, [columnWidths]);
 
-  const sortedBuyers = useMemo(() => {
-    return [...buyers].sort((a, b) => {
-      const { key, direction } = sortConfig;
-      const multiplier = direction === 'asc' ? 1 : -1;
-
-      switch (key) {
-        case 'company_name':
-          return multiplier * (a.company_name || '').localeCompare(b.company_name || '');
-        
-        case 'pe_firm_name':
-          const peA = a.pe_firm_name || '';
-          const peB = b.pe_firm_name || '';
-          if (!peA && !peB) return 0;
-          if (!peA) return 1;
-          if (!peB) return -1;
-          return multiplier * peA.localeCompare(peB);
-        
-        case 'data_completeness':
-          const orderMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
-          const compA = orderMap[a.data_completeness || 'low'] || 0;
-          const compB = orderMap[b.data_completeness || 'low'] || 0;
-          return multiplier * (compA - compB);
-        
-        case 'alignment_score':
-          // Null scores go to the end
-          if (a.alignment_score === null && b.alignment_score === null) return 0;
-          if (a.alignment_score === null) return 1;
-          if (b.alignment_score === null) return -1;
-          return multiplier * (a.alignment_score - b.alignment_score);
-        
-        default:
-          return 0;
-      }
-    });
-  }, [buyers, sortConfig]);
-
   const SortButton = ({ label, sortKey }: { label: string; sortKey: SortKey }) => {
     const isActive = sortConfig.key === sortKey;
     return (
@@ -298,7 +329,7 @@ export const BuyerTableEnhanced = ({
   return (
     <TooltipProvider>
       {/* Bulk Action Bar */}
-      {selectable && selectedIds.size > 0 && (
+       {selectable && selectedIds.size > 0 && onRemoveFromUniverse && (
         <div className="sticky top-0 z-20 bg-background border rounded-lg p-3 shadow-sm mb-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="text-sm font-medium">
@@ -326,7 +357,7 @@ export const BuyerTableEnhanced = ({
             ) : (
               <Unlink className="h-4 w-4 mr-1" />
             )}
-            Remove from Universe
+             Remove {selectedIds.size} from Universe
           </Button>
         </div>
       )}
@@ -396,11 +427,17 @@ export const BuyerTableEnhanced = ({
                   onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
                 >
                   {selectable && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Toggle selection with shift-key support
+                        handleToggleSelect(buyer.id, !isSelected, e);
+                      }}
+                    >
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={(checked) => handleToggleSelect(buyer.id, !!checked)}
                         aria-label={`Select ${buyer.company_name}`}
+                        tabIndex={-1}
                       />
                     </TableCell>
                   )}
@@ -542,7 +579,7 @@ export const BuyerTableEnhanced = ({
                             className="text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
+                             Remove
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>

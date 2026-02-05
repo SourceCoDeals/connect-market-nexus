@@ -94,6 +94,7 @@ export { BulkActionsToolbar } from './BulkActionsToolbar';
 export { ScoringProgressIndicator } from './ScoringProgressIndicator';
 export { EnrichmentProgressIndicator } from './EnrichmentProgressIndicator';
 export { EnrichmentSummaryDialog } from './EnrichmentSummaryDialog';
+export { DealEnrichmentSummaryDialog } from './DealEnrichmentSummaryDialog';
 
 // Email Generation
 export { EmailPreviewDialog } from './EmailPreviewDialog';
@@ -118,7 +119,6 @@ export { UnlinkedListingsWidget } from './UnlinkedListingsWidget';
 // Guide & Criteria Input Components
 export { TrackerNotesSection } from './TrackerNotesSection';
 export { AIResearchSection } from './AIResearchSection';
-export { CriteriaExtractionPanel } from './CriteriaExtractionPanel';
 export { CriteriaValidationAlert, CriteriaValidationBadge } from './CriteriaValidationAlert';
 export { GenerationSummaryPanel } from './GenerationSummaryPanel';
 export type { GenerationSummary, GenerationOutcome } from './GenerationSummaryPanel';
