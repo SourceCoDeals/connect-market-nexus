@@ -223,9 +223,9 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 // ============================================================================
 
 // Inter-call delay to avoid Anthropic rate limits (RPM)
-const CLAUDE_INTER_CALL_DELAY_MS = 500;
-const CLAUDE_MAX_RETRIES = 2;
-const CLAUDE_RETRY_BASE_DELAY_MS = 2000;
+const CLAUDE_INTER_CALL_DELAY_MS = 800;
+const CLAUDE_MAX_RETRIES = 3;
+const CLAUDE_RETRY_BASE_DELAY_MS = 3000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -963,6 +963,7 @@ Deno.serve(async (req) => {
 
       // Prompt 2: Customer Profile
       if (!billingError) {
+        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
         promptsRun++;
         const customerResult = await extractCustomerProfile(platformContent, anthropicApiKey);
         if (customerResult.error?.code === 'payment_required' || customerResult.error?.code === 'rate_limited') {
@@ -981,6 +982,7 @@ Deno.serve(async (req) => {
 
       // Prompt 3a: Geography
       if (!billingError) {
+        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
         promptsRun++;
         let geoResult = await extractGeography(platformContent, anthropicApiKey);
         geoResult = validateGeography(geoResult);
@@ -1000,6 +1002,7 @@ Deno.serve(async (req) => {
 
       // Prompt 3b: Acquisitions
       if (!billingError) {
+        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
         promptsRun++;
         const acqResult = await extractAcquisitions(platformContent, anthropicApiKey);
         if (acqResult.error?.code === 'payment_required' || acqResult.error?.code === 'rate_limited') {
@@ -1021,6 +1024,7 @@ Deno.serve(async (req) => {
     if (peContent && !billingError) {
       // Prompt 4: PE Activity (thesis fields NEVER extracted from website)
       // thesis_summary, strategic_priorities, thesis_confidence ONLY from transcripts
+      await sleep(CLAUDE_INTER_CALL_DELAY_MS);
       promptsRun++;
       const activityResult = await extractPEActivity(peContent, anthropicApiKey);
       if (activityResult.error?.code === 'payment_required' || activityResult.error?.code === 'rate_limited') {
@@ -1043,6 +1047,7 @@ Deno.serve(async (req) => {
 
       // Prompt 5: Portfolio
       if (!billingError) {
+        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
         promptsRun++;
         const portfolioResult = await extractPortfolio(peContent, anthropicApiKey);
         if (portfolioResult.error?.code === 'payment_required' || portfolioResult.error?.code === 'rate_limited') {
@@ -1061,6 +1066,7 @@ Deno.serve(async (req) => {
 
       // Prompt 6: Size Criteria
       if (!billingError) {
+        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
         promptsRun++;
         let sizeResult = await extractSizeCriteria(peContent, anthropicApiKey);
         sizeResult = validateSizeCriteria(sizeResult);
@@ -1083,17 +1089,40 @@ Deno.serve(async (req) => {
 
     // Handle billing errors with partial save
     if (billingError) {
-      if (Object.keys(allExtracted).length > 0) {
+      const fieldsExtracted = Object.keys(allExtracted).length;
+      if (fieldsExtracted > 0) {
         const partialUpdate = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords);
         await supabase.from('remarketing_buyers').update(partialUpdate).eq('id', buyerId);
       }
 
+      // If we got rate limited but still extracted data, return success with warning
+      if (billingError.code === 'rate_limited' && fieldsExtracted > 0) {
+        console.log(`Partial enrichment saved despite rate limit: ${fieldsExtracted} fields for buyer ${buyerId}`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            fieldsUpdated: fieldsExtracted,
+            sources,
+            warnings: [...warnings, `Partial enrichment: ${promptsSuccessful}/${promptsRun} prompts completed before rate limit. Data was saved.`],
+            extractionDetails: {
+              promptsRun,
+              promptsSuccessful,
+              platformScraped: !!platformContent,
+              peFirmScraped: !!peContent,
+              rateLimited: true,
+            },
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Payment required or no data extracted - return error
       return new Response(
         JSON.stringify({
           success: false,
           error: billingError.message,
           error_code: billingError.code,
-          fieldsUpdated: Object.keys(allExtracted).length,
+          fieldsUpdated: fieldsExtracted,
           recoverable: billingError.code === 'rate_limited',
         }),
         { status: billingError.code === 'payment_required' ? 402 : 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
