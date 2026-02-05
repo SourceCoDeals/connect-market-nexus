@@ -368,10 +368,22 @@ export const AddDealToUniverseDialog = ({
           if (error) {
             console.error("Enrichment error:", error);
             toast.error("Enrichment failed", { id: `enrich-${listing.id}` });
-          } else if (data?.success) {
+            return;
+          }
+
+          if (data?.success) {
             toast.success(`Enriched with ${data.fieldsUpdated?.length || 0} fields`, { id: `enrich-${listing.id}` });
+
+            // Ensure whichever screen the user navigates to reflects updates immediately
             queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+            queryClient.invalidateQueries({ queryKey: ["remarketing", "deal", listing.id] });
+            queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-transcripts", listing.id] });
+            queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-scores", listing.id] });
             queryClient.invalidateQueries({ queryKey: ["listings"] });
+            queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
+            queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-engagement", universeId] });
+          } else {
+            toast.error(data?.error || "Failed to enrich from website", { id: `enrich-${listing.id}` });
           }
         });
       }
