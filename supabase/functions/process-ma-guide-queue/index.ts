@@ -159,7 +159,27 @@ const TOTAL_PHASES = 14;
        .from('ma_guide_generations')
        .update(updateData)
        .eq('id', generation.id);
- 
+
+    // Self-chain: if there are more batches, trigger ourselves for the next one
+    // This ensures continuous processing without waiting for the cron job (up to 60s gap)
+    if (!result.is_final && newPhasesCompleted < TOTAL_PHASES) {
+      console.log(`[process-ma-guide-queue] Triggering next batch (${newPhasesCompleted}/${TOTAL_PHASES} phases done)`);
+      // Small delay to avoid rate limiting, then fire-and-forget
+      setTimeout(() => {
+        fetch(`${supabaseUrl}/functions/v1/process-ma-guide-queue`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+          },
+          body: JSON.stringify({ triggered_by: generation.id, batch: newPhasesCompleted }),
+        }).catch(err => {
+          // Non-blocking - cron will pick it up as backup
+          console.log('[process-ma-guide-queue] Self-chain trigger failed, cron will handle:', err.message);
+        });
+      }, 2000); // 2s delay between batches to avoid rate limits
+    }
+
      return new Response(
        JSON.stringify({
          message: result.is_final ? 'Generation completed' : 'Batch processed',
