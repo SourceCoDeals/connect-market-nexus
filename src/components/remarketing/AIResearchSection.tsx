@@ -142,6 +142,7 @@ const saveGuideToDocuments = async (
 interface AIResearchSectionProps {
   onGuideGenerated: (content: string, criteria: ExtractedCriteria, targetBuyerTypes?: TargetBuyerTypeConfig[]) => void;
   universeName?: string;
+  industryDescription?: string;
   existingContent?: string;
   universeId?: string;
   onDocumentAdded?: (doc: { id: string; name: string; url: string; uploaded_at: string }) => void;
@@ -150,13 +151,14 @@ interface AIResearchSectionProps {
 export const AIResearchSection = ({ 
   onGuideGenerated,
   universeName,
+  industryDescription: initialDescription,
   existingContent,
   universeId,
   onDocumentAdded
 }: AIResearchSectionProps) => {
   const [isOpen, setIsOpen] = useState(!!existingContent && existingContent.length > 100);
   const [industryName, setIndustryName] = useState(universeName || "");
-  const [industryDescription, setIndustryDescription] = useState("");
+  const [industryDescription, setIndustryDescription] = useState(initialDescription || "");
   const [state, setState] = useState<GenerationState>('idle');
   const [currentPhase, setCurrentPhase] = useState(0);
   const [totalPhases, setTotalPhases] = useState(12);
