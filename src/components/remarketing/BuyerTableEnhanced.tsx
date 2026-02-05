@@ -327,7 +327,7 @@ export const BuyerTableEnhanced = ({
   return (
     <TooltipProvider>
       {/* Bulk Action Bar */}
-      {selectable && selectedIds.size > 0 && (
+       {selectable && selectedIds.size > 0 && onRemoveFromUniverse && (
         <div className="sticky top-0 z-20 bg-background border rounded-lg p-3 shadow-sm mb-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="text-sm font-medium">
@@ -355,7 +355,7 @@ export const BuyerTableEnhanced = ({
             ) : (
               <Unlink className="h-4 w-4 mr-1" />
             )}
-            Remove from Universe
+             Remove {selectedIds.size} from Universe
           </Button>
         </div>
       )}
