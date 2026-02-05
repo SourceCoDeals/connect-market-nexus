@@ -15,6 +15,7 @@ const REVENUE_PATTERNS = [
   /revenue[:\s]+\$?\s*([\d,.]+)\s*(M|MM|m|million|mil)?/gi,
   /([\d,.]+)\s*(M|MM|million)\s*(?:in\s+)?(?:revenue|sales)/gi,
   /top\s*line[:\s]+\$?\s*([\d,.]+)\s*(M|MM|m|million|mil)?/gi,
+  /annual\s+revenue[:\s]+\$?\s*([\d,.]+)\s*(M|MM|m|million|K|k|thousand)?/gi,
 ];
 
 const EBITDA_PATTERNS = [
@@ -22,11 +23,13 @@ const EBITDA_PATTERNS = [
   /\$\s*([\d,.]+)\s*(K|k|M|MM)?\s*EBITDA/gi,
   /cash\s*flow[:\s]+\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/gi,
   /SDE[:\s]+\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/gi,
+  /owner.?s?\s*(?:cash|earnings)[:\s]+\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/gi,
 ];
 
 const MARGIN_PATTERNS = [
   /([\d.]+)\s*%\s*(?:EBITDA\s*)?margin/gi,
   /margin[:\s]+([\d.]+)\s*%/gi,
+  /run(?:ning|s)?\s+(?:at\s+)?(?:about\s+)?([\d.]+)\s*%\s*margin/gi,
 ];
 
 const EMPLOYEE_PATTERNS = [
@@ -34,6 +37,17 @@ const EMPLOYEE_PATTERNS = [
   /headcount[:\s]+([\d,]+)/gi,
   /team\s*(?:of\s*)?([\d,]+)/gi,
   /([\d,]+)\s*FTEs?/gi,
+];
+
+const LOCATION_PATTERNS = [
+  /(\d+)\s+(?:staffed\s+)?locations?/gi,
+  /(\d+)\s+offices?/gi,
+  /(\d+)\s+branches?/gi,
+  /(\d+)\s+stores?/gi,
+  /(\d+)\s+shops?/gi,
+  /(\d+)\s+facilities/gi,
+  /operate\s+out\s+of\s+(\d+)/gi,
+  /(\d+)\s+sites?\s+across/gi,
 ];
 
 function parseNumberValue(match: string, multiplier?: string): number | null {
@@ -65,6 +79,7 @@ function extractWithRegex(text: string): {
   ebitda_margin?: number;
   full_time_employees?: number;
   geographic_states?: string[];
+  number_of_locations?: number;
 } {
   const result: {
     revenue?: number;
@@ -72,6 +87,7 @@ function extractWithRegex(text: string): {
     ebitda_margin?: number;
     full_time_employees?: number;
     geographic_states?: string[];
+    number_of_locations?: number;
   } = {};
   
   // Extract revenue
@@ -121,7 +137,28 @@ function extractWithRegex(text: string): {
       }
     }
   }
-  
+
+  // Extract location count per spec
+  for (const pattern of LOCATION_PATTERNS) {
+    const match = pattern.exec(text);
+    if (match) {
+      const count = parseInt(match[1], 10);
+      if (count > 0 && count < 1000) {
+        result.number_of_locations = count;
+        break;
+      }
+    }
+  }
+
+  // Handle "multiple locations" inference per spec
+  if (!result.number_of_locations) {
+    if (/multiple\s+locations?/i.test(text)) {
+      result.number_of_locations = 3;
+    } else if (/several\s+locations?/i.test(text)) {
+      result.number_of_locations = 4;
+    }
+  }
+
   return result;
 }
 
@@ -229,6 +266,19 @@ Extract the relevant information using the provided tool.`;
                       items: { type: 'string' },
                       description: 'US states mentioned (2-letter codes)'
                     },
+                    number_of_locations: { 
+                      type: 'number',
+                      description: 'Number of physical locations/offices/branches'
+                    },
+                    financial_followup_questions: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Questions to clarify financials if data is unclear'
+                    },
+                    financial_notes: {
+                      type: 'string',
+                      description: 'Notes about financial data quality or concerns'
+                    },
                   }
                 }
               }
@@ -251,8 +301,8 @@ Extract the relevant information using the provided tool.`;
 
     // Merge regex and AI extractions
     const extracted: Record<string, unknown> = {
-      ...regexExtracted,
       ...aiExtracted,
+      ...regexExtracted, // Regex takes precedence for numeric values per spec
     };
 
     // Normalize geographic_states

@@ -10,6 +10,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Financial confidence levels per spec
+type FinancialConfidence = 'high' | 'medium' | 'low';
+
+interface ExtractedFinancial {
+  value?: number;
+  confidence: FinancialConfidence;
+  is_inferred?: boolean;
+  source_quote?: string;
+  inference_method?: string;
+}
+
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
@@ -53,6 +64,16 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'linkedin_employee_count',
   'linkedin_employee_range',
   'linkedin_url', // Extracted from website or entered manually
+  // Financial tracking fields per spec
+  'revenue_confidence',
+  'revenue_is_inferred',
+  'revenue_source_quote',
+  'ebitda_margin',
+  'ebitda_confidence',
+  'ebitda_is_inferred',
+  'ebitda_source_quote',
+  'financial_notes',
+  'financial_followup_questions',
 ]);
 
 serve(async (req) => {
@@ -369,14 +390,30 @@ Focus on extracting:
 14. Real estate - Information about facilities (owned vs leased)
 15. Growth trajectory - Any growth indicators or history`;
 
-    const userPrompt = `Analyze this website content from "${deal.title}" and extract business information.
+    const userPrompt = `Analyze this website content from "${deal.title || 'Unknown Company'}" and extract business information.
 
 IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
+
+FINANCIAL EXTRACTION RULES:
+- If you find revenue or EBITDA figures, extract them with confidence levels
+- High confidence: explicit statement like "Revenue: $5M"
+- Medium confidence: inferred from context like "growing business with 50 employees"
+- Low confidence: vague references that need clarification
+- Include the exact quote that supports any financial figure
+- If data is unclear, add follow-up questions
+
+LOCATION COUNT RULES:
+- Count ALL physical locations: offices, branches, shops, stores, facilities
+- Look for patterns: "X locations", "operate out of X", "facilities in"
+- Count individual location mentions if total not stated
+- Single location business = 1
 
 Website Content:
 ${websiteContent.substring(0, 20000)}
 
-Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.`;
+Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.
+
+For financial data, include confidence levels and source quotes where available.`;
 
 
     // Retry logic for AI calls (handles 429 rate limits)
@@ -490,6 +527,36 @@ Extract all available business information using the provided tool. The address_
                       linkedin_url: {
                         type: 'string',
                         description: 'LinkedIn company page URL if found on the website'
+                      },
+                      // Financial with confidence tracking per spec
+                      revenue: {
+                        type: 'object',
+                        properties: {
+                          value: { type: 'number', description: 'Annual revenue in dollars (e.g., 5000000 for $5M)' },
+                          confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence level' },
+                          is_inferred: { type: 'boolean', description: 'True if calculated from other data' },
+                          source_quote: { type: 'string', description: 'Exact text where revenue was mentioned' },
+                          inference_method: { type: 'string', description: 'How value was inferred if applicable' }
+                        }
+                      },
+                      ebitda: {
+                        type: 'object',
+                        properties: {
+                          amount: { type: 'number', description: 'EBITDA in dollars' },
+                          margin_percentage: { type: 'number', description: 'EBITDA margin as percentage (e.g., 18 for 18%)' },
+                          confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence level' },
+                          is_inferred: { type: 'boolean', description: 'True if calculated from margin and revenue' },
+                          source_quote: { type: 'string', description: 'Exact text supporting the EBITDA figure' }
+                        }
+                      },
+                      financial_followup_questions: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Questions to clarify financials if data is unclear (e.g., "What is the exact EBITDA margin?")'
+                      },
+                      financial_notes: {
+                        type: 'string',
+                        description: 'Notes and flags for deal team about financial data quality or concerns'
                       }
                     },
                     required: []
@@ -553,6 +620,62 @@ Extract all available business information using the provided tool. The address_
     }
 
     console.log('Extracted data:', extracted);
+
+    // ========================================================================
+    // PROCESS FINANCIAL DATA WITH CONFIDENCE TRACKING (per spec)
+    // ========================================================================
+    
+    // Handle structured revenue extraction
+    const revenueData = extracted.revenue as { value?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | undefined;
+    if (revenueData?.value) {
+      extracted.revenue = revenueData.value; // Flatten to number for db column
+      extracted.revenue_confidence = revenueData.confidence || 'medium';
+      extracted.revenue_is_inferred = revenueData.is_inferred || false;
+      if (revenueData.source_quote) {
+        extracted.revenue_source_quote = revenueData.source_quote;
+      }
+    }
+    
+    // Handle structured EBITDA extraction
+    const ebitdaData = extracted.ebitda as { amount?: number; margin_percentage?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | undefined;
+    if (ebitdaData) {
+      // Store EBITDA amount if provided
+      if (ebitdaData.amount) {
+        extracted.ebitda = ebitdaData.amount;
+      }
+      
+      // Store margin as decimal
+      if (ebitdaData.margin_percentage) {
+        extracted.ebitda_margin = ebitdaData.margin_percentage / 100;
+      }
+      
+      // SPEC: Calculate EBITDA from revenue × margin if amount not provided
+      if (!ebitdaData.amount && ebitdaData.margin_percentage && revenueData?.value) {
+        const calculatedEbitda = revenueData.value * (ebitdaData.margin_percentage / 100);
+        extracted.ebitda = calculatedEbitda;
+        extracted.ebitda_is_inferred = true;
+        extracted.ebitda_source_quote = `Calculated: ${revenueData.value / 1000000}M revenue × ${ebitdaData.margin_percentage}% margin`;
+        extracted.ebitda_confidence = 'medium'; // Inferred is medium confidence
+        console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()} (${ebitdaData.margin_percentage}% of ${revenueData.value / 1000000}M)`);
+      } else if (ebitdaData.amount) {
+        extracted.ebitda_confidence = ebitdaData.confidence || 'medium';
+        extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
+        if (ebitdaData.source_quote) {
+          extracted.ebitda_source_quote = ebitdaData.source_quote;
+        }
+      }
+    }
+    
+    // Handle financial follow-up questions
+    if (extracted.financial_followup_questions && Array.isArray(extracted.financial_followup_questions)) {
+      // Keep as array for db column
+      console.log(`Generated ${extracted.financial_followup_questions.length} financial follow-up questions`);
+    }
+    
+    // Handle financial notes
+    if (extracted.financial_notes && typeof extracted.financial_notes === 'string') {
+      console.log('Financial notes extracted:', extracted.financial_notes.substring(0, 100));
+    }
 
     // Drop any unexpected keys so we never attempt to write missing columns
     for (const key of Object.keys(extracted)) {
@@ -689,6 +812,47 @@ Extract all available business information using the provided tool. The address_
     // The 'location' field is for marketplace anonymity (e.g., "Southeast US")
     delete extracted.location;
 
+    // ========================================================================
+    // ENHANCED LOCATION COUNT EXTRACTION (per spec)
+    // ========================================================================
+    
+    // If AI didn't extract location count, try regex patterns on content
+    if (!extracted.number_of_locations) {
+      const locationPatterns = [
+        /(\d+)\s+(?:staffed\s+)?locations?/i,
+        /(\d+)\s+offices?/i,
+        /(\d+)\s+branches?/i,
+        /(\d+)\s+stores?/i,
+        /(\d+)\s+shops?/i,
+        /(\d+)\s+facilities/i,
+        /operate\s+out\s+of\s+(\d+)/i,
+        /(\d+)\s+sites?\s+across/i,
+      ];
+      
+      for (const pattern of locationPatterns) {
+        const match = websiteContent.match(pattern);
+        if (match) {
+          const count = parseInt(match[1], 10);
+          if (count > 0 && count < 1000) { // Sanity check
+            extracted.number_of_locations = count;
+            console.log(`Extracted location count via regex: ${count}`);
+            break;
+          }
+        }
+      }
+      
+      // If still no count, check for "multiple locations" -> estimate 3
+      if (!extracted.number_of_locations) {
+        if (/multiple\s+locations?/i.test(websiteContent)) {
+          extracted.number_of_locations = 3;
+          console.log('Inferred multiple locations as 3');
+        } else if (/several\s+locations?/i.test(websiteContent)) {
+          extracted.number_of_locations = 4;
+          console.log('Inferred several locations as 4');
+        }
+      }
+    }
+
     // Validate and normalize linkedin_url - must be a DIRECT linkedin.com/company/ URL
     if (extracted.linkedin_url) {
       const linkedinUrlStr = String(extracted.linkedin_url).trim();
@@ -814,6 +978,7 @@ Extract all available business information using the provided tool. The address_
     const finalUpdates: Record<string, unknown> = {
       ...updates,
       enriched_at: new Date().toISOString(),
+      last_enriched_at: new Date().toISOString(), // For auto-enrichment cache
       extraction_sources: updateExtractionSources(deal.extraction_sources, sourceUpdates),
     };
 
