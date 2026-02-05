@@ -98,14 +98,17 @@ export const AddDealToUniverseDialog = ({
   });
 
   // Fetch available listings (not already in universe)
+  // IMPORTANT: Only show internal deals to prevent accidentally converting marketplace listings
   const { data: availableListings, isLoading: loadingListings } = useQuery({
     queryKey: ["listings", "available-for-universe", universeId, search],
     queryFn: async (): Promise<ListingOption[]> => {
-      // Fetch listings with internal_company_name
+      // Fetch ONLY internal listings (is_internal_deal = true)
+      // This prevents accidentally adding marketplace listings which would corrupt their visibility
       const result = await (supabase as any)
         .from("listings")
-        .select("id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states, website, internal_deal_memo_link")
+        .select("id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states, website, internal_deal_memo_link, is_internal_deal")
         .is("deleted_at", null)
+        .eq("is_internal_deal", true) // CRITICAL: Only internal deals can be added to universes
         .order("created_at", { ascending: false })
         .limit(200);
 

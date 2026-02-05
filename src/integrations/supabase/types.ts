@@ -3809,7 +3809,7 @@ export type Database = {
           internal_primary_owner: string | null
           internal_salesforce_link: string | null
           investment_thesis: string | null
-          is_internal_deal: boolean | null
+          is_internal_deal: boolean
           is_owner_dependent: boolean | null
           is_priority_target: boolean | null
           key_quotes: string[] | null
@@ -3854,6 +3854,8 @@ export type Database = {
           primary_owner_id: string | null
           product_revenue_percentage: number | null
           project_revenue_percentage: number | null
+          published_at: string | null
+          published_by_admin_id: string | null
           rank_locked: boolean | null
           real_estate_info: string | null
           recurring_revenue_percentage: number | null
@@ -3969,7 +3971,7 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
-          is_internal_deal?: boolean | null
+          is_internal_deal?: boolean
           is_owner_dependent?: boolean | null
           is_priority_target?: boolean | null
           key_quotes?: string[] | null
@@ -4014,6 +4016,8 @@ export type Database = {
           primary_owner_id?: string | null
           product_revenue_percentage?: number | null
           project_revenue_percentage?: number | null
+          published_at?: string | null
+          published_by_admin_id?: string | null
           rank_locked?: boolean | null
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
@@ -4129,7 +4133,7 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
-          is_internal_deal?: boolean | null
+          is_internal_deal?: boolean
           is_owner_dependent?: boolean | null
           is_priority_target?: boolean | null
           key_quotes?: string[] | null
@@ -4174,6 +4178,8 @@ export type Database = {
           primary_owner_id?: string | null
           product_revenue_percentage?: number | null
           project_revenue_percentage?: number | null
+          published_at?: string | null
+          published_by_admin_id?: string | null
           rank_locked?: boolean | null
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
@@ -4228,6 +4234,13 @@ export type Database = {
           {
             foreignKeyName: "listings_primary_owner_id_fkey"
             columns: ["primary_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_published_by_admin_id_fkey"
+            columns: ["published_by_admin_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
