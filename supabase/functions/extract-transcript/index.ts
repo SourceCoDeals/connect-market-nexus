@@ -17,6 +17,7 @@ interface ExtractTranscriptRequest {
   buyerId?: string;
   transcriptText?: string;
   source?: string;
+  transcriptId?: string; // ID of buyer_transcripts record to update
   // Legacy API: lookup from call_transcripts table
   transcript_id?: string;
   entity_type?: 'deal' | 'buyer' | 'both';
@@ -65,12 +66,13 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body: ExtractTranscriptRequest = await req.json();
-    const { buyerId, transcriptText, source, transcript_id, entity_type = 'both' } = body;
+    const { buyerId, transcriptText, source, transcriptId, transcript_id, entity_type = 'both' } = body;
 
     let transcriptTextToProcess: string;
     let buyerIdToUpdate: string | undefined = buyerId;
     let listingIdToUpdate: string | undefined;
-    let transcriptIdForTracking: string | undefined = transcript_id;
+    let transcriptIdForTracking: string | undefined = transcriptId || transcript_id;
+    let buyerTranscriptIdToUpdate: string | undefined = transcriptId; // Specific for buyer_transcripts table
 
     // NEW API: Direct text passed from buyer_transcripts flow
     if (transcriptText && buyerId) {
@@ -164,6 +166,24 @@ serve(async (req) => {
         buyerInsights,
         transcriptIdForTracking || 'direct'
       );
+
+      // FIX #1: Update buyer_transcripts table if transcriptId was provided
+      if (buyerTranscriptIdToUpdate) {
+        const { error: transcriptUpdateError } = await supabase
+          .from('buyer_transcripts')
+          .update({
+            processed_at: new Date().toISOString(),
+            extracted_insights: buyerInsights,
+            extraction_status: 'completed'
+          })
+          .eq('id', buyerTranscriptIdToUpdate);
+
+        if (transcriptUpdateError) {
+          console.error(`[TranscriptExtraction] Failed to update buyer_transcripts record:`, transcriptUpdateError);
+        } else {
+          console.log(`[TranscriptExtraction] Updated buyer_transcripts ${buyerTranscriptIdToUpdate} as processed`);
+        }
+      }
     }
 
     // Update call_transcripts record if using legacy API
@@ -510,15 +530,26 @@ async function updateBuyerFromTranscript(
   }
 
   if (Object.keys(updates).length > 0) {
-    // Mark extraction source as transcript (highest priority)
-    updates.extraction_sources = [{ 
+    // FIX #2: Fetch existing extraction_sources and append (don't overwrite)
+    const { data: existingBuyer } = await supabase
+      .from('remarketing_buyers')
+      .select('extraction_sources')
+      .eq('id', buyerId)
+      .single();
+
+    const existingSources = (existingBuyer?.extraction_sources || []) as any[];
+
+    // Mark extraction source as transcript (highest priority) - APPEND to array
+    const newSource = {
       type: 'transcript',
-      transcript_id: transcriptId, 
+      transcript_id: transcriptId,
       extracted_at: new Date().toISOString(),
       fields_extracted: Object.keys(updates).filter(k => k !== 'extraction_sources')
-    }];
+    };
+
+    updates.extraction_sources = [...existingSources, newSource];
     updates.data_last_updated = new Date().toISOString();
-    
+
     const { error } = await supabase
       .from('remarketing_buyers')
       .update(updates)
@@ -527,22 +558,34 @@ async function updateBuyerFromTranscript(
     if (error) {
       console.error("Failed to update buyer from transcript:", error);
     } else {
-      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary})`);
+      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary}). Total extraction sources: ${updates.extraction_sources.length}`);
     }
   } else if (insights.thesis_confidence === 'insufficient') {
+    // FIX #2: Fetch existing extraction_sources and append (don't overwrite) - insufficient data case
+    const { data: existingBuyer } = await supabase
+      .from('remarketing_buyers')
+      .select('extraction_sources')
+      .eq('id', buyerId)
+      .single();
+
+    const existingSources = (existingBuyer?.extraction_sources || []) as any[];
+
     // Save insufficient flag and missing questions
     const insufficientUpdate = {
       thesis_confidence: 'insufficient',
       notes: `Insufficient transcript data. Follow-up questions needed:\n${(insights.missing_information || []).map((q, i) => `${i + 1}. ${q}`).join('\n')}`,
-      extraction_sources: [{ 
-        type: 'transcript',
-        transcript_id: transcriptId, 
-        extracted_at: new Date().toISOString(),
-        status: 'insufficient_data'
-      }],
+      extraction_sources: [
+        ...existingSources,
+        {
+          type: 'transcript',
+          transcript_id: transcriptId,
+          extracted_at: new Date().toISOString(),
+          status: 'insufficient_data'
+        }
+      ],
       data_last_updated: new Date().toISOString(),
     };
-    
+
     const { error } = await supabase
       .from('remarketing_buyers')
       .update(insufficientUpdate)
@@ -551,7 +594,7 @@ async function updateBuyerFromTranscript(
     if (error) {
       console.error("Failed to update buyer with insufficient status:", error);
     } else {
-      console.log(`[TranscriptExtraction] Marked buyer ${buyerId} as insufficient - follow-up needed`);
+      console.log(`[TranscriptExtraction] Marked buyer ${buyerId} as insufficient - follow-up needed. Total extraction sources: ${insufficientUpdate.extraction_sources.length}`);
     }
   }
 }
