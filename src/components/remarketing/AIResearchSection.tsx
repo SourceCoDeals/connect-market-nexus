@@ -272,12 +272,12 @@ export const AIResearchSection = ({
         setIsOpen(true);
         
         // Restore UI state from the database record
-        setCurrentPhase(data.phases_completed || 0);
-        setTotalPhases(data.total_phases || 14);
-        setPhaseName(data.current_phase || 'Resuming...');
-        
+        setCurrentPhase(activeGen.phases_completed || 0);
+        setTotalPhases(activeGen.total_phases || 14);
+        setPhaseName(activeGen.current_phase || 'Resuming...');
+
         // Restore content if available
-        const generatedContent = data.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
+        const generatedContent = activeGen.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
         if (generatedContent?.content) {
           setContent(generatedContent.content);
           setWordCount(generatedContent.content.split(/\s+/).length);

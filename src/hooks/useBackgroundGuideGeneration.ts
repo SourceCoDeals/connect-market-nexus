@@ -54,16 +54,16 @@ export function useBackgroundGuideGeneration({
         .limit(1)
         .single();
 
-      if (!error && data) {
-        const generation = data as GenerationStatus;
+      if (!activeError && activeGen) {
+        const generation = activeGen as GenerationStatus;
         setCurrentGeneration(generation);
         setIsGenerating(true);
-        
+
         // Restore progress from the database record
         const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
         setProgress(progressPercent);
-        
-        startPolling(data.id);
+
+        startPolling(activeGen.id);
       }
     } catch (err) {
       // No existing generation, that's fine
