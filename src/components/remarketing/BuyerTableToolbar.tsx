@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -12,7 +12,8 @@ import {
   X,
   AlertCircle,
   Target,
-  RotateCcw
+  RotateCcw,
+  Clock
 } from "lucide-react";
 
 interface EnrichmentProgress {
@@ -31,6 +32,7 @@ interface AlignmentProgress {
   successful?: number;
   failed?: number;
   creditsDepleted?: boolean;
+  startTime?: number;
 }
 
 interface BuyerTableToolbarProps {
@@ -79,6 +81,62 @@ export const BuyerTableToolbar = ({
   const alignmentProgressPercent = showAlignmentProgress 
     ? (alignmentProgress.current / alignmentProgress.total) * 100 
     : 0;
+
+  // Time estimation for alignment scoring
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const alignmentStartTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isScoringAlignment && alignmentProgress && alignmentProgress.current > 0) {
+      // Set start time on first progress update
+      if (!alignmentStartTimeRef.current) {
+        alignmentStartTimeRef.current = alignmentProgress.startTime || Date.now();
+      }
+      
+      const interval = setInterval(() => {
+        if (alignmentStartTimeRef.current) {
+          setElapsedSeconds(Math.floor((Date.now() - alignmentStartTimeRef.current) / 1000));
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    } else if (!isScoringAlignment) {
+      // Reset when not scoring
+      alignmentStartTimeRef.current = null;
+      setElapsedSeconds(0);
+    }
+  }, [isScoringAlignment, alignmentProgress?.current, alignmentProgress?.startTime]);
+
+  // Calculate ETA
+  const getTimeEstimate = () => {
+    if (!alignmentProgress || alignmentProgress.current === 0 || elapsedSeconds === 0) {
+      return null;
+    }
+    
+    const avgSecondsPerItem = elapsedSeconds / alignmentProgress.current;
+    const remaining = alignmentProgress.total - alignmentProgress.current;
+    const etaSeconds = Math.ceil(avgSecondsPerItem * remaining);
+    
+    if (etaSeconds < 60) {
+      return `~${etaSeconds}s remaining`;
+    } else if (etaSeconds < 3600) {
+      const mins = Math.ceil(etaSeconds / 60);
+      return `~${mins}m remaining`;
+    } else {
+      const hours = Math.floor(etaSeconds / 3600);
+      const mins = Math.ceil((etaSeconds % 3600) / 60);
+      return `~${hours}h ${mins}m remaining`;
+    }
+  };
+
+  const formatElapsed = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins < 60) return `${mins}m ${secs}s`;
+    const hours = Math.floor(mins / 60);
+    return `${hours}h ${mins % 60}m`;
+  };
 
   return (
     <div className={`space-y-3 ${className}`}>
@@ -232,14 +290,33 @@ export const BuyerTableToolbar = ({
               <span>
                 Scoring industry alignment... {alignmentProgress.current} of {alignmentProgress.total}
               </span>
-              {alignmentProgress.successful !== undefined && (
-                <span className="text-muted-foreground">
-                  {alignmentProgress.successful} scored
-                  {alignmentProgress.failed ? `, ${alignmentProgress.failed} failed` : ''}
-                </span>
-              )}
+              <div className="flex items-center gap-3 text-muted-foreground">
+                {elapsedSeconds > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatElapsed(elapsedSeconds)}
+                  </span>
+                )}
+                {getTimeEstimate() && (
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">
+                    {getTimeEstimate()}
+                  </span>
+                )}
+              </div>
             </div>
             <Progress value={alignmentProgressPercent} className="h-2" />
+            {alignmentProgress.successful !== undefined && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>
+                  {alignmentProgress.successful} scored{alignmentProgress.failed ? `, ${alignmentProgress.failed} failed` : ''}
+                </span>
+                {alignmentProgress.current > 0 && elapsedSeconds > 0 && (
+                  <span>
+                    ~{(elapsedSeconds / alignmentProgress.current).toFixed(1)}s per buyer
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           {alignmentProgress.creditsDepleted && (
             <Badge variant="destructive" className="gap-1 shrink-0">
