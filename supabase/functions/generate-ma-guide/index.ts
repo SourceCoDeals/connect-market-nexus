@@ -633,8 +633,8 @@ const BATCH_SIZE = 1;
 // CRITICAL: Keep well below 150s hard limit. Single phase should complete in ~40-60s max.
 const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase (reduced from 50s for more buffer)
 // Retrying inside the same request can push the function over the hard timeout and kill the stream mid-flight.
-// Prefer failing fast and letting the client retry the batch.
-const MAX_RETRIES = 0;
+// Allow 1 retry with backoff for transient failures, then fail fast
+const MAX_RETRIES = 1;
 
 // Inter-phase delay to prevent hitting rate limits
 const INTER_PHASE_DELAY_MS = 1000; // 1 second between API calls (reduced for efficiency)
@@ -687,16 +687,23 @@ async function generatePhaseWithTimeout(
     return result;
   } catch (error: unknown) {
     clearTimeout(timeoutId);
-    
+
     const err = error as Error;
+    // Retry on transient errors: timeout, 429 rate limit, 5xx errors
+    const isTransient = err.name === 'AbortError'
+      || err.message?.includes('timeout')
+      || err.message?.includes('429')
+      || err.message?.includes('5');
+
+    if (isTransient && retryCount < MAX_RETRIES) {
+      console.error(`Phase ${phase.id} failed with transient error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${err.message}`);
+      // Wait 3 seconds before retry to allow backend recovery
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      console.log(`Retrying phase ${phase.id} after backoff...`);
+      return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1);
+    }
+
     if (err.name === 'AbortError' || err.message?.includes('timeout')) {
-      console.error(`Phase ${phase.id} timed out (attempt ${retryCount + 1})`);
-      
-      if (retryCount < MAX_RETRIES) {
-        console.log(`Retrying phase ${phase.id}...`);
-        // Use faster model on retry
-        return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1);
-      }
       throw new Error(`Phase ${phase.id} timed out after ${MAX_RETRIES + 1} attempts`);
     }
     throw error;

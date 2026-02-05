@@ -119,7 +119,6 @@ const FIELD_TO_COLUMN_MAP: Record<string, string> = {
   'max_revenue': 'target_revenue_max',
   'min_ebitda': 'target_ebitda_min',
   'max_ebitda': 'target_ebitda_max',
-  'preferred_ebitda': 'ebitda_sweet_spot',
 };
 
 // ============================================================================
@@ -521,7 +520,6 @@ const PROMPT_6_SIZE = {
       min_ebitda: { type: 'integer', description: 'Minimum EBITDA in dollars' },
       max_ebitda: { type: 'integer', description: 'Maximum EBITDA in dollars' },
       ebitda_sweet_spot: { type: 'integer', description: 'Ideal EBITDA target in dollars' },
-      preferred_ebitda: { type: 'integer', description: 'Preferred EBITDA in dollars' },
     },
   },
 };
@@ -595,7 +593,6 @@ function validateSizeCriteria(extracted: any): any {
   data.min_ebitda = checkForMultiple(data.min_ebitda);
   data.max_ebitda = checkForMultiple(data.max_ebitda);
   data.ebitda_sweet_spot = checkForMultiple(data.ebitda_sweet_spot);
-  data.preferred_ebitda = checkForMultiple(data.preferred_ebitda);
 
   return { ...extracted, data };
 }
@@ -790,6 +787,23 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Buyer not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Check enrichment lock: if data_last_updated was set within the last 30 seconds, skip
+    // This prevents concurrent enrichments that would duplicate API calls
+    if (buyer.data_last_updated) {
+      const lastUpdate = new Date(buyer.data_last_updated).getTime();
+      const now = Date.now();
+      if (now - lastUpdate < 30000) { // 30 seconds
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Enrichment already in progress for this buyer. Please wait before retrying.',
+            statusCode: 429
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const platformWebsite = buyer.platform_website || buyer.company_website;
