@@ -361,6 +361,74 @@ const ReMarketingUniverseDetail = () => {
     }
   }, [universe]);
 
+  // Auto-sync M&A guide to Supporting Documents if guide exists but document entry is missing
+  useEffect(() => {
+    const syncGuideToDocuments = async () => {
+      if (!id || isNew || !universe) return;
+      
+      const guideContent = universe.ma_guide_content;
+      const existingDocs = (universe.documents as unknown as DocumentReference[]) || [];
+      const hasGuideDoc = existingDocs.some((d: any) => d.type === 'ma_guide');
+      
+      // If there's substantial guide content but no document entry, create one
+      if (guideContent && guideContent.length > 1000 && !hasGuideDoc) {
+        console.log('[ReMarketingUniverseDetail] Guide exists but no document entry - syncing to Supporting Documents');
+        
+        try {
+          // Call edge function to upload HTML to storage
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-guide-pdf`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({
+                universeId: id,
+                industryName: universe.name || 'M&A Guide',
+                content: guideContent
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            console.error('[ReMarketingUniverseDetail] Failed to generate guide document:', response.status);
+            return;
+          }
+
+          const data = await response.json();
+          if (!data.success || !data.document) {
+            console.error('[ReMarketingUniverseDetail] No document returned from generate-guide-pdf');
+            return;
+          }
+
+          // Build updated documents array
+          const updatedDocs = [...existingDocs, data.document];
+
+          // Write back to database
+          const { error: updateError } = await supabase
+            .from('remarketing_buyer_universes')
+            .update({ documents: updatedDocs })
+            .eq('id', id);
+
+          if (updateError) {
+            console.error('[ReMarketingUniverseDetail] Failed to save document:', updateError);
+            return;
+          }
+
+          // Update local state for immediate UI feedback
+          setDocuments(updatedDocs);
+          console.log('[ReMarketingUniverseDetail] Guide synced to Supporting Documents successfully');
+        } catch (error) {
+          console.error('[ReMarketingUniverseDetail] Error syncing guide to documents:', error);
+        }
+      }
+    };
+
+    syncGuideToDocuments();
+  }, [universe, id, isNew]);
+
   // Handle template application
   const handleApplyTemplate = (templateConfig: {
     name: string;
