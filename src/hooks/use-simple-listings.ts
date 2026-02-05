@@ -24,7 +24,7 @@ async function fetchListings(state: PaginationState) {
 
   // CRITICAL: Exclude remarketing deals from marketplace
   if (remarketingIds.size > 0) {
-    query = query.not('id', 'in', `(${Array.from(remarketingIds).join(',')})`);
+    query = query.not('id', 'in', `("${Array.from(remarketingIds).join('","')}")`);
   }
 
   // Apply filters
@@ -111,7 +111,7 @@ async function fetchMetadata() {
     .is('deleted_at', null);
 
   if (remarketingIds.size > 0) {
-    query = query.not('id', 'in', `(${Array.from(remarketingIds).join(',')})`);
+    query = query.not('id', 'in', `("${Array.from(remarketingIds).join('","')}")`);
   }
 
   const { data: listings, error } = await query;
