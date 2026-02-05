@@ -245,11 +245,6 @@ export const AddDealToUniverseDialog = ({
     mutationFn: async () => {
       setCreateDealError(null);
 
-      // Basic required fields (DB constraint: listings.location is NOT NULL)
-      if (!newDealForm.location?.trim()) {
-        throw new Error("Location is required (e.g., City, State).");
-      }
-
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
       if (!user) throw new Error("You must be signed in to create a deal.");
@@ -268,7 +263,7 @@ export const AddDealToUniverseDialog = ({
       const insertData = {
         title: newDealForm.title,
         website: newDealForm.website || null,
-        location: (newDealForm.location || "").trim(),
+        location: newDealForm.location?.trim() || null,
         revenue: newDealForm.revenue ? parseFloat(newDealForm.revenue) : null,
         ebitda: newDealForm.ebitda ? parseFloat(newDealForm.ebitda) : null,
         description: newDealForm.description || null,
@@ -770,7 +765,7 @@ export const AddDealToUniverseDialog = ({
 
               <Button
                 onClick={() => createDealMutation.mutate()}
-                disabled={!newDealForm.title || !newDealForm.website || !newDealForm.location || createDealMutation.isPending}
+                disabled={!newDealForm.title || !newDealForm.website || createDealMutation.isPending}
                 className="w-full"
               >
                 {createDealMutation.isPending ? (
