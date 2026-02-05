@@ -48,7 +48,7 @@ serve(async (req) => {
     // Fetch universe details
     const { data: universe, error: universeError } = await supabase
       .from('remarketing_buyer_universes')
-      .select('name, description, clarification_context')
+      .select('name, description, ma_guide_qa_context')
       .eq('id', universe_id)
       .single();
 
@@ -100,7 +100,7 @@ serve(async (req) => {
       universe_id,
       universe.name,
       universe.description,
-      universe.clarification_context,
+      universe.ma_guide_qa_context,
       supabase
     ).catch(async (error) => {
       console.error(`[generate-ma-guide-background] Generation ${generation.id} failed:`, error);
