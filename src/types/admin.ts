@@ -68,6 +68,11 @@ export interface AdminListing {
   // Deal advisor
   presented_by_admin_id?: string | null;
   
+  // Publishing status
+  is_internal_deal?: boolean;
+  published_at?: string | null;
+  published_by_admin_id?: string | null;
+  
   created_at: string;
   updated_at: string;
 }

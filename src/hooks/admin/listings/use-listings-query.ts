@@ -41,7 +41,9 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
           let query = supabase
             .from('listings')
             .select('*, hero_description')
-            .is('deleted_at', null);
+            .is('deleted_at', null)
+            .not('image_url', 'is', null)  // Only show listings with images (admin-created)
+            .neq('image_url', '');         // Exclude empty string images
           
           if (status && status !== 'all') {
             query = query.eq('status', status);

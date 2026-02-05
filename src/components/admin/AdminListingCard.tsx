@@ -6,8 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Eye, EyeOff, Edit, Trash2, MoreHorizontal, Calendar, 
   DollarSign, TrendingUp, MapPin, Building2, Activity,
-  Users, Heart, ExternalLink, Globe, ShieldCheck, Sparkles
+  Users, Heart, ExternalLink, Globe, ShieldCheck, Sparkles,
+  Upload, UploadCloud, CloudOff
 } from "lucide-react";
+import { usePublishListing } from "@/hooks/admin/listings/use-publish-listing";
 import { Link, useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
@@ -55,6 +57,10 @@ export function AdminListingCard({
 }: AdminListingCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
+  const { publishListing, unpublishListing, isPublishing } = usePublishListing();
+
+  // Determine if listing is published (visible on marketplace)
+  const isPublished = listing.is_internal_deal === false && listing.published_at;
 
   const displayCategories = listing.categories || (listing.category ? [listing.category] : []);
   const revenue = Number(listing.revenue) || 0;
@@ -202,6 +208,23 @@ export function AdminListingCard({
                       <Sparkles className="h-4 w-4 mr-2" />
                       Match Buyers
                     </DropdownMenuItem>
+                    {/* Publish/Unpublish action */}
+                    <DropdownMenuItem 
+                      onClick={() => isPublished ? unpublishListing(listing.id) : publishListing(listing.id)}
+                      disabled={isPublishing}
+                    >
+                      {isPublished ? (
+                        <>
+                          <CloudOff className="h-4 w-4 mr-2" />
+                          Remove from Marketplace
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="h-4 w-4 mr-2" />
+                          Publish to Marketplace
+                        </>
+                      )}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={onToggleStatus}>
                       {listing.status === "active" ? (
                         <>
@@ -270,8 +293,19 @@ export function AdminListingCard({
           />
         </div>
 
-        {/* Status Badge */}
-        <div className="absolute bottom-3 right-3">
+        {/* Status Badges */}
+        <div className="absolute bottom-3 right-3 flex gap-1.5">
+          {/* Published/Draft Badge */}
+          <Badge 
+            variant="outline"
+            className={isPublished 
+              ? "bg-blue-500/90 text-white border-0" 
+              : "bg-amber-500/90 text-white border-0"
+            }
+          >
+            {isPublished ? 'Published' : 'Draft'}
+          </Badge>
+          {/* Active/Inactive Badge */}
           <Badge 
             variant={listing.status === "active" ? "default" : "secondary"}
             className={listing.status === "active" 
@@ -444,6 +478,23 @@ export function AdminListingCard({
               <DropdownMenuItem onClick={() => window.open(`/listing/${listing.id}`, '_blank')}>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 View Public Page
+              </DropdownMenuItem>
+              {/* Publish/Unpublish action */}
+              <DropdownMenuItem 
+                onClick={() => isPublished ? unpublishListing(listing.id) : publishListing(listing.id)}
+                disabled={isPublishing}
+              >
+                {isPublished ? (
+                  <>
+                    <CloudOff className="h-4 w-4 mr-2" />
+                    Remove from Marketplace
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="h-4 w-4 mr-2" />
+                    Publish to Marketplace
+                  </>
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsExpanded(!isExpanded)}>
                 <Activity className="h-4 w-4 mr-2" />
