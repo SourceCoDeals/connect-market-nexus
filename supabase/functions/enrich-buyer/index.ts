@@ -789,23 +789,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check enrichment lock: if data_last_updated was set within the last 30 seconds, skip
-    // This prevents concurrent enrichments that would duplicate API calls
-    if (buyer.data_last_updated) {
-      const lastUpdate = new Date(buyer.data_last_updated).getTime();
-      const now = Date.now();
-      if (now - lastUpdate < 30000) { // 30 seconds
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Enrichment already in progress for this buyer. Please wait before retrying.',
-            statusCode: 429
-          }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
     const platformWebsite = buyer.platform_website || buyer.company_website;
     const peFirmWebsite = buyer.pe_firm_website;
 
@@ -830,26 +813,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Enrichment lock: prevent concurrent enrichment of the same buyer
-    // If data_last_updated was set within the last 60 seconds, another enrichment is likely running
+    // Atomic enrichment lock: attempt to set lock only if not recently updated
+    // This prevents concurrent enrichments with a single atomic operation
     const ENRICHMENT_LOCK_SECONDS = 60;
-    if (buyer.data_last_updated) {
-      const lastUpdated = new Date(buyer.data_last_updated).getTime();
-      const now = Date.now();
-      if (now - lastUpdated < ENRICHMENT_LOCK_SECONDS * 1000) {
-        console.log(`[enrich-buyer] Skipping buyer ${buyerId}: enrichment already in progress (last updated ${Math.round((now - lastUpdated) / 1000)}s ago)`);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Enrichment already in progress for this buyer. Please wait and try again.' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Set lock: mark data_last_updated immediately to prevent concurrent runs
-    await supabase
+    const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
+    const { data: lockResult, error: lockError } = await supabase
       .from('remarketing_buyers')
       .update({ data_last_updated: new Date().toISOString() })
-      .eq('id', buyerId);
+      .eq('id', buyerId)
+      .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
+      .select('id');
+
+    if (lockError) {
+      console.error(`[enrich-buyer] Lock query error for ${buyerId}:`, lockError.message);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to acquire enrichment lock' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!lockResult || lockResult.length === 0) {
+      console.log(`[enrich-buyer] Skipping buyer ${buyerId}: enrichment lock held (updated within ${ENRICHMENT_LOCK_SECONDS}s)`);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Enrichment already in progress for this buyer. Please wait and try again.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log(`Starting 6-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
     console.log(`Platform website: ${platformWebsite || 'none'}`);
@@ -926,7 +915,7 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================================
-    // RUN 6 EXTRACTION PROMPTS
+    // RUN EXTRACTION PROMPTS IN PARALLEL
     // ========================================================================
 
     const allExtracted: Record<string, any> = {};
@@ -936,145 +925,85 @@ Deno.serve(async (req) => {
     let promptsSuccessful = 0;
     let billingError: { code: string; message: string } | null = null;
 
-    // PLATFORM PROMPTS (1-3b)
-    if (platformContent && !billingError) {
-      // Prompt 1: Business Overview
-      promptsRun++;
-      const businessResult = await extractBusinessOverview(platformContent, anthropicApiKey);
-      if (businessResult.error?.code === 'payment_required' || businessResult.error?.code === 'rate_limited') {
-        billingError = businessResult.error;
-      } else if (businessResult.data) {
-        Object.assign(allExtracted, businessResult.data);
-        promptsSuccessful++;
-        evidenceRecords.push({
-          type: 'website',
-          url: platformWebsite,
-          extracted_at: timestamp,
-          fields_extracted: Object.keys(businessResult.data),
-        });
-      }
+    // Build all extraction promises to run in parallel
+    type PromptResult = { name: string; data?: Record<string, any>; error?: { code: string; message: string }; url: string; validate?: (r: any) => any };
+    const extractionPromises: Promise<PromptResult>[] = [];
 
-      // Prompt 2: Customer Profile
-      if (!billingError) {
-        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-        promptsRun++;
-        const customerResult = await extractCustomerProfile(platformContent, anthropicApiKey);
-        if (customerResult.error?.code === 'payment_required' || customerResult.error?.code === 'rate_limited') {
-          billingError = customerResult.error;
-        } else if (customerResult.data) {
-          Object.assign(allExtracted, customerResult.data);
-          promptsSuccessful++;
-          evidenceRecords.push({
-            type: 'website',
-            url: platformWebsite,
-            extracted_at: timestamp,
-            fields_extracted: Object.keys(customerResult.data),
-          });
-        }
-      }
-
-      // Prompt 3a: Geography
-      if (!billingError) {
-        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-        promptsRun++;
-        let geoResult = await extractGeography(platformContent, anthropicApiKey);
-        geoResult = validateGeography(geoResult);
-        if (geoResult.error?.code === 'payment_required' || geoResult.error?.code === 'rate_limited') {
-          billingError = geoResult.error;
-        } else if (geoResult.data) {
-          Object.assign(allExtracted, geoResult.data);
-          promptsSuccessful++;
-          evidenceRecords.push({
-            type: 'website',
-            url: platformWebsite,
-            extracted_at: timestamp,
-            fields_extracted: Object.keys(geoResult.data),
-          });
-        }
-      }
-
-      // Prompt 3b: Acquisitions
-      if (!billingError) {
-        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-        promptsRun++;
-        const acqResult = await extractAcquisitions(platformContent, anthropicApiKey);
-        if (acqResult.error?.code === 'payment_required' || acqResult.error?.code === 'rate_limited') {
-          billingError = acqResult.error;
-        } else if (acqResult.data) {
-          Object.assign(allExtracted, acqResult.data);
-          promptsSuccessful++;
-          evidenceRecords.push({
-            type: 'website',
-            url: platformWebsite,
-            extracted_at: timestamp,
-            fields_extracted: Object.keys(acqResult.data),
-          });
-        }
-      }
+    // PLATFORM PROMPTS (1-3b) - all independent, use platformContent
+    if (platformContent) {
+      extractionPromises.push(
+        extractBusinessOverview(platformContent, anthropicApiKey)
+          .then(r => ({ name: 'Business Overview', data: r.data, error: r.error, url: platformWebsite! }))
+      );
+      extractionPromises.push(
+        extractCustomerProfile(platformContent, anthropicApiKey)
+          .then(r => ({ name: 'Customer Profile', data: r.data, error: r.error, url: platformWebsite! }))
+      );
+      extractionPromises.push(
+        extractGeography(platformContent, anthropicApiKey)
+          .then(r => {
+            const validated = validateGeography(r);
+            return { name: 'Geography', data: validated.data, error: validated.error, url: platformWebsite! };
+          })
+      );
+      extractionPromises.push(
+        extractAcquisitions(platformContent, anthropicApiKey)
+          .then(r => ({ name: 'Acquisitions', data: r.data, error: r.error, url: platformWebsite! }))
+      );
     }
 
-    // PE FIRM PROMPTS (4-6) - NOTE: Prompt 4 no longer extracts thesis
-    if (peContent && !billingError) {
-      // Prompt 4: PE Activity (thesis fields NEVER extracted from website)
-      // thesis_summary, strategic_priorities, thesis_confidence ONLY from transcripts
-      await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-      promptsRun++;
-      const activityResult = await extractPEActivity(peContent, anthropicApiKey);
-      if (activityResult.error?.code === 'payment_required' || activityResult.error?.code === 'rate_limited') {
-        billingError = activityResult.error;
-      } else if (activityResult.data) {
-        // Filter out any thesis fields that might slip through
-        const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = activityResult.data;
-        if (thesis_summary || strategic_priorities || thesis_confidence) {
-          console.warn('WARNING: Prompt 4 returned thesis fields - these are being discarded (transcript-only)');
-        }
-        Object.assign(allExtracted, safeData);
-        promptsSuccessful++;
-        evidenceRecords.push({
-          type: 'website',
-          url: peFirmWebsite,
-          extracted_at: timestamp,
-          fields_extracted: Object.keys(safeData),
-        });
-      }
+    // PE FIRM PROMPTS (4-6) - all independent, use peContent
+    if (peContent) {
+      extractionPromises.push(
+        extractPEActivity(peContent, anthropicApiKey)
+          .then(r => {
+            // Filter out thesis fields (transcript-only)
+            if (r.data) {
+              const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = r.data;
+              if (thesis_summary || strategic_priorities || thesis_confidence) {
+                console.warn('WARNING: PE Activity returned thesis fields - discarded (transcript-only)');
+              }
+              return { name: 'PE Activity', data: safeData, error: r.error, url: peFirmWebsite! };
+            }
+            return { name: 'PE Activity', data: r.data, error: r.error, url: peFirmWebsite! };
+          })
+      );
+      extractionPromises.push(
+        extractPortfolio(peContent, anthropicApiKey)
+          .then(r => ({ name: 'Portfolio', data: r.data, error: r.error, url: peFirmWebsite! }))
+      );
+      extractionPromises.push(
+        extractSizeCriteria(peContent, anthropicApiKey)
+          .then(r => {
+            const validated = validateSizeCriteria(r);
+            return { name: 'Size Criteria', data: validated.data, error: validated.error, url: peFirmWebsite! };
+          })
+      );
+    }
 
-      // Prompt 5: Portfolio
-      if (!billingError) {
-        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-        promptsRun++;
-        const portfolioResult = await extractPortfolio(peContent, anthropicApiKey);
-        if (portfolioResult.error?.code === 'payment_required' || portfolioResult.error?.code === 'rate_limited') {
-          billingError = portfolioResult.error;
-        } else if (portfolioResult.data) {
-          Object.assign(allExtracted, portfolioResult.data);
+    promptsRun = extractionPromises.length;
+
+    // Run all prompts in parallel
+    const results = await Promise.allSettled(extractionPromises);
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { name, data, error: promptError, url } = result.value;
+        if (promptError?.code === 'payment_required' || promptError?.code === 'rate_limited') {
+          billingError = promptError;
+          console.warn(`[enrich-buyer] ${name} prompt billing/rate error: ${promptError.code}`);
+        } else if (data) {
+          Object.assign(allExtracted, data);
           promptsSuccessful++;
           evidenceRecords.push({
             type: 'website',
-            url: peFirmWebsite,
+            url,
             extracted_at: timestamp,
-            fields_extracted: Object.keys(portfolioResult.data),
+            fields_extracted: Object.keys(data),
           });
         }
-      }
-
-      // Prompt 6: Size Criteria
-      if (!billingError) {
-        await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-        promptsRun++;
-        let sizeResult = await extractSizeCriteria(peContent, anthropicApiKey);
-        sizeResult = validateSizeCriteria(sizeResult);
-        if (sizeResult.error?.code === 'payment_required' || sizeResult.error?.code === 'rate_limited') {
-          billingError = sizeResult.error;
-        } else if (sizeResult.data) {
-          Object.assign(allExtracted, sizeResult.data);
-          promptsSuccessful++;
-          evidenceRecords.push({
-            type: 'website',
-            url: peFirmWebsite,
-            extracted_at: timestamp,
-            fields_extracted: Object.keys(sizeResult.data),
-          });
-        }
+      } else {
+        console.error(`[enrich-buyer] Prompt failed:`, result.reason);
       }
     }
 

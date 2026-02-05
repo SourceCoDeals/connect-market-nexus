@@ -328,8 +328,32 @@ export const AIResearchSection = ({
       clearInterval(pollIntervalRef.current);
     }
 
+    // Max polling duration: 10 minutes (prevents indefinite polling if generation stalls)
+    const MAX_POLL_DURATION_MS = 10 * 60 * 1000;
+    const pollStartTime = Date.now();
+
     // Poll for progress
     pollIntervalRef.current = window.setInterval(async () => {
+      // Safety timeout: stop polling after MAX_POLL_DURATION_MS
+      if (Date.now() - pollStartTime > MAX_POLL_DURATION_MS) {
+        console.warn(`[AIResearchSection] Polling timed out after ${MAX_POLL_DURATION_MS / 1000}s for generation ${generationId}`);
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setState('error');
+        setErrorDetails({
+          code: 'polling_timeout',
+          message: 'Generation is taking longer than expected. It may still be processing in the background. Try refreshing the page.',
+          batchIndex: 0,
+          isRecoverable: true,
+          savedWordCount: 0,
+          timestamp: Date.now()
+        });
+        toast.error('Generation progress check timed out. Try refreshing to check status.');
+        return;
+      }
+
       const { data: generation, error } = await supabase
         .from('ma_guide_generations')
         .select('*')
@@ -805,6 +829,7 @@ export const AIResearchSection = ({
       let buffer = "";
       let fullContent = previousContent;
       let sawBatchComplete = false;
+      let parseErrorCount = 0;
       // Track accumulated word count locally (not from React state) for accurate error reporting
       // Also update batchWordCount so it's available in catch block
       let accumulatedWordCount = previousContent ? previousContent.split(/\s+/).length : 0;
@@ -1011,12 +1036,17 @@ export const AIResearchSection = ({
                 break;
             }
           } catch (e) {
-            // Don't silently swallow parse issues; they often indicate a truncated SSE stream.
+            parseErrorCount++;
             console.warn('[AIResearchSection] Failed to parse SSE event', {
               batchIndex,
               snippet: jsonStr.slice(0, 200),
-              error: e
+              error: e,
+              parseErrorCount
             });
+            // Warn user if too many parse errors (likely truncated/corrupted stream)
+            if (parseErrorCount === 5) {
+              toast.warning('Some data from the AI stream could not be parsed. Content may have minor gaps.', { duration: 5000 });
+            }
           }
         }
       }

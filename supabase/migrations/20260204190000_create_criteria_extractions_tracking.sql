@@ -42,7 +42,7 @@ CREATE POLICY "Users can view their own criteria extractions"
     EXISTS (
       SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = buyer_criteria_extractions.universe_id
-      AND u.user_id = auth.uid()
+      AND u.created_by = auth.uid()
     )
   );
 
@@ -53,7 +53,7 @@ CREATE POLICY "Users can insert criteria extractions for their universes"
     EXISTS (
       SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = buyer_criteria_extractions.universe_id
-      AND u.user_id = auth.uid()
+      AND u.created_by = auth.uid()
     )
   );
 
@@ -64,7 +64,7 @@ CREATE POLICY "Users can update their own criteria extractions"
     EXISTS (
       SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = buyer_criteria_extractions.universe_id
-      AND u.user_id = auth.uid()
+      AND u.created_by = auth.uid()
     )
   );
 

@@ -17,7 +17,6 @@ const TOTAL_PHASES = 14;
  
    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
    const supabase = createClient(supabaseUrl, supabaseServiceKey);
  
    try {
@@ -87,7 +86,8 @@ const TOTAL_PHASES = 14;
        method: 'POST',
        headers: {
          'Content-Type': 'application/json',
-         'apikey': supabaseAnonKey,
+         'apikey': supabaseServiceKey,
+         'Authorization': `Bearer ${supabaseServiceKey}`,
        },
        body: JSON.stringify({
          industry_name: universe.name,
@@ -170,7 +170,8 @@ const TOTAL_PHASES = 14;
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({ triggered_by: generation.id, batch: newPhasesCompleted }),
         }).catch(err => {
