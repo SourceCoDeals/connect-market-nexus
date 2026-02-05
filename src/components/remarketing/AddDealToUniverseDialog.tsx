@@ -254,7 +254,7 @@ export const AddDealToUniverseDialog = ({
         description: newDealForm.description || null,
         // Remarketing deals must never be visible on the public marketplace
         is_internal_deal: true,
-        is_active: true,
+        status: "active",
         category: "Other",
       };
 
