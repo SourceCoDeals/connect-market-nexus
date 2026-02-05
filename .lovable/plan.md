@@ -1,261 +1,204 @@
 
-# Comprehensive Listings Management Restructure
+# Add Call Transcript Dialog Redesign
 
-## Problem Statement
+## Overview
 
-The current "Internal Drafts" tab only shows listings with images that have `is_internal_deal = true` (19 listings). The 56 remarketing deals (which have no images but rich AI-enriched data) are completely hidden from the admin listings management view.
-
-The user wants a holistic overview showing:
-1. **Marketplace** - Public-facing listings (62)
-2. **Remarketing Deals** - Internal M&A research deals (56) with completely different card design
-
-Additionally, the current card design has visual issues: badge soup, poor hierarchy, disconnected elements.
+Redesign the Add Transcript dialog to match the target design from the reference image, with a cleaner layout and three input methods (link, upload, or paste text) - all optional but at least one required.
 
 ---
 
-## Solution Architecture
+## Target Design Analysis
 
-### Tab Structure Redesign
+Based on the reference image, the new dialog should have:
 
-```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Listings Management                                                      │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌─────────────────┐  ┌─────────────────┐                                │
-│  │ Marketplace 62  │  │ Research Deals 56│                               │
-│  └─────────────────┘  └─────────────────┘                                │
-│                                                                          │
-│  [Marketplace Tab]                    [Research Deals Tab]               │
-│  - Premium image cards                - Data-focused table/cards         │
-│  - PublishListing actions             - Enrichment badges                │
-│  - Marketplace visibility             - Quality scores                   │
-│  - Buyer type restrictions            - Match buyer actions              │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-### Tab 1: Marketplace (Keep existing, improve design)
-- Filter: `is_internal_deal = false` AND `image_url IS NOT NULL`
-- **Improved Card Design** (hyper-premium, minimal)
-- Publish/Unpublish workflow
-- Status tags, buyer visibility controls
-
-### Tab 2: Research Deals (NEW - Remarketing)
-- Filter: `is_internal_deal = true` AND `(image_url IS NULL OR image_url = '')`
-- **Completely different card component** optimized for data-dense remarketing deals
-- Key fields: Company name, Executive summary, Revenue/EBITDA, Geography, Quality Score, Enrichment status
-- Actions: View Deal, Match Buyers, Enrich, Add to Universe
+1. **Title** (required) - Full-width input at the top
+2. **Transcript Link** (optional) - For Fireflies or any transcript URL
+3. **Notes / Transcript Content** - Textarea for pasting content
+4. **Call Date** (optional) - Date picker
+5. **Primary Action Button** - "Add Transcript Link" with link icon
+6. **OR UPLOAD FILE** - Divider with upload section below
+7. **Click to upload** - Drag-and-drop style upload area
 
 ---
 
-## Premium Card Design System
+## Key Changes from Current Design
 
-### Marketplace Card (Redesigned)
-
-Current issues being fixed:
-- Remove Status Tag dropdown from card body (move to hover/click action)
-- Clean badge hierarchy - max 3 visible, overflow as count
-- Refined financial display with subtle separators
-- Remove disconnected "JUST LISTED" tag
-
-```text
-┌────────────────────────────────────────┐
-│  ┌──────────────────────────────────┐  │
-│  │                                  │  │
-│  │    [Image - 16:9 aspect]         │  │
-│  │                                  │  │
-│  │   ◉ Active     Published ↗       │  │
-│  └──────────────────────────────────┘  │
-│                                        │
-│  Independent Wealth Advisory Firm      │ ← Title: text-base font-semibold
-│  Brook Capital                         │ ← Company: text-xs text-muted
-│                                        │
-│  ┌──────┐ ┌───────────────┐ ┌───────┐  │
-│  │ADD-ON│ │Finance & Insur│ │Midwest│  │ ← Subtle pill badges
-│  └──────┘ └───────────────┘ └───────┘  │
-│                                        │
-│  ─────────────────────────────────────  │ ← Subtle divider
-│                                        │
-│  $1.6M Revenue    ·    $500K EBITDA    │ ← Inline metrics, no boxes
-│                                        │
-│  ─────────────────────────────────────  │
-│                                        │
-│  Jan 26 · Updated Feb 5                │ ← Micro timestamp
-│                                        │
-│  ┌──────────────────────────────────┐  │
-│  │        Edit        │  ··· │      │  │ ← Clean action bar
-│  └──────────────────────────────────┘  │
-└────────────────────────────────────────┘
-```
-
-### Research Deal Card (NEW Component)
-
-Optimized for data-dense remarketing deals without images:
-
-```text
-┌────────────────────────────────────────┐
-│ ┌────────────────────────────────────┐ │
-│ │ ⭐ PRIORITY   │ ✨ Enriched  │ 75 │ │ ← Status row + Quality Score
-│ └────────────────────────────────────┘ │
-│                                        │
-│ B & D Threefold Collision Centers      │ ← Company name (primary)
-│                                        │
-│ Gold Class® collision repair           │ ← Executive summary (2 lines)
-│ business in Oklahoma with ICAR...      │
-│                                        │
-│ ┌────────┐ ┌────────┐ ┌───────────────┐│
-│ │Collision│ │ OK     │ │★ 5.0 (1 rev) ││ ← Industry, State, Google
-│ └────────┘ └────────┘ └───────────────┘│
-│                                        │
-│ ─────────────────────────────────────  │
-│                                        │
-│ $9.0M Rev  ·  $900K EBITDA  ·  30% Mrg │ ← Financials inline
-│                                        │
-│ ─────────────────────────────────────  │
-│                                        │
-│ threefoldcollision.com ↗               │ ← Website link
-│                                        │
-│ ─────────────────────────────────────  │
-│                                        │
-│ ┌───────────┐ ┌───────────┐ ┌───────┐ │
-│ │View Deal  │ │Match Buyers│ │  ···  │ │ ← Actions
-│ └───────────┘ └───────────┘ └───────┘ │
-└────────────────────────────────────────┘
-```
+| Current | New |
+|---------|-----|
+| Source Type dropdown | Removed per user request |
+| "File Name (optional)" label | Changed to "Title *" (required) |
+| Side-by-side layout | Single column, stacked fields |
+| Basic file upload button | Premium drag-drop upload zone |
+| "Add Transcript" button | "Add Transcript Link" with icon |
+| No date picker visible | Call Date input with calendar |
 
 ---
 
 ## Technical Implementation
 
-### 1. Update Query Hook
+### 1. Remove Source Type Dropdown
 
-**File: `src/hooks/admin/listings/use-listings-by-type.ts`**
+Since user confirmed to remove it, we'll:
+- Remove the `source` field from form state
+- Remove the Select component
+- Set a default source value when saving (e.g., "call")
 
-Change `ListingType` to: `'marketplace' | 'research'`
+### 2. Restructure Form Layout
 
-Update filter logic:
-- `marketplace`: `is_internal_deal = false` AND `image_url IS NOT NULL`
-- `research`: `is_internal_deal = true` AND `(image_url IS NULL OR image_url = '')`
+New layout order:
+```text
+┌────────────────────────────────────────┐
+│ Add Call Transcript                ✕   │
+├────────────────────────────────────────┤
+│                                        │
+│ Title *                                │
+│ ┌────────────────────────────────────┐ │
+│ │ E.g., Q1 2024 Buyer Call           │ │
+│ └────────────────────────────────────┘ │
+│                                        │
+│ Transcript Link                        │
+│ ┌────────────────────────────────────┐ │
+│ │ https://...                        │ │
+│ └────────────────────────────────────┘ │
+│                                        │
+│ Notes / Transcript Content             │
+│ ┌────────────────────────────────────┐ │
+│ │ Paste transcript content...        │ │
+│ │                                    │ │
+│ │                                    │ │
+│ └────────────────────────────────────┘ │
+│                                        │
+│ Call Date (optional)                   │
+│ ┌────────────────────────────────────┐ │
+│ │ mm/dd/yyyy                     📅  │ │
+│ └────────────────────────────────────┘ │
+│                                        │
+│ ┌────────────────────────────────────┐ │
+│ │ 🔗 Add Transcript Link             │ │
+│ └────────────────────────────────────┘ │
+│                                        │
+│           OR UPLOAD FILE               │
+│                                        │
+│ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │
+│ │          ⬆ Upload                  │ │
+│ │      Click to upload               │ │
+│ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ │
+│                                        │
+└────────────────────────────────────────┘
+```
 
-Add additional fields to select for research deals: `executive_summary`, `service_mix`, `geographic_states`, `enriched_at`, `deal_quality_score`, `linkedin_employee_count`, etc.
+### 3. File Upload with Storage
 
-### 2. Create Research Deal Card Component
+Since user wants both file storage AND text extraction:
 
-**File: `src/components/admin/ResearchDealCard.tsx`**
+**For text files (.txt, .vtt, .srt):**
+1. Read file content → populate transcript_text
+2. Upload file to `deal-transcripts` bucket
+3. Save file URL to `transcript_url` column
 
-Premium, data-focused card for remarketing deals:
-- No image section (uses icon placeholder)
-- Prominent company name display
-- Executive summary preview (2 lines, truncated)
-- Quality score badge (color-coded 80+/60+/40+)
-- Enrichment status indicator
-- Geography badges
-- Google rating & reviews
-- LinkedIn employee data
-- Financial metrics (inline, minimal)
-- Action buttons: View Deal, Match Buyers
+**For binary files (.pdf, .doc, .docx):**
+1. Upload file to `deal-transcripts` bucket
+2. Save file URL to `transcript_url` column
+3. Leave transcript_text empty (or implement PDF parsing later)
 
-### 3. Redesign Marketplace Card
+### 4. Premium Upload Zone Design
 
-**File: `src/components/admin/AdminListingCard.tsx`**
+Replace the basic button with a styled drop zone:
 
-Refinements for premium aesthetic:
-- Remove inline Status Tag Switcher (move to dropdown menu)
-- Clean up badge hierarchy (max 3, with overflow count)
-- Inline financial metrics (no box containers)
-- Refined typography scale
-- Subtle dividers between sections
-- Cleaner action bar layout
+```tsx
+<div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer">
+  <Upload className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+  <p className="text-sm text-muted-foreground">Click to upload</p>
+  <p className="text-xs text-muted-foreground/70 mt-1">.txt, .pdf, .doc, .vtt, .srt</p>
+</div>
+```
 
-### 4. Update Tab Content Component
+### 5. Validation Logic
 
-**File: `src/components/admin/ListingsTabContent.tsx`**
+At least one of these must be provided:
+- Transcript Link (URL)
+- Transcript Content (pasted text)
+- Uploaded file
 
-- Accept new `type` values: `'marketplace' | 'research'`
-- Conditionally render `AdminListingCard` or `ResearchDealCard` based on type
-- Update empty state messaging per tab
+Title is always required.
 
-### 5. Update Tab Navigation
+---
 
-**File: `src/components/admin/ListingsManagementTabs.tsx`**
+## File Changes
 
-- Rename "Internal Drafts" → "Research Deals"
-- Update icon from `FileEdit` to `Target` or `Building2`
-- Update count query for new filter logic
+### Modified File
+**`src/components/ma-intelligence/AddTranscriptDialog.tsx`**
 
-### 6. Update Count Query
+Changes:
+- Remove Source Type Select component and related state
+- Rename dialog title: "Add Transcript" → "Add Call Transcript"
+- Reorder fields: Title → Link → Content → Date
+- Add date input field with native HTML date picker
+- Replace button with premium upload zone
+- Add "OR UPLOAD FILE" divider
+- Rename primary button: "Add Transcript" → "Add Transcript Link" with Link2 icon
+- Add file upload to Supabase Storage
+- Update validation messaging
 
-**File: `src/hooks/admin/listings/use-listings-by-type.ts`**
+---
+
+## Premium Design Tokens
+
+Following the established design system:
+
+**Input styling:**
+- Border: `border-amber-500/40` focus ring (matching reference)
+- Background: Clean white
+
+**Upload zone:**
+- Border: `border-2 border-dashed border-muted-foreground/25`
+- Hover: `hover:border-muted-foreground/50`
+- Icon: Muted, centered
+
+**Divider:**
+- Text: `text-xs uppercase tracking-wide text-muted-foreground`
+- Lines: `border-t border-muted` on each side
+
+**Primary button:**
+- Full width
+- Amber/gold accent (matching reference)
+- Icon + text
+
+---
+
+## Storage Integration
+
+File upload path: `{listing_id}/{timestamp}_{filename}`
 
 ```typescript
-// Research deals count (no image, internal)
-supabase
-  .from('listings')
-  .select('id', { count: 'exact', head: true })
-  .is('deleted_at', null)
-  .or('image_url.is.null,image_url.eq.')
-  .eq('is_internal_deal', true)
+const uploadFile = async (file: File, listingId: string) => {
+  const timestamp = Date.now();
+  const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const path = `${listingId}/${timestamp}_${filename}`;
+  
+  const { data, error } = await supabase.storage
+    .from('deal-transcripts')
+    .upload(path, file);
+    
+  if (error) throw error;
+  
+  const { data: { publicUrl } } = supabase.storage
+    .from('deal-transcripts')
+    .getPublicUrl(path);
+    
+  return publicUrl;
+};
 ```
 
 ---
 
-## Design Specifications
+## Validation Summary
 
-### Color System for Score Badges
-- 80+: `bg-emerald-500/10 text-emerald-700`
-- 60-79: `bg-blue-500/10 text-blue-700`
-- 40-59: `bg-amber-500/10 text-amber-700`
-- <40: `bg-red-500/10 text-red-700`
-
-### Typography Scale
-- Card Title: `text-[15px] font-semibold leading-tight text-foreground`
-- Company/Subtitle: `text-xs font-medium text-muted-foreground`
-- Summary Text: `text-[13px] leading-relaxed text-muted-foreground line-clamp-2`
-- Metrics: `text-sm font-medium text-foreground`
-- Micro Labels: `text-[10px] uppercase tracking-wide text-muted-foreground/70`
-
-### Spacing
-- Card Padding: `p-5`
-- Section Gap: `gap-3`
-- Badge Gap: `gap-1.5`
-- Metric Separator: `·` (middle dot with `mx-2`)
-
-### Transitions
-- Card hover: `transition-all duration-200 hover:shadow-md hover:border-border`
-- Button hover: `transition-colors duration-100`
-
----
-
-## Files to Create/Modify
-
-### New Files
-1. `src/components/admin/ResearchDealCard.tsx` - New premium card for remarketing deals
-
-### Modified Files
-1. `src/hooks/admin/listings/use-listings-by-type.ts` - Update types and queries
-2. `src/components/admin/ListingsManagementTabs.tsx` - Rename tab, update icon
-3. `src/components/admin/ListingsTabContent.tsx` - Conditional card rendering
-4. `src/components/admin/AdminListingCard.tsx` - Premium design refinements
-
----
-
-## Expected Outcome
-
-| Tab | Before | After |
-|-----|--------|-------|
-| Marketplace | 62 listings (unchanged) | 62 listings (premium design) |
-| Internal Drafts | 19 listings with images | → Renamed to "Research Deals" |
-| Research Deals | N/A (hidden) | 56 remarketing deals |
-
-Total visibility: 81 → 118 listings (+37 remarketing deals now visible)
-
----
-
-## Quality Score Display Logic
-
-For research deals, display quality score prominently:
-- If `deal_total_score` exists: Show as primary score
-- Fallback to `deal_quality_score` if available
-- If no score: Show "—" or "Not Scored" badge
-- Priority deals (`is_priority_target = true`): Add star indicator
+| Scenario | Valid? |
+|----------|--------|
+| Title + Link only | ✅ |
+| Title + Content only | ✅ |
+| Title + File only | ✅ |
+| Title + Link + Content + File | ✅ |
+| No title | ❌ |
+| Title but no link/content/file | ❌ |
