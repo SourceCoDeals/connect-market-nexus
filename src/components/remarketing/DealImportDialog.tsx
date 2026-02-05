@@ -231,6 +231,7 @@ export function DealImportDialog({
             ...parsedData,
             status: 'active',
             location: computedLocation,
+            is_internal_deal: true, // Mark as internal/research deal - not for marketplace
           });
 
           // Hard requirements enforced by DB schema.

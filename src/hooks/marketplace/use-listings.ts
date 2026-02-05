@@ -37,7 +37,8 @@ export const useListings = (filters: FilterOptions = {}) => {
           // Always filter to only show active, non-deleted listings in the marketplace
           query = query
             .eq('status', 'active')
-            .is('deleted_at', null);
+            .is('deleted_at', null)
+            .eq('is_internal_deal', false); // Only show marketplace deals, not internal/research deals
           
           // Base query: SELECT * FROM listings WHERE status = active AND deleted_at IS NULL
           

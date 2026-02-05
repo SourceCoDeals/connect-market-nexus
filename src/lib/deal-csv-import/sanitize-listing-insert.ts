@@ -8,6 +8,7 @@ import { DEAL_IMPORT_FIELDS } from './constants';
 const EXTRA_ALLOWED_FIELDS = [
   // system-managed / defaults we set during import
   'status',
+  'is_internal_deal',
   // required in schema (NOT NULL) but not user-mapped (public/anon-friendly)
   'location',
   // row-processor default
