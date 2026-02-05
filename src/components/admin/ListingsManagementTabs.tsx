@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Globe, FileEdit } from "lucide-react";
+import { Plus, Globe, Target } from "lucide-react";
 import { useListingTypeCounts, ListingType } from "@/hooks/admin/listings/use-listings-by-type";
 import { ListingsTabContent } from "./ListingsTabContent";
 import { ListingForm } from "./ListingForm";
@@ -64,7 +64,7 @@ const ListingsManagementTabs = () => {
               Listings Management
             </h1>
             <p className="text-sm text-muted-foreground">
-              Manage marketplace and internal listings with enterprise-grade tools
+              Manage marketplace and research deals with enterprise-grade tools
             </p>
           </div>
           <Button 
@@ -107,7 +107,7 @@ const ListingsManagementTabs = () => {
                 </div>
               </TabsTrigger>
               <TabsTrigger 
-                value="drafts"
+                value="research"
                 className={cn(
                   "relative px-4 py-2.5 text-[13px] font-medium rounded-lg transition-all duration-150",
                   "data-[state=inactive]:text-muted-foreground/70 data-[state=inactive]:hover:text-foreground",
@@ -115,15 +115,15 @@ const ListingsManagementTabs = () => {
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <FileEdit className="h-3.5 w-3.5" />
-                  <span>Internal Drafts</span>
+                  <Target className="h-3.5 w-3.5" />
+                  <span>Research Deals</span>
                   <span className={cn(
                     "ml-1 px-2 py-0.5 text-[11px] font-semibold rounded-md transition-colors",
-                    activeTab === 'drafts' 
-                      ? "bg-warning/10 text-warning" 
+                    activeTab === 'research' 
+                      ? "bg-amber-500/10 text-amber-600" 
                       : "bg-foreground/5 text-muted-foreground"
                   )}>
-                    {countsLoading ? '...' : counts?.drafts || 0}
+                    {countsLoading ? '...' : counts?.research || 0}
                   </span>
                 </div>
               </TabsTrigger>
@@ -139,9 +139,9 @@ const ListingsManagementTabs = () => {
             />
           </TabsContent>
           
-          <TabsContent value="drafts" className="m-0">
+          <TabsContent value="research" className="m-0">
             <ListingsTabContent 
-              type="drafts"
+              type="research"
               onEdit={setEditingListing}
               onCreateNew={() => setIsCreateFormOpen(true)}
             />

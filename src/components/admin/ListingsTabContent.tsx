@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Filter, Building2 } from "lucide-react";
+import { Plus, Search, Filter, Building2, Target } from "lucide-react";
 import { AdminListingCard } from "./AdminListingCard";
+import { ResearchDealCard } from "./ResearchDealCard";
 import { AdminListingsFilters } from "./AdminListingsFilters";
 import { ViewSwitcher } from "./ViewSwitcher";
 import { AdminListing } from "@/types/admin";
@@ -170,13 +171,13 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
   const emptyStateContent = type === 'marketplace' ? {
     icon: Building2,
     title: 'No Marketplace Listings',
-    description: 'Publish your first listing from the Internal Drafts tab, or create a new listing to get started.',
+    description: 'Publish your first listing to start attracting buyers.',
     actionLabel: 'Create Listing'
   } : {
-    icon: Building2,
-    title: 'All Caught Up',
-    description: 'All your listings have been published to the marketplace, or create a new internal draft.',
-    actionLabel: 'Create New Listing'
+    icon: Target,
+    title: 'No Research Deals',
+    description: 'Import or create research deals to begin your M&A pipeline.',
+    actionLabel: 'Create Research Deal'
   };
 
   return (
@@ -285,33 +286,57 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
       ) : (
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
           {filteredAndSortedListings.map((listing) => (
-            <AdminListingCard
-              key={listing.id}
-              listing={listing}
-              viewMode={viewMode}
-              listingType={type}
-              isSelected={selectedListings.has(listing.id)}
-              onSelect={(selected) => {
-                const newSelected = new Set(selectedListings);
-                if (selected) {
-                  newSelected.add(listing.id);
-                } else {
-                  newSelected.delete(listing.id);
-                }
-                setSelectedListings(newSelected);
-              }}
-              onEdit={() => onEdit(listing)}
-              onToggleStatus={() => {
-                const newStatus = listing.status === 'active' ? 'inactive' : 'active';
-                toggleStatus({ id: listing.id, status: newStatus });
-              }}
-              onDelete={() => {
-                if (window.confirm("Are you sure you want to delete this listing?")) {
-                  deleteListing(listing.id);
-                }
-              }}
-              onStatusTagChange={handleStatusTagChange}
-            />
+            type === 'research' ? (
+              <ResearchDealCard
+                key={listing.id}
+                listing={listing}
+                viewMode={viewMode}
+                isSelected={selectedListings.has(listing.id)}
+                onSelect={(selected) => {
+                  const newSelected = new Set(selectedListings);
+                  if (selected) {
+                    newSelected.add(listing.id);
+                  } else {
+                    newSelected.delete(listing.id);
+                  }
+                  setSelectedListings(newSelected);
+                }}
+                onEdit={() => onEdit(listing)}
+                onDelete={() => {
+                  if (window.confirm("Are you sure you want to delete this listing?")) {
+                    deleteListing(listing.id);
+                  }
+                }}
+              />
+            ) : (
+              <AdminListingCard
+                key={listing.id}
+                listing={listing}
+                viewMode={viewMode}
+                listingType={type}
+                isSelected={selectedListings.has(listing.id)}
+                onSelect={(selected) => {
+                  const newSelected = new Set(selectedListings);
+                  if (selected) {
+                    newSelected.add(listing.id);
+                  } else {
+                    newSelected.delete(listing.id);
+                  }
+                  setSelectedListings(newSelected);
+                }}
+                onEdit={() => onEdit(listing)}
+                onToggleStatus={() => {
+                  const newStatus = listing.status === 'active' ? 'inactive' : 'active';
+                  toggleStatus({ id: listing.id, status: newStatus });
+                }}
+                onDelete={() => {
+                  if (window.confirm("Are you sure you want to delete this listing?")) {
+                    deleteListing(listing.id);
+                  }
+                }}
+                onStatusTagChange={handleStatusTagChange}
+              />
+            )
           ))}
           
           {filteredAndSortedListings.length === 0 && (

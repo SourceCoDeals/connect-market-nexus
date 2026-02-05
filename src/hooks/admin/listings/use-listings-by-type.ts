@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
@@ -6,17 +5,16 @@ import { withPerformanceMonitoring } from '@/lib/performance-monitor';
 import { useAuth } from '@/context/AuthContext';
 import { useTabAwareQuery } from '@/hooks/use-tab-aware-query';
 
-export type ListingType = 'marketplace' | 'drafts';
+export type ListingType = 'marketplace' | 'research';
 
 /**
  * Hook for fetching admin listings filtered by type:
  * - marketplace: Public-facing listings (is_internal_deal = false, has image)
- * - drafts: Internal/draft listings (is_internal_deal = true, has image)
+ * - research: Remarketing deals (is_internal_deal = true, no image - data-focused)
  */
 export function useListingsByType(type: ListingType, status?: 'active' | 'inactive' | 'archived' | 'all') {
   const { user, authChecked } = useAuth();
 
-  // Get cached auth state for more stable query enabling
   const cachedAuthState = (() => {
     try {
       const cached = localStorage.getItem('user');
@@ -40,16 +38,21 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
           
           let query = supabase
             .from('listings')
-            .select('*, hero_description')
-            .is('deleted_at', null)
-            .not('image_url', 'is', null)
-            .neq('image_url', '');
+            .select('*')
+            .is('deleted_at', null);
           
-          // Filter by listing type
+          // Filter by listing type with different image conditions
           if (type === 'marketplace') {
-            query = query.eq('is_internal_deal', false);
+            // Marketplace: public-facing with images
+            query = query
+              .eq('is_internal_deal', false)
+              .not('image_url', 'is', null)
+              .neq('image_url', '');
           } else {
-            query = query.eq('is_internal_deal', true);
+            // Research: internal deals without images (remarketing deals)
+            query = query
+              .eq('is_internal_deal', true)
+              .or('image_url.is.null,image_url.eq.');
           }
           
           // Apply status filter if provided
@@ -116,10 +119,11 @@ export function useListingTypeCounts() {
     ['admin-listings-counts'],
     async () => {
       if (!isAdminUser) {
-        return { marketplace: 0, drafts: 0 };
+        return { marketplace: 0, research: 0 };
       }
 
-      const [marketplaceResult, draftsResult] = await Promise.all([
+      const [marketplaceResult, researchResult] = await Promise.all([
+        // Marketplace: public-facing with images
         supabase
           .from('listings')
           .select('id', { count: 'exact', head: true })
@@ -127,18 +131,18 @@ export function useListingTypeCounts() {
           .not('image_url', 'is', null)
           .neq('image_url', '')
           .eq('is_internal_deal', false),
+        // Research: internal deals without images (remarketing)
         supabase
           .from('listings')
           .select('id', { count: 'exact', head: true })
           .is('deleted_at', null)
-          .not('image_url', 'is', null)
-          .neq('image_url', '')
+          .or('image_url.is.null,image_url.eq.')
           .eq('is_internal_deal', true)
       ]);
 
       return {
         marketplace: marketplaceResult.count || 0,
-        drafts: draftsResult.count || 0
+        research: researchResult.count || 0
       };
     },
     {
