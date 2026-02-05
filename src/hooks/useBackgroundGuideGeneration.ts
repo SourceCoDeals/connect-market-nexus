@@ -44,7 +44,8 @@ export function useBackgroundGuideGeneration({
 
   const checkExistingGeneration = async () => {
     try {
-      const { data, error } = await supabase
+      // Check for in-progress generation first
+      const { data: activeGen, error: activeError } = await supabase
         .from('ma_guide_generations')
         .select('*')
         .eq('universe_id', universeId)

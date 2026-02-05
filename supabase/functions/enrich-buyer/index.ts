@@ -830,6 +830,27 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Enrichment lock: prevent concurrent enrichment of the same buyer
+    // If data_last_updated was set within the last 60 seconds, another enrichment is likely running
+    const ENRICHMENT_LOCK_SECONDS = 60;
+    if (buyer.data_last_updated) {
+      const lastUpdated = new Date(buyer.data_last_updated).getTime();
+      const now = Date.now();
+      if (now - lastUpdated < ENRICHMENT_LOCK_SECONDS * 1000) {
+        console.log(`[enrich-buyer] Skipping buyer ${buyerId}: enrichment already in progress (last updated ${Math.round((now - lastUpdated) / 1000)}s ago)`);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Enrichment already in progress for this buyer. Please wait and try again.' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Set lock: mark data_last_updated immediately to prevent concurrent runs
+    await supabase
+      .from('remarketing_buyers')
+      .update({ data_last_updated: new Date().toISOString() })
+      .eq('id', buyerId);
+
     console.log(`Starting 6-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
     console.log(`Platform website: ${platformWebsite || 'none'}`);
     console.log(`PE firm website: ${peFirmWebsite || 'none'}`);

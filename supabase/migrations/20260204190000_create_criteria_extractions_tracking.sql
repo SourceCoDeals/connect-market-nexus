@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS buyer_criteria_extractions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  universe_id uuid NOT NULL REFERENCES remarketing_universes(id) ON DELETE CASCADE,
+  universe_id uuid NOT NULL REFERENCES remarketing_buyer_universes(id) ON DELETE CASCADE,
   source_id uuid REFERENCES criteria_extraction_sources(id) ON DELETE SET NULL,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
   current_phase text,
@@ -34,13 +34,13 @@ CREATE TRIGGER set_buyer_criteria_extractions_updated_at
 -- Enable RLS
 ALTER TABLE buyer_criteria_extractions ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies (same as remarketing_universes - users can only see their own)
+-- RLS Policies (same as remarketing_buyer_universes - users can only see their own)
 CREATE POLICY "Users can view their own criteria extractions"
   ON buyer_criteria_extractions
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM remarketing_universes u
+      SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = buyer_criteria_extractions.universe_id
       AND u.user_id = auth.uid()
     )
@@ -51,7 +51,7 @@ CREATE POLICY "Users can insert criteria extractions for their universes"
   FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM remarketing_universes u
+      SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = buyer_criteria_extractions.universe_id
       AND u.user_id = auth.uid()
     )
@@ -62,7 +62,7 @@ CREATE POLICY "Users can update their own criteria extractions"
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM remarketing_universes u
+      SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = buyer_criteria_extractions.universe_id
       AND u.user_id = auth.uid()
     )
