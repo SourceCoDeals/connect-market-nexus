@@ -364,21 +364,41 @@ const ReMarketingBuyerDetail = () => {
   });
 
   const addTranscriptMutation = useMutation({
-    mutationFn: async ({ text, source, fileName, fileUrl }: { text: string; source: string; fileName?: string; fileUrl?: string }) => {
-      const { error } = await supabase
+    mutationFn: async ({
+      text,
+      source,
+      fileName,
+      fileUrl,
+      triggerExtract,
+    }: {
+      text: string;
+      source: string;
+      fileName?: string;
+      fileUrl?: string;
+      triggerExtract?: boolean;
+    }) => {
+      const { data, error } = await supabase
         .from('buyer_transcripts')
-        .insert([{
-          buyer_id: id,
-          transcript_text: text,
-          source,
-          file_name: fileName || null,
-          file_url: fileUrl || null
-        }]);
+        .insert([
+          {
+            buyer_id: id,
+            transcript_text: text,
+            source,
+            file_name: fileName || null,
+            file_url: fileUrl || null,
+          },
+        ])
+        .select('id')
+        .single();
       if (error) throw error;
+      return { transcriptId: data.id, triggerExtract: !!triggerExtract };
     },
-    onSuccess: () => {
+    onSuccess: ({ transcriptId, triggerExtract }) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
       toast.success('Transcript added');
+      if (triggerExtract) {
+        extractTranscriptMutation.mutate(transcriptId);
+      }
     },
     onError: () => {
       toast.error('Failed to add transcript');
@@ -603,8 +623,8 @@ const ReMarketingBuyerDetail = () => {
           <TranscriptsListCard
             transcripts={transcripts}
             buyerId={buyer.id}
-            onAddTranscript={(text, source, fileName, fileUrl) => 
-              addTranscriptMutation.mutate({ text, source, fileName, fileUrl })
+            onAddTranscript={(text, source, fileName, fileUrl, triggerExtract) =>
+              addTranscriptMutation.mutate({ text, source, fileName, fileUrl, triggerExtract })
             }
             onExtract={(transcriptId) => extractTranscriptMutation.mutate(transcriptId)}
             onExtractAll={handleExtractAll}

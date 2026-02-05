@@ -36,7 +36,7 @@ interface Transcript {
 interface TranscriptsListCardProps {
   transcripts: Transcript[];
   buyerId: string;
-  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string) => void;
+  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => void;
   onExtract: (transcriptId: string) => void;
   onExtractAll: () => void;
   onDelete: (transcriptId: string) => void;
@@ -154,7 +154,7 @@ export const TranscriptsListCard = ({
     return publicUrl;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (triggerExtract: boolean) => {
     if (!formData.title.trim()) {
       toast({
         title: "Title required",
@@ -183,7 +183,9 @@ export const TranscriptsListCard = ({
         } catch (uploadError: any) {
           console.warn("File upload failed:", uploadError.message);
           if (!formData.transcript_link && !formData.transcript_text) {
-            throw new Error("File upload failed. Please paste the content or provide a link instead.");
+            throw new Error(
+              "File upload failed. Please paste the content or provide a link instead."
+            );
           }
         }
       }
@@ -192,9 +194,10 @@ export const TranscriptsListCard = ({
         formData.transcript_text || "",
         "call",
         formData.title.trim(),
-        fileUrl
+        fileUrl,
+        triggerExtract
       );
-      
+
       setFormData({
         title: "",
         transcript_link: "",
@@ -424,22 +427,25 @@ export const TranscriptsListCard = ({
               />
             </div>
 
-            {/* Primary Submit Button */}
-            <Button 
-              type="button"
-              onClick={handleSubmit}
-              disabled={isAdding || isUploading} 
-              className="w-full"
-            >
-              {(isAdding || isUploading) ? (
-                <>Adding...</>
-              ) : (
-                <>
-                  <Link2 className="w-4 h-4 mr-2" />
-                  Add Transcript Link
-                </>
-              )}
-            </Button>
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleSubmit(false)}
+                disabled={isAdding || isUploading}
+              >
+                Save
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleSubmit(true)}
+                disabled={isAdding || isUploading}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Save &amp; Enrich
+              </Button>
+            </div>
 
             {/* OR UPLOAD FILE Divider */}
             <div className="relative flex items-center py-2">
