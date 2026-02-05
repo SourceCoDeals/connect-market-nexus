@@ -37,7 +37,7 @@ CREATE POLICY "Users can view their own guide generations"
     EXISTS (
       SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = ma_guide_generations.universe_id
-      AND u.user_id = auth.uid()
+      AND u.created_by = auth.uid()
     )
   );
 
@@ -48,7 +48,7 @@ CREATE POLICY "Users can insert guide generations for their universes"
     EXISTS (
       SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = ma_guide_generations.universe_id
-      AND u.user_id = auth.uid()
+      AND u.created_by = auth.uid()
     )
   );
 
@@ -59,6 +59,6 @@ CREATE POLICY "Users can update their own guide generations"
     EXISTS (
       SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = ma_guide_generations.universe_id
-      AND u.user_id = auth.uid()
+      AND u.created_by = auth.uid()
     )
   );

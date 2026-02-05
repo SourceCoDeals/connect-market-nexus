@@ -69,9 +69,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get anon key for internal function calls
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-
     const { dealId } = await req.json();
 
     if (!dealId) {
@@ -721,7 +718,8 @@ Extract all available business information using the provided tool. The address_
         const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
           method: 'POST',
           headers: {
-            'apikey': supabaseAnonKey,
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -774,7 +772,8 @@ Extract all available business information using the provided tool. The address_
         const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
           method: 'POST',
           headers: {
-            'apikey': supabaseAnonKey,
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

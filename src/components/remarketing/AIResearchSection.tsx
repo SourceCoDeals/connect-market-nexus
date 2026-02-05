@@ -229,6 +229,7 @@ export const AIResearchSection = ({
 
   // Ref for background polling interval
   const pollIntervalRef = useRef<number | null>(null);
+  const pollStartTimeRef = useRef<number | null>(null);
 
   // Criteria extraction state
   const [isExtracting, setIsExtracting] = useState(false);
@@ -343,8 +344,32 @@ export const AIResearchSection = ({
       clearInterval(pollIntervalRef.current);
     }
 
+    // Set polling start time for timeout tracking
+    pollStartTimeRef.current = Date.now();
+    const MAX_POLLING_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+
     // Poll for progress
     pollIntervalRef.current = window.setInterval(async () => {
+      // Check for timeout
+      if (pollStartTimeRef.current && Date.now() - pollStartTimeRef.current > MAX_POLLING_DURATION_MS) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        pollStartTimeRef.current = null;
+        setState('error');
+        setErrorDetails({
+          code: 'polling_timeout',
+          message: 'Background generation exceeded 10-minute timeout. The generation may have stalled.',
+          batchIndex: 0,
+          isRecoverable: true,
+          savedWordCount: wordCount,
+          timestamp: Date.now()
+        });
+        toast.error('Generation timed out after 10 minutes. Please try regenerating.');
+        return;
+      }
+
       const { data: generation, error } = await supabase
         .from('ma_guide_generations')
         .select('*')
@@ -382,6 +407,7 @@ export const AIResearchSection = ({
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
         }
+        pollStartTimeRef.current = null;
         setState('complete');
 
         const finalContent = generatedContent?.content || '';
@@ -416,6 +442,7 @@ export const AIResearchSection = ({
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
         }
+        pollStartTimeRef.current = null;
         setState('error');
         setErrorDetails({
           code: 'generation_failed',
@@ -836,6 +863,8 @@ export const AIResearchSection = ({
       let buffer = "";
       let fullContent = previousContent;
       let sawBatchComplete = false;
+      let parseErrorCount = 0;
+      const PARSE_ERROR_THRESHOLD = 5;
       // Track accumulated word count locally (not from React state) for accurate error reporting
       // Also update batchWordCount so it's available in catch block
       let accumulatedWordCount = previousContent ? previousContent.split(/\s+/).length : 0;
@@ -1043,11 +1072,21 @@ export const AIResearchSection = ({
             }
           } catch (e) {
             // Don't silently swallow parse issues; they often indicate a truncated SSE stream.
+            parseErrorCount++;
             console.warn('[AIResearchSection] Failed to parse SSE event', {
               batchIndex,
               snippet: jsonStr.slice(0, 200),
-              error: e
+              error: e,
+              parseErrorCount
             });
+
+            // Warn user if parse errors exceed threshold (may indicate truncated stream)
+            if (parseErrorCount === PARSE_ERROR_THRESHOLD) {
+              toast.warning(
+                `Detected ${PARSE_ERROR_THRESHOLD} stream parsing errors. The connection may be unstable. Content may have gaps.`,
+                { duration: 8000 }
+              );
+            }
           }
         }
       }
