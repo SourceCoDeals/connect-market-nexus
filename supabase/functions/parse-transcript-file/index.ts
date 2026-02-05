@@ -52,33 +52,71 @@ serve(async (req) => {
 
       // Use native Gemini API which supports document processing
       const nativeUrl = getGeminiNativeUrl(DEFAULT_GEMINI_MODEL, geminiApiKey);
-      
-      const aiResponse = await fetch(nativeUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: 'Extract ALL text content from this document. Return ONLY the extracted text, preserving structure. No commentary.' },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Content
-                }
-              }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 16000,
-          }
-        }),
-      });
 
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error('Gemini API error:', errorText);
-        throw new Error(`Failed to process document: ${aiResponse.status}`);
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+      const makeRequest = () =>
+        fetch(nativeUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text:
+                      'Extract ALL text content from this document. Return ONLY the extracted text, preserving structure. No commentary.',
+                  },
+                  {
+                    // IMPORTANT: Gemini native API uses inlineData + mimeType (camelCase)
+                    inlineData: {
+                      mimeType,
+                      data: base64Content,
+                    },
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 16000,
+            },
+          }),
+        });
+
+      // Retry on 429s with small exponential backoff
+      let aiResponse: Response | null = null;
+      let lastErrorText = '';
+      for (let attempt = 0; attempt < 3; attempt++) {
+        aiResponse = await makeRequest();
+        if (aiResponse.ok) break;
+
+        lastErrorText = await aiResponse.text();
+        console.error('Gemini API error:', lastErrorText);
+
+        if (aiResponse.status === 429 && attempt < 2) {
+          await sleep(500 * Math.pow(2, attempt));
+          continue;
+        }
+        break;
+      }
+
+      if (!aiResponse || !aiResponse.ok) {
+        const status = aiResponse?.status ?? 500;
+
+        if (status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limited by AI provider (429). Please try again shortly.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const snippet = (lastErrorText || '').slice(0, 800);
+        return new Response(
+          JSON.stringify({ error: `Failed to process document: ${status}`, details: snippet }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       const aiData = await aiResponse.json();
