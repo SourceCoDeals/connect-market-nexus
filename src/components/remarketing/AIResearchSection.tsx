@@ -29,6 +29,7 @@ import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, T
 import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
 import { GenerationSummaryPanel, type GenerationSummary } from "./GenerationSummaryPanel";
 import { useGuideGenerationState } from "@/hooks/remarketing/useGuideGenerationState";
+import { GuideCompletionDialog } from "./GuideCompletionDialog";
 
 type GenerationState = 'idle' | 'clarifying' | 'generating' | 'quality_check' | 'gap_filling' | 'complete' | 'error';
 
@@ -73,8 +74,9 @@ const saveGuideToDocuments = async (
   content: string,
   industryName: string,
   universeId: string,
-  onDocumentAdded: (doc: { id: string; name: string; url: string; uploaded_at: string }) => void
-) => {
+  onDocumentAdded: (doc: { id: string; name: string; url: string; uploaded_at: string }) => void,
+  onComplete?: (documentUrl: string) => void
+): Promise<string | null> => {
   try {
     // 1. Call edge function to upload HTML to storage
     const response = await fetch(
@@ -132,11 +134,18 @@ const saveGuideToDocuments = async (
 
     // 5. Update local state for immediate UI feedback
     onDocumentAdded(data.document);
-    toast.success("Guide saved to Supporting Documents");
+    
+    // 6. Call completion callback with document URL
+    if (onComplete) {
+      onComplete(data.document.url);
+    }
+    
+    return data.document.url;
 
   } catch (error) {
     console.error('Error saving guide to documents:', error);
     toast.error(`Failed to save guide: ${(error as Error).message}`);
+    return null;
   }
 };
 
@@ -189,6 +198,10 @@ export const AIResearchSection = ({
 
   // Track last clarification context for resume/retry
   const lastClarificationContextRef = useRef<ClarificationContext>({});
+
+  // Completion dialog state
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [completedDocumentUrl, setCompletedDocumentUrl] = useState<string | null>(null);
 
   // Clarification state
   const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyQuestion[]>([]);
@@ -382,7 +395,19 @@ export const AIResearchSection = ({
           onGuideGenerated(finalContent, criteria, criteria.target_buyer_types);
         }
 
-        toast.success('M&A Guide generation completed!', { duration: 5000 });
+        // Save guide to Supporting Documents and get URL
+        if (finalContent && universeId && onDocumentAdded) {
+          saveGuideToDocuments(
+            finalContent,
+            industryName || universeName || 'M&A Guide',
+            universeId,
+            onDocumentAdded,
+            (url) => setCompletedDocumentUrl(url)
+          );
+        }
+
+        // Show completion dialog instead of toast
+        setShowCompletionDialog(true);
       }
 
       // Handle failure
@@ -1158,25 +1183,6 @@ export const AIResearchSection = ({
     setErrorDetails(null);
   };
 
-  const handleApply = () => {
-    if (content && extractedCriteria) {
-      onGuideGenerated(content, extractedCriteria, extractedCriteria.target_buyer_types);
-      toast.success("Guide and criteria applied");
-    }
-  };
-
-  const handleExport = () => {
-    const blob = new Blob([content], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${industryName.replace(/\s+/g, '-')}-ma-guide.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   // Extract buyer fit criteria from the generated guide
   const handleExtractCriteria = async () => {
     const guideContent = existingContent || content;
@@ -1606,74 +1612,6 @@ export const AIResearchSection = ({
               </div>
             )}
 
-            {/* Content Preview */}
-            {content && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Generated Content</Label>
-                  <div className="flex gap-2">
-                    {state === 'complete' && extractedCriteria && (
-                      <Button size="sm" onClick={handleApply}>
-                        <Check className="h-4 w-4 mr-1" />
-                        Apply Criteria
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" onClick={handleExport}>
-                      <Download className="h-4 w-4 mr-1" />
-                      Export
-                    </Button>
-                  </div>
-                </div>
-                <ScrollArea className="h-[400px] border rounded-lg p-4" ref={contentRef}>
-                  <div 
-                    className="prose prose-sm max-w-none dark:prose-invert"
-                    dangerouslySetInnerHTML={{ __html: content }}
-                  />
-                </ScrollArea>
-              </div>
-            )}
-
-            {/* Extracted Criteria Preview */}
-            {extractedCriteria && state === 'complete' && (
-              <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
-                <h4 className="font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Extracted Criteria
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  {extractedCriteria.size_criteria && (
-                    <div>
-                      <span className="text-muted-foreground">Size:</span>
-                      <div className="font-medium">
-                        {extractedCriteria.size_criteria.revenue_min && 
-                          `$${(extractedCriteria.size_criteria.revenue_min / 1000000).toFixed(1)}M - $${((extractedCriteria.size_criteria.revenue_max || 0) / 1000000).toFixed(1)}M`}
-                      </div>
-                    </div>
-                  )}
-                  {extractedCriteria.geography_criteria?.target_states && (
-                    <div>
-                      <span className="text-muted-foreground">Geography:</span>
-                      <div className="font-medium">
-                        {extractedCriteria.geography_criteria.target_states.slice(0, 3).join(', ')}
-                        {extractedCriteria.geography_criteria.target_states.length > 3 && 
-                          ` +${extractedCriteria.geography_criteria.target_states.length - 3}`}
-                      </div>
-                    </div>
-                  )}
-                  {extractedCriteria.service_criteria?.primary_focus && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Primary Focus:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {extractedCriteria.service_criteria.primary_focus.map((s, i) => (
-                          <Badge key={i} variant="default" className="text-xs">{s}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Gap Fill Progress */}
             {state === 'gap_filling' && missingElements.length > 0 && (
               <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
@@ -1691,6 +1629,15 @@ export const AIResearchSection = ({
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+      
+      {/* Completion Dialog */}
+      <GuideCompletionDialog
+        open={showCompletionDialog}
+        onOpenChange={setShowCompletionDialog}
+        industryName={industryName}
+        wordCount={wordCount}
+        documentUrl={completedDocumentUrl || undefined}
+      />
     </Card>
   );
 };
