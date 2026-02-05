@@ -3741,7 +3741,7 @@ export type Database = {
           business_model: string | null
           calculated_rank: number | null
           categories: string[] | null
-          category: string
+          category: string | null
           competitive_position: string | null
           created_at: string
           custom_metric_label: string | null
@@ -3758,7 +3758,7 @@ export type Database = {
           deal_size_score: number | null
           deal_total_score: number | null
           deleted_at: string | null
-          description: string
+          description: string | null
           description_html: string | null
           description_json: Json | null
           ebitda: number | null
@@ -3903,7 +3903,7 @@ export type Database = {
           business_model?: string | null
           calculated_rank?: number | null
           categories?: string[] | null
-          category: string
+          category?: string | null
           competitive_position?: string | null
           created_at?: string
           custom_metric_label?: string | null
@@ -3920,7 +3920,7 @@ export type Database = {
           deal_size_score?: number | null
           deal_total_score?: number | null
           deleted_at?: string | null
-          description: string
+          description?: string | null
           description_html?: string | null
           description_json?: Json | null
           ebitda?: number | null
@@ -4065,7 +4065,7 @@ export type Database = {
           business_model?: string | null
           calculated_rank?: number | null
           categories?: string[] | null
-          category?: string
+          category?: string | null
           competitive_position?: string | null
           created_at?: string
           custom_metric_label?: string | null
@@ -4082,7 +4082,7 @@ export type Database = {
           deal_size_score?: number | null
           deal_total_score?: number | null
           deleted_at?: string | null
-          description?: string
+          description?: string | null
           description_html?: string | null
           description_json?: Json | null
           ebitda?: number | null

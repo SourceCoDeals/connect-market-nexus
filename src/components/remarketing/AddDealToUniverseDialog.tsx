@@ -270,7 +270,6 @@ export const AddDealToUniverseDialog = ({
         // Remarketing deals must never be visible on the public marketplace
         is_internal_deal: true,
         status: "active",
-        category: "Other",
       };
 
       const { data: listing, error: listingError } = await supabase
