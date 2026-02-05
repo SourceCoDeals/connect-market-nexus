@@ -260,7 +260,8 @@ export const AIResearchSection = ({
         .select('*')
         .eq('universe_id', universeId)
         .in('status', ['pending', 'processing'])
-        .order('started_at', { ascending: false })
+        // created_at is guaranteed; started_at may be null depending on older records/migrations
+        .order('created_at', { ascending: false })
         .limit(1);
 
       if (!activeError && activeGen && activeGen.length > 0) {
@@ -318,7 +319,8 @@ export const AIResearchSection = ({
         setState('complete');
       }
     } catch (err) {
-      // No existing generation, that's fine
+      // Don't silently swallow errors — otherwise UI looks like it "reset"
+      console.error('[AIResearchSection] checkExistingGeneration failed:', err);
     }
   };
 
