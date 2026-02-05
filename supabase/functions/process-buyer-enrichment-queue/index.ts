@@ -160,7 +160,6 @@ serve(async (req) => {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
                 'apikey': supabaseAnonKey,
               },
               body: JSON.stringify({ buyerId: item.buyer_id }),

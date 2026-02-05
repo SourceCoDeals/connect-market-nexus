@@ -120,7 +120,7 @@ verify_jwt = false
 [functions.parse-fit-criteria]
 verify_jwt = true
 [functions.generate-ma-guide]
-verify_jwt = true
+verify_jwt = false
 [functions.extract-transcript]
 verify_jwt = true
 [functions.query-buyer-universe]
