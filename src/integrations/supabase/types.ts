@@ -5491,8 +5491,10 @@ export type Database = {
           detected_email_pattern: string | null
           ebitda_sweet_spot: number | null
           email_domain: string | null
+          employee_range: string | null
           extraction_sources: Json | null
           fee_agreement_status: string | null
+          founded_year: number | null
           geographic_footprint: string[] | null
           has_fee_agreement: boolean | null
           hq_city: string | null
@@ -5506,7 +5508,9 @@ export type Database = {
           key_quotes: string[] | null
           last_contact_discovery_at: string | null
           notes: string | null
+          num_employees: number | null
           num_platforms: number | null
+          number_of_locations: number | null
           operating_locations: string[] | null
           pe_firm_acquisitions: Json | null
           pe_firm_id: string | null
@@ -5565,8 +5569,10 @@ export type Database = {
           detected_email_pattern?: string | null
           ebitda_sweet_spot?: number | null
           email_domain?: string | null
+          employee_range?: string | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
+          founded_year?: number | null
           geographic_footprint?: string[] | null
           has_fee_agreement?: boolean | null
           hq_city?: string | null
@@ -5580,7 +5586,9 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
+          num_employees?: number | null
           num_platforms?: number | null
+          number_of_locations?: number | null
           operating_locations?: string[] | null
           pe_firm_acquisitions?: Json | null
           pe_firm_id?: string | null
@@ -5639,8 +5647,10 @@ export type Database = {
           detected_email_pattern?: string | null
           ebitda_sweet_spot?: number | null
           email_domain?: string | null
+          employee_range?: string | null
           extraction_sources?: Json | null
           fee_agreement_status?: string | null
+          founded_year?: number | null
           geographic_footprint?: string[] | null
           has_fee_agreement?: boolean | null
           hq_city?: string | null
@@ -5654,7 +5664,9 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
+          num_employees?: number | null
           num_platforms?: number | null
+          number_of_locations?: number | null
           operating_locations?: string[] | null
           pe_firm_acquisitions?: Json | null
           pe_firm_id?: string | null

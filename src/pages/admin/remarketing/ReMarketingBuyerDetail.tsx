@@ -58,6 +58,10 @@ import {
   EditGeographicFootprintDialog,
   EditCustomerInfoDialog,
   EditAcquisitionHistoryDialog,
+  BuyerCompanyOverviewCard,
+  BuyerServicesBusinessModelCard,
+  EditBuyerCompanyOverviewDialog,
+  EditBuyerServicesBusinessModelDialog,
 } from "@/components/remarketing/buyer-detail";
 
 interface BuyerData {
@@ -102,6 +106,14 @@ interface BuyerData {
   target_customer_profile: string | null;
   key_quotes: string[] | null;
   investment_date: string | null;
+  founded_year?: number | null;
+  num_employees?: number | null;
+  employee_range?: string | null;
+  number_of_locations?: number | null;
+  operating_locations?: string[] | null;
+  services_offered?: string | null;
+  business_model?: string | null;
+  revenue_model?: string | null;
 }
 
 interface Contact {
@@ -126,7 +138,7 @@ interface Transcript {
   created_at: string;
 }
 
-type EditDialogType = 'business' | 'investment' | 'dealStructure' | 'geographic' | 'customer' | 'acquisition' | null;
+type EditDialogType = 'business' | 'investment' | 'dealStructure' | 'geographic' | 'customer' | 'acquisition' | 'companyOverview' | 'servicesModel' | null;
 
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -479,7 +491,22 @@ const ReMarketingBuyerDetail = () => {
         isEnriching={enrichMutation.isPending}
       />
 
-      {/* Main Contact Card */}
+      {/* Company Overview Card - NEW POSITION (at top) */}
+      <BuyerCompanyOverviewCard
+        website={buyer?.platform_website || buyer?.company_website}
+        hqCity={buyer?.hq_city}
+        hqState={buyer?.hq_state}
+        hqCountry={buyer?.hq_country}
+        foundedYear={buyer?.founded_year}
+        employeeCount={buyer?.num_employees}
+        employeeRange={buyer?.employee_range}
+        industryVertical={buyer?.industry_vertical}
+        numberOfLocations={buyer?.number_of_locations}
+        operatingLocations={buyer?.operating_locations}
+        onEdit={() => setActiveEditDialog('companyOverview')}
+      />
+
+      {/* Main Contact Card - MOVED BELOW Company Overview */}
       <MainContactCard
         contacts={contacts}
         onAddContact={() => setIsContactDialogOpen(true)}
@@ -523,8 +550,16 @@ const ReMarketingBuyerDetail = () => {
                 onEdit={() => setActiveEditDialog('business')}
               />
               
+              <BuyerServicesBusinessModelCard
+                servicesOffered={buyer?.services_offered}
+                businessModel={buyer?.business_model}
+                revenueModel={buyer?.revenue_model}
+                onEdit={() => setActiveEditDialog('servicesModel')}
+              />
+              
               <GeographicFootprintCard
                 targetGeographies={buyer?.target_geographies}
+                operatingLocations={buyer?.operating_locations}
                 onEdit={() => setActiveEditDialog('geographic')}
               />
               
@@ -895,6 +930,48 @@ const ReMarketingBuyerDetail = () => {
           acquisitionFrequency: buyer?.acquisition_frequency,
         }}
         onSave={(data) => updateBuyerMutation.mutate(data)}
+        isSaving={updateBuyerMutation.isPending}
+      />
+
+      <EditBuyerCompanyOverviewDialog
+        open={activeEditDialog === 'companyOverview'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        website={buyer?.platform_website || buyer?.company_website}
+        hqCity={buyer?.hq_city}
+        hqState={buyer?.hq_state}
+        hqCountry={buyer?.hq_country}
+        foundedYear={buyer?.founded_year}
+        employeeCount={buyer?.num_employees}
+        employeeRange={buyer?.employee_range}
+        industryVertical={buyer?.industry_vertical}
+        numberOfLocations={buyer?.number_of_locations}
+        onSave={async (data) => {
+          // Map to actual column names
+          const updateData: Record<string, unknown> = {};
+          if (data.company_website !== undefined) updateData.company_website = data.company_website;
+          if (data.hq_city !== undefined) updateData.hq_city = data.hq_city;
+          if (data.hq_state !== undefined) updateData.hq_state = data.hq_state;
+          if (data.hq_country !== undefined) updateData.hq_country = data.hq_country;
+          if (data.industry_vertical !== undefined) updateData.industry_vertical = data.industry_vertical;
+          // These columns may not exist yet - only update if schema supports them
+          if (data.founded_year !== undefined) updateData.founded_year = data.founded_year;
+          if (data.num_employees !== undefined) updateData.num_employees = data.num_employees;
+          if (data.employee_range !== undefined) updateData.employee_range = data.employee_range;
+          if (data.number_of_locations !== undefined) updateData.number_of_locations = data.number_of_locations;
+          updateBuyerMutation.mutate(updateData);
+        }}
+        isSaving={updateBuyerMutation.isPending}
+      />
+
+      <EditBuyerServicesBusinessModelDialog
+        open={activeEditDialog === 'servicesModel'}
+        onOpenChange={(open) => !open && setActiveEditDialog(null)}
+        servicesOffered={buyer?.services_offered}
+        businessModel={buyer?.business_model}
+        revenueModel={buyer?.revenue_model}
+        onSave={async (data) => {
+          updateBuyerMutation.mutate(data);
+        }}
         isSaving={updateBuyerMutation.isPending}
       />
     </div>
