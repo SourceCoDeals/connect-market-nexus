@@ -118,10 +118,19 @@ Return questions as JSON matching this schema exactly.`;
       tool_choice: { type: "tool", name: "generate_questions" }
     });
 
-    // Retry logic for Anthropic API rate limits
-    const MAX_RETRIES = 3;
+    // Retry logic for Anthropic API rate limits with longer delays
+    const MAX_RETRIES = 5;
     let response: Response | null = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      // Add initial delay to avoid burst requests
+      if (attempt > 0) {
+        const baseDelay = Math.pow(2, attempt + 2) * 1000; // 8s, 16s, 32s, 64s
+        const jitter = Math.random() * 2000; // 0-2s jitter
+        const delay = baseDelay + jitter;
+        console.log(`[clarify-industry] Rate limited, waiting ${Math.round(delay)}ms (attempt ${attempt}/${MAX_RETRIES})`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+
       response = await fetch(ANTHROPIC_API_URL, {
         method: "POST",
         headers: getAnthropicHeaders(ANTHROPIC_API_KEY),
@@ -129,18 +138,12 @@ Return questions as JSON matching this schema exactly.`;
       });
 
       if (response.status !== 429 && response.status !== 529) break;
-
-      if (attempt < MAX_RETRIES) {
-        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
-        console.log(`[clarify-industry] Rate limited (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-        await new Promise(r => setTimeout(r, delay));
-      }
     }
 
     if (!response!.ok) {
       if (response!.status === 429 || response!.status === 529) {
         return new Response(
-          JSON.stringify({ error: "AI service busy. Please try again in a moment." }),
+          JSON.stringify({ error: "AI service busy. Please wait 30 seconds and try again." }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
