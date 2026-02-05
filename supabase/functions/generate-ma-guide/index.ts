@@ -723,7 +723,8 @@ async function generatePhaseContentWithModel(
 
   const systemPrompt = `You are an expert M&A advisor creating comprehensive industry research guides.
 Generate detailed, actionable content for the specified phase of an M&A guide.
-Use proper HTML formatting with h2, h3, h4 headings, tables, and bullet points.
+Use proper Markdown formatting with ## h2, ### h3, #### h4 headings, markdown tables, and bullet points.
+IMPORTANT: Output pure Markdown only - do NOT use HTML tags like <h2>, <table>, etc.
 Include specific numbers, ranges, and concrete examples wherever possible.
 Target 2,000-3,000 words per phase.
 Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
