@@ -263,7 +263,9 @@ export const AddDealToUniverseDialog = ({
       const insertData = {
         title: newDealForm.title,
         website: newDealForm.website || null,
-        location: newDealForm.location?.trim() || null,
+        // listings.location is NOT NULL in the DB, but we don't want to require it in the UI.
+        // Use a consistent placeholder when the user leaves it blank.
+        location: newDealForm.location?.trim() || "Unknown",
         revenue: newDealForm.revenue ? parseFloat(newDealForm.revenue) : null,
         ebitda: newDealForm.ebitda ? parseFloat(newDealForm.ebitda) : null,
         description: newDealForm.description || null,
