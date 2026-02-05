@@ -191,8 +191,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.process-buyer-enrichment-queue]
 verify_jwt = false
-[functions.extract-buyer-criteria]
-verify_jwt = false
 [functions.extract-buyer-criteria-background]
 verify_jwt = false
 [functions.process-buyer-enrichment-queue]
