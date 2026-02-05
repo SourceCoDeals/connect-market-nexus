@@ -538,70 +538,62 @@ const ReMarketingBuyerDetail = () => {
 
         {/* Intelligence Tab */}
         <TabsContent value="intelligence" className="space-y-6">
-          {/* Two Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-6">
-              <BusinessDescriptionCard
-                industryVertical={buyer?.industry_vertical}
-                businessSummary={buyer?.business_summary}
-                servicesOffered={buyer?.target_services}
-                specializedFocus={buyer?.specialized_focus}
-                onEdit={() => setActiveEditDialog('business')}
-              />
-              
-              <BuyerServicesBusinessModelCard
-                servicesOffered={buyer?.services_offered}
-                businessModel={buyer?.business_model}
-                revenueModel={buyer?.revenue_model}
-                onEdit={() => setActiveEditDialog('servicesModel')}
-              />
-              
-              <GeographicFootprintCard
-                targetGeographies={buyer?.target_geographies}
-                operatingLocations={buyer?.operating_locations}
-                onEdit={() => setActiveEditDialog('geographic')}
-              />
-              
-              <CustomerEndMarketCard
-                primaryCustomerSize={buyer?.primary_customer_size}
-                customerGeographicReach={buyer?.customer_geographic_reach}
-                customerIndustries={buyer?.customer_industries}
-                targetCustomerProfile={buyer?.target_customer_profile}
-                onEdit={() => setActiveEditDialog('customer')}
-              />
-            </div>
-
-            {/* Right Column */}
-            <div className="space-y-6">
-              <InvestmentCriteriaCard
-                investmentThesis={buyer?.thesis_summary}
-                thesisConfidence={buyer?.thesis_confidence}
-                strategicPriorities={buyer?.strategic_priorities}
-                dealBreakers={buyer?.deal_breakers}
-                onEdit={() => setActiveEditDialog('investment')}
-              />
-              
-              <DealStructureCard
-                minRevenue={buyer?.target_revenue_min}
-                maxRevenue={buyer?.target_revenue_max}
-                revenueSweetSpot={buyer?.revenue_sweet_spot}
-                minEbitda={buyer?.target_ebitda_min}
-                maxEbitda={buyer?.target_ebitda_max}
-                ebitdaSweetSpot={buyer?.ebitda_sweet_spot}
-                dealPreferences={buyer?.deal_preferences}
-                acquisitionAppetite={buyer?.acquisition_appetite}
-                acquisitionTimeline={buyer?.acquisition_timeline}
-                onEdit={() => setActiveEditDialog('dealStructure')}
-              />
-              
-              <AcquisitionHistoryCard
-                totalAcquisitions={buyer?.total_acquisitions}
-                acquisitionFrequency={buyer?.acquisition_frequency}
-                onEdit={() => setActiveEditDialog('acquisition')}
-              />
-            </div>
-          </div>
+          {/* Full Width Cards - Stacked Vertically */}
+          <BusinessDescriptionCard
+            industryVertical={buyer?.industry_vertical}
+            businessSummary={buyer?.business_summary}
+            servicesOffered={buyer?.target_services}
+            specializedFocus={buyer?.specialized_focus}
+            onEdit={() => setActiveEditDialog('business')}
+          />
+          
+          <BuyerServicesBusinessModelCard
+            servicesOffered={buyer?.services_offered}
+            businessModel={buyer?.business_model}
+            revenueModel={buyer?.revenue_model}
+            onEdit={() => setActiveEditDialog('servicesModel')}
+          />
+          
+          <CustomerEndMarketCard
+            primaryCustomerSize={buyer?.primary_customer_size}
+            customerGeographicReach={buyer?.customer_geographic_reach}
+            customerIndustries={buyer?.customer_industries}
+            targetCustomerProfile={buyer?.target_customer_profile}
+            onEdit={() => setActiveEditDialog('customer')}
+          />
+          
+          <GeographicFootprintCard
+            targetGeographies={buyer?.target_geographies}
+            operatingLocations={buyer?.operating_locations}
+            onEdit={() => setActiveEditDialog('geographic')}
+          />
+          
+          <InvestmentCriteriaCard
+            investmentThesis={buyer?.thesis_summary}
+            thesisConfidence={buyer?.thesis_confidence}
+            strategicPriorities={buyer?.strategic_priorities}
+            dealBreakers={buyer?.deal_breakers}
+            onEdit={() => setActiveEditDialog('investment')}
+          />
+          
+          <DealStructureCard
+            minRevenue={buyer?.target_revenue_min}
+            maxRevenue={buyer?.target_revenue_max}
+            revenueSweetSpot={buyer?.revenue_sweet_spot}
+            minEbitda={buyer?.target_ebitda_min}
+            maxEbitda={buyer?.target_ebitda_max}
+            ebitdaSweetSpot={buyer?.ebitda_sweet_spot}
+            dealPreferences={buyer?.deal_preferences}
+            acquisitionAppetite={buyer?.acquisition_appetite}
+            acquisitionTimeline={buyer?.acquisition_timeline}
+            onEdit={() => setActiveEditDialog('dealStructure')}
+          />
+          
+          <AcquisitionHistoryCard
+            totalAcquisitions={buyer?.total_acquisitions}
+            acquisitionFrequency={buyer?.acquisition_frequency}
+            onEdit={() => setActiveEditDialog('acquisition')}
+          />
 
           {/* Full Width: Key Quotes */}
           <KeyQuotesCard quotes={buyer?.key_quotes} />
