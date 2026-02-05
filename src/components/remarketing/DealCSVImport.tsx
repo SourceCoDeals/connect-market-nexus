@@ -176,6 +176,7 @@ export const DealCSVImport = ({
           const listingData: Record<string, unknown> = {
             status: "active",
             category: "Other",
+            is_internal_deal: true, // Mark as internal/research deal - not for marketplace
             // Required field defaults
             description: "",
             revenue: 0,

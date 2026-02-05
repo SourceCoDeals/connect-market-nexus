@@ -52,6 +52,7 @@ export const AddDealDialog = ({
         created_by: string | undefined;
         category: string;
         status: string;
+        is_internal_deal: boolean;
       } = {
         title: formData.title,
         website: formData.website || null,
@@ -63,6 +64,7 @@ export const AddDealDialog = ({
         created_by: user?.id,
         category: "Other",
         status: "active",
+        is_internal_deal: true, // Mark as internal/research deal - not for marketplace
       };
 
       const { data: listing, error } = await supabase
