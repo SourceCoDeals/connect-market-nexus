@@ -44,7 +44,8 @@ export function useBackgroundGuideGeneration({
 
   const checkExistingGeneration = async () => {
     try {
-      const { data, error } = await supabase
+      // Check for in-progress generation first
+      const { data: activeGen, error: activeError } = await supabase
         .from('ma_guide_generations')
         .select('*')
         .eq('universe_id', universeId)
@@ -53,10 +54,32 @@ export function useBackgroundGuideGeneration({
         .limit(1)
         .single();
 
-      if (!error && data) {
-        setCurrentGeneration(data as GenerationStatus);
+      if (!activeError && activeGen) {
+        setCurrentGeneration(activeGen as GenerationStatus);
         setIsGenerating(true);
-        startPolling(data.id);
+        startPolling(activeGen.id);
+        return;
+      }
+
+      // Check for most recent completed generation (restore state on return)
+      const { data: completedGen, error: completedError } = await supabase
+        .from('ma_guide_generations')
+        .select('*')
+        .eq('universe_id', universeId)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!completedError && completedGen) {
+        setCurrentGeneration(completedGen as GenerationStatus);
+        setProgress(100);
+        // Notify parent of completed generation
+        const content = (completedGen.generated_content as any)?.content || '';
+        const criteria = (completedGen.generated_content as any)?.criteria || null;
+        if (content && onComplete) {
+          onComplete(content, criteria);
+        }
       }
     } catch (err) {
       // No existing generation, that's fine

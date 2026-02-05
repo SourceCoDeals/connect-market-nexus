@@ -244,7 +244,8 @@ export const AIResearchSection = ({
     if (!universeId) return;
 
     try {
-      const { data, error } = await supabase
+      // First check for in-progress generation
+      const { data: activeGen, error: activeError } = await supabase
         .from('ma_guide_generations')
         .select('*')
         .eq('universe_id', universeId)
@@ -253,11 +254,42 @@ export const AIResearchSection = ({
         .limit(1)
         .single();
 
-      if (!error && data) {
-        // Found an existing generation - resume monitoring
+      if (!activeError && activeGen) {
+        // Found an in-progress generation - resume monitoring
         toast.info('Resuming M&A guide generation in progress...');
         setState('generating');
-        resumeBackgroundGeneration(data.id);
+        resumeBackgroundGeneration(activeGen.id);
+        return;
+      }
+
+      // Check for most recent completed generation (restore state on page return)
+      const { data: completedGen, error: completedError } = await supabase
+        .from('ma_guide_generations')
+        .select('*')
+        .eq('universe_id', universeId)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!completedError && completedGen) {
+        const generatedContent = completedGen.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
+        if (generatedContent?.content) {
+          setState('complete');
+          setContent(generatedContent.content);
+          setWordCount(generatedContent.content.split(/\s+/).length);
+
+          if (generatedContent.criteria) {
+            setExtractedCriteria(generatedContent.criteria);
+            onGuideGenerated(generatedContent.content, generatedContent.criteria, generatedContent.criteria.target_buyer_types);
+          }
+          return;
+        }
+      }
+
+      // Fallback: if existingContent has substantial content, treat as complete
+      if (existingContent && existingContent.length > 500) {
+        setState('complete');
       }
     } catch (err) {
       // No existing generation, that's fine
