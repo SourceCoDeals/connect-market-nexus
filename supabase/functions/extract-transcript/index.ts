@@ -42,6 +42,11 @@ interface BuyerInsights {
   deal_size_range?: string;
   acquisition_timeline?: string;
   missing_information?: string[];
+  // Additional fields for comprehensive extraction
+  services_offered?: string;
+  operating_locations?: string[];
+  geographic_footprint?: string[];
+  business_summary?: string;
 }
 
 serve(async (req) => {
@@ -327,13 +332,13 @@ OUTPUT FORMAT:
     type: "function",
     function: {
       name: "extract_buyer_thesis",
-      description: "Extract platform company thesis and acquisition criteria from call transcript",
+      description: "Extract platform company thesis, operations, and acquisition criteria from call transcript",
       parameters: {
         type: "object",
         properties: {
           thesis_summary: { 
             type: "string", 
-            description: "1-2 paragraph summary of the platform company's acquisition strategy as stated in the call. Write: 'Based on our conversation, [Company] is focused on...' Do NOT use marketing language or infer from website content." 
+            description: "1-2 paragraph summary of the platform company's ADD-ON acquisition strategy as stated in the call. This is their strategy for acquiring smaller companies. Write: 'Based on our conversation, [Company] is focused on...' Do NOT use marketing language or infer from website content." 
           },
           thesis_confidence: { 
             type: "string", 
@@ -348,12 +353,12 @@ OUTPUT FORMAT:
           target_industries: { 
             type: "array", 
             items: { type: "string" }, 
-            description: "Industries explicitly mentioned as targets" 
+            description: "Industries explicitly mentioned as targets for add-on acquisitions" 
           },
           target_geography: { 
             type: "array", 
             items: { type: "string" }, 
-            description: "Geographic preferences explicitly mentioned" 
+            description: "Geographic preferences for add-on acquisitions (2-letter state codes)" 
           },
           deal_size_range: { 
             type: "string", 
@@ -362,6 +367,24 @@ OUTPUT FORMAT:
           acquisition_timeline: { 
             type: "string", 
             description: "Timeline for making acquisitions if mentioned" 
+          },
+          services_offered: {
+            type: "string",
+            description: "Comma-separated list of services the platform company currently offers (e.g., 'water damage restoration, fire damage restoration, mold remediation')"
+          },
+          business_summary: {
+            type: "string",
+            description: "2-3 sentence overview of what the platform company does operationally"
+          },
+          operating_locations: {
+            type: "array",
+            items: { type: "string" },
+            description: "Cities where the platform company currently operates, formatted as 'City, ST' (e.g., 'Dallas, TX')"
+          },
+          geographic_footprint: {
+            type: "array",
+            items: { type: "string" },
+            description: "2-letter state codes where the platform company has PHYSICAL LOCATIONS or currently operates"
           },
           missing_information: {
             type: "array",
@@ -470,6 +493,20 @@ async function updateBuyerFromTranscript(
   }
   if (insights.acquisition_timeline) {
     updates.acquisition_timeline = insights.acquisition_timeline;
+  }
+  
+  // Platform company operational details
+  if (insights.services_offered) {
+    updates.services_offered = insights.services_offered;
+  }
+  if (insights.business_summary) {
+    updates.business_summary = insights.business_summary;
+  }
+  if (insights.operating_locations?.length) {
+    updates.operating_locations = insights.operating_locations;
+  }
+  if (insights.geographic_footprint?.length) {
+    updates.geographic_footprint = insights.geographic_footprint;
   }
 
   if (Object.keys(updates).length > 0) {
