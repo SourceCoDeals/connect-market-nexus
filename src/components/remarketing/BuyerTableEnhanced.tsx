@@ -363,6 +363,7 @@ export const BuyerTableEnhanced = ({
       )}
       
       <Table className="table-fixed">
+        {/* Prevent text selection during Shift+click range selection */}
         <TableHeader>
           <TableRow>
             {selectable && (
@@ -427,7 +428,14 @@ export const BuyerTableEnhanced = ({
                   onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
                 >
                   {selectable && (
-                    <TableCell 
+                    <TableCell
+                      className="select-none"
+                      onMouseDown={(e) => {
+                        // Prevent text selection on Shift+click
+                        if (e.shiftKey) {
+                          e.preventDefault();
+                        }
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         // Toggle selection with shift-key support
