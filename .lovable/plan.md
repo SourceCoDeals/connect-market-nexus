@@ -1,103 +1,171 @@
 
 
-# Fix: M&A Guide Generation 401 Authentication Error
+# Deal Enrichment Improvements Plan
 
-## Problem
-The M&A guide generation fails immediately with:
-```
-401 - {"code":401,"message":"Missing authorization header"}
-```
+## Summary
+This plan implements three key improvements to the deal enrichment system:
+1. **Show successful/failed counts during enrichment** - Live progress tracking like the buyer universe
+2. **Completion summary popup** - Dialog showing results when enrichment finishes
+3. **Smart CSV import** - Only enrich newly imported deals, not existing ones
 
-When `process-ma-guide-queue` calls `generate-ma-guide`, it only sends the `apikey` header but **not** the `Authorization` header. Supabase's Edge Function gateway requires **both headers** for server-to-server calls.
+---
 
-## Root Cause
+## Issues Identified
+
+### Current State
+1. **Progress Indicator lacks detail** - The `EnrichmentProgressIndicator` shows completed/total counts but NOT successful vs. failed breakdown during enrichment
+2. **No completion summary** - When enrichment finishes, users only see a toast notification; no detailed summary dialog exists for deals (unlike buyers which have `EnrichmentSummaryDialog`)
+3. **Auto-enrichment queues ALL unenriched deals** - When new deals are imported, the `useEffect` in `ReMarketingDeals.tsx` queues all deals without `enriched_at`, not just the newly imported ones
+
+---
+
+## Implementation Plan
+
+### Phase 1: Enhance Progress Indicator with Success/Failure Counts
+
+**Modify `useEnrichmentProgress.ts`:**
+- Track `successfulCount` and `failedCount` separately (completed = successful, failed stays as failed)
+- Already tracks `failedCount` but UI doesn't display it
+
+**Modify `EnrichmentProgressIndicator.tsx`:**
+- Add props for `successfulCount` and `failedCount`
+- Display success/failure breakdown below the progress bar with colored badges
 
 ```text
-┌─────────────────────────────┐
-│  process-ma-guide-queue     │
-│                             │
-│  fetch('generate-ma-guide') │
-│  headers: {                 │
-│    apikey: ✓                │
-│    Authorization: ✗ MISSING │
-│  }                          │
-└──────────────┬──────────────┘
-               │
-               ▼
-┌─────────────────────────────┐
-│  Supabase Gateway           │
-│                             │
-│  → 401 Missing auth header  │
-└─────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ ⚡ Enriching deals...  (~2.8/min)          35 of 82 complete     │
+│ ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░   ⏱ ~17 min remaining│
+│ 47 deals remaining                                                │
+│ ✅ 33 successful  •  ❌ 2 failed                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-## Solution
+### Phase 2: Create Deal Enrichment Summary Dialog
 
-Add the `Authorization` header with the service role key to all server-to-server Edge Function calls.
+**Create `DealEnrichmentSummaryDialog.tsx`:**
+- Based on existing `EnrichmentSummaryDialog.tsx` pattern but for deals
+- Props: open, onOpenChange, summary (total, successful, failed, errors array)
+- Display:
+  - Summary stats grid (Total, Successful, Failed)
+  - Success rate badge
+  - Scrollable error list with deal names
+  - "Retry Failed" button
+  - "Close" button
 
-### Files to Modify
+**Modify `useEnrichmentProgress.ts`:**
+- Track errors with deal details (listing_id, title, error message)
+- Detect completion transition (was running, now stopped)
+- Return `summary` and `showSummary` state
+- Add `dismissSummary` callback
 
-**1. `supabase/functions/process-ma-guide-queue/index.ts`**
+**Modify `ReMarketingDeals.tsx`:**
+- Import and render `DealEnrichmentSummaryDialog`
+- Pass summary from `useEnrichmentProgress`
+- Wire up "Retry Failed" to re-queue failed deals
 
-Change lines 86-91 from:
+### Phase 3: Smart CSV Import (Only Enrich New Deals)
+
+**Current Problem:**
+The `useEffect` in `ReMarketingDeals.tsx` (lines 719-764) queues ALL unenriched deals whenever `listings` changes. This means importing 10 new deals could trigger enrichment for 100+ existing unenriched deals.
+
+**Solution:**
+Instead of auto-queuing on listings change, move enrichment to the import completion callback.
+
+**Modify `DealImportDialog.tsx`:**
+- After successful imports, return the list of newly created deal IDs
+- Pass these IDs to a new callback prop `onImportCompleteWithIds`
+
+**Modify `ReMarketingDeals.tsx`:**
+- Remove or disable the auto-enrichment `useEffect` that queues all unenriched deals
+- Add handler to queue ONLY the newly imported deal IDs after CSV import
+- Keep the "Enrich Deals" button for manual batch enrichment
+
 ```typescript
-const response = await fetch(`${supabaseUrl}/functions/v1/generate-ma-guide`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-  },
-  ...
+// Updated import callback
+const handleImportComplete = async (importedDealIds: string[]) => {
+  refetchListings();
+  
+  if (importedDealIds.length > 0) {
+    // Queue only the newly imported deals
+    await queueDealsForEnrichment(importedDealIds);
+    toast.success(`Queued ${importedDealIds.length} new deals for enrichment`);
+  }
+};
 ```
 
-To:
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/remarketing/DealEnrichmentSummaryDialog.tsx` | Summary dialog for deal enrichment completion |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useEnrichmentProgress.ts` | Add error tracking, completion detection, summary state |
+| `src/components/remarketing/EnrichmentProgressIndicator.tsx` | Add success/failure count display |
+| `src/pages/admin/remarketing/ReMarketingDeals.tsx` | Add summary dialog, fix auto-enrichment logic |
+| `src/components/remarketing/DealImportDialog.tsx` | Return imported deal IDs for targeted enrichment |
+| `src/components/remarketing/index.ts` | Export new dialog component |
+
+---
+
+## Technical Details
+
+### Enhanced Progress Interface
 ```typescript
-const response = await fetch(`${supabaseUrl}/functions/v1/generate-ma-guide`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${supabaseServiceKey}`,
-  },
-  ...
+interface EnrichmentProgress {
+  isEnriching: boolean;
+  completedCount: number;    // successfulCount alias
+  totalCount: number;
+  pendingCount: number;
+  processingCount: number;
+  failedCount: number;       // Already tracked
+  progress: number;
+  estimatedTimeRemaining: string;
+  processingRate: number;
+  // NEW fields
+  errors: Array<{ listingId: string; title?: string; error: string }>;
+}
 ```
 
-**2. `supabase/functions/generate-ma-guide-background/index.ts`**
-
-Change lines 91-96 from:
+### Summary Interface (for deals)
 ```typescript
-fetch(`${supabaseUrl}/functions/v1/process-ma-guide-queue`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-  },
-  ...
+interface DealEnrichmentSummary {
+  total: number;
+  successful: number;
+  failed: number;
+  errors: Array<{ 
+    listingId: string; 
+    dealName?: string; 
+    error: string 
+  }>;
+  completedAt: string;
+}
 ```
 
-To:
+### Completion Detection Logic
 ```typescript
-fetch(`${supabaseUrl}/functions/v1/process-ma-guide-queue`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${supabaseServiceKey}`,
-  },
-  ...
+// In useEnrichmentProgress.ts
+const wasRunningRef = useRef(false);
+
+// In fetchQueueStatus:
+if (wasRunningRef.current && !isEnriching && totalCount > 0) {
+  // Generate summary from queue data
+  setSummary({ total, successful: completedCount, failed: failedCount, errors, completedAt: new Date().toISOString() });
+  setShowSummary(true);
+}
+wasRunningRef.current = isEnriching;
 ```
 
-### Deployment
+---
 
-After making the changes, deploy both functions:
-```bash
-supabase functions deploy process-ma-guide-queue generate-ma-guide-background
-```
+## Summary of Changes
 
-## Technical Notes
-
-- The `apikey` header is used for project routing
-- The `Authorization: Bearer <key>` header is used for authentication
-- Even with `verify_jwt = false`, Supabase gateway still validates the presence of the Authorization header for edge function calls
-- Using the service role key allows bypassing RLS, which is appropriate for background processing
+1. **Progress with success/failure counts** - Real-time visibility into what's working
+2. **Completion summary dialog** - Detailed results with retry option for failed items  
+3. **Smart import enrichment** - Only newly imported deals get queued, not the entire backlog
 
