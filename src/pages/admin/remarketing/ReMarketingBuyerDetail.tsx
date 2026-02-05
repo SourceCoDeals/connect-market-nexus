@@ -391,13 +391,13 @@ const ReMarketingBuyerDetail = () => {
         .select('id')
         .single();
       if (error) throw error;
-      return { transcriptId: data.id, triggerExtract: !!triggerExtract };
+      return { transcriptId: data.id, transcriptText: text, source, triggerExtract: !!triggerExtract };
     },
-    onSuccess: ({ transcriptId, triggerExtract }) => {
+    onSuccess: ({ transcriptId, transcriptText, source, triggerExtract }) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
       toast.success('Transcript added');
-      if (triggerExtract) {
-        extractTranscriptMutation.mutate(transcriptId);
+      if (triggerExtract && transcriptText?.trim()) {
+        extractTranscriptMutation.mutate({ transcriptId, transcriptText, source });
       }
     },
     onError: () => {
@@ -406,12 +406,34 @@ const ReMarketingBuyerDetail = () => {
   });
 
   const extractTranscriptMutation = useMutation({
-    mutationFn: async (transcriptId: string) => {
-      const transcript = transcripts.find(t => t.id === transcriptId);
-      if (!transcript) throw new Error('Transcript not found');
+    mutationFn: async (params: { transcriptId: string; transcriptText?: string; source?: string }) => {
+      let textToExtract = params.transcriptText;
+      let sourceToUse = params.source || 'call';
+
+      // If text not provided directly, fetch from local state or DB
+      if (!textToExtract) {
+        const transcript = transcripts.find(t => t.id === params.transcriptId);
+        if (transcript) {
+          textToExtract = transcript.transcript_text;
+          sourceToUse = transcript.source || 'call';
+        } else {
+          // Fetch from DB as fallback
+          const { data } = await supabase
+            .from('buyer_transcripts')
+            .select('transcript_text, source')
+            .eq('id', params.transcriptId)
+            .single();
+          textToExtract = data?.transcript_text || '';
+          sourceToUse = data?.source || 'call';
+        }
+      }
+
+      if (!textToExtract?.trim()) {
+        throw new Error('No transcript text available to extract from. Please add transcript content first.');
+      }
       
       const { data, error } = await supabase.functions.invoke('extract-transcript', {
-        body: { buyerId: id, transcriptText: transcript.transcript_text, source: transcript.source || 'call' }
+        body: { buyerId: id, transcriptText: textToExtract, source: sourceToUse }
       });
       if (error) throw error;
       return data;
@@ -446,7 +468,7 @@ const ReMarketingBuyerDetail = () => {
   const handleExtractAll = async () => {
     const pendingTranscripts = transcripts.filter(t => !t.processed_at);
     for (const transcript of pendingTranscripts) {
-      await extractTranscriptMutation.mutateAsync(transcript.id);
+      await extractTranscriptMutation.mutateAsync({ transcriptId: transcript.id });
     }
   };
 
@@ -626,7 +648,7 @@ const ReMarketingBuyerDetail = () => {
             onAddTranscript={(text, source, fileName, fileUrl, triggerExtract) =>
               addTranscriptMutation.mutate({ text, source, fileName, fileUrl, triggerExtract })
             }
-            onExtract={(transcriptId) => extractTranscriptMutation.mutate(transcriptId)}
+            onExtract={(transcriptId) => extractTranscriptMutation.mutate({ transcriptId })}
             onExtractAll={handleExtractAll}
             onDelete={(transcriptId) => {
               if (confirm('Delete this transcript?')) {
