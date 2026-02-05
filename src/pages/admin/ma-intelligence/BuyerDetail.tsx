@@ -98,7 +98,7 @@ export default function BuyerDetail() {
 
     try {
       await supabase.functions.invoke("enrich-buyer", {
-        body: { buyer_id: buyer.id },
+        body: { buyerId: buyer.id },
       });
 
       toast({

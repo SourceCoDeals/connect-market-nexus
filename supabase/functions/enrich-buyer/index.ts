@@ -931,6 +931,8 @@ Deno.serve(async (req) => {
           extracted_at: timestamp,
           fields_extracted: Object.keys(businessResult.data),
         });
+      } else {
+        console.warn(`[PROMPT_FAILED] Prompt 1 (Business Overview) returned no data. Error: ${JSON.stringify(businessResult.error)}`);
       }
 
       // Prompt 2: Customer Profile
@@ -949,6 +951,8 @@ Deno.serve(async (req) => {
             extracted_at: timestamp,
             fields_extracted: Object.keys(customerResult.data),
           });
+        } else {
+          console.warn(`[PROMPT_FAILED] Prompt 2 (Customer Profile) returned no data. Error: ${JSON.stringify(customerResult.error)}`);
         }
       }
 
@@ -969,6 +973,8 @@ Deno.serve(async (req) => {
             extracted_at: timestamp,
             fields_extracted: Object.keys(geoResult.data),
           });
+        } else {
+          console.warn(`[PROMPT_FAILED] Prompt 3a (Geography) returned no data. Error: ${JSON.stringify(geoResult.error)}`);
         }
       }
 
@@ -988,6 +994,8 @@ Deno.serve(async (req) => {
             extracted_at: timestamp,
             fields_extracted: Object.keys(acqResult.data),
           });
+        } else {
+          console.warn(`[PROMPT_FAILED] Prompt 3b (Acquisitions) returned no data. Error: ${JSON.stringify(acqResult.error)}`);
         }
       }
     }
@@ -1015,6 +1023,8 @@ Deno.serve(async (req) => {
           extracted_at: timestamp,
           fields_extracted: Object.keys(safeData),
         });
+      } else {
+        console.warn(`[PROMPT_FAILED] Prompt 4 (PE Activity) returned no data. Error: ${JSON.stringify(activityResult.error)}`);
       }
 
       // Prompt 5: Portfolio
@@ -1033,6 +1043,8 @@ Deno.serve(async (req) => {
             extracted_at: timestamp,
             fields_extracted: Object.keys(portfolioResult.data),
           });
+        } else {
+          console.warn(`[PROMPT_FAILED] Prompt 5 (Portfolio) returned no data. Error: ${JSON.stringify(portfolioResult.error)}`);
         }
       }
 
@@ -1053,6 +1065,8 @@ Deno.serve(async (req) => {
             extracted_at: timestamp,
             fields_extracted: Object.keys(sizeResult.data),
           });
+        } else {
+          console.warn(`[PROMPT_FAILED] Prompt 6 (Size Criteria) returned no data. Error: ${JSON.stringify(sizeResult.error)}`);
         }
       }
     }

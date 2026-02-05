@@ -592,15 +592,23 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
         })
       );
 
-      // Process results
-      for (const result of results) {
+      // Process results - track failures with details
+      const failedBuyers: Array<{ name: string; error: string }> = [];
+
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        const buyerName = batch[j].company_name || batch[j].pe_firm_name || 'Unknown';
+
         if (result.status === 'fulfilled') {
           enriched++;
         } else {
           failed++;
           const error = result.reason;
           const errorCode = (error as any)?.errorCode;
-          const errorMessage = error?.message || '';
+          const errorMessage = error?.message || 'Unknown error';
+
+          console.error(`[ENRICHMENT_FAILED] ${buyerName}: ${errorMessage}`);
+          failedBuyers.push({ name: buyerName, error: errorMessage });
 
           // Check for payment/credits error - fail fast
           if (
@@ -614,9 +622,18 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
               'AI credits depleted. Please add credits in Settings → Workspace → Usage to continue.',
               { duration: 10000 }
             );
+            console.error(`[ENRICHMENT_STOPPED] Credits depleted after ${enriched} successful enrichments`);
             break;
           }
         }
+      }
+
+      // Log summary of failures
+      if (failedBuyers.length > 0) {
+        console.warn(
+          `[ENRICHMENT_BATCH_SUMMARY] Batch failed: ${failedBuyers.length}/${batch.length} buyers. ` +
+          `Details: ${failedBuyers.map(b => `${b.name} (${b.error})`).join(', ')}`
+        );
       }
 
       setEnrichmentProgress({ current: Math.min(i + BATCH_SIZE, buyers.length), total: buyers.length });

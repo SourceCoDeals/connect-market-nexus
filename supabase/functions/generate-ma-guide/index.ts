@@ -689,21 +689,31 @@ async function generatePhaseWithTimeout(
     clearTimeout(timeoutId);
 
     const err = error as Error;
-    // Retry on transient errors: timeout, 429 rate limit, 5xx errors
+    const errMsg = err?.message || err?.toString() || '';
+
+    // Retry on transient errors: timeout, 429 rate limit, 5xx errors, connection resets
     const isTransient = err.name === 'AbortError'
-      || err.message?.includes('timeout')
-      || err.message?.includes('429')
-      || err.message?.includes('5');
+      || errMsg.includes('timeout')
+      || errMsg.includes('429')
+      || errMsg.includes('503')  // Service unavailable
+      || errMsg.includes('502')  // Bad gateway
+      || errMsg.includes('500')  // Server error
+      || errMsg.includes('ECONNRESET')
+      || errMsg.includes('ETIMEDOUT')
+      || errMsg.includes('ERR_HTTP')
+      || errMsg.includes('net::')
+      || (err as any)?.code === 'ECONNREFUSED'
+      || (err as any)?.code === 'ENOTFOUND';
 
     if (isTransient && retryCount < MAX_RETRIES) {
-      console.error(`Phase ${phase.id} failed with transient error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${err.message}`);
+      console.error(`Phase ${phase.id} failed with transient error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${errMsg}`);
       // Wait 3 seconds before retry to allow backend recovery
       await new Promise(resolve => setTimeout(resolve, 3000));
       console.log(`Retrying phase ${phase.id} after backoff...`);
       return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1);
     }
 
-    if (err.name === 'AbortError' || err.message?.includes('timeout')) {
+    if (err.name === 'AbortError' || errMsg.includes('timeout')) {
       throw new Error(`Phase ${phase.id} timed out after ${MAX_RETRIES + 1} attempts`);
     }
     throw error;

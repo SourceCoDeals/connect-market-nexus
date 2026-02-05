@@ -94,6 +94,8 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     setEnrichmentProgress(progress);
 
     try {
+      const failedIds: Array<{ id: string; error: string }> = [];
+
       for (let i = 0; i < buyerIds.length; i++) {
         if (progress.isPaused) break;
 
@@ -111,7 +113,11 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
           // Save progress to localStorage
           saveSessionState(trackerId, "Bulk Enrichment", progress.current, progress.total);
         } catch (error: any) {
-          console.error(`Error enriching buyer ${buyerId}:`, error);
+          const errorMessage = error?.message || 'Unknown error';
+          console.error(`[ENRICHMENT_ERROR] Buyer ${buyerId}: ${errorMessage}`);
+          failedIds.push({ id: buyerId, error: errorMessage });
+          progress.current = i + 1;
+          setEnrichmentProgress({ ...progress });
         }
       }
 
@@ -120,10 +126,23 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       setSelectedBuyers(new Set());
       loadBuyers();
 
-      toast({
-        title: "Enrichment complete",
-        description: `Successfully enriched ${progress.completedIds.length} of ${buyerIds.length} buyers`,
-      });
+      // Show summary with clear success/failure breakdown
+      if (failedIds.length > 0) {
+        console.warn(
+          `[ENRICHMENT_SUMMARY] Partial success: ${progress.completedIds.length}/${buyerIds.length} succeeded. ` +
+          `Failed: ${failedIds.map(f => `${f.id} (${f.error})`).join(', ')}`
+        );
+        toast({
+          title: "Enrichment partial success",
+          description: `Enriched ${progress.completedIds.length} of ${buyerIds.length} buyers. ${failedIds.length} failed - check logs for details.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Enrichment complete",
+          description: `Successfully enriched ${progress.completedIds.length} of ${buyerIds.length} buyers`,
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error during enrichment",
