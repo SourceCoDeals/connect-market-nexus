@@ -41,11 +41,6 @@ const listingFormSchema = z.object({
   status: z.enum(["active", "inactive"]).default("active"),
   status_tag: z.string().nullable().optional(),
   
-  // MARKETPLACE PUBLISHING CONTROL - explicit flag for admin workflow
-  // When true (default in admin form), listing appears on public marketplace
-  // When false, listing is internal-only (research/remarketing)
-  publish_to_marketplace: z.boolean().default(true),
-  
   // Admin-only internal fields
   internal_company_name: z.string().nullable().optional(),
   primary_owner_id: z.string().uuid().nullable().optional(),
@@ -99,7 +94,6 @@ type ListingFormInput = {
   owner_notes?: string;
   status: "active" | "inactive";
   status_tag?: string | null;
-  publish_to_marketplace?: boolean; // Controls is_internal_deal flag
   visible_to_buyer_types?: string[] | null;
   custom_metric_label?: string;
   custom_metric_value?: string;
@@ -148,8 +142,6 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     owner_notes: listing?.owner_notes,
     status: listing?.status || "active",
     status_tag: listing?.status_tag || null,
-    // For existing listings, check is_internal_deal; for new listings, default to true (publish)
-    publish_to_marketplace: listing ? !(listing as any).is_internal_deal : true,
     visible_to_buyer_types: listing?.visible_to_buyer_types || null,
     custom_metric_label: listing?.custom_metric_label || "",
     custom_metric_value: listing?.custom_metric_value || "",

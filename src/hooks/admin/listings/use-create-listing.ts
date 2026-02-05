@@ -17,7 +17,7 @@ export function useCreateListing() {
       image,
       sendDealAlerts,
     }: {
-      listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'> & { publish_to_marketplace?: boolean };
+      listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
       image?: File | null;
       sendDealAlerts?: boolean;
     }) => {
@@ -32,13 +32,6 @@ export function useCreateListing() {
           ? listing.tags.filter(tag => tag && typeof tag === 'string') 
           : [];
         
-        // CRITICAL: Determine is_internal_deal from publish_to_marketplace flag
-        // If publish_to_marketplace is true (or undefined for backwards compat), 
-        // set is_internal_deal to false (visible on marketplace)
-        // If publish_to_marketplace is false, set is_internal_deal to true (hidden)
-        const publishToMarketplace = (listing as any).publish_to_marketplace ?? true;
-        const isInternalDeal = !publishToMarketplace;
-        
         const insertData = {
           title: listing.title,
           categories: categoriesArray, // PostgreSQL array - never null
@@ -51,11 +44,12 @@ export function useCreateListing() {
           owner_notes: listing.owner_notes || null,
           status: listing.status || 'active',
           image_url: null,
-          is_internal_deal: isInternalDeal, // Controlled by publish_to_marketplace toggle
+          is_internal_deal: false, // Admin-created listings are for the marketplace
         };
 
         console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));
-        console.log('publish_to_marketplace:', publishToMarketplace, '→ is_internal_deal:', isInternalDeal);
+
+        console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));
 
         const { data, error } = await supabase
           .from('listings')

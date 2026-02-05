@@ -18,7 +18,7 @@ export function useUpdateListing() {
       image,
     }: {
       id: string;
-      listing: Partial<Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>> & { publish_to_marketplace?: boolean };
+      listing: Partial<Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>>;
       image?: File | null;
     }) => {
       try {
@@ -39,19 +39,11 @@ export function useUpdateListing() {
           }
         }
         
-        // Handle publish_to_marketplace → is_internal_deal conversion
-        const updateData: Record<string, any> = { ...listing };
-        if ('publish_to_marketplace' in updateData) {
-          updateData.is_internal_deal = !updateData.publish_to_marketplace;
-          delete updateData.publish_to_marketplace;
-          console.log('[UPDATE LISTING] publish_to_marketplace:', listing.publish_to_marketplace, '→ is_internal_deal:', updateData.is_internal_deal);
-        }
-        
         // Step 1: Update the listing details
         const { data, error } = await supabase
           .from('listings')
           .update({
-            ...updateData,
+            ...listing,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id)
