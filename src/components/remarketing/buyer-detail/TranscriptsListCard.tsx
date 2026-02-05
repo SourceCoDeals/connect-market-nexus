@@ -127,33 +127,13 @@ export const TranscriptsListCard = ({
       return;
     }
 
-    // Extract text for PDFs / Word via edge function so "Save & Enrich" works
+    // FIX #3: For PDFs/Word, just show a message - parsing happens AFTER upload
     if (ext === '.pdf' || ext === '.doc' || ext === '.docx') {
-      setIsParsingFile(true);
-      try {
-        const extracted = await parseTranscriptFile(file);
-        if (!extracted.trim()) {
-          toast({
-            title: "No text found",
-            description: "We couldn't extract any text from that file. Try a different file or paste the transcript content.",
-            variant: "destructive",
-          });
-          return;
-        }
-        setFormData(prev => ({ ...prev, transcript_text: extracted }));
-        toast({
-          title: "Transcript text extracted",
-          description: "You can now click Save & Enrich.",
-        });
-      } catch (err: any) {
-        toast({
-          title: "Couldn't parse file",
-          description: err?.message || "Please paste content or provide a link instead.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsParsingFile(false);
-      }
+      toast({
+        title: "PDF/Word file selected",
+        description: "Text extraction will happen after upload. File is ready to save.",
+      });
+      return;
     }
   };
 
@@ -221,7 +201,11 @@ export const TranscriptsListCard = ({
       return;
     }
 
-    if (triggerExtract && !formData.transcript_text.trim()) {
+    // FIX #3: Allow "Save & Enrich" for PDFs even without text (we'll parse after upload)
+    const ext = selectedFile ? '.' + selectedFile.name.split('.').pop()?.toLowerCase() : '';
+    const isPdfOrWord = ['.pdf', '.doc', '.docx'].includes(ext);
+
+    if (triggerExtract && !formData.transcript_text.trim() && !isPdfOrWord) {
       toast({
         title: "Can't enrich yet",
         description: "We need transcript text to extract intelligence. Paste the transcript, or upload a file we can extract text from.",
@@ -234,9 +218,40 @@ export const TranscriptsListCard = ({
     let fileUrl = formData.transcript_link || undefined;
 
     try {
+      // FIX #3: Upload file FIRST, then parse PDF if needed
       if (selectedFile) {
         try {
           fileUrl = await uploadFileToStorage(selectedFile);
+
+          // Parse PDF/Word AFTER successful upload
+          const ext = '.' + selectedFile.name.split('.').pop()?.toLowerCase();
+          if (['.pdf', '.doc', '.docx'].includes(ext) && !formData.transcript_text.trim()) {
+            setIsParsingFile(true);
+            try {
+              const extracted = await parseTranscriptFile(selectedFile);
+              if (extracted.trim()) {
+                formData.transcript_text = extracted;
+                toast({
+                  title: "Text extracted from file",
+                  description: `Extracted ${extracted.length} characters`,
+                });
+              } else {
+                console.warn("No text extracted from PDF/Word file");
+                toast({
+                  title: "PDF uploaded without text",
+                  description: "File saved, but no text could be extracted. You can paste content manually if needed.",
+                });
+              }
+            } catch (parseErr: any) {
+              console.warn("PDF parsing failed after upload:", parseErr.message);
+              toast({
+                title: "File uploaded",
+                description: "Text extraction failed, but file is saved. You can paste content manually.",
+              });
+            } finally {
+              setIsParsingFile(false);
+            }
+          }
         } catch (uploadError: any) {
           console.warn("File upload failed:", uploadError.message);
           if (!formData.transcript_link && !formData.transcript_text) {

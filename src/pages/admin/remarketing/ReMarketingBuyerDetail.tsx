@@ -430,9 +430,15 @@ const ReMarketingBuyerDetail = () => {
       if (!textToExtract?.trim()) {
         throw new Error('No transcript text available to extract from. Please add transcript content first.');
       }
-      
+
+      // FIX #5: Pass transcriptId so edge function can update buyer_transcripts.processed_at
       const { data, error } = await supabase.functions.invoke('extract-transcript', {
-        body: { buyerId: id, transcriptText: textToExtract, source: sourceToUse }
+        body: {
+          buyerId: id,
+          transcriptText: textToExtract,
+          source: sourceToUse,
+          transcriptId: params.transcriptId // Pass transcript ID for status tracking
+        }
       });
       if (error) throw error;
       return data;

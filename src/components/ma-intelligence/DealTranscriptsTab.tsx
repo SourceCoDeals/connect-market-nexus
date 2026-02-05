@@ -92,17 +92,12 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   const handleProcessTranscript = async (transcriptId: string) => {
     try {
-      // Update processed_at timestamp instead of non-existent processed_status
-      const { error: updateError } = await supabase
-        .from("deal_transcripts")
-        .update({ processed_at: new Date().toISOString() })
-        .eq("id", transcriptId);
+      // FIX #4: Remove manual processed_at update - let edge function set it AFTER successful extraction
+      // This prevents marking transcripts as "processed" when extraction actually fails
 
-      if (updateError) throw updateError;
-
-      // Call edge function to extract data
+      // Call edge function to extract data (use extract-deal-transcript for deal_transcripts table)
       const { error: functionError } = await supabase.functions.invoke(
-        "extract-transcript",
+        "extract-deal-transcript",
         {
           body: { transcriptId },
         }
@@ -111,14 +106,14 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
       if (functionError) throw functionError;
 
       toast({
-        title: "Processing started",
-        description: "Transcript processing is running in the background",
+        title: "Processing complete",
+        description: "Transcript data has been extracted successfully",
       });
 
-      // Reload transcripts after a delay
+      // Reload transcripts to show updated processed_at status
       setTimeout(() => {
         loadTranscripts();
-      }, 2000);
+      }, 1000);
     } catch (error: any) {
       toast({
         title: "Error processing transcript",
