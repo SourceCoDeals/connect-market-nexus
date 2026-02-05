@@ -230,12 +230,28 @@ async function processGenerationInBackground(
   } catch (error: any) {
     console.error(`[processGenerationInBackground] Error in generation ${generationId}:`, error);
 
-    // Update status to failed
+    // Distinguish recoverable vs fatal errors
+    const errorMsg = error.message || error.toString();
+    const isRecoverable =
+      errorMsg.includes('429') ||        // Rate limit
+      errorMsg.includes('5') ||          // Server errors
+      errorMsg.includes('timeout') ||
+      errorMsg.includes('ECONNRESET') ||
+      errorMsg.includes('ETIMEDOUT') ||
+      error.name === 'AbortError';
+
+    const errorDetails = {
+      message: errorMsg,
+      is_recoverable: isRecoverable,
+      timestamp: new Date().toISOString()
+    };
+
+    // Update status to failed with recovery info
     await supabase
       .from('ma_guide_generations')
       .update({
         status: 'failed',
-        error: error.message || 'Unknown error occurred'
+        error: JSON.stringify(errorDetails)
       })
       .eq('id', generationId);
 
