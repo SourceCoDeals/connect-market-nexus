@@ -27,11 +27,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // ✅ AUTHENTICATION + RATE LIMITING (ADDED 2026-02-04)
+    // ✅ AUTHENTICATION (ADDED 2026-02-04)
     const auth = await authenticateRequest(req, supabase, {
       requireAuth: true,
       requireAdmin: true, // Only admins can extract criteria
-      rateLimitKey: 'buyer_criteria_extraction',
+      // No rate limiting - admins can extract unlimited criteria (user is willing to pay for AI operations)
       corsHeaders,
     });
 

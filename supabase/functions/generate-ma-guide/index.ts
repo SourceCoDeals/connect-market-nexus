@@ -1073,8 +1073,7 @@ serve(async (req) => {
     const auth = await authenticateRequest(req, supabase, {
       requireAuth: true,
       requireAdmin: true, // Only admins can generate guides
-      rateLimitKey: 'ma_guide_generation',
-      rateLimitAdmin: false, // Apply rate limits even to admins
+      // No rate limiting - admins can generate unlimited guides (user is willing to pay for AI operations)
       corsHeaders,
     });
 

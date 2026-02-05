@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    // ✅ AUTHENTICATION + RATE LIMITING (ADDED 2026-02-04)
+    // ✅ AUTHENTICATION (ADDED 2026-02-04)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -23,7 +23,7 @@ serve(async (req) => {
       requireAuth: true,
       requireAdmin: true, // Only admins can trigger background extraction
       allowServiceRole: true, // Also allow service role for background workers
-      rateLimitKey: 'buyer_criteria_extraction',
+      // No rate limiting - admins can trigger unlimited extractions (user is willing to pay for AI operations)
       corsHeaders,
     });
 
