@@ -558,7 +558,7 @@ const ReMarketingUniverseDetail = () => {
     }
     
     toast.success(`Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`);
-    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
   };
 
   // Handler for single buyer enrichment via row dropdown
