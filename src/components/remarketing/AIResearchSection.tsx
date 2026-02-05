@@ -336,13 +336,17 @@ export const AIResearchSection = ({
         .from('ma_guide_generations')
         .select('*')
         .eq('id', generationId)
-        .single();
+        .maybeSingle();
 
-      if (error || !generation) {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+      if (error) {
+        console.error('[AIResearchSection] Polling error:', error);
+        // Don't kill the interval on transient errors — keep polling
+        return;
+      }
+
+      if (!generation) {
+        // Row not found yet — keep polling (it may still be inserting)
+        console.log('[AIResearchSection] Generation not found yet, retrying...');
         return;
       }
 
