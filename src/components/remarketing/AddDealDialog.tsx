@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Link2, Upload, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface AddDealDialogProps {
@@ -27,6 +27,7 @@ export const AddDealDialog = ({
   onDealCreated,
 }: AddDealDialogProps) => {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: "",
     website: "",
@@ -34,7 +35,9 @@ export const AddDealDialog = ({
     revenue: "",
     ebitda: "",
     description: "",
+    transcriptLink: "",
   });
+  const [transcriptFile, setTranscriptFile] = useState<File | null>(null);
 
   // Create new deal mutation
   const createDealMutation = useMutation({
@@ -64,7 +67,7 @@ export const AddDealDialog = ({
         created_by: user?.id,
         category: "Other",
         status: "active",
-        is_internal_deal: true, // Mark as internal/research deal - not for marketplace
+        is_internal_deal: true,
       };
 
       const { data: listing, error } = await supabase
@@ -74,12 +77,70 @@ export const AddDealDialog = ({
         .single();
 
       if (error) throw error;
-      return listing;
+      return { listing, userId: user?.id };
     },
-    onSuccess: async (listing) => {
+    onSuccess: async ({ listing, userId }) => {
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
       toast.success(`Created "${listing.title}" successfully`);
+      
+      // Handle transcript file upload
+      if (transcriptFile && userId) {
+        try {
+          const fileExt = transcriptFile.name.split('.').pop();
+          const filePath = `${listing.id}/${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('deal-transcripts')
+            .upload(filePath, transcriptFile);
+          
+          if (uploadError) {
+            console.error("Transcript upload error:", uploadError);
+            toast.error("Failed to upload transcript file");
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from('deal-transcripts')
+              .getPublicUrl(filePath);
+            
+            // Read file content if it's a text file
+            let transcriptText = "";
+            if (['txt', 'vtt', 'srt'].includes(fileExt?.toLowerCase() || '')) {
+              transcriptText = await transcriptFile.text();
+            }
+            
+            // Save transcript record linked to listing
+            await supabase.from('deal_transcripts').insert({
+              listing_id: listing.id,
+              transcript_url: publicUrl,
+              transcript_text: transcriptText || "Pending text extraction",
+              title: transcriptFile.name,
+              created_by: userId,
+              source: 'file_upload',
+            });
+            
+            toast.success("Transcript uploaded");
+          }
+        } catch (err) {
+          console.error("Transcript handling error:", err);
+        }
+      }
+      
+      // Handle transcript link
+      if (formData.transcriptLink) {
+        try {
+          await supabase.from('deal_transcripts').insert({
+            listing_id: listing.id,
+            transcript_url: formData.transcriptLink,
+            transcript_text: "Pending text extraction from link",
+            title: "Linked Transcript",
+            created_by: userId,
+            source: 'link',
+          });
+          toast.success("Transcript link saved");
+        } catch (err) {
+          console.error("Transcript link error:", err);
+        }
+      }
       
       // Trigger AI enrichment if website provided
       if (listing.website) {
@@ -99,7 +160,8 @@ export const AddDealDialog = ({
       }
       
       // Reset form and close
-      setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "" });
+      setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
+      setTranscriptFile(null);
       onDealCreated?.();
       onOpenChange(false);
     },
@@ -113,9 +175,25 @@ export const AddDealDialog = ({
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setTranscriptFile(file);
+      // Clear link if file is selected
+      setFormData(prev => ({ ...prev, transcriptLink: "" }));
+    }
+  };
+
+  const clearFile = () => {
+    setTranscriptFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Deal</DialogTitle>
           <DialogDescription>
@@ -187,6 +265,77 @@ export const AddDealDialog = ({
               onChange={(e) => handleFormChange("description", e.target.value)}
               rows={3}
             />
+          </div>
+
+          {/* Transcript Section */}
+          <div className="space-y-3 border-t pt-4">
+            <Label className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Call Transcript (Optional)
+            </Label>
+            
+            {/* Transcript Link */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="transcriptLink"
+                  placeholder="Fireflies, Otter.ai, or other transcript link..."
+                  value={formData.transcriptLink}
+                  onChange={(e) => handleFormChange("transcriptLink", e.target.value)}
+                  disabled={!!transcriptFile}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex-1 border-t" />
+              <span>or</span>
+              <div className="flex-1 border-t" />
+            </div>
+            
+            {/* File Upload */}
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.vtt,.srt,.pdf,.doc,.docx"
+                onChange={handleFileChange}
+                className="hidden"
+                id="transcript-file"
+              />
+              
+              {transcriptFile ? (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span className="text-sm flex-1 truncate">{transcriptFile.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFile}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!!formData.transcriptLink}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Transcript File
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Supports .txt, .vtt, .srt, .pdf, .doc, .docx
+              </p>
+            </div>
           </div>
 
           <Button
