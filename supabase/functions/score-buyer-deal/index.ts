@@ -104,17 +104,27 @@ async function fetchEngagementBonus(
     return { bonus: 0, signals: [], reasoning: '' };
   }
 
+  // CRITICAL FIX: De-duplicate signals by type (count each signal type only once)
+  const uniqueSignalsByType = new Map<string, any>();
+  for (const signal of signals) {
+    const type = signal.signal_type;
+    if (!uniqueSignalsByType.has(type)) {
+      uniqueSignalsByType.set(type, signal);
+    }
+  }
+  const uniqueSignals = Array.from(uniqueSignalsByType.values());
+
   // Calculate total bonus (capped at 100 per spec)
-  const totalBonus = Math.min(100, signals.reduce((sum: number, s: any) => sum + (s.signal_value || 0), 0));
+  const totalBonus = Math.min(100, uniqueSignals.reduce((sum: number, s: any) => sum + (s.signal_value || 0), 0));
 
   // Build reasoning string
-  const signalSummary = signals.map((s: any) =>
+  const signalSummary = uniqueSignals.map((s: any) =>
     `${s.signal_type.replace('_', ' ')} (+${s.signal_value})`
   ).join(', ');
 
   const reasoning = `Engagement signals: ${signalSummary} = +${totalBonus} pts`;
 
-  return { bonus: totalBonus, signals, reasoning };
+  return { bonus: totalBonus, signals: uniqueSignals, reasoning };
 }
 
 // Fetch engagement signals for multiple buyers (bulk scoring optimization)
@@ -147,10 +157,20 @@ async function fetchBulkEngagementBonuses(
     signalsByBuyer.get(signal.buyer_id)!.push(signal);
   }
 
-  // Calculate bonus for each buyer
+  // Calculate bonus for each buyer (with de-duplication by signal type)
   for (const [buyerId, buyerSignals] of signalsByBuyer) {
-    const totalBonus = Math.min(100, buyerSignals.reduce((sum, s) => sum + (s.signal_value || 0), 0));
-    const signalSummary = buyerSignals.map(s =>
+    // CRITICAL FIX: De-duplicate signals by type (count each signal type only once)
+    const uniqueSignalsByType = new Map<string, any>();
+    for (const signal of buyerSignals) {
+      const type = signal.signal_type;
+      if (!uniqueSignalsByType.has(type)) {
+        uniqueSignalsByType.set(type, signal);
+      }
+    }
+    const uniqueSignals = Array.from(uniqueSignalsByType.values());
+
+    const totalBonus = Math.min(100, uniqueSignals.reduce((sum, s) => sum + (s.signal_value || 0), 0));
+    const signalSummary = uniqueSignals.map(s =>
       `${s.signal_type.replace('_', ' ')} (+${s.signal_value})`
     ).join(', ');
     const reasoning = `Engagement signals: ${signalSummary} = +${totalBonus} pts`;
@@ -221,13 +241,21 @@ async function calculateGeographyScore(
   const dealLocation = listing.location || "";
   const dealState = dealLocation.match(/,\s*([A-Z]{2})\s*$/i)?.[1]?.toUpperCase();
 
-  // Get buyer target states (from target_geographies or geographic_footprint)
-  const buyerStates = [
-    ...(buyer.target_geographies || []),
-    ...(buyer.geographic_footprint || [])
-  ].filter(Boolean).map((s: string) => s.toUpperCase().trim());
+  // CRITICAL FIX: Use target_geographies (expansion targets), NOT geographic_footprint (current operations)
+  // Buyers acquire in their target expansion markets, not necessarily where they already operate
+  let buyerTargetStates = (buyer.target_geographies || [])
+    .filter(Boolean)
+    .map((s: string) => s.toUpperCase().trim());
 
-  if (!dealState || buyerStates.length === 0) {
+  // Fallback: If no target geographies specified, use current footprint as proxy
+  // (assumes buyer wants to expand in areas where they already operate)
+  if (buyerTargetStates.length === 0) {
+    buyerTargetStates = (buyer.geographic_footprint || [])
+      .filter(Boolean)
+      .map((s: string) => s.toUpperCase().trim());
+  }
+
+  if (!dealState || buyerTargetStates.length === 0) {
     return {
       score: 50,
       reasoning: "Limited geography data available",
@@ -238,7 +266,7 @@ async function calculateGeographyScore(
   // Use adjacency intelligence to calculate proximity score
   const { score: baseScore, reasoning: baseReasoning } = await calculateProximityScore(
     dealState,
-    buyerStates,
+    buyerTargetStates,
     supabaseUrl,
     supabaseKey
   );
@@ -250,7 +278,7 @@ async function calculateGeographyScore(
   // Get tier classification
   const tier = await getProximityTier(
     dealState,
-    buyerStates,
+    buyerTargetStates,
     supabaseUrl,
     supabaseKey
   );
@@ -268,7 +296,7 @@ function calculateServiceOverlap(
   listing: any,
   buyer: any
 ): { percentage: number; matchingServices: string[]; allDealServices: string[] } {
-  const dealServices = (listing.categories || [listing.category])
+  const dealServices = (listing.services || listing.categories || [listing.category])
     .filter(Boolean)
     .map((s: string) => s?.toLowerCase().trim());
 
@@ -291,7 +319,9 @@ function calculateServiceOverlap(
     )
   );
 
-  const percentage = Math.round((matching.length / Math.max(dealServices.length, buyerServices.length)) * 100);
+  // CRITICAL FIX: Prevent division by zero if both arrays are empty
+  const denominator = Math.max(dealServices.length, buyerServices.length, 1);
+  const percentage = Math.round((matching.length / denominator) * 100);
   return { percentage, matchingServices: matching, allDealServices: dealServices };
 }
 
@@ -305,8 +335,8 @@ function applyPrimaryFocusBonus(
   if (!behavior.require_primary_focus) {
     return { score: currentScore, bonusApplied: false };
   }
-  
-  const dealPrimaryService = (listing.category || listing.categories?.[0])?.toLowerCase().trim();
+
+  const dealPrimaryService = (listing.services?.[0] || listing.category || listing.categories?.[0])?.toLowerCase().trim();
   const buyerPrimaryFocus = buyer.target_services?.[0]?.toLowerCase().trim();
   
   if (!dealPrimaryService || !buyerPrimaryFocus) {
@@ -378,55 +408,62 @@ function calculateSizeMultiplier(
   behavior: ScoringBehavior,
   sizeScore: number
 ): number {
-  const dealRevenue = listing.revenue || 0;
-  const dealEbitda = listing.ebitda || 0;
+  // CRITICAL FIX: Keep NULL as NULL, don't convert to 0
+  const dealRevenue = listing.revenue; // NULL if unknown
+  const dealEbitda = listing.ebitda; // NULL if unknown
   const buyerMinRevenue = buyer.target_revenue_min;
   const buyerMaxRevenue = buyer.target_revenue_max;
   const buyerMinEbitda = buyer.target_ebitda_min;
   const revenueSweetSpot = buyer.revenue_sweet_spot;
-  
+
   // If size score is very low, apply heavy multiplier penalty
   if (sizeScore <= 25) {
     return 0.3; // Heavy penalty - 70% reduction
   }
-  
-  // Check for disqualification scenarios
-  
+
+  // If both revenue and EBITDA are NULL/unknown, use proxy scoring (moderate penalty)
+  if (dealRevenue === null && dealEbitda === null) {
+    // Can't disqualify without data - use moderate penalty instead
+    return 0.7; // 30% penalty for missing financial data
+  }
+
+  // Check for disqualification scenarios (only when we have actual data)
+
   // Revenue significantly below minimum (>30% below)
-  if (buyerMinRevenue && dealRevenue > 0 && dealRevenue < buyerMinRevenue * 0.7) {
+  if (buyerMinRevenue && dealRevenue !== null && dealRevenue < buyerMinRevenue * 0.7) {
     if (behavior.below_minimum_handling === 'disqualify') {
       return 0; // Complete disqualification
     }
     return 0.3; // Heavy penalty
   }
-  
+
   // Revenue below minimum but within 30%
-  if (buyerMinRevenue && dealRevenue > 0 && dealRevenue < buyerMinRevenue) {
+  if (buyerMinRevenue && dealRevenue !== null && dealRevenue < buyerMinRevenue) {
     const percentBelow = (buyerMinRevenue - dealRevenue) / buyerMinRevenue;
     // Sliding scale: 20% below = 0.5x, 10% below = 0.65x
     return Math.max(0.35, 0.35 + (1 - percentBelow / 0.3) * 0.35);
   }
-  
+
   // Revenue significantly above maximum (>50% above)
-  if (buyerMaxRevenue && dealRevenue > buyerMaxRevenue * 1.5) {
+  if (buyerMaxRevenue && dealRevenue !== null && dealRevenue > buyerMaxRevenue * 1.5) {
     return 0; // Disqualify - way too big
   }
-  
+
   // EBITDA significantly below minimum
-  if (buyerMinEbitda && dealEbitda > 0 && dealEbitda < buyerMinEbitda * 0.5) {
+  if (buyerMinEbitda && dealEbitda !== null && dealEbitda < buyerMinEbitda * 0.5) {
     return 0.25; // Very heavy penalty
   }
-  
+
   // EBITDA below minimum (but not by much)
-  if (buyerMinEbitda && dealEbitda > 0 && dealEbitda < buyerMinEbitda) {
+  if (buyerMinEbitda && dealEbitda !== null && dealEbitda < buyerMinEbitda) {
     const percentBelow = (buyerMinEbitda - dealEbitda) / buyerMinEbitda;
     return Math.max(0.4, 1 - percentBelow);
   }
   
   // ========== POSITIVE SCENARIOS (DEAL FITS WELL) ==========
-  
-  // Perfect sweet spot match
-  if (revenueSweetSpot && dealRevenue > 0) {
+
+  // Perfect sweet spot match (only when we have actual revenue data)
+  if (revenueSweetSpot && dealRevenue !== null && dealRevenue > 0) {
     const percentDiff = Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot;
     if (percentDiff < 0.1) {
       return 1.0; // Perfect match - no penalty
@@ -436,20 +473,31 @@ function calculateSizeMultiplier(
       return 0.85; // Reasonable match
     }
   }
-  
-  // Within buyer's range
-  if (buyerMinRevenue && buyerMaxRevenue && dealRevenue >= buyerMinRevenue && dealRevenue <= buyerMaxRevenue) {
+
+  // Within buyer's range (only when we have actual revenue data)
+  if (buyerMinRevenue && buyerMaxRevenue && dealRevenue !== null && dealRevenue >= buyerMinRevenue && dealRevenue <= buyerMaxRevenue) {
     return 1.0; // In range - no penalty
   }
-  
+
   // Default - no special multiplier
   return 1.0;
 }
 
 // Calculate deal attractiveness multiplier based on overall deal quality
 // High-quality deals get geography boost, low-quality deals get penalty
+// CRITICAL FIX: Deal quality score may not be populated yet (execution order issue)
+// Use neutral multiplier as fallback to avoid penalizing deals incorrectly
 function calculateAttractivenessMultiplier(listing: any): { multiplier: number; reasoning: string } {
-  const dealScore = listing.deal_total_score || 0;
+  const dealScore = listing.deal_total_score;
+
+  // If deal score is not populated (NULL/undefined), use neutral multiplier
+  // This prevents incorrectly penalizing deals before deal quality scoring runs
+  if (dealScore === null || dealScore === undefined) {
+    return {
+      multiplier: 1.0,
+      reasoning: "Deal quality score pending - using neutral multiplier"
+    };
+  }
 
   if (dealScore >= 90) {
     return {
@@ -472,10 +520,10 @@ function calculateAttractivenessMultiplier(listing: any): { multiplier: number; 
       reasoning: "Below-average deal quality (<50) - 15% geography penalty"
     };
   } else {
-    // No deal score available
+    // Deal score is 0 (explicitly scored as poor)
     return {
-      multiplier: 1.0,
-      reasoning: "No deal quality score - neutral"
+      multiplier: 0.85,
+      reasoning: "Low deal quality (0) - 15% geography penalty"
     };
   }
 }
@@ -499,8 +547,7 @@ function calculateThesisBonus(
     listing.description || '',
     listing.executive_summary || '',
     listing.general_notes || '',
-    (listing.services || []).join(' '),
-    (listing.categories || [listing.category]).join(' ')
+    (listing.services || listing.categories || [listing.category]).join(' ')
   ].join(' ').toLowerCase();
 
   // Thesis keyword categories with point values
@@ -546,8 +593,9 @@ function calculateThesisBonus(
     }
   }
 
-  // Cap total bonus at 30 points per spec
-  bonusPoints = Math.min(30, bonusPoints);
+  // CRITICAL FIX: Increase thesis bonus cap from 30 to 50 points
+  // Exceptionally strong thesis matches deserve higher weight (transcript-derived data is highest quality)
+  bonusPoints = Math.min(50, bonusPoints);
 
   const reasoning = matches.length > 0
     ? `Thesis alignment: ${matches.join(', ')}`
@@ -1150,24 +1198,26 @@ function enforceHardRules(
   let forceDisqualify = false;
   const adjustedScores = { ...scores };
   
-  // 1. Below Minimum Revenue - DISQUALIFY
+  // 1. Below Minimum Revenue - DISQUALIFY (only when we have actual data)
   if (behavior.below_minimum_handling === 'disqualify') {
     const buyerMinRevenue = buyer.target_revenue_min;
     const dealRevenue = listing.revenue;
-    
-    if (buyerMinRevenue && dealRevenue && dealRevenue < buyerMinRevenue) {
+
+    // Only disqualify if we have actual revenue data showing it's below minimum
+    if (buyerMinRevenue && dealRevenue !== null && dealRevenue !== undefined && dealRevenue < buyerMinRevenue) {
       adjustedScores.size_score = Math.min(adjustedScores.size_score, 25);
       enforcements.push(`Disqualified: Deal revenue ($${dealRevenue.toLocaleString()}) below buyer minimum ($${buyerMinRevenue.toLocaleString()})`);
       forceDisqualify = true;
     }
   }
-  
-  // 2. Below Minimum Revenue - PENALIZE
+
+  // 2. Below Minimum Revenue - PENALIZE (only when we have actual data)
   if (behavior.below_minimum_handling === 'penalize') {
     const buyerMinRevenue = buyer.target_revenue_min;
     const dealRevenue = listing.revenue;
-    
-    if (buyerMinRevenue && dealRevenue && dealRevenue < buyerMinRevenue) {
+
+    // Only penalize if we have actual revenue data showing it's below minimum
+    if (buyerMinRevenue && dealRevenue !== null && dealRevenue !== undefined && dealRevenue < buyerMinRevenue) {
       const penaltyFactor = Math.max(0.5, dealRevenue / buyerMinRevenue);
       adjustedScores.size_score = Math.round(adjustedScores.size_score * penaltyFactor);
       enforcements.push(`Size penalized: Deal below minimum (${Math.round(penaltyFactor * 100)}% factor applied)`);
@@ -1176,7 +1226,7 @@ function enforceHardRules(
   
   // 3. Excluded Services - DEALBREAKER
   if (behavior.excluded_services_dealbreaker && serviceCriteria?.excluded_services?.length) {
-    const dealServices = (listing.categories || [listing.category]).map((s: string) => s?.toLowerCase());
+    const dealServices = (listing.services || listing.categories || [listing.category]).map((s: string) => s?.toLowerCase());
     const excludedServices = serviceCriteria.excluded_services.map(s => s.toLowerCase());
     
     const hasExcluded = dealServices.some((ds: string) => 
@@ -1337,6 +1387,9 @@ Provide scores and reasoning following the format above. Be specific about which
 
   // Get service categories from array or fallback to single category
   const getServices = () => {
+    if (listing.services && Array.isArray(listing.services) && listing.services.length > 0) {
+      return listing.services.join(", ");
+    }
     if (listing.categories && Array.isArray(listing.categories) && listing.categories.length > 0) {
       return listing.categories.join(", ");
     }
@@ -1571,7 +1624,15 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
   
   console.log(`[SizeMultiplier] Deal ${listing.id}: size_score=${enforcedScores.size_score}, multiplier=${sizeMultiplier}`);
 
-  // Calculate composite score using universe weights (core 4 categories)
+  // ========== CRITICAL FIX: CORRECT CALCULATION ORDER ==========
+  // Issue #9 Fix: Size multiplier should apply ONLY to base score, not bonuses
+  // Correct order:
+  // 1. Calculate base weighted score (4 core categories)
+  // 2. Apply size multiplier to base score (gates based on size fit)
+  // 3. Add bonuses (primary focus, sweet spot, thesis, engagement)
+  // 4. Cap at 100
+
+  // Step 1: Calculate base composite score using universe weights (core 4 categories)
   const baseComposite = Math.round(
     (enforcedScores.geography_score * universe.geography_weight +
      enforcedScores.size_score * universe.size_weight +
@@ -1579,41 +1640,41 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
      enforcedScores.owner_goals_score * universe.owner_goals_weight) / 100
   );
 
-  // Bonus from secondary scores (up to +5 points per spec) - but not if disqualified
+  // Bonus from secondary scores (up to +5 points per spec) - added to base before multiplier
   const secondaryAvg = (enforcedScores.acquisition_score + enforcedScores.portfolio_score + enforcedScores.business_model_score) / 3;
   const secondaryBonus = forceDisqualify ? 0 : (secondaryAvg >= 80 ? 5 : secondaryAvg >= 60 ? 2 : 0);
-  let compositeBeforeMultiplier = Math.min(100, baseComposite + secondaryBonus);
-  
-  // Apply primary focus bonus (+10pt when deal's primary service matches buyer's primary focus)
-  const { score: primaryFocusScore, bonusApplied: primaryBonusApplied } = applyPrimaryFocusBonus(
+  const baseWithSecondary = Math.min(100, baseComposite + secondaryBonus);
+
+  // Step 2: Apply size multiplier to base score ONLY (this gates the match)
+  let sizeGatedScore = Math.round(baseWithSecondary * sizeMultiplier);
+  sizeGatedScore = Math.min(100, Math.max(0, sizeGatedScore));
+
+  // Step 3: Calculate all bonuses (applied AFTER size multiplier)
+  let totalBonuses = 0;
+
+  // Primary focus bonus (+10pt when deal's primary service matches buyer's primary focus)
+  const primaryFocusBonus = applyPrimaryFocusBonus(
     listing,
     buyer,
     scoringBehavior,
-    compositeBeforeMultiplier
+    0 // Pass 0 since we're just checking if bonus applies, not adding to score
   );
-  
-  if (primaryBonusApplied && !forceDisqualify) {
-    compositeBeforeMultiplier = primaryFocusScore;
+  if (primaryFocusBonus.bonusApplied && !forceDisqualify) {
+    totalBonuses += 10;
   }
-  
-  // Apply sweet spot bonus (+5pt when deal revenue/EBITDA matches buyer's sweet spot)
-  const { score: sweetSpotSizeScore, bonusApplied: sweetSpotApplied, bonusReason: sweetSpotReason } = 
+
+  // Sweet spot bonus (+5pt when deal revenue/EBITDA matches buyer's sweet spot)
+  const { score: sweetSpotSizeScore, bonusApplied: sweetSpotApplied, bonusReason: sweetSpotReason } =
     applySweetSpotBonus(listing, buyer, enforcedScores.size_score);
-  
   if (sweetSpotApplied && !forceDisqualify) {
-    // Update the size score and recalculate composite with the bonus
-    const sizeDiff = sweetSpotSizeScore - enforcedScores.size_score;
-    const compositeBoost = Math.round((sizeDiff * universe.size_weight) / 100);
-    compositeBeforeMultiplier = Math.min(100, compositeBeforeMultiplier + compositeBoost);
+    totalBonuses += 5;
   }
-  
-  // ========== APPLY SIZE MULTIPLIER (KEY SPEC REQUIREMENT) ==========
-  // This is the critical gate: perfect geo/services but wrong size = low final score
-  let finalComposite = Math.round(compositeBeforeMultiplier * sizeMultiplier);
-  finalComposite = Math.min(100, Math.max(0, finalComposite));
-  
-  console.log(`[CompositeCalc] Before multiplier: ${compositeBeforeMultiplier}, After (×${sizeMultiplier}): ${finalComposite}`);
-  
+
+  // Step 4: Apply bonuses and cap at 100
+  let finalComposite = Math.min(100, sizeGatedScore + totalBonuses);
+
+  console.log(`[CompositeCalc] Base: ${baseWithSecondary}, After multiplier (×${sizeMultiplier}): ${sizeGatedScore}, With bonuses (+${totalBonuses}): ${finalComposite}`);
+
   // Apply engagement weight multiplier for priority buyers (0.5x to 2.0x)
   let engagementMultiplierApplied = false;
   if (scoringBehavior.engagement_weight_multiplier && 
@@ -1655,14 +1716,14 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
 
   // Build final reasoning with enforcement notes, size multiplier, and bonuses
   let finalReasoning = enforcedScores.reasoning;
-  
+
   // Add size multiplier note (KEY SPEC REQUIREMENT)
   if (sizeMultiplier < 1.0 && !forceDisqualify) {
     finalReasoning += ` Size Multiplier: ${(sizeMultiplier * 100).toFixed(0)}%.`;
   }
-  
+
   // Add bonus notes if applied
-  if (primaryBonusApplied && !forceDisqualify) {
+  if (primaryFocusBonus.bonusApplied && !forceDisqualify) {
     finalReasoning += " +10pt primary focus bonus.";
   }
   if (sweetSpotApplied && !forceDisqualify) {
@@ -1671,7 +1732,7 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
   if (engagementMultiplierApplied) {
     finalReasoning += ` (${scoringBehavior.engagement_weight_multiplier}x priority multiplier)`;
   }
-  
+
   if (enforcements.length > 0) {
     finalReasoning += `\n\nRule Enforcements: ${enforcements.join("; ")}`;
   }
