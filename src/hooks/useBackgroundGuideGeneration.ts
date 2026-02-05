@@ -54,32 +54,16 @@ export function useBackgroundGuideGeneration({
         .limit(1)
         .single();
 
-      if (!activeError && activeGen) {
-        setCurrentGeneration(activeGen as GenerationStatus);
+      if (!error && data) {
+        const generation = data as GenerationStatus;
+        setCurrentGeneration(generation);
         setIsGenerating(true);
-        startPolling(activeGen.id);
-        return;
-      }
-
-      // Check for most recent completed generation (restore state on return)
-      const { data: completedGen, error: completedError } = await supabase
-        .from('ma_guide_generations')
-        .select('*')
-        .eq('universe_id', universeId)
-        .eq('status', 'completed')
-        .order('completed_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!completedError && completedGen) {
-        setCurrentGeneration(completedGen as GenerationStatus);
-        setProgress(100);
-        // Notify parent of completed generation
-        const content = (completedGen.generated_content as any)?.content || '';
-        const criteria = (completedGen.generated_content as any)?.criteria || null;
-        if (content && onComplete) {
-          onComplete(content, criteria);
-        }
+        
+        // Restore progress from the database record
+        const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
+        setProgress(progressPercent);
+        
+        startPolling(data.id);
       }
     } catch (err) {
       // No existing generation, that's fine
@@ -245,6 +229,6 @@ export function useBackgroundGuideGeneration({
     cancelGeneration,
     phaseName: currentGeneration?.current_phase || '',
     phasesCompleted: currentGeneration?.phases_completed || 0,
-    totalPhases: currentGeneration?.total_phases || 13
+    totalPhases: currentGeneration?.total_phases || 14
   };
 }

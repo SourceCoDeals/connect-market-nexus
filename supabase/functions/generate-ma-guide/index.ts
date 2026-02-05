@@ -28,6 +28,7 @@ const GENERATION_PHASES = [
   { id: '3c', name: 'Example Evaluation', focus: 'Worked example with scoring rationale' },
   { id: '4a', name: 'Structured Criteria Output', focus: 'Machine-parseable format for extraction' },
   { id: '4b', name: 'Quality Validation', focus: 'Completeness check and gap identification' },
+  { id: '5a', name: 'References & Sources', focus: 'Industry sources, data citations, research references' },
 ];
 
 interface QualityResult {
@@ -102,7 +103,7 @@ function validateQuality(content: string): QualityResult {
                           content.toLowerCase().includes('primary service');
   
   const missingElements: string[] = [];
-  if (wordCount < 17500) missingElements.push('Word count below 17,500 target');
+  if (wordCount < 7500) missingElements.push('Word count below 7,500 minimum');
   if (tableCount < 10) missingElements.push('Need more data tables');
   if (placeholderCount > 10) missingElements.push('Too many placeholders remaining');
   if (!hasCriteria) missingElements.push('Missing size/financial criteria section');
@@ -111,7 +112,7 @@ function validateQuality(content: string): QualityResult {
   
   // Calculate weighted score
   let score = 0;
-  score += Math.min(40, (wordCount / 21000) * 40); // Up to 40 points for word count
+  score += Math.min(40, (wordCount / 15000) * 40); // Up to 40 points for word count (target 15k)
   score += Math.min(20, (tableCount / 14) * 20); // Up to 20 points for tables
   score += Math.max(0, 15 - (placeholderCount * 2)); // 15 points minus penalties for placeholders
   score += hasCriteria ? 10 : 0;
@@ -645,7 +646,7 @@ const FUNCTION_TIMEOUT_MS = 120000; // 120 seconds - exit earlier to avoid hard 
 const MIN_TIME_FOR_PHASE_MS = 50000; // Need at least 50s to safely complete a phase
 
 // Model selection: Use Sonnet for critical phases, Haiku for standard
-const CRITICAL_PHASES = ['1e', '3b', '4a']; // Buyer profiles, Fit criteria, Structured output
+const CRITICAL_PHASES = ['1e', '3b', '4a', '5a']; // Buyer profiles, Fit criteria, Structured output, References
 const getModelForPhase = (phaseId: string) => 
   CRITICAL_PHASES.includes(phaseId) ? DEFAULT_CLAUDE_MODEL : DEFAULT_CLAUDE_FAST_MODEL;
 
@@ -723,7 +724,15 @@ async function generatePhaseContentWithModel(
 
   const systemPrompt = `You are an expert M&A advisor creating comprehensive industry research guides.
 Generate detailed, actionable content for the specified phase of an M&A guide.
-Use proper HTML formatting with h2, h3, h4 headings, tables, and bullet points.
+
+FORMATTING REQUIREMENTS (CRITICAL):
+- Use ONLY pure Markdown syntax
+- Headings: ## H2, ### H3, #### H4
+- Tables: | Column1 | Column2 | format with | separators
+- Lists: - bullet items or 1. numbered items
+- Bold: **text**, Italic: *text*
+- NEVER use HTML tags (<h2>, <table>, <tr>, <td>, <dl>, <dt>, etc.)
+
 Include specific numbers, ranges, and concrete examples wherever possible.
 Target 2,000-3,000 words per phase.
 Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
@@ -756,7 +765,7 @@ NOW GENERATE THE FOLLOWING SECTION:
       headers: getAnthropicHeaders(apiKey),
       body: JSON.stringify({
         model,
-        max_tokens: CRITICAL_PHASES.includes(phase.id) ? 4000 : 3500, // Reduced for faster responses
+        max_tokens: CRITICAL_PHASES.includes(phase.id) ? 8000 : 6000, // Increased for longer content
         system: systemPrompt,
         messages: [
           { role: "user", content: userPrompt }
@@ -1056,7 +1065,44 @@ Perform a final quality check:
 4. Validate number ranges are realistic
 5. Ensure buyer types are configured
 
-Provide a validation summary.`
+Provide a validation summary.`,
+
+    '5a': `## PHASE 5A: REFERENCES & SOURCES
+
+Compile a comprehensive references section for this "${industryName}" M&A guide. This provides credibility and allows readers to verify information.
+
+### INDUSTRY DATA SOURCES
+List specific sources for market data cited in this guide:
+- Market research firms (IBISWorld, Statista, etc.)
+- Industry associations and their publications
+- Government sources (BLS, Census Bureau, SBA)
+- Trade publications specific to "${industryName}"
+
+### TRANSACTION DATA REFERENCES
+Sources for M&A activity and valuations:
+- M&A databases (PitchBook, CapIQ, GF Data)
+- Deal announcement sources
+- Valuation multiple benchmarks
+- Industry transaction reports
+
+### REGULATORY & COMPLIANCE SOURCES
+- Federal agency guidelines relevant to "${industryName}"
+- State licensing requirements
+- Industry-specific compliance standards
+- Environmental/safety regulations
+
+### PROFESSIONAL RESOURCES
+- Certification bodies and requirements
+- Industry training programs
+- Professional associations
+- Key industry conferences
+
+### RECOMMENDED READING
+- Books on "${industryName}" M&A
+- Industry thought leaders
+- Relevant white papers and case studies
+
+Format as a structured bibliography with brief descriptions of each source's relevance.`
   };
 }
 
