@@ -160,7 +160,7 @@ export const AIResearchSection = ({
   const [industryDescription, setIndustryDescription] = useState("");
   const [state, setState] = useState<GenerationState>('idle');
   const [currentPhase, setCurrentPhase] = useState(0);
-  const [totalPhases, setTotalPhases] = useState(12);
+  const [totalPhases, setTotalPhases] = useState(14);
   const [phaseName, setPhaseName] = useState("");
   const [content, setContent] = useState(existingContent || "");
   const [wordCount, setWordCount] = useState(0);
@@ -266,6 +266,22 @@ export const AIResearchSection = ({
       if (!error && data) {
         // Found an existing generation - resume monitoring
         toast.info('Resuming M&A guide generation in progress...');
+        
+        // Expand the panel to show progress
+        setIsOpen(true);
+        
+        // Restore UI state from the database record
+        setCurrentPhase(data.phases_completed || 0);
+        setTotalPhases(data.total_phases || 14);
+        setPhaseName(data.current_phase || 'Resuming...');
+        
+        // Restore content if available
+        const generatedContent = data.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
+        if (generatedContent?.content) {
+          setContent(generatedContent.content);
+          setWordCount(generatedContent.content.split(/\s+/).length);
+        }
+        
         setState('generating');
         resumeBackgroundGeneration(data.id);
       }
