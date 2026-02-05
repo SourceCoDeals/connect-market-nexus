@@ -52,6 +52,8 @@ import ReMarketingBulkImport from "@/pages/admin/remarketing/ReMarketingBulkImpo
 
 import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
 import { ReMarketingLayout } from "@/components/remarketing";
+import WebhooksPage from "@/pages/admin/settings/WebhooksPage";
+import TranscriptAnalytics from "@/pages/admin/analytics/TranscriptAnalytics";
 import { MAIntelligenceLayout } from "@/components/ma-intelligence";
 import { MADashboard, MATrackers, MATrackerDetail, MAAllBuyers, MABuyerDetail, MAAllDeals, MADealDetail } from "@/pages/admin/ma-intelligence";
 import AuthCallback from "@/pages/auth/callback";
@@ -132,6 +134,8 @@ function App() {
               <Route path="deal-sourcing" element={<AdminDealSourcing />} />
               <Route path="pipeline" element={<AdminPipeline />} />
               <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="settings/webhooks" element={<WebhooksPage />} />
+              <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
             </Route>
 
             {/* Remarketing routes with dedicated ReMarketingLayout */}

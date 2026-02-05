@@ -9,7 +9,9 @@ import {
   ShoppingBag,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  Webhook,
+  BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +69,18 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
       icon: <Sparkles className="h-4 w-4 mr-2" />,
       active: location.pathname.includes('/admin/deal-sourcing'),
       badge: unviewedDealSourcingCount
+    },
+    {
+      to: "/admin/settings/webhooks",
+      label: "Webhooks",
+      icon: <Webhook className="h-4 w-4 mr-2" />,
+      active: location.pathname.includes('/admin/settings/webhooks')
+    },
+    {
+      to: "/admin/analytics/transcripts",
+      label: "Transcript Analytics",
+      icon: <BarChart3 className="h-4 w-4 mr-2" />,
+      active: location.pathname.includes('/admin/analytics/transcripts')
     },
     {
       to: "/marketplace",
