@@ -245,18 +245,7 @@ export const AddDealToUniverseDialog = ({
       const { data: { user } } = await supabase.auth.getUser();
 
       // Create the listing with proper typing
-      const insertData: {
-        title: string;
-        website: string | null;
-        location: string | null;
-        revenue: number | null;
-        ebitda: number | null;
-        description: string | null;
-        is_internal_deal: boolean;
-        is_active: boolean;
-        created_by: string | undefined;
-        category: string;
-      } = {
+      const insertData = {
         title: newDealForm.title,
         website: newDealForm.website || null,
         location: newDealForm.location || null,
@@ -266,7 +255,6 @@ export const AddDealToUniverseDialog = ({
         // Remarketing deals must never be visible on the public marketplace
         is_internal_deal: true,
         is_active: true,
-        created_by: user?.id,
         category: "Other",
       };
 
