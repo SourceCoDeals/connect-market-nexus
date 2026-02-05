@@ -107,46 +107,55 @@ Return questions as JSON matching this schema exactly.`;
       }
     });
 
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: getAnthropicHeaders(ANTHROPIC_API_KEY),
-      body: JSON.stringify({
-        model: DEFAULT_CLAUDE_FAST_MODEL,
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: `Generate clarifying questions for the industry: "${industry_name}"${descriptionContext}` }
-        ],
-        tools: [tool],
-        tool_choice: { type: "tool", name: "generate_questions" }
-      }),
+    const requestBody = JSON.stringify({
+      model: DEFAULT_CLAUDE_FAST_MODEL,
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: `Generate clarifying questions for the industry: "${industry_name}"${descriptionContext}` }
+      ],
+      tools: [tool],
+      tool_choice: { type: "tool", name: "generate_questions" }
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // Retry logic for Anthropic API rate limits
+    const MAX_RETRIES = 3;
+    let response: Response | null = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      response = await fetch(ANTHROPIC_API_URL, {
+        method: "POST",
+        headers: getAnthropicHeaders(ANTHROPIC_API_KEY),
+        body: requestBody,
+      });
+
+      if (response.status !== 429 && response.status !== 529) break;
+
+      if (attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+        console.log(`[clarify-industry] Rate limited (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+
+    if (!response!.ok) {
+      if (response!.status === 429 || response!.status === 529) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          JSON.stringify({ error: "AI service busy. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 529) {
-        return new Response(
-          JSON.stringify({ error: "AI service overloaded. Please try again in a moment." }),
-          { status: 529, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
+      if (response!.status === 402) {
         return new Response(
           JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const text = await response.text();
-      console.error("AI API error:", response.status, text);
-      throw new Error(`AI API error: ${response.status}`);
+      const text = await response!.text();
+      console.error("AI API error:", response!.status, text);
+      throw new Error(`AI API error: ${response!.status}`);
     }
 
-    const result = await response.json();
+    const result = await response!.json();
     const extracted = parseAnthropicToolResponse(result) as { questions?: ClarifyQuestion[] } | null;
     
     let questions: ClarifyQuestion[] = extracted?.questions || [];

@@ -98,20 +98,17 @@ CRITICAL REQUIREMENTS:
 4. Use full state names (e.g., "Texas" not "TX")
 5. Do NOT include placeholder values like [X], TBD, or $XM`;
 
-    const response = await fetch(GEMINI_API_URL, {
-      method: "POST",
-      headers: getGeminiHeaders(GEMINI_API_KEY),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Parse this fit criteria text:\n\n${fit_criteria_text}` }
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "extract_fit_criteria",
-            description: "Extract structured buyer universe criteria from text",
+    const requestBody = JSON.stringify({
+      model: DEFAULT_GEMINI_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Parse this fit criteria text:\n\n${fit_criteria_text}` }
+      ],
+      tools: [{
+        type: "function",
+        function: {
+          name: "extract_fit_criteria",
+          description: "Extract structured buyer universe criteria from text",
             parameters: {
               type: "object",
               properties: {
@@ -227,23 +224,41 @@ CRITICAL REQUIREMENTS:
           }
         }],
         tool_choice: { type: "function", function: { name: "extract_fit_criteria" } }
-      }),
-    });
+      });
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // Retry logic for API rate limits
+    const MAX_RETRIES = 3;
+    let response: Response | null = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      response = await fetch(GEMINI_API_URL, {
+        method: "POST",
+        headers: getGeminiHeaders(GEMINI_API_KEY),
+        body: requestBody,
+      });
+
+      if (response.status !== 429 && response.status !== 529) break;
+
+      if (attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt + 1) * 1000;
+        console.log(`[parse-fit-criteria] Rate limited (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+
+    if (!response!.ok) {
+      if (response!.status === 429 || response!.status === 529) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded" }),
+          JSON.stringify({ error: "AI service busy. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
+      if (response!.status === 402) {
         return new Response(
           JSON.stringify({ error: "Payment required" }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
+
       // Fallback to local parsing
       console.log('AI unavailable, using local parsing fallback');
       const localParsed = parseLocally(fit_criteria_text);
@@ -253,7 +268,7 @@ CRITICAL REQUIREMENTS:
       );
     }
 
-    const aiData = await response.json();
+    const aiData = await response!.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall?.function?.arguments) {
