@@ -216,9 +216,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               fileUrl = urlData.publicUrl;
             }
 
-            // Insert transcript record
+            // Insert transcript record - use v_deal_transcripts view
             const { error } = await supabase
-              .from('deal_transcripts')
+              .from('v_deal_transcripts' as any)
               .insert({
                 listing_id: dealId,
                 transcript_text: transcriptText,
@@ -246,9 +246,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         return { count: successCount };
       }
       
-      // Single transcript mode (pasted text or link)
+      // Single transcript mode (pasted text or link) - use v_deal_transcripts view
       const { error } = await supabase
-        .from('deal_transcripts')
+        .from('v_deal_transcripts' as any)
         .insert({
           listing_id: dealId,
           transcript_text: newTranscript,
@@ -275,8 +275,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   // Delete transcript mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
       const { error } = await supabase
-        .from('deal_transcripts')
+        .from('v_deal_transcripts' as any)
         .delete()
         .eq('id', id);
 
@@ -474,9 +475,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         if (error) throw error;
       }
 
-      // Mark as applied
+      // Mark as applied - use v_deal_transcripts view
       await supabase
-        .from('deal_transcripts')
+        .from('v_deal_transcripts' as any)
         .update({ applied_to_deal: true, applied_at: new Date().toISOString() })
         .eq('id', transcript.id);
 

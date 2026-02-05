@@ -70,9 +70,9 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   const loadTranscripts = async () => {
     try {
-      // deal_transcripts uses listing_id, not deal_id
+      // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
       const { data, error } = await supabase
-        .from("deal_transcripts")
+        .from("v_deal_transcripts" as any)
         .select("*")
         .eq("listing_id", dealId)
         .order("created_at", { ascending: false });
@@ -127,8 +127,9 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
     if (!confirm("Are you sure you want to delete this transcript?")) return;
 
     try {
+      // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
       const { error } = await supabase
-        .from("deal_transcripts")
+        .from("v_deal_transcripts" as any)
         .delete()
         .eq("id", transcriptId);
 

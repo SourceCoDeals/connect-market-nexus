@@ -135,18 +135,18 @@ const ReMarketingDealDetail = () => {
     enabled: !!dealId
   });
 
-  // Fetch transcripts for this deal
+  // Fetch transcripts for this deal - use backwards-compatible view
   const { data: transcripts, isLoading: transcriptsLoading } = useQuery({
     queryKey: ['remarketing', 'deal-transcripts', dealId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('deal_transcripts')
+        .from('v_deal_transcripts' as any)
         .select('*')
         .eq('listing_id', dealId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as unknown as any[];
     },
     enabled: !!dealId
   });
