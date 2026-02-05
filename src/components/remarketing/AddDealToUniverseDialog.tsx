@@ -242,6 +242,7 @@ export const AddDealToUniverseDialog = ({
         revenue: number | null;
         ebitda: number | null;
         description: string | null;
+        is_internal_deal: boolean;
         is_active: boolean;
         created_by: string | undefined;
         category: string;
@@ -252,6 +253,8 @@ export const AddDealToUniverseDialog = ({
         revenue: newDealForm.revenue ? parseFloat(newDealForm.revenue) : null,
         ebitda: newDealForm.ebitda ? parseFloat(newDealForm.ebitda) : null,
         description: newDealForm.description || null,
+        // Remarketing deals must never be visible on the public marketplace
+        is_internal_deal: true,
         is_active: true,
         created_by: user?.id,
         category: "Other",
