@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,13 +50,6 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    }
-
-    // SECURITY: Check rate limit before making AI calls
-    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_query', true);
-    if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for admin ${user.id} on ai_query`);
-      return rateLimitResponse(rateLimitResult);
     }
 
     const { query, universeId, limit = 20 } = await req.json();

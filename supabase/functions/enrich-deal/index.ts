@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
-import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
+import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -118,13 +118,6 @@ serve(async (req) => {
       }
 
       userId = user.id;
-    }
-
-    // SECURITY: Check rate limit before making expensive AI calls
-    const rateLimitResult = await checkRateLimit(supabase, userId, 'ai_enrichment', true);
-    if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for ${userId} on ai_enrichment`);
-      return rateLimitResponse(rateLimitResult);
     }
 
     const { dealId } = await req.json();

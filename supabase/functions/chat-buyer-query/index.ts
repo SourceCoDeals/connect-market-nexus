@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkRateLimit, rateLimitResponse } from "../_shared/security.ts";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const DEFAULT_MODEL = "google/gemini-2.5-flash";
@@ -150,12 +149,6 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await checkRateLimit(supabase, user.id, 'ai_query', true);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResponse(rateLimitResult);
     }
 
     if (!LOVABLE_API_KEY) {

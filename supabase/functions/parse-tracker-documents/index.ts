@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk@0.30.1";
-import { checkRateLimit, validateUrl, rateLimitResponse, ssrfErrorResponse } from "../_shared/security.ts";
+import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 
 const anthropic = new Anthropic({
   apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
@@ -53,13 +53,6 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
-
-    // SECURITY: Check rate limit before making expensive AI calls
-    const rateLimitResult = await checkRateLimit(supabase, user.id, "ai_document_parse", true);
-    if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for admin ${user.id} on ai_document_parse`);
-      return rateLimitResponse(rateLimitResult);
     }
 
     const { document_url, document_type, tracker_id } = await req.json();
