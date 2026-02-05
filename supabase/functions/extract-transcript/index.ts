@@ -13,7 +13,12 @@ const corsHeaders = {
 };
 
 interface ExtractTranscriptRequest {
-  transcript_id: string;
+  // New API: pass text directly (preferred for buyer_transcripts)
+  buyerId?: string;
+  transcriptText?: string;
+  source?: string;
+  // Legacy API: lookup from call_transcripts table
+  transcript_id?: string;
   entity_type?: 'deal' | 'buyer' | 'both';
 }
 
@@ -55,44 +60,64 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body: ExtractTranscriptRequest = await req.json();
-    const { transcript_id, entity_type = 'both' } = body;
+    const { buyerId, transcriptText, source, transcript_id, entity_type = 'both' } = body;
 
-    // Fetch transcript
-    const { data: transcript, error: transcriptError } = await supabase
-      .from('call_transcripts')
-      .select('*')
-      .eq('id', transcript_id)
-      .single();
+    let transcriptTextToProcess: string;
+    let buyerIdToUpdate: string | undefined = buyerId;
+    let listingIdToUpdate: string | undefined;
+    let transcriptIdForTracking: string | undefined = transcript_id;
 
-    if (transcriptError || !transcript) {
+    // NEW API: Direct text passed from buyer_transcripts flow
+    if (transcriptText && buyerId) {
+      console.log(`[TranscriptExtraction] Processing direct text for buyer ${buyerId}`);
+      transcriptTextToProcess = transcriptText;
+    }
+    // LEGACY API: Lookup from call_transcripts table
+    else if (transcript_id) {
+      const { data: transcript, error: transcriptError } = await supabase
+        .from('call_transcripts')
+        .select('*')
+        .eq('id', transcript_id)
+        .single();
+
+      if (transcriptError || !transcript) {
+        return new Response(
+          JSON.stringify({ error: "Transcript not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      transcriptTextToProcess = transcript.transcript_text;
+      buyerIdToUpdate = transcript.buyer_id;
+      listingIdToUpdate = transcript.listing_id;
+
+      // Update status to processing
+      await supabase
+        .from('call_transcripts')
+        .update({ processing_status: 'processing', processed_at: new Date().toISOString() })
+        .eq('id', transcript_id);
+    } else {
       return new Response(
-        JSON.stringify({ error: "Transcript not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Must provide either transcriptText+buyerId or transcript_id" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Update status to processing
-    await supabase
-      .from('call_transcripts')
-      .update({ processing_status: 'processing', processed_at: new Date().toISOString() })
-      .eq('id', transcript_id);
-
-    const transcriptText = transcript.transcript_text;
     const insights: Record<string, unknown> = {};
     const keyQuotes: string[] = [];
 
     // Detect CEO involvement
-    const ceoDetected = detectCEOInvolvement(transcriptText);
+    const ceoDetected = detectCEOInvolvement(transcriptTextToProcess);
     if (ceoDetected) {
-      console.log(`[TranscriptExtraction] CEO detected in transcript ${transcript_id}`);
+      console.log(`[TranscriptExtraction] CEO detected in transcript`);
       insights.ceo_detected = true;
 
-      // Create engagement signal if buyer_id is present
-      if (transcript.buyer_id && transcript.listing_id) {
+      // Create engagement signal if both buyer_id and listing_id are present
+      if (buyerIdToUpdate && listingIdToUpdate) {
         await createEngagementSignal(
           supabase,
-          transcript.listing_id,
-          transcript.buyer_id,
+          listingIdToUpdate,
+          buyerIdToUpdate,
           'ceo_involvement',
           40
         );
@@ -100,61 +125,64 @@ serve(async (req) => {
     }
 
     // Extract based on entity type
-    if ((entity_type === 'deal' || entity_type === 'both') && transcript.listing_id) {
-      console.log(`[TranscriptExtraction] Extracting deal insights from transcript ${transcript_id}`);
-      const dealInsights = await extractDealInsights(transcriptText, ANTHROPIC_API_KEY);
+    if ((entity_type === 'deal' || entity_type === 'both') && listingIdToUpdate) {
+      console.log(`[TranscriptExtraction] Extracting deal insights`);
+      const dealInsights = await extractDealInsights(transcriptTextToProcess, ANTHROPIC_API_KEY);
       insights.deal = dealInsights;
 
       // Extract key quotes
-      const quotes = extractKeyQuotes(transcriptText, 'deal');
+      const quotes = extractKeyQuotes(transcriptTextToProcess, 'deal');
       keyQuotes.push(...quotes);
 
       // Update listing with extracted data (source priority: transcript = 100)
       await updateListingFromTranscript(
         supabase,
-        transcript.listing_id,
+        listingIdToUpdate,
         dealInsights,
-        transcript_id
+        transcriptIdForTracking || 'direct'
       );
     }
 
-    if ((entity_type === 'buyer' || entity_type === 'both') && transcript.buyer_id) {
-      console.log(`[TranscriptExtraction] Extracting buyer insights from transcript ${transcript_id}`);
-      const buyerInsights = await extractBuyerInsights(transcriptText, ANTHROPIC_API_KEY);
+    if ((entity_type === 'buyer' || entity_type === 'both') && buyerIdToUpdate) {
+      console.log(`[TranscriptExtraction] Extracting buyer insights for ${buyerIdToUpdate}`);
+      const buyerInsights = await extractBuyerInsights(transcriptTextToProcess, ANTHROPIC_API_KEY);
       insights.buyer = buyerInsights;
 
       // Extract key quotes
-      const quotes = extractKeyQuotes(transcriptText, 'buyer');
+      const quotes = extractKeyQuotes(transcriptTextToProcess, 'buyer');
       keyQuotes.push(...quotes);
 
       // Update buyer with extracted data
       await updateBuyerFromTranscript(
         supabase,
-        transcript.buyer_id,
+        buyerIdToUpdate,
         buyerInsights,
-        transcript_id
+        transcriptIdForTracking || 'direct'
       );
     }
 
-    // Update transcript with insights
-    const { error: updateError } = await supabase
-      .from('call_transcripts')
-      .update({
-        extracted_insights: insights,
-        key_quotes: keyQuotes,
-        ceo_detected: ceoDetected,
-        processing_status: 'completed',
-      })
-      .eq('id', transcript_id);
+    // Update call_transcripts record if using legacy API
+    if (transcriptIdForTracking && transcript_id) {
+      const { error: updateError } = await supabase
+        .from('call_transcripts')
+        .update({
+          extracted_insights: insights,
+          key_quotes: keyQuotes,
+          ceo_detected: ceoDetected,
+          processing_status: 'completed',
+        })
+        .eq('id', transcript_id);
 
-    if (updateError) {
-      console.error("Failed to update transcript:", updateError);
+      if (updateError) {
+        console.error("Failed to update transcript:", updateError);
+      }
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        transcript_id,
+        transcript_id: transcriptIdForTracking,
+        buyer_id: buyerIdToUpdate,
         insights,
         key_quotes: keyQuotes,
         ceo_detected: ceoDetected,
