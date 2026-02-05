@@ -632,9 +632,9 @@ const BATCH_SIZE = 1;
 // Phase timeout configuration
 // CRITICAL: Keep well below 150s hard limit. Single phase should complete in ~40-60s max.
 const PHASE_TIMEOUT_MS = 45000; // 45 seconds per phase (reduced from 50s for more buffer)
-// Retrying inside the same request can push the function over the hard timeout and kill the stream mid-flight.
-// Prefer failing fast and letting the client retry the batch.
-const MAX_RETRIES = 0;
+// Allow 1 retry per phase for transient errors (429, timeout).
+// With BATCH_SIZE=1, a single retry stays well within the 150s hard timeout.
+const MAX_RETRIES = 1;
 
 // Inter-phase delay to prevent hitting rate limits
 const INTER_PHASE_DELAY_MS = 1000; // 1 second between API calls (reduced for efficiency)

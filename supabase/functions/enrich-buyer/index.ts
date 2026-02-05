@@ -119,7 +119,6 @@ const FIELD_TO_COLUMN_MAP: Record<string, string> = {
   'max_revenue': 'target_revenue_max',
   'min_ebitda': 'target_ebitda_min',
   'max_ebitda': 'target_ebitda_max',
-  'preferred_ebitda': 'ebitda_sweet_spot',
 };
 
 // ============================================================================
@@ -521,7 +520,6 @@ const PROMPT_6_SIZE = {
       min_ebitda: { type: 'integer', description: 'Minimum EBITDA in dollars' },
       max_ebitda: { type: 'integer', description: 'Maximum EBITDA in dollars' },
       ebitda_sweet_spot: { type: 'integer', description: 'Ideal EBITDA target in dollars' },
-      preferred_ebitda: { type: 'integer', description: 'Preferred EBITDA in dollars' },
     },
   },
 };
@@ -595,7 +593,6 @@ function validateSizeCriteria(extracted: any): any {
   data.min_ebitda = checkForMultiple(data.min_ebitda);
   data.max_ebitda = checkForMultiple(data.max_ebitda);
   data.ebitda_sweet_spot = checkForMultiple(data.ebitda_sweet_spot);
-  data.preferred_ebitda = checkForMultiple(data.preferred_ebitda);
 
   return { ...extracted, data };
 }
@@ -815,6 +812,27 @@ Deno.serve(async (req) => {
         return ssrfErrorResponse(`PE firm website: ${validation.reason}`);
       }
     }
+
+    // Enrichment lock: prevent concurrent enrichment of the same buyer
+    // If data_last_updated was set within the last 60 seconds, another enrichment is likely running
+    const ENRICHMENT_LOCK_SECONDS = 60;
+    if (buyer.data_last_updated) {
+      const lastUpdated = new Date(buyer.data_last_updated).getTime();
+      const now = Date.now();
+      if (now - lastUpdated < ENRICHMENT_LOCK_SECONDS * 1000) {
+        console.log(`[enrich-buyer] Skipping buyer ${buyerId}: enrichment already in progress (last updated ${Math.round((now - lastUpdated) / 1000)}s ago)`);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Enrichment already in progress for this buyer. Please wait and try again.' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Set lock: mark data_last_updated immediately to prevent concurrent runs
+    await supabase
+      .from('remarketing_buyers')
+      .update({ data_last_updated: new Date().toISOString() })
+      .eq('id', buyerId);
 
     console.log(`Starting 6-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
     console.log(`Platform website: ${platformWebsite || 'none'}`);

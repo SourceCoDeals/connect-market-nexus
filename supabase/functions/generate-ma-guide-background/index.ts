@@ -104,15 +104,9 @@ serve(async (req) => {
       universe.ma_guide_qa_context,
       supabase
     ).catch(async (error) => {
-      console.error(`[generate-ma-guide-background] Generation ${generation.id} failed:`, error);
-      // Update generation status to failed
-      await supabase
-        .from('ma_guide_generations')
-        .update({
-          status: 'failed',
-          error: error.message || 'Unknown error occurred'
-        })
-        .eq('id', generation.id);
+      // Inner processGenerationInBackground already updates the DB status with recoverability info,
+      // this is a fallback for unexpected errors that bypass the inner catch
+      console.error(`[generate-ma-guide-background] Generation ${generation.id} failed (outer catch):`, error);
     });
 
     return response;
@@ -139,7 +133,7 @@ async function processGenerationInBackground(
   try {
     // Call the original generate-ma-guide function in non-streaming mode
     // We'll do this batch by batch to avoid timeouts
-    const BATCH_SIZE = 2; // Same as original
+    const BATCH_SIZE = 1; // Must match generate-ma-guide BATCH_SIZE
     const TOTAL_PHASES = 13;
     const totalBatches = Math.ceil(TOTAL_PHASES / BATCH_SIZE);
 
@@ -230,12 +224,26 @@ async function processGenerationInBackground(
   } catch (error: any) {
     console.error(`[processGenerationInBackground] Error in generation ${generationId}:`, error);
 
-    // Update status to failed
+    // Determine if the error is recoverable (transient) vs fatal
+    const errorCode = error.code || '';
+    const errorMessage = error.message || 'Unknown error occurred';
+    const isRecoverable = errorCode === 'rate_limited' ||
+      errorCode === 'service_overloaded' ||
+      errorCode === 'network_error' ||
+      errorCode === 'timeout' ||
+      errorMessage.includes('429') ||
+      errorMessage.includes('529') ||
+      errorMessage.includes('timed out') ||
+      errorMessage.includes('network');
+
+    // Update status to failed with recoverability info
     await supabase
       .from('ma_guide_generations')
       .update({
         status: 'failed',
-        error: error.message || 'Unknown error occurred'
+        error: isRecoverable
+          ? `Temporary failure: ${errorMessage}. You can retry generation.`
+          : errorMessage
       })
       .eq('id', generationId);
 

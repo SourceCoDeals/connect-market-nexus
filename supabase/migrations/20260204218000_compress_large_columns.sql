@@ -12,16 +12,12 @@
 
 -- ============= M&A GUIDE GENERATIONS TABLE =============
 
--- Compress guide content (typically 10-50KB of text)
+-- Compress guide content JSONB (typically 10-50KB of structured data)
 ALTER TABLE ma_guide_generations
-  ALTER COLUMN ma_guide_content SET STORAGE EXTENDED;
+  ALTER COLUMN generated_content SET STORAGE EXTENDED;
 
--- Set compression for metadata
-ALTER TABLE ma_guide_generations
-  ALTER COLUMN phase_outputs SET STORAGE EXTENDED;
-
-COMMENT ON COLUMN ma_guide_generations.ma_guide_content IS
-  'M&A guide content. TOAST storage=EXTENDED enables automatic compression for values >2KB.';
+COMMENT ON COLUMN ma_guide_generations.generated_content IS
+  'M&A guide generated content (JSONB). TOAST storage=EXTENDED enables automatic compression for values >2KB.';
 
 -- ============= BUYER CRITERIA EXTRACTIONS TABLE =============
 
@@ -40,27 +36,6 @@ ALTER TABLE criteria_extraction_sources
 
 ALTER TABLE criteria_extraction_sources
   ALTER COLUMN source_metadata SET STORAGE EXTENDED;
-
--- ============= ENRICHMENT QUEUE TABLE =============
-
--- Compress result and metadata fields
-ALTER TABLE enrichment_queue
-  ALTER COLUMN metadata SET STORAGE EXTENDED;
-
-ALTER TABLE enrichment_queue
-  ALTER COLUMN result SET STORAGE EXTENDED;
-
--- ============= INDUSTRY FIT SCORES TABLE =============
-
--- Compress reasoning JSONB (can be large with detailed explanations)
-ALTER TABLE industry_fit_scores
-  ALTER COLUMN reasoning SET STORAGE EXTENDED;
-
--- ============= RANKING RESULTS TABLE =============
-
--- Compress ranking data (array of all deals with scores)
-ALTER TABLE ranking_results
-  ALTER COLUMN ranking_data SET STORAGE EXTENDED;
 
 -- ============= AI RESPONSE CACHE TABLE =============
 
@@ -82,7 +57,6 @@ SELECT
   nspname as schema_name,
   relname as table_name,
   attname as column_name,
-  pg_size_pretty(pg_column_size(t.*)) as total_column_size,
   pg_size_pretty(pg_relation_size(c.oid)) as table_size,
   CASE attstorage
     WHEN 'p' THEN 'PLAIN (no compression)'
@@ -93,7 +67,6 @@ SELECT
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 JOIN pg_attribute a ON a.attrelid = c.oid
-CROSS JOIN LATERAL (SELECT * FROM c.relname LIMIT 1) t
 WHERE
   nspname NOT IN ('pg_catalog', 'information_schema')
   AND relkind = 'r'
@@ -104,7 +77,7 @@ WHERE
   )
   AND NOT attisdropped
   AND attnum > 0
-ORDER BY pg_column_size(t.*) DESC;
+ORDER BY relname, attnum;
 
 COMMENT ON VIEW storage_compression_stats IS
   'Monitor compression effectiveness for large columns. Shows storage strategy and sizes.';
@@ -132,8 +105,6 @@ COMMENT ON FUNCTION optimize_table_storage IS
 VACUUM ANALYZE ma_guide_generations;
 VACUUM ANALYZE buyer_criteria_extractions;
 VACUUM ANALYZE criteria_extraction_sources;
-VACUUM ANALYZE industry_fit_scores;
-VACUUM ANALYZE ranking_results;
 VACUUM ANALYZE ai_response_cache;
 
 -- ============= STORAGE MONITORING =============
@@ -171,7 +142,7 @@ CREATE TABLE IF NOT EXISTS ma_guide_generations_archive (
 );
 
 ALTER TABLE ma_guide_generations_archive
-  ALTER COLUMN ma_guide_content SET STORAGE EXTENDED;
+  ALTER COLUMN generated_content SET STORAGE EXTENDED;
 
 COMMENT ON TABLE ma_guide_generations_archive IS
   'Archive of old M&A guide generations (>90 days). Compressed for storage efficiency.';
