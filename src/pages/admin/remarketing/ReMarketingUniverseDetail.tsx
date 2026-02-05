@@ -66,6 +66,7 @@ import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
 import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
 import { useDealEnrichment } from "@/hooks/useDealEnrichment";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
+import { deleteBuyerWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
 
 const ReMarketingUniverseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -558,6 +559,52 @@ const ReMarketingUniverseDetail = () => {
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
   };
 
+  // Handler for single buyer enrichment via row dropdown
+  const handleEnrichSingleBuyer = async (buyerId: string) => {
+    await queueBuyers([{ id: buyerId }]);
+  };
+
+  // Handler for single buyer delete (with cascade) via row dropdown
+  const handleDeleteBuyer = async (buyerId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this buyer? This cannot be undone.')) return;
+    
+    const { error } = await deleteBuyerWithRelated(buyerId);
+    if (error) {
+      toast.error('Failed to delete buyer');
+      return;
+    }
+    
+    toast.success('Buyer deleted');
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+  };
+
+  // Handler for bulk delete of buyers (permanently removes them)
+  const handleBulkDeleteBuyers = async (buyerIds: string[]) => {
+    if (!buyerIds.length) return;
+    
+    if (!confirm(`Are you sure you want to permanently delete ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const buyerId of buyerIds) {
+      const { error } = await deleteBuyerWithRelated(buyerId);
+      if (error) {
+        failCount++;
+      } else {
+        successCount++;
+      }
+    }
+    
+    if (failCount > 0) {
+      toast.error(`Deleted ${successCount} buyers, ${failCount} failed`);
+    } else {
+      toast.success(`Deleted ${successCount} buyer${successCount > 1 ? 's' : ''}`);
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+  };
+
   const totalWeight = formData.geography_weight + formData.size_weight + 
     formData.service_weight + formData.owner_goals_weight;
 
@@ -751,6 +798,9 @@ const ReMarketingUniverseDetail = () => {
                       buyerIdsWithTranscripts={buyerIdsWithTranscripts}
                       selectable={true}
                       onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
+                      onEnrich={handleEnrichSingleBuyer}
+                      onDelete={handleDeleteBuyer}
+                      onBulkDelete={handleBulkDeleteBuyers}
                     />
                   </CardContent>
                 </Card>
