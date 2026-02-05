@@ -126,6 +126,42 @@ export const BuyerTableEnhanced = ({
   });
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
   const resizingRef = useRef<{ column: keyof ColumnWidths; startX: number; startWidth: number } | null>(null);
+
+  const sortedBuyers = useMemo(() => {
+    return [...buyers].sort((a, b) => {
+      const { key, direction } = sortConfig;
+      const multiplier = direction === 'asc' ? 1 : -1;
+
+      switch (key) {
+        case 'company_name':
+          return multiplier * (a.company_name || '').localeCompare(b.company_name || '');
+
+        case 'pe_firm_name':
+          const peA = a.pe_firm_name || '';
+          const peB = b.pe_firm_name || '';
+          if (!peA && !peB) return 0;
+          if (!peA) return 1;
+          if (!peB) return -1;
+          return multiplier * peA.localeCompare(peB);
+
+        case 'data_completeness':
+          const orderMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
+          const compA = orderMap[a.data_completeness || 'low'] || 0;
+          const compB = orderMap[b.data_completeness || 'low'] || 0;
+          return multiplier * (compA - compB);
+
+        case 'alignment_score':
+          // Null scores go to the end
+          if (a.alignment_score === null && b.alignment_score === null) return 0;
+          if (a.alignment_score === null) return 1;
+          if (b.alignment_score === null) return -1;
+          return multiplier * (a.alignment_score - b.alignment_score);
+
+        default:
+          return 0;
+      }
+    });
+  }, [buyers, sortConfig]);
   
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -133,13 +169,15 @@ export const BuyerTableEnhanced = ({
   const lastClickedIndexRef = useRef<number | null>(null);
 
   const handleToggleSelect = useCallback((buyerId: string, checked: boolean, event?: React.MouseEvent) => {
-    const currentIndex = buyers.findIndex(b => b.id === buyerId);
+    // IMPORTANT: range selection must use the *visible row order* (sortedBuyers)
+    // otherwise Shift+click appears to “skip” rows when the table is sorted.
+    const currentIndex = sortedBuyers.findIndex(b => b.id === buyerId);
     
     // Shift+click: select range from last clicked to current
     if (event?.shiftKey && lastClickedIndexRef.current !== null && currentIndex !== -1) {
       const start = Math.min(lastClickedIndexRef.current, currentIndex);
       const end = Math.max(lastClickedIndexRef.current, currentIndex);
-      const rangeIds = buyers.slice(start, end + 1).map(b => b.id);
+      const rangeIds = sortedBuyers.slice(start, end + 1).map(b => b.id);
       
       setSelectedIds(prev => {
         const newSet = new Set(prev);
@@ -169,7 +207,7 @@ export const BuyerTableEnhanced = ({
       onSelectionChange?.(Array.from(newSet));
       return newSet;
     });
-  }, [buyers, onSelectionChange]);
+  }, [sortedBuyers, onSelectionChange]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -250,42 +288,6 @@ export const BuyerTableEnhanced = ({
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }, [columnWidths]);
-
-  const sortedBuyers = useMemo(() => {
-    return [...buyers].sort((a, b) => {
-      const { key, direction } = sortConfig;
-      const multiplier = direction === 'asc' ? 1 : -1;
-
-      switch (key) {
-        case 'company_name':
-          return multiplier * (a.company_name || '').localeCompare(b.company_name || '');
-        
-        case 'pe_firm_name':
-          const peA = a.pe_firm_name || '';
-          const peB = b.pe_firm_name || '';
-          if (!peA && !peB) return 0;
-          if (!peA) return 1;
-          if (!peB) return -1;
-          return multiplier * peA.localeCompare(peB);
-        
-        case 'data_completeness':
-          const orderMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
-          const compA = orderMap[a.data_completeness || 'low'] || 0;
-          const compB = orderMap[b.data_completeness || 'low'] || 0;
-          return multiplier * (compA - compB);
-        
-        case 'alignment_score':
-          // Null scores go to the end
-          if (a.alignment_score === null && b.alignment_score === null) return 0;
-          if (a.alignment_score === null) return 1;
-          if (b.alignment_score === null) return -1;
-          return multiplier * (a.alignment_score - b.alignment_score);
-        
-        default:
-          return 0;
-      }
-    });
-  }, [buyers, sortConfig]);
 
   const SortButton = ({ label, sortKey }: { label: string; sortKey: SortKey }) => {
     const isActive = sortConfig.key === sortKey;
