@@ -52,6 +52,7 @@ import {
   Plus,
   Sparkles,
   Loader2,
+  Unlink,
   BookOpen,
   Briefcase,
   ChevronDown,
@@ -797,6 +798,23 @@ const ReMarketingUniverseDetail = () => {
                     />
                   </CardContent>
                 </Card>
+
+                {/* Always-visible bulk action button (requested) */}
+                <div className="fixed bottom-6 right-6 z-50">
+                  <Button
+                    variant="outline"
+                    onClick={handleRemoveSelectedBuyers}
+                    disabled={selectedBuyerIds.length === 0 || isRemovingSelected}
+                    className="bg-background/95 backdrop-blur border shadow-sm text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    {isRemovingSelected ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Unlink className="h-4 w-4 mr-2" />
+                    )}
+                    Remove Selected{selectedBuyerIds.length ? ` (${selectedBuyerIds.length})` : ""}
+                  </Button>
+                </div>
               </TabsContent>
 
               <TabsContent value="deals">
