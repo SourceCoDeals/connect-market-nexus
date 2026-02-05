@@ -364,14 +364,15 @@ const ReMarketingBuyerDetail = () => {
   });
 
   const addTranscriptMutation = useMutation({
-    mutationFn: async ({ text, source, fileName }: { text: string; source: string; fileName?: string }) => {
+    mutationFn: async ({ text, source, fileName, fileUrl }: { text: string; source: string; fileName?: string; fileUrl?: string }) => {
       const { error } = await supabase
         .from('buyer_transcripts')
         .insert([{
           buyer_id: id,
           transcript_text: text,
           source,
-          file_name: fileName || null
+          file_name: fileName || null,
+          file_url: fileUrl || null
         }]);
       if (error) throw error;
     },
@@ -601,8 +602,9 @@ const ReMarketingBuyerDetail = () => {
           {/* Full Width: Transcripts */}
           <TranscriptsListCard
             transcripts={transcripts}
-            onAddTranscript={(text, source, fileName) => 
-              addTranscriptMutation.mutate({ text, source, fileName })
+            buyerId={buyer.id}
+            onAddTranscript={(text, source, fileName, fileUrl) => 
+              addTranscriptMutation.mutate({ text, source, fileName, fileUrl })
             }
             onExtract={(transcriptId) => extractTranscriptMutation.mutate(transcriptId)}
             onExtractAll={handleExtractAll}
