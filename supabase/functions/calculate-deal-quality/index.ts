@@ -233,15 +233,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get user identity for rate limiting
-    const authHeader = req.headers.get('Authorization');
-    let userId = 'system';
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) userId = user.id;
-    }
-
     const body = await req.json();
     const { listingId, calculateAll, forceRecalculate, triggerEnrichment } = body;
 

@@ -27,62 +27,8 @@ serve(async (req) => {
   }
 
   try {
-    // SECURITY: Verify admin access (or service role for internal calls)
-    const authHeader = req.headers.get('Authorization');
-    // Supabase sends this as `apikey` for both browser and service-role internal calls.
-    const apiKeyHeader = req.headers.get('apikey');
-    
-    // Require at least one form of auth
-    if (!authHeader && !apiKeyHeader) {
-      console.error('No authorization header or apikey provided');
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    // Check if this is the service role key (for internal calls)
-    // Be tolerant of `bearer` casing to avoid false negatives.
-    // IMPORTANT: Check BOTH the Authorization header bearer token AND the apikey header
-    const token = (authHeader || '').replace(/^Bearer\s+/i, '').trim();
-    const isServiceRole = token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey;
-    
-    console.log(`Auth check: isServiceRole=${isServiceRole}, hasAuthHeader=${!!authHeader}, hasApiKey=${!!apiKeyHeader}, tokenMatch=${token === supabaseServiceKey}, apiKeyMatch=${apiKeyHeader === supabaseServiceKey}`);
-
-    if (!isServiceRole) {
-      // Verify admin access for manual calls
-      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader || `Bearer ${apiKeyHeader}` } }
-      });
-
-      const { data: { user }, error: userError } = await authClient.auth.getUser();
-      if (userError || !user) {
-        console.error('User auth failed:', userError?.message);
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const { data: profile } = await authClient
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.is_admin) {
-        console.log(`User ${user.id} is not admin`);
-        return new Response(JSON.stringify({ error: 'Admin access required' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      console.log(`Admin access verified for user ${user.id}`);
-    }
 
     const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
