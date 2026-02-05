@@ -1,282 +1,261 @@
 
-# Listings Management Redesign: Dual-Tab Interface with Premium Design
+# Comprehensive Listings Management Restructure
 
-## Overview
+## Problem Statement
 
-Restructure the `/admin/listings` page into a two-tab interface that clearly separates:
-1. **Marketplace Listings** - Public-facing deals visible to buyers
-2. **Internal Deals** - Remarketing/research deals (admin-only, never public)
+The current "Internal Drafts" tab only shows listings with images that have `is_internal_deal = true` (19 listings). The 56 remarketing deals (which have no images but rich AI-enriched data) are completely hidden from the admin listings management view.
 
-This creates complete clarity on deal classification while maintaining premium, investment-grade design quality.
+The user wants a holistic overview showing:
+1. **Marketplace** - Public-facing listings (62)
+2. **Remarketing Deals** - Internal M&A research deals (56) with completely different card design
 
----
-
-## Current State Analysis
-
-| Category | Count | Description |
-|----------|-------|-------------|
-| Marketplace (published) | 62 | Listings with images, `is_internal_deal = false` |
-| Internal Drafts | 19 | Listings with images, `is_internal_deal = true` (not linked to remarketing) |
-| Remarketing Deals | 56 | Listings without images, imported via CSV/enrichment tools |
-
-Current admin listings query shows **only listings with images** (81 total), which is correct for the marketplace management view. Remarketing deals (56) are already hidden from this view.
+Additionally, the current card design has visual issues: badge soup, poor hierarchy, disconnected elements.
 
 ---
 
 ## Solution Architecture
 
-### New Tab Structure
+### Tab Structure Redesign
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│  Listings Management                                                    │
-│  Manage and monitor marketplace listings with enterprise-grade tools   │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  ┌───────────────────┐  ┌───────────────────┐                          │
-│  │  Marketplace (62) │  │  Drafts (19)      │                          │
-│  │  ▼ Active         │  └───────────────────┘                          │
-│  └───────────────────┘                                                 │
-│                                                                        │
-│  [Search] [Filters] [Grid/Table] [+ Add New Listing]                   │
-│                                                                        │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  Listing Cards Grid (marketplace tab) or Drafts Grid            │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Listings Management                                                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────┐  ┌─────────────────┐                                │
+│  │ Marketplace 62  │  │ Research Deals 56│                               │
+│  └─────────────────┘  └─────────────────┘                                │
+│                                                                          │
+│  [Marketplace Tab]                    [Research Deals Tab]               │
+│  - Premium image cards                - Data-focused table/cards         │
+│  - PublishListing actions             - Enrichment badges                │
+│  - Marketplace visibility             - Quality scores                   │
+│  - Buyer type restrictions            - Match buyer actions              │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Tab 1: Marketplace (Default)
-- Shows listings where `is_internal_deal = false` AND has image
-- These are the public-facing deals
-- Includes "Published" and "Draft" status badges
-- Actions: Edit, Publish/Unpublish, Activate/Deactivate, Delete
+### Tab 1: Marketplace (Keep existing, improve design)
+- Filter: `is_internal_deal = false` AND `image_url IS NOT NULL`
+- **Improved Card Design** (hyper-premium, minimal)
+- Publish/Unpublish workflow
+- Status tags, buyer visibility controls
 
-### Tab 2: Internal Drafts
-- Shows listings where `is_internal_deal = true` AND has image
-- These are admin-created listings not yet published
-- Action to "Publish to Marketplace" moves listing to Tab 1
-- Separated from remarketing deals (remarketing has its own page)
+### Tab 2: Research Deals (NEW - Remarketing)
+- Filter: `is_internal_deal = true` AND `(image_url IS NULL OR image_url = '')`
+- **Completely different card component** optimized for data-dense remarketing deals
+- Key fields: Company name, Executive summary, Revenue/EBITDA, Geography, Quality Score, Enrichment status
+- Actions: View Deal, Match Buyers, Enrich, Add to Universe
+
+---
+
+## Premium Card Design System
+
+### Marketplace Card (Redesigned)
+
+Current issues being fixed:
+- Remove Status Tag dropdown from card body (move to hover/click action)
+- Clean badge hierarchy - max 3 visible, overflow as count
+- Refined financial display with subtle separators
+- Remove disconnected "JUST LISTED" tag
+
+```text
+┌────────────────────────────────────────┐
+│  ┌──────────────────────────────────┐  │
+│  │                                  │  │
+│  │    [Image - 16:9 aspect]         │  │
+│  │                                  │  │
+│  │   ◉ Active     Published ↗       │  │
+│  └──────────────────────────────────┘  │
+│                                        │
+│  Independent Wealth Advisory Firm      │ ← Title: text-base font-semibold
+│  Brook Capital                         │ ← Company: text-xs text-muted
+│                                        │
+│  ┌──────┐ ┌───────────────┐ ┌───────┐  │
+│  │ADD-ON│ │Finance & Insur│ │Midwest│  │ ← Subtle pill badges
+│  └──────┘ └───────────────┘ └───────┘  │
+│                                        │
+│  ─────────────────────────────────────  │ ← Subtle divider
+│                                        │
+│  $1.6M Revenue    ·    $500K EBITDA    │ ← Inline metrics, no boxes
+│                                        │
+│  ─────────────────────────────────────  │
+│                                        │
+│  Jan 26 · Updated Feb 5                │ ← Micro timestamp
+│                                        │
+│  ┌──────────────────────────────────┐  │
+│  │        Edit        │  ··· │      │  │ ← Clean action bar
+│  └──────────────────────────────────┘  │
+└────────────────────────────────────────┘
+```
+
+### Research Deal Card (NEW Component)
+
+Optimized for data-dense remarketing deals without images:
+
+```text
+┌────────────────────────────────────────┐
+│ ┌────────────────────────────────────┐ │
+│ │ ⭐ PRIORITY   │ ✨ Enriched  │ 75 │ │ ← Status row + Quality Score
+│ └────────────────────────────────────┘ │
+│                                        │
+│ B & D Threefold Collision Centers      │ ← Company name (primary)
+│                                        │
+│ Gold Class® collision repair           │ ← Executive summary (2 lines)
+│ business in Oklahoma with ICAR...      │
+│                                        │
+│ ┌────────┐ ┌────────┐ ┌───────────────┐│
+│ │Collision│ │ OK     │ │★ 5.0 (1 rev) ││ ← Industry, State, Google
+│ └────────┘ └────────┘ └───────────────┘│
+│                                        │
+│ ─────────────────────────────────────  │
+│                                        │
+│ $9.0M Rev  ·  $900K EBITDA  ·  30% Mrg │ ← Financials inline
+│                                        │
+│ ─────────────────────────────────────  │
+│                                        │
+│ threefoldcollision.com ↗               │ ← Website link
+│                                        │
+│ ─────────────────────────────────────  │
+│                                        │
+│ ┌───────────┐ ┌───────────┐ ┌───────┐ │
+│ │View Deal  │ │Match Buyers│ │  ···  │ │ ← Actions
+│ └───────────┘ └───────────┘ └───────┘ │
+└────────────────────────────────────────┘
+```
 
 ---
 
 ## Technical Implementation
 
-### 1. Create New Query Hooks for Each Tab
+### 1. Update Query Hook
 
-**File: `src/hooks/admin/listings/use-marketplace-listings-query.ts`**
-```typescript
-// Fetches published marketplace listings
-// Filter: is_internal_deal = false AND image_url IS NOT NULL
-```
+**File: `src/hooks/admin/listings/use-listings-by-type.ts`**
 
-**File: `src/hooks/admin/listings/use-draft-listings-query.ts`**
-```typescript
-// Fetches internal draft listings (with images, not yet published)
-// Filter: is_internal_deal = true AND image_url IS NOT NULL
-```
+Change `ListingType` to: `'marketplace' | 'research'`
 
-### 2. Create Tabbed Container Component
+Update filter logic:
+- `marketplace`: `is_internal_deal = false` AND `image_url IS NOT NULL`
+- `research`: `is_internal_deal = true` AND `(image_url IS NULL OR image_url = '')`
+
+Add additional fields to select for research deals: `executive_summary`, `service_mix`, `geographic_states`, `enriched_at`, `deal_quality_score`, `linkedin_employee_count`, etc.
+
+### 2. Create Research Deal Card Component
+
+**File: `src/components/admin/ResearchDealCard.tsx`**
+
+Premium, data-focused card for remarketing deals:
+- No image section (uses icon placeholder)
+- Prominent company name display
+- Executive summary preview (2 lines, truncated)
+- Quality score badge (color-coded 80+/60+/40+)
+- Enrichment status indicator
+- Geography badges
+- Google rating & reviews
+- LinkedIn employee data
+- Financial metrics (inline, minimal)
+- Action buttons: View Deal, Match Buyers
+
+### 3. Redesign Marketplace Card
+
+**File: `src/components/admin/AdminListingCard.tsx`**
+
+Refinements for premium aesthetic:
+- Remove inline Status Tag Switcher (move to dropdown menu)
+- Clean up badge hierarchy (max 3, with overflow count)
+- Inline financial metrics (no box containers)
+- Refined typography scale
+- Subtle dividers between sections
+- Cleaner action bar layout
+
+### 4. Update Tab Content Component
+
+**File: `src/components/admin/ListingsTabContent.tsx`**
+
+- Accept new `type` values: `'marketplace' | 'research'`
+- Conditionally render `AdminListingCard` or `ResearchDealCard` based on type
+- Update empty state messaging per tab
+
+### 5. Update Tab Navigation
 
 **File: `src/components/admin/ListingsManagementTabs.tsx`**
+
+- Rename "Internal Drafts" → "Research Deals"
+- Update icon from `FileEdit` to `Target` or `Building2`
+- Update count query for new filter logic
+
+### 6. Update Count Query
+
+**File: `src/hooks/admin/listings/use-listings-by-type.ts`**
+
 ```typescript
-// Premium tab interface with:
-// - Segment control style tabs (Linear/Stripe aesthetic)
-// - Count badges on each tab
-// - Smooth transitions between tabs
-// - Shared search and filters state
-```
-
-### 3. Refactor EnhancedAdminListings
-
-**File: `src/components/admin/EnhancedAdminListings.tsx`**
-- Accept `dealType` prop: `'marketplace' | 'drafts'`
-- Filter listings based on deal type
-- Adjust available actions per deal type
-
-### 4. Premium Tab Design
-
-Following the `editor-design-system.ts` patterns:
-
-**Tab Container**
-- Background: `bg-slate-50/40` (subtle card bg)
-- Border: `border border-border/40 rounded-xl`
-- Shadow: `shadow-sm`
-
-**Tab Triggers**
-- Inactive: `text-muted-foreground/70 hover:text-foreground`
-- Active: `bg-white shadow-sm text-foreground font-medium`
-- Count badge: `bg-foreground/5 text-foreground/70 text-xs`
-
-**Visual Hierarchy**
-- Title: `text-2xl font-light tracking-tight` (Linear style)
-- Subtitle: `text-muted-foreground text-sm`
-- Stats pills: Rounded, subtle backgrounds, micro text
-
----
-
-## Component Structure
-
-```text
-AdminListings.tsx (page)
-└── ListingsManagementTabs.tsx (new - container)
-    ├── Header Section
-    │   ├── Title & Description
-    │   └── Primary Action (+ Add New Listing)
-    ├── Premium Tab Navigation
-    │   ├── Marketplace Tab (count: 62)
-    │   └── Drafts Tab (count: 19)
-    └── Tab Content
-        ├── [shared] Search & Filters Bar
-        ├── [shared] Bulk Actions (when items selected)
-        └── ListingsGrid.tsx (extracted from EnhancedAdminListings)
-            └── AdminListingCard.tsx
+// Research deals count (no image, internal)
+supabase
+  .from('listings')
+  .select('id', { count: 'exact', head: true })
+  .is('deleted_at', null)
+  .or('image_url.is.null,image_url.eq.')
+  .eq('is_internal_deal', true)
 ```
 
 ---
 
 ## Design Specifications
 
-### Premium Tab Navigation
+### Color System for Score Badges
+- 80+: `bg-emerald-500/10 text-emerald-700`
+- 60-79: `bg-blue-500/10 text-blue-700`
+- 40-59: `bg-amber-500/10 text-amber-700`
+- <40: `bg-red-500/10 text-red-700`
 
-```css
-/* Tab List Container */
-.tab-list {
-  display: inline-flex;
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.03);
-  border-radius: 10px;
-  gap: 4px;
-}
+### Typography Scale
+- Card Title: `text-[15px] font-semibold leading-tight text-foreground`
+- Company/Subtitle: `text-xs font-medium text-muted-foreground`
+- Summary Text: `text-[13px] leading-relaxed text-muted-foreground line-clamp-2`
+- Metrics: `text-sm font-medium text-foreground`
+- Micro Labels: `text-[10px] uppercase tracking-wide text-muted-foreground/70`
 
-/* Tab Trigger */
-.tab-trigger {
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 8px;
-  transition: all 150ms ease;
-}
+### Spacing
+- Card Padding: `p-5`
+- Section Gap: `gap-3`
+- Badge Gap: `gap-1.5`
+- Metric Separator: `·` (middle dot with `mx-2`)
 
-/* Active Tab */
-.tab-trigger[data-state="active"] {
-  background: white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  color: #0f172a;
-}
-
-/* Count Badge */
-.tab-count {
-  margin-left: 6px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  background: rgba(0,0,0,0.05);
-  border-radius: 6px;
-}
-```
-
-### Status Indicators on Cards
-
-**Marketplace Tab Cards:**
-- Published badge: `bg-emerald-500/10 text-emerald-600 border-emerald-500/20`
-- Active status: Green dot indicator
-- Archived: Muted styling with "Archived" label
-
-**Drafts Tab Cards:**
-- Draft badge: `bg-amber-500/10 text-amber-600 border-amber-500/20`
-- "Ready to Publish" indicator when listing meets quality requirements
-- "Needs Attention" indicator if missing required fields
+### Transitions
+- Card hover: `transition-all duration-200 hover:shadow-md hover:border-border`
+- Button hover: `transition-colors duration-100`
 
 ---
 
 ## Files to Create/Modify
 
 ### New Files
-1. `src/components/admin/ListingsManagementTabs.tsx` - Main tabbed container
-2. `src/components/admin/ListingsGrid.tsx` - Extracted grid component
-3. `src/hooks/admin/listings/use-listings-by-type.ts` - Combined query hook
+1. `src/components/admin/ResearchDealCard.tsx` - New premium card for remarketing deals
 
 ### Modified Files
-1. `src/components/admin/EnhancedAdminListings.tsx` - Integrate with tabs
-2. `src/components/admin/AdminListingCard.tsx` - Add draft-specific actions
-3. `src/hooks/admin/listings/use-listings-query.ts` - Add type filter parameter
+1. `src/hooks/admin/listings/use-listings-by-type.ts` - Update types and queries
+2. `src/components/admin/ListingsManagementTabs.tsx` - Rename tab, update icon
+3. `src/components/admin/ListingsTabContent.tsx` - Conditional card rendering
+4. `src/components/admin/AdminListingCard.tsx` - Premium design refinements
 
 ---
 
-## Data Flow
+## Expected Outcome
 
-```text
-useListingsByType(type: 'marketplace' | 'drafts')
-    │
-    ├── marketplace: 
-    │   SELECT * FROM listings 
-    │   WHERE is_internal_deal = false 
-    │   AND image_url IS NOT NULL
-    │   AND deleted_at IS NULL
-    │
-    └── drafts:
-        SELECT * FROM listings 
-        WHERE is_internal_deal = true 
-        AND image_url IS NOT NULL
-        AND deleted_at IS NULL
-```
+| Tab | Before | After |
+|-----|--------|-------|
+| Marketplace | 62 listings (unchanged) | 62 listings (premium design) |
+| Internal Drafts | 19 listings with images | → Renamed to "Research Deals" |
+| Research Deals | N/A (hidden) | 56 remarketing deals |
+
+Total visibility: 81 → 118 listings (+37 remarketing deals now visible)
 
 ---
 
-## User Experience
+## Quality Score Display Logic
 
-### Marketplace Tab (Default)
-- Shows all published listings (62 total)
-- Status filters: Active (18), Archived (40), Inactive (4)
-- Actions: Edit, Unpublish, Archive, Delete
-
-### Drafts Tab
-- Shows admin-created listings not yet published (19 total)
-- Prominent "Publish to Marketplace" action
-- Actions: Edit, Publish, Delete
-- Visual indicator for "ready to publish" vs "needs attention"
-
-### Cross-Tab Actions
-- Publishing a draft moves it to Marketplace tab (automatic transition)
-- Unpublishing a marketplace listing moves it to Drafts tab
-
----
-
-## Empty States
-
-**Marketplace Tab (empty)**
-```text
-┌─────────────────────────────────────┐
-│        📋 No Marketplace Listings   │
-│                                     │
-│  Publish your first listing from    │
-│  the Drafts tab, or create a new    │
-│  listing to get started.            │
-│                                     │
-│        [+ Create Listing]           │
-└─────────────────────────────────────┘
-```
-
-**Drafts Tab (empty)**
-```text
-┌─────────────────────────────────────┐
-│        ✅ All Caught Up             │
-│                                     │
-│  All your listings have been        │
-│  published to the marketplace.      │
-│                                     │
-│        [+ Create New Listing]       │
-└─────────────────────────────────────┘
-```
-
----
-
-## Implementation Order
-
-1. **Create `use-listings-by-type.ts` hook** - Add type filtering to existing query
-2. **Create `ListingsGrid.tsx`** - Extract grid rendering from EnhancedAdminListings
-3. **Create `ListingsManagementTabs.tsx`** - Premium tabbed container
-4. **Update `EnhancedAdminListings.tsx`** - Use new structure
-5. **Enhance `AdminListingCard.tsx`** - Context-aware actions per tab
-6. **Test end-to-end** - Verify counts, transitions, and publish/unpublish flow
+For research deals, display quality score prominently:
+- If `deal_total_score` exists: Show as primary score
+- Fallback to `deal_quality_score` if available
+- If no score: Show "—" or "Not Scored" badge
+- Priority deals (`is_priority_target = true`): Add star indicator
