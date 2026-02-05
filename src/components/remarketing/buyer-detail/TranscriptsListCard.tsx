@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { FileText, Plus, Sparkles, Link2, Trash2, ChevronDown, Check, Upload, X, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { TranscriptStatusBadge } from "@/components/transcripts/TranscriptStatusBadge";
 
 interface Transcript {
   id: string;
@@ -29,6 +29,7 @@ interface Transcript {
   file_name?: string | null;
   file_url?: string | null;
   processed_at?: string | null;
+  extraction_status?: string | null;
   extracted_data?: Record<string, unknown> | null;
   created_at: string;
 }
@@ -359,12 +360,10 @@ export const TranscriptsListCard = ({
                     <span className="text-sm font-medium truncate">
                       {getDisplayName(transcript)}
                     </span>
-                    {transcript.processed_at && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <Check className="mr-1 h-3 w-3" />
-                        Extracted
-                      </Badge>
-                    )}
+                    <TranscriptStatusBadge 
+                      processedAt={transcript.processed_at} 
+                      extractionStatus={transcript.extraction_status}
+                    />
                   </div>
                   
                   <div className="flex items-center gap-1">
