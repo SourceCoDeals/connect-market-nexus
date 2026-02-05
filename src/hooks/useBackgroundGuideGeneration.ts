@@ -58,7 +58,7 @@ export function useBackgroundGuideGeneration({
         const generation = activeGen as GenerationStatus;
         setCurrentGeneration(generation);
         setIsGenerating(true);
-        
+
         // Restore progress from the database record
         const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
         setProgress(progressPercent);
