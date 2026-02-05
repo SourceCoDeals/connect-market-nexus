@@ -1,171 +1,85 @@
 
+# Fix: Prevent Remarketing/Research Deals from Appearing in Marketplace
 
-# Deal Enrichment Improvements Plan
+## Problem Summary
+Research deals imported through the M&A Intelligence tool are appearing in the public marketplace. Currently:
+- 80 active listings in the database
+- Only 8 are linked via `remarketing_universe_deals` 
+- 72 unlinked research deals (many with $0 revenue/EBITDA) are polluting the marketplace
 
-## Summary
-This plan implements three key improvements to the deal enrichment system:
-1. **Show successful/failed counts during enrichment** - Live progress tracking like the buyer universe
-2. **Completion summary popup** - Dialog showing results when enrichment finishes
-3. **Smart CSV import** - Only enrich newly imported deals, not existing ones
+The current filtering in `use-simple-listings.ts` only checks `remarketing_universe_deals`, but deals created via `AddDealDialog` and `DealImportDialog` don't get linked there.
 
----
+## Solution: Add `is_internal_deal` Flag
 
-## Issues Identified
+### Database Changes
+1. Add `is_internal_deal` boolean column to `listings` table
+2. Default to `false` for existing legitimate marketplace listings
+3. Set to `true` for all deals created through remarketing workflows
+4. Backfill existing research deals
 
-### Current State
-1. **Progress Indicator lacks detail** - The `EnrichmentProgressIndicator` shows completed/total counts but NOT successful vs. failed breakdown during enrichment
-2. **No completion summary** - When enrichment finishes, users only see a toast notification; no detailed summary dialog exists for deals (unlike buyers which have `EnrichmentSummaryDialog`)
-3. **Auto-enrichment queues ALL unenriched deals** - When new deals are imported, the `useEffect` in `ReMarketingDeals.tsx` queues all deals without `enriched_at`, not just the newly imported ones
+### Code Changes
 
----
+**1. Database Migration**
+```sql
+-- Add flag column
+ALTER TABLE listings 
+  ADD COLUMN is_internal_deal BOOLEAN DEFAULT false;
 
-## Implementation Plan
-
-### Phase 1: Enhance Progress Indicator with Success/Failure Counts
-
-**Modify `useEnrichmentProgress.ts`:**
-- Track `successfulCount` and `failedCount` separately (completed = successful, failed stays as failed)
-- Already tracks `failedCount` but UI doesn't display it
-
-**Modify `EnrichmentProgressIndicator.tsx`:**
-- Add props for `successfulCount` and `failedCount`
-- Display success/failure breakdown below the progress bar with colored badges
-
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ ⚡ Enriching deals...  (~2.8/min)          35 of 82 complete     │
-│ ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░   ⏱ ~17 min remaining│
-│ 47 deals remaining                                                │
-│ ✅ 33 successful  •  ❌ 2 failed                                  │
-└──────────────────────────────────────────────────────────────────┘
+-- Backfill: Mark deals that appear to be research deals
+-- (created recently without remarketing link, low/zero financials)
+UPDATE listings
+SET is_internal_deal = true
+WHERE id NOT IN (
+  SELECT DISTINCT listing_id 
+  FROM remarketing_universe_deals 
+  WHERE listing_id IS NOT NULL
+)
+AND (revenue = 0 OR revenue IS NULL OR ebitda = 0)
+AND created_at > '2026-02-01';
 ```
 
-### Phase 2: Create Deal Enrichment Summary Dialog
+**2. Update Marketplace Query (use-simple-listings.ts)**
+- Change filter from checking `remarketing_universe_deals` to simply: `.eq('is_internal_deal', false)`
+- This is simpler and more performant (no sub-query needed)
 
-**Create `DealEnrichmentSummaryDialog.tsx`:**
-- Based on existing `EnrichmentSummaryDialog.tsx` pattern but for deals
-- Props: open, onOpenChange, summary (total, successful, failed, errors array)
-- Display:
-  - Summary stats grid (Total, Successful, Failed)
-  - Success rate badge
-  - Scrollable error list with deal names
-  - "Retry Failed" button
-  - "Close" button
+**3. Update Deal Creation Workflows**
+- `AddDealDialog.tsx`: Set `is_internal_deal: true` when creating new deals
+- `DealImportDialog.tsx`: Set `is_internal_deal: true` for all imported deals
+- `DealCSVImport.tsx`: Already links to universe, but also set `is_internal_deal: true` for safety
 
-**Modify `useEnrichmentProgress.ts`:**
-- Track errors with deal details (listing_id, title, error message)
-- Detect completion transition (was running, now stopped)
-- Return `summary` and `showSummary` state
-- Add `dismissSummary` callback
-
-**Modify `ReMarketingDeals.tsx`:**
-- Import and render `DealEnrichmentSummaryDialog`
-- Pass summary from `useEnrichmentProgress`
-- Wire up "Retry Failed" to re-queue failed deals
-
-### Phase 3: Smart CSV Import (Only Enrich New Deals)
-
-**Current Problem:**
-The `useEffect` in `ReMarketingDeals.tsx` (lines 719-764) queues ALL unenriched deals whenever `listings` changes. This means importing 10 new deals could trigger enrichment for 100+ existing unenriched deals.
-
-**Solution:**
-Instead of auto-queuing on listings change, move enrichment to the import completion callback.
-
-**Modify `DealImportDialog.tsx`:**
-- After successful imports, return the list of newly created deal IDs
-- Pass these IDs to a new callback prop `onImportCompleteWithIds`
-
-**Modify `ReMarketingDeals.tsx`:**
-- Remove or disable the auto-enrichment `useEffect` that queues all unenriched deals
-- Add handler to queue ONLY the newly imported deal IDs after CSV import
-- Keep the "Enrich Deals" button for manual batch enrichment
-
-```typescript
-// Updated import callback
-const handleImportComplete = async (importedDealIds: string[]) => {
-  refetchListings();
-  
-  if (importedDealIds.length > 0) {
-    // Queue only the newly imported deals
-    await queueDealsForEnrichment(importedDealIds);
-    toast.success(`Queued ${importedDealIds.length} new deals for enrichment`);
-  }
-};
-```
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/remarketing/DealEnrichmentSummaryDialog.tsx` | Summary dialog for deal enrichment completion |
+**4. Update Admin Listings**
+- Add filter/badge in admin listings to distinguish internal vs marketplace deals
+- Allow toggling `is_internal_deal` flag
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useEnrichmentProgress.ts` | Add error tracking, completion detection, summary state |
-| `src/components/remarketing/EnrichmentProgressIndicator.tsx` | Add success/failure count display |
-| `src/pages/admin/remarketing/ReMarketingDeals.tsx` | Add summary dialog, fix auto-enrichment logic |
-| `src/components/remarketing/DealImportDialog.tsx` | Return imported deal IDs for targeted enrichment |
-| `src/components/remarketing/index.ts` | Export new dialog component |
+| File | Change |
+|------|--------|
+| `supabase/migrations/` | New migration for `is_internal_deal` column |
+| `src/hooks/use-simple-listings.ts` | Replace sub-query with `.eq('is_internal_deal', false)` |
+| `src/components/remarketing/AddDealDialog.tsx` | Add `is_internal_deal: true` to insert |
+| `src/components/remarketing/DealImportDialog.tsx` | Add `is_internal_deal: true` to insert |
+| `src/components/remarketing/DealCSVImport.tsx` | Add `is_internal_deal: true` to insert |
+| `src/hooks/marketplace/use-listings.ts` | Update query to filter by `is_internal_deal` |
+| `src/integrations/supabase/types.ts` | Add `is_internal_deal` to type definitions |
 
----
+## Immediate vs Long-term Impact
+- **Immediate**: The 72 research deals will be hidden from marketplace
+- **Long-term**: All future deals created through remarketing tools will be properly isolated
 
-## Technical Details
+## Technical Notes
 
-### Enhanced Progress Interface
-```typescript
-interface EnrichmentProgress {
-  isEnriching: boolean;
-  completedCount: number;    // successfulCount alias
-  totalCount: number;
-  pendingCount: number;
-  processingCount: number;
-  failedCount: number;       // Already tracked
-  progress: number;
-  estimatedTimeRemaining: string;
-  processingRate: number;
-  // NEW fields
-  errors: Array<{ listingId: string; title?: string; error: string }>;
-}
-```
+The `is_internal_deal` approach is preferred over relying on `remarketing_universe_deals` because:
+1. Single column check is faster than join/sub-query
+2. Not all internal deals are assigned to a universe
+3. Deals can exist as "research backlog" before being added to any universe
+4. Cleaner separation of concerns
 
-### Summary Interface (for deals)
-```typescript
-interface DealEnrichmentSummary {
-  total: number;
-  successful: number;
-  failed: number;
-  errors: Array<{ 
-    listingId: string; 
-    dealName?: string; 
-    error: string 
-  }>;
-  completedAt: string;
-}
-```
+## Backfill Strategy
 
-### Completion Detection Logic
-```typescript
-// In useEnrichmentProgress.ts
-const wasRunningRef = useRef(false);
+The migration will mark as internal any deal that:
+- Is NOT linked to a remarketing universe
+- Has $0 revenue OR $0 EBITDA
+- Was created after Feb 1, 2026 (recent batch import)
 
-// In fetchQueueStatus:
-if (wasRunningRef.current && !isEnriching && totalCount > 0) {
-  // Generate summary from queue data
-  setSummary({ total, successful: completedCount, failed: failedCount, errors, completedAt: new Date().toISOString() });
-  setShowSummary(true);
-}
-wasRunningRef.current = isEnriching;
-```
-
----
-
-## Summary of Changes
-
-1. **Progress with success/failure counts** - Real-time visibility into what's working
-2. **Completion summary dialog** - Detailed results with retry option for failed items  
-3. **Smart import enrichment** - Only newly imported deals get queued, not the entire backlog
-
+This conservative approach avoids accidentally hiding legitimate marketplace listings.
