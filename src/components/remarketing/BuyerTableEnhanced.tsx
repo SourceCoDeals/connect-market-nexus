@@ -105,8 +105,6 @@ interface BuyerTableEnhancedProps {
   onSelectionChange?: (selectedIds: string[]) => void;
   /** Called when user clicks "Remove from Universe" on selected items */
   onRemoveFromUniverse?: (buyerIds: string[]) => Promise<void>;
-  /** Called when user clicks "Delete Permanently" on selected items */
-  onBulkDelete?: (buyerIds: string[]) => Promise<void>;
 }
 
 export const BuyerTableEnhanced = ({
@@ -120,7 +118,6 @@ export const BuyerTableEnhanced = ({
   selectable = false,
   onSelectionChange,
   onRemoveFromUniverse,
-  onBulkDelete,
 }: BuyerTableEnhancedProps) => {
   const navigate = useNavigate();
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -133,9 +130,35 @@ export const BuyerTableEnhanced = ({
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isRemoving, setIsRemoving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const lastClickedIndexRef = useRef<number | null>(null);
 
-  const handleToggleSelect = useCallback((buyerId: string, checked: boolean) => {
+  const handleToggleSelect = useCallback((buyerId: string, checked: boolean, event?: React.MouseEvent) => {
+    const currentIndex = buyers.findIndex(b => b.id === buyerId);
+    
+    // Shift+click: select range from last clicked to current
+    if (event?.shiftKey && lastClickedIndexRef.current !== null && currentIndex !== -1) {
+      const start = Math.min(lastClickedIndexRef.current, currentIndex);
+      const end = Math.max(lastClickedIndexRef.current, currentIndex);
+      const rangeIds = buyers.slice(start, end + 1).map(b => b.id);
+      
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        rangeIds.forEach(id => {
+          if (checked) {
+            newSet.add(id);
+          } else {
+            newSet.delete(id);
+          }
+        });
+        onSelectionChange?.(Array.from(newSet));
+        return newSet;
+      });
+      lastClickedIndexRef.current = currentIndex;
+      return;
+    }
+    
+    // Normal click: toggle single item
+    lastClickedIndexRef.current = currentIndex;
     setSelectedIds(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -146,7 +169,7 @@ export const BuyerTableEnhanced = ({
       onSelectionChange?.(Array.from(newSet));
       return newSet;
     });
-  }, [onSelectionChange]);
+  }, [buyers, onSelectionChange]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -157,11 +180,13 @@ export const BuyerTableEnhanced = ({
       setSelectedIds(new Set());
       onSelectionChange?.([]);
     }
+    lastClickedIndexRef.current = null;
   }, [buyers, onSelectionChange]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
     onSelectionChange?.([]);
+    lastClickedIndexRef.current = null;
   }, [onSelectionChange]);
 
   const handleRemoveFromUniverse = useCallback(async () => {
@@ -175,18 +200,6 @@ export const BuyerTableEnhanced = ({
       setIsRemoving(false);
     }
   }, [onRemoveFromUniverse, selectedIds, onSelectionChange]);
-
-  const handleBulkDelete = useCallback(async () => {
-    if (!onBulkDelete || selectedIds.size === 0) return;
-    setIsDeleting(true);
-    try {
-      await onBulkDelete(Array.from(selectedIds));
-      setSelectedIds(new Set());
-      onSelectionChange?.([]);
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [onBulkDelete, selectedIds, onSelectionChange]);
 
   const isAllSelected = buyers.length > 0 && selectedIds.size === buyers.length;
   const isSomeSelected = selectedIds.size > 0 && selectedIds.size < buyers.length;
@@ -330,37 +343,20 @@ export const BuyerTableEnhanced = ({
               Clear
             </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive border-destructive/30 hover:bg-destructive/10"
-              onClick={handleRemoveFromUniverse}
-              disabled={isRemoving}
-            >
-              {isRemoving ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Unlink className="h-4 w-4 mr-1" />
-              )}
-              Remove from Universe
-            </Button>
-            {onBulkDelete && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleBulkDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4 mr-1" />
-                )}
-                Delete {selectedIds.size} Permanently
-              </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={handleRemoveFromUniverse}
+            disabled={isRemoving}
+          >
+            {isRemoving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Unlink className="h-4 w-4 mr-1" />
             )}
-          </div>
+            Remove from Universe
+          </Button>
         </div>
       )}
       
@@ -429,11 +425,17 @@ export const BuyerTableEnhanced = ({
                   onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
                 >
                   {selectable && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Toggle selection with shift-key support
+                        handleToggleSelect(buyer.id, !isSelected, e);
+                      }}
+                    >
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={(checked) => handleToggleSelect(buyer.id, !!checked)}
                         aria-label={`Select ${buyer.company_name}`}
+                        tabIndex={-1}
                       />
                     </TableCell>
                   )}

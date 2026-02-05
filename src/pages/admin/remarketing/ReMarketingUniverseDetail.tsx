@@ -66,7 +66,6 @@ import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
 import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
 import { useDealEnrichment } from "@/hooks/useDealEnrichment";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
-import { deleteBuyerWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
 
 const ReMarketingUniverseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -564,44 +563,20 @@ const ReMarketingUniverseDetail = () => {
     await queueBuyers([{ id: buyerId }]);
   };
 
-  // Handler for single buyer delete (with cascade) via row dropdown
+  // Handler for single buyer removal from universe via row dropdown
+  // Just unlinks from universe - buyer remains in All Buyers
   const handleDeleteBuyer = async (buyerId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this buyer? This cannot be undone.')) return;
+    const { error } = await supabase
+      .from('remarketing_buyers')
+      .update({ universe_id: null })
+      .eq('id', buyerId);
     
-    const { error } = await deleteBuyerWithRelated(buyerId);
     if (error) {
-      toast.error('Failed to delete buyer');
+      toast.error('Failed to remove buyer');
       return;
     }
     
-    toast.success('Buyer deleted');
-    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
-  };
-
-  // Handler for bulk delete of buyers (permanently removes them)
-  const handleBulkDeleteBuyers = async (buyerIds: string[]) => {
-    if (!buyerIds.length) return;
-    
-    if (!confirm(`Are you sure you want to permanently delete ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
-    
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const buyerId of buyerIds) {
-      const { error } = await deleteBuyerWithRelated(buyerId);
-      if (error) {
-        failCount++;
-      } else {
-        successCount++;
-      }
-    }
-    
-    if (failCount > 0) {
-      toast.error(`Deleted ${successCount} buyers, ${failCount} failed`);
-    } else {
-      toast.success(`Deleted ${successCount} buyer${successCount > 1 ? 's' : ''}`);
-    }
-    
+    toast.success('Buyer removed from universe');
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
   };
 
@@ -800,7 +775,6 @@ const ReMarketingUniverseDetail = () => {
                       onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
                       onEnrich={handleEnrichSingleBuyer}
                       onDelete={handleDeleteBuyer}
-                      onBulkDelete={handleBulkDeleteBuyers}
                     />
                   </CardContent>
                 </Card>
