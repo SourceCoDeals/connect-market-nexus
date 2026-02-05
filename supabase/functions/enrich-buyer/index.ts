@@ -778,40 +778,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // ----------------------------------------------------------------------
-    // AUTH
-    // ----------------------------------------------------------------------
-    // NOTE: This function is invoked in 2 ways:
-    // 1) From the browser (admin-only): Authorization Bearer <user JWT>
-    // 2) From the queue worker:        Authorization Bearer <service role key>
-    //
-    // We disable platform JWT verification (config.toml) so the worker can call
-    // this function. Therefore we MUST enforce auth here.
-    const authHeader = req.headers.get('Authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
-    const isInternalWorkerCall = !!token && token === supabaseServiceKey;
-
-    console.log('[enrich-buyer] auth info', {
-      hasAuthHeader: !!authHeader,
-      tokenLength: token?.length ?? 0,
-      isInternalWorkerCall,
-    });
-
-    let userId = 'system';
-
-    if (!isInternalWorkerCall) {
-      if (!token) {
-        return new Response(JSON.stringify({ success: false, error: 'No authorization header' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Accept any request with auth header
-      // Rate limiting prevents abuse
-      userId = token.substring(0, 20);
-    }
-
     // Fetch buyer
     const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
