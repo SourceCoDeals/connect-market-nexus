@@ -88,6 +88,7 @@ const TOTAL_PHASES = 14;
        headers: {
          'Content-Type': 'application/json',
          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
        },
        body: JSON.stringify({
          industry_name: universe.name,
@@ -171,6 +172,7 @@ const TOTAL_PHASES = 14;
           headers: {
             'Content-Type': 'application/json',
             'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({ triggered_by: generation.id, batch: newPhasesCompleted }),
         }).catch(err => {
