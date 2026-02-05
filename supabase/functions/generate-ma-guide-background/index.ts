@@ -74,7 +74,7 @@
          status: 'pending', // Queue for processing by cron
          current_phase: 'Queued for processing',
          phases_completed: 0,
-         total_phases: 13,
+          total_phases: 14,
          generated_content: {}
        })
        .select()
