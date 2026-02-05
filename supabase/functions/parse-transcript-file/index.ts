@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { getGeminiNativeUrl, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,17 +8,11 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get file content from form data
     const formData = await req.formData();
     const file = formData.get('file') as File;
     
@@ -35,124 +28,62 @@ serve(async (req) => {
 
     console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
 
-    // Handle different file types
-    if (fileName.endsWith('.txt')) {
-      // Plain text file - read directly
+    if (fileName.endsWith('.txt') || fileName.endsWith('.vtt') || fileName.endsWith('.srt')) {
       extractedText = await file.text();
       console.log(`Text file extracted, length: ${extractedText.length}`);
     } 
-    else if (fileName.endsWith('.pdf')) {
-      // For PDF files, use Lovable AI to extract text
+    else if (fileName.endsWith('.pdf') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
       const arrayBuffer = await file.arrayBuffer();
-      const base64Content = base64Encode(arrayBuffer);
+      const base64Content = base64Encode(new Uint8Array(arrayBuffer));
       
-      console.log(`PDF file, size: ${arrayBuffer.byteLength} bytes, base64 length: ${base64Content.length}`);
-      
-      // Use Gemini AI to extract text from PDF
-      const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-      if (!geminiApiKey) {
-        throw new Error('GEMINI_API_KEY not configured');
+      let mimeType = 'application/pdf';
+      if (fileName.endsWith('.docx')) {
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else if (fileName.endsWith('.doc')) {
+        mimeType = 'application/msword';
       }
-
-      const aiResponse = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: getGeminiHeaders(geminiApiKey),
-        body: JSON.stringify({
-          model: DEFAULT_GEMINI_MODEL,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a document parsing assistant. Extract ALL text content from the provided PDF document. Return ONLY the extracted text, preserving the structure and formatting as much as possible. Do not add any commentary or analysis.'
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Please extract all the text content from this PDF document:'
-                },
-                {
-                  type: 'file',
-                  file: {
-                    filename: file.name,
-                    file_data: `data:application/pdf;base64,${base64Content}`
-                  }
-                }
-              ]
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 16000,
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error('AI API error:', errorText);
-        throw new Error(`Failed to process PDF: ${aiResponse.status}`);
-      }
-
-      const aiData = await aiResponse.json();
-      extractedText = aiData.choices?.[0]?.message?.content || '';
-      console.log(`PDF text extracted via AI, length: ${extractedText.length}`);
-    }
-    else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-      // For DOC/DOCX files, use Lovable AI
-      const arrayBuffer = await file.arrayBuffer();
-      const base64Content = base64Encode(arrayBuffer);
       
-      const mimeType = fileName.endsWith('.docx') 
-        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        : 'application/msword';
-      
-      console.log(`Word file, size: ${arrayBuffer.byteLength} bytes, base64 length: ${base64Content.length}`);
+      console.log(`Document file, size: ${arrayBuffer.byteLength} bytes, mime: ${mimeType}`);
       
       const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
       if (!geminiApiKey) {
         throw new Error('GEMINI_API_KEY not configured');
       }
 
-      const aiResponse = await fetch(GEMINI_API_URL, {
+      // Use native Gemini API which supports document processing
+      const nativeUrl = getGeminiNativeUrl(DEFAULT_GEMINI_MODEL, geminiApiKey);
+      
+      const aiResponse = await fetch(nativeUrl, {
         method: 'POST',
-        headers: getGeminiHeaders(geminiApiKey),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: DEFAULT_GEMINI_MODEL,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a document parsing assistant. Extract ALL text content from the provided document. Return ONLY the extracted text, preserving the structure and formatting as much as possible. Do not add any commentary or analysis.'
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Please extract all the text content from this document:'
-                },
-                {
-                  type: 'file',
-                  file: {
-                    filename: file.name,
-                    file_data: `data:${mimeType};base64,${base64Content}`
-                  }
+          contents: [{
+            parts: [
+              { text: 'Extract ALL text content from this document. Return ONLY the extracted text, preserving structure. No commentary.' },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Content
                 }
-              ]
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 16000,
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 16000,
+          }
         }),
       });
 
       if (!aiResponse.ok) {
         const errorText = await aiResponse.text();
-        console.error('AI API error:', errorText);
+        console.error('Gemini API error:', errorText);
         throw new Error(`Failed to process document: ${aiResponse.status}`);
       }
 
       const aiData = await aiResponse.json();
-      extractedText = aiData.choices?.[0]?.message?.content || '';
-      console.log(`Word text extracted via AI, length: ${extractedText.length}`);
+      extractedText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log(`Document text extracted via Gemini, length: ${extractedText.length}`);
     }
     else {
       return new Response(
