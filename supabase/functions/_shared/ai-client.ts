@@ -88,55 +88,9 @@ function isRetryableError(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
-// ============= RATE LIMITING =============
-
-// Rate limiting configuration for Gemini API (15 req/min free tier)
-const GEMINI_RATE_LIMIT = 15; // requests per minute
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-
-// Track Gemini requests in last minute
-let geminiRequestTimestamps: number[] = [];
-
-/**
- * Enforce rate limiting before making Gemini API call
- * Waits if necessary to avoid hitting rate limits proactively
- */
-async function enforceGeminiRateLimit(): Promise<void> {
-  const now = Date.now();
-
-  // Remove timestamps older than 1 minute
-  geminiRequestTimestamps = geminiRequestTimestamps.filter(
-    ts => now - ts < RATE_LIMIT_WINDOW_MS
-  );
-
-  // If we're at the limit, wait until the oldest request is >1 minute old
-  if (geminiRequestTimestamps.length >= GEMINI_RATE_LIMIT) {
-    const oldestRequest = geminiRequestTimestamps[0];
-    const waitTime = RATE_LIMIT_WINDOW_MS - (now - oldestRequest);
-
-    if (waitTime > 0) {
-      console.log(`[RATE_LIMIT] At Gemini limit (${GEMINI_RATE_LIMIT}/min), waiting ${waitTime}ms`);
-      await sleep(waitTime + 100); // Add small buffer
-
-      // Clean up old timestamps again after waiting
-      const afterWait = Date.now();
-      geminiRequestTimestamps = geminiRequestTimestamps.filter(
-        ts => afterWait - ts < RATE_LIMIT_WINDOW_MS
-      );
-    }
-  }
-
-  // Record this request
-  geminiRequestTimestamps.push(Date.now());
-  console.log(`[RATE_LIMIT] Gemini requests in last minute: ${geminiRequestTimestamps.length}/${GEMINI_RATE_LIMIT}`);
-}
-
 // ============= GEMINI CLIENT =============
 
 async function callGemini(options: AICallOptions): Promise<AICallResult> {
-  // Enforce rate limiting BEFORE making API call
-  await enforceGeminiRateLimit();
-
   const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
   if (!geminiApiKey) {
     return {
@@ -477,156 +431,17 @@ async function callOpenAI(options: AICallOptions): Promise<AICallResult> {
   }
 }
 
-// ============= COST TRACKING =============
-
-// Pricing per 1M tokens (as of 2026-02, in USD)
-const PRICING = {
-  gemini: {
-    input: 0.075,   // Gemini Flash 2.0
-    output: 0.30,
-  },
-  claude: {
-    input: 3.0,     // Claude Sonnet 4.5
-    output: 15.0,
-  },
-  openai: {
-    'gpt-4o': {
-      input: 2.50,
-      output: 10.0,
-    },
-    'gpt-4o-mini': {
-      input: 0.15,
-      output: 0.60,
-    },
-  },
-};
-
-/**
- * Calculate cost in USD for an AI API call
- */
-function calculateCost(
-  provider: AIProvider,
-  model: string,
-  inputTokens: number,
-  outputTokens: number
-): { inputCost: number; outputCost: number; totalCost: number } {
-  let inputRate = 0;
-  let outputRate = 0;
-
-  if (provider === AIProvider.GEMINI) {
-    inputRate = PRICING.gemini.input;
-    outputRate = PRICING.gemini.output;
-  } else if (provider === AIProvider.CLAUDE) {
-    inputRate = PRICING.claude.input;
-    outputRate = PRICING.claude.output;
-  } else if (provider === AIProvider.OPENAI) {
-    // Determine OpenAI model pricing
-    if (model.includes('gpt-4o-mini')) {
-      inputRate = PRICING.openai['gpt-4o-mini'].input;
-      outputRate = PRICING.openai['gpt-4o-mini'].output;
-    } else {
-      inputRate = PRICING.openai['gpt-4o'].input;
-      outputRate = PRICING.openai['gpt-4o'].output;
-    }
-  }
-
-  const inputCost = (inputTokens / 1_000_000) * inputRate;
-  const outputCost = (outputTokens / 1_000_000) * outputRate;
-  const totalCost = inputCost + outputCost;
-
-  return { inputCost, outputCost, totalCost };
-}
-
-/**
- * Log AI API call to cost tracking table
- * This is fire-and-forget to avoid blocking the main request
- */
-async function logAICost(
-  provider: AIProvider,
-  model: string,
-  functionName: string,
-  result: AICallResult,
-  durationMs: number
-): Promise<void> {
-  try {
-    // Skip logging if no usage data
-    if (!result.usage) {
-      return;
-    }
-
-    const cost = calculateCost(
-      provider,
-      model,
-      result.usage.inputTokens,
-      result.usage.outputTokens
-    );
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.warn('[COST_TRACKING] Supabase credentials not available, skipping cost logging');
-      return;
-    }
-
-    // Log to database (fire-and-forget)
-    fetch(`${supabaseUrl}/rest/v1/ai_api_calls`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseServiceKey,
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'Prefer': 'return=minimal', // Don't wait for response
-      },
-      body: JSON.stringify({
-        provider,
-        model,
-        function_name: functionName,
-        input_tokens: result.usage.inputTokens,
-        output_tokens: result.usage.outputTokens,
-        input_cost_usd: cost.inputCost,
-        output_cost_usd: cost.outputCost,
-        success: result.success,
-        error_code: result.error?.code,
-        error_message: result.error?.message,
-        retry_count: result.retryCount || 0,
-        duration_ms: durationMs,
-      }),
-    }).catch(err => {
-      // Silently log error - don't let cost tracking failure affect main request
-      console.error('[COST_TRACKING] Failed to log AI cost:', err);
-    });
-
-    // Also log to console for immediate visibility
-    console.log('[COST_TRACKING]', {
-      provider,
-      model,
-      function: functionName,
-      tokens: `${result.usage.inputTokens} in / ${result.usage.outputTokens} out`,
-      cost: `$${cost.totalCost.toFixed(6)}`,
-      duration: `${durationMs}ms`,
-    });
-
-  } catch (error) {
-    console.error('[COST_TRACKING] Error in cost logging:', error);
-  }
-}
-
 // ============= UNIFIED API =============
 
 /**
- * Call an AI provider with automatic retry logic and cost tracking
+ * Call an AI provider with automatic retry logic
  */
 export async function callAI(options: AICallOptions): Promise<AICallResult> {
   const retryAttempts = options.retryAttempts ?? DEFAULT_RETRY_ATTEMPTS;
   const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
-  const startTime = Date.now();
 
   let lastResult: AICallResult | null = null;
   let retryCount = 0;
-
-  // Try to infer function name from stack trace
-  const functionName = new Error().stack?.match(/at (\w+)/)?.[1] || 'unknown';
 
   for (let attempt = 0; attempt <= retryAttempts; attempt++) {
     // Select provider
@@ -650,16 +465,6 @@ export async function callAI(options: AICallOptions): Promise<AICallResult> {
 
     if (result.success) {
       result.retryCount = retryCount;
-
-      // Track cost (fire-and-forget)
-      const duration = Date.now() - startTime;
-      const model = options.model || (
-        options.provider === AIProvider.GEMINI ? 'gemini-2.0-flash-exp' :
-        options.provider === AIProvider.CLAUDE ? 'claude-sonnet-4-20250514' :
-        'gpt-4o-mini'
-      );
-      logAICost(options.provider, model, functionName, result, duration);
-
       return result;
     }
 
@@ -667,12 +472,6 @@ export async function callAI(options: AICallOptions): Promise<AICallResult> {
 
     // Don't retry if error is not retryable
     if (!result.error?.retryable) {
-      // Track failed call cost if usage data is available
-      if (result.usage) {
-        const duration = Date.now() - startTime;
-        const model = options.model || 'unknown';
-        logAICost(options.provider, model, functionName, result, duration);
-      }
       return result;
     }
 
@@ -688,14 +487,6 @@ export async function callAI(options: AICallOptions): Promise<AICallResult> {
   // All retries exhausted
   if (lastResult) {
     lastResult.retryCount = retryCount;
-
-    // Track final failed attempt
-    if (lastResult.usage) {
-      const duration = Date.now() - startTime;
-      const model = options.model || 'unknown';
-      logAICost(options.provider, model, functionName, lastResult, duration);
-    }
-
     return lastResult;
   }
 

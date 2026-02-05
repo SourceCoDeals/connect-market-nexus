@@ -48,14 +48,13 @@ serve(async (req) => {
     // Fetch universe details
     const { data: universe, error: universeError } = await supabase
       .from('remarketing_buyer_universes')
-      .select('name, description, ma_guide_qa_context')
+      .select('name, description, clarification_context')
       .eq('id', universe_id)
       .single();
 
     if (universeError || !universe) {
-      console.error('[generate-ma-guide-background] Universe lookup failed:', universeError?.message, 'universe_id:', universe_id);
       return new Response(
-        JSON.stringify({ error: `Universe not found: ${universeError?.message || 'no matching record'}` }),
+        JSON.stringify({ error: 'Universe not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -101,7 +100,7 @@ serve(async (req) => {
       universe_id,
       universe.name,
       universe.description,
-      universe.ma_guide_qa_context,
+      universe.clarification_context,
       supabase
     ).catch(async (error) => {
       console.error(`[generate-ma-guide-background] Generation ${generation.id} failed:`, error);
