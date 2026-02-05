@@ -182,40 +182,55 @@ ${existing_criteria ? `\nExisting criteria to merge with (don't override unless 
 
 Extract all available criteria using the extract_criteria function. Be thorough but only include what's explicitly stated or strongly implied.`;
 
-    const response = await fetch(GEMINI_API_URL, {
-      method: "POST",
-      headers: getGeminiHeaders(GEMINI_API_KEY),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        tools: [EXTRACTION_TOOL],
-        tool_choice: { type: "function", function: { name: "extract_criteria" } }
-      }),
+    const requestBody = JSON.stringify({
+      model: DEFAULT_GEMINI_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      tools: [EXTRACTION_TOOL],
+      tool_choice: { type: "function", function: { name: "extract_criteria" } }
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // Retry logic for API rate limits
+    const MAX_RETRIES = 3;
+    let response: Response | null = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      response = await fetch(GEMINI_API_URL, {
+        method: "POST",
+        headers: getGeminiHeaders(GEMINI_API_KEY),
+        body: requestBody,
+      });
+
+      if (response.status !== 429 && response.status !== 529) break;
+
+      if (attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt + 1) * 1000;
+        console.log(`[analyze-tracker-notes] Rate limited (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+
+    if (!response!.ok) {
+      if (response!.status === 429 || response!.status === 529) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          JSON.stringify({ error: "AI service busy. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
+      if (response!.status === 402) {
         return new Response(
           JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const text = await response.text();
-      console.error("AI Gateway error:", response.status, text);
+      const text = await response!.text();
+      console.error("AI Gateway error:", response!.status, text);
       throw new Error("Failed to analyze notes");
     }
 
-    const result = await response.json();
-    
+    const result = await response!.json();
+
     // Extract the tool call result
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall || toolCall.function.name !== 'extract_criteria') {
