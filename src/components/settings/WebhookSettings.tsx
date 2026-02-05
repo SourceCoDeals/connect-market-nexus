@@ -44,26 +44,28 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const { data: webhooks = [], isLoading } = useQuery({
     queryKey: ['webhooks', universeId],
     queryFn: async () => {
-      const query = supabase
-        .from('webhook_configs')
+      // Use 'as any' since webhook_configs may not be in generated types yet
+      let query = supabase
+        .from('webhook_configs' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
       if (universeId) {
-        query.eq('universe_id', universeId);
+        query = query.eq('universe_id', universeId);
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as WebhookConfig[];
+      return (data || []) as unknown as WebhookConfig[];
     }
   });
 
   // Add webhook mutation
   const addMutation = useMutation({
     mutationFn: async () => {
+      // Use 'as any' since webhook_configs may not be in generated types yet
       const { error } = await supabase
-        .from('webhook_configs')
+        .from('webhook_configs' as any)
         .insert({
           universe_id: universeId || null,
           name: formData.name,
@@ -89,8 +91,9 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   // Delete webhook mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Use 'as any' since webhook_configs may not be in generated types yet
       const { error } = await supabase
-        .from('webhook_configs')
+        .from('webhook_configs' as any)
         .delete()
         .eq('id', id);
 
@@ -108,8 +111,9 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   // Toggle webhook enabled/disabled
   const toggleMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      // Use 'as any' since webhook_configs may not be in generated types yet
       const { error } = await supabase
-        .from('webhook_configs')
+        .from('webhook_configs' as any)
         .update({ enabled })
         .eq('id', id);
 

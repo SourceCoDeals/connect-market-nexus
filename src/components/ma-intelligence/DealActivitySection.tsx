@@ -137,14 +137,16 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         });
       });
 
-      // Load transcripts - use listing_id per actual schema
-      const { data: transcripts } = await supabase
-        .from("deal_transcripts")
+      // Load transcripts - use v_deal_transcripts view
+      const { data: transcriptsData } = await supabase
+        .from("v_deal_transcripts" as any)
         .select("*")
         .eq("listing_id", dealId)
         .order("created_at", { ascending: false });
 
-      transcripts?.forEach((transcript) => {
+      const transcripts = (transcriptsData || []) as unknown as { id: string; title?: string; created_at: string }[];
+      
+      transcripts.forEach((transcript) => {
         activityEvents.push({
           id: `transcript-${transcript.id}`,
           type: "transcript",

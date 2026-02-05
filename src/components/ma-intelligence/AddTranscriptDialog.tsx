@@ -196,8 +196,8 @@ export function AddTranscriptDialog({
               }
             }
             
-            // Insert into deal_transcripts table
-            const { error } = await supabase.from("deal_transcripts").insert({
+            // Insert into unified transcripts via v_deal_transcripts view
+            const { error } = await supabase.from("v_deal_transcripts" as any).insert({
               listing_id: dealId,
               title: sf.title.trim() || sf.file.name,
               source: "call",
@@ -249,7 +249,8 @@ export function AddTranscriptDialog({
           throw new Error("Please provide a transcript link, paste content, or upload files");
         }
 
-        const { error } = await supabase.from("deal_transcripts").insert({
+        // Insert via v_deal_transcripts view
+        const { error } = await supabase.from("v_deal_transcripts" as any).insert({
           listing_id: dealId,
           title: formData.title.trim(),
           source: "call",
