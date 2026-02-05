@@ -1,85 +1,122 @@
 
-# Fix: Prevent Remarketing/Research Deals from Appearing in Marketplace
+## Fix Buyer Table Actions - Row Dropdown + Bulk Delete
 
-## Problem Summary
-Research deals imported through the M&A Intelligence tool are appearing in the public marketplace. Currently:
-- 80 active listings in the database
-- Only 8 are linked via `remarketing_universe_deals` 
-- 72 unlinked research deals (many with $0 revenue/EBITDA) are polluting the marketplace
+### Problem Summary
 
-The current filtering in `use-simple-listings.ts` only checks `remarketing_universe_deals`, but deals created via `AddDealDialog` and `DealImportDialog` don't get linked there.
+On the Buyer Universe detail page, the buyer table has non-functional row-level actions:
+1. **Row dropdown menu is empty** - The three-dot menu on each buyer row shows no options because the required `onEnrich` and `onDelete` props are not passed to `BuyerTableEnhanced`
+2. **No bulk delete option** - Users can select multiple buyers but can only "Remove from Universe" (unlink), not permanently delete them
 
-## Solution: Add `is_internal_deal` Flag
+### Solution
 
-### Database Changes
-1. Add `is_internal_deal` boolean column to `listings` table
-2. Default to `false` for existing legitimate marketplace listings
-3. Set to `true` for all deals created through remarketing workflows
-4. Backfill existing research deals
+#### 1. Add Missing Props to BuyerTableEnhanced Usage
 
-### Code Changes
+Pass `onEnrich` and `onDelete` handlers to the `BuyerTableEnhanced` component in `ReMarketingUniverseDetail.tsx`:
 
-**1. Database Migration**
-```sql
--- Add flag column
-ALTER TABLE listings 
-  ADD COLUMN is_internal_deal BOOLEAN DEFAULT false;
+```text
+File: src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx
 
--- Backfill: Mark deals that appear to be research deals
--- (created recently without remarketing link, low/zero financials)
-UPDATE listings
-SET is_internal_deal = true
-WHERE id NOT IN (
-  SELECT DISTINCT listing_id 
-  FROM remarketing_universe_deals 
-  WHERE listing_id IS NOT NULL
-)
-AND (revenue = 0 OR revenue IS NULL OR ebitda = 0)
-AND created_at > '2026-02-01';
+Current (lines 748-754):
+  <BuyerTableEnhanced
+    buyers={filteredBuyers}
+    showPEColumn={true}
+    buyerIdsWithTranscripts={buyerIdsWithTranscripts}
+    selectable={true}
+    onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
+  />
+
+Change to:
+  <BuyerTableEnhanced
+    buyers={filteredBuyers}
+    showPEColumn={true}
+    buyerIdsWithTranscripts={buyerIdsWithTranscripts}
+    selectable={true}
+    onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
+    onEnrich={handleEnrichSingleBuyer}
+    onDelete={handleDeleteBuyer}
+  />
 ```
 
-**2. Update Marketplace Query (use-simple-listings.ts)**
-- Change filter from checking `remarketing_universe_deals` to simply: `.eq('is_internal_deal', false)`
-- This is simpler and more performant (no sub-query needed)
+#### 2. Add Handler Functions
 
-**3. Update Deal Creation Workflows**
-- `AddDealDialog.tsx`: Set `is_internal_deal: true` when creating new deals
-- `DealImportDialog.tsx`: Set `is_internal_deal: true` for all imported deals
-- `DealCSVImport.tsx`: Already links to universe, but also set `is_internal_deal: true` for safety
+Create the missing handler functions in `ReMarketingUniverseDetail.tsx`:
 
-**4. Update Admin Listings**
-- Add filter/badge in admin listings to distinguish internal vs marketplace deals
-- Allow toggling `is_internal_deal` flag
+```text
+// Single buyer enrichment handler
+const handleEnrichSingleBuyer = async (buyerId: string) => {
+  await queueBuyers([{ id: buyerId }]);
+};
 
-## Files to Modify
+// Single buyer delete handler (with cascade)
+const handleDeleteBuyer = async (buyerId: string) => {
+  if (!confirm('Are you sure you want to permanently delete this buyer?')) return;
+  
+  const { error } = await deleteBuyerWithRelated(buyerId);
+  if (error) {
+    toast.error('Failed to delete buyer');
+    return;
+  }
+  
+  toast.success('Buyer deleted');
+  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
+};
+```
+
+#### 3. Add Bulk Delete to BuyerTableEnhanced
+
+Update `BuyerTableEnhanced.tsx` to include a bulk delete button alongside "Remove from Universe":
+
+```text
+File: src/components/remarketing/BuyerTableEnhanced.tsx
+
+Add new prop:
+  onBulkDelete?: (buyerIds: string[]) => Promise<void>;
+
+Add delete button next to Remove from Universe button (in bulk action bar):
+  <Button
+    size="sm"
+    variant="destructive"
+    onClick={handleBulkDelete}
+    disabled={isDeleting}
+  >
+    <Trash2 className="h-4 w-4 mr-1" />
+    Delete {selectedIds.size} Permanently
+  </Button>
+```
+
+#### 4. Add Bulk Delete Handler to Universe Detail Page
+
+```text
+File: src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx
+
+const handleBulkDeleteBuyers = async (buyerIds: string[]) => {
+  for (const buyerId of buyerIds) {
+    await deleteBuyerWithRelated(buyerId);
+  }
+  toast.success(`Deleted ${buyerIds.length} buyers`);
+  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', id] });
+};
+
+// Pass to BuyerTableEnhanced:
+onBulkDelete={handleBulkDeleteBuyers}
+```
+
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/migrations/` | New migration for `is_internal_deal` column |
-| `src/hooks/use-simple-listings.ts` | Replace sub-query with `.eq('is_internal_deal', false)` |
-| `src/components/remarketing/AddDealDialog.tsx` | Add `is_internal_deal: true` to insert |
-| `src/components/remarketing/DealImportDialog.tsx` | Add `is_internal_deal: true` to insert |
-| `src/components/remarketing/DealCSVImport.tsx` | Add `is_internal_deal: true` to insert |
-| `src/hooks/marketplace/use-listings.ts` | Update query to filter by `is_internal_deal` |
-| `src/integrations/supabase/types.ts` | Add `is_internal_deal` to type definitions |
+| `src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx` | Add `onEnrich`, `onDelete`, `onBulkDelete` handlers and pass to table |
+| `src/components/remarketing/BuyerTableEnhanced.tsx` | Add `onBulkDelete` prop and bulk delete button in action bar |
 
-## Immediate vs Long-term Impact
-- **Immediate**: The 72 research deals will be hidden from marketplace
-- **Long-term**: All future deals created through remarketing tools will be properly isolated
+### Technical Details
 
-## Technical Notes
+- Uses existing `deleteBuyerWithRelated()` from `cascadeDelete.ts` which properly cleans up related records (contacts, transcripts, scores, call intelligence)
+- Uses existing `queueBuyers()` from the enrichment queue hook for single-buyer enrichment
+- Bulk delete requires confirmation dialog before proceeding
+- All operations invalidate the buyers query to refresh the table
 
-The `is_internal_deal` approach is preferred over relying on `remarketing_universe_deals` because:
-1. Single column check is faster than join/sub-query
-2. Not all internal deals are assigned to a universe
-3. Deals can exist as "research backlog" before being added to any universe
-4. Cleaner separation of concerns
+### Result
 
-## Backfill Strategy
-
-The migration will mark as internal any deal that:
-- Is NOT linked to a remarketing universe
-- Has $0 revenue OR $0 EBITDA
-- Was created after Feb 1, 2026 (recent batch import)
-
-This conservative approach avoids accidentally hiding legitimate marketplace listings.
+After implementation:
+- Row dropdown will show "Enrich Data" and "Delete" options
+- Bulk action bar will show both "Remove from Universe" and "Delete Permanently" buttons when buyers are selected
