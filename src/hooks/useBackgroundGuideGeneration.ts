@@ -54,8 +54,14 @@ export function useBackgroundGuideGeneration({
         .single();
 
       if (!error && data) {
-        setCurrentGeneration(data as GenerationStatus);
+        const generation = data as GenerationStatus;
+        setCurrentGeneration(generation);
         setIsGenerating(true);
+        
+        // Restore progress from the database record
+        const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
+        setProgress(progressPercent);
+        
         startPolling(data.id);
       }
     } catch (err) {
@@ -222,6 +228,6 @@ export function useBackgroundGuideGeneration({
     cancelGeneration,
     phaseName: currentGeneration?.current_phase || '',
     phasesCompleted: currentGeneration?.phases_completed || 0,
-    totalPhases: currentGeneration?.total_phases || 13
+    totalPhases: currentGeneration?.total_phases || 14
   };
 }
