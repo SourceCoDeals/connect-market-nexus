@@ -261,10 +261,10 @@ export const AIResearchSection = ({
         .eq('universe_id', universeId)
         .in('status', ['pending', 'processing'])
         .order('started_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (!activeError && activeGen) {
+      if (!activeError && activeGen && activeGen.length > 0) {
+        const generation = activeGen[0];
         // Found an in-progress generation - resume monitoring
         toast.info('Resuming M&A guide generation in progress...');
         
@@ -272,19 +272,19 @@ export const AIResearchSection = ({
         setIsOpen(true);
         
         // Restore UI state from the database record
-        setCurrentPhase(activeGen.phases_completed || 0);
-        setTotalPhases(activeGen.total_phases || 14);
-        setPhaseName(activeGen.current_phase || 'Resuming...');
+        setCurrentPhase(generation.phases_completed || 0);
+        setTotalPhases(generation.total_phases || 14);
+        setPhaseName(generation.current_phase || 'Resuming...');
         
         // Restore content if available
-        const generatedContent = activeGen.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
+        const generatedContent = generation.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
         if (generatedContent?.content) {
           setContent(generatedContent.content);
           setWordCount(generatedContent.content.split(/\s+/).length);
         }
         
         setState('generating');
-        resumeBackgroundGeneration(activeGen.id);
+        resumeBackgroundGeneration(generation.id);
         return;
       }
 
@@ -295,11 +295,11 @@ export const AIResearchSection = ({
         .eq('universe_id', universeId)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (!completedError && completedGen) {
-        const generatedContent = completedGen.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
+      if (!completedError && completedGen && completedGen.length > 0) {
+        const completed = completedGen[0];
+        const generatedContent = completed.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
         if (generatedContent?.content) {
           setState('complete');
           setContent(generatedContent.content);
