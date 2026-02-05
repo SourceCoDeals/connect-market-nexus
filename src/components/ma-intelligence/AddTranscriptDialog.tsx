@@ -13,13 +13,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Link2, FileText, X, Calendar } from "lucide-react";
+import { Loader2, Upload, Link2, FileText, X, Calendar, CheckCircle, AlertCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AddTranscriptDialogProps {
   dealId: string;
   isOpen: boolean;
   onClose: () => void;
   onAdd: () => void;
+}
+
+interface SelectedFile {
+  file: File;
+  title: string;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  error?: string;
 }
 
 export function AddTranscriptDialog({
@@ -31,7 +39,7 @@ export function AddTranscriptDialog({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -40,52 +48,59 @@ export function AddTranscriptDialog({
     transcript_text: "",
   });
 
-  const handleFileSelect = (file: File) => {
-    // Validate file type
+  const validateFile = (file: File): string | null => {
     const validTypes = ['.txt', '.pdf', '.doc', '.docx', '.vtt', '.srt'];
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!validTypes.includes(ext)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a .txt, .pdf, .doc, .docx, .vtt, or .srt file",
-        variant: "destructive",
-      });
-      return;
+      return "Invalid file type. Allowed: .txt, .pdf, .doc, .docx, .vtt, .srt";
     }
     
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Maximum file size is 10MB",
-        variant: "destructive",
-      });
-      return;
+      return "File too large (max 10MB)";
     }
     
-    setSelectedFile(file);
+    return null;
+  };
+
+  const handleFilesSelect = (files: FileList | null) => {
+    if (!files) return;
     
-    // Auto-fill title from filename if empty
-    if (!formData.title) {
+    const newFiles: SelectedFile[] = [];
+    
+    Array.from(files).forEach(file => {
+      // Check if file already exists
+      if (selectedFiles.some(sf => sf.file.name === file.name && sf.file.size === file.size)) {
+        return; // Skip duplicates
+      }
+      
+      const error = validateFile(file);
+      if (error) {
+        toast({
+          title: `Error with ${file.name}`,
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-      setFormData(prev => ({ ...prev, title: nameWithoutExt }));
-    }
+      newFiles.push({
+        file,
+        title: nameWithoutExt,
+        status: 'pending',
+      });
+    });
     
-    // If it's a text file, read and populate the transcript text
-    if (ext === '.txt' || ext === '.vtt' || ext === '.srt') {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        setFormData(prev => ({ ...prev, transcript_text: text }));
-      };
-      reader.readAsText(file);
+    if (newFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...newFiles]);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
+    handleFilesSelect(e.target.files);
+    // Reset input so same files can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -102,17 +117,17 @@ export function AddTranscriptDialog({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
+    handleFilesSelect(e.dataTransfer.files);
   };
 
-  const clearFile = () => {
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateFileTitle = (index: number, title: string) => {
+    setSelectedFiles(prev => prev.map((sf, i) => 
+      i === index ? { ...sf, title } : sf
+    ));
   };
 
   const uploadFileToStorage = async (file: File): Promise<string> => {
@@ -133,63 +148,134 @@ export function AddTranscriptDialog({
     return publicUrl;
   };
 
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string || '');
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Validation
-      if (!formData.title.trim()) {
-        throw new Error("Title is required");
-      }
-
-      if (!formData.transcript_text && !formData.transcript_link && !selectedFile) {
-        throw new Error("Please provide a transcript link, paste content, or upload a file");
-      }
-
-      let fileUrl = formData.transcript_link || null;
-
-      // Upload file to storage if selected
-      if (selectedFile) {
-        try {
-          fileUrl = await uploadFileToStorage(selectedFile);
-        } catch (uploadError: any) {
-          // If bucket doesn't exist, just use the link if provided
-          console.warn("File upload failed:", uploadError.message);
-          if (!formData.transcript_link && !formData.transcript_text) {
-            throw new Error("File upload failed. Please paste the content or provide a link instead.");
+      // If we have files selected, process them
+      if (selectedFiles.length > 0) {
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const sf = selectedFiles[i];
+          
+          // Update status to uploading
+          setSelectedFiles(prev => prev.map((item, idx) => 
+            idx === i ? { ...item, status: 'uploading' } : item
+          ));
+          
+          try {
+            let fileUrl: string | null = null;
+            let transcriptText = '';
+            
+            // Upload file
+            try {
+              fileUrl = await uploadFileToStorage(sf.file);
+            } catch (uploadError: any) {
+              console.warn("File upload failed:", uploadError.message);
+            }
+            
+            // Read text content for text-based files
+            const ext = '.' + sf.file.name.split('.').pop()?.toLowerCase();
+            if (['.txt', '.vtt', '.srt'].includes(ext)) {
+              try {
+                transcriptText = await readFileAsText(sf.file);
+              } catch {
+                // Ignore read errors
+              }
+            }
+            
+            // Insert into deal_transcripts table
+            const { error } = await supabase.from("deal_transcripts").insert({
+              listing_id: dealId,
+              title: sf.title.trim() || sf.file.name,
+              source: "call",
+              transcript_url: fileUrl,
+              call_date: formData.call_date || null,
+              transcript_text: transcriptText,
+            });
+            
+            if (error) throw error;
+            
+            setSelectedFiles(prev => prev.map((item, idx) => 
+              idx === i ? { ...item, status: 'success' } : item
+            ));
+            successCount++;
+          } catch (err: any) {
+            setSelectedFiles(prev => prev.map((item, idx) => 
+              idx === i ? { ...item, status: 'error', error: err.message } : item
+            ));
+            errorCount++;
           }
         }
+        
+        if (successCount > 0) {
+          toast({
+            title: `${successCount} transcript${successCount > 1 ? 's' : ''} added`,
+            description: errorCount > 0 ? `${errorCount} failed` : undefined,
+          });
+          onAdd();
+        }
+        
+        if (errorCount === 0) {
+          // Reset and close only if all succeeded
+          setFormData({
+            title: "",
+            transcript_link: "",
+            call_date: "",
+            transcript_text: "",
+          });
+          setSelectedFiles([]);
+          onClose();
+        }
+      } else {
+        // Handle link/text-only submission (original behavior)
+        if (!formData.title.trim()) {
+          throw new Error("Title is required");
+        }
+
+        if (!formData.transcript_text && !formData.transcript_link) {
+          throw new Error("Please provide a transcript link, paste content, or upload files");
+        }
+
+        const { error } = await supabase.from("deal_transcripts").insert({
+          listing_id: dealId,
+          title: formData.title.trim(),
+          source: "call",
+          transcript_url: formData.transcript_link || null,
+          call_date: formData.call_date || null,
+          transcript_text: formData.transcript_text || "",
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Transcript added",
+          description: "The transcript has been added successfully",
+        });
+
+        setFormData({
+          title: "",
+          transcript_link: "",
+          call_date: "",
+          transcript_text: "",
+        });
+        setSelectedFiles([]);
+
+        onAdd();
+        onClose();
       }
-
-      // Insert into deal_transcripts table
-      const { error } = await supabase.from("deal_transcripts").insert({
-        listing_id: dealId,
-        title: formData.title.trim(),
-        source: "call", // Default source
-        transcript_url: fileUrl,
-        call_date: formData.call_date || null,
-        transcript_text: formData.transcript_text || "",
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Transcript added",
-        description: "The transcript has been added successfully",
-      });
-
-      // Reset form
-      setFormData({
-        title: "",
-        transcript_link: "",
-        call_date: "",
-        transcript_text: "",
-      });
-      setSelectedFile(null);
-
-      onAdd();
-      onClose();
     } catch (error: any) {
       toast({
         title: "Error adding transcript",
@@ -209,10 +295,13 @@ export function AddTranscriptDialog({
         call_date: "",
         transcript_text: "",
       });
-      setSelectedFile(null);
+      setSelectedFiles([]);
       onClose();
     }
   };
+
+  const hasFilesSelected = selectedFiles.length > 0;
+  const allFilesProcessed = selectedFiles.every(f => f.status === 'success' || f.status === 'error');
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -220,146 +309,184 @@ export function AddTranscriptDialog({
         <DialogHeader>
           <DialogTitle>Add Call Transcript</DialogTitle>
           <DialogDescription>
-            Add a transcript link, paste content, or upload a file
+            Add a transcript from a call. AI will extract key information about the deal.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">
-                Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                placeholder="E.g., Q1 2024 Buyer Call"
-              />
-            </div>
+            {/* Title - only show if no files selected */}
+            {!hasFilesSelected && (
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  placeholder="e.g., Discovery Call - Jan 15"
+                />
+              </div>
+            )}
 
-            {/* Transcript Link */}
-            <div className="space-y-2">
-              <Label htmlFor="transcript_link" className="flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5" />
-                Transcript Link
-              </Label>
-              <Input
-                id="transcript_link"
-                type="url"
-                value={formData.transcript_link}
-                onChange={(e) =>
-                  setFormData({ ...formData, transcript_link: e.target.value })
-                }
-                placeholder="https://app.fireflies.ai/view/..."
-              />
-            </div>
+            {/* Transcript Link - only show if no files selected */}
+            {!hasFilesSelected && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="transcript_link" className="flex items-center gap-1.5">
+                    <Link2 className="h-3.5 w-3.5" />
+                    Transcript Link URL
+                  </Label>
+                  <Input
+                    id="transcript_link"
+                    type="url"
+                    value={formData.transcript_link}
+                    onChange={(e) =>
+                      setFormData({ ...formData, transcript_link: e.target.value })
+                    }
+                    placeholder="e.g., https://app.fireflies.ai/view/..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="call_date" className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Call Date
+                  </Label>
+                  <Input
+                    id="call_date"
+                    type="date"
+                    value={formData.call_date}
+                    onChange={(e) =>
+                      setFormData({ ...formData, call_date: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            )}
 
-            {/* Notes / Transcript Content */}
-            <div className="space-y-2">
-              <Label htmlFor="transcript_text">Notes / Transcript Content</Label>
-              <Textarea
-                id="transcript_text"
-                value={formData.transcript_text}
-                onChange={(e) =>
-                  setFormData({ ...formData, transcript_text: e.target.value })
-                }
-                placeholder="Paste transcript content or notes here..."
-                rows={5}
-                className="resize-none"
-              />
-            </div>
-
-            {/* Call Date */}
-            <div className="space-y-2">
-              <Label htmlFor="call_date" className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5" />
-                Call Date (optional)
-              </Label>
-              <Input
-                id="call_date"
-                type="date"
-                value={formData.call_date}
-                onChange={(e) =>
-                  setFormData({ ...formData, call_date: e.target.value })
-                }
-              />
-            </div>
-
-            {/* Primary Submit Button */}
-            <Button 
-              type="submit" 
-              disabled={isSubmitting} 
-              className="w-full"
-            >
-              {isSubmitting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Link2 className="w-4 h-4 mr-2" />
-              )}
-              Add Transcript Link
-            </Button>
-
-            {/* OR UPLOAD FILE Divider */}
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-muted" />
-              <span className="px-4 text-xs uppercase tracking-wide text-muted-foreground bg-background">
-                Or Upload File
-              </span>
-              <div className="flex-grow border-t border-muted" />
-            </div>
+            {/* Notes / Transcript Content - only show if no files selected */}
+            {!hasFilesSelected && (
+              <div className="space-y-2">
+                <Label htmlFor="transcript_text">Notes / Transcript Content</Label>
+                <Textarea
+                  id="transcript_text"
+                  value={formData.transcript_text}
+                  onChange={(e) =>
+                    setFormData({ ...formData, transcript_text: e.target.value })
+                  }
+                  placeholder="Paste the call transcript or notes here..."
+                  rows={4}
+                  className="resize-none"
+                />
+              </div>
+            )}
 
             {/* File Upload Zone */}
             <input
               ref={fileInputRef}
               type="file"
               accept=".txt,.pdf,.doc,.docx,.vtt,.srt"
+              multiple
               onChange={handleInputChange}
               className="hidden"
             />
             
-            {selectedFile ? (
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
-                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm truncate flex-1">{selectedFile.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {(selectedFile.size / 1024).toFixed(1)} KB
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={clearFile}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            ) : (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                  isDragging 
-                    ? "border-primary bg-primary/5" 
-                    : "border-muted-foreground/25 hover:border-muted-foreground/50"
-                }`}
-              >
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">Click to upload</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">
-                  .txt, .pdf, .doc, .vtt, .srt
-                </p>
+            {/* Selected Files List */}
+            {selectedFiles.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center justify-between">
+                  <span>Files to Upload ({selectedFiles.length})</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSubmitting}
+                  >
+                    <Upload className="h-3 w-3 mr-1" />
+                    Add More
+                  </Button>
+                </Label>
+                <ScrollArea className="max-h-[200px]">
+                  <div className="space-y-2 pr-2">
+                    {selectedFiles.map((sf, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg border">
+                        {sf.status === 'pending' && (
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        )}
+                        {sf.status === 'uploading' && (
+                          <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />
+                        )}
+                        {sf.status === 'success' && (
+                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        )}
+                        {sf.status === 'error' && (
+                          <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                        )}
+                        
+                        <div className="flex-1 min-w-0">
+                          {sf.status === 'pending' && !isSubmitting ? (
+                            <Input
+                              value={sf.title}
+                              onChange={(e) => updateFileTitle(index, e.target.value)}
+                              className="h-7 text-sm"
+                              placeholder="Title"
+                            />
+                          ) : (
+                            <span className="text-sm truncate block">{sf.title}</span>
+                          )}
+                          {sf.status === 'error' && sf.error && (
+                            <span className="text-xs text-destructive">{sf.error}</span>
+                          )}
+                        </div>
+                        
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {(sf.file.size / 1024).toFixed(0)} KB
+                        </span>
+                        
+                        {sf.status === 'pending' && !isSubmitting && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => removeFile(index)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
             )}
+
+            {/* Drop Zone - always visible */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                isDragging 
+                  ? "border-primary bg-primary/5" 
+                  : "border-muted-foreground/25 hover:border-muted-foreground/50"
+              }`}
+            >
+              <Upload className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
+              <p className="text-sm text-muted-foreground">
+                {hasFilesSelected ? "Drop more files or click to add" : "Or upload a file instead"}
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                Supports PDF, TXT, DOC, DOCX (max 10MB)
+              </p>
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
@@ -367,6 +494,19 @@ export function AddTranscriptDialog({
               disabled={isSubmitting}
             >
               Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || (allFilesProcessed && selectedFiles.length > 0)}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>Add Transcript{selectedFiles.length > 1 ? 's' : ''}</>
+              )}
             </Button>
           </DialogFooter>
         </form>
