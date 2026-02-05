@@ -37,6 +37,7 @@ import {
 interface AdminListingCardProps {
   listing: AdminListing;
   viewMode: 'grid' | 'table';
+  listingType?: 'marketplace' | 'drafts';
   isSelected: boolean;
   onSelect: (selected: boolean) => void;
   onEdit: () => void;
@@ -48,6 +49,7 @@ interface AdminListingCardProps {
 export function AdminListingCard({
   listing,
   viewMode,
+  listingType,
   isSelected,
   onSelect,
   onEdit,

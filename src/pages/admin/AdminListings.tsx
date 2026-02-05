@@ -1,8 +1,7 @@
-
-import EnhancedAdminListings from "@/components/admin/EnhancedAdminListings";
+import ListingsManagementTabs from "@/components/admin/ListingsManagementTabs";
 
 const AdminListings = () => {
-  return <EnhancedAdminListings />;
+  return <ListingsManagementTabs />;
 };
 
 export default AdminListings;
