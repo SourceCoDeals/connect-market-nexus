@@ -93,6 +93,7 @@
        headers: {
          'Content-Type': 'application/json',
          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
        },
        body: JSON.stringify({ triggered_by: generation.id }),
      }).catch(err => {
