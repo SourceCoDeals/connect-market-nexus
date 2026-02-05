@@ -20,7 +20,8 @@ import {
   Download,
   RefreshCw,
   MessageSquare,
-  ArrowRight
+   ArrowRight,
+   Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,6 +193,15 @@ export const AIResearchSection = ({
   // Clarification state
   const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyQuestion[]>([]);
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string | string[]>>({});
+   
+   // Clarification loading state with retry tracking
+   const [clarifyingStatus, setClarifyingStatus] = useState<{
+     isLoading: boolean;
+     retryCount: number;
+     waitingSeconds: number;
+     error: string | null;
+   }>({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: null });
+   const clarifyTimeoutRef = useRef<number | null>(null);
 
   // Auto-retry configuration (prevents manual Resume for transient stream cut-offs)
   const MAX_BATCH_RETRIES = 5; // Increased from 3 to 5 for better reliability
@@ -396,33 +406,91 @@ export const AIResearchSection = ({
     setState('clarifying');
     setClarifyingQuestions([]);
     setClarifyAnswers({});
+     setClarifyingStatus({ isLoading: true, retryCount: 0, waitingSeconds: 0, error: null });
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/clarify-industry`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ 
-            industry_name: industryName,
-            industry_description: industryDescription || undefined
-          }),
-        }
-      );
+       // Client-side retry with timeout for the edge function (which has internal retries too)
+       const MAX_CLIENT_RETRIES = 3;
+       const CLIENT_TIMEOUT_MS = 120000; // 2 minute timeout per attempt
+       
+       let response: Response | null = null;
+       let lastError: Error | null = null;
+       
+       for (let attempt = 0; attempt < MAX_CLIENT_RETRIES; attempt++) {
+         setClarifyingStatus(prev => ({ ...prev, retryCount: attempt, waitingSeconds: 0 }));
+         
+         try {
+           const controller = new AbortController();
+           const timeoutId = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+           
+           response = await fetch(
+             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/clarify-industry`,
+             {
+               method: "POST",
+               headers: {
+                 "Content-Type": "application/json",
+                 Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+               },
+               body: JSON.stringify({ 
+                 industry_name: industryName,
+                 industry_description: industryDescription || undefined
+               }),
+               signal: controller.signal
+             }
+           );
+           
+           clearTimeout(timeoutId);
+           
+           // Success or non-retryable error
+           if (response.ok || (response.status !== 429 && response.status !== 503 && response.status !== 504)) {
+             break;
+           }
+           
+           // Rate limit - wait and retry
+           if (response.status === 429) {
+             const waitTime = Math.min(30, 10 * (attempt + 1)); // 10s, 20s, 30s
+             setClarifyingStatus(prev => ({ ...prev, waitingSeconds: waitTime }));
+             
+             // Countdown timer
+             for (let s = waitTime; s > 0; s--) {
+               setClarifyingStatus(prev => ({ ...prev, waitingSeconds: s }));
+               await new Promise(r => setTimeout(r, 1000));
+             }
+             continue;
+           }
+           
+         } catch (err) {
+           if (err instanceof Error && err.name === 'AbortError') {
+             lastError = new Error('Request timed out. The AI service may be busy.');
+             // Wait before retry
+             const waitTime = 10;
+             setClarifyingStatus(prev => ({ ...prev, waitingSeconds: waitTime }));
+             for (let s = waitTime; s > 0; s--) {
+               setClarifyingStatus(prev => ({ ...prev, waitingSeconds: s }));
+               await new Promise(r => setTimeout(r, 1000));
+             }
+             continue;
+           }
+           throw err;
+         }
+       }
+       
+       if (!response) {
+         throw lastError || new Error('Failed to connect to AI service');
+       }
 
       if (!response.ok) {
         if (response.status === 402) {
           toast.error("AI credits depleted. Please add credits in Settings → Workspace → Usage.", {
             duration: 10000
           });
+           setClarifyingStatus({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: null });
           setState('idle');
           return;
         }
         if (response.status === 429) {
           toast.warning("Rate limit reached. Please wait a moment and try again.");
+           setClarifyingStatus({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: null });
           setState('idle');
           return;
         }
@@ -432,6 +500,7 @@ export const AIResearchSection = ({
 
       const data = await response.json();
       setClarifyingQuestions(data.questions || []);
+       setClarifyingStatus({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: null });
       
       // Initialize answers
       const initialAnswers: Record<string, string | string[]> = {};
@@ -444,6 +513,7 @@ export const AIResearchSection = ({
       console.error('Clarification error:', error);
       toast.error(`Failed to get clarifying questions: ${(error as Error).message}. Please check your Anthropic API key.`);
       // Stay in idle state so the user can retry - don't silently skip to generation
+       setClarifyingStatus({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: (error as Error).message });
       setState('idle');
     }
   };
@@ -1410,9 +1480,38 @@ export const AIResearchSection = ({
 
             {/* Loading state for clarification */}
             {state === 'clarifying' && clarifyingQuestions.length === 0 && (
-              <div className="flex items-center justify-center p-8 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                Analyzing industry...
+               <div className="flex flex-col items-center justify-center p-8 space-y-4">
+                 <div className="flex items-center gap-3 text-muted-foreground">
+                   <Loader2 className="h-5 w-5 animate-spin" />
+                   <span>
+                     {clarifyingStatus.waitingSeconds > 0 ? (
+                       <>
+                         <Clock className="h-4 w-4 inline mr-1" />
+                         Rate limited, retrying in {clarifyingStatus.waitingSeconds}s...
+                       </>
+                     ) : clarifyingStatus.retryCount > 0 ? (
+                       <>Analyzing industry (attempt {clarifyingStatus.retryCount + 1}/3)...</>
+                     ) : (
+                       <>Analyzing industry...</>
+                     )}
+                   </span>
+                 </div>
+                 {clarifyingStatus.waitingSeconds > 0 && (
+                   <div className="text-xs text-muted-foreground bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 rounded-full">
+                     AI service is busy with other requests
+                   </div>
+                 )}
+                 <Button 
+                   variant="ghost" 
+                   size="sm" 
+                   onClick={() => {
+                     setClarifyingStatus({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: null });
+                     setState('idle');
+                   }}
+                 >
+                   <X className="h-4 w-4 mr-1" />
+                   Cancel
+                 </Button>
               </div>
             )}
 

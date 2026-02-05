@@ -789,6 +789,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check enrichment lock: if data_last_updated was set within the last 30 seconds, skip
+    // This prevents concurrent enrichments that would duplicate API calls
+    if (buyer.data_last_updated) {
+      const lastUpdate = new Date(buyer.data_last_updated).getTime();
+      const now = Date.now();
+      if (now - lastUpdate < 30000) { // 30 seconds
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Enrichment already in progress for this buyer. Please wait before retrying.',
+            statusCode: 429
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const platformWebsite = buyer.platform_website || buyer.company_website;
     const peFirmWebsite = buyer.pe_firm_website;
 
