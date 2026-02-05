@@ -44,7 +44,8 @@ export function useCreateListing() {
           owner_notes: listing.owner_notes || null,
           status: listing.status || 'active',
           image_url: null,
-          is_internal_deal: false, // Admin-created listings are for the marketplace
+          // CRITICAL: Create as internal draft - must use publish-listing to go public
+          is_internal_deal: true,
         };
 
         console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));

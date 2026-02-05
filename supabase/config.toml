@@ -77,6 +77,8 @@ collect_query_data = true
 enabled = false
 
 [functions]
+[functions.publish-listing]
+verify_jwt = false
 [functions.send-connection-notification]
 verify_jwt = true
 [functions.send-email-notification]

@@ -40,6 +40,9 @@ interface DatabaseListingInsert {
   status: 'active' | 'inactive';
   image_url: string | null;
   
+  // CRITICAL: Marketplace visibility control
+  is_internal_deal: boolean;
+  
   // Employee metrics
   full_time_employees?: number | null;
   part_time_employees?: number | null;
@@ -111,6 +114,8 @@ export function useRobustListingCreation() {
         }
 
         // Step 2: Build the exact database structure
+        // CRITICAL: Admin listings are created as drafts (internal) until explicitly published
+        // This prevents accidental marketplace publication
         const databaseInsert: DatabaseListingInsert = {
           title: sanitizeStringField(listing.title),
           categories: sanitizedCategories,
@@ -128,6 +133,8 @@ export function useRobustListingCreation() {
           owner_notes: listing.owner_notes ? sanitizeStringField(listing.owner_notes) : null,
           status: listing.status || 'active',
           image_url: null,
+          // IMPORTANT: Create as internal draft - must use publish-listing to go public
+          is_internal_deal: true,
           
           // Employee metrics
           full_time_employees: listing.full_time_employees || null,
@@ -270,8 +277,8 @@ export function useRobustListingCreation() {
       });
 
       toast({
-        title: 'Listing Created Successfully',
-        description: `"${data.title}" is now live on the marketplace.`,
+        title: 'Listing Created as Draft',
+        description: `"${data.title}" has been created. Use the Publish button to make it visible on the marketplace.`,
       });
     },
     onError: (error: any) => {
