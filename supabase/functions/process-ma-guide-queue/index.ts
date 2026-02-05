@@ -8,7 +8,7 @@
  
  // Process one batch per invocation to stay within timeout limits
  const BATCH_SIZE = 1; // Must match generate-ma-guide BATCH_SIZE
- const TOTAL_PHASES = 13;
+const TOTAL_PHASES = 14;
  
  serve(async (req) => {
    if (req.method === 'OPTIONS') {

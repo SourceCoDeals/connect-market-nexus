@@ -62,8 +62,8 @@ export function useBackgroundGuideGeneration({
         // Restore progress from the database record
         const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
         setProgress(progressPercent);
-
-        startPolling(activeGen.id);
+        
+        startPolling(generation.id);
       }
     } catch (err) {
       // No existing generation, that's fine

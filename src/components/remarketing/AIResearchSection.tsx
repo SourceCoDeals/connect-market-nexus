@@ -275,7 +275,7 @@ export const AIResearchSection = ({
         setCurrentPhase(activeGen.phases_completed || 0);
         setTotalPhases(activeGen.total_phases || 14);
         setPhaseName(activeGen.current_phase || 'Resuming...');
-
+        
         // Restore content if available
         const generatedContent = activeGen.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
         if (generatedContent?.content) {
