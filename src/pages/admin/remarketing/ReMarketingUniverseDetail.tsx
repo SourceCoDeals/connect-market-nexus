@@ -865,6 +865,7 @@ const ReMarketingUniverseDetail = () => {
             {id && (
               <AIResearchSection
                 universeName={formData.name}
+                industryDescription={formData.description}
                 existingContent={maGuideContent}
                 universeId={id}
                 onDocumentAdded={(doc) => {
