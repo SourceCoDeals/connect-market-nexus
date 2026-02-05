@@ -27,7 +27,6 @@ import {
   AIResearchSection,
   ScoringStyleCard,
   BuyerFitCriteriaAccordion,
-  CriteriaExtractionPanel,
   StructuredCriteriaPanel,
   EnrichmentProgressIndicator,
   EnrichmentSummaryDialog,
@@ -985,20 +984,6 @@ const ReMarketingUniverseDetail = () => {
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
               }}
             />
-
-            {/* Criteria Extraction from Transcripts & Documents */}
-            {id && maGuideContent && (
-              <CriteriaExtractionPanel
-                universeId={id}
-                universeName={formData.name}
-                maGuideContent={maGuideContent}
-                onExtractionComplete={() => {
-                  // Refresh universe data to get updated criteria
-                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
-                  toast.success('Criteria updated from extraction');
-                }}
-              />
-            )}
 
             {/* Supporting Documents */}
             {id && (
