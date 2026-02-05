@@ -58,6 +58,7 @@ interface DealImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImportComplete: () => void;
+  onImportCompleteWithIds?: (importedIds: string[]) => void;
 }
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
@@ -66,6 +67,7 @@ export function DealImportDialog({
   open,
   onOpenChange,
   onImportComplete,
+  onImportCompleteWithIds,
 }: DealImportDialogProps) {
   const [step, setStep] = useState<ImportStep>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -78,6 +80,7 @@ export function DealImportDialog({
   const [importResults, setImportResults] = useState<{
     imported: number;
     errors: string[];
+    importedIds: string[];
   } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [columnFilter, setColumnFilter] = useState("");
@@ -194,7 +197,7 @@ export function DealImportDialog({
     setIsImporting(true);
     setImportProgress(0);
 
-    const results = { imported: 0, errors: [] as string[] };
+    const results = { imported: 0, errors: [] as string[], importedIds: [] as string[] };
 
     try {
       for (let i = 0; i < csvData.length; i++) {
@@ -254,13 +257,18 @@ export function DealImportDialog({
           });
 
           // Insert the listing
-          const { error: insertError } = await supabase
+          const { data: insertedData, error: insertError } = await supabase
             .from("listings")
-            .insert(listingData as never);
+            .insert(listingData as never)
+            .select('id')
+            .single();
 
           if (insertError) throw insertError;
 
           results.imported++;
+          if (insertedData?.id) {
+            results.importedIds.push(insertedData.id);
+          }
         } catch (error) {
           console.error(`Row ${i + 2} error:`, error);
           results.errors.push(`Row ${i + 2}: ${(error as Error).message}`);
@@ -273,6 +281,10 @@ export function DealImportDialog({
       if (results.imported > 0) {
         toast.success(`Successfully imported ${results.imported} deals`);
         onImportComplete();
+        // Call the new callback with imported IDs if provided
+        if (onImportCompleteWithIds && results.importedIds.length > 0) {
+          onImportCompleteWithIds(results.importedIds);
+        }
       }
     } catch (error) {
       console.error("Import failed:", error);

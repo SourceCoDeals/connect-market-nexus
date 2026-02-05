@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface DealEnrichmentError {
+  listingId: string;
+  dealName?: string;
+  error: string;
+}
+
+export interface DealEnrichmentSummary {
+  total: number;
+  successful: number;
+  failed: number;
+  errors: DealEnrichmentError[];
+  completedAt: string;
+}
+
 interface EnrichmentProgress {
   isEnriching: boolean;
   completedCount: number;
@@ -11,6 +25,8 @@ interface EnrichmentProgress {
   progress: number;
   estimatedTimeRemaining: string;
   processingRate: number;
+  successfulCount: number;
+  errors: DealEnrichmentError[];
 }
 
 export function useEnrichmentProgress() {
@@ -24,18 +40,25 @@ export function useEnrichmentProgress() {
     progress: 0,
     estimatedTimeRemaining: '',
     processingRate: 0,
+    successfulCount: 0,
+    errors: [],
   });
+  
+  const [summary, setSummary] = useState<DealEnrichmentSummary | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   // Track timing for rate calculation
   const startTimeRef = useRef<number | null>(null);
   const initialCompletedRef = useRef<number>(0);
+  const wasRunningRef = useRef(false);
+  const lastTotalRef = useRef(0);
 
   const fetchQueueStatus = useCallback(async () => {
     try {
       // Get counts by status
       const { data, error } = await supabase
         .from('enrichment_queue')
-        .select('status')
+        .select('status, listing_id, last_error')
         .in('status', ['pending', 'processing', 'completed', 'failed']);
 
       if (error) throw error;
@@ -46,17 +69,27 @@ export function useEnrichmentProgress() {
         completed: 0,
         failed: 0,
       };
+      
+      const errorItems: DealEnrichmentError[] = [];
 
       data?.forEach((row) => {
         const status = row.status as keyof typeof counts;
         if (counts[status] !== undefined) {
           counts[status]++;
         }
+        // Collect error details for failed items
+        if (row.status === 'failed' && row.last_error) {
+          errorItems.push({
+            listingId: row.listing_id,
+            error: row.last_error,
+          });
+        }
       });
 
       const totalActive = counts.pending + counts.processing;
       const totalCount = totalActive + counts.completed;
       const isEnriching = totalActive > 0;
+      const successfulCount = counts.completed;
 
       // Track timing for rate calculation
       if (isEnriching && !startTimeRef.current) {
@@ -97,10 +130,31 @@ export function useEnrichmentProgress() {
       }
 
       const progressPercent = totalCount > 0 ? (counts.completed / totalCount) * 100 : 0;
+      
+      // Detect completion transition (was running, now stopped)
+      const justCompleted = wasRunningRef.current && !isEnriching && lastTotalRef.current > 0;
+      
+      if (justCompleted) {
+        // Generate summary from final state
+        setSummary({
+          total: lastTotalRef.current,
+          successful: successfulCount,
+          failed: counts.failed,
+          errors: errorItems,
+          completedAt: new Date().toISOString(),
+        });
+        setShowSummary(true);
+      }
+      
+      // Update tracking refs
+      wasRunningRef.current = isEnriching;
+      if (isEnriching) {
+        lastTotalRef.current = totalCount;
+      }
 
       setProgress({
         isEnriching,
-        completedCount: counts.completed,
+        completedCount: successfulCount + counts.failed,
         totalCount,
         pendingCount: counts.pending,
         processingCount: counts.processing,
@@ -108,11 +162,18 @@ export function useEnrichmentProgress() {
         progress: progressPercent,
         estimatedTimeRemaining,
         processingRate,
+        successfulCount,
+        errors: errorItems,
       });
 
     } catch (error) {
       console.error('Error fetching enrichment queue status:', error);
     }
+  }, []);
+  
+  const dismissSummary = useCallback(() => {
+    setShowSummary(false);
+    setSummary(null);
   }, []);
 
   useEffect(() => {
@@ -144,5 +205,10 @@ export function useEnrichmentProgress() {
     };
   }, [fetchQueueStatus]);
 
-  return progress;
+  return {
+    progress,
+    summary,
+    showSummary,
+    dismissSummary,
+  };
 }
