@@ -183,3 +183,5 @@ verify_jwt = false
 verify_jwt = true
 [functions.chat-remarketing]
 verify_jwt = true
+[functions.process-ma-guide-queue]
+verify_jwt = false
