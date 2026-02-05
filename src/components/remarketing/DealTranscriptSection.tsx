@@ -98,150 +98,172 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<{file: File; title: string; status: 'pending' | 'processing' | 'done' | 'error'; text?: string}[]>([]);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isMultiFileMode, setIsMultiFileMode] = useState(false);
 
   const resetForm = () => {
     setNewTranscript("");
     setTranscriptTitle("");
     setTranscriptUrl("");
     setCallDate("");
-    setSelectedFile(null);
+    setSelectedFiles([]);
+    setIsMultiFileMode(false);
   };
 
-  // Handle file upload
+  // Handle multiple file uploads
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     
-    // Validate file type
-    const validTypes = ['.pdf', '.txt', '.doc', '.docx'];
-    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!validTypes.includes(fileExt)) {
-      toast.error('Please upload a PDF, TXT, DOC, or DOCX file');
-      return;
-    }
-
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
-      return;
-    }
-
-    setSelectedFile(file);
-    setIsUploadingFile(true);
+    const validTypes = ['.pdf', '.txt', '.doc', '.docx', '.vtt', '.srt'];
+    const newFiles: typeof selectedFiles = [];
     
-    try {
-      // For text files, read directly
-      if (fileExt === '.txt') {
-        const text = await file.text();
-        setNewTranscript(text);
-        toast.success('Text file loaded');
-      } else {
-        // For PDF/DOC, send to edge function for parsing
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        console.log('[DealTranscript] Sending file to parse-transcript-file:', file.name, file.size);
-        
-        const response = await fetch(
-          `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/parse-transcript-file`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session?.access_token}`,
-            },
-            body: formData,
-          }
-        );
-
-        console.log('[DealTranscript] Response status:', response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[DealTranscript] Error response:', errorText);
-          let errorMessage = 'Failed to parse file';
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error || errorMessage;
-          } catch {
-            errorMessage = errorText || errorMessage;
-          }
-          throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
-        console.log('[DealTranscript] Parse result:', { textLength: result.text?.length, fileName: result.fileName });
-        
-        if (!result.text) {
-          throw new Error('No text extracted from file');
-        }
-        
-        setNewTranscript(result.text);
-        toast.success(`Extracted ${result.text.length.toLocaleString()} characters from ${file.name}`);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+      
+      if (!validTypes.includes(fileExt)) {
+        toast.error(`${file.name}: unsupported file type`);
+        continue;
       }
       
-      // Auto-set title from filename if not set
-      if (!transcriptTitle) {
-        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
-        setTranscriptTitle(nameWithoutExt);
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: file too large (max 10MB)`);
+        continue;
       }
-    } catch (error: any) {
-      console.error('[DealTranscript] File upload error:', error);
-      toast.error(error.message || 'Failed to process file');
-      setSelectedFile(null);
-    } finally {
-      setIsUploadingFile(false);
-      // Reset file input to allow re-uploading the same file
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+      newFiles.push({ file, title: nameWithoutExt, status: 'pending' });
+    }
+    
+    if (newFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+      setIsMultiFileMode(true);
+    }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  // Add transcript mutation
+  // Process a single file to extract text
+  const processFileText = async (file: File): Promise<string> => {
+    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    if (['.txt', '.vtt', '.srt'].includes(fileExt)) {
+      return await file.text();
+    } else {
+      // For PDF/DOC, use the edge function
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/parse-transcript-file`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to parse ${file.name}`);
+      }
+
+      const result = await response.json();
+      return result.text || '';
+    }
+  };
+
+  // Add transcript mutation - handles both single and multiple files
   const addMutation = useMutation({
     mutationFn: async () => {
-      // If there's a file, upload it to storage first
-      let fileUrl = null;
-      let fileName = null;
-      
-      if (selectedFile) {
-        const filePath = `${dealId}/${uuidv4()}-${selectedFile.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('deal-transcripts')
-          .upload(filePath, selectedFile);
+      // Multi-file mode
+      if (isMultiFileMode && selectedFiles.length > 0) {
+        let successCount = 0;
+        
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const sf = selectedFiles[i];
           
-        if (uploadError) {
-          console.warn('File upload to storage failed:', uploadError);
-          // Continue without file URL - the text is already extracted
-        } else {
-          const { data: urlData } = supabase.storage
-            .from('deal-transcripts')
-            .getPublicUrl(filePath);
-          fileUrl = urlData.publicUrl;
-          fileName = selectedFile.name;
-        }
-      }
+          try {
+            // Update status
+            setSelectedFiles(prev => prev.map((f, idx) => 
+              idx === i ? { ...f, status: 'processing' as const } : f
+            ));
 
+            // Extract text from file
+            const transcriptText = await processFileText(sf.file);
+
+            // Upload to storage
+            const filePath = `${dealId}/${uuidv4()}-${sf.file.name}`;
+            let fileUrl = null;
+            
+            const { error: uploadError } = await supabase.storage
+              .from('deal-transcripts')
+              .upload(filePath, sf.file);
+              
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage
+                .from('deal-transcripts')
+                .getPublicUrl(filePath);
+              fileUrl = urlData.publicUrl;
+            }
+
+            // Insert transcript record
+            const { error } = await supabase
+              .from('deal_transcripts')
+              .insert({
+                listing_id: dealId,
+                transcript_text: transcriptText,
+                source: 'file_upload',
+                title: sf.title.trim() || sf.file.name,
+                transcript_url: fileUrl,
+                call_date: callDate ? new Date(callDate).toISOString() : null,
+              });
+
+            if (error) throw error;
+            
+            setSelectedFiles(prev => prev.map((f, idx) => 
+              idx === i ? { ...f, status: 'done' as const } : f
+            ));
+            successCount++;
+          } catch (err: any) {
+            console.error(`Error processing ${sf.file.name}:`, err);
+            setSelectedFiles(prev => prev.map((f, idx) => 
+              idx === i ? { ...f, status: 'error' as const } : f
+            ));
+          }
+        }
+        
+        if (successCount === 0) throw new Error('No files were uploaded successfully');
+        return { count: successCount };
+      }
+      
+      // Single transcript mode (pasted text or link)
       const { error } = await supabase
         .from('deal_transcripts')
         .insert({
           listing_id: dealId,
           transcript_text: newTranscript,
-          source: transcriptUrl || (selectedFile ? 'file_upload' : 'manual'),
+          source: transcriptUrl || 'manual',
           title: transcriptTitle || null,
-          transcript_url: transcriptUrl || fileUrl || null,
+          transcript_url: transcriptUrl || null,
           call_date: callDate ? new Date(callDate).toISOString() : null,
         });
 
       if (error) throw error;
+      return { count: 1 };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-      toast.success("Transcript added");
+      toast.success(data?.count && data.count > 1 ? `${data.count} transcripts added` : "Transcript added");
       resetForm();
       setIsAddDialogOpen(false);
     },
@@ -756,50 +778,81 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         {/* File Upload Area */}
         <div 
           className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-            isUploadingFile ? 'bg-muted/50' : 'hover:bg-muted/50'
+            addMutation.isPending ? 'bg-muted/50 cursor-not-allowed' : 'hover:bg-muted/50'
           }`}
-          onClick={() => !isUploadingFile && fileInputRef.current?.click()}
+          onClick={() => !addMutation.isPending && fileInputRef.current?.click()}
         >
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.txt,.doc,.docx"
+            accept=".pdf,.txt,.doc,.docx,.vtt,.srt"
             onChange={handleFileUpload}
             className="hidden"
-            disabled={isUploadingFile}
+            disabled={addMutation.isPending}
+            multiple
           />
-          {isUploadingFile ? (
-            <div className="flex items-center justify-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm">Processing file...</span>
-            </div>
-          ) : selectedFile ? (
-            <div className="flex items-center justify-center gap-2">
-              <File className="h-5 w-5 text-primary" />
-              <span className="font-medium text-sm">{selectedFile.name}</span>
+          <Upload className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
+          <p className="text-sm font-medium">
+            {selectedFiles.length > 0 ? 'Add more files' : 'Or upload files instead'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Supports PDF, TXT, DOC, DOCX, VTT, SRT (max 10MB each) • Select multiple files
+          </p>
+        </div>
+        
+        {/* Selected Files List */}
+        {selectedFiles.length > 0 && (
+          <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{selectedFiles.length} file(s) selected</span>
               <Button 
                 size="sm" 
                 variant="ghost" 
-                className="h-6 w-6 p-0"
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  setSelectedFile(null);
-                  setNewTranscript("");
-                }}
+                className="h-6 text-xs"
+                onClick={() => setSelectedFiles([])}
+                disabled={addMutation.isPending}
               >
-                <X className="h-4 w-4" />
+                Clear all
               </Button>
             </div>
-          ) : (
-            <>
-              <Upload className="h-6 w-6 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-sm font-medium">Or upload a file instead</p>
-              <p className="text-xs text-muted-foreground">
-                Supports PDF, TXT, DOC, DOCX (max 10MB)
-              </p>
-            </>
-          )}
-        </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {selectedFiles.map((sf, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-sm bg-background rounded p-2">
+                  {sf.status === 'processing' ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : sf.status === 'done' ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : sf.status === 'error' ? (
+                    <X className="h-4 w-4 text-destructive" />
+                  ) : (
+                    <File className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Input
+                    value={sf.title}
+                    onChange={(e) => setSelectedFiles(prev => 
+                      prev.map((f, i) => i === idx ? { ...f, title: e.target.value } : f)
+                    )}
+                    className="h-7 text-sm flex-1"
+                    disabled={addMutation.isPending}
+                    placeholder="Title"
+                  />
+                  <span className="text-xs text-muted-foreground truncate max-w-24">
+                    {sf.file.name}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                    disabled={addMutation.isPending}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={() => {
@@ -810,14 +863,14 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         </Button>
         <Button 
           onClick={() => addMutation.mutate()}
-          disabled={!newTranscript.trim() || addMutation.isPending || isUploadingFile}
+          disabled={(isMultiFileMode ? selectedFiles.length === 0 : !newTranscript.trim()) || addMutation.isPending}
         >
           {addMutation.isPending ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Adding...
+              {selectedFiles.length > 1 ? `Processing ${selectedFiles.filter(f => f.status === 'done').length}/${selectedFiles.length}...` : 'Adding...'}
             </>
-          ) : "Add Transcript"}
+          ) : selectedFiles.length > 1 ? `Add ${selectedFiles.length} Transcripts` : "Add Transcript"}
         </Button>
       </DialogFooter>
     </DialogContent>
