@@ -413,12 +413,86 @@ serve(async (req) => {
 
       console.log(`[SUCCESS] Extraction completed with ${criteria.overall_confidence}% confidence`);
 
+      // NOW APPLY THE EXTRACTED CRITERIA TO THE UNIVERSE
+      // Transform extracted data to match the universe schema
+      const universeUpdateData: Record<string, any> = {};
+
+      // Size criteria - map to universe schema
+      if (criteria.size_criteria && criteria.size_criteria.confidence_score >= 40) {
+        universeUpdateData.size_criteria = {
+          min_revenue: criteria.size_criteria.revenue_min,
+          max_revenue: criteria.size_criteria.revenue_max,
+          ideal_revenue: criteria.size_criteria.revenue_sweet_spot,
+          min_ebitda: criteria.size_criteria.ebitda_min,
+          max_ebitda: criteria.size_criteria.ebitda_max,
+          ideal_ebitda: criteria.size_criteria.ebitda_sweet_spot,
+          min_locations: criteria.size_criteria.location_count_min,
+          max_locations: criteria.size_criteria.location_count_max,
+          employee_min: criteria.size_criteria.employee_count_min,
+          employee_max: criteria.size_criteria.employee_count_max,
+        };
+        // Remove undefined values
+        Object.keys(universeUpdateData.size_criteria).forEach(key => {
+          if (universeUpdateData.size_criteria[key] === undefined) {
+            delete universeUpdateData.size_criteria[key];
+          }
+        });
+      }
+
+      // Geography criteria
+      if (criteria.geography_criteria && criteria.geography_criteria.confidence_score >= 40) {
+        universeUpdateData.geography_criteria = {
+          target_states: criteria.geography_criteria.target_states || [],
+          target_regions: criteria.geography_criteria.target_regions || [],
+          exclude_states: criteria.geography_criteria.geographic_exclusions || [],
+        };
+      }
+
+      // Service criteria
+      if (criteria.service_criteria && criteria.service_criteria.confidence_score >= 40) {
+        universeUpdateData.service_criteria = {
+          required_services: criteria.service_criteria.target_services || [],
+          excluded_services: criteria.service_criteria.service_exclusions || [],
+          // Map priorities to preferred_services if present
+          preferred_services: criteria.service_criteria.service_priorities
+            ?.map(p => p.service)
+            .filter(Boolean) || [],
+        };
+      }
+
+      // Buyer types criteria - update the buyer_types_criteria column
+      if (criteria.buyer_types_criteria && criteria.buyer_types_criteria.confidence_score >= 40) {
+        universeUpdateData.buyer_types_criteria = {
+          include_pe_firms: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'pe_firm'),
+          include_platforms: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'platform'),
+          include_strategic: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'strategic'),
+          include_family_office: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'family_office'),
+        };
+      }
+
+      // Only update if we have something to update
+      if (Object.keys(universeUpdateData).length > 0) {
+        const { error: universeUpdateError } = await supabase
+          .from('remarketing_buyer_universes')
+          .update(universeUpdateData)
+          .eq('id', universe_id);
+
+        if (universeUpdateError) {
+          console.error('[UNIVERSE_UPDATE_ERROR]', universeUpdateError);
+          // Don't fail the whole operation, just log it
+        } else {
+          console.log(`[UNIVERSE_UPDATED] Applied ${Object.keys(universeUpdateData).length} criteria sections to universe`);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           source_id: sourceRecord.id,
-          criteria,
-          message: 'Criteria extracted successfully'
+          extracted_data: criteria,
+          confidence: criteria.overall_confidence,
+          applied_to_universe: Object.keys(universeUpdateData).length > 0,
+          message: 'Criteria extracted and applied to universe'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
