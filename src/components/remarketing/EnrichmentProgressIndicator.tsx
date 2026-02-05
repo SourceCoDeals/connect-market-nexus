@@ -1,6 +1,7 @@
-import { Loader2, Clock, Zap } from 'lucide-react';
+import { Clock, Zap, CheckCircle2, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface EnrichmentProgressIndicatorProps {
   completedCount: number;
@@ -9,6 +10,8 @@ interface EnrichmentProgressIndicatorProps {
   estimatedTimeRemaining?: string;
   processingRate?: number; // items per minute
   itemLabel?: string; // "deals", "buyers", etc. - defaults to "deals"
+  successfulCount?: number;
+  failedCount?: number;
 }
 
 export const EnrichmentProgressIndicator = ({
@@ -18,9 +21,15 @@ export const EnrichmentProgressIndicator = ({
   estimatedTimeRemaining,
   processingRate,
   itemLabel = 'deals',
+  successfulCount,
+  failedCount,
 }: EnrichmentProgressIndicatorProps) => {
   const remainingCount = totalCount - completedCount;
   const singularLabel = itemLabel.endsWith('s') ? itemLabel.slice(0, -1) : itemLabel;
+  
+  // Use passed values or fallback to computed values
+  const successful = successfulCount ?? completedCount;
+  const failed = failedCount ?? 0;
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -52,11 +61,25 @@ export const EnrichmentProgressIndicator = ({
               </div>
             </div>
             <Progress value={progress} className="h-2" />
-            {remainingCount > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
+            <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {successful} successful
+                </Badge>
+                {failed > 0 && (
+                  <Badge variant="secondary" className="gap-1 bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                    <XCircle className="h-3 w-3" />
+                    {failed} failed
+                  </Badge>
+                )}
+              </div>
+              {remainingCount > 0 && (
+                <p className="text-xs text-muted-foreground">
                 {remainingCount} {remainingCount === 1 ? singularLabel : itemLabel} remaining
               </p>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </CardContent>

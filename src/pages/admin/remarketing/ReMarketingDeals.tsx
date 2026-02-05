@@ -85,6 +85,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat } from "@/components/remarketing";
+import { DealEnrichmentSummaryDialog } from "@/components/remarketing";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import {
   DndContext,
@@ -627,7 +628,7 @@ const ReMarketingDeals = () => {
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
   
   // Enrichment progress tracking
-  const enrichmentProgress = useEnrichmentProgress();
+  const { progress: enrichmentProgress, summary: enrichmentSummary, showSummary: showEnrichmentSummary, dismissSummary } = useEnrichmentProgress();
   
   // Multi-select and archive state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
@@ -715,53 +716,82 @@ const ReMarketingDeals = () => {
     }
   });
 
-  // Queue deals for enrichment instead of direct calls (respects rate limits and provides tracking)
-  useEffect(() => {
-    const queueDealsForEnrichment = async () => {
-      if (!listings) return;
+  // Queue specific deals for enrichment (used by CSV import)
+  const queueDealsForEnrichment = useCallback(async (dealIds: string[]) => {
+    if (dealIds.length === 0) return;
+    
+    const nowIso = new Date().toISOString();
+    
+    try {
+      // Add deals to enrichment queue (upsert to avoid duplicates)
+      const queueEntries = dealIds.map(id => ({
+        listing_id: id,
+        status: 'pending',
+        attempts: 0,
+        queued_at: nowIso,
+      }));
 
-      // Find deals that need enrichment (no enriched_at and have a website)
-      const dealsToQueue = listings.filter(deal => {
-        const website = deal.website || (deal.internal_deal_memo_link && !deal.internal_deal_memo_link.includes('sharepoint'));
-        return !deal.enriched_at && website && !enrichingDealsRef.current.has(deal.id);
-      });
+      const { error } = await supabase
+        .from('enrichment_queue')
+        .upsert(queueEntries, { onConflict: 'listing_id' });
 
-      if (dealsToQueue.length === 0) return;
-
-      // Mark all as being queued to prevent duplicate entries
-      dealsToQueue.forEach(deal => enrichingDealsRef.current.add(deal.id));
-
-      try {
-        // Add deals to enrichment queue (upsert to avoid duplicates)
-        const queueEntries = dealsToQueue.map(deal => ({
-          listing_id: deal.id,
-          status: 'pending',
-          attempts: 0,
-          queued_at: new Date().toISOString(),
-        }));
-
-        const { error } = await supabase
-          .from('enrichment_queue')
-          .upsert(queueEntries, { onConflict: 'listing_id' });
-
-        if (error) {
-          console.error('Failed to queue deals for enrichment:', error);
-          return;
-        }
-
-        if (dealsToQueue.length > 0) {
-          toast({
-            title: "Deals queued for enrichment",
-            description: `${dealsToQueue.length} deal${dealsToQueue.length !== 1 ? 's' : ''} added to enrichment queue`
-          });
-        }
-      } catch (err) {
-        console.error('Failed to queue deals:', err);
+      if (error) {
+        console.error('Failed to queue deals for enrichment:', error);
+        return;
       }
-    };
 
-    queueDealsForEnrichment();
-  }, [listings, toast]);
+      toast({
+        title: "Deals queued for enrichment",
+        description: `${dealIds.length} deal${dealIds.length !== 1 ? 's' : ''} added to enrichment queue`
+      });
+      
+      // Trigger the worker immediately
+      void supabase.functions
+        .invoke('process-enrichment-queue', { body: { source: 'csv_import' } })
+        .catch((e) => console.warn('Failed to trigger enrichment worker:', e));
+        
+    } catch (err) {
+      console.error('Failed to queue deals:', err);
+    }
+  }, [toast]);
+  
+  // Handle import completion with smart enrichment (only new deals)
+  const handleImportCompleteWithIds = useCallback((importedIds: string[]) => {
+    if (importedIds.length > 0) {
+      queueDealsForEnrichment(importedIds);
+    }
+  }, [queueDealsForEnrichment]);
+  
+  // Handle retry failed enrichments
+  const handleRetryFailedEnrichment = useCallback(async () => {
+    dismissSummary();
+    
+    if (!enrichmentSummary?.errors.length) return;
+    
+    const failedIds = enrichmentSummary.errors.map(e => e.listingId);
+    const nowIso = new Date().toISOString();
+    
+    // Reset failed items in queue
+    await supabase
+      .from('enrichment_queue')
+      .update({
+        status: 'pending',
+        attempts: 0,
+        last_error: null,
+        queued_at: nowIso,
+      })
+      .in('listing_id', failedIds);
+    
+    toast({
+      title: "Retrying failed deals",
+      description: `${failedIds.length} deal${failedIds.length !== 1 ? 's' : ''} queued for retry`
+    });
+    
+    // Trigger worker
+    void supabase.functions
+      .invoke('process-enrichment-queue', { body: { source: 'retry_failed' } })
+      .catch(console.warn);
+  }, [dismissSummary, enrichmentSummary, toast]);
 
   // Fetch universes for the filter
   const { data: universes } = useQuery({
@@ -1445,6 +1475,8 @@ const ReMarketingDeals = () => {
           progress={enrichmentProgress.progress}
           estimatedTimeRemaining={enrichmentProgress.estimatedTimeRemaining}
           processingRate={enrichmentProgress.processingRate}
+          successfulCount={enrichmentProgress.successfulCount}
+          failedCount={enrichmentProgress.failedCount}
         />
       )}
 
@@ -1521,6 +1553,7 @@ const ReMarketingDeals = () => {
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         onImportComplete={() => refetchListings()}
+        onImportCompleteWithIds={handleImportCompleteWithIds}
       />
 
       {/* Archive Confirmation Dialog */}
@@ -1777,6 +1810,14 @@ const ReMarketingDeals = () => {
       {/* AI Chat */}
       <ReMarketingChat
         context={{ type: "deals", totalDeals: listings?.length }}
+      />
+
+      {/* Deal Enrichment Summary Dialog */}
+      <DealEnrichmentSummaryDialog
+        open={showEnrichmentSummary}
+        onOpenChange={(open) => !open && dismissSummary()}
+        summary={enrichmentSummary}
+        onRetryFailed={handleRetryFailedEnrichment}
       />
     </div>
   );

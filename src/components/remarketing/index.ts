@@ -94,6 +94,7 @@ export { BulkActionsToolbar } from './BulkActionsToolbar';
 export { ScoringProgressIndicator } from './ScoringProgressIndicator';
 export { EnrichmentProgressIndicator } from './EnrichmentProgressIndicator';
 export { EnrichmentSummaryDialog } from './EnrichmentSummaryDialog';
+export { DealEnrichmentSummaryDialog } from './DealEnrichmentSummaryDialog';
 
 // Email Generation
 export { EmailPreviewDialog } from './EmailPreviewDialog';
