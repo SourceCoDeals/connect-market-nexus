@@ -1,7 +1,7 @@
 -- Create table for tracking M&A guide generation progress
 CREATE TABLE IF NOT EXISTS ma_guide_generations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  universe_id uuid NOT NULL REFERENCES remarketing_universes(id) ON DELETE CASCADE,
+  universe_id uuid NOT NULL REFERENCES remarketing_buyer_universes(id) ON DELETE CASCADE,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
   current_phase text,
   phases_completed integer DEFAULT 0,
@@ -29,13 +29,13 @@ CREATE TRIGGER set_ma_guide_generations_updated_at
 -- Enable RLS
 ALTER TABLE ma_guide_generations ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies (same as remarketing_universes - users can only see their own)
+-- RLS Policies (same as remarketing_buyer_universes - users can only see their own)
 CREATE POLICY "Users can view their own guide generations"
   ON ma_guide_generations
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM remarketing_universes u
+      SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = ma_guide_generations.universe_id
       AND u.user_id = auth.uid()
     )
@@ -46,7 +46,7 @@ CREATE POLICY "Users can insert guide generations for their universes"
   FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM remarketing_universes u
+      SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = ma_guide_generations.universe_id
       AND u.user_id = auth.uid()
     )
@@ -57,7 +57,7 @@ CREATE POLICY "Users can update their own guide generations"
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM remarketing_universes u
+      SELECT 1 FROM remarketing_buyer_universes u
       WHERE u.id = ma_guide_generations.universe_id
       AND u.user_id = auth.uid()
     )
