@@ -39,7 +39,7 @@ export const InvestmentCriteriaCard = ({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Target className="h-4 w-4" />
-            Platform Investment Criteria
+            Add-on Investment Criteria
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onEdit}>
             <Pencil className="h-4 w-4" />
