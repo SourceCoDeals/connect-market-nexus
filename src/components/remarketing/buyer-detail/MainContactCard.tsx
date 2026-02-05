@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -26,11 +28,17 @@ interface Contact {
 interface MainContactCardProps {
   contacts: Contact[];
   onAddContact: () => void;
+  hasFeeAgreement?: boolean;
+  onFeeAgreementChange?: (value: boolean) => void;
+  feeAgreementDisabled?: boolean;
 }
 
 export const MainContactCard = ({
   contacts,
   onAddContact,
+  hasFeeAgreement = false,
+  onFeeAgreementChange,
+  feeAgreementDisabled = false,
 }: MainContactCardProps) => {
   const [selectedContactId, setSelectedContactId] = useState<string>(
     contacts.find(c => c.is_primary)?.id || contacts[0]?.id || ""
@@ -48,32 +56,31 @@ export const MainContactCard = ({
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="flex flex-col h-full">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Star className="h-4 w-4" />
-            Main Point of Contact
+            Main Contact
           </CardTitle>
           <Button variant="outline" size="sm" onClick={onAddContact}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Contact
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col">
         {contacts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <Users className="h-10 w-10 mb-2 opacity-50" />
-            <p>No contacts available.</p>
-            <p className="text-sm">Click "Add Contact" to create your first contact.</p>
+          <div className="flex flex-col items-center justify-center py-6 text-muted-foreground flex-1">
+            <Users className="h-8 w-8 mb-2 opacity-40" />
+            <p className="text-sm">No contacts yet</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 flex-1">
             {/* Contact Selector */}
             {contacts.length > 1 && (
               <Select value={selectedContactId} onValueChange={setSelectedContactId}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -88,115 +95,82 @@ export const MainContactCard = ({
 
             {/* Selected Contact Display */}
             {selectedContact && (
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback className="bg-muted text-muted-foreground font-medium">
-                      {getInitials(selectedContact.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">{selectedContact.name}</span>
-                      {selectedContact.company_type && (
-                        <Badge variant="secondary" className="text-xs">
-                          {selectedContact.company_type}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    {selectedContact.role && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{selectedContact.role}</span>
-                      </div>
-                    )}
-                    
-                    {selectedContact.email && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                        <a 
-                          href={`mailto:${selectedContact.email}`}
-                          className="text-primary hover:underline"
-                        >
-                          {selectedContact.email}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {selectedContact.phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                        <a 
-                          href={`tel:${selectedContact.phone}`}
-                          className="hover:underline"
-                        >
-                          {selectedContact.phone}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {selectedContact.linkedin_url && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Linkedin className="h-3.5 w-3.5 text-muted-foreground" />
-                        <a 
-                          href={selectedContact.linkedin_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          LinkedIn Profile
-                        </a>
-                      </div>
+              <div className="flex items-start gap-3">
+                <Avatar className="h-10 w-10 flex-shrink-0">
+                  <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
+                    {getInitials(selectedContact.name)}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate">{selectedContact.name}</span>
+                    {selectedContact.company_type && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {selectedContact.company_type}
+                      </Badge>
                     )}
                   </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 pt-2">
-                  {selectedContact.email && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      asChild
-                    >
-                      <a href={`mailto:${selectedContact.email}`}>
-                        <Mail className="mr-2 h-4 w-4" />
+                  
+                  {selectedContact.role && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {selectedContact.role}
+                    </p>
+                  )}
+                  
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {selectedContact.email && (
+                      <a 
+                        href={`mailto:${selectedContact.email}`}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        <Mail className="h-3 w-3" />
                         Email
                       </a>
-                    </Button>
-                  )}
-                  {selectedContact.phone && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      asChild
-                    >
-                      <a href={`tel:${selectedContact.phone}`}>
-                        <Phone className="mr-2 h-4 w-4" />
+                    )}
+                    {selectedContact.phone && (
+                      <a 
+                        href={`tel:${selectedContact.phone}`}
+                        className="inline-flex items-center gap-1 text-xs hover:underline"
+                      >
+                        <Phone className="h-3 w-3" />
                         Call
                       </a>
-                    </Button>
-                  )}
-                  {selectedContact.linkedin_url && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      asChild
-                    >
+                    )}
+                    {selectedContact.linkedin_url && (
                       <a 
                         href={selectedContact.linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                       >
-                        <Linkedin className="mr-2 h-4 w-4" />
+                        <Linkedin className="h-3 w-3" />
                         LinkedIn
                       </a>
-                    </Button>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Fee Agreement Toggle - integrated at bottom */}
+        {onFeeAgreementChange && (
+          <div className="flex items-center gap-2 pt-3 mt-auto border-t">
+            <Switch
+              id="fee-agreement"
+              checked={hasFeeAgreement}
+              onCheckedChange={onFeeAgreementChange}
+              disabled={feeAgreementDisabled}
+              className="scale-90"
+            />
+            <Label 
+              htmlFor="fee-agreement" 
+              className="text-xs font-medium cursor-pointer text-muted-foreground"
+            >
+              Fee Agreement in Place
+            </Label>
           </div>
         )}
       </CardContent>
