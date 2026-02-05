@@ -61,6 +61,7 @@ export const TranscriptsListCard = ({
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isParsingFile, setIsParsingFile] = useState(false);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -71,7 +72,23 @@ export const TranscriptsListCard = ({
 
   const pendingCount = transcripts.filter(t => !t.processed_at).length;
 
-  const handleFileSelect = (file: File) => {
+  const parseTranscriptFile = async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append('file', file);
+
+    const { data, error } = await supabase.functions.invoke('parse-transcript-file', {
+      // supabase-js will send multipart form-data for FormData bodies
+      body: form as any,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to parse file');
+    }
+
+    return String((data as any)?.text || '');
+  };
+
+  const handleFileSelect = async (file: File) => {
     const validTypes = ['.txt', '.pdf', '.doc', '.docx', '.vtt', '.srt'];
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!validTypes.includes(ext)) {
@@ -98,14 +115,45 @@ export const TranscriptsListCard = ({
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
       setFormData(prev => ({ ...prev, title: nameWithoutExt }));
     }
-    
+
+    // Extract text content for text-based formats locally
     if (ext === '.txt' || ext === '.vtt' || ext === '.srt') {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const text = event.target?.result as string;
+        const text = (event.target?.result as string) || '';
         setFormData(prev => ({ ...prev, transcript_text: text }));
       };
       reader.readAsText(file);
+      return;
+    }
+
+    // Extract text for PDFs / Word via edge function so "Save & Enrich" works
+    if (ext === '.pdf' || ext === '.doc' || ext === '.docx') {
+      setIsParsingFile(true);
+      try {
+        const extracted = await parseTranscriptFile(file);
+        if (!extracted.trim()) {
+          toast({
+            title: "No text found",
+            description: "We couldn't extract any text from that file. Try a different file or paste the transcript content.",
+            variant: "destructive",
+          });
+          return;
+        }
+        setFormData(prev => ({ ...prev, transcript_text: extracted }));
+        toast({
+          title: "Transcript text extracted",
+          description: "You can now click Save & Enrich.",
+        });
+      } catch (err: any) {
+        toast({
+          title: "Couldn't parse file",
+          description: err?.message || "Please paste content or provide a link instead.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsParsingFile(false);
+      }
     }
   };
 
@@ -168,6 +216,15 @@ export const TranscriptsListCard = ({
       toast({
         title: "Content required",
         description: "Please provide a transcript link, paste content, or upload a file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (triggerExtract && !formData.transcript_text.trim()) {
+      toast({
+        title: "Can't enrich yet",
+        description: "We need transcript text to extract intelligence. Paste the transcript, or upload a file we can extract text from.",
         variant: "destructive",
       });
       return;
@@ -440,7 +497,7 @@ export const TranscriptsListCard = ({
               <Button
                 type="button"
                 onClick={() => handleSubmit(true)}
-                disabled={isAdding || isUploading}
+                disabled={isAdding || isUploading || isParsingFile || !formData.transcript_text.trim()}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Save &amp; Enrich
