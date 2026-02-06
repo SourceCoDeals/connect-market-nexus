@@ -88,6 +88,7 @@ async function fetchScoringAdjustments(supabase: any, listingId: string): Promis
 }
 
 // Fetch engagement signals for a listing-buyer pair
+// FIX #4: De-duplicate by signal_type to prevent inflated bonuses
 async function fetchEngagementBonus(
   supabase: any,
   listingId: string,
