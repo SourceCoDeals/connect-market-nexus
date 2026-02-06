@@ -130,21 +130,38 @@ export function AddTranscriptDialog({
     ));
   };
 
+  const withTimeout = async <T,>(
+    promiseLike: PromiseLike<T>,
+    ms: number,
+    label: string
+  ): Promise<T> => {
+    let t: number | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      t = window.setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+    });
+
+    try {
+      return await Promise.race([Promise.resolve(promiseLike), timeout]);
+    } finally {
+      if (t) window.clearTimeout(t);
+    }
+  };
+
   const uploadFileToStorage = async (file: File): Promise<string> => {
     const timestamp = Date.now();
     const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const path = `${dealId}/${timestamp}_${filename}`;
-    
-    const { error } = await supabase.storage
-      .from('deal-transcripts')
-      .upload(path, file);
-      
-    if (error) throw error;
-    
+
+    await withTimeout(
+      supabase.storage.from('deal-transcripts').upload(path, file),
+      45_000,
+      'File upload'
+    );
+
     const { data: { publicUrl } } = supabase.storage
       .from('deal-transcripts')
       .getPublicUrl(path);
-      
+
     return publicUrl;
   };
 
@@ -201,17 +218,20 @@ export function AddTranscriptDialog({
               ? transcriptText
               : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
 
-            // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
-            const { error } = await supabase.from("v_deal_transcripts" as any).insert({
-              listing_id: dealId,
-              title: sf.title.trim() || sf.file.name,
-              source: "call",
-              transcript_url: fileUrl,
-              call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
-              transcript_text: safeTranscriptText,
-            });
-            
-            if (error) throw error;
+            const res = await withTimeout<any>(
+              supabase.from("deal_transcripts").insert({
+                listing_id: dealId,
+                title: sf.title.trim() || sf.file.name,
+                source: "call",
+                transcript_url: fileUrl,
+                call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
+                transcript_text: safeTranscriptText,
+              }) as any,
+              20_000,
+              'Saving transcript'
+            );
+
+            if (res?.error) throw res.error;
             
             setSelectedFiles(prev => prev.map((item, idx) => 
               idx === i ? { ...item, status: 'success' } : item
@@ -263,8 +283,7 @@ export function AddTranscriptDialog({
           throw new Error("Transcript content cannot be empty");
         }
 
-        // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
-        const { error } = await supabase.from("v_deal_transcripts" as any).insert({
+        const insertPromise = supabase.from("deal_transcripts").insert({
           listing_id: dealId,
           title: formData.title.trim(),
           source: "call",
@@ -273,7 +292,12 @@ export function AddTranscriptDialog({
           transcript_text: safeText,
         });
 
-        if (error) throw error;
+        const res = await withTimeout<any>(
+          insertPromise as any,
+          20_000,
+          'Saving transcript'
+        );
+        if (res?.error) throw res.error;
 
         toast({
           title: "Transcript added",
