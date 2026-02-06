@@ -3807,6 +3807,7 @@ export type Database = {
           ebitda_margin: number | null
           ebitda_metric_subtitle: string | null
           ebitda_source_quote: string | null
+          end_market_description: string | null
           enriched_at: string | null
           enrichment_error_message: string | null
           enrichment_last_attempted_at: string | null
@@ -3836,6 +3837,7 @@ export type Database = {
           growth_trajectory: string | null
           has_management_team: boolean | null
           has_multiple_locations: boolean | null
+          headquarters_address: string | null
           hero_description: string | null
           id: string
           image_url: string | null
@@ -3925,9 +3927,11 @@ export type Database = {
           tags: string[] | null
           team_page_employee_count: number | null
           technology_systems: string | null
+          timeline_notes: string | null
           timeline_preference: string | null
           title: string
           transaction_preferences: Json | null
+          transition_preferences: string | null
           updated_at: string
           visible_to_buyer_types: string[] | null
           website: string | null
@@ -3969,6 +3973,7 @@ export type Database = {
           ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
+          end_market_description?: string | null
           enriched_at?: string | null
           enrichment_error_message?: string | null
           enrichment_last_attempted_at?: string | null
@@ -3998,6 +4003,7 @@ export type Database = {
           growth_trajectory?: string | null
           has_management_team?: boolean | null
           has_multiple_locations?: boolean | null
+          headquarters_address?: string | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
@@ -4087,9 +4093,11 @@ export type Database = {
           tags?: string[] | null
           team_page_employee_count?: number | null
           technology_systems?: string | null
+          timeline_notes?: string | null
           timeline_preference?: string | null
           title: string
           transaction_preferences?: Json | null
+          transition_preferences?: string | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
           website?: string | null
@@ -4131,6 +4139,7 @@ export type Database = {
           ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
+          end_market_description?: string | null
           enriched_at?: string | null
           enrichment_error_message?: string | null
           enrichment_last_attempted_at?: string | null
@@ -4160,6 +4169,7 @@ export type Database = {
           growth_trajectory?: string | null
           has_management_team?: boolean | null
           has_multiple_locations?: boolean | null
+          headquarters_address?: string | null
           hero_description?: string | null
           id?: string
           image_url?: string | null
@@ -4249,9 +4259,11 @@ export type Database = {
           tags?: string[] | null
           team_page_employee_count?: number | null
           technology_systems?: string | null
+          timeline_notes?: string | null
           timeline_preference?: string | null
           title?: string
           transaction_preferences?: Json | null
+          transition_preferences?: string | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
           website?: string | null
