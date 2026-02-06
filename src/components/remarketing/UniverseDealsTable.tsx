@@ -1,6 +1,8 @@
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -25,7 +27,6 @@ import {
   Building2, 
   MapPin, 
   TrendingUp,
-  Users,
   Target,
   Sparkles,
   ThumbsUp,
@@ -66,6 +67,8 @@ interface UniverseDealsTableProps {
   onRemoveDeal?: (dealId: string, listingId: string) => void;
   onScoreDeal?: (listingId: string) => void;
   onEnrichDeal?: (listingId: string) => void;
+  selectedDealIds?: string[];
+  onSelectionChange?: (selectedIds: string[]) => void;
 }
 
 const formatCurrency = (value: number | null | undefined) => {
@@ -85,14 +88,45 @@ export const UniverseDealsTable = ({
   onRemoveDeal,
   onScoreDeal,
   onEnrichDeal,
+  selectedDealIds: controlledSelected,
+  onSelectionChange,
 }: UniverseDealsTableProps) => {
   const navigate = useNavigate();
+  const [internalSelected, setInternalSelected] = useState<string[]>([]);
+
+  const selectedIds = controlledSelected ?? internalSelected;
+  const setSelectedIds = useCallback((ids: string[]) => {
+    if (onSelectionChange) onSelectionChange(ids);
+    else setInternalSelected(ids);
+  }, [onSelectionChange]);
+
+  const allSelected = deals.length > 0 && selectedIds.length === deals.length;
+  const someSelected = selectedIds.length > 0 && selectedIds.length < deals.length;
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? [] : deals.map(d => d.id));
+  };
+
+  const toggleOne = (dealId: string) => {
+    setSelectedIds(
+      selectedIds.includes(dealId)
+        ? selectedIds.filter(id => id !== dealId)
+        : [...selectedIds, dealId]
+    );
+  };
 
   return (
     <TooltipProvider>
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[40px]">
+              <Checkbox
+                checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                onCheckedChange={toggleAll}
+                aria-label="Select all deals"
+              />
+            </TableHead>
             <TableHead className="w-[240px]">Deal Name</TableHead>
             <TableHead className="w-[140px]">Service Area</TableHead>
             <TableHead className="w-[80px] text-center">
@@ -129,7 +163,7 @@ export const UniverseDealsTable = ({
         <TableBody>
           {deals.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+              <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
                 <Target className="h-8 w-8 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">No deals in this universe</p>
                 <p className="text-sm">Add deals to start matching with buyers</p>
@@ -143,13 +177,24 @@ export const UniverseDealsTable = ({
                 passed: 0,
                 avgScore: 0,
               };
+              const isSelected = selectedIds.includes(deal.id);
               
               return (
                 <TableRow
                   key={deal.id}
-                  className="cursor-pointer hover:bg-muted/50"
+                  className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
                   onClick={() => navigate(`/admin/remarketing/deals/${deal.listing.id}`)}
                 >
+                  {/* Checkbox */}
+                  <TableCell>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleOne(deal.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select ${deal.listing.internal_company_name || deal.listing.title}`}
+                    />
+                  </TableCell>
+
                   {/* Deal Name */}
                   <TableCell>
                     <div className="flex items-center gap-3">

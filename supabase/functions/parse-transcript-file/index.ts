@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { getGeminiNativeUrl, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { ANTHROPIC_API_URL, getAnthropicHeaders, DEFAULT_CLAUDE_FAST_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,58 +45,56 @@ serve(async (req) => {
       
       console.log(`Document file, size: ${arrayBuffer.byteLength} bytes, mime: ${mimeType}`);
       
-      const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-      if (!geminiApiKey) {
-        throw new Error('GEMINI_API_KEY not configured');
+      const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+      if (!anthropicApiKey) {
+        throw new Error('ANTHROPIC_API_KEY not configured');
       }
-
-      // Use native Gemini API which supports document processing
-      const nativeUrl = getGeminiNativeUrl(DEFAULT_GEMINI_MODEL, geminiApiKey);
 
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
       const makeRequest = () =>
-        fetch(nativeUrl, {
+        fetch(ANTHROPIC_API_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAnthropicHeaders(anthropicApiKey),
           body: JSON.stringify({
-            contents: [
+            model: DEFAULT_CLAUDE_FAST_MODEL,
+            max_tokens: 8192,
+            messages: [
               {
                 role: 'user',
-                parts: [
+                content: [
                   {
-                    text:
-                      'Extract ALL text content from this document. Return ONLY the extracted text, preserving structure. No commentary.',
-                  },
-                  {
-                    // IMPORTANT: Gemini native API uses inlineData + mimeType (camelCase)
-                    inlineData: {
-                      mimeType,
+                    type: 'document',
+                    source: {
+                      type: 'base64',
+                      media_type: mimeType,
                       data: base64Content,
                     },
+                  },
+                  {
+                    type: 'text',
+                    text: 'Extract ALL text content from this document. Return ONLY the extracted text, preserving structure. No commentary.',
                   },
                 ],
               },
             ],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 16000,
-            },
           }),
         });
 
-      // Retry on 429s with small exponential backoff
+      // Retry on 429s with exponential backoff (up to 5 attempts)
       let aiResponse: Response | null = null;
       let lastErrorText = '';
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt < 5; attempt++) {
         aiResponse = await makeRequest();
         if (aiResponse.ok) break;
 
         lastErrorText = await aiResponse.text();
-        console.error('Gemini API error:', lastErrorText);
+        console.error(`Claude API error (attempt ${attempt + 1}/5):`, lastErrorText);
 
-        if (aiResponse.status === 429 && attempt < 2) {
-          await sleep(500 * Math.pow(2, attempt));
+        if (aiResponse.status === 429 && attempt < 4) {
+          const delayMs = 2000 * Math.pow(2, attempt);
+          console.log(`Rate limited, retrying in ${delayMs}ms...`);
+          await sleep(delayMs);
           continue;
         }
         break;
@@ -120,8 +118,8 @@ serve(async (req) => {
       }
 
       const aiData = await aiResponse.json();
-      extractedText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      console.log(`Document text extracted via Gemini, length: ${extractedText.length}`);
+      extractedText = aiData.content?.[0]?.text || '';
+      console.log(`Document text extracted via Claude Haiku, length: ${extractedText.length}`);
     }
     else {
       return new Response(

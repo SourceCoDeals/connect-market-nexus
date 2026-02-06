@@ -82,6 +82,7 @@ import {
   Star,
   Zap,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat } from "@/components/remarketing";
@@ -252,6 +253,7 @@ const SortableTableRow = ({
   isSelected,
   onToggleSelect,
   onArchive,
+  onDelete,
   onTogglePriority,
 }: {
   listing: DealListing;
@@ -267,6 +269,7 @@ const SortableTableRow = ({
   isSelected: boolean;
   onToggleSelect: (dealId: string) => void;
   onArchive: (dealId: string, dealName: string) => void;
+  onDelete: (dealId: string, dealName: string) => void;
   onTogglePriority: (dealId: string, currentStatus: boolean) => void;
 }) => {
   const {
@@ -597,10 +600,20 @@ const SortableTableRow = ({
                 e.stopPropagation();
                 onArchive(listing.id, displayName || 'Unknown Deal');
               }}
-              className="text-red-600 focus:text-red-600"
+              className="text-amber-600 focus:text-amber-600"
             >
               <Archive className="h-4 w-4 mr-2" />
               Archive Deal
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(listing.id, displayName || 'Unknown Deal');
+              }}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Deal
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -630,10 +643,12 @@ const ReMarketingDeals = () => {
   // Enrichment progress tracking
   const { progress: enrichmentProgress, summary: enrichmentSummary, showSummary: showEnrichmentSummary, dismissSummary } = useEnrichmentProgress();
   
-  // Multi-select and archive state
+  // Multi-select and archive/delete state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
   const [isArchiving, setIsArchiving] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
@@ -1148,7 +1163,50 @@ const ReMarketingDeals = () => {
     refetchListings();
   }, [toast, refetchListings]);
 
-  // Priority target handler
+  // Single deal delete state
+  const [singleDeleteTarget, setSingleDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const handleDeleteDeal = useCallback((dealId: string, dealName: string) => {
+    setSingleDeleteTarget({ id: dealId, name: dealName });
+  }, []);
+
+  const handleConfirmSingleDelete = useCallback(async () => {
+    if (!singleDeleteTarget) return;
+    const { id: dealId, name: dealName } = singleDeleteTarget;
+    try {
+      await supabase.from('alert_delivery_logs').delete().eq('listing_id', dealId);
+      await supabase.from('buyer_approve_decisions').delete().eq('listing_id', dealId);
+      await supabase.from('buyer_learning_history').delete().eq('listing_id', dealId);
+      await supabase.from('buyer_pass_decisions').delete().eq('listing_id', dealId);
+      await supabase.from('chat_conversations').delete().eq('listing_id', dealId);
+      await supabase.from('collection_items').delete().eq('listing_id', dealId);
+      await supabase.from('connection_requests').delete().eq('listing_id', dealId);
+      await supabase.from('deal_ranking_history').delete().eq('listing_id', dealId);
+      await supabase.from('deal_referrals').delete().eq('listing_id', dealId);
+      await supabase.from('deals').delete().eq('listing_id', dealId);
+      await supabase.from('deal_scoring_adjustments').delete().eq('listing_id', dealId);
+      await supabase.from('deal_transcripts').delete().eq('listing_id', dealId);
+      await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+      await supabase.from('listing_analytics').delete().eq('listing_id', dealId);
+      await supabase.from('listing_conversations').delete().eq('listing_id', dealId);
+      await supabase.from('outreach_records').delete().eq('listing_id', dealId);
+      await supabase.from('owner_intro_notifications').delete().eq('listing_id', dealId);
+      await supabase.from('remarketing_outreach').delete().eq('listing_id', dealId);
+      await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+      await supabase.from('remarketing_universe_deals').delete().eq('listing_id', dealId);
+      await supabase.from('saved_listings').delete().eq('listing_id', dealId);
+      await supabase.from('similar_deal_alerts').delete().eq('source_listing_id', dealId);
+      const { error } = await supabase.from('listings').delete().eq('id', dealId);
+      if (error) throw error;
+      toast({ title: "Deal deleted", description: `${dealName} has been permanently deleted` });
+      refetchListings();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSingleDeleteTarget(null);
+    }
+  }, [singleDeleteTarget, toast, refetchListings]);
+
   const handleTogglePriority = useCallback(async (dealId: string, currentStatus: boolean) => {
     const newStatus = !currentStatus;
     
@@ -1199,6 +1257,55 @@ const ReMarketingDeals = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsArchiving(false);
+    }
+  }, [selectedDeals, toast, refetchListings]);
+
+  const handleBulkDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const dealIds = Array.from(selectedDeals);
+      
+      for (const dealId of dealIds) {
+        // Delete all FK references first
+        await supabase.from('alert_delivery_logs').delete().eq('listing_id', dealId);
+        await supabase.from('buyer_approve_decisions').delete().eq('listing_id', dealId);
+        await supabase.from('buyer_learning_history').delete().eq('listing_id', dealId);
+        await supabase.from('buyer_pass_decisions').delete().eq('listing_id', dealId);
+        await supabase.from('chat_conversations').delete().eq('listing_id', dealId);
+        await supabase.from('collection_items').delete().eq('listing_id', dealId);
+        await supabase.from('connection_requests').delete().eq('listing_id', dealId);
+        await supabase.from('deal_ranking_history').delete().eq('listing_id', dealId);
+        await supabase.from('deal_referrals').delete().eq('listing_id', dealId);
+        await supabase.from('deals').delete().eq('listing_id', dealId);
+        await supabase.from('deal_scoring_adjustments').delete().eq('listing_id', dealId);
+        await supabase.from('deal_transcripts').delete().eq('listing_id', dealId);
+        await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+        await supabase.from('listing_analytics').delete().eq('listing_id', dealId);
+        await supabase.from('listing_conversations').delete().eq('listing_id', dealId);
+        await supabase.from('outreach_records').delete().eq('listing_id', dealId);
+        await supabase.from('owner_intro_notifications').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_outreach').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_universe_deals').delete().eq('listing_id', dealId);
+        await supabase.from('saved_listings').delete().eq('listing_id', dealId);
+        await supabase.from('similar_deal_alerts').delete().eq('source_listing_id', dealId);
+        
+        // Delete the listing itself
+        const { error } = await supabase.from('listings').delete().eq('id', dealId);
+        if (error) throw error;
+      }
+      
+      toast({ 
+        title: "Deals permanently deleted", 
+        description: `${dealIds.length} deal(s) have been permanently deleted` 
+      });
+      setSelectedDeals(new Set());
+      setShowDeleteDialog(false);
+      refetchListings();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
     }
   }, [selectedDeals, toast, refetchListings]);
 
@@ -1535,15 +1642,26 @@ const ReMarketingDeals = () => {
                 Clear
               </Button>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-red-600 border-red-200 hover:bg-red-50"
-              onClick={() => setShowArchiveDialog(true)}
-            >
-              <Archive className="h-4 w-4 mr-1" />
-              Archive Selected
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                onClick={() => setShowArchiveDialog(true)}
+              >
+                <Archive className="h-4 w-4 mr-1" />
+                Archive Selected
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete Selected
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1571,7 +1689,7 @@ const ReMarketingDeals = () => {
             <AlertDialogAction
               onClick={handleBulkArchive}
               disabled={isArchiving}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-amber-600 hover:bg-amber-700"
             >
               {isArchiving ? "Archiving..." : "Archive"}
             </AlertDialogAction>
@@ -1579,7 +1697,51 @@ const ReMarketingDeals = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Deals Table with Drag & Drop */}
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete {selectedDeals.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected deals and all related data 
+              (transcripts, scores, outreach records, etc.). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete Permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Single Deal Delete Confirmation Dialog */}
+      <AlertDialog open={!!singleDeleteTarget} onOpenChange={(open) => !open && setSingleDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete "{singleDeleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this deal and all related data 
+              (transcripts, scores, outreach records, etc.). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmSingleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card>
         <CardContent className="p-0">
           <TooltipProvider>
@@ -1692,6 +1854,7 @@ const ReMarketingDeals = () => {
                           isSelected={selectedDeals.has(listing.id)}
                           onToggleSelect={handleToggleSelect}
                           onArchive={handleArchiveDeal}
+                          onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
                         />
                       ))}

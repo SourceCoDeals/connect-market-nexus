@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -147,8 +148,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
     
     try {
+      // Scale timeout based on transcript count: 30s base + 25s per transcript + 30s for website scrape
+      const dynamicTimeout = Math.max(180000, 30000 + (totalToProcess * 25000) + 30000);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5-minute timeout for large transcript batches
+      const timeoutId = setTimeout(() => controller.abort(), dynamicTimeout);
       
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId, forceReExtract }
@@ -285,10 +288,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         }
       );
 
-      // Handle rate limits with retry
-      if (response.status === 429 && retryCount < 3) {
-        const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-        toast.info(`Rate limited, retrying ${file.name} in ${waitTime/1000}s...`);
+      // Handle rate limits with retry (longer delays for Gemini)
+      if (response.status === 429 && retryCount < 5) {
+        const waitTime = Math.pow(2, retryCount) * 3000; // 3s, 6s, 12s, 24s, 48s
+        toast.info(`Rate limited, retrying ${file.name} in ${Math.round(waitTime/1000)}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         return processFileText(file, retryCount + 1);
       }
@@ -310,13 +313,38 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       // Multi-file mode
       if (isMultiFileMode && selectedFiles.length > 0) {
         let successCount = 0;
+        let skippedCount = 0;
         const totalFiles = selectedFiles.length;
         setProcessingProgress({ current: 0, total: totalFiles });
+
+        // Fetch existing transcript titles to prevent duplicates
+        const { data: existing } = await supabase
+          .from('deal_transcripts')
+          .select('title')
+          .eq('listing_id', dealId);
+        const existingTitles = new Set(
+          (existing || []).map(t => (t.title || '').replace(/\.(pdf|docx?|txt|vtt|srt)$/i, '').trim().toLowerCase())
+        );
         
         for (let i = 0; i < selectedFiles.length; i++) {
           const sf = selectedFiles[i];
+
+          // Skip duplicates
+          const normalizedTitle = sf.title.replace(/\.(pdf|docx?|txt|vtt|srt)$/i, '').trim().toLowerCase();
+          if (existingTitles.has(normalizedTitle)) {
+            setSelectedFiles(prev => prev.map((f, idx) => 
+              idx === i ? { ...f, status: 'error' as const } : f
+            ));
+            skippedCount++;
+            toast.info(`Skipped "${sf.title}" — already exists`);
+            continue;
+          }
+          existingTitles.add(normalizedTitle); // prevent dupes within same batch
           
-          // Yield to UI thread between files to prevent freezing
+          // Add delay between files to avoid rate-limiting the AI parser
+          if (i > 0) {
+            await new Promise(r => setTimeout(r, 2000));
+          }
           await yieldToUI();
           
           try {
@@ -387,8 +415,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         }
         
         setProcessingProgress({ current: 0, total: 0 });
-        if (successCount === 0) throw new Error('No files were uploaded successfully');
-        return { count: successCount, failed: totalFiles - successCount };
+        if (successCount === 0 && skippedCount === 0) throw new Error('No files were uploaded successfully');
+        if (successCount === 0 && skippedCount > 0) throw new Error(`All ${skippedCount} file(s) already exist — no new transcripts added`);
+        return { count: successCount, failed: totalFiles - successCount - skippedCount, skipped: skippedCount };
       }
       
       // Single transcript mode (pasted text or link)
@@ -414,12 +443,13 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (error) throw error;
       return { count: 1 };
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-      const msg = data?.count && data.count > 1 
-        ? `${data.count} transcripts added${data.failed ? ` (${data.failed} failed)` : ''}`
-        : "Transcript added";
-      toast.success(msg);
+      const parts: string[] = [];
+      if (data?.count > 0) parts.push(`${data.count} transcript${data.count > 1 ? 's' : ''} added`);
+      if (data?.skipped > 0) parts.push(`${data.skipped} skipped (duplicates)`);
+      if (data?.failed > 0) parts.push(`${data.failed} failed`);
+      toast.success(parts.join(', ') || 'Transcript added');
       resetForm();
       setIsAddDialogOpen(false);
     },
@@ -428,6 +458,24 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       setProcessingProgress({ current: 0, total: 0 });
     }
   });
+
+  const [selectedTranscriptIds, setSelectedTranscriptIds] = useState<Set<string>>(new Set());
+
+  const toggleTranscriptSelection = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedTranscriptIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllTranscripts = (transcripts: DealTranscript[]) => {
+    setSelectedTranscriptIds(prev => 
+      prev.size === transcripts.length ? new Set() : new Set(transcripts.map(t => t.id))
+    );
+  };
 
   // Delete transcript mutation
   const deleteMutation = useMutation({
@@ -442,6 +490,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       toast.success("Transcript deleted");
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('deal_transcripts')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      setSelectedTranscriptIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+      toast.success(`${ids.length} transcript${ids.length > 1 ? 's' : ''} deleted`);
     }
   });
 
@@ -1264,6 +1327,117 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
+            {/* Deduplicate + failed extraction cleanup */}
+            {(() => {
+              // Normalize title: strip .pdf/.docx/.doc suffix for grouping
+              const normalize = (title: string) => title.replace(/\.(pdf|docx?|txt|vtt|srt)$/i, '').trim();
+              
+              // Group by normalized title, keep the best one (longest text, preferring processed)
+              const groups = new Map<string, typeof transcripts>();
+              transcripts.forEach(t => {
+                const key = normalize(t.title || t.transcript_text?.substring(0, 100) || t.id);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key)!.push(t);
+              });
+
+              const dupeIds: string[] = [];
+              const failedIds: string[] = [];
+              
+              for (const [, group] of groups) {
+                if (group.length > 1) {
+                  // Sort: processed first, then by text length desc
+                  group.sort((a, b) => {
+                    if (a.processed_at && !b.processed_at) return -1;
+                    if (!a.processed_at && b.processed_at) return 1;
+                    return (b.transcript_text?.length || 0) - (a.transcript_text?.length || 0);
+                  });
+                  // Keep first, mark rest as dupes
+                  for (let i = 1; i < group.length; i++) {
+                    dupeIds.push(group[i].id);
+                  }
+                }
+              }
+              
+              // Also detect failed extraction placeholders (< 200 chars with bracket markers)
+              transcripts.forEach(t => {
+                if (!dupeIds.includes(t.id) && t.transcript_text && t.transcript_text.length < 200 && 
+                    (t.transcript_text.includes('[text extraction pending') || t.transcript_text.includes('[File uploaded:'))) {
+                  failedIds.push(t.id);
+                }
+              });
+
+              const totalCleanup = dupeIds.length + failedIds.length;
+              if (totalCleanup > 0) {
+                return (
+                  <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>
+                        {dupeIds.length > 0 && `${dupeIds.length} duplicate${dupeIds.length > 1 ? 's' : ''}`}
+                        {dupeIds.length > 0 && failedIds.length > 0 && ' + '}
+                        {failedIds.length > 0 && `${failedIds.length} failed extraction${failedIds.length > 1 ? 's' : ''}`}
+                        {' detected'}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={async () => {
+                        const allIds = [...dupeIds, ...failedIds];
+                        if (!confirm(`Delete ${allIds.length} transcript${allIds.length > 1 ? 's' : ''} (${dupeIds.length} duplicates, ${failedIds.length} failed)?`)) return;
+                        const { error } = await supabase
+                          .from('deal_transcripts')
+                          .delete()
+                          .in('id', allIds);
+                        if (error) {
+                          toast.error('Failed to delete');
+                        } else {
+                          toast.success(`Cleaned up ${allIds.length} transcript${allIds.length > 1 ? 's' : ''}`);
+                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Clean Up
+                    </Button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            {/* Select all + bulk actions bar */}
+            {transcripts.length > 1 && (
+              <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedTranscriptIds.size === transcripts.length}
+                    onCheckedChange={() => toggleAllTranscripts(transcripts)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {selectedTranscriptIds.size > 0 
+                      ? `${selectedTranscriptIds.size} selected` 
+                      : 'Select all'}
+                  </span>
+                </div>
+                {selectedTranscriptIds.size > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      if (confirm(`Delete ${selectedTranscriptIds.size} transcript${selectedTranscriptIds.size > 1 ? 's' : ''}?`)) {
+                        bulkDeleteMutation.mutate(Array.from(selectedTranscriptIds));
+                      }
+                    }}
+                    disabled={bulkDeleteMutation.isPending}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete Selected
+                  </Button>
+                )}
+              </div>
+            )}
             {transcripts.map((transcript) => {
               const isExpanded = expandedId === transcript.id;
               const hasExtracted = !!transcript.processed_at;
@@ -1284,6 +1458,12 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                     <CollapsibleTrigger className="w-full">
                       <div className="flex items-center justify-between p-3 hover:bg-muted/50">
                         <div className="flex items-center gap-3">
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedTranscriptIds.has(transcript.id)}
+                              onCheckedChange={() => toggleTranscriptSelection(transcript.id)}
+                            />
+                          </div>
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           <div className="text-left">
                             <p className="font-medium text-sm">{displayTitle}</p>
@@ -1318,6 +1498,19 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                               Applied
                             </Badge>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Delete this transcript?')) {
+                                deleteMutation.mutate(transcript.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                           {isExpanded ? (
                             <ChevronUp className="h-4 w-4 text-muted-foreground" />
                           ) : (
@@ -1382,26 +1575,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                               Apply to Deal
                             </Button>
                           )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => {
-                                  if (confirm('Delete this transcript?')) {
-                                    deleteMutation.mutate(transcript.id);
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </div>
                       </div>
                     </CollapsibleContent>
