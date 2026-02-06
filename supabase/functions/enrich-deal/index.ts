@@ -118,12 +118,11 @@ serve(async (req) => {
     // Transcripts are source priority 100, website is 60, so transcript data wins
     // ========================================================================
     
-    // Fetch unprocessed transcripts for this deal
+    // Fetch ALL transcripts for this deal (allow re-processing)
     const { data: transcripts, error: transcriptsError } = await supabase
       .from('deal_transcripts')
       .select('id, transcript_text, processed_at')
       .eq('listing_id', dealId)
-      .is('processed_at', null)
       .not('transcript_text', 'is', null);
 
     let transcriptsProcessed = 0;
@@ -134,7 +133,7 @@ serve(async (req) => {
 
     if (!transcriptsError && transcripts && transcripts.length > 0) {
       transcriptReportTotal = transcripts.length;
-      console.log(`Found ${transcripts.length} unprocessed transcripts, processing them in parallel...`);
+      console.log(`Found ${transcripts.length} transcripts, processing them in parallel...`);
 
       // Filter valid transcripts first
       const validTranscripts = transcripts.filter(t =>
