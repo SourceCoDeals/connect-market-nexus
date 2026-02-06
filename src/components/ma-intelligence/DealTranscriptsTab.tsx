@@ -126,7 +126,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
     if (!confirm("Are you sure you want to delete this transcript?")) return;
 
     try {
-      // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
+      // Use existing deal_transcripts table (unified migration not executed yet)
       const { error } = await supabase
         .from("deal_transcripts")
         .delete()
