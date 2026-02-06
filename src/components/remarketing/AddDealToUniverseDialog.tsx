@@ -325,7 +325,7 @@ export const AddDealToUniverseDialog = ({
               transcriptText = await transcriptFile.text();
             }
             
-            // Save transcript record to existing table
+            // Save transcript record
             await supabase.from('deal_transcripts').insert({
               listing_id: listing.id,
               transcript_url: publicUrl,
@@ -345,7 +345,7 @@ export const AddDealToUniverseDialog = ({
       // Handle transcript link
       if (newDealForm.transcriptLink) {
         try {
-          // Use existing deal_transcripts table
+          // Save transcript link
           await supabase.from('deal_transcripts').insert({
             listing_id: listing.id,
             transcript_url: newDealForm.transcriptLink,

@@ -135,7 +135,7 @@ const ReMarketingDealDetail = () => {
     enabled: !!dealId
   });
 
-  // Fetch transcripts for this deal - use existing table
+  // Fetch transcripts for this deal
   const { data: transcripts, isLoading: transcriptsLoading } = useQuery({
     queryKey: ['remarketing', 'deal-transcripts', dealId],
     queryFn: async () => {

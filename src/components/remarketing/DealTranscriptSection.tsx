@@ -522,7 +522,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         if (error) throw error;
       }
 
-      // Mark as applied - use existing table
+      // Mark as applied
       await supabase
         .from('deal_transcripts')
         .update({ applied_to_deal: true, applied_at: new Date().toISOString() })

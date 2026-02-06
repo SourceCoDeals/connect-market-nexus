@@ -137,7 +137,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         });
       });
 
-      // Load transcripts - use existing deal_transcripts table
+      // Load transcripts
       const { data: transcriptsData } = await supabase
         .from("deal_transcripts")
         .select("*")
