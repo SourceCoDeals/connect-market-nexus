@@ -85,6 +85,10 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    // Edge Gateway routing requires the anon key in the `apikey` header.
+    // This is a *public* key, so we safely fall back to the known project anon key.
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g';
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
@@ -162,10 +166,32 @@ serve(async (req) => {
         let cumulativeUpdates: Record<string, unknown> = {};
         let cumulativeSources = deal.extraction_sources;
 
+        const PLACEHOLDER_STRINGS = new Set([
+          'unknown',
+          'n/a',
+          'na',
+          'not specified',
+          'not provided',
+          'none',
+          'null',
+          '-',
+          '—',
+        ]);
+
+        const isPlaceholder = (v: unknown): boolean => {
+          if (typeof v !== 'string') return false;
+          const s = v.trim().toLowerCase();
+          return s.length === 0 || PLACEHOLDER_STRINGS.has(s);
+        };
+
         const toFiniteNumber = (v: unknown): number | undefined => {
+          if (v === null || v === undefined) return undefined;
           if (typeof v === 'number' && Number.isFinite(v)) return v;
           if (typeof v === 'string') {
-            const n = Number(v.replace(/[$,]/g, '').trim());
+            if (isPlaceholder(v)) return undefined;
+            const cleaned = v.replace(/[$,]/g, '').trim();
+            const pct = cleaned.endsWith('%') ? cleaned.slice(0, -1).trim() : cleaned;
+            const n = Number(pct);
             if (Number.isFinite(n)) return n;
           }
           return undefined;
@@ -337,8 +363,9 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
+                  // Internal call: service role for Authorization + anon key for Edge Gateway routing
                   'Authorization': `Bearer ${supabaseServiceKey}`,
-                  'apikey': supabaseServiceKey,
+                  'apikey': supabaseAnonKey,
                 },
                 body: JSON.stringify({
                   transcriptId: transcript.id,
