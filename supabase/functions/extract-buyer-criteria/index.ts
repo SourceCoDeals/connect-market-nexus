@@ -9,9 +9,8 @@ const corsHeaders = {
 // Claude API configuration
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
-const EXTRACTION_TIMEOUT_MS = 120000; // 2 minutes per extraction
+const EXTRACTION_TIMEOUT_MS = 120000;
 const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000; // 2 seconds between retries
 
 interface ExtractionRequest {
   universe_id: string;
@@ -20,330 +19,276 @@ interface ExtractionRequest {
   industry_name?: string;
 }
 
-interface BuyerCriteria {
-  size_criteria: {
-    revenue_min?: number;
-    revenue_max?: number;
-    revenue_sweet_spot?: number;
-    ebitda_min?: number;
-    ebitda_max?: number;
-    ebitda_sweet_spot?: number;
-    location_count_min?: number;
-    location_count_max?: number;
-    employee_count_min?: number;
-    employee_count_max?: number;
-    confidence_score: number;
-  };
-  service_criteria: {
-    target_services: string[];
-    service_exclusions: string[];
-    service_priorities: { service: string; priority: number; reasoning: string }[];
-    confidence_score: number;
-  };
-  geography_criteria: {
-    target_regions: string[];
-    target_states: string[];
-    geographic_exclusions: string[];
-    geographic_priorities: { location: string; priority: number; reasoning: string }[];
-    confidence_score: number;
-  };
-  buyer_types_criteria: {
-    buyer_types: Array<{
-      buyer_type: 'pe_firm' | 'platform' | 'strategic' | 'family_office' | 'other';
-      profile_name: string;
-      description: string;
-      typical_size_range: { revenue_min?: number; revenue_max?: number };
-      geographic_focus: string[];
-      service_preferences: string[];
-      strategic_rationale: string;
-      typical_structure: string;
-      growth_strategies: string[];
-      priority_rank: number;
-    }>;
-    confidence_score: number;
-  };
-  overall_confidence: number;
-}
-
 /**
  * Extract buyer fit criteria from AI-generated M&A guide
+ * SOURCE PRIORITY: 60 (Document — lower than Transcript at 100)
+ *
+ * Guide data fills in gaps where no transcript data exists.
+ * It provides a useful baseline but should be treated as research-quality,
+ * not primary-source quality.
  */
 async function extractCriteriaFromGuide(
   guideContent: string,
-  industryName: string
-): Promise<BuyerCriteria> {
+  industryName: string,
+  retryCount = 0
+): Promise<any> {
   console.log('[EXTRACTION_START] Beginning criteria extraction');
   console.log(`[GUIDE_LENGTH] ${guideContent.length} characters, ~${Math.round(guideContent.split(/\s+/).length)} words`);
 
-  // Claude function calling for structured extraction
-  const systemPrompt = `You are an expert M&A advisor specializing in buyer universe analysis. Your task is to extract structured buyer fit criteria from comprehensive industry M&A guides.
+  const systemPrompt = `You are an expert M&A advisor specializing in buyer universe analysis. You are extracting structured buyer fit criteria from a comprehensive industry M&A guide. These guides are written by SourceCo's team and contain detailed buyer profiles, market maps, and acquisition pattern analysis.
 
-EXTRACTION GUIDELINES:
-1. Size Criteria: Look for revenue/EBITDA ranges, location counts, employee counts that define ideal acquisition targets
-2. Service Criteria: Identify which services/offerings buyers prefer and which they avoid
-3. Geography Criteria: Extract geographic preferences (regions, states) and exclusions
-4. Buyer Types: Identify different buyer categories (PE firms, platforms, strategics) with detailed profiles
+IMPORTANT CONTEXT ABOUT SOURCE PRIORITY:
+- Data extracted from guides has priority 60 (on a 0-100 scale).
+- If a buyer's criteria have already been extracted from a direct call transcript (priority 100), the transcript data takes precedence and CANNOT be overwritten by guide data.
+- Guide data fills in gaps where no transcript data exists. It provides a useful baseline but should be treated as research-quality, not primary-source quality.
 
-CONFIDENCE SCORING:
-- 90-100: Explicit numerical ranges and clear statements
-- 70-89: Strong contextual evidence with some specificity
-- 50-69: General patterns but lacking specific numbers
-- Below 50: Weak or conflicting evidence
+RULES:
+1. DISTINGUISH BETWEEN STATED AND INFERRED: If the guide says "Apex Capital targets $5-15M revenue companies," that's stated criteria with confidence 85-90. If the guide says "Apex has done 3 deals in the Southeast" and you infer they focus on the Southeast, that's inferred with confidence 60-70.
 
-Be specific and quantitative. Extract actual numbers, not vague terms like "small" or "large".`;
+2. BUYER TYPE MATTERS: Distinguish between:
+   - PE firms (financial buyers with a fund thesis)
+   - Platform companies (PE-backed operating companies doing add-ons)
+   - Strategic acquirers (operating companies buying competitors/adjacencies)
+   - Family offices (typically longer hold, more flexible criteria)
+   - Search funds (typically first-time buyers with specific criteria)
+   Each type has different matching implications.
 
-  const userPrompt = `Extract comprehensive buyer fit criteria from this ${industryName} M&A guide:
+3. EXTRACT PATTERNS, NOT JUST STATEMENTS: If the guide profiles 5 deals a buyer has done and all are in the $3-8M revenue range, that's a pattern worth extracting even if the guide doesn't state "they target $3-8M."
 
-${guideContent}
+4. SERVICE SPECIFICITY: M&A guides often use broad industry terms. Break these down: "building services" should become specific sub-services if the guide provides enough context (HVAC, plumbing, electrical, etc.).
 
-Extract:
-1. SIZE CRITERIA: Revenue ranges, EBITDA ranges, location counts, employee counts
-2. SERVICE CRITERIA: Specific services buyers target and avoid
-3. GEOGRAPHY CRITERIA: Regions/states buyers prefer and avoid
-4. BUYER TYPE PROFILES: Different buyer categories with detailed profiles
+5. NUMBERS AS RAW INTEGERS: All dollar amounts must be stored as raw numbers. "$7.5M" = 7500000. "about two million" = 2000000.
 
-Provide specific numbers and ranges where available. Include confidence scores (0-100) for each section.`;
+6. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."`;
+
+  const userPrompt = `Analyze the following ${industryName} M&A industry guide and extract buyer fit criteria for ALL buyers profiled in the document.
+
+For EACH buyer, extract:
+
+### buyer_identity
+Name, type (pe_firm|platform|strategic|family_office|search_fund), website if mentioned, parent_company if applicable.
+
+### size_criteria
+Extract revenue_min, revenue_max, revenue_sweet_spot, ebitda_min, ebitda_max, ebitda_sweet_spot, employee_range, location_range, confidence (0-100), and source ("stated"|"inferred_from_deals"|"inferred_from_context").
+
+Rules:
+- "Targets $5-15M revenue" → stated, confidence 85-90.
+- Guide profiles 4 deals all between $3-8M → inferred_from_deals, confidence 65-75.
+- Guide says "lower-middle-market focus" with no numbers → inferred_from_context, confidence 50-60. Set revenue_min = 5000000, revenue_max = 50000000.
+- Always convert to raw numbers.
+
+### service_criteria
+Extract target_services (array, be specific — break "restoration" into component services), service_exclusions (array), service_notes, confidence (0-100).
+
+### geography_criteria
+Extract target_regions (standard US regions), target_states (2-letter codes, map all deal locations to states), geographic_exclusions, geographic_flexibility ("strict"|"flexible"|"national"), confidence (0-100), source ("stated"|"inferred_from_deals"|"inferred_from_context").
+
+### buyer_profile
+Extract typical_size_range, geographic_focus, service_preferences (array), strategic_rationale, typical_structure, growth_strategies (array).
+
+### deal_history
+Extract every deal mentioned for this buyer: company_name, location, approximate_size, year, services (array). This validates criteria through pattern analysis.
+
+---
+
+Return an array of buyer objects, one per buyer profiled in the document.
+
+DOCUMENT:
+${guideContent.slice(0, 50000)}`;
 
   const tools = [{
     name: "extract_buyer_criteria",
-    description: "Extract structured buyer fit criteria from M&A industry guide",
+    description: "Extract structured buyer fit criteria from M&A guide for all profiled buyers",
     input_schema: {
       type: "object",
       properties: {
-        size_criteria: {
-          type: "object",
-          properties: {
-            revenue_min: { type: "number", description: "Minimum revenue in dollars" },
-            revenue_max: { type: "number", description: "Maximum revenue in dollars" },
-            revenue_sweet_spot: { type: "number", description: "Ideal revenue in dollars" },
-            ebitda_min: { type: "number", description: "Minimum EBITDA in dollars" },
-            ebitda_max: { type: "number", description: "Maximum EBITDA in dollars" },
-            ebitda_sweet_spot: { type: "number", description: "Ideal EBITDA in dollars" },
-            location_count_min: { type: "number", description: "Minimum number of locations" },
-            location_count_max: { type: "number", description: "Maximum number of locations" },
-            employee_count_min: { type: "number", description: "Minimum employees" },
-            employee_count_max: { type: "number", description: "Maximum employees" },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
-          },
-          required: ["confidence_score"]
-        },
-        service_criteria: {
-          type: "object",
-          properties: {
-            target_services: {
-              type: "array",
-              items: { type: "string" },
-              description: "Services buyers actively seek"
-            },
-            service_exclusions: {
-              type: "array",
-              items: { type: "string" },
-              description: "Services buyers avoid"
-            },
-            service_priorities: {
-              type: "array",
-              items: {
+        buyers: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              buyer_identity: {
                 type: "object",
                 properties: {
-                  service: { type: "string" },
-                  priority: { type: "number", description: "1=highest priority" },
-                  reasoning: { type: "string" }
+                  name: { type: "string", description: "Buyer/firm name" },
+                  type: {
+                    type: "string",
+                    enum: ["pe_firm", "platform", "strategic", "family_office", "search_fund"],
+                    description: "Buyer type classification"
+                  },
+                  website: { type: "string", description: "Website URL if mentioned" },
+                  parent_company: { type: "string", description: "Parent PE firm for platform companies" }
                 },
-                required: ["service", "priority", "reasoning"]
-              }
-            },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
-          },
-          required: ["target_services", "confidence_score"]
-        },
-        geography_criteria: {
-          type: "object",
-          properties: {
-            target_regions: {
-              type: "array",
-              items: { type: "string" },
-              description: "US regions buyers target (e.g., 'Northeast', 'Southeast')"
-            },
-            target_states: {
-              type: "array",
-              items: { type: "string" },
-              description: "Specific states buyers target"
-            },
-            geographic_exclusions: {
-              type: "array",
-              items: { type: "string" },
-              description: "Regions/states buyers avoid"
-            },
-            geographic_priorities: {
-              type: "array",
-              items: {
+                required: ["name", "type"]
+              },
+              size_criteria: {
                 type: "object",
                 properties: {
-                  location: { type: "string" },
-                  priority: { type: "number", description: "1=highest priority" },
-                  reasoning: { type: "string" }
+                  revenue_min: { type: "number", description: "Min target revenue in raw dollars" },
+                  revenue_max: { type: "number", description: "Max target revenue in raw dollars" },
+                  revenue_sweet_spot: { type: "number", description: "Ideal target revenue" },
+                  ebitda_min: { type: "number", description: "Min target EBITDA in raw dollars" },
+                  ebitda_max: { type: "number", description: "Max target EBITDA in raw dollars" },
+                  ebitda_sweet_spot: { type: "number", description: "Ideal target EBITDA" },
+                  employee_range: { type: "string", description: "Employee count range if mentioned" },
+                  location_range: { type: "string", description: "Number of locations range if mentioned" },
+                  confidence: { type: "number", description: "Confidence score 0-100" },
+                  source: {
+                    type: "string",
+                    enum: ["stated", "inferred_from_deals", "inferred_from_context"],
+                    description: "How criteria were determined"
+                  }
                 },
-                required: ["location", "priority", "reasoning"]
-              }
-            },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
-          },
-          required: ["confidence_score"]
-        },
-        buyer_types_criteria: {
-          type: "object",
-          properties: {
-            buyer_types: {
-              type: "array",
-              items: {
+                required: ["confidence"]
+              },
+              service_criteria: {
                 type: "object",
                 properties: {
-                  buyer_type: {
-                    type: "string",
-                    enum: ["pe_firm", "platform", "strategic", "family_office", "other"],
-                    description: "Type of buyer"
-                  },
-                  profile_name: {
-                    type: "string",
-                    description: "Descriptive name (e.g., 'Regional Platform Aggregator')"
-                  },
-                  description: {
-                    type: "string",
-                    description: "Detailed profile description"
-                  },
-                  typical_size_range: {
-                    type: "object",
-                    properties: {
-                      revenue_min: { type: "number" },
-                      revenue_max: { type: "number" }
-                    }
-                  },
-                  geographic_focus: {
+                  target_services: {
                     type: "array",
                     items: { type: "string" },
-                    description: "Typical geographic preferences"
+                    description: "Specific services they target. Break broad terms into sub-services."
                   },
-                  service_preferences: {
+                  service_exclusions: {
                     type: "array",
                     items: { type: "string" },
-                    description: "Services this buyer type targets"
+                    description: "Services they avoid"
                   },
-                  strategic_rationale: {
+                  service_notes: { type: "string", description: "Context about service preferences" },
+                  confidence: { type: "number", description: "Confidence 0-100" }
+                },
+                required: ["target_services", "confidence"]
+              },
+              geography_criteria: {
+                type: "object",
+                properties: {
+                  target_regions: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Standard US regions"
+                  },
+                  target_states: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "2-letter state codes. Map all deal locations to states."
+                  },
+                  geographic_exclusions: { type: "array", items: { type: "string" } },
+                  geographic_flexibility: {
                     type: "string",
-                    description: "Why this buyer type acquires in this industry"
+                    enum: ["strict", "flexible", "national"]
                   },
-                  typical_structure: {
+                  confidence: { type: "number" },
+                  source: {
                     type: "string",
-                    description: "Common deal structure (asset, stock, merger)"
-                  },
+                    enum: ["stated", "inferred_from_deals", "inferred_from_context"]
+                  }
+                },
+                required: ["confidence"]
+              },
+              buyer_profile: {
+                type: "object",
+                properties: {
+                  typical_size_range: { type: "string" },
+                  geographic_focus: { type: "string" },
+                  service_preferences: { type: "array", items: { type: "string" } },
+                  strategic_rationale: { type: "string", description: "Why they acquire in this space" },
+                  typical_structure: { type: "string", description: "How they usually structure deals" },
                   growth_strategies: {
                     type: "array",
                     items: { type: "string" },
-                    description: "How they grow acquisitions"
-                  },
-                  priority_rank: {
-                    type: "number",
-                    description: "Importance ranking (1=highest)"
+                    description: "How they grow portfolio companies post-acquisition"
                   }
+                }
+              },
+              deal_history: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    company_name: { type: "string" },
+                    location: { type: "string" },
+                    approximate_size: { type: "string" },
+                    year: { type: "number" },
+                    services: { type: "array", items: { type: "string" } }
+                  },
+                  required: ["company_name"]
                 },
-                required: ["buyer_type", "profile_name", "description", "priority_rank"]
+                description: "All deals mentioned in the guide for this buyer"
               }
             },
-            confidence_score: { type: "number", description: "Confidence score 0-100" }
+            required: ["buyer_identity", "size_criteria", "service_criteria"]
           },
-          required: ["buyer_types", "confidence_score"]
+          description: "Array of buyer profiles extracted from the guide"
         },
         overall_confidence: {
           type: "number",
-          description: "Overall extraction confidence score 0-100"
+          description: "Overall extraction confidence 0-100 for the entire guide"
         }
       },
-      required: ["size_criteria", "service_criteria", "geography_criteria", "buyer_types_criteria", "overall_confidence"]
+      required: ["buyers", "overall_confidence"]
     }
   }];
 
   const startTime = Date.now();
 
-  // Retry logic with exponential backoff
-  let lastError: Error | null = null;
-  let response: any = null;
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: DEFAULT_CLAUDE_MODEL,
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        tools: tools,
+        tool_choice: { type: 'tool', name: 'extract_buyer_criteria' }
+      }),
+      signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
+    });
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      console.log(`[EXTRACTION_ATTEMPT] ${attempt}/${MAX_RETRIES}`);
-
-      response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY!,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: DEFAULT_CLAUDE_MODEL,
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userPrompt }],
-          tools: tools,
-          tool_choice: { type: 'tool', name: 'extract_buyer_criteria' }
-        }),
-        signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        // Check if it's a rate limit or transient error
-        if (response.status === 429 || response.status >= 500) {
-          throw new Error(`Transient error: ${response.status} - ${errorText}`);
-        }
-
-        // Permanent error - don't retry
-        throw new Error(`Claude API error: ${response.status} - ${errorText}`);
-      }
-
-      // Success - break out of retry loop
-      break;
-
-    } catch (error: any) {
-      lastError = error;
-      console.error(`[EXTRACTION_ERROR] Attempt ${attempt} failed:`, error.message);
-
-      // Don't retry on permanent errors
-      if (!error.message.includes('Transient') && !error.message.includes('timeout')) {
-        throw error;
-      }
-
-      // Wait before retrying (exponential backoff)
-      if (attempt < MAX_RETRIES) {
-        const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-        console.log(`[RETRY_WAIT] Waiting ${delay}ms before retry ${attempt + 1}`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+    if (response.status === 429 || response.status >= 500) {
+      if (retryCount < MAX_RETRIES) {
+        const delay = Math.pow(2, retryCount + 1) * 1000;
+        console.log(`[EXTRACTION] Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        await new Promise(r => setTimeout(r, delay));
+        return extractCriteriaFromGuide(guideContent, industryName, retryCount + 1);
       }
     }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Claude API error: ${response.status} - ${errorText.substring(0, 300)}`);
+    }
+
+    const result = await response.json();
+    const duration = Date.now() - startTime;
+
+    console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
+    console.log(`[USAGE] Input: ${result.usage?.input_tokens}, Output: ${result.usage?.output_tokens}`);
+
+    const toolUse = result.content.find((c: any) => c.type === 'tool_use');
+    if (!toolUse) {
+      throw new Error('No tool use found in Claude response');
+    }
+
+    return toolUse.input;
+
+  } catch (error: any) {
+    if (error.name === 'TimeoutError' && retryCount < MAX_RETRIES) {
+      const delay = Math.pow(2, retryCount + 1) * 1000;
+      console.log(`[EXTRACTION] Timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      await new Promise(r => setTimeout(r, delay));
+      return extractCriteriaFromGuide(guideContent, industryName, retryCount + 1);
+    }
+    throw error;
   }
-
-  if (!response || !response.ok) {
-    throw lastError || new Error('Extraction failed after all retries');
-  }
-
-  const result = await response.json();
-  const duration = Date.now() - startTime;
-
-  console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
-  console.log(`[USAGE] Input: ${result.usage?.input_tokens}, Output: ${result.usage?.output_tokens}`);
-
-  // Extract tool use result
-  const toolUse = result.content.find((c: any) => c.type === 'tool_use');
-  if (!toolUse) {
-    throw new Error('No tool use found in Claude response');
-  }
-
-  return toolUse.input as BuyerCriteria;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -386,9 +331,11 @@ serve(async (req) => {
 
     console.log(`[SOURCE_CREATED] ID: ${sourceRecord.id}`);
 
-    // Extract criteria using Claude
     try {
-      const criteria = await extractCriteriaFromGuide(guide_content, industry_name);
+      const extractionResult = await extractCriteriaFromGuide(guide_content, industry_name);
+
+      const buyers = extractionResult.buyers || [];
+      const overallConfidence = extractionResult.overall_confidence || 0;
 
       // Update source record with extraction results
       const { error: updateError } = await supabase
@@ -396,13 +343,19 @@ serve(async (req) => {
         .update({
           extraction_status: 'completed',
           extraction_completed_at: new Date().toISOString(),
-          extracted_data: criteria,
+          extracted_data: extractionResult,
           confidence_scores: {
-            size: criteria.size_criteria.confidence_score,
-            service: criteria.service_criteria.confidence_score,
-            geography: criteria.geography_criteria.confidence_score,
-            buyer_types: criteria.buyer_types_criteria.confidence_score,
-            overall: criteria.overall_confidence
+            overall: overallConfidence,
+            buyer_count: buyers.length,
+            avg_size_confidence: buyers.length > 0
+              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.size_criteria?.confidence || 0), 0) / buyers.length)
+              : 0,
+            avg_service_confidence: buyers.length > 0
+              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.service_criteria?.confidence || 0), 0) / buyers.length)
+              : 0,
+            avg_geography_confidence: buyers.length > 0
+              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.geography_criteria?.confidence || 0), 0) / buyers.length)
+              : 0,
           }
         })
         .eq('id', sourceRecord.id);
@@ -411,88 +364,19 @@ serve(async (req) => {
         throw new Error(`Failed to update source record: ${updateError.message}`);
       }
 
-      console.log(`[SUCCESS] Extraction completed with ${criteria.overall_confidence}% confidence`);
+      // Apply extracted criteria to the universe
+      await applyToUniverse(supabase, universe_id, buyers);
 
-      // NOW APPLY THE EXTRACTED CRITERIA TO THE UNIVERSE
-      // Transform extracted data to match the universe schema
-      const universeUpdateData: Record<string, any> = {};
-
-      // Size criteria - map to universe schema
-      if (criteria.size_criteria && criteria.size_criteria.confidence_score >= 40) {
-        universeUpdateData.size_criteria = {
-          min_revenue: criteria.size_criteria.revenue_min,
-          max_revenue: criteria.size_criteria.revenue_max,
-          ideal_revenue: criteria.size_criteria.revenue_sweet_spot,
-          min_ebitda: criteria.size_criteria.ebitda_min,
-          max_ebitda: criteria.size_criteria.ebitda_max,
-          ideal_ebitda: criteria.size_criteria.ebitda_sweet_spot,
-          min_locations: criteria.size_criteria.location_count_min,
-          max_locations: criteria.size_criteria.location_count_max,
-          employee_min: criteria.size_criteria.employee_count_min,
-          employee_max: criteria.size_criteria.employee_count_max,
-        };
-        // Remove undefined values
-        Object.keys(universeUpdateData.size_criteria).forEach(key => {
-          if (universeUpdateData.size_criteria[key] === undefined) {
-            delete universeUpdateData.size_criteria[key];
-          }
-        });
-      }
-
-      // Geography criteria
-      if (criteria.geography_criteria && criteria.geography_criteria.confidence_score >= 40) {
-        universeUpdateData.geography_criteria = {
-          target_states: criteria.geography_criteria.target_states || [],
-          target_regions: criteria.geography_criteria.target_regions || [],
-          exclude_states: criteria.geography_criteria.geographic_exclusions || [],
-        };
-      }
-
-      // Service criteria
-      if (criteria.service_criteria && criteria.service_criteria.confidence_score >= 40) {
-        universeUpdateData.service_criteria = {
-          required_services: criteria.service_criteria.target_services || [],
-          excluded_services: criteria.service_criteria.service_exclusions || [],
-          // Map priorities to preferred_services if present
-          preferred_services: criteria.service_criteria.service_priorities
-            ?.map(p => p.service)
-            .filter(Boolean) || [],
-        };
-      }
-
-      // Buyer types criteria - update the buyer_types_criteria column
-      if (criteria.buyer_types_criteria && criteria.buyer_types_criteria.confidence_score >= 40) {
-        universeUpdateData.buyer_types_criteria = {
-          include_pe_firms: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'pe_firm'),
-          include_platforms: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'platform'),
-          include_strategic: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'strategic'),
-          include_family_office: criteria.buyer_types_criteria.buyer_types.some(b => b.buyer_type === 'family_office'),
-        };
-      }
-
-      // Only update if we have something to update
-      if (Object.keys(universeUpdateData).length > 0) {
-        const { error: universeUpdateError } = await supabase
-          .from('remarketing_buyer_universes')
-          .update(universeUpdateData)
-          .eq('id', universe_id);
-
-        if (universeUpdateError) {
-          console.error('[UNIVERSE_UPDATE_ERROR]', universeUpdateError);
-          // Don't fail the whole operation, just log it
-        } else {
-          console.log(`[UNIVERSE_UPDATED] Applied ${Object.keys(universeUpdateData).length} criteria sections to universe`);
-        }
-      }
+      console.log(`[SUCCESS] Extracted ${buyers.length} buyers with ${overallConfidence}% confidence`);
 
       return new Response(
         JSON.stringify({
           success: true,
           source_id: sourceRecord.id,
-          extracted_data: criteria,
-          confidence: criteria.overall_confidence,
-          applied_to_universe: Object.keys(universeUpdateData).length > 0,
-          message: 'Criteria extracted and applied to universe'
+          buyer_count: buyers.length,
+          extracted_data: extractionResult,
+          confidence: overallConfidence,
+          message: `Extracted criteria for ${buyers.length} buyers from M&A guide`
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -501,7 +385,6 @@ serve(async (req) => {
       );
 
     } catch (extractionError) {
-      // Mark extraction as failed
       await supabase
         .from('criteria_extraction_sources')
         .update({
@@ -528,3 +411,85 @@ serve(async (req) => {
     );
   }
 });
+
+async function applyToUniverse(supabase: any, universeId: string, buyers: any[]) {
+  if (!buyers || buyers.length === 0) return;
+
+  // Aggregate criteria across all extracted buyers
+  const allServices = new Set<string>();
+  const allRegions = new Set<string>();
+  const allStates = new Set<string>();
+  const allExclusions = new Set<string>();
+
+  for (const buyer of buyers) {
+    if (buyer.service_criteria?.target_services) {
+      buyer.service_criteria.target_services.forEach((s: string) => allServices.add(s));
+    }
+    if (buyer.geography_criteria?.target_regions) {
+      buyer.geography_criteria.target_regions.forEach((r: string) => allRegions.add(r));
+    }
+    if (buyer.geography_criteria?.target_states) {
+      buyer.geography_criteria.target_states.forEach((s: string) => allStates.add(s));
+    }
+    if (buyer.geography_criteria?.geographic_exclusions) {
+      buyer.geography_criteria.geographic_exclusions.forEach((e: string) => allExclusions.add(e));
+    }
+  }
+
+  // Build size criteria from all buyers
+  const revenueMinVals = buyers.map(b => b.size_criteria?.revenue_min).filter(Boolean);
+  const revenueMaxVals = buyers.map(b => b.size_criteria?.revenue_max).filter(Boolean);
+  const ebitdaMinVals = buyers.map(b => b.size_criteria?.ebitda_min).filter(Boolean);
+  const ebitdaMaxVals = buyers.map(b => b.size_criteria?.ebitda_max).filter(Boolean);
+
+  const universeUpdate: any = {};
+
+  if (revenueMinVals.length > 0 || revenueMaxVals.length > 0) {
+    universeUpdate.size_criteria = {
+      min_revenue: revenueMinVals.length > 0 ? Math.min(...revenueMinVals) : undefined,
+      max_revenue: revenueMaxVals.length > 0 ? Math.max(...revenueMaxVals) : undefined,
+      min_ebitda: ebitdaMinVals.length > 0 ? Math.min(...ebitdaMinVals) : undefined,
+      max_ebitda: ebitdaMaxVals.length > 0 ? Math.max(...ebitdaMaxVals) : undefined,
+    };
+    Object.keys(universeUpdate.size_criteria).forEach(key => {
+      if (universeUpdate.size_criteria[key] === undefined) delete universeUpdate.size_criteria[key];
+    });
+  }
+
+  if (allStates.size > 0 || allRegions.size > 0) {
+    universeUpdate.geography_criteria = {
+      target_states: Array.from(allStates),
+      target_regions: Array.from(allRegions),
+      exclude_states: Array.from(allExclusions),
+    };
+  }
+
+  if (allServices.size > 0) {
+    universeUpdate.service_criteria = {
+      required_services: Array.from(allServices),
+    };
+  }
+
+  const buyerTypes = new Set(buyers.map(b => b.buyer_identity?.type).filter(Boolean));
+  if (buyerTypes.size > 0) {
+    universeUpdate.buyer_types_criteria = {
+      include_pe_firms: buyerTypes.has('pe_firm'),
+      include_platforms: buyerTypes.has('platform'),
+      include_strategic: buyerTypes.has('strategic'),
+      include_family_office: buyerTypes.has('family_office'),
+    };
+  }
+
+  if (Object.keys(universeUpdate).length > 0) {
+    const { error } = await supabase
+      .from('remarketing_buyer_universes')
+      .update(universeUpdate)
+      .eq('id', universeId);
+
+    if (error) {
+      console.error('[UNIVERSE_UPDATE_ERROR]', error);
+    } else {
+      console.log(`[UNIVERSE_UPDATED] Applied ${Object.keys(universeUpdate).length} criteria sections from ${buyers.length} buyers`);
+    }
+  }
+}

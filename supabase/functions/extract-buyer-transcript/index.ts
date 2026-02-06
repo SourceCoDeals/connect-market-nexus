@@ -11,28 +11,57 @@ const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 
 interface TranscriptExtractionRequest {
-  transcript_id?: string; // If extracting from existing transcript
-  universe_id?: string; // If extracting for universe criteria
-  buyer_id?: string; // If extracting for specific buyer
-  transcript_text?: string; // Raw transcript text
-  participants?: string[]; // Call participants
-  call_date?: string; // Date of call/meeting
+  transcript_id?: string;
+  universe_id?: string;
+  buyer_id?: string;
+  transcript_text?: string;
+  participants?: string[];
+  call_date?: string;
 }
 
 interface ExtractedInsights {
   buyer_criteria?: {
-    size_criteria?: any;
-    service_criteria?: any;
-    geography_criteria?: any;
-    deal_preferences?: string[];
-    confidence_score: number;
+    size_criteria?: {
+      revenue_min?: number;
+      revenue_max?: number;
+      revenue_sweet_spot?: number;
+      ebitda_min?: number;
+      ebitda_max?: number;
+      ebitda_sweet_spot?: number;
+      employee_min?: number;
+      employee_max?: number;
+      location_count_min?: number;
+      location_count_max?: number;
+      confidence: number;
+    };
+    service_criteria?: {
+      target_services: string[];
+      service_exclusions: string[];
+      service_confidence: number;
+      service_notes: string;
+    };
+    geography_criteria?: {
+      target_regions: string[];
+      target_states: string[];
+      geographic_exclusions: string[];
+      geographic_flexibility: 'strict' | 'flexible' | 'national';
+      confidence: number;
+      geography_notes: string;
+    };
+    deal_preferences?: {
+      deal_types: string[];
+      structure_preferences: string[];
+      valuation_parameters?: string;
+      deal_breakers: string[];
+      preferred_characteristics: string[];
+      confidence: number;
+    };
   };
   buyer_profile?: {
     thesis_summary?: string;
     strategic_priorities?: string[];
     acquisition_timeline?: string;
     deal_breakers?: string[];
-    confidence_score: number;
   };
   key_quotes: Array<{
     quote: string;
@@ -52,167 +81,266 @@ async function extractInsightsFromTranscript(
   participants: string[],
   callDate?: string
 ): Promise<ExtractedInsights> {
-  console.log('[EXTRACTION_START] Processing transcript');
+  console.log('[EXTRACTION_START] Processing buyer transcript');
   console.log(`[PARTICIPANTS] ${participants.join(', ')}`);
 
-  const systemPrompt = `You are an expert M&A advisor analyzing call/meeting transcripts to extract buyer fit criteria and investment insights. Transcripts are the HIGHEST PRIORITY SOURCE (priority: 100) because they capture actual buyer statements.
+  const systemPrompt = `You are an expert M&A advisor at an investment bank that matches acquisition-ready businesses with institutional buyers (PE firms, platform companies, and strategic acquirers). You are analyzing a call transcript to extract the buyer's specific acquisition criteria and investment preferences.
 
-EXTRACTION FOCUS:
-1. Buyer Criteria: What the buyer is explicitly looking for (size, geography, services)
-2. Buyer Profile: Investment thesis, priorities, timeline, deal breakers
-3. Key Quotes: Verbatim statements that reveal important criteria or preferences
+Your job is to understand EXACTLY what this buyer is looking for so the system can match them with relevant deal opportunities. Precision matters — a buyer looking for "$5-15M revenue HVAC companies in the Southeast" is very different from one looking for "$20-50M revenue restoration companies nationally."
 
-CONFIDENCE SCORING:
-- 90-100: Direct quotes with specific criteria ("We target $10-50M revenue")
-- 70-89: Clear statements with some detail ("We like the Southeast region")
-- 50-69: Implied preferences from context
-- Below 50: Vague or uncertain statements
+CORE RULES:
 
-CRITICAL: Extract verbatim quotes for important criteria. These are invaluable for understanding buyer intent.`;
+1. EXTRACT WHAT THEY SAID, NOT WHAT YOU THINK THEY MEAN: If the buyer says "we like companies around $10M," extract that. Do not expand it to "$5-20M" because that seems like a reasonable range. Only extract stated ranges.
 
-  const userPrompt = `Extract buyer insights from this transcript:
+2. CONFIDENCE SCORING: Every extracted criterion gets a confidence score:
+   - 90-100: Direct quote with specific criteria ("We target companies with $10-50M in revenue")
+   - 70-89: Clear statement with some detail ("We generally focus on the Southeast region")
+   - 50-69: Implied preference from context or indirect statement ("We've done a few deals in Texas")
+   - Below 50: Vague or uncertain — include but flag as low confidence
+
+3. DISTINGUISH HARD REQUIREMENTS FROM PREFERENCES: "We won't look at anything under $2M EBITDA" is a hard floor. "We prefer $3-5M EBITDA" is a preference. "We've done deals at $1M EBITDA" is historical context. These are different and must be tagged differently.
+
+4. LISTEN FOR EXCLUSIONS: What the buyer says they DON'T want is as important as what they DO want. "We stay away from anything with environmental exposure" or "We don't do turnarounds" — capture these explicitly.
+
+5. SEPARATE THE PE FIRM FROM THE PLATFORM: If a PE-backed platform company is on the call, distinguish between the PE firm's criteria and the platform operator's criteria. The platform's operational priorities take precedence for matching purposes.
+
+6. TRACK THE SPEAKER: If multiple people are on the call (e.g., a PE partner and a platform CEO), note who said what. The platform CEO saying "we need HVAC techs" has different weight than the PE partner saying "we like the HVAC space."
+
+7. NUMBERS AS RAW INTEGERS: All dollar amounts must be stored as raw numbers with no formatting. "$7.5M" = 7500000. "about two million" = 2000000.
+
+8. PERCENTAGES AS DECIMALS: 18% = 0.18. 5.5% = 0.055.
+
+9. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."
+
+10. VERBATIM QUOTES: When extracting key_quotes, copy-paste the EXACT words from the transcript. Do not paraphrase, clean up grammar, or summarize.`;
+
+  const userPrompt = `Analyze the following buyer call transcript and extract their acquisition criteria, profile, and key statements.
 
 PARTICIPANTS: ${participants.join(', ')}
 ${callDate ? `DATE: ${callDate}` : ''}
 
+---
+
+## BUYER CRITERIA
+
+### size_criteria
+Extract EVERY size parameter mentioned. Rules:
+- "We target $10-50M revenue companies" → revenue_min = 10000000, revenue_max = 50000000, confidence = 95.
+- "Sweet spot is around $3M EBITDA" → ebitda_sweet_spot = 3000000, confidence = 90.
+- "We've done deals as small as $1M EBITDA" → This is historical, NOT a minimum. Only set ebitda_min if they say "we won't go below" or "minimum is."
+- "We prefer 50+ employees" → employee_min = 50, confidence = 75.
+- Hard requirements ("we won't look at," "minimum is," "must be at least") → confidence 90-100.
+- Soft preferences ("we prefer," "ideally," "sweet spot") → confidence 70-89.
+- Historical mentions ("we've done") → confidence 50-69. Set these as context, not requirements.
+
+### service_criteria
+Listen for:
+- Explicit targets: "We're building a restoration platform" → target_services = ["fire restoration", "water restoration", "mold remediation"].
+- Adjacencies: "We'd love to add roofing to our platform" → include "roofing."
+- Exclusions: "We stay away from mold — too much liability" → service_exclusions = ["mold remediation"].
+- Be specific: "HVAC" should become ["commercial HVAC", "residential HVAC"] if the buyer specifies which.
+- If they describe an industry theme but not specific services, list the most likely constituent services AND note in service_notes that these are inferred from the theme.
+
+### geography_criteria
+Rules:
+- Map regions to standard US regions: Southeast, Northeast, Mid-Atlantic, Midwest, Southwest, West, Pacific Northwest, Mountain West.
+- "We focus on the Southeast" → target_regions = ["Southeast"], geographic_flexibility = "strict", confidence = 85.
+- "We're national but most of our deals are in the Southeast" → target_regions = ["Southeast"], geographic_flexibility = "national", confidence = 70.
+- Map every city/state mentioned: "We have operations in Dallas and Houston" → target_states includes "TX."
+- "We don't want to go west of the Mississippi" → geographic_exclusions should list western states or note the boundary in geography_notes.
+- If a buyer names specific MSAs like "We want top-25 MSAs," note that in geography_notes.
+
+### deal_preferences
+Listen carefully for:
+- "We're looking for a platform" vs "We need add-ons for our existing platform" — fundamentally different.
+- Structure: "We always do majority recap with rollover equity" vs "We buy 100%."
+- Valuation: "We typically pay 4-6x EBITDA" or "We won't go above 5x."
+- Deal breakers: "No turnarounds," "No owner-dependent businesses," "Must have a management team in place," "No environmental issues."
+- Preferences: "We prefer recurring revenue," "We like businesses with long customer contracts," "Ideally family-owned."
+
+---
+
+## BUYER PROFILE
+
+### thesis_summary (2-4 sentences)
+Write a clear summary of this buyer's acquisition thesis. What are they building? Why? What does their ideal target look like? Use ONLY what was stated in the call. Do NOT supplement with generic PE language or assumed strategies.
+
+### strategic_priorities (array, ordered by emphasis)
+List the buyer's stated strategic priorities in order of emphasis during the call.
+
+### acquisition_timeline ("active"|"opportunistic"|"on_hold")
+- "active": Buyer is actively looking, has capital deployed, wants to see deals now.
+- "opportunistic": Buyer will look at deals but isn't in a rush.
+- "on_hold": Buyer is pausing acquisitions.
+
+### deal_breakers (array)
+EVERY deal-breaker mentioned, explicit or strongly implied.
+
+---
+
+## KEY QUOTES (6-10)
+Extract 6-10 key quotes. Rules:
+- EXACT VERBATIM from transcript.
+- Identify the speaker (by name if possible, otherwise role).
+- Provide brief context.
+- Importance: "high" = specific criteria/deal-breakers, "medium" = preferences/strategic context, "low" = general observations.
+- Priority order: size criteria > geography > services > deal structure > strategic priorities > general observations.
+
+---
+
+Now analyze the transcript below and return a JSON object with all fields above.
+
 TRANSCRIPT:
-${transcriptText.slice(0, 50000)} <!-- Limit to 50k chars -->
-
-Extract:
-1. BUYER CRITERIA: Size ranges, geographic preferences, target services, deal preferences
-2. BUYER PROFILE: Investment thesis, strategic priorities, timeline, deal breakers
-3. KEY QUOTES: Important verbatim statements (capture exact wording)
-
-Focus on EXPLICIT statements made by the buyer. Include confidence scores based on specificity.`;
+${transcriptText.slice(0, 50000)}`;
 
   const tools = [{
-    name: "extract_transcript_insights",
-    description: "Extract buyer criteria and insights from call transcript",
+    name: "extract_buyer_insights",
+    description: "Extract comprehensive buyer acquisition criteria, profile, and key quotes from call transcript",
     input_schema: {
       type: "object",
       properties: {
         buyer_criteria: {
           type: "object",
-          nullable: true,
+          description: "Structured acquisition criteria extracted from the call",
           properties: {
             size_criteria: {
               type: "object",
-              nullable: true,
               properties: {
-                revenue_min: { type: "number", nullable: true },
-                revenue_max: { type: "number", nullable: true },
-                revenue_sweet_spot: { type: "number", nullable: true },
-                ebitda_min: { type: "number", nullable: true },
-                ebitda_max: { type: "number", nullable: true },
-                location_count_min: { type: "number", nullable: true },
-                location_count_max: { type: "number", nullable: true },
-              }
+                revenue_min: { type: "number", description: "Minimum revenue target in raw dollars. Only set if explicit floor stated." },
+                revenue_max: { type: "number", description: "Maximum revenue target in raw dollars." },
+                revenue_sweet_spot: { type: "number", description: "Ideal revenue target in raw dollars." },
+                ebitda_min: { type: "number", description: "Minimum EBITDA target in raw dollars. Only set if explicit floor stated." },
+                ebitda_max: { type: "number", description: "Maximum EBITDA target in raw dollars." },
+                ebitda_sweet_spot: { type: "number", description: "Ideal EBITDA target in raw dollars." },
+                employee_min: { type: "number", description: "Minimum employee count preference." },
+                employee_max: { type: "number", description: "Maximum employee count preference." },
+                location_count_min: { type: "number", description: "Minimum number of locations." },
+                location_count_max: { type: "number", description: "Maximum number of locations." },
+                confidence: { type: "number", description: "Confidence score 0-100 for size criteria extraction." }
+              },
+              required: ["confidence"]
             },
             service_criteria: {
               type: "object",
-              nullable: true,
               properties: {
                 target_services: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Services buyer wants to acquire"
+                  description: "Specific services buyer is targeting. Be specific: 'commercial HVAC' not just 'HVAC'."
                 },
                 service_exclusions: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Services buyer avoids"
-                }
-              }
+                  description: "Services buyer explicitly avoids or excludes."
+                },
+                service_confidence: { type: "number", description: "Confidence score 0-100." },
+                service_notes: { type: "string", description: "Context on why they want/avoid certain services. Note if inferred from industry theme." }
+              },
+              required: ["target_services", "service_confidence"]
             },
             geography_criteria: {
               type: "object",
-              nullable: true,
               properties: {
                 target_regions: {
                   type: "array",
-                  items: { type: "string" }
+                  items: { type: "string" },
+                  description: "Standard US regions: Southeast, Northeast, Mid-Atlantic, Midwest, Southwest, West, Pacific Northwest, Mountain West."
                 },
                 target_states: {
                   type: "array",
-                  items: { type: "string" }
+                  items: { type: "string" },
+                  description: "2-letter state codes where buyer wants to acquire. Map all city mentions to states."
                 },
                 geographic_exclusions: {
                   type: "array",
-                  items: { type: "string" }
-                }
-              }
+                  items: { type: "string" },
+                  description: "States or regions buyer explicitly avoids."
+                },
+                geographic_flexibility: {
+                  type: "string",
+                  enum: ["strict", "flexible", "national"],
+                  description: "How strict their geographic focus is."
+                },
+                confidence: { type: "number", description: "Confidence score 0-100." },
+                geography_notes: { type: "string", description: "Additional geographic context, MSA preferences, boundary descriptions." }
+              },
+              required: ["confidence"]
             },
             deal_preferences: {
-              type: "array",
-              items: { type: "string" },
-              description: "Preferred deal structures, terms, conditions"
-            },
-            confidence_score: {
-              type: "number",
-              description: "Confidence in extracted criteria 0-100"
+              type: "object",
+              properties: {
+                deal_types: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "E.g., 'platform', 'add-on', 'tuck-in', 'strategic acquisition'."
+                },
+                structure_preferences: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "E.g., 'majority recapitalization', 'full buyout', 'earnout', 'rollover equity'."
+                },
+                valuation_parameters: { type: "string", description: "Any multiple ranges or valuation approach mentioned." },
+                deal_breakers: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Explicit things that kill a deal for this buyer."
+                },
+                preferred_characteristics: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Nice-to-haves that aren't hard requirements."
+                },
+                confidence: { type: "number", description: "Confidence score 0-100." }
+              },
+              required: ["confidence"]
             }
-          },
-          required: ["confidence_score"]
+          }
         },
         buyer_profile: {
           type: "object",
-          nullable: true,
           properties: {
             thesis_summary: {
               type: "string",
-              description: "Investment thesis in 2-3 sentences"
+              description: "2-4 sentence summary of buyer's acquisition thesis. ONLY from what was stated in the call."
             },
             strategic_priorities: {
               type: "array",
               items: { type: "string" },
-              description: "Key strategic priorities"
+              description: "Buyer's stated strategic priorities, ordered by emphasis during the call."
             },
             acquisition_timeline: {
               type: "string",
-              description: "How actively they're buying (active, opportunistic, on hold)"
+              enum: ["active", "opportunistic", "on_hold"],
+              description: "How actively the buyer is pursuing acquisitions."
             },
             deal_breakers: {
               type: "array",
               items: { type: "string" },
-              description: "Absolute deal breakers mentioned"
-            },
-            confidence_score: {
-              type: "number",
-              description: "Confidence in profile 0-100"
+              description: "Every deal-breaker mentioned, explicit or strongly implied."
             }
-          },
-          required: ["confidence_score"]
+          }
         },
         key_quotes: {
           type: "array",
           items: {
             type: "object",
             properties: {
-              quote: {
-                type: "string",
-                description: "Verbatim quote from transcript"
-              },
-              speaker: {
-                type: "string",
-                description: "Who said it (name or role)"
-              },
-              context: {
-                type: "string",
-                description: "What the quote reveals about buyer criteria"
-              },
+              quote: { type: "string", description: "EXACT VERBATIM quote from transcript." },
+              speaker: { type: "string", description: "Who said it — by name or role (PE Partner, Platform CEO, Buyer Representative)." },
+              context: { type: "string", description: "What question/topic prompted this statement." },
               importance: {
                 type: "string",
                 enum: ["high", "medium", "low"],
-                description: "Importance of this quote"
+                description: "high = specific criteria/deal-breakers, medium = preferences/context, low = general observations."
               }
             },
             required: ["quote", "speaker", "context", "importance"]
           },
-          description: "Important verbatim quotes"
+          description: "6-10 key verbatim quotes. Priority: size > geography > services > deal structure > strategy."
         },
         overall_confidence: {
           type: "number",
-          description: "Overall extraction confidence 0-100"
+          description: "Overall extraction confidence 0-100."
         }
       },
       required: ["key_quotes", "overall_confidence"]
@@ -230,11 +358,11 @@ Focus on EXPLICIT statements made by the buyer. Include confidence scores based 
     },
     body: JSON.stringify({
       model: DEFAULT_CLAUDE_MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
       tools: tools,
-      tool_choice: { type: 'tool', name: 'extract_transcript_insights' }
+      tool_choice: { type: 'tool', name: 'extract_buyer_insights' }
     }),
   });
 
@@ -360,28 +488,66 @@ serve(async (req) => {
       }
 
       // If buyer_id provided, update buyer record with insights
-      if (buyer_id && insights.buyer_profile) {
+      if (buyer_id) {
         const buyerUpdates: any = {};
 
-        if (insights.buyer_profile.thesis_summary) {
-          buyerUpdates.thesis_summary = insights.buyer_profile.thesis_summary;
+        // Map buyer_profile fields
+        if (insights.buyer_profile) {
+          if (insights.buyer_profile.thesis_summary) {
+            buyerUpdates.thesis_summary = insights.buyer_profile.thesis_summary;
+          }
+          if (insights.buyer_profile.strategic_priorities?.length) {
+            buyerUpdates.strategic_priorities = insights.buyer_profile.strategic_priorities;
+          }
+          if (insights.buyer_profile.acquisition_timeline) {
+            buyerUpdates.acquisition_timeline = insights.buyer_profile.acquisition_timeline;
+          }
+          if (insights.buyer_profile.deal_breakers?.length) {
+            buyerUpdates.deal_breakers = insights.buyer_profile.deal_breakers;
+          }
         }
-        if (insights.buyer_profile.strategic_priorities) {
-          buyerUpdates.strategic_priorities = insights.buyer_profile.strategic_priorities;
-        }
-        if (insights.buyer_profile.acquisition_timeline) {
-          buyerUpdates.acquisition_timeline = insights.buyer_profile.acquisition_timeline;
-        }
-        if (insights.buyer_profile.deal_breakers) {
-          buyerUpdates.deal_breakers = insights.buyer_profile.deal_breakers;
+
+        // Map buyer_criteria fields to buyer record
+        if (insights.buyer_criteria) {
+          // Map service targets to target_industries
+          if (insights.buyer_criteria.service_criteria?.target_services?.length) {
+            buyerUpdates.target_industries = insights.buyer_criteria.service_criteria.target_services;
+          }
+
+          // Map geography targets
+          if (insights.buyer_criteria.geography_criteria?.target_states?.length) {
+            buyerUpdates.target_geographies = insights.buyer_criteria.geography_criteria.target_states;
+          }
+          if (insights.buyer_criteria.geography_criteria?.target_regions?.length) {
+            buyerUpdates.geographic_footprint = insights.buyer_criteria.geography_criteria.target_regions;
+          }
         }
 
         // Add key quotes to buyer record
-        if (insights.key_quotes && insights.key_quotes.length > 0) {
+        if (insights.key_quotes?.length > 0) {
           buyerUpdates.key_quotes = insights.key_quotes.map(q => `"${q.quote}" - ${q.speaker}`);
         }
 
         if (Object.keys(buyerUpdates).length > 0) {
+          // Fetch existing extraction_sources and append (don't overwrite)
+          const { data: existingBuyer } = await supabase
+            .from('remarketing_buyers')
+            .select('extraction_sources')
+            .eq('id', buyer_id)
+            .single();
+
+          const existingSources = (existingBuyer?.extraction_sources || []) as any[];
+
+          buyerUpdates.extraction_sources = [
+            ...existingSources,
+            {
+              type: 'transcript',
+              transcript_id: transcriptRecord.id,
+              extracted_at: new Date().toISOString(),
+              fields_extracted: Object.keys(buyerUpdates).filter(k => k !== 'extraction_sources'),
+              confidence: insights.overall_confidence
+            }
+          ];
           buyerUpdates.data_last_updated = new Date().toISOString();
 
           await supabase
@@ -389,7 +555,7 @@ serve(async (req) => {
             .update(buyerUpdates)
             .eq('id', buyer_id);
 
-          console.log(`[BUYER_UPDATED] Applied ${Object.keys(buyerUpdates).length} fields to buyer ${buyer_id}`);
+          console.log(`[BUYER_UPDATED] Applied ${Object.keys(buyerUpdates).length} fields to buyer ${buyer_id}. Confidence: ${insights.overall_confidence}`);
         }
       }
 
@@ -411,8 +577,10 @@ serve(async (req) => {
             extraction_completed_at: new Date().toISOString(),
             extracted_data: insights,
             confidence_scores: {
-              criteria: insights.buyer_criteria?.confidence_score || 0,
-              profile: insights.buyer_profile?.confidence_score || 0,
+              size: insights.buyer_criteria?.size_criteria?.confidence || 0,
+              service: insights.buyer_criteria?.service_criteria?.service_confidence || 0,
+              geography: insights.buyer_criteria?.geography_criteria?.confidence || 0,
+              deal_preferences: insights.buyer_criteria?.deal_preferences?.confidence || 0,
               overall: insights.overall_confidence
             }
           });
@@ -420,7 +588,7 @@ serve(async (req) => {
         console.log(`[SOURCE_CREATED] Extraction source created for universe ${universe_id}`);
       }
 
-      console.log(`[SUCCESS] Transcript extraction completed with ${insights.overall_confidence}% confidence`);
+      console.log(`[SUCCESS] Buyer transcript extraction completed with ${insights.overall_confidence}% confidence`);
 
       return new Response(
         JSON.stringify({
@@ -428,7 +596,7 @@ serve(async (req) => {
           transcript_id: transcriptRecord.id,
           insights,
           key_quotes_count: insights.key_quotes.length,
-          message: 'Transcript insights extracted successfully'
+          message: 'Buyer transcript insights extracted successfully'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
