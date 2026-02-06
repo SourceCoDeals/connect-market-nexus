@@ -201,7 +201,8 @@ export function AddTranscriptDialog({
               ? transcriptText
               : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
 
-            const { error } = await supabase.from("deal_transcripts").insert({
+            // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
+            const { error } = await supabase.from("v_deal_transcripts" as any).insert({
               listing_id: dealId,
               title: sf.title.trim() || sf.file.name,
               source: "call",
@@ -262,7 +263,8 @@ export function AddTranscriptDialog({
           throw new Error("Transcript content cannot be empty");
         }
 
-        const { error } = await supabase.from("deal_transcripts").insert({
+        // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
+        const { error } = await supabase.from("v_deal_transcripts" as any).insert({
           listing_id: dealId,
           title: formData.title.trim(),
           source: "call",
