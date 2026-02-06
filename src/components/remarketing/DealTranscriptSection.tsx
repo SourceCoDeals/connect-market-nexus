@@ -105,11 +105,25 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [isEnriching, setIsEnriching] = useState(false);
   const [enrichmentResult, setEnrichmentResult] = useState<SingleDealEnrichmentResult | null>(null);
   const [showEnrichmentDialog, setShowEnrichmentDialog] = useState(false);
-
+  const [enrichmentPhase, setEnrichmentPhase] = useState<'transcripts' | 'website' | null>(null);
+  const [enrichmentProgress, setEnrichmentProgress] = useState({ current: 0, total: 0 });
   // Enrich deal with AI
   const handleEnrichDeal = async () => {
     setIsEnriching(true);
     setEnrichmentResult(null);
+    
+    // Count unprocessed transcripts to show progress
+    const unprocessedTranscripts = transcripts.filter(t => !t.processed_at);
+    const totalToProcess = unprocessedTranscripts.length;
+    
+    if (totalToProcess > 0) {
+      setEnrichmentPhase('transcripts');
+      setEnrichmentProgress({ current: 0, total: totalToProcess });
+    } else {
+      setEnrichmentPhase('website');
+      setEnrichmentProgress({ current: 0, total: 0 });
+    }
+    
     try {
       // Use AbortController with extended timeout for transcript processing
       const controller = new AbortController();
@@ -167,6 +181,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       }
     } finally {
       setIsEnriching(false);
+      setEnrichmentPhase(null);
+      setEnrichmentProgress({ current: 0, total: 0 });
     }
   };
   const [selectedFiles, setSelectedFiles] = useState<{file: File; title: string; status: 'pending' | 'processing' | 'done' | 'error'; text?: string}[]>([]);
@@ -1056,10 +1072,28 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                 <div className="flex items-center gap-3">
                   <Zap className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm mb-1.5">Enriching deal...</p>
-                    <Progress value={undefined} className="h-1.5" />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="font-medium text-sm">
+                        {enrichmentPhase === 'transcripts' 
+                          ? 'Processing transcripts...' 
+                          : 'Scraping website...'}
+                      </p>
+                      {enrichmentProgress.total > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {enrichmentProgress.current}/{enrichmentProgress.total}
+                        </span>
+                      )}
+                    </div>
+                    <Progress 
+                      value={enrichmentProgress.total > 0 
+                        ? (enrichmentProgress.current / enrichmentProgress.total) * 100 
+                        : undefined} 
+                      className="h-1.5" 
+                    />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Scraping website and extracting intelligence
+                      {enrichmentPhase === 'transcripts' && enrichmentProgress.total > 0
+                        ? `Extracting intelligence from ${enrichmentProgress.total} transcript${enrichmentProgress.total > 1 ? 's' : ''}`
+                        : 'Extracting deal intelligence'}
                     </p>
                   </div>
                 </div>
@@ -1144,10 +1178,28 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                 <div className="flex items-center gap-3">
                   <Zap className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm mb-1.5">Enriching deal...</p>
-                    <Progress value={undefined} className="h-1.5" />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="font-medium text-sm">
+                        {enrichmentPhase === 'transcripts' 
+                          ? 'Processing transcripts...' 
+                          : 'Scraping website...'}
+                      </p>
+                      {enrichmentProgress.total > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {enrichmentProgress.current}/{enrichmentProgress.total}
+                        </span>
+                      )}
+                    </div>
+                    <Progress 
+                      value={enrichmentProgress.total > 0 
+                        ? (enrichmentProgress.current / enrichmentProgress.total) * 100 
+                        : undefined} 
+                      className="h-1.5" 
+                    />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Scraping website and extracting intelligence
+                      {enrichmentPhase === 'transcripts' && enrichmentProgress.total > 0
+                        ? `Extracting intelligence from ${enrichmentProgress.total} transcript${enrichmentProgress.total > 1 ? 's' : ''}`
+                        : 'Extracting deal intelligence'}
                     </p>
                   </div>
                 </div>
