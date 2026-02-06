@@ -128,18 +128,24 @@ serve(async (req) => {
 
     let transcriptsProcessed = 0;
     let transcriptErrors: string[] = [];
-    
+    let transcriptReportTotal = 0;
+    let transcriptReportValid = 0;
+    let transcriptReportSkipped = 0;
+
     if (!transcriptsError && transcripts && transcripts.length > 0) {
+      transcriptReportTotal = transcripts.length;
       console.log(`Found ${transcripts.length} unprocessed transcripts, processing them in parallel...`);
-      
+
       // Filter valid transcripts first
-      const validTranscripts = transcripts.filter(t => 
+      const validTranscripts = transcripts.filter(t =>
         t.transcript_text && t.transcript_text.trim().length >= 100
       );
-      
-      const skippedCount = transcripts.length - validTranscripts.length;
-      if (skippedCount > 0) {
-        console.log(`Skipping ${skippedCount} transcripts with insufficient content`);
+
+      transcriptReportValid = validTranscripts.length;
+      transcriptReportSkipped = transcripts.length - validTranscripts.length;
+
+      if (transcriptReportSkipped > 0) {
+        console.log(`Skipping ${transcriptReportSkipped} transcripts with insufficient content`);
       }
       
       // Process transcripts in parallel batches of 3 for speed
@@ -1155,7 +1161,9 @@ For financial data, include confidence levels and source quotes where available.
         },
         // Transcript processing report
         transcriptReport: {
-          totalTranscripts: transcripts?.length || 0,
+          totalTranscripts: transcriptReportTotal,
+          processable: transcriptReportValid,
+          skipped: transcriptReportSkipped,
           processed: transcriptsProcessed,
           errors: transcriptErrors,
         },
