@@ -94,6 +94,7 @@ export const AddDealToUniverseDialog = ({
   const [search, setSearch] = useState("");
   const [selectedListings, setSelectedListings] = useState<string[]>([]);
   const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
+  const transcriptFilesRef = useRef<File[]>([]);
   const [createDealError, setCreateDealError] = useState<string | null>(null);
   const [newDealForm, setNewDealForm] = useState({
     title: "",
@@ -326,10 +327,11 @@ export const AddDealToUniverseDialog = ({
       toast.success(`Created "${listing.title}" and added to universe`);
       
       // Handle transcript file uploads (multiple)
-      if (transcriptFiles.length > 0 && userId) {
+      const filesToUpload = [...transcriptFilesRef.current];
+      if (filesToUpload.length > 0 && userId) {
         const { data: { session } } = await supabase.auth.getSession();
         
-        for (const file of transcriptFiles) {
+        for (const file of filesToUpload) {
           try {
             const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
             const filePath = `${listing.id}/${Date.now()}-${file.name}`;
@@ -392,8 +394,8 @@ export const AddDealToUniverseDialog = ({
             console.error("Transcript handling error:", err);
           }
         }
-        if (transcriptFiles.length > 0) {
-          toast.success(`${transcriptFiles.length} transcript(s) uploaded`);
+        if (filesToUpload.length > 0) {
+          toast.success(`${filesToUpload.length} transcript(s) uploaded`);
         }
       }
       
@@ -463,6 +465,7 @@ export const AddDealToUniverseDialog = ({
       
       setNewDealForm({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
       setTranscriptFiles([]);
+      transcriptFilesRef.current = [];
       onDealAdded?.();
       onOpenChange(false);
     },
@@ -782,7 +785,11 @@ export const AddDealToUniverseDialog = ({
                     onChange={(e) => {
                       const files = Array.from(e.target.files || []);
                       if (files.length > 0) {
-                        setTranscriptFiles(prev => [...prev, ...files]);
+                        setTranscriptFiles(prev => {
+                          const updated = [...prev, ...files];
+                          transcriptFilesRef.current = updated;
+                          return updated;
+                        });
                         setNewDealForm(prev => ({ ...prev, transcriptLink: "" }));
                       }
                       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -802,7 +809,11 @@ export const AddDealToUniverseDialog = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              setTranscriptFiles(prev => prev.filter((_, i) => i !== idx));
+                              setTranscriptFiles(prev => {
+                                const updated = prev.filter((_, i) => i !== idx);
+                                transcriptFilesRef.current = updated;
+                                return updated;
+                              });
                             }}
                             className="h-6 w-6 p-0"
                           >
