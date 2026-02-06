@@ -216,7 +216,13 @@ export async function callClaudeWithTool(
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Claude API call failed: ${response.status}`, errorText.substring(0, 500));
-      return { data: null };
+      return {
+        data: null,
+        error: {
+          code: `http_${response.status}`,
+          message: `Claude API returned ${response.status}: ${errorText.substring(0, 200)}`
+        }
+      };
     }
 
     const responseData = await response.json();
@@ -225,16 +231,35 @@ export async function callClaudeWithTool(
     const toolUse = responseData.content?.find((block: any) => block.type === "tool_use");
     if (!toolUse) {
       console.warn("No tool use in Claude response");
-      return { data: null };
+      return {
+        data: null,
+        error: {
+          code: "no_tool_use",
+          message: "Claude did not return tool use - may have returned text instead"
+        }
+      };
     }
 
     return { data: toolUse.input };
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
       console.error("Claude API timeout");
-      return { data: null };
+      return {
+        data: null,
+        error: {
+          code: "timeout",
+          message: `Claude API timeout after ${timeoutMs}ms`
+        }
+      };
     }
     console.error("Claude API error:", error);
-    return { data: null };
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      data: null,
+      error: {
+        code: "unknown_error",
+        message: `Claude API error: ${message}`
+      }
+    };
   }
 }

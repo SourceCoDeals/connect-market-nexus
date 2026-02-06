@@ -341,7 +341,12 @@ Use the extract_deal_info tool to return structured data.`;
         .eq('id', listingId)
         .single();
 
-      if (listing && !listingError) {
+      if (listingError || !listing) {
+        console.error('Failed to fetch listing for enrichment:', listingError);
+        throw new Error(`Failed to fetch listing ${listingId}: ${listingError?.message || 'Not found'}`);
+      }
+
+      if (listing) {
         // Flatten extracted data for priority updates
         const flatExtracted: Record<string, unknown> = {};
         
@@ -375,9 +380,13 @@ Use the extract_deal_info tool to return structured data.`;
         if (extracted.business_model) flatExtracted.business_model = extracted.business_model;
         if (extracted.owner_goals) flatExtracted.owner_goals = extracted.owner_goals;
         if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
+        if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
+        if (extracted.headquarters_address) flatExtracted.headquarters_address = extracted.headquarters_address;
         if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
+        if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
         if (extracted.customer_concentration) flatExtracted.customer_concentration = extracted.customer_concentration;
+        if (extracted.customer_geography) flatExtracted.customer_geography = extracted.customer_geography;
         if (extracted.executive_summary) flatExtracted.executive_summary = extracted.executive_summary;
         if (extracted.competitive_position) flatExtracted.competitive_position = extracted.competitive_position;
         if (extracted.growth_trajectory) flatExtracted.growth_trajectory = extracted.growth_trajectory;
