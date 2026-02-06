@@ -292,7 +292,11 @@ serve(async (req) => {
           if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
 
           if (extracted?.customer_types) out.customer_types = extracted.customer_types;
-          if (extracted?.customer_concentration) out.customer_concentration = extracted.customer_concentration;
+          // customer_concentration is a NUMERIC column — only accept numbers
+          {
+            const cc = toFiniteNumber(extracted?.customer_concentration);
+            if (cc != null) out.customer_concentration = cc;
+          }
           if (extracted?.customer_geography) out.customer_geography = extracted.customer_geography;
           if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
 
@@ -374,6 +378,7 @@ serve(async (req) => {
             'linkedin_employee_count',
             'part_time_employees',
             'team_page_employee_count',
+            'customer_concentration', // numeric column — LLM often returns prose
           ]);
 
           const sanitizedUpdates: Record<string, unknown> = { ...cumulativeUpdates };
@@ -641,7 +646,13 @@ serve(async (req) => {
     const lockVersion = deal.enriched_at;
 
     // Get website URL - prefer website field, fallback to extracting from internal_deal_memo_link
+    // Reject LLM placeholder values that may have been written in prior runs
+    const WEBSITE_PLACEHOLDERS = ['<unknown>', 'unknown', 'n/a', 'none', 'null', 'not found', 'not specified', 'not provided'];
     let websiteUrl = deal.website;
+    if (websiteUrl && WEBSITE_PLACEHOLDERS.includes(websiteUrl.trim().toLowerCase())) {
+      console.log(`[Website] Rejecting placeholder website value: "${websiteUrl}"`);
+      websiteUrl = null;
+    }
     
     if (!websiteUrl && deal.internal_deal_memo_link) {
       const memoLink = deal.internal_deal_memo_link;
@@ -691,6 +702,19 @@ serve(async (req) => {
     const urlValidation = validateUrl(websiteUrl);
     if (!urlValidation.valid) {
       console.error(`SSRF blocked for deal website: ${websiteUrl} - ${urlValidation.reason}`);
+      // If transcripts were processed, return success instead of hard SSRF error
+      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
+      if (transcriptFieldsApplied > 0) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied, ${transcriptsProcessed} processed). Website scraping skipped: invalid URL.`,
+            fieldsUpdated: transcriptFieldNames,
+            transcriptReport,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return ssrfErrorResponse(urlValidation.reason || 'Invalid URL');
     }
     websiteUrl = urlValidation.normalizedUrl || websiteUrl;
