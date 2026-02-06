@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
-import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
+import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 
@@ -353,13 +353,28 @@ serve(async (req) => {
           const flat = mapExtractedToListing(extracted);
           if (Object.keys(flat).length === 0) continue;
 
-          const { updates, sourceUpdates } = buildPriorityUpdates(
-            deal as any,
-            cumulativeSources,
-            flat as any,
-            'transcript',
-            t.id
-          );
+          let updates: Record<string, unknown>;
+          let sourceUpdates: Record<string, unknown>;
+
+          if (forceReExtract) {
+            // Force mode: bypass priority checks — overwrite ALL fields from transcripts
+            updates = { ...flat };
+            // Build source tracking entries manually
+            sourceUpdates = {};
+            for (const key of Object.keys(flat)) {
+              sourceUpdates[key] = createFieldSource('transcript', t.id);
+            }
+          } else {
+            const result = buildPriorityUpdates(
+              deal as any,
+              cumulativeSources,
+              flat as any,
+              'transcript',
+              t.id
+            );
+            updates = result.updates as Record<string, unknown>;
+            sourceUpdates = result.sourceUpdates;
+          }
 
           if (Object.keys(updates).length === 0) continue;
 
@@ -370,7 +385,7 @@ serve(async (req) => {
             updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as any);
           }
 
-          cumulativeUpdates = { ...cumulativeUpdates, ...(updates as Record<string, unknown>) };
+          cumulativeUpdates = { ...cumulativeUpdates, ...updates };
           cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates);
 
           // Keep local deal object in sync so subsequent priority checks see new values
