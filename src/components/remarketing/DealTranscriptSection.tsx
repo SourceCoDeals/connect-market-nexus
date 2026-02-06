@@ -287,10 +287,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         }
       );
 
-      // Handle rate limits with retry
-      if (response.status === 429 && retryCount < 3) {
-        const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-        toast.info(`Rate limited, retrying ${file.name} in ${waitTime/1000}s...`);
+      // Handle rate limits with retry (longer delays for Gemini)
+      if (response.status === 429 && retryCount < 5) {
+        const waitTime = Math.pow(2, retryCount) * 3000; // 3s, 6s, 12s, 24s, 48s
+        toast.info(`Rate limited, retrying ${file.name} in ${Math.round(waitTime/1000)}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         return processFileText(file, retryCount + 1);
       }
@@ -318,7 +318,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         for (let i = 0; i < selectedFiles.length; i++) {
           const sf = selectedFiles[i];
           
-          // Yield to UI thread between files to prevent freezing
+          // Add delay between files to avoid rate-limiting the AI parser
+          if (i > 0) {
+            await new Promise(r => setTimeout(r, 2000));
+          }
           await yieldToUI();
           
           try {
