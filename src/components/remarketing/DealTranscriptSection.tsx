@@ -1269,6 +1269,58 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
+            {/* Deduplicate action */}
+            {(() => {
+              const titleCounts = new Map<string, number>();
+              transcripts.forEach(t => {
+                const key = t.title || t.transcript_text?.substring(0, 100) || t.id;
+                titleCounts.set(key, (titleCounts.get(key) || 0) + 1);
+              });
+              const dupeCount = transcripts.length - titleCounts.size;
+              if (dupeCount > 0) {
+                return (
+                  <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>{dupeCount} duplicate transcript{dupeCount > 1 ? 's' : ''} detected</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={async () => {
+                        const seen = new Set<string>();
+                        const dupeIds: string[] = [];
+                        for (const t of transcripts) {
+                          const key = t.title || t.transcript_text?.substring(0, 100) || t.id;
+                          if (seen.has(key)) {
+                            dupeIds.push(t.id);
+                          } else {
+                            seen.add(key);
+                          }
+                        }
+                        if (dupeIds.length === 0) return;
+                        if (!confirm(`Delete ${dupeIds.length} duplicate transcript${dupeIds.length > 1 ? 's' : ''}?`)) return;
+                        const { error } = await supabase
+                          .from('deal_transcripts')
+                          .delete()
+                          .in('id', dupeIds);
+                        if (error) {
+                          toast.error('Failed to delete duplicates');
+                        } else {
+                          toast.success(`Removed ${dupeIds.length} duplicate${dupeIds.length > 1 ? 's' : ''}`);
+                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Remove Duplicates
+                    </Button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             {transcripts.map((transcript) => {
               const isExpanded = expandedId === transcript.id;
               const hasExtracted = !!transcript.processed_at;
@@ -1323,6 +1375,19 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                               Applied
                             </Badge>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Delete this transcript?')) {
+                                deleteMutation.mutate(transcript.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                           {isExpanded ? (
                             <ChevronUp className="h-4 w-4 text-muted-foreground" />
                           ) : (
@@ -1387,26 +1452,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                               Apply to Deal
                             </Button>
                           )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => {
-                                  if (confirm('Delete this transcript?')) {
-                                    deleteMutation.mutate(transcript.id);
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </div>
                       </div>
                     </CollapsibleContent>
