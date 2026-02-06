@@ -113,6 +113,91 @@ serve(async (req) => {
       );
     }
 
+    // ========================================================================
+    // STEP 0: Process any unprocessed transcripts FIRST (highest priority source)
+    // Transcripts are source priority 100, website is 60, so transcript data wins
+    // ========================================================================
+    
+    // Fetch unprocessed transcripts for this deal
+    const { data: transcripts, error: transcriptsError } = await supabase
+      .from('deal_transcripts')
+      .select('id, transcript_text, processed_at')
+      .eq('listing_id', dealId)
+      .is('processed_at', null)
+      .not('transcript_text', 'is', null);
+
+    let transcriptsProcessed = 0;
+    let transcriptErrors: string[] = [];
+    
+    if (!transcriptsError && transcripts && transcripts.length > 0) {
+      console.log(`Found ${transcripts.length} unprocessed transcripts, processing them first...`);
+      
+      // Process each transcript by calling extract-deal-transcript
+      for (const transcript of transcripts) {
+        // Skip transcripts with minimal content
+        if (!transcript.transcript_text || transcript.transcript_text.trim().length < 100) {
+          console.log(`Skipping transcript ${transcript.id} - insufficient content (${transcript.transcript_text?.length || 0} chars)`);
+          continue;
+        }
+        
+        try {
+          // Call the extract-deal-transcript function internally
+          const extractResponse = await fetch(
+            `${supabaseUrl}/functions/v1/extract-deal-transcript`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'apikey': supabaseServiceKey,
+              },
+              body: JSON.stringify({
+                transcriptId: transcript.id,
+                transcriptText: transcript.transcript_text,
+                applyToDeal: true,
+                dealInfo: {
+                  company_name: deal.title || deal.internal_company_name,
+                  industry: deal.industry,
+                  location: deal.location || deal.address_city,
+                  revenue: deal.revenue,
+                  ebitda: deal.ebitda,
+                }
+              }),
+            }
+          );
+
+          if (extractResponse.ok) {
+            transcriptsProcessed++;
+            console.log(`Successfully processed transcript ${transcript.id}`);
+          } else {
+            const errText = await extractResponse.text();
+            console.error(`Failed to process transcript ${transcript.id}:`, errText);
+            transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errText.slice(0, 100)}`);
+          }
+        } catch (err) {
+          const errMsg = getErrorMessage(err);
+          console.error(`Error processing transcript ${transcript.id}:`, errMsg);
+          transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errMsg.slice(0, 100)}`);
+        }
+        
+        // Small delay between transcript processing to avoid rate limits
+        await new Promise(r => setTimeout(r, 500));
+      }
+      
+      console.log(`Processed ${transcriptsProcessed}/${transcripts.length} transcripts`);
+      
+      // Re-fetch deal to get updated extraction_sources after transcript processing
+      const { data: refreshedDeal } = await supabase
+        .from('listings')
+        .select('*, extraction_sources')
+        .eq('id', dealId)
+        .single();
+      
+      if (refreshedDeal) {
+        Object.assign(deal, refreshedDeal);
+      }
+    }
+
     // Capture version for optimistic locking
     // IMPORTANT: Only use enriched_at, NOT updated_at as fallback
     // If enriched_at is null, the lock check uses .is('enriched_at', null)
@@ -1038,7 +1123,8 @@ For financial data, include confidence levels and source quotes where available.
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully enriched deal with ${fieldsUpdated.length} fields`,
+        message: `Successfully enriched deal with ${fieldsUpdated.length} fields` + 
+          (transcriptsProcessed > 0 ? ` (+ ${transcriptsProcessed} transcripts processed)` : ''),
         fieldsUpdated,
         extracted,
         // "What We Scraped" diagnostic report
@@ -1047,6 +1133,12 @@ For financial data, include confidence levels and source quotes where available.
           successfulPages: successfulScrapes.length,
           totalCharactersScraped: websiteContent.length,
           pages: scrapedPagesSummary,
+        },
+        // Transcript processing report
+        transcriptReport: {
+          totalTranscripts: transcripts?.length || 0,
+          processed: transcriptsProcessed,
+          errors: transcriptErrors,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
