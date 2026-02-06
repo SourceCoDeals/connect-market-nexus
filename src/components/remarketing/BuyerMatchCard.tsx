@@ -91,20 +91,50 @@ const isDisqualified = (score: number, reasoning: string | null) => {
 };
 
 // Get disqualification reason from reasoning text
-const getDisqualificationReason = (reasoning: string | null): string => {
+// Uses specific patterns to avoid over-triggering (e.g., "size mismatch" just because reasoning mentions revenue)
+const getDisqualificationReason = (reasoning: string | null, score?: any): string => {
   if (!reasoning) return 'criteria mismatch';
   const lower = reasoning.toLowerCase();
-  if (lower.includes('geography') || lower.includes('location') || lower.includes('state')) {
-    return 'no nearby presence';
+
+  // Check for explicit missing data flag first (highest priority)
+  if (lower.includes('[missing_data:')) {
+    return 'insufficient data';
   }
-  if (lower.includes('size') || lower.includes('revenue')) {
+
+  // Check for explicit disqualification patterns (specific language from enforceHardRules)
+  if (lower.includes('disqualified: deal revenue') || lower.includes('below buyer minimum') || lower.includes('below minimum')) {
     return 'size mismatch';
   }
-  if (lower.includes('service')) {
-    return 'service mismatch';
-  }
-  if (lower.includes('excluded')) {
+  if (lower.includes('dealbreaker: deal includes excluded')) {
     return 'excluded criteria';
+  }
+  if (lower.includes('geography strict:') || lower.includes('not in buyer targets')) {
+    return 'geography mismatch';
+  }
+
+  // Use individual scores to determine the weakest dimension (more accurate than keyword matching)
+  if (score) {
+    const dimensions = [
+      { name: 'size mismatch', score: score.size_score ?? 100 },
+      { name: 'no nearby presence', score: score.geography_score ?? 100 },
+      { name: 'service mismatch', score: score.service_score ?? 100 },
+      { name: 'owner goals mismatch', score: score.owner_goals_score ?? 100 },
+    ];
+    const weakest = dimensions.reduce((min, d) => d.score < min.score ? d : min, dimensions[0]);
+    if (weakest.score < 40) {
+      return weakest.name;
+    }
+  }
+
+  // Fallback to keyword matching with more specific patterns
+  if (lower.includes('no nearby presence') || lower.includes('no presence in') || lower.includes('distant')) {
+    return 'no nearby presence';
+  }
+  if (lower.includes('too small') || lower.includes('too large') || lower.includes('size multiplier: ')) {
+    return 'size mismatch';
+  }
+  if (lower.includes('no service overlap') || lower.includes('0% overlap') || lower.includes('weak service')) {
+    return 'service mismatch';
   }
   return 'criteria mismatch';
 };
@@ -621,12 +651,16 @@ export const BuyerMatchCard = ({
         </p>
         
         {/* Disqualification Warning (repeated at bottom) */}
-        {disqualified && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-red-600">
-            <AlertCircle className="h-4 w-4" />
-            <span>Reason: {getDisqualificationReason(score.fit_reasoning)}</span>
-          </div>
-        )}
+        {disqualified && (() => {
+          const reason = getDisqualificationReason(score.fit_reasoning, score);
+          const isDataIssue = reason === 'insufficient data';
+          return (
+            <div className={`mt-3 flex items-center gap-2 text-xs ${isDataIssue ? 'text-amber-600' : 'text-red-600'}`}>
+              <AlertCircle className="h-4 w-4" />
+              <span>{isDataIssue ? 'Low confidence — insufficient data for scoring' : `Reason: ${reason}`}</span>
+            </div>
+          );
+        })()}
         
         {/* Expandable Thesis */}
         <Collapsible open={isExpanded} onOpenChange={handleExpand}>
