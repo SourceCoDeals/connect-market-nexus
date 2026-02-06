@@ -312,11 +312,33 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       // Multi-file mode
       if (isMultiFileMode && selectedFiles.length > 0) {
         let successCount = 0;
+        let skippedCount = 0;
         const totalFiles = selectedFiles.length;
         setProcessingProgress({ current: 0, total: totalFiles });
+
+        // Fetch existing transcript titles to prevent duplicates
+        const { data: existing } = await supabase
+          .from('deal_transcripts')
+          .select('title')
+          .eq('listing_id', dealId);
+        const existingTitles = new Set(
+          (existing || []).map(t => (t.title || '').replace(/\.(pdf|docx?|txt|vtt|srt)$/i, '').trim().toLowerCase())
+        );
         
         for (let i = 0; i < selectedFiles.length; i++) {
           const sf = selectedFiles[i];
+
+          // Skip duplicates
+          const normalizedTitle = sf.title.replace(/\.(pdf|docx?|txt|vtt|srt)$/i, '').trim().toLowerCase();
+          if (existingTitles.has(normalizedTitle)) {
+            setSelectedFiles(prev => prev.map((f, idx) => 
+              idx === i ? { ...f, status: 'error' as const } : f
+            ));
+            skippedCount++;
+            toast.info(`Skipped "${sf.title}" — already exists`);
+            continue;
+          }
+          existingTitles.add(normalizedTitle); // prevent dupes within same batch
           
           // Add delay between files to avoid rate-limiting the AI parser
           if (i > 0) {
@@ -392,8 +414,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         }
         
         setProcessingProgress({ current: 0, total: 0 });
-        if (successCount === 0) throw new Error('No files were uploaded successfully');
-        return { count: successCount, failed: totalFiles - successCount };
+        if (successCount === 0 && skippedCount === 0) throw new Error('No files were uploaded successfully');
+        if (successCount === 0 && skippedCount > 0) throw new Error(`All ${skippedCount} file(s) already exist — no new transcripts added`);
+        return { count: successCount, failed: totalFiles - successCount - skippedCount, skipped: skippedCount };
       }
       
       // Single transcript mode (pasted text or link)
@@ -419,12 +442,13 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (error) throw error;
       return { count: 1 };
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-      const msg = data?.count && data.count > 1 
-        ? `${data.count} transcripts added${data.failed ? ` (${data.failed} failed)` : ''}`
-        : "Transcript added";
-      toast.success(msg);
+      const parts: string[] = [];
+      if (data?.count > 0) parts.push(`${data.count} transcript${data.count > 1 ? 's' : ''} added`);
+      if (data?.skipped > 0) parts.push(`${data.skipped} skipped (duplicates)`);
+      if (data?.failed > 0) parts.push(`${data.failed} failed`);
+      toast.success(parts.join(', ') || 'Transcript added');
       resetForm();
       setIsAddDialogOpen(false);
     },
@@ -1269,52 +1293,79 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
-            {/* Deduplicate action */}
+            {/* Deduplicate + failed extraction cleanup */}
             {(() => {
-              const titleCounts = new Map<string, number>();
+              // Normalize title: strip .pdf/.docx/.doc suffix for grouping
+              const normalize = (title: string) => title.replace(/\.(pdf|docx?|txt|vtt|srt)$/i, '').trim();
+              
+              // Group by normalized title, keep the best one (longest text, preferring processed)
+              const groups = new Map<string, typeof transcripts>();
               transcripts.forEach(t => {
-                const key = t.title || t.transcript_text?.substring(0, 100) || t.id;
-                titleCounts.set(key, (titleCounts.get(key) || 0) + 1);
+                const key = normalize(t.title || t.transcript_text?.substring(0, 100) || t.id);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key)!.push(t);
               });
-              const dupeCount = transcripts.length - titleCounts.size;
-              if (dupeCount > 0) {
+
+              const dupeIds: string[] = [];
+              const failedIds: string[] = [];
+              
+              for (const [, group] of groups) {
+                if (group.length > 1) {
+                  // Sort: processed first, then by text length desc
+                  group.sort((a, b) => {
+                    if (a.processed_at && !b.processed_at) return -1;
+                    if (!a.processed_at && b.processed_at) return 1;
+                    return (b.transcript_text?.length || 0) - (a.transcript_text?.length || 0);
+                  });
+                  // Keep first, mark rest as dupes
+                  for (let i = 1; i < group.length; i++) {
+                    dupeIds.push(group[i].id);
+                  }
+                }
+              }
+              
+              // Also detect failed extraction placeholders (< 200 chars with bracket markers)
+              transcripts.forEach(t => {
+                if (!dupeIds.includes(t.id) && t.transcript_text && t.transcript_text.length < 200 && 
+                    (t.transcript_text.includes('[text extraction pending') || t.transcript_text.includes('[File uploaded:'))) {
+                  failedIds.push(t.id);
+                }
+              });
+
+              const totalCleanup = dupeIds.length + failedIds.length;
+              if (totalCleanup > 0) {
                 return (
                   <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
                       <AlertTriangle className="h-4 w-4" />
-                      <span>{dupeCount} duplicate transcript{dupeCount > 1 ? 's' : ''} detected</span>
+                      <span>
+                        {dupeIds.length > 0 && `${dupeIds.length} duplicate${dupeIds.length > 1 ? 's' : ''}`}
+                        {dupeIds.length > 0 && failedIds.length > 0 && ' + '}
+                        {failedIds.length > 0 && `${failedIds.length} failed extraction${failedIds.length > 1 ? 's' : ''}`}
+                        {' detected'}
+                      </span>
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs"
                       onClick={async () => {
-                        const seen = new Set<string>();
-                        const dupeIds: string[] = [];
-                        for (const t of transcripts) {
-                          const key = t.title || t.transcript_text?.substring(0, 100) || t.id;
-                          if (seen.has(key)) {
-                            dupeIds.push(t.id);
-                          } else {
-                            seen.add(key);
-                          }
-                        }
-                        if (dupeIds.length === 0) return;
-                        if (!confirm(`Delete ${dupeIds.length} duplicate transcript${dupeIds.length > 1 ? 's' : ''}?`)) return;
+                        const allIds = [...dupeIds, ...failedIds];
+                        if (!confirm(`Delete ${allIds.length} transcript${allIds.length > 1 ? 's' : ''} (${dupeIds.length} duplicates, ${failedIds.length} failed)?`)) return;
                         const { error } = await supabase
                           .from('deal_transcripts')
                           .delete()
-                          .in('id', dupeIds);
+                          .in('id', allIds);
                         if (error) {
-                          toast.error('Failed to delete duplicates');
+                          toast.error('Failed to delete');
                         } else {
-                          toast.success(`Removed ${dupeIds.length} duplicate${dupeIds.length > 1 ? 's' : ''}`);
+                          toast.success(`Cleaned up ${allIds.length} transcript${allIds.length > 1 ? 's' : ''}`);
                           queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
                         }
                       }}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
-                      Remove Duplicates
+                      Clean Up
                     </Button>
                   </div>
                 );
