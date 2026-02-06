@@ -1,204 +1,126 @@
 
-# Add Call Transcript Dialog Redesign
+# Add Progress Feedback for Single Deal Enrichment
 
-## Overview
+## Problem
 
-Redesign the Add Transcript dialog to match the target design from the reference image, with a cleaner layout and three input methods (link, upload, or paste text) - all optional but at least one required.
+When clicking the "Enrich" button on the Deal Transcript section, there's no visual feedback about:
+- What's happening during enrichment (progress indicator)
+- What was extracted when complete (success details)
+- What went wrong if it failed (error details)
 
----
+## Solution
 
-## Target Design Analysis
+Create a **single-deal enrichment progress** experience that shows:
+1. An animated progress card while enriching
+2. A completion dialog with detailed results (fields updated, errors, scrape report)
 
-Based on the reference image, the new dialog should have:
+## Implementation
 
-1. **Title** (required) - Full-width input at the top
-2. **Transcript Link** (optional) - For Fireflies or any transcript URL
-3. **Notes / Transcript Content** - Textarea for pasting content
-4. **Call Date** (optional) - Date picker
-5. **Primary Action Button** - "Add Transcript Link" with link icon
-6. **OR UPLOAD FILE** - Divider with upload section below
-7. **Click to upload** - Drag-and-drop style upload area
+### 1. Create `SingleDealEnrichmentResult` interface
 
----
-
-## Key Changes from Current Design
-
-| Current | New |
-|---------|-----|
-| Source Type dropdown | Removed per user request |
-| "File Name (optional)" label | Changed to "Title *" (required) |
-| Side-by-side layout | Single column, stacked fields |
-| Basic file upload button | Premium drag-drop upload zone |
-| "Add Transcript" button | "Add Transcript Link" with icon |
-| No date picker visible | Call Date input with calendar |
-
----
-
-## Technical Implementation
-
-### 1. Remove Source Type Dropdown
-
-Since user confirmed to remove it, we'll:
-- Remove the `source` field from form state
-- Remove the Select component
-- Set a default source value when saving (e.g., "call")
-
-### 2. Restructure Form Layout
-
-New layout order:
-```text
-┌────────────────────────────────────────┐
-│ Add Call Transcript                ✕   │
-├────────────────────────────────────────┤
-│                                        │
-│ Title *                                │
-│ ┌────────────────────────────────────┐ │
-│ │ E.g., Q1 2024 Buyer Call           │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ Transcript Link                        │
-│ ┌────────────────────────────────────┐ │
-│ │ https://...                        │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ Notes / Transcript Content             │
-│ ┌────────────────────────────────────┐ │
-│ │ Paste transcript content...        │ │
-│ │                                    │ │
-│ │                                    │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ Call Date (optional)                   │
-│ ┌────────────────────────────────────┐ │
-│ │ mm/dd/yyyy                     📅  │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ ┌────────────────────────────────────┐ │
-│ │ 🔗 Add Transcript Link             │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│           OR UPLOAD FILE               │
-│                                        │
-│ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │
-│ │          ⬆ Upload                  │ │
-│ │      Click to upload               │ │
-│ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ │
-│                                        │
-└────────────────────────────────────────┘
+Define a type for the enrichment response:
+```typescript
+interface SingleDealEnrichmentResult {
+  success: boolean;
+  message?: string;
+  fieldsUpdated?: string[];
+  error?: string;
+  extracted?: Record<string, unknown>;
+  scrapeReport?: {
+    totalPagesAttempted: number;
+    successfulPages: number;
+    totalCharactersScraped: number;
+    pages: Array<{ url: string; success: boolean; chars: number }>;
+  };
+}
 ```
 
-### 3. File Upload with Storage
+### 2. Create `SingleDealEnrichmentDialog` component
 
-Since user wants both file storage AND text extraction:
+**File:** `src/components/remarketing/SingleDealEnrichmentDialog.tsx`
 
-**For text files (.txt, .vtt, .srt):**
-1. Read file content → populate transcript_text
-2. Upload file to `deal-transcripts` bucket
-3. Save file URL to `transcript_url` column
+A dialog that shows:
+- Success/failure status with icon
+- List of fields that were updated (with friendly names)
+- Scrape report (how many pages were scraped)
+- Error message if failed
+- Close button
 
-**For binary files (.pdf, .doc, .docx):**
-1. Upload file to `deal-transcripts` bucket
-2. Save file URL to `transcript_url` column
-3. Leave transcript_text empty (or implement PDF parsing later)
+### 3. Update `DealTranscriptSection.tsx`
 
-### 4. Premium Upload Zone Design
-
-Replace the basic button with a styled drop zone:
-
-```tsx
-<div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer">
-  <Upload className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-  <p className="text-sm text-muted-foreground">Click to upload</p>
-  <p className="text-xs text-muted-foreground/70 mt-1">.txt, .pdf, .doc, .vtt, .srt</p>
-</div>
-```
-
-### 5. Validation Logic
-
-At least one of these must be provided:
-- Transcript Link (URL)
-- Transcript Content (pasted text)
-- Uploaded file
-
-Title is always required.
-
----
-
-## File Changes
-
-### Modified File
-**`src/components/ma-intelligence/AddTranscriptDialog.tsx`**
+Modify the enrichment handler to:
+1. Show an inline progress indicator (reuse `EnrichmentProgressIndicator` pattern)
+2. Capture the full response from the edge function
+3. Open the summary dialog when complete
 
 Changes:
-- Remove Source Type Select component and related state
-- Rename dialog title: "Add Transcript" → "Add Call Transcript"
-- Reorder fields: Title → Link → Content → Date
-- Add date input field with native HTML date picker
-- Replace button with premium upload zone
-- Add "OR UPLOAD FILE" divider
-- Rename primary button: "Add Transcript" → "Add Transcript Link" with Link2 icon
-- Add file upload to Supabase Storage
-- Update validation messaging
+- Add `enrichmentResult` state to store the response
+- Add `showEnrichmentDialog` state
+- Update `handleEnrichDeal` to capture and store the result
+- Render progress indicator when `isEnriching` is true
+- Render summary dialog when `showEnrichmentDialog` is true
 
----
+### 4. Progress Indicator Design
 
-## Premium Design Tokens
+Since this is a single-deal operation (not batch), use a simpler indicator:
+- Show "Enriching deal..." with animated spinner
+- Show stages: "Scraping website...", "Extracting data...", "Saving..."
+- Use existing `Card` + `Progress` components for consistency
 
-Following the established design system:
+## Files to Create/Modify
 
-**Input styling:**
-- Border: `border-amber-500/40` focus ring (matching reference)
-- Background: Clean white
+| File | Action |
+|------|--------|
+| `src/components/remarketing/SingleDealEnrichmentDialog.tsx` | Create - summary dialog |
+| `src/components/remarketing/DealTranscriptSection.tsx` | Modify - add progress + dialog |
 
-**Upload zone:**
-- Border: `border-2 border-dashed border-muted-foreground/25`
-- Hover: `hover:border-muted-foreground/50`
-- Icon: Muted, centered
+## UI Preview
 
-**Divider:**
-- Text: `text-xs uppercase tracking-wide text-muted-foreground`
-- Lines: `border-t border-muted` on each side
-
-**Primary button:**
-- Full width
-- Amber/gold accent (matching reference)
-- Icon + text
-
----
-
-## Storage Integration
-
-File upload path: `{listing_id}/{timestamp}_{filename}`
-
-```typescript
-const uploadFile = async (file: File, listingId: string) => {
-  const timestamp = Date.now();
-  const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const path = `${listingId}/${timestamp}_${filename}`;
-  
-  const { data, error } = await supabase.storage
-    .from('deal-transcripts')
-    .upload(path, file);
-    
-  if (error) throw error;
-  
-  const { data: { publicUrl } } = supabase.storage
-    .from('deal-transcripts')
-    .getPublicUrl(path);
-    
-  return publicUrl;
-};
+**During enrichment:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ⚡ Enriching deal...                                        │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (indeterminate)     │
+│ Scraping website and extracting intelligence               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
+**On completion (success):**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ✓ Enrichment Complete                                       │
+├─────────────────────────────────────────────────────────────┤
+│ Updated 8 fields:                                           │
+│  • Executive Summary                                        │
+│  • Business Model                                           │
+│  • Geographic States (TX, OK, AR)                          │
+│  • Industry                                                 │
+│  • Services                                                 │
+│  • Customer Types                                           │
+│  • Address (Dallas, TX)                                     │
+│  • Founded Year                                             │
+├─────────────────────────────────────────────────────────────┤
+│ Scraped 3 of 5 pages (12,450 characters)                   │
+├─────────────────────────────────────────────────────────────┤
+│                                              [Close]        │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## Validation Summary
+**On failure:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ✗ Enrichment Failed                                         │
+├─────────────────────────────────────────────────────────────┤
+│ Error: No website URL found for this deal.                  │
+│ Add a website in the company overview or deal memo.         │
+├─────────────────────────────────────────────────────────────┤
+│                                     [Retry]    [Close]      │
+└─────────────────────────────────────────────────────────────┘
+```
 
-| Scenario | Valid? |
-|----------|--------|
-| Title + Link only | ✅ |
-| Title + Content only | ✅ |
-| Title + File only | ✅ |
-| Title + Link + Content + File | ✅ |
-| No title | ❌ |
-| Title but no link/content/file | ❌ |
+## Technical Notes
+
+- The `enrich-deal` function already returns detailed response data including `fieldsUpdated`, `extracted`, and `scrapeReport`
+- We'll create a mapping of field names to human-readable labels (e.g., `executive_summary` → "Executive Summary")
+- The progress indicator will be indeterminate since we can't track stages in a single API call
+- Reuses existing UI components: `Dialog`, `Card`, `Progress`, `Badge`, `ScrollArea`

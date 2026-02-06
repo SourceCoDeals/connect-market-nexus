@@ -51,8 +51,12 @@ import {
   Target,
   Quote,
   AlertTriangle,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Card as ProgressCard, CardContent as ProgressCardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { SingleDealEnrichmentDialog, type SingleDealEnrichmentResult } from "./SingleDealEnrichmentDialog";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 
@@ -98,6 +102,73 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichmentResult, setEnrichmentResult] = useState<SingleDealEnrichmentResult | null>(null);
+  const [showEnrichmentDialog, setShowEnrichmentDialog] = useState(false);
+
+  // Enrich deal with AI
+  const handleEnrichDeal = async () => {
+    setIsEnriching(true);
+    setEnrichmentResult(null);
+    try {
+      // Use AbortController with extended timeout for transcript processing
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout
+      
+      const { data, error } = await supabase.functions.invoke('enrich-deal', {
+        body: { dealId }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (error) throw error;
+      
+      // Store full result for dialog
+      const result: SingleDealEnrichmentResult = {
+        success: true,
+        message: data?.message || 'Deal enriched successfully',
+        fieldsUpdated: data?.fieldsUpdated || [],
+        extracted: data?.extracted,
+        scrapeReport: data?.scrapeReport,
+        transcriptReport: data?.transcriptReport,
+      };
+      
+      setEnrichmentResult(result);
+      setShowEnrichmentDialog(true);
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+    } catch (error: any) {
+      console.error('Enrich error:', error);
+      
+      // Check if this is a timeout/network error
+      const errorMessage = error.message || '';
+      const isTimeout = errorMessage.includes('Failed to send') || 
+                        errorMessage.includes('timeout') ||
+                        errorMessage.includes('aborted') ||
+                        errorMessage.includes('network');
+      
+      if (isTimeout) {
+        // Enrichment may have succeeded on server - refresh data anyway
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+        
+        const result: SingleDealEnrichmentResult = {
+          success: false,
+          error: 'The enrichment request timed out, but it may still be processing. Please refresh in a moment to check results.',
+        };
+        setEnrichmentResult(result);
+        setShowEnrichmentDialog(true);
+      } else {
+        const result: SingleDealEnrichmentResult = {
+          success: false,
+          error: errorMessage || 'Failed to enrich deal. Please try again.',
+        };
+        setEnrichmentResult(result);
+        setShowEnrichmentDialog(true);
+      }
+    } finally {
+      setIsEnriching(false);
+    }
+  };
   const [selectedFiles, setSelectedFiles] = useState<{file: File; title: string; status: 'pending' | 'processing' | 'done' | 'error'; text?: string}[]>([]);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isMultiFileMode, setIsMultiFileMode] = useState(false);
@@ -946,23 +1017,68 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               <FileText className="h-5 w-5" />
               Call Transcripts
             </CardTitle>
-            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-              setIsAddDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Transcript
-                </Button>
-              </DialogTrigger>
-              {renderDialogContent()}
-            </Dialog>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="gap-2"
+                onClick={handleEnrichDeal}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Enrich
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Transcript
+                  </Button>
+                </DialogTrigger>
+                {renderDialogContent()}
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
+        
+        {/* Progress indicator during enrichment */}
+        {isEnriching && (
+          <CardContent className="py-3 pt-0">
+            <ProgressCard className="border-primary/30 bg-primary/5">
+              <ProgressCardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <Zap className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm mb-1.5">Enriching deal...</p>
+                    <Progress value={undefined} className="h-1.5" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Scraping website and extracting intelligence
+                    </p>
+                  </div>
+                </div>
+              </ProgressCardContent>
+            </ProgressCard>
+          </CardContent>
+        )}
+        
         <CardContent className="py-2 pt-0">
           <p className="text-sm text-muted-foreground">No transcripts linked yet.</p>
         </CardContent>
+        
+        {/* Enrichment Result Dialog */}
+        <SingleDealEnrichmentDialog
+          open={showEnrichmentDialog}
+          onOpenChange={setShowEnrichmentDialog}
+          result={enrichmentResult}
+          onRetry={handleEnrichDeal}
+        />
       </Card>
     );
   }
@@ -989,20 +1105,56 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                 )}
               </div>
             </CollapsibleTrigger>
-            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-              setIsAddDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Transcript
-                </Button>
-              </DialogTrigger>
-              {renderDialogContent()}
-            </Dialog>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="gap-2"
+                onClick={handleEnrichDeal}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Enrich
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Transcript
+                  </Button>
+                </DialogTrigger>
+                {renderDialogContent()}
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
+
+        {/* Progress indicator during enrichment */}
+        {isEnriching && (
+          <CardContent className="py-3 pt-0">
+            <ProgressCard className="border-primary/30 bg-primary/5">
+              <ProgressCardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <Zap className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm mb-1.5">Enriching deal...</p>
+                    <Progress value={undefined} className="h-1.5" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Scraping website and extracting intelligence
+                    </p>
+                  </div>
+                </div>
+              </ProgressCardContent>
+            </ProgressCard>
+          </CardContent>
+        )}
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
@@ -1153,6 +1305,14 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
             })}
           </CardContent>
         </CollapsibleContent>
+        
+        {/* Enrichment Result Dialog */}
+        <SingleDealEnrichmentDialog
+          open={showEnrichmentDialog}
+          onOpenChange={setShowEnrichmentDialog}
+          result={enrichmentResult}
+          onRetry={handleEnrichDeal}
+        />
       </Collapsible>
     </Card>
   );
