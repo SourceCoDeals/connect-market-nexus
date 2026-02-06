@@ -86,27 +86,33 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Auth (verify_jwt is disabled in config.toml for internal worker calls).
-    // Allow either:
-    // - Internal service role calls (Bearer token equals service role key)
-    // - End-user calls with a valid Supabase JWT
+    // Auth: Allow either:
+    // 1. Internal service calls via x-internal-secret header (matches service role key)
+    // 2. End-user calls with a valid Supabase JWT in Authorization header
+    const internalSecret = req.headers.get('x-internal-secret') || '';
     const authHeader = req.headers.get('authorization') || '';
     const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : '';
 
-    if (!bearer) {
-      return new Response(JSON.stringify({ error: 'Missing Authorization bearer token' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const isInternalCall = internalSecret === supabaseKey;
 
-    if (bearer !== supabaseKey) {
-      const { data: userData, error: userErr } = await supabase.auth.getUser(bearer);
-      if (userErr || !userData?.user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    if (!isInternalCall) {
+      // Not an internal call — require a valid user JWT
+      if (!bearer) {
+        return new Response(JSON.stringify({ error: 'Missing Authorization bearer token' }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      // Also accept service role key directly in Authorization (legacy/fallback)
+      if (bearer !== supabaseKey) {
+        const { data: userData, error: userErr } = await supabase.auth.getUser(bearer);
+        if (userErr || !userData?.user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       }
     }
 

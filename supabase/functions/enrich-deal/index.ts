@@ -504,9 +504,11 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  // Internal call: service role for Authorization + anon key for Edge Gateway routing
-                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  // Internal call: use anon key for Authorization (gateway-safe) +
+                  // pass service role key in custom header for function-level auth
+                  'Authorization': `Bearer ${supabaseAnonKey}`,
                   'apikey': supabaseAnonKey,
+                  'x-internal-secret': supabaseServiceKey,
                 },
                 body: JSON.stringify({
                   transcriptId: transcript.id,
