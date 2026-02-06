@@ -61,9 +61,9 @@ const QUICK_ACTION_CHIPS = [
 ];
 
 const categoryConfig = [
-  { key: 'geography', label: 'Geography', icon: MapPin, color: 'bg-blue-500' },
-  { key: 'size', label: 'Size', icon: DollarSign, color: 'bg-emerald-500' },
   { key: 'service', label: 'Services', icon: Briefcase, color: 'bg-purple-500' },
+  { key: 'size', label: 'Size', icon: DollarSign, color: 'bg-emerald-500' },
+  { key: 'geography', label: 'Geography', icon: MapPin, color: 'bg-blue-500' },
   { key: 'ownerGoals', label: 'Owner Goals', icon: Target, color: 'bg-amber-500' },
 ];
 
@@ -161,16 +161,16 @@ export const ScoringInsightsPanel = ({
               {!isOpen && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-blue-500" />
-                    {weights.geography}%
+                    <Briefcase className="h-3 w-3 text-purple-500" />
+                    {weights.service}%
                   </span>
                   <span className="flex items-center gap-1">
                     <DollarSign className="h-3 w-3 text-emerald-500" />
                     {weights.size}%
                   </span>
                   <span className="flex items-center gap-1">
-                    <Briefcase className="h-3 w-3 text-purple-500" />
-                    {weights.service}%
+                    <MapPin className="h-3 w-3 text-blue-500" />
+                    {weights.geography}%
                   </span>
                   <span className="flex items-center gap-1">
                     <Target className="h-3 w-3 text-amber-500" />

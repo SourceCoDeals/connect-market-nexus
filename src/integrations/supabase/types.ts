@@ -684,6 +684,7 @@ export type Database = {
           owner_goals_score: number | null
           pass_category: string | null
           pass_reason: string | null
+          score_at_decision: number | null
           score_id: string | null
           service_score: number | null
           size_score: number | null
@@ -701,6 +702,7 @@ export type Database = {
           owner_goals_score?: number | null
           pass_category?: string | null
           pass_reason?: string | null
+          score_at_decision?: number | null
           score_id?: string | null
           service_score?: number | null
           size_score?: number | null
@@ -718,6 +720,7 @@ export type Database = {
           owner_goals_score?: number | null
           pass_category?: string | null
           pass_reason?: string | null
+          score_at_decision?: number | null
           score_id?: string | null
           service_score?: number | null
           size_score?: number | null
@@ -2155,32 +2158,68 @@ export type Database = {
         Row: {
           adjustment_type: string
           adjustment_value: number
+          approved_count: number | null
           created_at: string | null
           created_by: string | null
+          custom_instructions: string | null
           deal_id: string | null
+          geography_weight_mult: number | null
           id: string
+          last_calculated_at: string | null
           listing_id: string
+          parsed_instructions: Json | null
+          passed_geography: number | null
+          passed_services: number | null
+          passed_size: number | null
           reason: string | null
+          rejected_count: number | null
+          services_weight_mult: number | null
+          size_weight_mult: number | null
+          updated_at: string | null
         }
         Insert: {
           adjustment_type: string
           adjustment_value?: number
+          approved_count?: number | null
           created_at?: string | null
           created_by?: string | null
+          custom_instructions?: string | null
           deal_id?: string | null
+          geography_weight_mult?: number | null
           id?: string
+          last_calculated_at?: string | null
           listing_id: string
+          parsed_instructions?: Json | null
+          passed_geography?: number | null
+          passed_services?: number | null
+          passed_size?: number | null
           reason?: string | null
+          rejected_count?: number | null
+          services_weight_mult?: number | null
+          size_weight_mult?: number | null
+          updated_at?: string | null
         }
         Update: {
           adjustment_type?: string
           adjustment_value?: number
+          approved_count?: number | null
           created_at?: string | null
           created_by?: string | null
+          custom_instructions?: string | null
           deal_id?: string | null
+          geography_weight_mult?: number | null
           id?: string
+          last_calculated_at?: string | null
           listing_id?: string
+          parsed_instructions?: Json | null
+          passed_geography?: number | null
+          passed_services?: number | null
+          passed_size?: number | null
           reason?: string | null
+          rejected_count?: number | null
+          services_weight_mult?: number | null
+          size_weight_mult?: number | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -3416,12 +3455,14 @@ export type Database = {
           deal_count: number | null
           description: string | null
           geography_criteria: Json | null
+          geography_mode: string | null
           geography_weight: number | null
           id: string
           is_active: boolean | null
           kpi_scoring_config: Json | null
           name: string
           owner_goals_weight: number | null
+          service_adjacency_map: Json | null
           service_criteria: Json | null
           service_mix_weight: number | null
           size_criteria: Json | null
@@ -3438,12 +3479,14 @@ export type Database = {
           deal_count?: number | null
           description?: string | null
           geography_criteria?: Json | null
+          geography_mode?: string | null
           geography_weight?: number | null
           id?: string
           is_active?: boolean | null
           kpi_scoring_config?: Json | null
           name: string
           owner_goals_weight?: number | null
+          service_adjacency_map?: Json | null
           service_criteria?: Json | null
           service_mix_weight?: number | null
           size_criteria?: Json | null
@@ -3460,12 +3503,14 @@ export type Database = {
           deal_count?: number | null
           description?: string | null
           geography_criteria?: Json | null
+          geography_mode?: string | null
           geography_weight?: number | null
           id?: string
           is_active?: boolean | null
           kpi_scoring_config?: Json | null
           name?: string
           owner_goals_weight?: number | null
+          service_adjacency_map?: Json | null
           service_criteria?: Json | null
           service_mix_weight?: number | null
           size_criteria?: Json | null
@@ -5953,16 +5998,26 @@ export type Database = {
           business_model_score: number | null
           buyer_id: string
           composite_score: number
+          confidence_level: string | null
           created_at: string
+          custom_bonus: number | null
           data_completeness: string | null
+          data_quality_bonus: number | null
           deal_snapshot: Json | null
+          disqualification_reason: string | null
           fit_reasoning: string | null
+          geography_mode_factor: number | null
           geography_score: number | null
           hidden_from_deal: boolean | null
           human_override_score: number | null
           id: string
+          is_disqualified: boolean | null
+          kpi_bonus: number | null
           last_viewed_at: string | null
+          learning_penalty: number | null
           listing_id: string
+          missing_fields: string[] | null
+          needs_review: boolean | null
           owner_goals_score: number | null
           pass_category: string | null
           pass_reason: string | null
@@ -5973,9 +6028,12 @@ export type Database = {
           rejection_reason: string | null
           scored_at: string | null
           scored_by: string | null
+          service_multiplier: number | null
           service_score: number | null
+          size_multiplier: number | null
           size_score: number | null
           status: string
+          thesis_alignment_bonus: number | null
           thesis_bonus: number | null
           tier: string | null
           universe_id: string | null
@@ -5986,16 +6044,26 @@ export type Database = {
           business_model_score?: number | null
           buyer_id: string
           composite_score?: number
+          confidence_level?: string | null
           created_at?: string
+          custom_bonus?: number | null
           data_completeness?: string | null
+          data_quality_bonus?: number | null
           deal_snapshot?: Json | null
+          disqualification_reason?: string | null
           fit_reasoning?: string | null
+          geography_mode_factor?: number | null
           geography_score?: number | null
           hidden_from_deal?: boolean | null
           human_override_score?: number | null
           id?: string
+          is_disqualified?: boolean | null
+          kpi_bonus?: number | null
           last_viewed_at?: string | null
+          learning_penalty?: number | null
           listing_id: string
+          missing_fields?: string[] | null
+          needs_review?: boolean | null
           owner_goals_score?: number | null
           pass_category?: string | null
           pass_reason?: string | null
@@ -6006,9 +6074,12 @@ export type Database = {
           rejection_reason?: string | null
           scored_at?: string | null
           scored_by?: string | null
+          service_multiplier?: number | null
           service_score?: number | null
+          size_multiplier?: number | null
           size_score?: number | null
           status?: string
+          thesis_alignment_bonus?: number | null
           thesis_bonus?: number | null
           tier?: string | null
           universe_id?: string | null
@@ -6019,16 +6090,26 @@ export type Database = {
           business_model_score?: number | null
           buyer_id?: string
           composite_score?: number
+          confidence_level?: string | null
           created_at?: string
+          custom_bonus?: number | null
           data_completeness?: string | null
+          data_quality_bonus?: number | null
           deal_snapshot?: Json | null
+          disqualification_reason?: string | null
           fit_reasoning?: string | null
+          geography_mode_factor?: number | null
           geography_score?: number | null
           hidden_from_deal?: boolean | null
           human_override_score?: number | null
           id?: string
+          is_disqualified?: boolean | null
+          kpi_bonus?: number | null
           last_viewed_at?: string | null
+          learning_penalty?: number | null
           listing_id?: string
+          missing_fields?: string[] | null
+          needs_review?: boolean | null
           owner_goals_score?: number | null
           pass_category?: string | null
           pass_reason?: string | null
@@ -6039,9 +6120,12 @@ export type Database = {
           rejection_reason?: string | null
           scored_at?: string | null
           scored_by?: string | null
+          service_multiplier?: number | null
           service_score?: number | null
+          size_multiplier?: number | null
           size_score?: number | null
           status?: string
+          thesis_alignment_bonus?: number | null
           thesis_bonus?: number | null
           tier?: string | null
           universe_id?: string | null

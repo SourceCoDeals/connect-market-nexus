@@ -50,6 +50,14 @@ interface BuyerMatchCardProps {
     size_score: number;
     service_score: number;
     owner_goals_score: number;
+    size_multiplier?: number | null;
+    service_multiplier?: number | null;
+    thesis_alignment_bonus?: number | null;
+    is_disqualified?: boolean | null;
+    disqualification_reason?: string | null;
+    needs_review?: boolean | null;
+    missing_fields?: string[] | null;
+    confidence_level?: string | null;
     tier: ScoreTier | null;
     fit_reasoning: string | null;
     data_completeness: DataCompleteness | null;
@@ -83,10 +91,11 @@ const getScoreDot = (score: number) => {
   return null;
 };
 
-// Determine if buyer is disqualified
-const isDisqualified = (score: number, reasoning: string | null) => {
-  if (score < 55) return true;
-  if (reasoning?.toLowerCase().includes('disqualified')) return true;
+// Determine if buyer is disqualified (prefer backend field, fallback to heuristic)
+const isDisqualified = (scoreData: { composite_score: number; is_disqualified?: boolean | null; fit_reasoning?: string | null }) => {
+  if (scoreData.is_disqualified != null) return scoreData.is_disqualified;
+  if (scoreData.composite_score < 35) return true;
+  if (scoreData.fit_reasoning?.toLowerCase().includes('disqualified')) return true;
   return false;
 };
 
@@ -200,12 +209,14 @@ const getBuyerLocationDisplay = (buyer?: ReMarketingBuyer): string => {
   return 'Unknown';
 };
 
-// Get score description for tooltip
+// Get score description for tooltip (aligned with spec tier bands)
 const getScoreDescription = (score: number, disqualified: boolean): string => {
   if (disqualified) return 'Does not meet minimum criteria - not recommended';
-  if (score >= 70) return 'Good alignment on key criteria - strong candidate';
-  if (score >= 55) return 'Partial alignment - worth considering for outreach';
-  return 'Limited alignment - review carefully before proceeding';
+  if (score >= 80) return 'Excellent alignment on key criteria - strong candidate';
+  if (score >= 65) return 'Good alignment - solid candidate for outreach';
+  if (score >= 50) return 'Partial alignment - worth considering';
+  if (score >= 35) return 'Limited alignment - review carefully';
+  return 'No alignment - not recommended';
 };
 
 const formatCurrency = (value: number | null | undefined) => {
@@ -219,12 +230,13 @@ const formatCurrency = (value: number | null | undefined) => {
   return `$${value}`;
 };
 
-// Get fit label based on score
+// Get fit label based on score (aligned with spec tier bands)
 const getFitLabel = (score: number, disqualified: boolean): string => {
-  if (disqualified) return '❌ DISQUALIFIED:';
-  if (score >= 70) return '✅ Strong fit:';
-  if (score >= 55) return '✓ Moderate fit:';
-  return '⚠ Poor fit:';
+  if (disqualified) return 'DISQUALIFIED:';
+  if (score >= 80) return 'Strong fit:';
+  if (score >= 65) return 'Good fit:';
+  if (score >= 50) return 'Fair fit:';
+  return 'Poor fit:';
 };
 
 // Outreach status colors and labels
@@ -267,8 +279,11 @@ export const BuyerMatchCard = ({
   
   const buyer = score.buyer;
   const tier = score.tier || getTierFromScore(score.composite_score);
-  const disqualified = isDisqualified(score.composite_score, score.fit_reasoning);
-  const missingData = getMissingDataFields(buyer);
+  const disqualified = isDisqualified(score);
+  // Prefer backend missing_fields, fallback to client-side calculation
+  const missingData = score.missing_fields && score.missing_fields.length > 0
+    ? score.missing_fields
+    : getMissingDataFields(buyer);
   
   // Format financial range
   const financialRange = buyer?.target_revenue_min || buyer?.target_revenue_max
@@ -288,11 +303,12 @@ export const BuyerMatchCard = ({
   // Get outreach badge info
   const outreachBadge = outreach ? getOutreachBadge(outreach.status) : null;
   
-  // Determine reasoning panel background - only this panel gets colored
+  // Determine reasoning panel background - aligned with spec tier bands
   const getReasoningBackground = () => {
     if (disqualified) return 'bg-red-50 border-red-200';
-    if (score.composite_score >= 70) return 'bg-emerald-50 border-emerald-200';
-    if (score.composite_score >= 55) return 'bg-amber-50 border-amber-200';
+    if (score.composite_score >= 80) return 'bg-emerald-50 border-emerald-200';
+    if (score.composite_score >= 65) return 'bg-blue-50 border-blue-200';
+    if (score.composite_score >= 50) return 'bg-amber-50 border-amber-200';
     return 'bg-muted/50 border-border';
   };
 
@@ -617,10 +633,26 @@ export const BuyerMatchCard = ({
           {getFitLabel(score.composite_score, disqualified)} {score.fit_reasoning || 'No reasoning available'}
         </p>
         
-        {/* Inline Score Breakdown */}
+        {/* Inline Score Breakdown - Services (35%), Size (25%), Geography (25%), Owner Goals (15%) */}
         <div className="grid grid-cols-4 gap-4 mb-3">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Size</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Services
+              {score.service_multiplier != null && score.service_multiplier < 1.0 && (
+                <span className="ml-1 text-orange-600">({(score.service_multiplier * 100).toFixed(0)}% gate)</span>
+              )}
+            </p>
+            <p className={cn("text-lg font-bold", getScoreColorClass(score.service_score))}>
+              {getScoreDot(score.service_score)}{Math.round(score.service_score)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">
+              Size
+              {score.size_multiplier != null && score.size_multiplier < 1.0 && (
+                <span className="ml-1 text-orange-600">({(score.size_multiplier * 100).toFixed(0)}% gate)</span>
+              )}
+            </p>
             <p className={cn("text-lg font-bold", getScoreColorClass(score.size_score))}>
               {getScoreDot(score.size_score)}{Math.round(score.size_score)}%
             </p>
@@ -632,18 +664,27 @@ export const BuyerMatchCard = ({
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Services</p>
-            <p className={cn("text-lg font-bold", getScoreColorClass(score.service_score))}>
-              {getScoreDot(score.service_score)}{Math.round(score.service_score)}%
-            </p>
-          </div>
-          <div>
             <p className="text-xs text-muted-foreground mb-1">Owner Goals</p>
             <p className={cn("text-lg font-bold", getScoreColorClass(score.owner_goals_score))}>
               {getScoreDot(score.owner_goals_score)}{Math.round(score.owner_goals_score)}%
             </p>
           </div>
         </div>
+
+        {/* Thesis Alignment Bonus */}
+        {score.thesis_alignment_bonus != null && score.thesis_alignment_bonus > 0 && (
+          <p className="text-xs text-primary mb-2">
+            +{score.thesis_alignment_bonus} thesis alignment bonus
+          </p>
+        )}
+
+        {/* Needs Review Badge */}
+        {score.needs_review && (
+          <div className="flex items-center gap-2 text-xs text-amber-600 mb-2">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>Needs review — {score.confidence_level === 'low' ? 'low confidence' : 'borderline score'}</span>
+          </div>
+        )}
         
         {/* Buyer Footprint Context */}
         <p className="text-xs text-muted-foreground">
