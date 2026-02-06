@@ -380,13 +380,11 @@ Use the extract_deal_info tool to return structured data.`;
         if (extracted.business_model) flatExtracted.business_model = extracted.business_model;
         if (extracted.owner_goals) flatExtracted.owner_goals = extracted.owner_goals;
         if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
-        if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
-        if (extracted.headquarters_address) flatExtracted.headquarters_address = extracted.headquarters_address;
         if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
-        if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
         if (extracted.customer_concentration) flatExtracted.customer_concentration = extracted.customer_concentration;
         if (extracted.customer_geography) flatExtracted.customer_geography = extracted.customer_geography;
+        if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
         if (extracted.executive_summary) flatExtracted.executive_summary = extracted.executive_summary;
         if (extracted.competitive_position) flatExtracted.competitive_position = extracted.competitive_position;
         if (extracted.growth_trajectory) flatExtracted.growth_trajectory = extracted.growth_trajectory;
@@ -395,17 +393,33 @@ Use the extract_deal_info tool to return structured data.`;
         if (extracted.real_estate_info) flatExtracted.real_estate_info = extracted.real_estate_info;
         if (extracted.key_quotes?.length) flatExtracted.key_quotes = extracted.key_quotes;
         if (extracted.financial_notes) flatExtracted.financial_notes = extracted.financial_notes;
+        if (extracted.financial_followup_questions?.length) {
+          flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
+        }
         if (extracted.primary_contact_name) flatExtracted.primary_contact_name = extracted.primary_contact_name;
         if (extracted.primary_contact_email) flatExtracted.primary_contact_email = extracted.primary_contact_email;
         if (extracted.primary_contact_phone) flatExtracted.primary_contact_phone = extracted.primary_contact_phone;
         if (extracted.industry) flatExtracted.industry = extracted.industry;
         if (extracted.website) flatExtracted.website = extracted.website;
-        
+
+        // SAFETY: Only update columns that actually exist on the listings row.
+        // PostgREST rejects the entire update when any unknown column is present.
+        const listingKeys = new Set(Object.keys(listing as Record<string, unknown>));
+        const filteredExtracted: Record<string, unknown> = {};
+        const droppedKeys: string[] = [];
+        for (const [k, v] of Object.entries(flatExtracted)) {
+          if (listingKeys.has(k)) filteredExtracted[k] = v;
+          else droppedKeys.push(k);
+        }
+        if (droppedKeys.length > 0) {
+          console.log(`Dropping ${droppedKeys.length} non-listing fields:`, droppedKeys);
+        }
+
         // Build priority-aware updates using shared module (transcript has highest priority)
         const { updates, sourceUpdates } = buildPriorityUpdates(
           listing,
           listing.extraction_sources,
-          flatExtracted,
+          filteredExtracted,
           'transcript',
           transcriptId
         );
