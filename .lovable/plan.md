@@ -1,132 +1,126 @@
 
+# Add Progress Feedback for Single Deal Enrichment
 
-# Fix Extract-Deal-Transcript: Switch from Gemini to Claude
+## Problem
 
-## Problem Summary
-
-The `extract-deal-transcript` edge function is **completely broken** with a 400 error:
-
-```
-"The specified schema produces a constraint that has too much branching for serving. 
-Typical causes: objects with lots of optional properties, enums with too many values."
-```
-
-The Gemini OpenAI-compatible endpoint cannot handle the 30+ optional properties in the tool schema.
+When clicking the "Enrich" button on the Deal Transcript section, there's no visual feedback about:
+- What's happening during enrichment (progress indicator)
+- What was extracted when complete (success details)
+- What went wrong if it failed (error details)
 
 ## Solution
 
-Switch from Gemini to **Claude API**, which handles complex schemas reliably. The shared helper `callClaudeWithTool` already exists in `_shared/ai-providers.ts`.
+Create a **single-deal enrichment progress** experience that shows:
+1. An animated progress card while enriching
+2. A completion dialog with detailed results (fields updated, errors, scrape report)
 
----
+## Implementation
 
-## Implementation Steps
+### 1. Create `SingleDealEnrichmentResult` interface
 
-### Step 1: Update imports and API key reference
-
-Replace Gemini imports with Claude helper:
-
+Define a type for the enrichment response:
 ```typescript
-// REMOVE:
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
-
-// ADD:
-import { callClaudeWithTool, DEFAULT_CLAUDE_MODEL } from "../_shared/ai-providers.ts";
-```
-
-Update API key:
-```typescript
-// CHANGE from:
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-
-// TO:
-const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-```
-
-### Step 2: Restructure AI call to use Claude helper
-
-Replace the raw `fetch` call to Gemini (lines 175-292) with the `callClaudeWithTool` helper:
-
-```typescript
-const tool = {
-  type: 'function',
-  function: {
-    name: 'extract_deal_info',
-    description: 'Extract comprehensive deal intelligence from transcript',
-    parameters: {
-      type: 'object',
-      properties: {
-        // ... existing 30+ properties unchanged
-      }
-    }
-  }
-};
-
-const systemPrompt = 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool. Be thorough but conservative - only include data that is explicitly stated or clearly inferrable.';
-
-const { data: extracted, error: aiError } = await callClaudeWithTool(
-  systemPrompt,
-  extractionPrompt,
-  tool,
-  anthropicApiKey,
-  DEFAULT_CLAUDE_MODEL,
-  60000  // 60 second timeout for long transcripts
-);
-
-if (aiError) {
-  console.error('Claude API error:', aiError);
-  throw new Error(`AI extraction failed: ${aiError.message}`);
-}
-
-if (!extracted) {
-  throw new Error('No extraction result from AI');
+interface SingleDealEnrichmentResult {
+  success: boolean;
+  message?: string;
+  fieldsUpdated?: string[];
+  error?: string;
+  extracted?: Record<string, unknown>;
+  scrapeReport?: {
+    totalPagesAttempted: number;
+    successfulPages: number;
+    totalCharactersScraped: number;
+    pages: Array<{ url: string; success: boolean; chars: number }>;
+  };
 }
 ```
 
-### Step 3: Remove Gemini response parsing
+### 2. Create `SingleDealEnrichmentDialog` component
 
-The `callClaudeWithTool` helper already parses the response and returns structured data directly. Remove the manual parsing logic (lines 300-324).
+**File:** `src/components/remarketing/SingleDealEnrichmentDialog.tsx`
 
-### Step 4: Keep all downstream logic unchanged
+A dialog that shows:
+- Success/failure status with icon
+- List of fields that were updated (with friendly names)
+- Scrape report (how many pages were scraped)
+- Error message if failed
+- Close button
 
-The field mapping, priority updates, and database writes (lines 326-478) work correctly and don't need changes.
+### 3. Update `DealTranscriptSection.tsx`
 
----
+Modify the enrichment handler to:
+1. Show an inline progress indicator (reuse `EnrichmentProgressIndicator` pattern)
+2. Capture the full response from the edge function
+3. Open the summary dialog when complete
 
-## Files to Modify
+Changes:
+- Add `enrichmentResult` state to store the response
+- Add `showEnrichmentDialog` state
+- Update `handleEnrichDeal` to capture and store the result
+- Render progress indicator when `isEnriching` is true
+- Render summary dialog when `showEnrichmentDialog` is true
 
-| File | Change |
+### 4. Progress Indicator Design
+
+Since this is a single-deal operation (not batch), use a simpler indicator:
+- Show "Enriching deal..." with animated spinner
+- Show stages: "Scraping website...", "Extracting data...", "Saving..."
+- Use existing `Card` + `Progress` components for consistency
+
+## Files to Create/Modify
+
+| File | Action |
 |------|--------|
-| `supabase/functions/extract-deal-transcript/index.ts` | Switch from Gemini to Claude API |
+| `src/components/remarketing/SingleDealEnrichmentDialog.tsx` | Create - summary dialog |
+| `src/components/remarketing/DealTranscriptSection.tsx` | Modify - add progress + dialog |
 
----
+## UI Preview
 
-## Verification Steps
+**During enrichment:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ⚡ Enriching deal...                                        │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (indeterminate)     │
+│ Scraping website and extracting intelligence               │
+└─────────────────────────────────────────────────────────────┘
+```
 
-After deployment:
+**On completion (success):**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ✓ Enrichment Complete                                       │
+├─────────────────────────────────────────────────────────────┤
+│ Updated 8 fields:                                           │
+│  • Executive Summary                                        │
+│  • Business Model                                           │
+│  • Geographic States (TX, OK, AR)                          │
+│  • Industry                                                 │
+│  • Services                                                 │
+│  • Customer Types                                           │
+│  • Address (Dallas, TX)                                     │
+│  • Founded Year                                             │
+├─────────────────────────────────────────────────────────────┤
+│ Scraped 3 of 5 pages (12,450 characters)                   │
+├─────────────────────────────────────────────────────────────┤
+│                                              [Close]        │
+└─────────────────────────────────────────────────────────────┘
+```
 
-1. Navigate to a deal with transcripts
-2. Click "Process Transcript" button
-3. Verify extraction succeeds (no 400 error)
-4. Check that extracted fields appear in deal profile
-5. Verify `processed_at` timestamp is set
+**On failure:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ✗ Enrichment Failed                                         │
+├─────────────────────────────────────────────────────────────┤
+│ Error: No website URL found for this deal.                  │
+│ Add a website in the company overview or deal memo.         │
+├─────────────────────────────────────────────────────────────┤
+│                                     [Retry]    [Close]      │
+└─────────────────────────────────────────────────────────────┘
+```
 
----
+## Technical Notes
 
-## Risk Assessment
-
-| Risk | Mitigation |
-|------|-----------|
-| Claude API cost higher than Gemini | Acceptable - extraction only runs on-demand |
-| Claude timeout on very long transcripts | Set 60s timeout (up from default 20s) |
-| ANTHROPIC_API_KEY missing | ✅ Verified present in secrets |
-
----
-
-## Technical Details
-
-**API Used:** Anthropic Messages API (`https://api.anthropic.com/v1/messages`)
-
-**Model:** `claude-sonnet-4-20250514` (DEFAULT_CLAUDE_MODEL)
-
-**Why Claude Works:** Claude's tool calling has no schema complexity limits like Gemini's OpenAI-compatible endpoint. The existing `extract-buyer-transcript` function already uses Claude successfully with similar complexity.
-
+- The `enrich-deal` function already returns detailed response data including `fieldsUpdated`, `extracted`, and `scrapeReport`
+- We'll create a mapping of field names to human-readable labels (e.g., `executive_summary` → "Executive Summary")
+- The progress indicator will be indeterminate since we can't track stages in a single API call
+- Reuses existing UI components: `Dialog`, `Card`, `Progress`, `Badge`, `ScrollArea`
