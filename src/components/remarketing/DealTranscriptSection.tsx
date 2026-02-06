@@ -51,8 +51,12 @@ import {
   Target,
   Quote,
   AlertTriangle,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Card as ProgressCard, CardContent as ProgressCardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { SingleDealEnrichmentDialog, type SingleDealEnrichmentResult } from "./SingleDealEnrichmentDialog";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 
@@ -99,10 +103,13 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichmentResult, setEnrichmentResult] = useState<SingleDealEnrichmentResult | null>(null);
+  const [showEnrichmentDialog, setShowEnrichmentDialog] = useState(false);
 
   // Enrich deal with AI
   const handleEnrichDeal = async () => {
     setIsEnriching(true);
+    setEnrichmentResult(null);
     try {
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId }
@@ -110,13 +117,26 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       
       if (error) throw error;
       
-      toast.success('Deal enriched successfully');
+      // Store full result for dialog
+      const result: SingleDealEnrichmentResult = {
+        success: true,
+        message: data?.message || 'Deal enriched successfully',
+        fieldsUpdated: data?.fieldsUpdated || [],
+        extracted: data?.extracted,
+        scrapeReport: data?.scrapeReport,
+      };
+      
+      setEnrichmentResult(result);
+      setShowEnrichmentDialog(true);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
     } catch (error: any) {
       console.error('Enrich error:', error);
-      toast.error('Failed to enrich deal', {
-        description: error.message || 'Please try again'
-      });
+      const result: SingleDealEnrichmentResult = {
+        success: false,
+        error: error.message || 'Failed to enrich deal. Please try again.',
+      };
+      setEnrichmentResult(result);
+      setShowEnrichmentDialog(true);
     } finally {
       setIsEnriching(false);
     }
@@ -999,9 +1019,38 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
             </div>
           </div>
         </CardHeader>
+        
+        {/* Progress indicator during enrichment */}
+        {isEnriching && (
+          <CardContent className="py-3 pt-0">
+            <ProgressCard className="border-primary/30 bg-primary/5">
+              <ProgressCardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <Zap className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm mb-1.5">Enriching deal...</p>
+                    <Progress value={undefined} className="h-1.5" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Scraping website and extracting intelligence
+                    </p>
+                  </div>
+                </div>
+              </ProgressCardContent>
+            </ProgressCard>
+          </CardContent>
+        )}
+        
         <CardContent className="py-2 pt-0">
           <p className="text-sm text-muted-foreground">No transcripts linked yet.</p>
         </CardContent>
+        
+        {/* Enrichment Result Dialog */}
+        <SingleDealEnrichmentDialog
+          open={showEnrichmentDialog}
+          onOpenChange={setShowEnrichmentDialog}
+          result={enrichmentResult}
+          onRetry={handleEnrichDeal}
+        />
       </Card>
     );
   }
@@ -1058,6 +1107,26 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
             </div>
           </div>
         </CardHeader>
+
+        {/* Progress indicator during enrichment */}
+        {isEnriching && (
+          <CardContent className="py-3 pt-0">
+            <ProgressCard className="border-primary/30 bg-primary/5">
+              <ProgressCardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <Zap className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm mb-1.5">Enriching deal...</p>
+                    <Progress value={undefined} className="h-1.5" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Scraping website and extracting intelligence
+                    </p>
+                  </div>
+                </div>
+              </ProgressCardContent>
+            </ProgressCard>
+          </CardContent>
+        )}
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
@@ -1208,6 +1277,14 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
             })}
           </CardContent>
         </CollapsibleContent>
+        
+        {/* Enrichment Result Dialog */}
+        <SingleDealEnrichmentDialog
+          open={showEnrichmentDialog}
+          onOpenChange={setShowEnrichmentDialog}
+          result={enrichmentResult}
+          onRetry={handleEnrichDeal}
+        />
       </Collapsible>
     </Card>
   );
