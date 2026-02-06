@@ -298,37 +298,55 @@ Use the extract_deal_info tool to return structured data.`;
     }
 
     const aiData = await aiResponse.json();
-    
+
+    console.log('[DEBUG] Gemini API response structure:', JSON.stringify({
+      hasChoices: !!aiData.choices,
+      choicesLength: aiData.choices?.length,
+      hasMessage: !!aiData.choices?.[0]?.message,
+      hasToolCalls: !!aiData.choices?.[0]?.message?.tool_calls,
+      hasContent: !!aiData.choices?.[0]?.message?.content,
+      fullResponse: aiData
+    }, null, 2));
+
     // Extract from tool call
     let extracted: ExtractionResult = {};
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    
+
     if (toolCall?.function?.arguments) {
       try {
         extracted = JSON.parse(toolCall.function.arguments);
+        console.log('[SUCCESS] Parsed tool call arguments');
       } catch (parseError) {
         console.error('Failed to parse tool arguments:', parseError);
+        throw new Error(`Tool argument parse error: ${parseError}`);
       }
     } else {
       // Fallback: try to parse from content
       const content = aiData.choices?.[0]?.message?.content || '{}';
+      console.log('[FALLBACK] No tool_calls found, trying content parsing. Content length:', content.length);
       const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       try {
         extracted = JSON.parse(cleanedContent);
+        console.log('[WARNING] Parsed from content (tool calling not used)');
       } catch (parseError) {
         console.error('Failed to parse AI content:', parseError);
-        extracted = { 
-          key_quotes: [`Parse error - raw response: ${cleanedContent.substring(0, 200)}`]
-        };
+        console.error('Raw content:', content.substring(0, 500));
+        throw new Error(`Gemini extraction failed - tool calling not working and content not parseable. Response: ${content.substring(0, 200)}`);
       }
+    }
+
+    // Validate that we actually extracted SOMETHING
+    const extractedFields = Object.keys(extracted).filter(k => extracted[k as keyof ExtractionResult] != null);
+    console.log('[EXTRACTION] Extracted fields:', extractedFields);
+
+    if (extractedFields.length === 0) {
+      throw new Error('Gemini returned empty extraction - no fields extracted from transcript');
     }
 
     // Normalize geographic_states using shared module
     if (extracted.geographic_states) {
       extracted.geographic_states = normalizeStates(extracted.geographic_states);
     }
-
-    console.log('Extracted fields:', Object.keys(extracted).filter(k => extracted[k as keyof ExtractionResult] != null));
 
     // Update the transcript with extracted data
     const { data: transcriptRecord, error: fetchError } = await supabase
