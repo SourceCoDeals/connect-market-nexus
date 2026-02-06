@@ -70,12 +70,10 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   const loadTranscripts = async () => {
     try {
-      // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
       const { data, error } = await supabase
-        .from("v_deal_transcripts" as any)
+        .from("deal_transcripts")
         .select("*")
         .eq("listing_id", dealId)
-        .in("entity_type", ["deal", "both"])
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -130,7 +128,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
     try {
       // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
       const { error } = await supabase
-        .from("v_deal_transcripts" as any)
+        .from("deal_transcripts")
         .delete()
         .eq("id", transcriptId);
 
