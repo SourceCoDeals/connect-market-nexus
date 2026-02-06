@@ -130,61 +130,80 @@ serve(async (req) => {
     let transcriptErrors: string[] = [];
     
     if (!transcriptsError && transcripts && transcripts.length > 0) {
-      console.log(`Found ${transcripts.length} unprocessed transcripts, processing them first...`);
+      console.log(`Found ${transcripts.length} unprocessed transcripts, processing them in parallel...`);
       
-      // Process each transcript by calling extract-deal-transcript
-      for (const transcript of transcripts) {
-        // Skip transcripts with minimal content
-        if (!transcript.transcript_text || transcript.transcript_text.trim().length < 100) {
-          console.log(`Skipping transcript ${transcript.id} - insufficient content (${transcript.transcript_text?.length || 0} chars)`);
-          continue;
-        }
+      // Filter valid transcripts first
+      const validTranscripts = transcripts.filter(t => 
+        t.transcript_text && t.transcript_text.trim().length >= 100
+      );
+      
+      const skippedCount = transcripts.length - validTranscripts.length;
+      if (skippedCount > 0) {
+        console.log(`Skipping ${skippedCount} transcripts with insufficient content`);
+      }
+      
+      // Process transcripts in parallel batches of 3 for speed
+      const BATCH_SIZE = 3;
+      for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
+        const batch = validTranscripts.slice(i, i + BATCH_SIZE);
         
-        try {
-          // Call the extract-deal-transcript function internally
-          const extractResponse = await fetch(
-            `${supabaseUrl}/functions/v1/extract-deal-transcript`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-                'apikey': supabaseServiceKey,
-              },
-              body: JSON.stringify({
-                transcriptId: transcript.id,
-                transcriptText: transcript.transcript_text,
-                applyToDeal: true,
-                dealInfo: {
-                  company_name: deal.title || deal.internal_company_name,
-                  industry: deal.industry,
-                  location: deal.location || deal.address_city,
-                  revenue: deal.revenue,
-                  ebitda: deal.ebitda,
-                }
-              }),
-            }
-          );
+        const batchResults = await Promise.allSettled(
+          batch.map(async (transcript) => {
+            const extractResponse = await fetch(
+              `${supabaseUrl}/functions/v1/extract-deal-transcript`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'apikey': supabaseServiceKey,
+                },
+                body: JSON.stringify({
+                  transcriptId: transcript.id,
+                  transcriptText: transcript.transcript_text,
+                  applyToDeal: true,
+                  dealInfo: {
+                    company_name: deal.title || deal.internal_company_name,
+                    industry: deal.industry,
+                    location: deal.location || deal.address_city,
+                    revenue: deal.revenue,
+                    ebitda: deal.ebitda,
+                  }
+                }),
+              }
+            );
 
-          if (extractResponse.ok) {
+            if (!extractResponse.ok) {
+              const errText = await extractResponse.text();
+              throw new Error(errText.slice(0, 100));
+            }
+            
+            return transcript.id;
+          })
+        );
+        
+        // Process batch results
+        for (let j = 0; j < batchResults.length; j++) {
+          const result = batchResults[j];
+          const transcript = batch[j];
+          
+          if (result.status === 'fulfilled') {
             transcriptsProcessed++;
             console.log(`Successfully processed transcript ${transcript.id}`);
           } else {
-            const errText = await extractResponse.text();
-            console.error(`Failed to process transcript ${transcript.id}:`, errText);
-            transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errText.slice(0, 100)}`);
+            const errMsg = getErrorMessage(result.reason);
+            console.error(`Failed to process transcript ${transcript.id}:`, errMsg);
+            transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errMsg.slice(0, 100)}`);
           }
-        } catch (err) {
-          const errMsg = getErrorMessage(err);
-          console.error(`Error processing transcript ${transcript.id}:`, errMsg);
-          transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errMsg.slice(0, 100)}`);
         }
         
-        // Small delay between transcript processing to avoid rate limits
-        await new Promise(r => setTimeout(r, 500));
+        // Small delay between batches
+        if (i + BATCH_SIZE < validTranscripts.length) {
+          await new Promise(r => setTimeout(r, 300));
+        }
       }
       
-      console.log(`Processed ${transcriptsProcessed}/${transcripts.length} transcripts`);
+      console.log(`Processed ${transcriptsProcessed}/${validTranscripts.length} transcripts`);
       
       // Re-fetch deal to get updated extraction_sources after transcript processing
       const { data: refreshedDeal } = await supabase

@@ -111,9 +111,15 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     setIsEnriching(true);
     setEnrichmentResult(null);
     try {
+      // Use AbortController with extended timeout for transcript processing
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout
+      
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId }
       });
+      
+      clearTimeout(timeoutId);
       
       if (error) throw error;
       
@@ -124,6 +130,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         fieldsUpdated: data?.fieldsUpdated || [],
         extracted: data?.extracted,
         scrapeReport: data?.scrapeReport,
+        transcriptReport: data?.transcriptReport,
       };
       
       setEnrichmentResult(result);
@@ -131,12 +138,33 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
     } catch (error: any) {
       console.error('Enrich error:', error);
-      const result: SingleDealEnrichmentResult = {
-        success: false,
-        error: error.message || 'Failed to enrich deal. Please try again.',
-      };
-      setEnrichmentResult(result);
-      setShowEnrichmentDialog(true);
+      
+      // Check if this is a timeout/network error
+      const errorMessage = error.message || '';
+      const isTimeout = errorMessage.includes('Failed to send') || 
+                        errorMessage.includes('timeout') ||
+                        errorMessage.includes('aborted') ||
+                        errorMessage.includes('network');
+      
+      if (isTimeout) {
+        // Enrichment may have succeeded on server - refresh data anyway
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+        
+        const result: SingleDealEnrichmentResult = {
+          success: false,
+          error: 'The enrichment request timed out, but it may still be processing. Please refresh in a moment to check results.',
+        };
+        setEnrichmentResult(result);
+        setShowEnrichmentDialog(true);
+      } else {
+        const result: SingleDealEnrichmentResult = {
+          success: false,
+          error: errorMessage || 'Failed to enrich deal. Please try again.',
+        };
+        setEnrichmentResult(result);
+        setShowEnrichmentDialog(true);
+      }
     } finally {
       setIsEnriching(false);
     }
