@@ -572,7 +572,11 @@ IMPORTANT: You MUST populate as many fields as possible. Do not leave fields emp
         if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
         if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
         if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
-        if (extracted.customer_concentration) flatExtracted.customer_concentration = extracted.customer_concentration;
+        // customer_concentration is NUMERIC in DB — only store if it's a valid number
+        {
+          const n = toFiniteNumber(extracted.customer_concentration);
+          if (n != null) flatExtracted.customer_concentration = n;
+        }
         if (extracted.customer_geography) flatExtracted.customer_geography = extracted.customer_geography;
         if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
         if (extracted.executive_summary) flatExtracted.executive_summary = extracted.executive_summary;
@@ -612,6 +616,30 @@ IMPORTANT: You MUST populate as many fields as possible. Do not leave fields emp
         }
         if (droppedKeys.length > 0) {
           console.log(`Dropping ${droppedKeys.length} non-listing fields:`, droppedKeys);
+        }
+
+        // SAFETY: Sanitize numeric fields — Claude sometimes returns prose for numeric columns.
+        // A single bad value causes PostgREST to reject the entire update.
+        const NUMERIC_FIELDS = new Set([
+          'revenue', 'ebitda', 'ebitda_margin', 'number_of_locations',
+          'full_time_employees', 'part_time_employees', 'founded_year',
+          'linkedin_employee_count', 'team_page_employee_count', 'customer_concentration',
+        ]);
+        const removedNumeric: Array<{ key: string; value: unknown }> = [];
+        for (const [k, v] of Object.entries(filteredExtracted)) {
+          if (!NUMERIC_FIELDS.has(k)) continue;
+          if (typeof v === 'string') {
+            const cleaned = v.replace(/[$,%]/g, '').trim();
+            const n = Number(cleaned);
+            if (Number.isFinite(n)) { filteredExtracted[k] = n; continue; }
+          }
+          if (typeof v !== 'number' || !Number.isFinite(v)) {
+            removedNumeric.push({ key: k, value: v });
+            delete filteredExtracted[k];
+          }
+        }
+        if (removedNumeric.length > 0) {
+          console.warn('Removed non-numeric values from numeric fields:', removedNumeric);
         }
 
         // Build priority-aware updates using shared module (transcript has highest priority)
