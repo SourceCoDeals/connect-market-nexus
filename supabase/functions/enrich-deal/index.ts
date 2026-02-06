@@ -168,6 +168,7 @@ serve(async (req) => {
 
         const PLACEHOLDER_STRINGS = new Set([
           'unknown',
+          '<unknown>',
           'n/a',
           'na',
           'not specified',
@@ -178,10 +179,19 @@ serve(async (req) => {
           '—',
         ]);
 
+        const normalizePlaceholderString = (s: string): string =>
+          s
+            .trim()
+            .toLowerCase()
+            // common LLM placeholders like <UNKNOWN>
+            .replace(/^<|>$/g, '')
+            .trim();
+
         const isPlaceholder = (v: unknown): boolean => {
           if (typeof v !== 'string') return false;
-          const s = v.trim().toLowerCase();
-          return s.length === 0 || PLACEHOLDER_STRINGS.has(s);
+          const raw = v.trim().toLowerCase();
+          const normalized = normalizePlaceholderString(raw);
+          return raw.length === 0 || PLACEHOLDER_STRINGS.has(raw) || PLACEHOLDER_STRINGS.has(normalized);
         };
 
         const toFiniteNumber = (v: unknown): number | undefined => {
@@ -309,10 +319,71 @@ serve(async (req) => {
         }
 
         if (Object.keys(cumulativeUpdates).length > 0) {
+          // Final safety: never allow placeholder strings into numeric columns.
+          // Postgres will hard-fail the whole update otherwise.
+          const NUMERIC_FIELDS = new Set([
+            'revenue',
+            'ebitda',
+            'ebitda_margin',
+            'number_of_locations',
+            'full_time_employees',
+            'founded_year',
+            'linkedin_employee_count',
+            'part_time_employees',
+            'team_page_employee_count',
+          ]);
+
+          const sanitizedUpdates: Record<string, unknown> = { ...cumulativeUpdates };
+          const removed: Array<{ key: string; value: unknown }> = [];
+
+          for (const [k, v] of Object.entries(sanitizedUpdates)) {
+            if (!NUMERIC_FIELDS.has(k)) continue;
+
+            // Supabase numeric columns sometimes travel as strings; coerce when possible.
+            if (typeof v === 'string') {
+              const cleaned = v.replace(/[$,]/g, '').trim();
+              const n = Number(cleaned);
+              if (Number.isFinite(n)) {
+                sanitizedUpdates[k] = n;
+                continue;
+              }
+            }
+
+            if (typeof v !== 'number' || !Number.isFinite(v)) {
+              removed.push({ key: k, value: v });
+              delete sanitizedUpdates[k];
+            }
+          }
+
+          // Also strip any placeholder strings from ANY field (not just numeric).
+          // This prevents a single "Unknown" from failing the entire update.
+          const removedPlaceholders: Array<{ key: string; value: unknown }> = [];
+          for (const [k, v] of Object.entries(sanitizedUpdates)) {
+            if (typeof v === 'string' && isPlaceholder(v)) {
+              removedPlaceholders.push({ key: k, value: v });
+              delete sanitizedUpdates[k];
+            }
+          }
+
+          const numericPreview = Object.fromEntries(
+            Object.entries(sanitizedUpdates)
+              .filter(([k]) => NUMERIC_FIELDS.has(k))
+              .map(([k, v]) => [k, { value: v, type: typeof v }])
+          );
+
+          console.log('[Transcripts] Numeric payload preview (post-sanitize):', numericPreview);
+
+          if (removed.length > 0) {
+            console.warn('[Transcripts] Removed invalid numeric fields from updates:', removed);
+          }
+          if (removedPlaceholders.length > 0) {
+            console.warn('[Transcripts] Removed placeholder string fields from updates:', removedPlaceholders);
+          }
+
           const { error: applyExistingError } = await supabase
             .from('listings')
             .update({
-              ...cumulativeUpdates,
+              ...sanitizedUpdates,
               enriched_at: new Date().toISOString(),
               extraction_sources: cumulativeSources,
             })
