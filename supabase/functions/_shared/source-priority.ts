@@ -75,8 +75,11 @@ export function canOverwriteField(
   const existingPriority = SOURCE_PRIORITY[existingSource] ?? 0;
   const newPriority = SOURCE_PRIORITY[newSource];
 
-  // Allow overwrite if new source has higher priority
-  return newPriority > existingPriority;
+  // Allow overwrite if new source has higher OR equal priority.
+  // This is critical for idempotency: re-running transcript enrichment must be able
+  // to re-apply transcript-derived values even when the field is already tagged as
+  // coming from transcripts.
+  return newPriority >= existingPriority;
 }
 
 /**
