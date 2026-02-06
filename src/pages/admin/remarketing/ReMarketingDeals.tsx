@@ -253,6 +253,7 @@ const SortableTableRow = ({
   isSelected,
   onToggleSelect,
   onArchive,
+  onDelete,
   onTogglePriority,
 }: {
   listing: DealListing;
@@ -268,6 +269,7 @@ const SortableTableRow = ({
   isSelected: boolean;
   onToggleSelect: (dealId: string) => void;
   onArchive: (dealId: string, dealName: string) => void;
+  onDelete: (dealId: string, dealName: string) => void;
   onTogglePriority: (dealId: string, currentStatus: boolean) => void;
 }) => {
   const {
@@ -598,10 +600,20 @@ const SortableTableRow = ({
                 e.stopPropagation();
                 onArchive(listing.id, displayName || 'Unknown Deal');
               }}
-              className="text-red-600 focus:text-red-600"
+              className="text-amber-600 focus:text-amber-600"
             >
               <Archive className="h-4 w-4 mr-2" />
               Archive Deal
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(listing.id, displayName || 'Unknown Deal');
+              }}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Deal
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -1151,7 +1163,50 @@ const ReMarketingDeals = () => {
     refetchListings();
   }, [toast, refetchListings]);
 
-  // Priority target handler
+  // Single deal delete state
+  const [singleDeleteTarget, setSingleDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const handleDeleteDeal = useCallback((dealId: string, dealName: string) => {
+    setSingleDeleteTarget({ id: dealId, name: dealName });
+  }, []);
+
+  const handleConfirmSingleDelete = useCallback(async () => {
+    if (!singleDeleteTarget) return;
+    const { id: dealId, name: dealName } = singleDeleteTarget;
+    try {
+      await supabase.from('alert_delivery_logs').delete().eq('listing_id', dealId);
+      await supabase.from('buyer_approve_decisions').delete().eq('listing_id', dealId);
+      await supabase.from('buyer_learning_history').delete().eq('listing_id', dealId);
+      await supabase.from('buyer_pass_decisions').delete().eq('listing_id', dealId);
+      await supabase.from('chat_conversations').delete().eq('listing_id', dealId);
+      await supabase.from('collection_items').delete().eq('listing_id', dealId);
+      await supabase.from('connection_requests').delete().eq('listing_id', dealId);
+      await supabase.from('deal_ranking_history').delete().eq('listing_id', dealId);
+      await supabase.from('deal_referrals').delete().eq('listing_id', dealId);
+      await supabase.from('deals').delete().eq('listing_id', dealId);
+      await supabase.from('deal_scoring_adjustments').delete().eq('listing_id', dealId);
+      await supabase.from('deal_transcripts').delete().eq('listing_id', dealId);
+      await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+      await supabase.from('listing_analytics').delete().eq('listing_id', dealId);
+      await supabase.from('listing_conversations').delete().eq('listing_id', dealId);
+      await supabase.from('outreach_records').delete().eq('listing_id', dealId);
+      await supabase.from('owner_intro_notifications').delete().eq('listing_id', dealId);
+      await supabase.from('remarketing_outreach').delete().eq('listing_id', dealId);
+      await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+      await supabase.from('remarketing_universe_deals').delete().eq('listing_id', dealId);
+      await supabase.from('saved_listings').delete().eq('listing_id', dealId);
+      await supabase.from('similar_deal_alerts').delete().eq('source_listing_id', dealId);
+      const { error } = await supabase.from('listings').delete().eq('id', dealId);
+      if (error) throw error;
+      toast({ title: "Deal deleted", description: `${dealName} has been permanently deleted` });
+      refetchListings();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSingleDeleteTarget(null);
+    }
+  }, [singleDeleteTarget, toast, refetchListings]);
+
   const handleTogglePriority = useCallback(async (dealId: string, currentStatus: boolean) => {
     const newStatus = !currentStatus;
     
@@ -1665,7 +1720,28 @@ const ReMarketingDeals = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Deals Table with Drag & Drop */}
+      {/* Single Deal Delete Confirmation Dialog */}
+      <AlertDialog open={!!singleDeleteTarget} onOpenChange={(open) => !open && setSingleDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete "{singleDeleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this deal and all related data 
+              (transcripts, scores, outreach records, etc.). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmSingleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card>
         <CardContent className="p-0">
           <TooltipProvider>
@@ -1778,6 +1854,7 @@ const ReMarketingDeals = () => {
                           isSelected={selectedDeals.has(listing.id)}
                           onToggleSelect={handleToggleSelect}
                           onArchive={handleArchiveDeal}
+                          onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
                         />
                       ))}
