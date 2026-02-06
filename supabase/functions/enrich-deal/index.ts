@@ -345,6 +345,23 @@ serve(async (req) => {
       transcriptReport.processed = transcriptsProcessed;
       transcriptReport.errors = transcriptErrors;
 
+      // GUARDRAIL: If transcripts exist but NONE were processed, this is a hard failure
+      // Do NOT silently continue to website scraping
+      if (validTranscripts.length > 0 && transcriptsProcessed === 0) {
+        const errorSummary = transcriptErrors.length > 0
+          ? transcriptErrors.join('; ')
+          : 'All transcript extractions failed with unknown errors';
+
+        console.error(`CRITICAL: ${validTranscripts.length} transcripts found but 0 processed successfully`);
+        console.error('Transcript errors:', transcriptErrors);
+
+        throw new Error(
+          `Transcript extraction failed for all ${validTranscripts.length} transcripts. ` +
+          `Errors: ${errorSummary.slice(0, 500)}. ` +
+          `Check extract-deal-transcript edge function logs for details.`
+        );
+      }
+
       // Re-fetch deal to get updated extraction_sources after transcript processing
       const { data: refreshedDeal } = await supabase
         .from('listings')
