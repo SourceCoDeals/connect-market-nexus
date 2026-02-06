@@ -147,8 +147,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
     
     try {
+      // Scale timeout based on transcript count: 30s base + 25s per transcript + 30s for website scrape
+      const dynamicTimeout = Math.max(180000, 30000 + (totalToProcess * 25000) + 30000);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000);
+      const timeoutId = setTimeout(() => controller.abort(), dynamicTimeout);
       
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId, forceReExtract }
