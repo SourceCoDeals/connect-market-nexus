@@ -336,6 +336,11 @@ Use the extract_deal_info tool to return structured data.`;
       .eq('id', transcriptId)
       .single();
 
+    if (fetchError || !transcriptRecord) {
+      console.error('Failed to fetch transcript record:', fetchError);
+      throw new Error(`Failed to fetch transcript record: ${fetchError?.message || 'Not found'}`);
+    }
+
     const { error: updateTranscriptError } = await supabase
       .from('deal_transcripts')
       .update({

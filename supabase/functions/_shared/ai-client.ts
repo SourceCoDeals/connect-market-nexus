@@ -239,6 +239,14 @@ async function callClaude(options: AICallOptions): Promise<AICallResult> {
       description: t.function.description,
       input_schema: t.function.parameters,
     }));
+
+    // Add tool_choice if specified (convert from OpenAI format to Claude format)
+    if (options.toolChoice && typeof options.toolChoice === 'object' && options.toolChoice.type === 'function') {
+      body.tool_choice = {
+        type: 'tool',
+        name: options.toolChoice.function.name
+      };
+    }
   }
 
   const controller = new AbortController();
