@@ -244,12 +244,28 @@ const ReMarketingDealMatching = () => {
     const approved = scores.filter(s => s.status === 'approved').length;
     const passed = scores.filter(s => s.status === 'passed').length;
     
-    // Compute most common disqualification reason
+    // Compute most common disqualification reason using score-based detection
     const reasons = disqualifiedScores.map(s => {
       const r = s.fit_reasoning?.toLowerCase() || '';
-      if (r.includes('geography') || r.includes('location') || r.includes('state')) return 'no nearby presence';
-      if (r.includes('size') || r.includes('revenue')) return 'size mismatch';
-      if (r.includes('service')) return 'service mismatch';
+
+      // Check for explicit missing data flag first
+      if (r.includes('[missing_data:')) return 'insufficient data';
+
+      // Check for explicit enforcement patterns
+      if (r.includes('disqualified: deal revenue') || r.includes('below buyer minimum')) return 'size mismatch';
+      if (r.includes('dealbreaker: deal includes excluded')) return 'excluded criteria';
+      if (r.includes('geography strict:')) return 'geography mismatch';
+
+      // Use individual scores to find the weakest dimension (more accurate than keywords)
+      const dimensions = [
+        { name: 'size mismatch', score: s.size_score ?? 100 },
+        { name: 'no nearby presence', score: s.geography_score ?? 100 },
+        { name: 'service mismatch', score: s.service_score ?? 100 },
+        { name: 'owner goals mismatch', score: s.owner_goals_score ?? 100 },
+      ];
+      const weakest = dimensions.reduce((min, d) => d.score < min.score ? d : min, dimensions[0]);
+      if (weakest.score < 40) return weakest.name;
+
       return 'criteria mismatch';
     });
     

@@ -1346,6 +1346,14 @@ Score each category from 0-100 based on fit quality:
 - Portfolio Synergy: How well does this deal complement the buyer's existing portfolio companies?
 - Business Model: How aligned is the deal's business model (service mix, customer base) with buyer preferences?
 
+MISSING DATA HANDLING (CRITICAL):
+- When deal services/categories are "Unknown", score service_score at 60 (neutral-pass). Do NOT penalize for missing data.
+- When buyer has no target_services, score service_score at 60.
+- When deal or buyer location data is missing, score geography_score at 60.
+- When buyer has no financial targets (revenue/EBITDA ranges), score size_score at 65 (benefit of the doubt).
+- Explicitly note in reasoning when a dimension was scored as "insufficient data" so the system can track it.
+- Use the label "[INSUFFICIENT_DATA: service]" or "[INSUFFICIENT_DATA: geography]" in your reasoning for affected dimensions.
+
 DEAL BREAKER EVALUATION (CRITICAL):
 - If buyer has deal_breakers listed (e.g., "Avoids DRP", "No shops under $1M"), check if deal violates ANY of them
 - If deal VIOLATES a deal breaker, heavily penalize owner_goals_score (-30 to -50 points) and note it explicitly
@@ -1628,17 +1636,98 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
   // ========== CRITICAL FIX: CORRECT CALCULATION ORDER ==========
   // Issue #9 Fix: Size multiplier should apply ONLY to base score, not bonuses
   // Correct order:
-  // 1. Calculate base weighted score (4 core categories)
-  // 2. Apply size multiplier to base score (gates based on size fit)
-  // 3. Add bonuses (primary focus, sweet spot, thesis, engagement)
-  // 4. Cap at 100
+  // 1. Detect missing data dimensions and redistribute weights
+  // 2. Calculate base weighted score (4 core categories)
+  // 3. Apply size multiplier to base score (gates based on size fit)
+  // 4. Add bonuses (primary focus, sweet spot, thesis, engagement)
+  // 5. Cap at 100
 
-  // Step 1: Calculate base composite score using universe weights (core 4 categories)
+  // Step 0: Detect missing data dimensions for weight redistribution
+  // When a dimension has insufficient data, its score is meaningless noise.
+  // Rather than penalizing with a neutral 50, redistribute that weight to dimensions we CAN evaluate.
+  const dealHasServices = !!(
+    (listing.services && Array.isArray(listing.services) && listing.services.length > 0) ||
+    (listing.categories && Array.isArray(listing.categories) && listing.categories.length > 0) ||
+    (listing.category && listing.category.trim())
+  );
+  const buyerHasServiceTargets = !!(buyer.target_services && buyer.target_services.length > 0);
+  const dealHasLocation = !!(listing.location && listing.location.trim());
+  const buyerHasGeoTargets = !!(
+    (buyer.target_geographies && buyer.target_geographies.length > 0) ||
+    (buyer.geographic_footprint && buyer.geographic_footprint.length > 0)
+  );
+  const buyerHasSizeTargets = !!(buyer.target_revenue_min || buyer.target_revenue_max || buyer.target_ebitda_min);
+  const dealHasFinancials = !!(listing.revenue || listing.ebitda);
+
+  // Determine which dimensions have sufficient data for meaningful scoring
+  const serviceDataSufficient = dealHasServices || buyerHasServiceTargets;
+  const geoDataSufficient = dealHasLocation && buyerHasGeoTargets;
+  const sizeDataSufficient = dealHasFinancials || buyerHasSizeTargets;
+  // Owner goals always scored (AI can infer from buyer thesis + deal context)
+
+  // Calculate effective weights with redistribution for missing data
+  let effectiveGeoWeight = universe.geography_weight;
+  let effectiveSizeWeight = universe.size_weight;
+  let effectiveServiceWeight = universe.service_weight;
+  let effectiveOwnerWeight = universe.owner_goals_weight;
+  const missingDimensions: string[] = [];
+
+  // Redistribute weights from insufficient dimensions to sufficient ones
+  let totalRedistribute = 0;
+  let totalSufficientWeight = 0;
+
+  if (!serviceDataSufficient) {
+    totalRedistribute += effectiveServiceWeight;
+    effectiveServiceWeight = 0;
+    missingDimensions.push('services');
+  } else {
+    totalSufficientWeight += effectiveServiceWeight;
+  }
+
+  if (!geoDataSufficient) {
+    totalRedistribute += effectiveGeoWeight;
+    effectiveGeoWeight = 0;
+    missingDimensions.push('geography');
+  } else {
+    totalSufficientWeight += effectiveGeoWeight;
+  }
+
+  if (!sizeDataSufficient) {
+    totalRedistribute += effectiveSizeWeight;
+    effectiveSizeWeight = 0;
+    missingDimensions.push('size');
+  } else {
+    totalSufficientWeight += effectiveSizeWeight;
+  }
+
+  // Owner goals always contribute
+  totalSufficientWeight += effectiveOwnerWeight;
+
+  // Redistribute missing weight proportionally to sufficient dimensions
+  if (totalRedistribute > 0 && totalSufficientWeight > 0) {
+    const redistributionFactor = totalRedistribute / totalSufficientWeight;
+    if (effectiveGeoWeight > 0) effectiveGeoWeight += effectiveGeoWeight * redistributionFactor;
+    if (effectiveSizeWeight > 0) effectiveSizeWeight += effectiveSizeWeight * redistributionFactor;
+    if (effectiveServiceWeight > 0) effectiveServiceWeight += effectiveServiceWeight * redistributionFactor;
+    effectiveOwnerWeight += effectiveOwnerWeight * redistributionFactor;
+
+    console.log(`[WeightRedistribution] Missing: [${missingDimensions.join(', ')}]. Effective weights: geo=${effectiveGeoWeight.toFixed(1)}, size=${effectiveSizeWeight.toFixed(1)}, svc=${effectiveServiceWeight.toFixed(1)}, owner=${effectiveOwnerWeight.toFixed(1)}`);
+  }
+
+  // For dimensions with insufficient data, apply a floor of 60 (neutral-pass)
+  // This prevents AI noise on unknown data from dragging scores below qualification
+  const effectiveGeoScore = geoDataSufficient ? enforcedScores.geography_score : Math.max(enforcedScores.geography_score, 60);
+  const effectiveSizeScore = sizeDataSufficient ? enforcedScores.size_score : Math.max(enforcedScores.size_score, 60);
+  const effectiveServiceScore = serviceDataSufficient ? enforcedScores.service_score : Math.max(enforcedScores.service_score, 60);
+  const effectiveOwnerScore = enforcedScores.owner_goals_score;
+
+  // Step 1: Calculate base composite score using effective weights
+  const totalWeight = effectiveGeoWeight + effectiveSizeWeight + effectiveServiceWeight + effectiveOwnerWeight;
   const baseComposite = Math.round(
-    (enforcedScores.geography_score * universe.geography_weight +
-     enforcedScores.size_score * universe.size_weight +
-     enforcedScores.service_score * universe.service_weight +
-     enforcedScores.owner_goals_score * universe.owner_goals_weight) / 100
+    (effectiveGeoScore * effectiveGeoWeight +
+     effectiveSizeScore * effectiveSizeWeight +
+     effectiveServiceScore * effectiveServiceWeight +
+     effectiveOwnerScore * effectiveOwnerWeight) / totalWeight
   );
 
   // Bonus from secondary scores (up to +5 points per spec) - added to base before multiplier
@@ -1717,6 +1806,11 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
 
   // Build final reasoning with enforcement notes, size multiplier, and bonuses
   let finalReasoning = enforcedScores.reasoning;
+
+  // Add missing data note (helps frontend extract accurate disqualification reasons)
+  if (missingDimensions.length > 0) {
+    finalReasoning += ` [MISSING_DATA: ${missingDimensions.join(', ')}] Weights redistributed.`;
+  }
 
   // Add size multiplier note (KEY SPEC REQUIREMENT)
   if (sizeMultiplier < 1.0 && !forceDisqualify) {
