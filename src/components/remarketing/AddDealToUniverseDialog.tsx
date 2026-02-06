@@ -260,14 +260,38 @@ export const AddDealToUniverseDialog = ({
         throw new Error("Admin access required: your account is not permitted to create deals in a universe.");
       }
 
+      // Check for duplicate website across ALL listings
+      const websiteUrl = newDealForm.website?.trim();
+      if (websiteUrl) {
+        // Normalize: strip protocol, trailing slash, www prefix for comparison
+        const normalizeUrl = (url: string) =>
+          url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '').toLowerCase();
+        const normalizedInput = normalizeUrl(websiteUrl);
+
+        const { data: existingListings } = await supabase
+          .from("listings")
+          .select("id, title, internal_company_name, website")
+          .not("website", "is", null);
+
+        const duplicate = existingListings?.find(
+          (l) => l.website && normalizeUrl(l.website) === normalizedInput
+        );
+
+        if (duplicate) {
+          const dupName = duplicate.internal_company_name || duplicate.title || 'Unknown';
+          throw new Error(
+            `A deal with this website already exists: "${dupName}". Use "Add Existing" tab to link it to this universe instead.`
+          );
+        }
+      }
+
       const insertData = {
         title: newDealForm.title,
-        website: newDealForm.website || null,
+        website: websiteUrl || null,
         location: newDealForm.location?.trim() || null,
         revenue: newDealForm.revenue ? parseFloat(newDealForm.revenue) : null,
         ebitda: newDealForm.ebitda ? parseFloat(newDealForm.ebitda) : null,
         description: newDealForm.description || null,
-        // Remarketing deals must never be visible on the public marketplace
         is_internal_deal: true,
         status: "active",
       };
