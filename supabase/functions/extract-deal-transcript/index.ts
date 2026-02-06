@@ -454,14 +454,17 @@ Use the extract_deal_info tool to return structured data.`;
           }
         }
 
-        // Mark transcript as applied
-        await supabase
-          .from('deal_transcripts')
-          .update({
-            applied_to_deal: true,
-            applied_at: new Date().toISOString(),
-          })
-          .eq('id', transcriptId);
+        // Mark transcript as applied ONLY if we actually updated the deal
+        // (older runs could mark applied even when listing updates were skipped)
+        if (dealUpdated) {
+          await supabase
+            .from('deal_transcripts')
+            .update({
+              applied_to_deal: true,
+              applied_at: new Date().toISOString(),
+            })
+            .eq('id', transcriptId);
+        }
       }
     }
 

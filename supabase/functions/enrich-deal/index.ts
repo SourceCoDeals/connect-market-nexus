@@ -114,44 +114,178 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // STEP 0: Process any unprocessed transcripts FIRST (highest priority source)
-    // Transcripts are source priority 100, website is 60, so transcript data wins
+    // STEP 0: Transcripts (highest priority)
+    // - Apply ALREADY extracted transcript intelligence to the listing first
+    // - Then process any truly unprocessed transcripts (processed_at is null)
     // ========================================================================
-    
-    // Fetch ALL transcripts for this deal (allow re-processing)
-    const { data: transcripts, error: transcriptsError } = await supabase
+
+    // Fetch ALL transcripts for this deal (we need the full picture for reporting)
+    const { data: allTranscripts, error: transcriptsError } = await supabase
       .from('deal_transcripts')
-      .select('id, transcript_text, processed_at')
+      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal')
       .eq('listing_id', dealId)
-      .not('transcript_text', 'is', null);
+      .order('created_at', { ascending: false });
 
     let transcriptsProcessed = 0;
-    let transcriptErrors: string[] = [];
-    let transcriptReportTotal = 0;
-    let transcriptReportValid = 0;
-    let transcriptReportSkipped = 0;
+    const transcriptErrors: string[] = [];
 
-    if (!transcriptsError && transcripts && transcripts.length > 0) {
-      transcriptReportTotal = transcripts.length;
-      console.log(`Found ${transcripts.length} transcripts, processing them in parallel...`);
+    // Reporting fields (returned to UI)
+    const transcriptReport = {
+      totalTranscripts: allTranscripts?.length || 0,
+      processable: 0, // pending w/ sufficient text
+      skipped: 0, // pending but too short/placeholder
+      processed: 0, // processed this run
+      appliedFromExisting: 0, // how many fields were applied from already-extracted transcripts
+      errors: [] as string[],
+    };
 
+    // 0A) Apply existing extracted_data (even if applied_to_deal was previously true)
+    // Rationale: older runs could mark transcripts processed/applied but fail to update listings.
+    if (!transcriptsError && allTranscripts && allTranscripts.length > 0) {
+      const transcriptsWithExtracted = allTranscripts.filter((t) => t.extracted_data && typeof t.extracted_data === 'object');
+
+      if (transcriptsWithExtracted.length > 0) {
+        const listingKeys = new Set(Object.keys(deal as Record<string, unknown>));
+        let cumulativeUpdates: Record<string, unknown> = {};
+        let cumulativeSources = deal.extraction_sources;
+
+        const mapExtractedToListing = (extracted: any): Record<string, unknown> => {
+          const out: Record<string, unknown> = {};
+
+          // Structured revenue
+          if (extracted?.revenue?.value != null) {
+            out.revenue = extracted.revenue.value;
+            if (extracted.revenue.confidence) out.revenue_confidence = extracted.revenue.confidence;
+            out.revenue_is_inferred = !!extracted.revenue.is_inferred;
+            if (extracted.revenue.source_quote) out.revenue_source_quote = extracted.revenue.source_quote;
+          }
+
+          // Structured EBITDA
+          if (extracted?.ebitda) {
+            if (extracted.ebitda.amount != null) out.ebitda = extracted.ebitda.amount;
+            if (extracted.ebitda.margin_percentage != null) out.ebitda_margin = extracted.ebitda.margin_percentage / 100;
+            if (extracted.ebitda.confidence) out.ebitda_confidence = extracted.ebitda.confidence;
+            out.ebitda_is_inferred = !!extracted.ebitda.is_inferred;
+            if (extracted.ebitda.source_quote) out.ebitda_source_quote = extracted.ebitda.source_quote;
+          }
+
+          // Common fields
+          if (Array.isArray(extracted?.geographic_states) && extracted.geographic_states.length) out.geographic_states = extracted.geographic_states;
+          if (extracted?.number_of_locations != null) out.number_of_locations = extracted.number_of_locations;
+          if (extracted?.full_time_employees != null) out.full_time_employees = extracted.full_time_employees;
+          if (extracted?.founded_year != null) out.founded_year = extracted.founded_year;
+          if (extracted?.service_mix) out.service_mix = extracted.service_mix;
+          if (extracted?.business_model) out.business_model = extracted.business_model;
+          if (extracted?.industry) out.industry = extracted.industry;
+
+          if (extracted?.owner_goals) out.owner_goals = extracted.owner_goals;
+          if (extracted?.transition_preferences) out.transition_preferences = extracted.transition_preferences;
+          if (extracted?.special_requirements) out.special_requirements = extracted.special_requirements;
+          if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
+
+          if (extracted?.customer_types) out.customer_types = extracted.customer_types;
+          if (extracted?.customer_concentration) out.customer_concentration = extracted.customer_concentration;
+          if (extracted?.customer_geography) out.customer_geography = extracted.customer_geography;
+          if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
+
+          if (extracted?.executive_summary) out.executive_summary = extracted.executive_summary;
+          if (extracted?.competitive_position) out.competitive_position = extracted.competitive_position;
+          if (extracted?.growth_trajectory) out.growth_trajectory = extracted.growth_trajectory;
+          if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) out.key_risks = extracted.key_risks.join('\n');
+          if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
+          if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
+
+          if (Array.isArray(extracted?.key_quotes) && extracted.key_quotes.length) out.key_quotes = extracted.key_quotes;
+          if (extracted?.financial_notes) out.financial_notes = extracted.financial_notes;
+          if (Array.isArray(extracted?.financial_followup_questions) && extracted.financial_followup_questions.length) {
+            out.financial_followup_questions = extracted.financial_followup_questions;
+          }
+
+          if (extracted?.primary_contact_name) out.primary_contact_name = extracted.primary_contact_name;
+          if (extracted?.primary_contact_email) out.primary_contact_email = extracted.primary_contact_email;
+          if (extracted?.primary_contact_phone) out.primary_contact_phone = extracted.primary_contact_phone;
+
+          // Filter to known listing columns (defensive)
+          const filtered: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(out)) {
+            if (listingKeys.has(k)) filtered[k] = v;
+          }
+          return filtered;
+        };
+
+        for (const t of transcriptsWithExtracted) {
+          const extracted = t.extracted_data as any;
+          const flat = mapExtractedToListing(extracted);
+          if (Object.keys(flat).length === 0) continue;
+
+          const { updates, sourceUpdates } = buildPriorityUpdates(
+            deal as any,
+            cumulativeSources,
+            flat as any,
+            'transcript',
+            t.id
+          );
+
+          if (Object.keys(updates).length === 0) continue;
+
+          // Merge geographic states rather than replace
+          if (updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
+            updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as any);
+          }
+
+          cumulativeUpdates = { ...cumulativeUpdates, ...(updates as Record<string, unknown>) };
+          cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates);
+
+          // Keep local deal object in sync so subsequent priority checks see new values
+          Object.assign(deal, updates);
+        }
+
+        if (Object.keys(cumulativeUpdates).length > 0) {
+          const { error: applyExistingError } = await supabase
+            .from('listings')
+            .update({
+              ...cumulativeUpdates,
+              enriched_at: new Date().toISOString(),
+              extraction_sources: cumulativeSources,
+            })
+            .eq('id', dealId);
+
+          if (applyExistingError) {
+            console.error('Failed applying existing transcript intelligence:', applyExistingError);
+          } else {
+            transcriptReport.appliedFromExisting = Object.keys(cumulativeUpdates).length;
+            // Keep deal.extraction_sources accurate for the rest of the pipeline
+            (deal as any).extraction_sources = cumulativeSources;
+          }
+        }
+      }
+    }
+
+    // 0B) Now process any unprocessed transcripts (AI extraction)
+    const pendingTranscripts = !transcriptsError && allTranscripts
+      ? allTranscripts.filter((t) => !t.processed_at)
+      : [];
+
+    if (pendingTranscripts.length > 0) {
       // Filter valid transcripts first
-      const validTranscripts = transcripts.filter(t =>
+      const validTranscripts = pendingTranscripts.filter((t) =>
         t.transcript_text && t.transcript_text.trim().length >= 100
       );
 
-      transcriptReportValid = validTranscripts.length;
-      transcriptReportSkipped = transcripts.length - validTranscripts.length;
+      transcriptReport.processable = validTranscripts.length;
+      transcriptReport.skipped = pendingTranscripts.length - validTranscripts.length;
 
-      if (transcriptReportSkipped > 0) {
-        console.log(`Skipping ${transcriptReportSkipped} transcripts with insufficient content`);
+      if (transcriptReport.skipped > 0) {
+        console.log(`Skipping ${transcriptReport.skipped} transcripts with insufficient content`);
       }
-      
+
+      console.log(`Found ${pendingTranscripts.length} pending transcripts (${validTranscripts.length} processable); processing in batches...`);
+
       // Process transcripts in parallel batches of 3 for speed
       const BATCH_SIZE = 3;
       for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
         const batch = validTranscripts.slice(i, i + BATCH_SIZE);
-        
+
         const batchResults = await Promise.allSettled(
           batch.map(async (transcript) => {
             const extractResponse = await fetch(
@@ -173,50 +307,51 @@ serve(async (req) => {
                     location: deal.location || deal.address_city,
                     revenue: deal.revenue,
                     ebitda: deal.ebitda,
-                  }
+                  },
                 }),
               }
             );
 
             if (!extractResponse.ok) {
               const errText = await extractResponse.text();
-              throw new Error(errText.slice(0, 100));
+              throw new Error(errText.slice(0, 120));
             }
-            
+
             return transcript.id;
           })
         );
-        
+
         // Process batch results
         for (let j = 0; j < batchResults.length; j++) {
           const result = batchResults[j];
           const transcript = batch[j];
-          
+
           if (result.status === 'fulfilled') {
             transcriptsProcessed++;
             console.log(`Successfully processed transcript ${transcript.id}`);
           } else {
             const errMsg = getErrorMessage(result.reason);
             console.error(`Failed to process transcript ${transcript.id}:`, errMsg);
-            transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errMsg.slice(0, 100)}`);
+            transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errMsg.slice(0, 120)}`);
           }
         }
-        
+
         // Small delay between batches
         if (i + BATCH_SIZE < validTranscripts.length) {
-          await new Promise(r => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, 300));
         }
       }
-      
-      console.log(`Processed ${transcriptsProcessed}/${validTranscripts.length} transcripts`);
-      
+
+      transcriptReport.processed = transcriptsProcessed;
+      transcriptReport.errors = transcriptErrors;
+
       // Re-fetch deal to get updated extraction_sources after transcript processing
       const { data: refreshedDeal } = await supabase
         .from('listings')
         .select('*, extraction_sources')
         .eq('id', dealId)
         .single();
-      
+
       if (refreshedDeal) {
         Object.assign(deal, refreshedDeal);
       }
@@ -1159,13 +1294,7 @@ For financial data, include confidence levels and source quotes where available.
           pages: scrapedPagesSummary,
         },
         // Transcript processing report
-        transcriptReport: {
-          totalTranscripts: transcriptReportTotal,
-          processable: transcriptReportValid,
-          skipped: transcriptReportSkipped,
-          processed: transcriptsProcessed,
-          errors: transcriptErrors,
-        },
+        transcriptReport,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
