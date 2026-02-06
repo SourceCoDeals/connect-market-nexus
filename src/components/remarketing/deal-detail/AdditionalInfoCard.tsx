@@ -60,9 +60,34 @@ export const AdditionalInfoCard = ({
 
   const hasContent = otherNotes || internalNotes || keyRisks || competitivePosition || technologySystems || realEstateInfo || growthTrajectory;
 
-  const InfoField = ({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | null | undefined }) => {
-    if (!value) return null;
-    return (<div className="space-y-1"><div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide"><Icon className="h-3.5 w-3.5" />{label}</div><p className="text-sm whitespace-pre-wrap">{value}</p></div>);
+  const InfoField = ({
+    icon: Icon,
+    label,
+    value,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    value: unknown;
+  }) => {
+    if (value === null || value === undefined) return null;
+
+    const text = Array.isArray(value)
+      ? value.filter(Boolean).join("\n")
+      : typeof value === "string"
+      ? value
+      : String(value);
+
+    if (!text || text.trim().length === 0) return null;
+
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </div>
+        <p className="text-sm whitespace-pre-wrap">{text}</p>
+      </div>
+    );
   };
 
   return (
