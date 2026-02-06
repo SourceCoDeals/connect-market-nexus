@@ -198,12 +198,11 @@ const ReMarketingBuyerDetail = () => {
     queryFn: async () => {
       if (isNew) return [];
       
-      // Use v_buyer_transcripts view (backwards-compatible with unified transcripts table)
+      // Use existing buyer_transcripts table (unified migration not executed yet)
       const { data, error } = await supabase
-        .from('v_buyer_transcripts' as any)
+        .from('buyer_transcripts')
         .select('*')
         .eq('buyer_id', id)
-        .in('entity_type', ['buyer', 'both'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -378,12 +377,11 @@ const ReMarketingBuyerDetail = () => {
       fileUrl?: string;
       triggerExtract?: boolean;
     }) => {
-      // Use v_buyer_transcripts view (backwards-compatible with unified transcripts table)
+      // Use existing buyer_transcripts table (unified migration not executed yet)
       const { data, error } = await supabase
-        .from('v_buyer_transcripts' as any)
+        .from('buyer_transcripts')
         .insert([
           {
-            entity_type: 'buyer',
             buyer_id: id,
             transcript_text: text,
             source,
@@ -421,9 +419,9 @@ const ReMarketingBuyerDetail = () => {
           textToExtract = transcript.transcript_text;
           sourceToUse = transcript.source || 'call';
         } else {
-          // Fetch from DB as fallback - use v_buyer_transcripts view
+          // Fetch from DB as fallback - use existing buyer_transcripts table
           const { data } = await supabase
-            .from('v_buyer_transcripts' as any)
+            .from('buyer_transcripts')
             .select('transcript_text, source')
             .eq('id', params.transcriptId)
             .single();
@@ -461,9 +459,9 @@ const ReMarketingBuyerDetail = () => {
 
   const deleteTranscriptMutation = useMutation({
     mutationFn: async (transcriptId: string) => {
-      // Use v_buyer_transcripts view (backwards-compatible with unified transcripts table)
+      // Use existing buyer_transcripts table (unified migration not executed yet)
       const { error } = await supabase
-        .from('v_buyer_transcripts' as any)
+        .from('buyer_transcripts')
         .delete()
         .eq('id', transcriptId);
       if (error) throw error;
