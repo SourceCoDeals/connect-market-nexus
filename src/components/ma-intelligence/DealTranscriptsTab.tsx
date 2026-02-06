@@ -75,6 +75,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
         .from("v_deal_transcripts" as any)
         .select("*")
         .eq("listing_id", dealId)
+        .in("entity_type", ["deal", "both"])
         .order("created_at", { ascending: false });
 
       if (error) throw error;

@@ -203,8 +203,9 @@ const ReMarketingBuyerDetail = () => {
         .from('v_buyer_transcripts' as any)
         .select('*')
         .eq('buyer_id', id)
+        .in('entity_type', ['buyer', 'both'])
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return (data || []) as unknown as Transcript[];
     },
@@ -382,6 +383,7 @@ const ReMarketingBuyerDetail = () => {
         .from('v_buyer_transcripts' as any)
         .insert([
           {
+            entity_type: 'buyer',
             buyer_id: id,
             transcript_text: text,
             source,
