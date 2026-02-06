@@ -137,9 +137,9 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         });
       });
 
-      // Load transcripts - use v_deal_transcripts view
+      // Load transcripts
       const { data: transcriptsData } = await supabase
-        .from("v_deal_transcripts" as any)
+        .from("deal_transcripts")
         .select("*")
         .eq("listing_id", dealId)
         .order("created_at", { ascending: false });
