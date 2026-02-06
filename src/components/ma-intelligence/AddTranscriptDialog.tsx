@@ -39,6 +39,7 @@ export function AddTranscriptDialog({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [formData, setFormData] = useState({
@@ -130,21 +131,51 @@ export function AddTranscriptDialog({
     ));
   };
 
+  const withTimeout = async <T,>(
+    fn: () => Promise<T>,
+    ms: number,
+    label: string
+  ): Promise<T> => {
+    const startedAt = Date.now();
+    let t: number | undefined;
+
+    const timeout = new Promise<never>((_, reject) => {
+      t = window.setTimeout(() => {
+        reject(new Error(`${label} timed out after ${ms / 1000}s`));
+      }, ms);
+    });
+
+    try {
+      // Ensure we're racing a real Promise (avoids edge cases with thenables)
+      return await Promise.race([fn(), timeout]);
+    } catch (err) {
+      const elapsed = Date.now() - startedAt;
+      console.error(`[AddTranscriptDialog] ${label} failed after ${elapsed}ms`, err);
+      throw err;
+    } finally {
+      if (t) window.clearTimeout(t);
+    }
+  };
+
   const uploadFileToStorage = async (file: File): Promise<string> => {
     const timestamp = Date.now();
     const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const path = `${dealId}/${timestamp}_${filename}`;
-    
-    const { error } = await supabase.storage
-      .from('deal-transcripts')
-      .upload(path, file);
-      
-    if (error) throw error;
-    
-    const { data: { publicUrl } } = supabase.storage
-      .from('deal-transcripts')
-      .getPublicUrl(path);
-      
+
+    const uploadRes = await withTimeout(
+      () => supabase.storage.from('deal-transcripts').upload(path, file),
+      45_000,
+      'File upload'
+    );
+
+    if ((uploadRes as any)?.error) {
+      throw (uploadRes as any).error;
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('deal-transcripts').getPublicUrl(path);
+
     return publicUrl;
   };
 
@@ -160,70 +191,91 @@ export function AddTranscriptDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitStage('Starting…');
 
     try {
       // If we have files selected, process them
       if (selectedFiles.length > 0) {
         let successCount = 0;
         let errorCount = 0;
-        
+
         for (let i = 0; i < selectedFiles.length; i++) {
           const sf = selectedFiles[i];
-          
+
+          // Yield so UI can paint status updates before async work starts
+          await new Promise((r) => window.setTimeout(r, 0));
+
           // Update status to uploading
-          setSelectedFiles(prev => prev.map((item, idx) => 
-            idx === i ? { ...item, status: 'uploading' } : item
-          ));
-          
+          setSelectedFiles((prev) =>
+            prev.map((item, idx) => (idx === i ? { ...item, status: 'uploading' } : item))
+          );
+
           try {
+            setSubmitStage(`Uploading file ${i + 1}/${selectedFiles.length}…`);
+
             let fileUrl: string | null = null;
             let transcriptText = '';
-            
-            // Upload file
+
+            // Upload file (optional - if this fails we still save a placeholder)
             try {
               fileUrl = await uploadFileToStorage(sf.file);
             } catch (uploadError: any) {
-              console.warn("File upload failed:", uploadError.message);
+              console.warn('[AddTranscriptDialog] File upload failed:', uploadError?.message || uploadError);
             }
-            
+
             // Read text content for text-based files
             const ext = '.' + sf.file.name.split('.').pop()?.toLowerCase();
             if (['.txt', '.vtt', '.srt'].includes(ext)) {
               try {
+                setSubmitStage(`Reading text ${i + 1}/${selectedFiles.length}…`);
                 transcriptText = await readFileAsText(sf.file);
-              } catch {
-                // Ignore read errors
+              } catch (readErr) {
+                console.warn('[AddTranscriptDialog] File read failed:', readErr);
               }
             }
-            
+
             // Insert into deal_transcripts
             const safeTranscriptText = (transcriptText || '').trim().length > 0
               ? transcriptText
               : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
 
-            const { error } = await supabase.from("deal_transcripts").insert({
-              listing_id: dealId,
-              title: sf.title.trim() || sf.file.name,
-              source: "call",
-              transcript_url: fileUrl,
-              call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
-              transcript_text: safeTranscriptText,
-            });
-            
-            if (error) throw error;
-            
-            setSelectedFiles(prev => prev.map((item, idx) => 
-              idx === i ? { ...item, status: 'success' } : item
-            ));
+            setSubmitStage(`Saving transcript ${i + 1}/${selectedFiles.length}…`);
+
+            const res = await withTimeout(
+              () =>
+                supabase
+                  .from('deal_transcripts')
+                  .insert({
+                    listing_id: dealId,
+                    title: sf.title.trim() || sf.file.name,
+                    source: 'call',
+                    transcript_url: fileUrl,
+                    call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
+                    transcript_text: safeTranscriptText,
+                  }) as any,
+              20_000,
+              'Saving transcript'
+            );
+
+            if ((res as any)?.error) throw (res as any).error;
+
+            setSelectedFiles((prev) =>
+              prev.map((item, idx) => (idx === i ? { ...item, status: 'success' } : item))
+            );
             successCount++;
           } catch (err: any) {
-            setSelectedFiles(prev => prev.map((item, idx) => 
-              idx === i ? { ...item, status: 'error', error: err.message } : item
-            ));
+            setSelectedFiles((prev) =>
+              prev.map((item, idx) =>
+                idx === i ? { ...item, status: 'error', error: err?.message || 'Unknown error' } : item
+              )
+            );
             errorCount++;
           }
+
+          // Small delay between files to avoid hammering storage/DB and keep UI responsive
+          await new Promise((r) => window.setTimeout(r, 200));
         }
-        
+
         if (successCount > 0) {
           toast({
             title: `${successCount} transcript${successCount > 1 ? 's' : ''} added`,
@@ -231,58 +283,73 @@ export function AddTranscriptDialog({
           });
           onAdd();
         }
-        
+
         if (errorCount === 0) {
           // Reset and close only if all succeeded
           setFormData({
-            title: "",
-            transcript_link: "",
-            call_date: "",
-            transcript_text: "",
+            title: '',
+            transcript_link: '',
+            call_date: '',
+            transcript_text: '',
           });
           setSelectedFiles([]);
           onClose();
+        } else {
+          setSubmitStage('Some files failed — review errors above.');
         }
       } else {
         // Handle link/text-only submission (original behavior)
+        setSubmitStage('Validating…');
+
         if (!formData.title.trim()) {
-          throw new Error("Title is required");
+          throw new Error('Title is required');
         }
 
         if (!formData.transcript_text && !formData.transcript_link) {
-          throw new Error("Please provide a transcript link, paste content, or upload files");
+          throw new Error('Please provide a transcript link, paste content, or upload files');
         }
 
         // Insert into deal_transcripts
         const safeText = (formData.transcript_text || '').trim().length > 0
           ? formData.transcript_text
-          : (formData.transcript_link ? `[Transcript link added: ${formData.transcript_link}]` : '');
+          : formData.transcript_link
+            ? `[Transcript link added: ${formData.transcript_link}]`
+            : '';
 
         if (!safeText) {
-          throw new Error("Transcript content cannot be empty");
+          throw new Error('Transcript content cannot be empty');
         }
 
-        const { error } = await supabase.from("deal_transcripts").insert({
-          listing_id: dealId,
-          title: formData.title.trim(),
-          source: "call",
-          transcript_url: formData.transcript_link || null,
-          call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
-          transcript_text: safeText,
-        });
+        setSubmitStage('Saving transcript…');
 
-        if (error) throw error;
+        const res = await withTimeout(
+          () =>
+            supabase
+              .from('deal_transcripts')
+              .insert({
+                listing_id: dealId,
+                title: formData.title.trim(),
+                source: 'call',
+                transcript_url: formData.transcript_link || null,
+                call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
+                transcript_text: safeText,
+              }) as any,
+          20_000,
+          'Saving transcript'
+        );
+
+        if ((res as any)?.error) throw (res as any).error;
 
         toast({
-          title: "Transcript added",
-          description: "The transcript has been added successfully",
+          title: 'Transcript added',
+          description: 'The transcript has been added successfully',
         });
 
         setFormData({
-          title: "",
-          transcript_link: "",
-          call_date: "",
-          transcript_text: "",
+          title: '',
+          transcript_link: '',
+          call_date: '',
+          transcript_text: '',
         });
         setSelectedFiles([]);
 
@@ -290,13 +357,15 @@ export function AddTranscriptDialog({
         onClose();
       }
     } catch (error: any) {
+      console.error('[AddTranscriptDialog] Submit failed:', error);
       toast({
-        title: "Error adding transcript",
-        description: error.message,
-        variant: "destructive",
+        title: 'Error adding transcript',
+        description: error?.message || 'Unknown error',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
+      setSubmitStage(null);
     }
   };
 
@@ -500,6 +569,9 @@ export function AddTranscriptDialog({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
+            <div className="flex-1 text-xs text-muted-foreground self-center">
+              {isSubmitting && submitStage ? submitStage : null}
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -508,10 +580,7 @@ export function AddTranscriptDialog({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || (allFilesProcessed && selectedFiles.length > 0)}
-            >
+            <Button type="submit" disabled={isSubmitting || (allFilesProcessed && selectedFiles.length > 0)}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -70,7 +70,6 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   const loadTranscripts = async () => {
     try {
-      // Use existing deal_transcripts table (unified migration not executed yet)
       const { data, error } = await supabase
         .from("deal_transcripts")
         .select("*")
