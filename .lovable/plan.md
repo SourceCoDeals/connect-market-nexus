@@ -1,204 +1,132 @@
 
-# Add Call Transcript Dialog Redesign
 
-## Overview
+# Fix Extract-Deal-Transcript: Switch from Gemini to Claude
 
-Redesign the Add Transcript dialog to match the target design from the reference image, with a cleaner layout and three input methods (link, upload, or paste text) - all optional but at least one required.
+## Problem Summary
 
----
+The `extract-deal-transcript` edge function is **completely broken** with a 400 error:
 
-## Target Design Analysis
-
-Based on the reference image, the new dialog should have:
-
-1. **Title** (required) - Full-width input at the top
-2. **Transcript Link** (optional) - For Fireflies or any transcript URL
-3. **Notes / Transcript Content** - Textarea for pasting content
-4. **Call Date** (optional) - Date picker
-5. **Primary Action Button** - "Add Transcript Link" with link icon
-6. **OR UPLOAD FILE** - Divider with upload section below
-7. **Click to upload** - Drag-and-drop style upload area
-
----
-
-## Key Changes from Current Design
-
-| Current | New |
-|---------|-----|
-| Source Type dropdown | Removed per user request |
-| "File Name (optional)" label | Changed to "Title *" (required) |
-| Side-by-side layout | Single column, stacked fields |
-| Basic file upload button | Premium drag-drop upload zone |
-| "Add Transcript" button | "Add Transcript Link" with icon |
-| No date picker visible | Call Date input with calendar |
-
----
-
-## Technical Implementation
-
-### 1. Remove Source Type Dropdown
-
-Since user confirmed to remove it, we'll:
-- Remove the `source` field from form state
-- Remove the Select component
-- Set a default source value when saving (e.g., "call")
-
-### 2. Restructure Form Layout
-
-New layout order:
-```text
-┌────────────────────────────────────────┐
-│ Add Call Transcript                ✕   │
-├────────────────────────────────────────┤
-│                                        │
-│ Title *                                │
-│ ┌────────────────────────────────────┐ │
-│ │ E.g., Q1 2024 Buyer Call           │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ Transcript Link                        │
-│ ┌────────────────────────────────────┐ │
-│ │ https://...                        │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ Notes / Transcript Content             │
-│ ┌────────────────────────────────────┐ │
-│ │ Paste transcript content...        │ │
-│ │                                    │ │
-│ │                                    │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ Call Date (optional)                   │
-│ ┌────────────────────────────────────┐ │
-│ │ mm/dd/yyyy                     📅  │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ ┌────────────────────────────────────┐ │
-│ │ 🔗 Add Transcript Link             │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│           OR UPLOAD FILE               │
-│                                        │
-│ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │
-│ │          ⬆ Upload                  │ │
-│ │      Click to upload               │ │
-│ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ │
-│                                        │
-└────────────────────────────────────────┘
+```
+"The specified schema produces a constraint that has too much branching for serving. 
+Typical causes: objects with lots of optional properties, enums with too many values."
 ```
 
-### 3. File Upload with Storage
+The Gemini OpenAI-compatible endpoint cannot handle the 30+ optional properties in the tool schema.
 
-Since user wants both file storage AND text extraction:
+## Solution
 
-**For text files (.txt, .vtt, .srt):**
-1. Read file content → populate transcript_text
-2. Upload file to `deal-transcripts` bucket
-3. Save file URL to `transcript_url` column
-
-**For binary files (.pdf, .doc, .docx):**
-1. Upload file to `deal-transcripts` bucket
-2. Save file URL to `transcript_url` column
-3. Leave transcript_text empty (or implement PDF parsing later)
-
-### 4. Premium Upload Zone Design
-
-Replace the basic button with a styled drop zone:
-
-```tsx
-<div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer">
-  <Upload className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-  <p className="text-sm text-muted-foreground">Click to upload</p>
-  <p className="text-xs text-muted-foreground/70 mt-1">.txt, .pdf, .doc, .vtt, .srt</p>
-</div>
-```
-
-### 5. Validation Logic
-
-At least one of these must be provided:
-- Transcript Link (URL)
-- Transcript Content (pasted text)
-- Uploaded file
-
-Title is always required.
+Switch from Gemini to **Claude API**, which handles complex schemas reliably. The shared helper `callClaudeWithTool` already exists in `_shared/ai-providers.ts`.
 
 ---
 
-## File Changes
+## Implementation Steps
 
-### Modified File
-**`src/components/ma-intelligence/AddTranscriptDialog.tsx`**
+### Step 1: Update imports and API key reference
 
-Changes:
-- Remove Source Type Select component and related state
-- Rename dialog title: "Add Transcript" → "Add Call Transcript"
-- Reorder fields: Title → Link → Content → Date
-- Add date input field with native HTML date picker
-- Replace button with premium upload zone
-- Add "OR UPLOAD FILE" divider
-- Rename primary button: "Add Transcript" → "Add Transcript Link" with Link2 icon
-- Add file upload to Supabase Storage
-- Update validation messaging
-
----
-
-## Premium Design Tokens
-
-Following the established design system:
-
-**Input styling:**
-- Border: `border-amber-500/40` focus ring (matching reference)
-- Background: Clean white
-
-**Upload zone:**
-- Border: `border-2 border-dashed border-muted-foreground/25`
-- Hover: `hover:border-muted-foreground/50`
-- Icon: Muted, centered
-
-**Divider:**
-- Text: `text-xs uppercase tracking-wide text-muted-foreground`
-- Lines: `border-t border-muted` on each side
-
-**Primary button:**
-- Full width
-- Amber/gold accent (matching reference)
-- Icon + text
-
----
-
-## Storage Integration
-
-File upload path: `{listing_id}/{timestamp}_{filename}`
+Replace Gemini imports with Claude helper:
 
 ```typescript
-const uploadFile = async (file: File, listingId: string) => {
-  const timestamp = Date.now();
-  const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const path = `${listingId}/${timestamp}_${filename}`;
-  
-  const { data, error } = await supabase.storage
-    .from('deal-transcripts')
-    .upload(path, file);
-    
-  if (error) throw error;
-  
-  const { data: { publicUrl } } = supabase.storage
-    .from('deal-transcripts')
-    .getPublicUrl(path);
-    
-  return publicUrl;
-};
+// REMOVE:
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+
+// ADD:
+import { callClaudeWithTool, DEFAULT_CLAUDE_MODEL } from "../_shared/ai-providers.ts";
 ```
+
+Update API key:
+```typescript
+// CHANGE from:
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+
+// TO:
+const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+```
+
+### Step 2: Restructure AI call to use Claude helper
+
+Replace the raw `fetch` call to Gemini (lines 175-292) with the `callClaudeWithTool` helper:
+
+```typescript
+const tool = {
+  type: 'function',
+  function: {
+    name: 'extract_deal_info',
+    description: 'Extract comprehensive deal intelligence from transcript',
+    parameters: {
+      type: 'object',
+      properties: {
+        // ... existing 30+ properties unchanged
+      }
+    }
+  }
+};
+
+const systemPrompt = 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool. Be thorough but conservative - only include data that is explicitly stated or clearly inferrable.';
+
+const { data: extracted, error: aiError } = await callClaudeWithTool(
+  systemPrompt,
+  extractionPrompt,
+  tool,
+  anthropicApiKey,
+  DEFAULT_CLAUDE_MODEL,
+  60000  // 60 second timeout for long transcripts
+);
+
+if (aiError) {
+  console.error('Claude API error:', aiError);
+  throw new Error(`AI extraction failed: ${aiError.message}`);
+}
+
+if (!extracted) {
+  throw new Error('No extraction result from AI');
+}
+```
+
+### Step 3: Remove Gemini response parsing
+
+The `callClaudeWithTool` helper already parses the response and returns structured data directly. Remove the manual parsing logic (lines 300-324).
+
+### Step 4: Keep all downstream logic unchanged
+
+The field mapping, priority updates, and database writes (lines 326-478) work correctly and don't need changes.
 
 ---
 
-## Validation Summary
+## Files to Modify
 
-| Scenario | Valid? |
-|----------|--------|
-| Title + Link only | ✅ |
-| Title + Content only | ✅ |
-| Title + File only | ✅ |
-| Title + Link + Content + File | ✅ |
-| No title | ❌ |
-| Title but no link/content/file | ❌ |
+| File | Change |
+|------|--------|
+| `supabase/functions/extract-deal-transcript/index.ts` | Switch from Gemini to Claude API |
+
+---
+
+## Verification Steps
+
+After deployment:
+
+1. Navigate to a deal with transcripts
+2. Click "Process Transcript" button
+3. Verify extraction succeeds (no 400 error)
+4. Check that extracted fields appear in deal profile
+5. Verify `processed_at` timestamp is set
+
+---
+
+## Risk Assessment
+
+| Risk | Mitigation |
+|------|-----------|
+| Claude API cost higher than Gemini | Acceptable - extraction only runs on-demand |
+| Claude timeout on very long transcripts | Set 60s timeout (up from default 20s) |
+| ANTHROPIC_API_KEY missing | ✅ Verified present in secrets |
+
+---
+
+## Technical Details
+
+**API Used:** Anthropic Messages API (`https://api.anthropic.com/v1/messages`)
+
+**Model:** `claude-sonnet-4-20250514` (DEFAULT_CLAUDE_MODEL)
+
+**Why Claude Works:** Claude's tool calling has no schema complexity limits like Gemini's OpenAI-compatible endpoint. The existing `extract-buyer-transcript` function already uses Claude successfully with similar complexity.
+
