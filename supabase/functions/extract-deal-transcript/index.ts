@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { callAI, AIProvider } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -123,10 +123,10 @@ serve(async (req) => {
 
     console.log(`Extracting intelligence from transcript ${transcriptId}, text length: ${transcriptText.length}`);
 
-    // Use AI to extract intelligence
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!geminiApiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+    // Use Claude AI to extract intelligence (Gemini OpenAI-compatible endpoint doesn't support function calling)
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
+      throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
     const extractionPrompt = `You are an expert M&A analyst reviewing a call transcript or meeting notes with a business owner. Your job is to extract EVERY piece of valuable deal intelligence.
@@ -172,19 +172,18 @@ CRITICAL - GEOGRAPHY:
 
 Use the extract_deal_info tool to return structured data.`;
 
-    const aiResponse = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(geminiApiKey),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool. Be thorough but conservative - only include data that is explicitly stated or clearly inferrable.' 
-          },
-          { role: 'user', content: extractionPrompt }
-        ],
-        tools: [{
+    // Call Claude via centralized AI client with function calling support
+    const aiResponse = await callAI({
+      provider: AIProvider.CLAUDE,
+      model: 'claude-sonnet-4-20250514',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool. Be thorough but conservative - only include data that is explicitly stated or clearly inferrable.'
+        },
+        { role: 'user', content: extractionPrompt }
+      ],
+      tools: [{
           type: 'function',
           function: {
             name: 'extract_deal_info',
@@ -286,53 +285,35 @@ Use the extract_deal_info tool to return structured data.`;
             }
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'extract_deal_info' } },
+        toolChoice: { type: 'function', function: { name: 'extract_deal_info' } },
         temperature: 0.2,
-      }),
+        timeoutMs: 45000,
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', errorText);
-      throw new Error(`AI extraction failed: ${aiResponse.status}`);
+    // Handle Claude API response from centralized client
+    if (!aiResponse.success) {
+      const errorMsg = aiResponse.error?.message || 'Unknown error';
+      console.error('[ERROR] Claude API call failed:', errorMsg);
+      throw new Error(`Claude extraction failed: ${errorMsg}`);
     }
 
-    const aiData = await aiResponse.json();
-
-    console.log('[DEBUG] Gemini API response structure:', JSON.stringify({
-      hasChoices: !!aiData.choices,
-      choicesLength: aiData.choices?.length,
-      hasMessage: !!aiData.choices?.[0]?.message,
-      hasToolCalls: !!aiData.choices?.[0]?.message?.tool_calls,
-      hasContent: !!aiData.choices?.[0]?.message?.content,
-      fullResponse: aiData
-    }, null, 2));
+    console.log('[DEBUG] Claude API response:', {
+      success: aiResponse.success,
+      hasToolCall: !!aiResponse.toolCall,
+      toolName: aiResponse.toolCall?.name,
+      argumentsKeys: aiResponse.toolCall ? Object.keys(aiResponse.toolCall.arguments || {}) : [],
+      usage: aiResponse.usage
+    });
 
     // Extract from tool call
     let extracted: ExtractionResult = {};
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    if (toolCall?.function?.arguments) {
-      try {
-        extracted = JSON.parse(toolCall.function.arguments);
-        console.log('[SUCCESS] Parsed tool call arguments');
-      } catch (parseError) {
-        console.error('Failed to parse tool arguments:', parseError);
-        throw new Error(`Tool argument parse error: ${parseError}`);
-      }
+    if (aiResponse.toolCall?.arguments) {
+      extracted = aiResponse.toolCall.arguments as ExtractionResult;
+      console.log('[SUCCESS] Extracted tool call arguments from Claude');
     } else {
-      // Fallback: try to parse from content
-      const content = aiData.choices?.[0]?.message?.content || '{}';
-      console.log('[FALLBACK] No tool_calls found, trying content parsing. Content length:', content.length);
-      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      try {
-        extracted = JSON.parse(cleanedContent);
-        console.log('[WARNING] Parsed from content (tool calling not used)');
-      } catch (parseError) {
-        console.error('Failed to parse AI content:', parseError);
-        console.error('Raw content:', content.substring(0, 500));
-        throw new Error(`Gemini extraction failed - tool calling not working and content not parseable. Response: ${content.substring(0, 200)}`);
-      }
+      console.error('[ERROR] Claude did not return tool call');
+      throw new Error('Claude extraction failed - no tool call returned');
     }
 
     // Validate that we actually extracted SOMETHING
@@ -340,7 +321,7 @@ Use the extract_deal_info tool to return structured data.`;
     console.log('[EXTRACTION] Extracted fields:', extractedFields);
 
     if (extractedFields.length === 0) {
-      throw new Error('Gemini returned empty extraction - no fields extracted from transcript');
+      throw new Error('Claude returned empty extraction - no fields extracted from transcript');
     }
 
     // Normalize geographic_states using shared module
