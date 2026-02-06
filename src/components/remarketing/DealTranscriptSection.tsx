@@ -522,9 +522,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         if (error) throw error;
       }
 
-      // Mark as applied - use v_deal_transcripts view
+      // Mark as applied
       await supabase
-        .from('v_deal_transcripts' as any)
+        .from('deal_transcripts')
         .update({ applied_to_deal: true, applied_at: new Date().toISOString() })
         .eq('id', transcript.id);
 

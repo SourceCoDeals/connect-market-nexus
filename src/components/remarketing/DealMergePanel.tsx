@@ -262,17 +262,20 @@ export const DealMergePanel = ({ onMappingsCreated }: DealMergePanelProps) => {
                        mapping.confidence === 'medium' ? 'name' : 'financial'
           });
           
-          // Create deal transcript if we have additional info - use v_deal_transcripts view
+          // Create deal transcript if we have additional info
           if (deal.transcript_link || deal.additional_info || deal.owner_goals) {
             await supabase
-              .from('v_deal_transcripts' as any)
-              .upsert({
-                listing_id: mapping.listingId,
-                transcript_text: `Reference Deal: ${deal.company_name}\n\nOwner Goals: ${deal.owner_goals || 'Not specified'}\n\nAdditional Info: ${deal.additional_info || 'None'}`,
-                source: deal.transcript_link || 'reference-import',
-              }, {
-                onConflict: 'listing_id'
-              });
+              .from('deal_transcripts')
+              .upsert(
+                {
+                  listing_id: mapping.listingId,
+                  transcript_text: `Reference Deal: ${deal.company_name}\n\nOwner Goals: ${deal.owner_goals || 'Not specified'}\n\nAdditional Info: ${deal.additional_info || 'None'}`,
+                  source: deal.transcript_link || 'reference-import',
+                },
+                {
+                  onConflict: 'listing_id',
+                }
+              );
           }
         }
       }
