@@ -302,14 +302,17 @@ Use the extract_deal_info tool to return structured data.`;
       extracted.geographic_states = normalizeStates(extracted.geographic_states);
     }
 
-    console.log('Extracted fields:', Object.keys(extracted).filter(k => extracted[k as keyof ExtractionResult] != null));
-
     // Update the transcript with extracted data
     const { data: transcriptRecord, error: fetchError } = await supabase
       .from('deal_transcripts')
       .select('listing_id')
       .eq('id', transcriptId)
       .single();
+
+    if (fetchError || !transcriptRecord) {
+      console.error('Failed to fetch transcript record:', fetchError);
+      throw new Error(`Failed to fetch transcript record: ${fetchError?.message || 'Not found'}`);
+    }
 
     const { error: updateTranscriptError } = await supabase
       .from('deal_transcripts')
