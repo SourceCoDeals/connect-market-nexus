@@ -304,25 +304,48 @@ serve(async (req) => {
       }
     }
 
-    // 0B) Now process any unprocessed transcripts (AI extraction)
-    const pendingTranscripts = !transcriptsError && allTranscripts
-      ? allTranscripts.filter((t) => !t.processed_at)
+    // 0B) Process transcripts that need AI extraction
+    // Include: never-processed (processed_at IS NULL)
+    // Include: previously failed (processed_at IS SET but extracted_data is null/empty)
+    // This ensures failed extractions get retried instead of being permanently stuck.
+    const needsExtraction = !transcriptsError && allTranscripts
+      ? allTranscripts.filter((t) => {
+          if (!t.processed_at) return true; // Never processed
+          // Previously processed but extraction failed (empty/null extracted_data)
+          const hasExtracted = t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data).length > 0;
+          return !hasExtracted;
+        })
       : [];
 
-    if (pendingTranscripts.length > 0) {
-      // Filter valid transcripts first
-      const validTranscripts = pendingTranscripts.filter((t) =>
+    console.log(`[Transcripts] Total: ${allTranscripts?.length || 0}, Need extraction: ${needsExtraction.length}, Already extracted: ${(allTranscripts?.length || 0) - needsExtraction.length}`);
+
+    if (needsExtraction.length > 0) {
+      // Filter valid transcripts (must have >= 100 chars of text)
+      const validTranscripts = needsExtraction.filter((t) =>
         t.transcript_text && t.transcript_text.trim().length >= 100
       );
 
       transcriptReport.processable = validTranscripts.length;
-      transcriptReport.skipped = pendingTranscripts.length - validTranscripts.length;
+      transcriptReport.skipped = needsExtraction.length - validTranscripts.length;
 
       if (transcriptReport.skipped > 0) {
-        console.log(`Skipping ${transcriptReport.skipped} transcripts with insufficient content`);
+        console.log(`[Transcripts] Skipping ${transcriptReport.skipped} transcripts with insufficient content (<100 chars)`);
       }
 
-      console.log(`Found ${pendingTranscripts.length} pending transcripts (${validTranscripts.length} processable); processing in batches...`);
+      console.log(`[Transcripts] Processing ${validTranscripts.length} transcripts in batches...`);
+
+      // Reset processed_at for failed transcripts so extract-deal-transcript can re-process them
+      const failedTranscriptIds = validTranscripts
+        .filter((t) => t.processed_at) // Only reset ones that were previously set
+        .map((t) => t.id);
+
+      if (failedTranscriptIds.length > 0) {
+        console.log(`[Transcripts] Resetting processed_at for ${failedTranscriptIds.length} previously-failed transcripts`);
+        await supabase
+          .from('deal_transcripts')
+          .update({ processed_at: null, extracted_data: null })
+          .in('id', failedTranscriptIds);
+      }
 
       // Process transcripts in parallel batches of 3 for speed
       const BATCH_SIZE = 3;
@@ -357,7 +380,7 @@ serve(async (req) => {
 
             if (!extractResponse.ok) {
               const errText = await extractResponse.text();
-              throw new Error(errText.slice(0, 120));
+              throw new Error(errText.slice(0, 200));
             }
 
             return transcript.id;
@@ -371,11 +394,11 @@ serve(async (req) => {
 
           if (result.status === 'fulfilled') {
             transcriptsProcessed++;
-            console.log(`Successfully processed transcript ${transcript.id}`);
+            console.log(`[Transcripts] Successfully processed transcript ${transcript.id}`);
           } else {
             const errMsg = getErrorMessage(result.reason);
-            console.error(`Failed to process transcript ${transcript.id}:`, errMsg);
-            transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errMsg.slice(0, 120)}`);
+            console.error(`[Transcripts] Failed transcript ${transcript.id}:`, errMsg);
+            transcriptErrors.push(`Transcript ${transcript.id.slice(0, 8)}: ${errMsg.slice(0, 200)}`);
           }
         }
 
@@ -389,26 +412,6 @@ serve(async (req) => {
       (transcriptReport as any).processedThisRun = transcriptsProcessed;
       transcriptReport.errors = transcriptErrors;
 
-      // Guardrail: transcripts exist but we neither applied existing intelligence nor processed any.
-      // This must NEVER report success.
-      const nothingAppliedOrProcessed =
-        transcriptReport.totalTranscripts > 0 &&
-        transcriptsProcessed === 0 &&
-        transcriptReport.appliedFromExisting === 0 &&
-        transcriptReport.processable === 0;
-
-      if (nothingAppliedOrProcessed) {
-        console.error('[Transcripts] Hard fail: transcripts exist but none were processable and none were applied');
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Transcript enrichment skipped: transcripts exist but none were processable and none were applied. Check transcript text + extraction_sources gating.',
-            transcriptReport,
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
       // Re-fetch deal to get updated extraction_sources after transcript processing
       const { data: refreshedDeal } = await supabase
         .from('listings')
@@ -419,6 +422,30 @@ serve(async (req) => {
       if (refreshedDeal) {
         Object.assign(deal, refreshedDeal);
       }
+    }
+
+    // GUARDRAIL (OUTSIDE the if-block - fires even when needsExtraction is empty)
+    // If transcripts exist but NOTHING was extracted or applied, fail hard.
+    if (
+      transcriptReport.totalTranscripts > 0 &&
+      transcriptsProcessed === 0 &&
+      transcriptReport.appliedFromExisting === 0
+    ) {
+      const reason = needsExtraction.length === 0
+        ? 'All transcripts marked as processed but none have extracted_data. This should not happen after the retry fix.'
+        : transcriptErrors.length > 0
+          ? `All ${transcriptReport.processable} transcript extractions failed: ${transcriptErrors.slice(0, 3).join('; ')}`
+          : 'No transcripts had sufficient text content (>= 100 chars)';
+
+      console.error(`[Transcripts] GUARDRAIL FIRED: ${reason}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Transcript enrichment failed: ${reason}`,
+          transcriptReport,
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Capture version for optimistic locking
