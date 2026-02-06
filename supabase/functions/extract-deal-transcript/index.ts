@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { callClaudeWithTool, DEFAULT_CLAUDE_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,9 +124,9 @@ serve(async (req) => {
     console.log(`Extracting intelligence from transcript ${transcriptId}, text length: ${transcriptText.length}`);
 
     // Use AI to extract intelligence
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!geminiApiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
+      throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
     const extractionPrompt = `You are an expert M&A analyst reviewing a call transcript or meeting notes with a business owner. Your job is to extract EVERY piece of valuable deal intelligence.
@@ -172,155 +172,129 @@ CRITICAL - GEOGRAPHY:
 
 Use the extract_deal_info tool to return structured data.`;
 
-    const aiResponse = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(geminiApiKey),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool. Be thorough but conservative - only include data that is explicitly stated or clearly inferrable.' 
-          },
-          { role: 'user', content: extractionPrompt }
-        ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'extract_deal_info',
-            description: 'Extract comprehensive deal intelligence from transcript',
-            parameters: {
+    // Tool schema for Claude
+    const tool = {
+      type: 'function',
+      function: {
+        name: 'extract_deal_info',
+        description: 'Extract comprehensive deal intelligence from transcript',
+        parameters: {
+          type: 'object',
+          properties: {
+            // Financial with structured metadata (per spec)
+            revenue: {
               type: 'object',
               properties: {
-                // Financial with structured metadata (per spec)
-                revenue: {
-                  type: 'object',
-                  properties: {
-                    value: { type: 'number', description: 'Annual revenue in dollars (e.g., 7500000 for $7.5M)' },
-                    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-                    is_inferred: { type: 'boolean', description: 'True if calculated from other data' },
-                    source_quote: { type: 'string', description: 'Exact quote where revenue was mentioned' },
-                    inference_method: { type: 'string', description: 'How value was inferred if applicable' }
-                  },
-                  required: ['confidence']
-                },
-                ebitda: {
-                  type: 'object',
-                  properties: {
-                    amount: { type: 'number', description: 'EBITDA in dollars' },
-                    margin_percentage: { type: 'number', description: 'EBITDA margin as percentage (e.g., 18 for 18%)' },
-                    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-                    is_inferred: { type: 'boolean' },
-                    source_quote: { type: 'string' }
-                  },
-                  required: ['confidence']
-                },
-                financial_followup_questions: {
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: 'Questions to clarify financials in follow-up call'
-                },
-                financial_notes: { type: 'string', description: 'Notes and flags for deal team' },
-                
-                // Business basics
-                location: { type: 'string', description: 'City, State format' },
-                headquarters_address: { type: 'string', description: 'Full address if mentioned' },
-                industry: { type: 'string', description: 'Primary industry (e.g., HVAC, Plumbing, Electrical)' },
-                founded_year: { type: 'number', description: 'Year founded' },
-                full_time_employees: { type: 'number', description: 'Number of full-time employees' },
-                website: { type: 'string', description: 'Website URL if mentioned' },
-                
-                // Services
-                services: { 
-                  type: 'array', 
-                  items: { type: 'string' },
-                  description: 'List of all services mentioned'
-                },
-                service_mix: { type: 'string', description: 'Revenue breakdown (e.g., 60% residential, 40% commercial)' },
-                business_model: { type: 'string', description: 'Recurring/service contracts, project-based, etc.' },
-                
-                // Geography
-                geographic_states: {
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: '2-letter US state codes ONLY (MN, TX, FL, etc.)'
-                },
-                number_of_locations: { type: 'number', description: 'Number of physical locations/shops/branches' },
-                
-                // Owner & Transaction
-                owner_goals: { type: 'string', description: 'What the owner wants - be specific' },
-                transition_preferences: { type: 'string', description: 'How long owner will stay, handoff details' },
-                special_requirements: { type: 'string', description: 'Deal breakers or must-haves' },
-                timeline_notes: { type: 'string', description: 'Desired timing' },
-                
-                // Customers
-                customer_types: { type: 'string', description: 'B2B, SMB, residential, government, etc.' },
-                end_market_description: { type: 'string', description: 'Who are the ultimate customers' },
-                customer_concentration: { type: 'string', description: 'Customer concentration info' },
-                customer_geography: { type: 'string', description: 'Customer geographic distribution' },
-                
-                // Strategic
-                executive_summary: { type: 'string', description: '2-3 sentence summary of business opportunity' },
-                competitive_position: { type: 'string', description: 'Market position, moat, competitive advantages' },
-                growth_trajectory: { type: 'string', description: 'Historical and projected growth' },
-                key_risks: { 
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: 'Risk factors mentioned'
-                },
-                technology_systems: { type: 'string', description: 'Software, CRM, tech mentioned' },
-                real_estate_info: { type: 'string', description: 'Owned vs leased, property details' },
-                
-                // Contact
-                primary_contact_name: { type: 'string', description: 'Main contact full name' },
-                primary_contact_email: { type: 'string', description: 'Email if mentioned' },
-                primary_contact_phone: { type: 'string', description: 'Phone if mentioned' },
-                
-                // Quotes
-                key_quotes: {
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: '5-8 VERBATIM quotes revealing important information'
-                }
-              }
+                value: { type: 'number', description: 'Annual revenue in dollars (e.g., 7500000 for $7.5M)' },
+                confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                is_inferred: { type: 'boolean', description: 'True if calculated from other data' },
+                source_quote: { type: 'string', description: 'Exact quote where revenue was mentioned' },
+                inference_method: { type: 'string', description: 'How value was inferred if applicable' }
+              },
+              required: ['confidence']
+            },
+            ebitda: {
+              type: 'object',
+              properties: {
+                amount: { type: 'number', description: 'EBITDA in dollars' },
+                margin_percentage: { type: 'number', description: 'EBITDA margin as percentage (e.g., 18 for 18%)' },
+                confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                is_inferred: { type: 'boolean' },
+                source_quote: { type: 'string' }
+              },
+              required: ['confidence']
+            },
+            financial_followup_questions: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Questions to clarify financials in follow-up call'
+            },
+            financial_notes: { type: 'string', description: 'Notes and flags for deal team' },
+            
+            // Business basics
+            location: { type: 'string', description: 'City, State format' },
+            headquarters_address: { type: 'string', description: 'Full address if mentioned' },
+            industry: { type: 'string', description: 'Primary industry (e.g., HVAC, Plumbing, Electrical)' },
+            founded_year: { type: 'number', description: 'Year founded' },
+            full_time_employees: { type: 'number', description: 'Number of full-time employees' },
+            website: { type: 'string', description: 'Website URL if mentioned' },
+            
+            // Services
+            services: { 
+              type: 'array', 
+              items: { type: 'string' },
+              description: 'List of all services mentioned'
+            },
+            service_mix: { type: 'string', description: 'Revenue breakdown (e.g., 60% residential, 40% commercial)' },
+            business_model: { type: 'string', description: 'Recurring/service contracts, project-based, etc.' },
+            
+            // Geography
+            geographic_states: {
+              type: 'array',
+              items: { type: 'string' },
+              description: '2-letter US state codes ONLY (MN, TX, FL, etc.)'
+            },
+            number_of_locations: { type: 'number', description: 'Number of physical locations/shops/branches' },
+            
+            // Owner & Transaction
+            owner_goals: { type: 'string', description: 'What the owner wants - be specific' },
+            transition_preferences: { type: 'string', description: 'How long owner will stay, handoff details' },
+            special_requirements: { type: 'string', description: 'Deal breakers or must-haves' },
+            timeline_notes: { type: 'string', description: 'Desired timing' },
+            
+            // Customers
+            customer_types: { type: 'string', description: 'B2B, SMB, residential, government, etc.' },
+            end_market_description: { type: 'string', description: 'Who are the ultimate customers' },
+            customer_concentration: { type: 'string', description: 'Customer concentration info' },
+            customer_geography: { type: 'string', description: 'Customer geographic distribution' },
+            
+            // Strategic
+            executive_summary: { type: 'string', description: '2-3 sentence summary of business opportunity' },
+            competitive_position: { type: 'string', description: 'Market position, moat, competitive advantages' },
+            growth_trajectory: { type: 'string', description: 'Historical and projected growth' },
+            key_risks: { 
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Risk factors mentioned'
+            },
+            technology_systems: { type: 'string', description: 'Software, CRM, tech mentioned' },
+            real_estate_info: { type: 'string', description: 'Owned vs leased, property details' },
+            
+            // Contact
+            primary_contact_name: { type: 'string', description: 'Main contact full name' },
+            primary_contact_email: { type: 'string', description: 'Email if mentioned' },
+            primary_contact_phone: { type: 'string', description: 'Phone if mentioned' },
+            
+            // Quotes
+            key_quotes: {
+              type: 'array',
+              items: { type: 'string' },
+              description: '5-8 VERBATIM quotes revealing important information'
             }
           }
-        }],
-        tool_choice: { type: 'function', function: { name: 'extract_deal_info' } },
-        temperature: 0.2,
-      }),
-    });
+        }
+      }
+    };
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', errorText);
-      throw new Error(`AI extraction failed: ${aiResponse.status}`);
+    const systemPrompt = 'You are an expert M&A analyst. Extract structured data from transcripts using the provided tool. Be thorough but conservative - only include data that is explicitly stated or clearly inferrable.';
+
+    // Call Claude API with 60s timeout for long transcripts
+    const { data: extracted, error: aiError } = await callClaudeWithTool(
+      systemPrompt,
+      extractionPrompt,
+      tool,
+      anthropicApiKey,
+      DEFAULT_CLAUDE_MODEL,
+      60000
+    ) as { data: ExtractionResult | null; error?: { code: string; message: string } };
+
+    if (aiError) {
+      console.error('Claude API error:', aiError);
+      throw new Error(`AI extraction failed: ${aiError.message}`);
     }
 
-    const aiData = await aiResponse.json();
-    
-    // Extract from tool call
-    let extracted: ExtractionResult = {};
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (toolCall?.function?.arguments) {
-      try {
-        extracted = JSON.parse(toolCall.function.arguments);
-      } catch (parseError) {
-        console.error('Failed to parse tool arguments:', parseError);
-      }
-    } else {
-      // Fallback: try to parse from content
-      const content = aiData.choices?.[0]?.message?.content || '{}';
-      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      try {
-        extracted = JSON.parse(cleanedContent);
-      } catch (parseError) {
-        console.error('Failed to parse AI content:', parseError);
-        extracted = { 
-          key_quotes: [`Parse error - raw response: ${cleanedContent.substring(0, 200)}`]
-        };
-      }
+    if (!extracted) {
+      throw new Error('No extraction result from AI');
     }
 
     // Normalize geographic_states using shared module
