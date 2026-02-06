@@ -331,8 +331,14 @@ export const AddDealToUniverseDialog = ({
       if (filesToUpload.length > 0 && userId) {
         const { data: { session } } = await supabase.auth.getSession();
         
-        for (const file of filesToUpload) {
+        for (let fi = 0; fi < filesToUpload.length; fi++) {
+          const file = filesToUpload[fi];
           try {
+            // Add delay between files to avoid rate-limiting the AI parser
+            if (fi > 0) {
+              await new Promise(r => setTimeout(r, 1500));
+            }
+            
             const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
             const filePath = `${listing.id}/${Date.now()}-${file.name}`;
             
