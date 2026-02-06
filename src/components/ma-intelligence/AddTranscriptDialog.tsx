@@ -196,20 +196,18 @@ export function AddTranscriptDialog({
               }
             }
             
-            // Insert into unified transcripts (write to table; views are read-only)
+            // Insert into deal_transcripts
             const safeTranscriptText = (transcriptText || '').trim().length > 0
               ? transcriptText
               : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
 
-            const { error } = await supabase.from("transcripts" as any).insert({
-              entity_type: 'deal',
+            const { error } = await supabase.from("deal_transcripts").insert({
               listing_id: dealId,
               title: sf.title.trim() || sf.file.name,
               source: "call",
               transcript_url: fileUrl,
-              call_date: formData.call_date || null,
+              call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
               transcript_text: safeTranscriptText,
-              extraction_status: 'pending',
             });
             
             if (error) throw error;
@@ -255,7 +253,7 @@ export function AddTranscriptDialog({
           throw new Error("Please provide a transcript link, paste content, or upload files");
         }
 
-        // Insert into unified transcripts (write to table; views are read-only)
+        // Insert into deal_transcripts
         const safeText = (formData.transcript_text || '').trim().length > 0
           ? formData.transcript_text
           : (formData.transcript_link ? `[Transcript link added: ${formData.transcript_link}]` : '');
@@ -264,15 +262,13 @@ export function AddTranscriptDialog({
           throw new Error("Transcript content cannot be empty");
         }
 
-        const { error } = await supabase.from("transcripts" as any).insert({
-          entity_type: 'deal',
+        const { error } = await supabase.from("deal_transcripts").insert({
           listing_id: dealId,
           title: formData.title.trim(),
           source: "call",
           transcript_url: formData.transcript_link || null,
-          call_date: formData.call_date || null,
+          call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
           transcript_text: safeText,
-          extraction_status: 'pending',
         });
 
         if (error) throw error;
