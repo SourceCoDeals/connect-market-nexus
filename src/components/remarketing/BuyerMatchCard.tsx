@@ -651,12 +651,16 @@ export const BuyerMatchCard = ({
         </p>
         
         {/* Disqualification Warning (repeated at bottom) */}
-        {disqualified && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-red-600">
-            <AlertCircle className="h-4 w-4" />
-            <span>Reason: {getDisqualificationReason(score.fit_reasoning, score)}</span>
-          </div>
-        )}
+        {disqualified && (() => {
+          const reason = getDisqualificationReason(score.fit_reasoning, score);
+          const isDataIssue = reason === 'insufficient data';
+          return (
+            <div className={`mt-3 flex items-center gap-2 text-xs ${isDataIssue ? 'text-amber-600' : 'text-red-600'}`}>
+              <AlertCircle className="h-4 w-4" />
+              <span>{isDataIssue ? 'Low confidence — insufficient data for scoring' : `Reason: ${reason}`}</span>
+            </div>
+          );
+        })()}
         
         {/* Expandable Thesis */}
         <Collapsible open={isExpanded} onOpenChange={handleExpand}>

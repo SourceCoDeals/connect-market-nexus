@@ -809,6 +809,52 @@ async function handleBulkScore(
     throw new Error("Listing not found");
   }
 
+  // ========== DEAL SCORING READINESS VALIDATION ==========
+  // Audit the deal's data completeness and flag missing scoring inputs
+  const dealDiagnostics = {
+    missing_fields: [] as string[],
+    warnings: [] as string[],
+    data_quality: 'high' as 'high' | 'medium' | 'low',
+  };
+
+  // Check critical scoring fields
+  const hasRevenue = listing.revenue !== null && listing.revenue !== undefined;
+  const hasEbitda = listing.ebitda !== null && listing.ebitda !== undefined;
+  const hasLocation = !!(listing.location && listing.location.trim());
+  const hasServices = !!(
+    (listing.services && Array.isArray(listing.services) && listing.services.length > 0) ||
+    (listing.categories && Array.isArray(listing.categories) && listing.categories.length > 0) ||
+    (listing.category && listing.category.trim())
+  );
+  const hasDescription = !!(listing.hero_description?.trim() || listing.description?.trim());
+
+  if (!hasRevenue) dealDiagnostics.missing_fields.push('revenue');
+  if (!hasEbitda) dealDiagnostics.missing_fields.push('ebitda');
+  if (!hasLocation) dealDiagnostics.missing_fields.push('location');
+  if (!hasServices) dealDiagnostics.missing_fields.push('services/category');
+  if (!hasDescription) dealDiagnostics.missing_fields.push('description');
+  if (!listing.seller_motivation) dealDiagnostics.missing_fields.push('seller_motivation');
+
+  if (!hasRevenue && !hasEbitda) {
+    dealDiagnostics.warnings.push('No financial data — size scoring will use proxy values');
+  }
+  if (!hasServices) {
+    dealDiagnostics.warnings.push('No services/category — service scoring will use weight redistribution');
+  }
+  if (!hasLocation) {
+    dealDiagnostics.warnings.push('No location — geography scoring will use weight redistribution');
+  }
+
+  // Determine overall data quality
+  const missingCount = dealDiagnostics.missing_fields.length;
+  if (missingCount >= 3) {
+    dealDiagnostics.data_quality = 'low';
+  } else if (missingCount >= 1) {
+    dealDiagnostics.data_quality = 'medium';
+  }
+
+  console.log(`[DealDiagnostics] Deal ${listingId}: quality=${dealDiagnostics.data_quality}, missing=[${dealDiagnostics.missing_fields.join(', ')}]`);
+
   // Fetch universe with structured criteria
   const { data: universe, error: universeError } = await supabase
     .from("remarketing_buyer_universes")
@@ -877,6 +923,16 @@ async function handleBulkScore(
       );
     }
   }
+
+  // ========== BUYER READINESS STATS ==========
+  const buyerReadiness = {
+    total: buyersToScore.length,
+    with_services: buyersToScore.filter((b: any) => b.target_services?.length > 0).length,
+    with_geo: buyersToScore.filter((b: any) => b.target_geographies?.length > 0 || b.geographic_footprint?.length > 0).length,
+    with_size_criteria: buyersToScore.filter((b: any) => b.target_revenue_min || b.target_revenue_max || b.target_ebitda_min).length,
+    with_thesis: buyersToScore.filter((b: any) => b.thesis_summary?.trim()).length,
+  };
+  console.log(`[BuyerReadiness] ${JSON.stringify(buyerReadiness)}`);
 
   console.log(`Scoring ${buyersToScore.length} buyers for listing ${listingId} (rescore: ${rescoreExisting})`);
 
@@ -980,13 +1036,45 @@ async function handleBulkScore(
     }
   }
 
+  // ========== SCORING SUMMARY & GUARDRAILS ==========
+  const qualifiedCount = scores.filter((s: any) => s.composite_score >= 55).length;
+  const disqualifiedCount = scores.filter((s: any) => s.composite_score < 55).length;
+  const avgScore = scores.length > 0
+    ? Math.round(scores.reduce((sum: number, s: any) => sum + (s.composite_score || 0), 0) / scores.length)
+    : 0;
+
+  // Guardrail: Flag when ALL scores are disqualified — likely a data issue
+  if (qualifiedCount === 0 && scores.length > 0) {
+    console.warn(`[ScoringGuardrail] ALL ${scores.length} buyers disqualified for deal ${listingId}. Avg score: ${avgScore}. Deal data quality: ${dealDiagnostics.data_quality}. Missing: [${dealDiagnostics.missing_fields.join(', ')}]`);
+  }
+
+  // Guardrail: Flag tight score band (all scores within 10 points = mapping break indicator)
+  if (scores.length > 5) {
+    const scoreValues = scores.map((s: any) => s.composite_score || 0);
+    const minScore = Math.min(...scoreValues);
+    const maxScore = Math.max(...scoreValues);
+    if (maxScore - minScore < 10) {
+      console.warn(`[ScoringGuardrail] Tight score band detected (${minScore}-${maxScore}). Possible mapping break or defaulting.`);
+      dealDiagnostics.warnings.push(`All scores clustered in tight band (${minScore}-${maxScore}) — possible data issue`);
+    }
+  }
+
   return new Response(
-    JSON.stringify({ 
-      success: true, 
-      scores, 
+    JSON.stringify({
+      success: true,
+      scores,
       errors: errors.length > 0 ? errors : undefined,
       totalProcessed: scores.length,
-      totalBuyers: buyersToScore.length 
+      totalBuyers: buyersToScore.length,
+      diagnostics: {
+        deal: dealDiagnostics,
+        buyers: buyerReadiness,
+        scoring_summary: {
+          qualified: qualifiedCount,
+          disqualified: disqualifiedCount,
+          avg_score: avgScore,
+        }
+      }
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
