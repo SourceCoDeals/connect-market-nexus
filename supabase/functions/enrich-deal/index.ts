@@ -149,31 +149,58 @@ serve(async (req) => {
         let cumulativeUpdates: Record<string, unknown> = {};
         let cumulativeSources = deal.extraction_sources;
 
+        const toFiniteNumber = (v: unknown): number | undefined => {
+          if (typeof v === 'number' && Number.isFinite(v)) return v;
+          if (typeof v === 'string') {
+            const n = Number(v.replace(/[$,]/g, '').trim());
+            if (Number.isFinite(n)) return n;
+          }
+          return undefined;
+        };
+
         const mapExtractedToListing = (extracted: any): Record<string, unknown> => {
           const out: Record<string, unknown> = {};
 
           // Structured revenue
-          if (extracted?.revenue?.value != null) {
-            out.revenue = extracted.revenue.value;
-            if (extracted.revenue.confidence) out.revenue_confidence = extracted.revenue.confidence;
-            out.revenue_is_inferred = !!extracted.revenue.is_inferred;
-            if (extracted.revenue.source_quote) out.revenue_source_quote = extracted.revenue.source_quote;
+          {
+            const revenueValue = toFiniteNumber(extracted?.revenue?.value);
+            if (revenueValue != null) {
+              out.revenue = revenueValue;
+              if (extracted?.revenue?.confidence) out.revenue_confidence = extracted.revenue.confidence;
+              out.revenue_is_inferred = !!extracted?.revenue?.is_inferred;
+              if (extracted?.revenue?.source_quote) out.revenue_source_quote = extracted.revenue.source_quote;
+            }
           }
 
           // Structured EBITDA
-          if (extracted?.ebitda) {
-            if (extracted.ebitda.amount != null) out.ebitda = extracted.ebitda.amount;
-            if (extracted.ebitda.margin_percentage != null) out.ebitda_margin = extracted.ebitda.margin_percentage / 100;
-            if (extracted.ebitda.confidence) out.ebitda_confidence = extracted.ebitda.confidence;
-            out.ebitda_is_inferred = !!extracted.ebitda.is_inferred;
-            if (extracted.ebitda.source_quote) out.ebitda_source_quote = extracted.ebitda.source_quote;
+          {
+            const ebitdaAmount = toFiniteNumber(extracted?.ebitda?.amount);
+            if (ebitdaAmount != null) out.ebitda = ebitdaAmount;
+
+            const marginPct = toFiniteNumber(extracted?.ebitda?.margin_percentage);
+            if (marginPct != null) out.ebitda_margin = marginPct / 100;
+
+            if (extracted?.ebitda?.confidence) out.ebitda_confidence = extracted.ebitda.confidence;
+            if (extracted?.ebitda) out.ebitda_is_inferred = !!extracted.ebitda.is_inferred;
+            if (extracted?.ebitda?.source_quote) out.ebitda_source_quote = extracted.ebitda.source_quote;
           }
 
           // Common fields
           if (Array.isArray(extracted?.geographic_states) && extracted.geographic_states.length) out.geographic_states = extracted.geographic_states;
-          if (extracted?.number_of_locations != null) out.number_of_locations = extracted.number_of_locations;
-          if (extracted?.full_time_employees != null) out.full_time_employees = extracted.full_time_employees;
-          if (extracted?.founded_year != null) out.founded_year = extracted.founded_year;
+
+          {
+            const n = toFiniteNumber(extracted?.number_of_locations);
+            if (n != null) out.number_of_locations = n;
+          }
+          {
+            const n = toFiniteNumber(extracted?.full_time_employees);
+            if (n != null) out.full_time_employees = n;
+          }
+          {
+            const n = toFiniteNumber(extracted?.founded_year);
+            if (n != null) out.founded_year = n;
+          }
+
           if (extracted?.service_mix) out.service_mix = extracted.service_mix;
           if (extracted?.business_model) out.business_model = extracted.business_model;
           if (extracted?.industry) out.industry = extracted.industry;

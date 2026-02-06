@@ -349,33 +349,56 @@ Use the extract_deal_info tool to return structured data.`;
       if (listing) {
         // Flatten extracted data for priority updates
         const flatExtracted: Record<string, unknown> = {};
-        
+
+        const toFiniteNumber = (v: unknown): number | undefined => {
+          if (typeof v === 'number' && Number.isFinite(v)) return v;
+          if (typeof v === 'string') {
+            const n = Number(v.replace(/[$,]/g, '').trim());
+            if (Number.isFinite(n)) return n;
+          }
+          return undefined;
+        };
+
         // Handle structured revenue
-        if (extracted.revenue?.value) {
-          flatExtracted.revenue = extracted.revenue.value;
-          flatExtracted.revenue_confidence = extracted.revenue.confidence;
-          flatExtracted.revenue_is_inferred = extracted.revenue.is_inferred || false;
-          flatExtracted.revenue_source_quote = extracted.revenue.source_quote;
+        {
+          const revenueValue = toFiniteNumber(extracted.revenue?.value);
+          if (revenueValue != null) {
+            flatExtracted.revenue = revenueValue;
+            flatExtracted.revenue_confidence = extracted.revenue?.confidence;
+            flatExtracted.revenue_is_inferred = extracted.revenue?.is_inferred || false;
+            flatExtracted.revenue_source_quote = extracted.revenue?.source_quote;
+          }
         }
-        
+
         // Handle structured EBITDA
-        if (extracted.ebitda) {
-          if (extracted.ebitda.amount) {
-            flatExtracted.ebitda = extracted.ebitda.amount;
+        {
+          const ebitdaAmount = toFiniteNumber(extracted.ebitda?.amount);
+          if (ebitdaAmount != null) flatExtracted.ebitda = ebitdaAmount;
+
+          const marginPct = toFiniteNumber(extracted.ebitda?.margin_percentage);
+          if (marginPct != null) flatExtracted.ebitda_margin = marginPct / 100; // Store as decimal
+
+          if (extracted.ebitda) {
+            flatExtracted.ebitda_confidence = extracted.ebitda.confidence;
+            flatExtracted.ebitda_is_inferred = extracted.ebitda.is_inferred || false;
+            flatExtracted.ebitda_source_quote = extracted.ebitda.source_quote;
           }
-          if (extracted.ebitda.margin_percentage) {
-            flatExtracted.ebitda_margin = extracted.ebitda.margin_percentage / 100; // Store as decimal
-          }
-          flatExtracted.ebitda_confidence = extracted.ebitda.confidence;
-          flatExtracted.ebitda_is_inferred = extracted.ebitda.is_inferred || false;
-          flatExtracted.ebitda_source_quote = extracted.ebitda.source_quote;
         }
-        
+
         // Map other fields
         if (extracted.geographic_states?.length) flatExtracted.geographic_states = extracted.geographic_states;
-        if (extracted.number_of_locations) flatExtracted.number_of_locations = extracted.number_of_locations;
-        if (extracted.full_time_employees) flatExtracted.full_time_employees = extracted.full_time_employees;
-        if (extracted.founded_year) flatExtracted.founded_year = extracted.founded_year;
+        {
+          const n = toFiniteNumber(extracted.number_of_locations);
+          if (n != null) flatExtracted.number_of_locations = n;
+        }
+        {
+          const n = toFiniteNumber(extracted.full_time_employees);
+          if (n != null) flatExtracted.full_time_employees = n;
+        }
+        {
+          const n = toFiniteNumber(extracted.founded_year);
+          if (n != null) flatExtracted.founded_year = n;
+        }
         if (extracted.service_mix) flatExtracted.service_mix = extracted.service_mix;
         if (extracted.business_model) flatExtracted.business_model = extracted.business_model;
         if (extracted.owner_goals) flatExtracted.owner_goals = extracted.owner_goals;
