@@ -171,7 +171,8 @@ export async function callClaudeWithTool(
   tool: any,
   apiKey: string,
   model: string = DEFAULT_CLAUDE_MODEL,
-  timeoutMs: number = 20000
+  timeoutMs: number = 20000,
+  maxTokens: number = 8192
 ): Promise<{ data: any | null; error?: { code: string; message: string } }> {
   try {
     const claudeTool = convertOpenAIToolToClaudeTool(tool);
@@ -181,7 +182,7 @@ export async function callClaudeWithTool(
       headers: getAnthropicHeaders(apiKey),
       body: JSON.stringify({
         model,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
         system: systemPrompt,
         messages: [
           {
