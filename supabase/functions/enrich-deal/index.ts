@@ -109,6 +109,7 @@ serve(async (req) => {
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g';
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -118,6 +119,18 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Missing dealId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // FIX #5: Pre-flight check for ANTHROPIC_API_KEY (used by extract-deal-transcript)
+    if (!anthropicApiKey) {
+      console.error('[enrich-deal] ANTHROPIC_API_KEY is not set — transcript extraction will fail');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'ANTHROPIC_API_KEY is not configured. Please add it to Supabase Edge Function secrets.',
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -455,11 +468,14 @@ serve(async (req) => {
         }
       } else {
         // Normal mode: only unprocessed or failed transcripts
+        // FIX #3: Check extracted_data FIRST — if a transcript already has extracted_data,
+        // it was successfully processed and should not be re-sent to the LLM.
         needsExtraction = allTranscripts.filter((t) => {
-          if (!t.processed_at) return true; // Never processed
-          // Previously processed but extraction failed (empty/null extracted_data)
+          // Already has valid extracted data → skip
           const hasExtracted = t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data).length > 0;
-          return !hasExtracted;
+          if (hasExtracted) return false;
+          // Never processed, or processed but extraction was empty/failed
+          return true;
         });
       }
     }
@@ -558,15 +574,19 @@ serve(async (req) => {
         }
       }
 
+      // FIX #6: processed counter should include BOTH LLM-processed this run AND applied from existing
       transcriptReport.processed = transcriptsProcessed + (transcriptReport.appliedFromExistingTranscripts || 0);
       (transcriptReport as any).processedThisRun = transcriptsProcessed;
       transcriptReport.errors = transcriptErrors;
+    } else {
+      // FIX #6 (cont): Even when needsExtraction is empty, report applied-from-existing as processed
+      transcriptReport.processed = transcriptReport.appliedFromExistingTranscripts || 0;
+      (transcriptReport as any).processedThisRun = 0;
     }
 
-    // ALWAYS re-fetch deal after transcript processing (steps 0A + 0B).
-    // Step 0A and extract-deal-transcript both update enriched_at in the DB
-    // but NOT in the local deal object. Without this re-fetch, the optimistic
-    // lock for the website update will fail with 409 "concurrent_modification".
+    // FIX #1: ALWAYS re-fetch deal after step 0A (not just after 0B).
+    // Step 0A updates enriched_at in the DB but NOT in the local deal object.
+    // Without this re-fetch, the optimistic lock for website update will fail with 409.
     if (transcriptReport.appliedFromExisting > 0 || transcriptsProcessed > 0) {
       const { data: refreshedDeal } = await supabase
         .from('listings')
@@ -579,28 +599,40 @@ serve(async (req) => {
       }
     }
 
-    // GUARDRAIL (OUTSIDE the if-block - fires even when needsExtraction is empty)
-    // If transcripts exist but NOTHING was extracted or applied, fail hard.
+    // FIX #2: If transcripts exist and were already applied (from step 0A),
+    // but no NEW extraction was needed, this is SUCCESS not failure.
+    // GUARDRAIL: Only fire if transcripts exist but NOTHING was extracted or applied.
     if (
       transcriptReport.totalTranscripts > 0 &&
       transcriptsProcessed === 0 &&
       transcriptReport.appliedFromExisting === 0
     ) {
-      const reason = needsExtraction.length === 0
-        ? 'All transcripts marked as processed but none have extracted_data. This should not happen after the retry fix.'
-        : transcriptErrors.length > 0
-          ? `All ${transcriptReport.processable} transcript extractions failed: ${transcriptErrors.slice(0, 3).join('; ')}`
-          : 'No transcripts had sufficient text content (>= 100 chars)';
-
-      console.error(`[Transcripts] GUARDRAIL FIRED: ${reason}`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Transcript enrichment failed: ${reason}`,
-          transcriptReport,
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      // Check if all transcripts already have extracted_data (already processed in prior run)
+      const allHaveExtracted = allTranscripts?.every(
+        (t) => t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data as any).length > 0
       );
+
+      if (allHaveExtracted) {
+        // FIX #2: This is not a failure — transcripts were processed in a previous run.
+        // Continue to website scraping.
+        console.log('[Transcripts] All transcripts already have extracted_data from prior runs. Continuing to website scraping.');
+      } else {
+        const reason = needsExtraction.length === 0
+          ? 'All transcripts marked as processed but none have extracted_data. This should not happen after the retry fix.'
+          : transcriptErrors.length > 0
+            ? `All ${transcriptReport.processable} transcript extractions failed: ${transcriptErrors.slice(0, 3).join('; ')}`
+            : 'No transcripts had sufficient text content (>= 100 chars)';
+
+        console.error(`[Transcripts] GUARDRAIL FIRED: ${reason}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Transcript enrichment failed: ${reason}`,
+            transcriptReport,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Capture version for optimistic locking
@@ -1422,8 +1454,9 @@ For financial data, include confidence levels and source quotes where available.
         const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
           method: 'POST',
           headers: {
-            'apikey': supabaseServiceKey,
-            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'x-internal-secret': supabaseServiceKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -1476,8 +1509,9 @@ For financial data, include confidence levels and source quotes where available.
         const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
           method: 'POST',
           headers: {
-            'apikey': supabaseServiceKey,
-            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'x-internal-secret': supabaseServiceKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
