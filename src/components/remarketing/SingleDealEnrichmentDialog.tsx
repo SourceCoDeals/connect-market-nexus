@@ -18,7 +18,12 @@ export interface SingleDealEnrichmentResult {
   };
   transcriptReport?: {
     totalTranscripts: number;
-    processed: number;
+    processed: number; // Legacy: includes already-extracted transcripts
+    processedThisRun?: number; // Newly extracted this run
+    processable?: number; // Pending with sufficient text
+    skipped?: number; // Too short (<100 chars)
+    appliedFromExisting?: number; // Fields applied from already-extracted transcripts
+    appliedFromExistingTranscripts?: number; // Count of transcripts that contributed fields
     errors: string[];
   };
 }
@@ -121,27 +126,66 @@ export const SingleDealEnrichmentDialog = ({
             </div>
           )}
 
-          {/* Success but no fields updated */}
+          {/* Success but no NEW website fields updated - show contextual message */}
           {isSuccess && fieldsUpdated.length === 0 && (
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
               <FileText className="h-4 w-4" />
-              No new fields were extracted. The deal may already be up to date.
+              {(transcriptReport?.appliedFromExisting ?? 0) > 0
+                ? `No new website fields extracted. ${transcriptReport?.appliedFromExisting} fields from transcripts were verified.`
+                : 'No new fields were extracted. The deal may already be up to date.'}
             </div>
           )}
 
-          {/* Transcript Report */}
+          {/* Transcript Report - Show accurate breakdown */}
           {transcriptReport && transcriptReport.totalTranscripts > 0 && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border text-sm">
-              <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <div>
-                <span className="font-medium">
-                  Processed {transcriptReport.processed} of {transcriptReport.totalTranscripts} transcripts
-                </span>
-                {transcriptReport.errors.length > 0 && (
-                  <span className="text-destructive ml-1">
-                    ({transcriptReport.errors.length} errors)
-                  </span>
-                )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 p-3 rounded-lg border text-sm">
+                <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="space-y-1">
+                  {/* Show already-extracted transcripts that contributed fields */}
+                  {(transcriptReport.appliedFromExistingTranscripts ?? 0) > 0 && (
+                    <div className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                        {transcriptReport.appliedFromExistingTranscripts} transcript{transcriptReport.appliedFromExistingTranscripts !== 1 ? 's' : ''} applied
+                      </span>
+                      {(transcriptReport.appliedFromExisting ?? 0) > 0 && (
+                        <span className="text-muted-foreground">
+                          ({transcriptReport.appliedFromExisting} fields)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Show newly processed this run */}
+                  {(transcriptReport.processedThisRun ?? 0) > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Zap className="h-3.5 w-3.5 text-primary" />
+                      <span>
+                        {transcriptReport.processedThisRun} new transcript{transcriptReport.processedThisRun !== 1 ? 's' : ''} extracted
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Show skipped transcripts */}
+                  {(transcriptReport.skipped ?? 0) > 0 && (
+                    <div className="text-muted-foreground text-xs">
+                      {transcriptReport.skipped} skipped (insufficient content)
+                    </div>
+                  )}
+                  
+                  {/* Show total context */}
+                  <div className="text-muted-foreground text-xs">
+                    Total: {transcriptReport.totalTranscripts} transcript{transcriptReport.totalTranscripts !== 1 ? 's' : ''} on file
+                  </div>
+                  
+                  {/* Show errors if any */}
+                  {transcriptReport.errors.length > 0 && (
+                    <div className="text-destructive text-xs">
+                      {transcriptReport.errors.length} error{transcriptReport.errors.length !== 1 ? 's' : ''} occurred
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
