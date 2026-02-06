@@ -151,6 +151,7 @@ serve(async (req) => {
     let transcriptsProcessed = 0;
     let transcriptsAppliedFromExisting = 0;
     const transcriptErrors: string[] = [];
+    const transcriptFieldNames: string[] = []; // Track which fields transcripts applied
 
     // Reporting fields (returned to UI)
     const transcriptReport = {
@@ -423,6 +424,8 @@ serve(async (req) => {
           } else {
             transcriptReport.appliedFromExisting = Object.keys(cumulativeUpdates).length;
             transcriptReport.appliedFromExistingTranscripts = transcriptsAppliedFromExisting;
+            // Track which fields were applied from transcripts (for merged response)
+            transcriptFieldNames.push(...Object.keys(cumulativeUpdates));
             // Keep deal.extraction_sources accurate for the rest of the pipeline
             (deal as any).extraction_sources = cumulativeSources;
           }
@@ -635,7 +638,7 @@ serve(async (req) => {
           JSON.stringify({
             success: true,
             message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: no website URL found.`,
-            fieldsUpdated: [],
+            fieldsUpdated: transcriptFieldNames,
             transcriptReport,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -671,7 +674,7 @@ serve(async (req) => {
           JSON.stringify({
             success: true,
             message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: Firecrawl not configured.`,
-            fieldsUpdated: [],
+            fieldsUpdated: transcriptFieldNames,
             transcriptReport,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -757,7 +760,7 @@ serve(async (req) => {
           JSON.stringify({
             success: true,
             message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping failed: could not reach homepage.`,
-            fieldsUpdated: [],
+            fieldsUpdated: transcriptFieldNames,
             transcriptReport,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -821,7 +824,7 @@ serve(async (req) => {
           JSON.stringify({
             success: true,
             message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: insufficient content (${websiteContent.length} chars).`,
-            fieldsUpdated: [],
+            fieldsUpdated: transcriptFieldNames,
             transcriptReport,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1569,15 +1572,17 @@ For financial data, include confidence levels and source quotes where available.
       );
     }
 
-    const fieldsUpdated = Object.keys(updates);
-    console.log(`Updated ${fieldsUpdated.length} fields:`, fieldsUpdated);
+    const websiteFieldsUpdated = Object.keys(updates);
+    // Merge transcript + website fields into one list (deduplicated)
+    const allFieldsUpdated = [...new Set([...transcriptFieldNames, ...websiteFieldsUpdated])];
+    console.log(`Updated ${allFieldsUpdated.length} fields (${transcriptFieldNames.length} transcript + ${websiteFieldsUpdated.length} website):`, allFieldsUpdated);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully enriched deal with ${fieldsUpdated.length} fields` + 
-          (transcriptsProcessed > 0 ? ` (+ ${transcriptsProcessed} transcripts processed)` : ''),
-        fieldsUpdated,
+        message: `Successfully enriched deal with ${allFieldsUpdated.length} fields` +
+          (transcriptFieldNames.length > 0 ? ` (${transcriptFieldNames.length} from transcripts, ${websiteFieldsUpdated.length} from website)` : ''),
+        fieldsUpdated: allFieldsUpdated,
         extracted,
         // "What We Scraped" diagnostic report
         scrapeReport: {
