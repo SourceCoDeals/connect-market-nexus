@@ -127,6 +127,7 @@ serve(async (req) => {
       .order('created_at', { ascending: false });
 
     let transcriptsProcessed = 0;
+    let transcriptsAppliedFromExisting = 0;
     const transcriptErrors: string[] = [];
 
     // Reporting fields (returned to UI)
@@ -134,10 +135,22 @@ serve(async (req) => {
       totalTranscripts: allTranscripts?.length || 0,
       processable: 0, // pending w/ sufficient text
       skipped: 0, // pending but too short/placeholder
-      processed: 0, // processed this run
-      appliedFromExisting: 0, // how many fields were applied from already-extracted transcripts
+      processed: 0, // processed (LLM) this run
+      appliedFromExisting: 0, // fields applied from already-extracted transcripts
+      appliedFromExistingTranscripts: 0, // transcripts that contributed at least 1 applied field
       errors: [] as string[],
     };
+
+    if (!transcriptsError && allTranscripts?.length) {
+      const sample = allTranscripts.slice(0, 5).map((t) => ({
+        id: t.id,
+        processed_at: t.processed_at,
+        text_len: t.transcript_text ? t.transcript_text.length : 0,
+        has_extracted: !!t.extracted_data,
+        applied_to_deal: t.applied_to_deal,
+      }));
+      console.log(`[Transcripts] fetched=${allTranscripts.length}`, sample);
+    }
 
     // 0A) Apply existing extracted_data (even if applied_to_deal was previously true)
     // Rationale: older runs could mark transcripts processed/applied but fail to update listings.
@@ -255,6 +268,8 @@ serve(async (req) => {
 
           if (Object.keys(updates).length === 0) continue;
 
+          transcriptsAppliedFromExisting++;
+
           // Merge geographic states rather than replace
           if (updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
             updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as any);
@@ -281,6 +296,7 @@ serve(async (req) => {
             console.error('Failed applying existing transcript intelligence:', applyExistingError);
           } else {
             transcriptReport.appliedFromExisting = Object.keys(cumulativeUpdates).length;
+            transcriptReport.appliedFromExistingTranscripts = transcriptsAppliedFromExisting;
             // Keep deal.extraction_sources accurate for the rest of the pipeline
             (deal as any).extraction_sources = cumulativeSources;
           }
@@ -369,8 +385,29 @@ serve(async (req) => {
         }
       }
 
-      transcriptReport.processed = transcriptsProcessed;
+      transcriptReport.processed = transcriptsProcessed + (transcriptReport.appliedFromExistingTranscripts || 0);
+      (transcriptReport as any).processedThisRun = transcriptsProcessed;
       transcriptReport.errors = transcriptErrors;
+
+      // Guardrail: transcripts exist but we neither applied existing intelligence nor processed any.
+      // This must NEVER report success.
+      const nothingAppliedOrProcessed =
+        transcriptReport.totalTranscripts > 0 &&
+        transcriptsProcessed === 0 &&
+        transcriptReport.appliedFromExisting === 0 &&
+        transcriptReport.processable === 0;
+
+      if (nothingAppliedOrProcessed) {
+        console.error('[Transcripts] Hard fail: transcripts exist but none were processable and none were applied');
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Transcript enrichment skipped: transcripts exist but none were processable and none were applied. Check transcript text + extraction_sources gating.',
+            transcriptReport,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Re-fetch deal to get updated extraction_sources after transcript processing
       const { data: refreshedDeal } = await supabase

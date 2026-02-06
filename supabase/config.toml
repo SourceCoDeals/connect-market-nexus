@@ -132,7 +132,7 @@ verify_jwt = true
 [functions.dedupe-buyers]
 verify_jwt = true
 [functions.extract-deal-transcript]
-verify_jwt = true
+verify_jwt = false
 [functions.import-reference-data]
 verify_jwt = true
 [functions.bulk-import-remarketing]
