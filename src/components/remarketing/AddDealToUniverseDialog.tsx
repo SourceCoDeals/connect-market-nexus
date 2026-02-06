@@ -303,9 +303,11 @@ export const AddDealToUniverseDialog = ({
       
       // Handle transcript file uploads (multiple)
       if (transcriptFiles.length > 0 && userId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        
         for (const file of transcriptFiles) {
           try {
-            const fileExt = file.name.split('.').pop();
+            const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
             const filePath = `${listing.id}/${Date.now()}-${file.name}`;
             
             const { error: uploadError } = await supabase.storage
@@ -315,25 +317,53 @@ export const AddDealToUniverseDialog = ({
             if (uploadError) {
               console.error("Transcript upload error:", uploadError);
               toast.error(`Failed to upload ${file.name}`);
-            } else {
-              const { data: { publicUrl } } = supabase.storage
-                .from('deal-transcripts')
-                .getPublicUrl(filePath);
-              
-              let transcriptText = "";
-              if (['txt', 'vtt', 'srt'].includes(fileExt?.toLowerCase() || '')) {
-                transcriptText = await file.text();
-              }
-              
-              await supabase.from('deal_transcripts').insert({
-                listing_id: listing.id,
-                transcript_url: publicUrl,
-                transcript_text: transcriptText || "Pending text extraction",
-                title: file.name,
-                created_by: userId,
-                source: 'file_upload',
-              });
+              continue;
             }
+            
+            const { data: { publicUrl } } = supabase.storage
+              .from('deal-transcripts')
+              .getPublicUrl(filePath);
+            
+            // Extract text content
+            let transcriptText = "";
+            if (['txt', 'vtt', 'srt'].includes(fileExt)) {
+              transcriptText = await file.text();
+            } else {
+              // For PDF/DOC/DOCX, call parse-transcript-file edge function
+              try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch(
+                  `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/parse-transcript-file`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${session?.access_token}`,
+                    },
+                    body: formData,
+                  }
+                );
+                
+                if (response.ok) {
+                  const result = await response.json();
+                  transcriptText = result.text || '';
+                } else {
+                  console.error(`Parse error for ${file.name}: ${response.status}`);
+                }
+              } catch (parseErr) {
+                console.error(`Failed to parse ${file.name}:`, parseErr);
+              }
+            }
+            
+            await supabase.from('deal_transcripts').insert({
+              listing_id: listing.id,
+              transcript_url: publicUrl,
+              transcript_text: transcriptText || "[text extraction pending]",
+              title: file.name,
+              created_by: userId,
+              source: 'file_upload',
+            });
           } catch (err) {
             console.error("Transcript handling error:", err);
           }
