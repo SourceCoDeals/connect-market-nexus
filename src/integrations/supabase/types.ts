@@ -3885,6 +3885,7 @@ export type Database = {
           headquarters_address: string | null
           hero_description: string | null
           id: string
+          ideal_buyer: string | null
           image_url: string | null
           industry: string | null
           industry_tier: number | null
@@ -4051,6 +4052,7 @@ export type Database = {
           headquarters_address?: string | null
           hero_description?: string | null
           id?: string
+          ideal_buyer?: string | null
           image_url?: string | null
           industry?: string | null
           industry_tier?: number | null
@@ -4217,6 +4219,7 @@ export type Database = {
           headquarters_address?: string | null
           hero_description?: string | null
           id?: string
+          ideal_buyer?: string | null
           image_url?: string | null
           industry?: string | null
           industry_tier?: number | null

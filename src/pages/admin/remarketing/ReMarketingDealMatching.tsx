@@ -243,14 +243,30 @@ const ReMarketingDealMatching = () => {
     const strong = scores.filter(s => s.composite_score >= 80).length;
     const approved = scores.filter(s => s.status === 'approved').length;
     const passed = scores.filter(s => s.status === 'passed').length;
-
-    // Compute most common disqualification reason (prefer backend reason)
+    
+    // Compute most common disqualification reason using score-based detection
     const reasons = disqualifiedScores.map(s => {
       if (s.disqualification_reason) return s.disqualification_reason;
       const r = s.fit_reasoning?.toLowerCase() || '';
-      if (r.includes('geography') || r.includes('location') || r.includes('state')) return 'no nearby presence';
-      if (r.includes('size') || r.includes('revenue')) return 'size mismatch';
-      if (r.includes('service')) return 'service mismatch';
+
+      // Check for explicit missing data flag first
+      if (r.includes('[missing_data:')) return 'insufficient data';
+
+      // Check for explicit enforcement patterns
+      if (r.includes('disqualified: deal revenue') || r.includes('below buyer minimum')) return 'size mismatch';
+      if (r.includes('dealbreaker: deal includes excluded')) return 'excluded criteria';
+      if (r.includes('geography strict:')) return 'geography mismatch';
+
+      // Use individual scores to find the weakest dimension (more accurate than keywords)
+      const dimensions = [
+        { name: 'size mismatch', score: s.size_score ?? 100 },
+        { name: 'no nearby presence', score: s.geography_score ?? 100 },
+        { name: 'service mismatch', score: s.service_score ?? 100 },
+        { name: 'owner goals mismatch', score: s.owner_goals_score ?? 100 },
+      ];
+      const weakest = dimensions.reduce((min, d) => d.score < min.score ? d : min, dimensions[0]);
+      if (weakest.score < 40) return weakest.name;
+
       return 'criteria mismatch';
     });
 
@@ -457,8 +473,13 @@ const ReMarketingDealMatching = () => {
       
       if (data.errors && data.errors.length > 0) {
         toast.warning(`Scored ${data.totalProcessed} buyers with ${data.errors.length} errors`);
+      } else if (data.diagnostics?.scoring_summary?.qualified === 0 && data.totalProcessed > 0) {
+        const missing = data.diagnostics?.deal?.missing_fields || [];
+        toast.warning(
+          `Scored ${data.totalProcessed} buyers — all disqualified.${missing.length > 0 ? ` Deal missing: ${missing.join(', ')}` : ' Consider enriching deal data.'}`
+        );
       } else {
-        toast.success(`Scored ${data.totalProcessed} buyers`);
+        toast.success(`Scored ${data.totalProcessed} buyers (${data.diagnostics?.scoring_summary?.qualified || 0} qualified)`);
       }
       
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
@@ -913,13 +934,46 @@ const ReMarketingDealMatching = () => {
             <div className="flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-muted-foreground">Category</p>
-                <p className="font-medium">{listing.category || '—'}</p>
+                <p className="text-muted-foreground">Services</p>
+                <p className="font-medium">
+                  {listing.services?.length > 0
+                    ? listing.services.slice(0, 3).join(', ') + (listing.services.length > 3 ? ` +${listing.services.length - 3}` : '')
+                    : listing.category || '—'}
+                </p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Deal Data Quality Warning */}
+      {listing && (() => {
+        const missingFields: string[] = [];
+        if (!listing.revenue) missingFields.push('Revenue');
+        if (!listing.ebitda) missingFields.push('EBITDA');
+        if (!listing.location?.trim()) missingFields.push('Location');
+        if (!(listing.services?.length > 0 || listing.categories?.length > 0 || listing.category?.trim())) missingFields.push('Services/Category');
+        if (!(listing.hero_description?.trim() || listing.description?.trim())) missingFields.push('Description');
+
+        if (missingFields.length === 0) return null;
+
+        return (
+          <div className={`rounded-lg border p-4 ${missingFields.length >= 3 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+            <div className="flex items-start gap-3">
+              <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${missingFields.length >= 3 ? 'text-red-600' : 'text-amber-600'}`} />
+              <div className="flex-1">
+                <p className={`font-medium text-sm ${missingFields.length >= 3 ? 'text-red-800' : 'text-amber-800'}`}>
+                  {missingFields.length >= 3 ? 'Low Data Quality' : 'Missing Scoring Data'} — {missingFields.length} field{missingFields.length > 1 ? 's' : ''} missing
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Missing: <strong>{missingFields.join(', ')}</strong>.
+                  {' '}Scores will use weight redistribution for missing dimensions — consider enriching the deal first for more accurate matching.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Universe Filter & Scoring Controls */}
       <Card>

@@ -17,17 +17,8 @@ interface DocumentExtractionRequest {
   industry_name?: string;
 }
 
-interface ExtractedCriteria {
-  size_criteria?: any;
-  service_criteria?: any;
-  geography_criteria?: any;
-  buyer_types_criteria?: any;
-  confidence_score: number;
-}
-
 /**
- * Extract text content from PDF using Claude's vision capabilities
- * or from plain text documents
+ * Extract text content from uploaded documents (PDF, text, etc.)
  */
 async function extractDocumentText(documentUrl: string): Promise<string> {
   console.log('[DOCUMENT_FETCH] Downloading document from storage');
@@ -37,7 +28,6 @@ async function extractDocumentText(documentUrl: string): Promise<string> {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
 
-  // Download document from Supabase Storage
   const { data, error } = await supabase.storage
     .from('documents')
     .download(documentUrl);
@@ -50,153 +40,211 @@ async function extractDocumentText(documentUrl: string): Promise<string> {
   const text = new TextDecoder().decode(buffer);
 
   console.log(`[DOCUMENT_LOADED] ${text.length} characters`);
-
   return text;
 }
 
 /**
- * Extract buyer criteria from uploaded document (PDF, research report, etc.)
+ * Extract buyer criteria and deal information from uploaded documents
+ * SOURCE PRIORITY: 60 (Document — lower than Transcript at 100)
+ *
+ * Handles CIMs, broker packages, deal memos, research notes, one-pagers,
+ * and other shorter documents.
  */
 async function extractCriteriaFromDocument(
   documentText: string,
   documentName: string,
   industryName: string
-): Promise<ExtractedCriteria> {
+): Promise<any> {
   console.log('[EXTRACTION_START] Processing document');
 
-  const systemPrompt = `You are an expert M&A advisor analyzing industry research documents, reports, and deal memos. Extract buyer fit criteria from documents that may be shorter and more focused than comprehensive guides.
+  const systemPrompt = `You are an expert M&A advisor analyzing a document to extract buyer fit criteria and deal information. These documents may be shorter and more focused than comprehensive M&A guides — they could be deal memos, CIMs, broker packages, internal research notes, or one-pagers.
 
-EXTRACTION APPROACH:
-1. Look for specific buyer targeting criteria (size, geography, services)
-2. Identify buyer types mentioned (PE firms, platforms, strategics)
-3. Extract explicit criteria even if incomplete
-4. Mark confidence based on specificity and clarity
+RULES:
+1. ADAPT TO DOCUMENT TYPE: A CIM will have detailed financials. A broker teaser will have limited info. A research note may have industry data but no specific deal data. Extract what's available and flag what's missing.
 
-CONFIDENCE SCORING:
-- 90-100: Explicit criteria with specific numbers
-- 70-89: Clear patterns with some specificity
-- 50-69: General patterns but lacking detail
-- Below 50: Vague or conflicting information
+2. CONFIDENCE SCORING:
+   - 90-100: Explicit criteria with specific numbers from a primary source (CIM financials, audited statements).
+   - 70-89: Clear patterns or stated preferences from a reliable secondary source.
+   - 50-69: General patterns, inferred criteria, or data from an unverified source.
+   - Below 50: Vague statements, unreliable context, or high uncertainty.
 
-Focus on EXPLICIT criteria. If a section isn't covered in the document, return null for that section.`;
+3. SOURCE PRIORITY: Document data (priority 60) cannot overwrite transcript data (priority 100). If the extraction system has existing data from a transcript, document data fills gaps only.
 
-  const userPrompt = `Extract buyer fit criteria from this ${industryName} document: "${documentName}"
+4. FINANCIAL PRECISION: Documents often contain more precise financial data than transcripts (audited figures, detailed P&Ls). Extract with appropriate confidence — audited financials get confidence 95-100, management projections get 70-80.
+
+5. DISTINGUISH HISTORICAL FROM PROJECTED: "2024 revenue was $8.2M" (historical, confidence 95) is different from "2025 projected revenue of $10M" (projected, confidence 70). Tag appropriately.
+
+6. NUMBERS AS RAW INTEGERS: All dollar amounts as raw numbers. "$7.5M" = 7500000.
+
+7. PERCENTAGES AS DECIMALS: 18% = 0.18.
+
+8. STATE CODES: Always 2-letter uppercase.`;
+
+  const userPrompt = `Analyze the following document and extract all buyer fit criteria and deal information.
+
+First, identify the DOCUMENT TYPE (one of: CIM, broker_teaser, deal_memo, research_note, one_pager, financial_statement, other) and adjust your extraction approach accordingly.
+
+Document Name: "${documentName}"
+Industry: ${industryName}
 
 DOCUMENT CONTENT:
-${documentText.slice(0, 50000)} <!-- Limit to 50k chars -->
-
-Extract whatever criteria are explicitly mentioned:
-1. SIZE CRITERIA: Revenue/EBITDA ranges, location counts
-2. SERVICE CRITERIA: Services buyers target
-3. GEOGRAPHY CRITERIA: Geographic preferences
-4. BUYER TYPE PROFILES: Types of buyers discussed
-
-If a section isn't covered in the document, mark it as null or return confidence_score: 0 for that section.
-Include confidence scores (0-100) for each section based on how explicitly the criteria are stated.`;
+${documentText.slice(0, 50000)}`;
 
   const tools = [{
     name: "extract_document_criteria",
-    description: "Extract buyer fit criteria from uploaded document",
+    description: "Extract buyer fit criteria and deal information from uploaded document",
     input_schema: {
       type: "object",
       properties: {
-        size_criteria: {
+        document_metadata: {
           type: "object",
-          nullable: true,
           properties: {
-            revenue_min: { type: "number", nullable: true },
-            revenue_max: { type: "number", nullable: true },
-            revenue_sweet_spot: { type: "number", nullable: true },
-            ebitda_min: { type: "number", nullable: true },
-            ebitda_max: { type: "number", nullable: true },
-            ebitda_sweet_spot: { type: "number", nullable: true },
-            location_count_min: { type: "number", nullable: true },
-            location_count_max: { type: "number", nullable: true },
-            confidence_score: { type: "number", description: "0-100" }
+            document_type: {
+              type: "string",
+              enum: ["CIM", "broker_teaser", "deal_memo", "research_note", "one_pager", "financial_statement", "other"],
+              description: "Type of document being analyzed"
+            },
+            company_name: { type: "string", description: "Company name if identifiable" },
+            date: { type: "string", description: "Document date if present" },
+            author: { type: "string", description: "Document author/firm if identified" },
+            page_count_estimate: { type: "number", description: "Estimated page count" }
           },
-          required: ["confidence_score"]
+          required: ["document_type"]
         },
-        service_criteria: {
+        financial_data: {
           type: "object",
-          nullable: true,
           properties: {
-            target_services: {
-              type: "array",
-              items: { type: "string" }
+            revenue: {
+              type: "object",
+              properties: {
+                value: { type: "number", description: "Revenue in raw dollars" },
+                period: { type: "string", description: "Time period (FY2024, TTM, etc.)" },
+                is_projected: { type: "boolean", description: "Whether this is projected vs historical" },
+                confidence: { type: "number", description: "Confidence 0-100" }
+              }
             },
-            service_exclusions: {
-              type: "array",
-              items: { type: "string" }
+            ebitda: {
+              type: "object",
+              properties: {
+                value: { type: "number", description: "EBITDA in raw dollars" },
+                margin: { type: "number", description: "EBITDA margin as decimal (0.18 for 18%)" },
+                period: { type: "string" },
+                is_projected: { type: "boolean" },
+                confidence: { type: "number" }
+              }
             },
-            confidence_score: { type: "number", description: "0-100" }
-          },
-          required: ["confidence_score"]
-        },
-        geography_criteria: {
-          type: "object",
-          nullable: true,
-          properties: {
-            target_regions: {
-              type: "array",
-              items: { type: "string" }
-            },
-            target_states: {
-              type: "array",
-              items: { type: "string" }
-            },
-            geographic_exclusions: {
-              type: "array",
-              items: { type: "string" }
-            },
-            confidence_score: { type: "number", description: "0-100" }
-          },
-          required: ["confidence_score"]
-        },
-        buyer_types_criteria: {
-          type: "object",
-          nullable: true,
-          properties: {
-            buyer_types: {
+            revenue_history: {
               type: "array",
               items: {
                 type: "object",
                 properties: {
-                  buyer_type: {
-                    type: "string",
-                    enum: ["pe_firm", "platform", "strategic", "family_office", "other"]
-                  },
-                  profile_name: { type: "string" },
-                  description: { type: "string" },
-                  typical_size_range: {
-                    type: "object",
-                    properties: {
-                      revenue_min: { type: "number", nullable: true },
-                      revenue_max: { type: "number", nullable: true }
-                    }
-                  },
-                  geographic_focus: {
-                    type: "array",
-                    items: { type: "string" }
-                  },
-                  service_preferences: {
-                    type: "array",
-                    items: { type: "string" }
-                  },
-                  priority_rank: { type: "number" }
+                  year: { type: "number" },
+                  value: { type: "number", description: "Revenue in raw dollars" }
                 },
-                required: ["buyer_type", "profile_name", "priority_rank"]
+                required: ["year", "value"]
+              },
+              description: "Historical revenue figures if multiple years provided"
+            },
+            ebitda_history: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  year: { type: "number" },
+                  value: { type: "number", description: "EBITDA in raw dollars" }
+                },
+                required: ["year", "value"]
+              },
+              description: "Historical EBITDA figures if multiple years provided"
+            },
+            other_financials: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  metric: { type: "string", description: "E.g., gross margin, SG&A, capex, working capital, debt" },
+                  value: { type: "string", description: "Value (number or description)" },
+                  period: { type: "string" },
+                  confidence: { type: "number" }
+                },
+                required: ["metric", "value"]
+              },
+              description: "Any other financial figures: gross margin, capex, working capital, debt, customer counts, etc."
+            }
+          }
+        },
+        buyer_criteria: {
+          type: "object",
+          description: "Only populate if the document contains buyer-side information",
+          properties: {
+            size_criteria: {
+              type: "object",
+              properties: {
+                revenue_min: { type: "number" },
+                revenue_max: { type: "number" },
+                ebitda_min: { type: "number" },
+                ebitda_max: { type: "number" },
+                confidence: { type: "number" }
               }
             },
-            confidence_score: { type: "number", description: "0-100" }
-          },
-          required: ["confidence_score"]
+            service_criteria: {
+              type: "object",
+              properties: {
+                target_services: { type: "array", items: { type: "string" } },
+                service_exclusions: { type: "array", items: { type: "string" } },
+                confidence: { type: "number" }
+              }
+            },
+            geography_criteria: {
+              type: "object",
+              properties: {
+                target_regions: { type: "array", items: { type: "string" } },
+                target_states: { type: "array", items: { type: "string" }, description: "2-letter state codes" },
+                geographic_exclusions: { type: "array", items: { type: "string" } },
+                confidence: { type: "number" }
+              }
+            },
+            deal_preferences: {
+              type: "object",
+              properties: {
+                deal_types: { type: "array", items: { type: "string" } },
+                structure_preferences: { type: "array", items: { type: "string" } },
+                valuation_parameters: { type: "string" },
+                deal_breakers: { type: "array", items: { type: "string" } },
+                confidence: { type: "number" }
+              }
+            }
+          }
+        },
+        deal_information: {
+          type: "object",
+          description: "Only populate if document describes a specific deal/company for sale",
+          properties: {
+            company_overview: { type: "string", description: "Brief overview of the company" },
+            industry: { type: "string", description: "Most specific industry label" },
+            location: { type: "string", description: "City, ST format" },
+            services: { type: "array", items: { type: "string" }, description: "All services/products" },
+            employees: { type: "number", description: "Employee count" },
+            founded: { type: "number", description: "4-digit founding year" },
+            ownership: { type: "string", description: "Ownership structure" },
+            competitive_position: { type: "string", description: "Market position and competitive advantages" },
+            growth_story: { type: "string", description: "Growth trajectory and future potential" },
+            key_risks: { type: "array", items: { type: "string" }, description: "Identified risks" },
+            asking_price: { type: "number", description: "Asking price in raw dollars" },
+            implied_multiple: { type: "string", description: "E.g., '5.2x EBITDA'" }
+          }
+        },
+        extraction_gaps: {
+          type: "array",
+          items: { type: "string" },
+          description: "What information is NOT in this document that would be valuable. E.g., 'No EBITDA data provided', 'Customer concentration not addressed', 'No management team details'."
         },
         overall_confidence: {
           type: "number",
           description: "Overall extraction confidence 0-100"
         }
       },
-      required: ["overall_confidence"]
+      required: ["document_metadata", "extraction_gaps", "overall_confidence"]
     }
   }];
 
@@ -211,7 +259,7 @@ Include confidence scores (0-100) for each section based on how explicitly the c
     },
     body: JSON.stringify({
       model: DEFAULT_CLAUDE_MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
       tools: tools,
@@ -230,17 +278,15 @@ Include confidence scores (0-100) for each section based on how explicitly the c
   console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
   console.log(`[USAGE] Input: ${result.usage?.input_tokens}, Output: ${result.usage?.output_tokens}`);
 
-  // Extract tool use result
   const toolUse = result.content.find((c: any) => c.type === 'tool_use');
   if (!toolUse) {
     throw new Error('No tool use found in Claude response');
   }
 
-  return toolUse.input as ExtractedCriteria;
+  return toolUse.input;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -288,29 +334,26 @@ serve(async (req) => {
 
     console.log(`[SOURCE_CREATED] ID: ${sourceRecord.id}`);
 
-    // Extract document text
     try {
       const documentText = await extractDocumentText(document_url);
+      const extractionResult = await extractCriteriaFromDocument(documentText, document_name, industry_name);
 
-      // Extract criteria using Claude
-      const criteria = await extractCriteriaFromDocument(documentText, document_name, industry_name);
-
-      // Calculate confidence scores for each section
+      // Build confidence scores
       const confidenceScores: any = {
-        overall: criteria.overall_confidence
+        overall: extractionResult.overall_confidence,
+        document_type: extractionResult.document_metadata?.document_type,
       };
-
-      if (criteria.size_criteria) {
-        confidenceScores.size = criteria.size_criteria.confidence_score;
+      if (extractionResult.buyer_criteria?.size_criteria?.confidence) {
+        confidenceScores.size = extractionResult.buyer_criteria.size_criteria.confidence;
       }
-      if (criteria.service_criteria) {
-        confidenceScores.service = criteria.service_criteria.confidence_score;
+      if (extractionResult.buyer_criteria?.service_criteria?.confidence) {
+        confidenceScores.service = extractionResult.buyer_criteria.service_criteria.confidence;
       }
-      if (criteria.geography_criteria) {
-        confidenceScores.geography = criteria.geography_criteria.confidence_score;
+      if (extractionResult.buyer_criteria?.geography_criteria?.confidence) {
+        confidenceScores.geography = extractionResult.buyer_criteria.geography_criteria.confidence;
       }
-      if (criteria.buyer_types_criteria) {
-        confidenceScores.buyer_types = criteria.buyer_types_criteria.confidence_score;
+      if (extractionResult.financial_data?.revenue?.confidence) {
+        confidenceScores.financial = extractionResult.financial_data.revenue.confidence;
       }
 
       // Update source record with extraction results
@@ -319,7 +362,7 @@ serve(async (req) => {
         .update({
           extraction_status: 'completed',
           extraction_completed_at: new Date().toISOString(),
-          extracted_data: criteria,
+          extracted_data: extractionResult,
           confidence_scores: confidenceScores
         })
         .eq('id', sourceRecord.id);
@@ -328,13 +371,14 @@ serve(async (req) => {
         throw new Error(`Failed to update source record: ${updateError.message}`);
       }
 
-      console.log(`[SUCCESS] Extraction completed with ${criteria.overall_confidence}% confidence`);
+      console.log(`[SUCCESS] Extraction completed: type=${extractionResult.document_metadata?.document_type}, confidence=${extractionResult.overall_confidence}%`);
+      console.log(`[GAPS] ${extractionResult.extraction_gaps?.length || 0} extraction gaps identified`);
 
       return new Response(
         JSON.stringify({
           success: true,
           source_id: sourceRecord.id,
-          criteria,
+          extraction: extractionResult,
           message: 'Document criteria extracted successfully'
         }),
         {
@@ -344,7 +388,6 @@ serve(async (req) => {
       );
 
     } catch (extractionError) {
-      // Mark extraction as failed
       await supabase
         .from('criteria_extraction_sources')
         .update({

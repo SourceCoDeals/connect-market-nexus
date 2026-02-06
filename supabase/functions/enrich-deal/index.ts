@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
-import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
+import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 
@@ -292,10 +292,20 @@ serve(async (req) => {
           if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
 
           if (extracted?.customer_types) out.customer_types = extracted.customer_types;
-          // customer_concentration is a NUMERIC column — only accept numbers
-          {
-            const cc = toFiniteNumber(extracted?.customer_concentration);
-            if (cc != null) out.customer_concentration = cc;
+          // customer_concentration: DB is NUMERIC but Claude often returns text.
+          // Extract percentage number if present; append text to customer_types.
+          if (extracted?.customer_concentration) {
+            const concText = String(extracted.customer_concentration);
+            const pctMatch = concText.match(/(\d{1,3})(?:\s*%|\s*percent)/i);
+            if (pctMatch) {
+              const n = Number(pctMatch[1]);
+              if (Number.isFinite(n) && n > 0 && n <= 100) out.customer_concentration = n;
+            }
+            if (out.customer_types) {
+              out.customer_types += '\n\nCustomer Concentration: ' + concText;
+            } else {
+              out.customer_types = 'Customer Concentration: ' + concText;
+            }
           }
           if (extracted?.customer_geography) out.customer_geography = extracted.customer_geography;
           if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
@@ -303,7 +313,9 @@ serve(async (req) => {
           if (extracted?.executive_summary) out.executive_summary = extracted.executive_summary;
           if (extracted?.competitive_position) out.competitive_position = extracted.competitive_position;
           if (extracted?.growth_trajectory) out.growth_trajectory = extracted.growth_trajectory;
-          if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) out.key_risks = extracted.key_risks.join('\n');
+          if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) {
+            out.key_risks = extracted.key_risks.map((r: string) => `• ${r}`).join('\n');
+          }
           if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
           if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
 
@@ -341,24 +353,39 @@ serve(async (req) => {
           const flat = mapExtractedToListing(extracted);
           if (Object.keys(flat).length === 0) continue;
 
-          const { updates, sourceUpdates } = buildPriorityUpdates(
-            deal as any,
-            cumulativeSources,
-            flat as any,
-            'transcript',
-            t.id
-          );
+          let updates: Record<string, unknown>;
+          let sourceUpdates: Record<string, unknown>;
+
+          if (forceReExtract) {
+            // Force mode: bypass priority checks — overwrite ALL fields from transcripts
+            updates = { ...flat };
+            // Build source tracking entries manually
+            sourceUpdates = {};
+            for (const key of Object.keys(flat)) {
+              sourceUpdates[key] = createFieldSource('transcript', t.id);
+            }
+          } else {
+            const result = buildPriorityUpdates(
+              deal as any,
+              cumulativeSources,
+              flat as any,
+              'transcript',
+              t.id
+            );
+            updates = result.updates as Record<string, unknown>;
+            sourceUpdates = result.sourceUpdates;
+          }
 
           if (Object.keys(updates).length === 0) continue;
 
           transcriptsAppliedFromExisting++;
 
-          // Merge geographic states rather than replace
-          if (updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
+          // Merge geographic states rather than replace (unless force re-extracting)
+          if (!forceReExtract && updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
             updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as any);
           }
 
-          cumulativeUpdates = { ...cumulativeUpdates, ...(updates as Record<string, unknown>) };
+          cumulativeUpdates = { ...cumulativeUpdates, ...updates };
           cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates);
 
           // Keep local deal object in sync so subsequent priority checks see new values
@@ -515,8 +542,9 @@ serve(async (req) => {
           .in('id', failedTranscriptIds);
       }
 
-      // Process transcripts in parallel batches of 3 for speed
-      const BATCH_SIZE = 3;
+      // Process transcripts in parallel batches of 5 for speed
+      // With 11 transcripts this means 3 rounds instead of 4, saving ~25-30s
+      const BATCH_SIZE = 5;
       for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
         const batch = validTranscripts.slice(i, i + BATCH_SIZE);
 
@@ -528,9 +556,9 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  // Internal call: use anon key for Authorization (gateway-safe) +
-                  // pass service role key in custom header for function-level auth
-                  'Authorization': `Bearer ${supabaseAnonKey}`,
+                  // Internal call: use service role key for Authorization (valid JWT the gateway accepts)
+                  // + anon key for apikey header (required for project routing)
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
                   'apikey': supabaseAnonKey,
                   'x-internal-secret': supabaseServiceKey,
                 },
@@ -1062,7 +1090,7 @@ For financial data, include confidence levels and source quotes where available.
                       geographic_states: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Two-letter US state codes where they operate (e.g., ["CA", "TX", "FL"])'
+                        description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations explicitly stated in the text. Do NOT infer neighboring states. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
                       },
                       number_of_locations: {
                         type: 'number',
