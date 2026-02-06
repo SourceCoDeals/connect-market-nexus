@@ -541,9 +541,9 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  // Internal call: use anon key for Authorization (gateway-safe) +
-                  // pass service role key in custom header for function-level auth
-                  'Authorization': `Bearer ${supabaseAnonKey}`,
+                  // Internal call: use service role key for Authorization (valid JWT the gateway accepts)
+                  // + anon key for apikey header (required for project routing)
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
                   'apikey': supabaseAnonKey,
                   'x-internal-secret': supabaseServiceKey,
                 },

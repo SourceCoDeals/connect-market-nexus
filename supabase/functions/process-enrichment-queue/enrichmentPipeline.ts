@@ -32,10 +32,10 @@ async function callFn(
   const res = await fetch(`${input.supabaseUrl}/functions/v1/${fnName}`, {
     method: 'POST',
     headers: {
-      // Use anon key for Authorization (gateway-safe) +
-      // pass service role key in custom header for function-level auth
+      // Use service role key for Authorization (valid JWT the gateway accepts) +
+      // anon key for apikey header (required for project routing)
       apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
+      Authorization: `Bearer ${input.serviceRoleKey}`,
       'x-internal-secret': input.serviceRoleKey,
       'Content-Type': 'application/json',
     },
