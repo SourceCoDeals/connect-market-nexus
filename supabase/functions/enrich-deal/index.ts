@@ -40,6 +40,7 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'internal_company_name', // extracted company name
   'title', // fallback if internal_company_name not set
   'executive_summary',
+  'services',
   'service_mix',
   'business_model',
   'industry',
@@ -52,19 +53,36 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'address_zip',
   'address_country',
   'address', // legacy full address field
+  'headquarters_address',
   'founded_year',
+  'full_time_employees',
+  'part_time_employees',
+  'website',
   'customer_types',
+  'end_market_description',
+  'customer_concentration',
+  'customer_geography',
   'owner_goals',
+  'ownership_structure',
+  'transition_preferences',
+  'special_requirements',
+  'timeline_notes',
   'key_risks',
   'competitive_position',
   'technology_systems',
   'real_estate_info',
   'growth_trajectory',
+  'key_quotes',
+  'primary_contact_name',
+  'primary_contact_email',
+  'primary_contact_phone',
   // LinkedIn data from Apify
   'linkedin_employee_count',
   'linkedin_employee_range',
   'linkedin_url', // Extracted from website or entered manually
   // Financial tracking fields per spec
+  'revenue',
+  'ebitda',
   'revenue_confidence',
   'revenue_is_inferred',
   'revenue_source_quote',
@@ -280,6 +298,17 @@ serve(async (req) => {
           if (extracted?.primary_contact_name) out.primary_contact_name = extracted.primary_contact_name;
           if (extracted?.primary_contact_email) out.primary_contact_email = extracted.primary_contact_email;
           if (extracted?.primary_contact_phone) out.primary_contact_phone = extracted.primary_contact_phone;
+
+          // Fields that were previously missing from this mapping
+          if (extracted?.ownership_structure) out.ownership_structure = extracted.ownership_structure;
+          if (extracted?.headquarters_address) out.headquarters_address = extracted.headquarters_address;
+          if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
+          if (extracted?.website) out.website = extracted.website;
+          if (extracted?.location) out.location = extracted.location;
+          {
+            const pt = toFiniteNumber(extracted?.part_time_employees);
+            if (pt != null) out.part_time_employees = pt;
+          }
 
           // Filter to known listing columns (defensive)
           const filtered: Record<string, unknown> = {};
