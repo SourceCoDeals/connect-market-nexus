@@ -292,10 +292,20 @@ serve(async (req) => {
           if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
 
           if (extracted?.customer_types) out.customer_types = extracted.customer_types;
-          // customer_concentration is a NUMERIC column — only accept numbers
-          {
-            const cc = toFiniteNumber(extracted?.customer_concentration);
-            if (cc != null) out.customer_concentration = cc;
+          // customer_concentration: DB is NUMERIC but Claude often returns text.
+          // Extract percentage number if present; append text to customer_types.
+          if (extracted?.customer_concentration) {
+            const concText = String(extracted.customer_concentration);
+            const pctMatch = concText.match(/(\d{1,3})(?:\s*%|\s*percent)/i);
+            if (pctMatch) {
+              const n = Number(pctMatch[1]);
+              if (Number.isFinite(n) && n > 0 && n <= 100) out.customer_concentration = n;
+            }
+            if (out.customer_types) {
+              out.customer_types += '\n\nCustomer Concentration: ' + concText;
+            } else {
+              out.customer_types = 'Customer Concentration: ' + concText;
+            }
           }
           if (extracted?.customer_geography) out.customer_geography = extracted.customer_geography;
           if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
@@ -303,7 +313,9 @@ serve(async (req) => {
           if (extracted?.executive_summary) out.executive_summary = extracted.executive_summary;
           if (extracted?.competitive_position) out.competitive_position = extracted.competitive_position;
           if (extracted?.growth_trajectory) out.growth_trajectory = extracted.growth_trajectory;
-          if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) out.key_risks = extracted.key_risks.join('\n');
+          if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) {
+            out.key_risks = extracted.key_risks.map((r: string) => `• ${r}`).join('\n');
+          }
           if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
           if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
 
@@ -515,8 +527,9 @@ serve(async (req) => {
           .in('id', failedTranscriptIds);
       }
 
-      // Process transcripts in parallel batches of 3 for speed
-      const BATCH_SIZE = 3;
+      // Process transcripts in parallel batches of 5 for speed
+      // With 11 transcripts this means 3 rounds instead of 4, saving ~25-30s
+      const BATCH_SIZE = 5;
       for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
         const batch = validTranscripts.slice(i, i + BATCH_SIZE);
 

@@ -161,7 +161,7 @@ serve(async (req) => {
 
     const extractionPrompt = `You are a senior M&A analyst conducting due diligence on a potential acquisition target. You are reviewing a call transcript or meeting notes between our team and a business owner, broker, or company representative.
 
-Your job is to extract EVERY piece of deal intelligence from this transcript. Be EXHAUSTIVE, not conservative. If something is mentioned even briefly, capture it. Read the ENTIRE transcript word by word — do not skip ANY section.
+Your job is to extract EVERY piece of deal intelligence from this transcript. Be EXHAUSTIVE, not conservative. If something is mentioned even briefly, capture it. Read the ENTIRE transcript word by word — do not skip ANY section. Owners reveal critical information throughout the conversation, not just when directly asked.
 
 ${dealInfo ? `CURRENT DEAL PROFILE (for context — update if transcript has newer/better info):
 Company: ${dealInfo.company_name || 'Unknown'}
@@ -178,170 +178,358 @@ ${transcriptText}
 
 ---
 
-FIELD-BY-FIELD EXTRACTION INSTRUCTIONS:
+# FIELD-BY-FIELD EXTRACTION INSTRUCTIONS
 
-=== FINANCIAL FIELDS ===
+## SECTION 1: FINANCIALS
 
-**Revenue** (structured object):
-- Extract annual revenue as a raw number in dollars (e.g., 7500000 for $7.5M).
-- ALWAYS convert to raw numeric: "2 million" or "2M" or "$2M" = 2000000; "$500K" = 500000.
-- If a RANGE is given ("we do about 6, 7, 8 million"), use the MIDPOINT (7000000) with confidence "medium".
-- If hedged language ("roughly", "about", "around"), extract the number but set confidence to "medium".
-- If inferred from employee count, industry benchmarks, or other data, set is_inferred=true and explain the inference_method.
-- CRITICAL: Do NOT confuse revenue with EBITDA. Revenue = total top-line sales. EBITDA = earnings after costs.
-- Include the EXACT quote where revenue was mentioned in source_quote.
-- Confidence: "high" = explicit number stated; "medium" = range or hedged; "low" = inferred from indirect data.
+### Revenue (structured object)
 
-**EBITDA** (structured object):
-- Extract EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization) as a raw number.
-- If they say "SDE" (Seller's Discretionary Earnings), note this is NOT EBITDA — capture the number but flag "SDE reported, not EBITDA" in financial_notes.
-- If margin percentage is mentioned (e.g., "18% margins"), extract as margin_percentage (the number 18, NOT 0.18).
-- If EBITDA isn't stated but revenue and margin are both known, calculate: amount = revenue × (margin/100). Set is_inferred=true.
-- CRITICAL: Do NOT confuse EBITDA with revenue or SDE.
+Search the entire transcript for any mention of revenue, sales, top-line, gross revenue, annual revenue, run rate, or total sales. Apply these rules in order:
 
-**Financial Notes**:
-- Capture ALL financial context: seasonality patterns, revenue trends (growing/declining/flat), add-backs/adjustments, debt load, capex requirements, tax structure, working capital needs.
-- Note any concerning items: declining revenue, customer losses, pending lawsuits, regulatory issues, one-time income.
-- Include year-over-year growth rates if mentioned.
+1. **Exact number stated:** "we do $8 million a year" → value=8000000, confidence="high", is_inferred=false.
+2. **Range given:** "somewhere between 5 and 7 million" → use MIDPOINT (6000000), confidence="medium". Include exact range in source_quote.
+3. **Approximate/hedged language:** "about", "roughly", "around", "ballpark" with a single number → use that number, confidence="medium".
+4. **Inferred from other data:** "20% EBITDA margins on $1.2M EBITDA" → revenue ≈ $6M. OR "500 jobs/year at $15K average" → $7.5M. Set is_inferred=true, explain math in inference_method.
+5. **Multiple revenue figures at different times:** "we did $5M last year but tracking to $7M this year" → use MOST CURRENT figure. Note historical in inference_method.
+6. **Not mentioned:** value=null, confidence="low", source_quote=null.
 
-**Financial Follow-up Questions** (array):
-- Generate questions for anything unclear or contradictory about financials.
-- Examples: "Is the $8M figure revenue or total billings including pass-throughs?", "What are the owner add-backs beyond salary?"
+**Common mistakes to avoid:**
+- Do NOT confuse revenue with EBITDA, profit, or cash flow.
+- Do NOT confuse a single project value with annual revenue.
+- Do NOT use enterprise value or asking price as revenue.
+- "We bill about $600K a month" → ANNUALIZE to $7,200,000.
+- Always store as a raw number with no dollar signs, commas, or abbreviations.
 
-=== BUSINESS OVERVIEW ===
+### EBITDA (structured object)
 
-**Executive Summary**:
-- Write 3-5 sentences summarizing the COMPLETE business opportunity.
-- MUST include: what the company does, approximate size (revenue and/or employees), key strengths, geographic presence, growth trajectory, and why it is attractive as an acquisition target.
-- Reference SPECIFIC facts and numbers from the transcript.
-- Style: Professional M&A analyst tone. No fluff. Lead with the most important fact.
+Search for EBITDA, earnings, cash flow, profit, margin, SDE, owner's benefit, adjusted earnings, or net income.
 
-**Services** (array):
-- List EVERY service or product line mentioned anywhere in the transcript, even minor ones.
-- Include sub-services. Example: ["fire restoration", "water restoration", "mold remediation", "roofing", "textile cleaning", "content inventory", "board-up services"]
+1. **EBITDA stated directly:** "our EBITDA is $1.5 million" → amount=1500000, confidence="high".
+2. **Margin stated directly:** "we run at about 18% margins" → margin_percentage=18. If revenue known, calculate amount = revenue × (margin/100), set is_inferred=true.
+3. **Margin calculable:** If both revenue and EBITDA stated, calculate margin_percentage = (EBITDA / revenue) × 100.
+4. **SDE vs EBITDA:** If speaker says SDE/"seller's discretionary earnings"/"owner's benefit", use that number but note in financial_notes: "Figure represents SDE, not adjusted EBITDA. SDE includes owner compensation."
+5. **Adjusted vs unadjusted:** Always prefer ADJUSTED figure. Note which was used in inference_method.
+6. **Ranges/approximations:** Same as revenue — midpoint for ranges, confidence="medium" for hedged.
 
-**Service Mix**:
-- Describe ALL services with revenue breakdown percentages if discussed.
-- Example: "Fire restoration (40%), water restoration (35%), roofing (15%), textile cleaning and content inventory (10%). Primarily residential with growing commercial segment."
+**Common mistakes to avoid:**
+- Do NOT confuse gross margin with EBITDA margin.
+- Do NOT use revenue as EBITDA.
+- "We keep about 20 cents on every dollar" → margin_percentage=20.
+- "After I pay myself $300K, the business throws off another $800K" — this is likely SDE territory. Flag it.
 
-**Business Model**:
-- Describe HOW the business makes money in detail.
-- Include: revenue model (recurring vs project-based), pricing structure, contract types, insurance work vs direct, residential vs commercial split, average project size if mentioned.
-- Example: "Project-based restoration with some recurring service contracts; insurance-driven (70%) and direct customer (30%); average project $15K-$50K; revenue recognized over project duration."
+### Financial Notes (string — detailed paragraph)
 
-=== LOCATION & GEOGRAPHY ===
+Scan the ENTIRE transcript for financial context beyond revenue/EBITDA. Include ALL of the following if mentioned:
+- **Seasonality:** "70% of revenue comes Q2-Q3", "December is dead month"
+- **Revenue trends:** "Revenue grown 15% YoY for 3 years", "down year in 2023"
+- **One-time items:** "$500K insurance claim inflated last year", "bought new fleet — unusual capex"
+- **Owner compensation:** ALWAYS capture this — "I pay myself $250K plus car and health insurance." Affects SDE/EBITDA adjustments.
+- **Add-backs:** Personal expenses through business, one-time legal, family on payroll not working full-time, above-market rent to related entity
+- **Debt/liens:** Business debt, SBA loans, equipment financing, lines of credit
+- **Pending changes:** "Just signed $2M contract starting next quarter", "about to lose biggest customer"
+- **Capex:** Equipment needs, deferred maintenance
+- **Tax structure:** S-corp, C-corp, LLC, sole proprietor — how taxes affect reported earnings
+- **Working capital needs:** AR/AP cycles, inventory requirements
 
-**Location**:
-- Format as "City, State" (e.g., "Sellersburg, IN", "Dallas, TX").
-- Map cities to states: Minneapolis=MN, Dallas=TX, Phoenix=AZ, Indianapolis=IN, Chicago=IL, etc.
+If NOTHING beyond revenue/EBITDA mentioned: "No additional financial context provided in this call."
 
-**Headquarters Address**:
-- Full address if mentioned. Otherwise "City, ST" format.
+### Financial Follow-up Questions (array)
 
-**Geographic States** (array):
-- 2-letter US state codes ONLY: ["IN", "KY", "OH"]
-- Include ALL states where they: operate, have customers, hold licenses, or plan to expand.
-- If "tri-state area" is mentioned, map to the specific 3 states based on context.
+Generate questions for ACTUAL gaps — do NOT include all of these every time:
+1. Revenue not stated/vague → "Can you provide TTM revenue?"
+2. EBITDA not stated → "What is your adjusted EBITDA or SDE?"
+3. Margins unusually high (>30%) or low (<5%) → "Can you walk through major cost categories?"
+4. Revenue and EBITDA seem contradictory → point out the math
+5. No owner compensation mentioned → "What is total owner compensation including salary, benefits, personal expenses?"
+6. Growth claims without numbers → "Can you share revenue for each of the last 3 years?"
+7. SDE used instead of EBITDA → "What owner compensation is included in the SDE figure?"
+8. Unclear gross vs net → "Is that gross revenue or net revenue after returns/refunds?"
+If financials are comprehensive and clear, return empty array.
 
-**Number of Locations**:
-- Count ALL physical locations: offices, branches, shops, warehouses, satellite offices.
-- "One main shop plus a satellite office" = 2. Single location business = 1.
+## SECTION 2: EXECUTIVE SUMMARY (string — 3-5 sentences)
 
-=== OWNER & TRANSACTION ===
+Write a summary a PE investor could scan in 30 seconds. MUST include ALL available:
+1. **What the company does** — primary services/products in plain language
+2. **Size indicators** — revenue, EBITDA, employee count (use whichever are available)
+3. **Geographic presence** — where they operate, locations, service radius
+4. **Key strengths** — recurring revenue, long relationships, certifications, proprietary processes, reputation
+5. **Growth trajectory** — how fast they've grown AND where they could go with investment
+6. **Acquisition attractiveness** — platform opportunity? strong add-on? geographic gap filler?
 
-**Owner Goals**:
-- Be VERY specific about what the owner wants. Don't just say "exit strategy" — describe their exact motivations.
-- Include: primary motivation (retirement, burnout, growth, health), desired deal type (full sale, majority sale, partnership), financial expectations (price, multiples mentioned), and beyond-money goals (employee welfare, legacy, community).
-- Example: "Looking to create an exit strategy and partner with someone who can take the business to the next level. Wants growth capital and operational support, not just a buyout. Open to staying on 2-3 years during transition. Concerned about employees being taken care of."
+**Style rules:**
+- Write in third person ("The company..." not "They...").
+- Use SPECIFIC numbers from the transcript, not vague language.
+- Do NOT include risks in executive summary — that goes elsewhere.
+- Do NOT include owner goals/transition preferences here.
+- Lead with the most compelling aspect.
 
-**Ownership Structure**:
-- How the business is owned: sole proprietor, partnership, family-owned, LLC, S-corp, multiple partners.
-- Include ownership percentages if mentioned (e.g., "60/40 partnership between founder and brother").
+**Example:** "ABC Restoration is a $8.2M revenue fire and water restoration company based in Sellersburg, IN, operating across southern Indiana and the Louisville metro area. The company employs 45 full-time staff across two locations and generates approximately $1.5M in adjusted EBITDA (18% margins). Founded in 2005, the business has grown from $2M to $8.2M over five years, driven by expansion into roofing and a growing commercial segment. The company holds IICRC certifications, maintains preferred vendor relationships with three major insurance carriers, and has built a strong regional reputation. This represents an attractive platform opportunity in the fragmented restoration services market with clear organic growth levers and add-on acquisition potential."
 
-**Transition Preferences**:
-- How long the owner will stay post-acquisition, desired role, training period, flexibility.
-- Example: "Willing to stay 2-3 years, flexible on role. Would prefer advisory rather than day-to-day. Wants to ensure smooth handoff of insurance adjuster relationships."
+## SECTION 3: SERVICES & BUSINESS MODEL
 
-**Special Requirements**:
-- Any deal breakers, must-haves, or non-negotiable requirements.
-- Example: "Wants to retain all current employees, requires earnout structure, won't sell to competitors, needs to keep business name."
+### Services (array of strings)
 
-**Timeline Notes**:
-- When they want to close, urgency factors, phases, dependencies.
-- Example: "Wants to close by Q3 2025. No immediate urgency but motivated to start the process. Lease renewal in 18 months is a factor."
+List EVERY distinct service/product mentioned ANYWHERE in the transcript — not just the "what do you do" section. Owners reveal additional services casually later.
+- Listen for direct statements: "We do X, Y, and Z."
+- Listen for indirect mentions: "We also started doing roofing about two years ago"
+- Listen for sub-services: If "restoration" → does that mean fire, water, mold, storm, smoke, or all?
+- Listen for ancillary services: "We have our own textile cleaning facility"
+- Mark planned services: "commercial HVAC (planned)"
+- Use lowercase except proper nouns. Be specific: "fire restoration" not "restoration".
+- Include sub-services as SEPARATE items: ["fire restoration", "water restoration", "mold remediation"] NOT ["restoration"]
 
-=== CUSTOMER INTELLIGENCE ===
+### Service Mix (string — detailed paragraph)
 
-**Customer Types**:
-- Specific customer segments with percentages if available.
-- Example: "Residential homeowners (60%), commercial property managers (25%), insurance companies (15%). Mix of direct customers and insurance referrals."
+1. **Primary services with revenue percentages** if owner gave them: "Fire restoration ~40%, water restoration ~35%"
+2. **How services interrelate:** "Water damage calls frequently lead to mold remediation, creating natural cross-sell"
+3. **Residential vs commercial split** if mentioned
+4. **Recurring vs project-based split** if mentioned
+5. **In-house vs subcontracted** for each service
+6. **Recently added or planned services**
+If owner didn't provide percentage breakdowns, say so explicitly. Do NOT make up percentages.
 
-**End Market Description**:
-- WHO the ultimate customers are, what they look like, how they find the company, typical customer profile.
+### Business Model (string — detailed paragraph)
 
-**Customer Concentration**:
-- Top customer %, top 10 concentration, key account dependencies, diversification.
-- Example: "No single customer over 10% of revenue. Top 10 customers = 35% of revenue. Heavily reliant on State Farm referrals."
+Describe HOW the business makes money (different from WHAT services they offer):
+1. **Revenue model:** Project-based? Recurring contracts? Subscription? Retainer? T&M? Fixed bid?
+2. **How they get paid:** Insurance claims? Direct from customer? Government? Property management?
+3. **Pricing structure:** Per square foot? Xactimate estimates? Competitive bid? Cost-plus?
+4. **Residential vs commercial** with detail on how model differs
+5. **Average job size** if mentioned
+6. **Sales cycle:** Lead to closed job timeline. How customers find them.
+7. **Contract structure:** Long-term contracts, preferred vendor agreements, MSAs?
+8. **Repeat business:** What % from repeat customers or ongoing relationships?
 
-**Customer Geography**:
-- Where customers are located, service radius, coverage area.
-- Example: "Primarily serves a 50-mile radius around Indianapolis. Some commercial projects statewide."
+## SECTION 4: GEOGRAPHIC COVERAGE
 
-=== STRATEGIC INTELLIGENCE ===
+### Location (string — "City, ST" format)
+Primary location/headquarters. Use suburb name if mentioned ("Sellersburg, IN" not "Louisville area"). If home-based, use owner's stated city. If multiple locations, use first mentioned or described as "main."
 
-**Competitive Position**:
-- What makes them different from competitors? Market position, reputation, years in business, certifications, unique capabilities, customer relationships, brand recognition.
-- Example: "One of only 3 certified fire restoration companies in southern Indiana. 30+ years of relationships with insurance adjusters. Known for quality work and fast response times."
+### Headquarters Address (string or null)
+Only populate if specific STREET ADDRESS mentioned. Do NOT guess or look up.
 
-**Growth Trajectory**:
-- Historical growth AND future growth potential with specific numbers.
-- Example: "Grew from $2M to $8M over 5 years. Recently added roofing division generating $1.2M in first year. Owner believes company can reach $15M with investment in sales team and equipment."
+### Geographic States (array of 2-letter codes)
+Include EVERY state where company: operates, has customers, holds licenses, or plans to expand.
+- Map ALL city mentions to states: Minneapolis→MN, Dallas→TX, Louisville→KY, Nashville→TN, etc.
+- "Licensed in six states" → identify all six from context.
+- Past project mentions: "big job in St. Louis" → MO.
+- Future plans: "expanding into Tennessee" → include TN.
+- ALWAYS include home state.
 
-**Key Risks** (array):
-- List EVERY risk factor mentioned or implied. Be specific, not generic.
-- Categories to check: key person dependency, customer concentration, regulatory exposure, seasonal patterns, workforce challenges, equipment age/condition, lease expiration, insurance company dependency, technology debt, pending litigation, supplier concentration.
-- Format: ["Key person risk — owner personally manages all insurance adjuster relationships", "Seasonal — Q1 typically 30% lower revenue", "No formal CRM — customer data in owner's head", "Lease expires 2026 with no extension option"]
+### Number of Locations (integer)
+Count ALL: offices, shops, warehouses, branches, satellites, storage facilities (owned + leased).
+- Home office = 1 if only location
+- "Two shops and a warehouse" = 3
+- Do NOT count job sites or temporary project locations
 
-**Technology Systems**:
-- ALL software, CRM, fleet management, scheduling, accounting, estimating tools mentioned.
-- Example: "Uses Xactimate for estimating, QuickBooks for accounting, no formal CRM. Fleet tracked via GPS. Looking to implement ServiceTitan."
+## SECTION 5: OWNER GOALS & TRANSITION
 
-**Real Estate Info**:
-- Owned vs leased, square footage, warehouse space, office space, lease terms, property value.
-- Example: "Leases 15,000 sq ft warehouse + 3,000 sq ft office. Lease expires Dec 2026 at $8K/mo. Landlord willing to negotiate extension."
+### Owner Goals (string — detailed paragraph)
+This is one of the MOST IMPORTANT fields for buyer matching. Include:
+1. **Primary motivation:** Retirement? Growth capital? Burnout? Health? Partner buyout? Estate planning? "Take chips off the table"?
+2. **Desired deal type:** Full sale? Majority recap? Minority investment? Strategic partner? Merger?
+3. **Financial expectations:** Valuation expectations? Multiple mentioned? "Walk away with $X"?
+4. **Beyond-money goals:** Legacy preservation? Employee retention? Brand name? Continued involvement? Community impact?
+5. **Owner's exact words** where possible: Include their actual quotes.
+Do NOT editorialize or interpret. Report what the owner actually said. If vague ("just exploring options"), say that.
 
-=== COMPANY BASICS ===
+### Ownership Structure (string)
+- Entity type: LLC, S-corp, C-corp, sole proprietorship, partnership
+- Number of owners with percentages if stated
+- Family involvement: "Husband and wife 50/50", "Father founded, son runs it"
+- Silent partners or investors
+- Employee equity if mentioned
+- Trust or estate structures
+If not discussed: "Ownership structure not discussed on this call."
 
-**Industry**: Primary industry classification (e.g., "Fire & Water Restoration", "HVAC", "Commercial Plumbing", "IT Managed Services").
+### Transition Preferences (string — detailed paragraph)
+1. **Duration:** How long will they stay? "1-2 years" or "out in 90 days"
+2. **Role:** Full-time? Part-time? Advisory? Operations? Sales?
+3. **Willing vs not willing:** "Help with customer relationships but not day-to-day operations"
+4. **Key relationships held:** Customer/vendor relationships only the owner manages (transition risk)
+5. **Training plan:** Knowledge transfer readiness, is there a #2 in place?
+6. **Non-compete willingness**
+If not discussed: "Transition preferences not discussed on this call."
 
-**Founded Year**: Year founded. If they say "been doing this 20 years" and it's 2025, set founded_year = 2005.
+### Special Requirements (string or null)
+Deal-breakers, must-haves, non-negotiables. CRITICAL for buyer matching:
+- "Will NOT sell to a competitor"
+- "All employees must keep jobs"
+- "Need an earnout"
+- "Buyer has to be local"
+- "Won't consider below 5x EBITDA"
+- "Partner has to agree"
+- "Need to close before year-end for tax reasons"
+If none mentioned, set to null.
 
-**Full-time Employees**: Count ALL full-time staff mentioned: field crews, office staff, technicians, managers, sales, admin.
+### Timeline Notes (string or null)
+- Desired close date: "Done by Q4"
+- Urgency factors: Health, lease expiration, key employee leaving, partner pressure, market timing
+- Constraints: "After busy season", "Contract renews in March"
+- Previous attempts: "Tried to sell two years ago"
+- Broker timelines: "On market by June"
+If not discussed, set to null.
 
-**Part-time Employees**: Seasonal or part-time workers if mentioned separately.
+## SECTION 6: CUSTOMERS
 
-**Website**: Company website URL if mentioned.
+### Customer Types (string — detailed paragraph with percentages)
+1. **Segments with percentages** if provided: "Residential homeowners (60%), commercial property managers (25%), insurance companies (15%)"
+2. **Description of each segment:** Who specifically? Large enterprises? Small businesses? Homeowners?
+3. **How segments behave differently:** Residential one-time vs commercial ongoing contracts?
+4. **Growing vs shrinking segments**
+5. **Segments they want to grow into**
+If no percentages: describe qualitatively and note "Specific revenue breakdown by segment not provided."
 
-**Primary Contact**: Name, email, and phone of the main contact person (owner, broker, or representative).
+### End Market Description (string)
+Describe ultimate end customers — who uses/benefits from the service (can differ from who pays). Include: typical customer profile, how they find the company, what triggers their need, decision-making process.
 
-=== KEY QUOTES (CRITICAL — 8-10 VERBATIM) ===
+### Customer Concentration (string — detailed text)
+Assess concentration risk:
+1. **Largest single customer %:** "Biggest customer is ~15% of revenue"
+2. **Top 5/10 concentration:** "Top 10 = ~40% of revenue"
+3. **Key account dependencies:** "Losing ServiceMaster contract = $2M hit"
+4. **Insurance/government dependencies:** "80% of work through State Farm and Allstate"
+5. **Contractual vs at-will**
+If not discussed: "Customer concentration not discussed. Recommend follow-up."
 
-Extract 8-10 EXACT VERBATIM quotes from the transcript. These are the most valuable data points for deal evaluation.
-- Priority order: financial statements > growth indicators > owner motivation/goals > competitive advantages > risk factors > customer insights.
-- Include the most insightful and revealing statements.
-- Must be EXACT words from the transcript, not paraphrased.
-- Examples: "We did about seven and a half million last year", "I've been wanting to find a partner who can help us get to the next level", "Our biggest risk is probably that I know all the adjusters personally"
+### Customer Geography (string)
+- Service radius: "50-mile radius around Indianapolis"
+- Coverage map: "All of southern Indiana and Louisville metro"
+- Remote/national accounts
+- Urban vs rural mix
+- Geographic expansion plans
+
+## SECTION 7: STRATEGIC ANALYSIS
+
+### Competitive Position (string — detailed paragraph)
+Pull from ANYWHERE in the transcript — owners reveal advantages indirectly:
+1. **Market position:** Leader? Niche? Low-cost? Premium?
+2. **Reputation:** "20 years, 4.9 Google rating"
+3. **Certifications/credentials:** IICRC, ISO, trade licenses, preferred vendor status
+4. **Unique capabilities:** Proprietary processes, specialized equipment, in-house capabilities competitors outsource
+5. **Customer relationships:** "Customers for 15+ years"
+6. **Barriers to entry:** What would it take to replicate?
+7. **Named competitors** and how they compare
+
+### Growth Trajectory (string — detailed paragraph, TWO parts)
+**Part 1 — Historical (what HAS happened):**
+- Revenue over time: "Grew from $2M to $8M over 5 years"
+- Employee growth: "10 employees 3 years ago, 45 now"
+- New services, locations, markets added
+- Key inflection points: "Took off after State Farm contract in 2020"
+
+**Part 2 — Future potential (what COULD happen):**
+- Owner's view: "Can be a $15M business with right partner"
+- Specific growth levers: geographic expansion, adding services, hiring sales, commercial growth
+- What's holding them back: "Can't grow faster because I manage everything"
+- Acquisition opportunities: "Two smaller competitors I could acquire"
+Use SPECIFIC NUMBERS. Do not generalize.
+
+### Key Risks (array of specific strings)
+List EVERY risk — both explicit AND inferred. Tag inferred with "(inferred)":
+- **Key person dependency:** Owner holds sales/operations/relationships?
+- **Customer concentration:** Any customer >15% of revenue?
+- **Workforce:** Hiring difficulty, turnover, skilled labor reliance, union?
+- **Regulatory/licensing:** Compliance requirements, license renewals?
+- **Seasonality:** Revenue concentrated in certain months?
+- **Technology:** Outdated systems, no CRM, manual processes?
+- **Lease/real estate:** Expiration, above-market rent to related party?
+- **Insurance dependency:** Carrier relationships that could change?
+- **Equipment age:** Fleet/equipment needing replacement?
+- **Litigation:** Pending or past lawsuits?
+- **Environmental:** Contamination, hazmat, EPA?
+- **Supplier dependency:** Single-source suppliers?
+- **Succession gap:** No clear #2 beyond owner?
+Be SPECIFIC: "Owner personally manages all insurance adjuster relationships, creating key person risk" NOT just "Key person risk."
+
+### Technology Systems (string — organized by category)
+List EVERY tool mentioned. Organize by category:
+- **Accounting:** QuickBooks, Xero, Sage, etc.
+- **CRM:** Salesforce, HubSpot, "we use a spreadsheet", "we don't have one"
+- **Estimating:** Xactimate, PlanSwift, custom spreadsheets
+- **Scheduling/dispatch:** ServiceTitan, Jobber, Housecall Pro
+- **Fleet management:** GPS tracking, fuel cards
+- **Communication:** Slack, Teams, email-only
+- **Industry-specific:** Specialized tools for their trade
+- **Marketing:** WordPress, Google Ads, SEO provider
+ABSENCE of systems is just as important: "No formal CRM" or "Everything managed through spreadsheets."
+
+### Real Estate Info (string or null)
+- **Owned vs leased** for each location
+- **Square footage:** offices, shops, warehouses
+- **Lease terms:** Monthly rent, expiration, renewal options, related-party leases
+- **Property value** if owned and mentioned
+- **Zoning or special use permits**
+- **Real estate plans:** "Sell building separately", "Buyer assumes lease"
+- **Equipment stored on-site** affecting space needs
+If not discussed, set to null.
+
+## SECTION 8: COMPANY BASICS
+
+### Industry (string)
+Use MOST SPECIFIC category: "Fire & Water Restoration" NOT "Restoration" or "Construction". "Commercial HVAC Services" NOT "HVAC". If spans multiple, lead with largest revenue contributor.
+
+### Founded Year (integer)
+"Started in 2005" → 2005. "Been around 20 years" → calculate from current year. "Dad started it in the '80s" → estimate and note.
+
+### Full-time Employees (integer)
+Count ALL FT staff. Owners mention employees in fragments — add them up:
+- "12 guys in field and 3 in office" = 15 (+ owner if FT = 16)
+- "4 crews of 3" = 12 field minimum
+- "About 40-45 people" → use 43 (midpoint)
+- Do NOT include subcontractors unless owner explicitly counts them
+
+### Part-time Employees (integer or null)
+Seasonal/temporary/part-time. "10 extra guys in summer" = 10. "Part-time bookkeeper" = 1.
+
+### Website (string or null)
+Full URL format: "https://www.example.com". If company name mentioned but no URL, leave null — do NOT guess.
+
+### Primary Contact
+Name, email, phone of main contact person (usually the speaker). Note their role (owner, broker, CEO, partner).
+
+## SECTION 9: KEY QUOTES (8-10 EXACT VERBATIM)
+
+Select the 8-10 most revealing quotes — the "highlights reel" a buyer scans to understand the opportunity.
+Priority order:
+1. **Financial specifics:** "We did $8.2 million last year with about $1.5 million in EBITDA."
+2. **Growth statements:** "I honestly think this could be a $15 million business with the right investment."
+3. **Owner motivation:** "I'm 62 and I've been doing this for 30 years. I want to enjoy my grandkids."
+4. **Competitive advantages:** "We're the only company in the region that handles fire, water, AND roofing in-house."
+5. **Risk revelations:** "If I got hit by a bus tomorrow, I'm honestly not sure the business could run without me."
+6. **Customer insights:** "State Farm sends us probably 60% of our work."
+7. **Operational details:** "We just invested $500K in a new textile cleaning facility."
+8. **Deal preferences:** "I'm not looking for a full buyout — I want a partner who can bring capital and expertise."
+
+**Rules:**
+- MUST be exact verbatim quotes — NOT paraphrased
+- Include enough context that quote makes sense standalone (2-3 sentences OK)
+- Do NOT include small talk, pleasantries, or filler
+- Do NOT include quotes from the interviewer — only from the business owner/seller
 
 ---
 
-IMPORTANT: You MUST populate as many fields as possible. Do not leave fields empty if there is ANY relevant information in the transcript. Use the extract_deal_info tool to return structured data.`;
+## GLOBAL RULES (apply to ALL fields):
 
-    // Tool schema for Claude — descriptions kept concise since the extraction prompt already has full instructions
+1. **Search the ENTIRE transcript.** A question about employees might prompt a revenue disclosure. A question about customers might reveal geography.
+2. **Use exact quotes for source_quote fields.** Copy-paste exact words. Do not paraphrase.
+3. **When data conflicts, use the most specific and most recent statement.** "$7M" early → "$7.2M" later when more precise → use $7.2M.
+4. **When data is missing, say so explicitly.** Never fabricate. Use null for structured fields, "Not discussed on this call" for text fields.
+5. **Flag inconsistencies.** Owner says 45 employees but describes only 3 crews of 3 → note discrepancy.
+6. **Numbers as raw integers.** 8000000 not "$8M" or "8,000,000".
+7. **Percentages as numbers.** 18 not "18%" or 0.18. (margin_percentage=18 means 18%)
+8. **State codes: 2-letter uppercase.** "IN" not "Indiana".
+9. **Don't over-extract.** Jokes or hypotheticals are not data points.
+10. **Prioritize accuracy over completeness.** Null is better than wrong. Wrong data causes bad buyer matches.
+
+IMPORTANT: Populate as MANY fields as possible with MAXIMUM DETAIL. Use the extract_deal_info tool to return structured data.`;
+
+    // Tool schema — descriptions reinforce the prompt rules with format specs
     const tool = {
       type: 'function',
       function: {
         name: 'extract_deal_info',
-        description: 'Extract comprehensive deal intelligence from a transcript or meeting notes. Populate as many fields as possible.',
+        description: 'Extract comprehensive deal intelligence from a transcript or meeting notes. Populate as many fields as possible with maximum detail. Every field should have rich, specific content — not generic summaries.',
         parameters: {
           type: 'object',
           properties: {
@@ -349,100 +537,113 @@ IMPORTANT: You MUST populate as many fields as possible. Do not leave fields emp
             revenue: {
               type: 'object',
               properties: {
-                value: { type: 'number', description: 'Annual revenue in dollars (raw number, e.g., 7500000 for $7.5M). Use midpoint for ranges.' },
-                confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'high=explicit, medium=hedged/range, low=inferred' },
-                is_inferred: { type: 'boolean', description: 'True if calculated/inferred from other data rather than stated directly' },
-                source_quote: { type: 'string', description: 'Exact verbatim quote where revenue was mentioned' },
-                inference_method: { type: 'string', description: 'How value was inferred (e.g., "based on 50 employees at ~$150K revenue/employee")' }
+                value: { type: 'number', description: 'Annual revenue as raw integer (8000000 not "$8M"). Annualize monthly ("$600K/mo"→7200000). Use midpoint for ranges.' },
+                confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'high=explicit stated, medium=range/hedged/approximate, low=inferred from indirect data' },
+                is_inferred: { type: 'boolean', description: 'True if calculated from other data (e.g., employee count × industry benchmark, or EBITDA ÷ margin)' },
+                source_quote: { type: 'string', description: 'EXACT verbatim quote where revenue was mentioned. Copy-paste, do not paraphrase.' },
+                inference_method: { type: 'string', description: 'Explain calculation if inferred. E.g., "500 jobs/yr × $15K avg = $7.5M". Null if not inferred.' }
               },
               required: ['confidence']
             },
             ebitda: {
               type: 'object',
               properties: {
-                amount: { type: 'number', description: 'EBITDA in dollars (raw number). NOT SDE — flag SDE in financial_notes.' },
-                margin_percentage: { type: 'number', description: 'EBITDA margin as a percentage NUMBER (e.g., 18 for 18%, NOT 0.18)' },
+                amount: { type: 'number', description: 'EBITDA as raw integer. If SDE stated, use that number but flag in financial_notes. Prefer adjusted over unadjusted.' },
+                margin_percentage: { type: 'number', description: 'EBITDA margin as percentage NUMBER: 18 means 18%. NOT 0.18. Calculate from revenue if both known.' },
                 confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-                is_inferred: { type: 'boolean', description: 'True if calculated from revenue × margin or other indirect data' },
-                source_quote: { type: 'string', description: 'Exact verbatim quote supporting the EBITDA figure' }
+                is_inferred: { type: 'boolean', description: 'True if calculated from revenue × margin or other indirect method' },
+                source_quote: { type: 'string', description: 'EXACT verbatim quote. "We keep about 20 cents on every dollar" → margin_percentage=20.' }
               },
               required: ['confidence']
             },
-            financial_notes: { type: 'string', description: 'Financial context: seasonality, trends, add-backs, debt, capex, tax structure, SDE vs EBITDA notes, concerning items' },
+            financial_notes: { type: 'string', description: 'DETAILED paragraph: seasonality patterns, YoY trends, owner compensation (ALWAYS capture), add-backs, debt/SBA loans, capex needs, tax structure (S-corp/C-corp/LLC), working capital, one-time items, pending changes. If SDE reported instead of EBITDA, explain here.' },
             financial_followup_questions: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Questions to clarify unclear/contradictory financial data in follow-up calls'
+              description: 'Only questions for ACTUAL gaps. Empty array if financials are clear and comprehensive.'
             },
 
-            // === BUSINESS OVERVIEW ===
-            executive_summary: { type: 'string', description: '3-5 sentences: what the company does, size (revenue/employees), strengths, geography, growth trajectory, acquisition attractiveness. Reference specific facts.' },
+            // === EXECUTIVE SUMMARY ===
+            executive_summary: { type: 'string', description: '3-5 sentences for PE investor. MUST include: what company does, size (revenue + employees), strengths, geography, growth trajectory, acquisition attractiveness. Third person. Specific numbers. No risks or owner goals here. Lead with most compelling fact. See example in prompt.' },
+
+            // === SERVICES & BUSINESS MODEL ===
             services: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Every service/product line mentioned, including sub-services. e.g., ["fire restoration", "water restoration", "mold remediation", "roofing"]'
+              description: 'EVERY service as separate items. Include sub-services individually. Lowercase. Mark planned with "(planned)". E.g., ["fire restoration", "water restoration", "mold remediation", "roofing", "content pack-out", "board-up services", "commercial HVAC (planned)"]'
             },
-            service_mix: { type: 'string', description: 'All services with revenue % breakdown if discussed. e.g., "Fire restoration (40%), water restoration (35%), roofing (15%), textile cleaning (10%)"' },
-            business_model: { type: 'string', description: 'How they make money: recurring vs project-based, pricing, contract types, insurance vs direct, residential vs commercial split, avg project size' },
+            service_mix: { type: 'string', description: 'DETAILED paragraph: services with revenue %, how they interrelate (cross-sell), residential/commercial split, recurring/project split, in-house vs subcontracted, recently added/planned. If no % given, state that explicitly.' },
+            business_model: { type: 'string', description: 'DETAILED paragraph: revenue model (recurring/project/subscription), how they get paid (insurance/direct/government), pricing structure (per sq ft/Xactimate/bid), res/com differences, avg job size, sales cycle, contract types (MSAs/preferred vendor), repeat business %.' },
 
             // === LOCATION & GEOGRAPHY ===
-            location: { type: 'string', description: 'City, State format. e.g., "Sellersburg, IN", "Dallas, TX"' },
-            headquarters_address: { type: 'string', description: 'Full address if mentioned, otherwise City, ST' },
+            location: { type: 'string', description: 'Primary HQ in "City, ST" format. Use suburb not metro ("Sellersburg, IN" not "Louisville area").' },
+            headquarters_address: { type: 'string', description: 'Full street address ONLY if explicitly mentioned. Otherwise "City, ST". Do NOT guess.' },
             geographic_states: {
               type: 'array',
               items: { type: 'string' },
-              description: '2-letter US state codes for ALL states: operations, customers, licenses, expansion plans. e.g., ["IN", "KY", "OH"]'
+              description: '2-letter codes for ALL states: operations, customers, licenses, expansion plans. Map city mentions to states. Always include home state. E.g., ["IN", "KY", "OH", "TN"]'
             },
-            number_of_locations: { type: 'number', description: 'Count of ALL physical locations: offices, branches, shops, warehouses, satellites' },
+            number_of_locations: { type: 'number', description: 'ALL physical locations (offices+shops+warehouses+satellites). Home office=1. "Two shops and warehouse"=3. NOT job sites.' },
 
             // === OWNER & TRANSACTION ===
-            owner_goals: { type: 'string', description: 'Primary motivation, desired deal type, financial expectations, beyond-money goals. Be very specific with their exact words.' },
-            ownership_structure: { type: 'string', description: 'Sole proprietor, partnership (with %), family-owned, LLC, S-corp, etc.' },
-            transition_preferences: { type: 'string', description: 'Post-acquisition stay duration, desired role, training period, flexibility, handoff plan' },
-            special_requirements: { type: 'string', description: 'Deal breakers, must-haves, non-negotiables (employee retention, earnout, name preservation, etc.)' },
-            timeline_notes: { type: 'string', description: 'Desired close timing, urgency factors, phases, dependencies (lease renewals, etc.)' },
+            owner_goals: { type: 'string', description: 'DETAILED paragraph: primary motivation (retirement/burnout/growth/health), desired deal type (full sale/recap/partnership), financial expectations (price/multiples), beyond-money goals (legacy/employees/brand). Include owner\'s EXACT WORDS. Do NOT editorialize.' },
+            ownership_structure: { type: 'string', description: 'Entity type, # of owners with %, family involvement, silent partners, employee equity, trust/estate. If not discussed: "Ownership structure not discussed on this call."' },
+            transition_preferences: { type: 'string', description: 'DETAILED: stay duration, desired role (FT/PT/advisory), willing vs not willing, key relationships held (transition risk), training plan, #2 in place?, non-compete. If not discussed: "Transition preferences not discussed on this call."' },
+            special_requirements: { type: 'string', description: 'Deal-breakers and must-haves: employee retention, earnout, no competitors, local buyer, minimum multiple, partner approval, tax timing. Null if none mentioned.' },
+            timeline_notes: { type: 'string', description: 'Close date target, urgency factors (health/lease/employee), constraints (seasonality), previous sale attempts, broker timelines. Null if not discussed.' },
 
             // === CUSTOMERS ===
-            customer_types: { type: 'string', description: 'Customer segments with % breakdown. e.g., "Residential homeowners (60%), commercial property managers (25%), insurance referrals (15%)"' },
-            end_market_description: { type: 'string', description: 'Who the end customers are, their profile, how they find the company' },
-            customer_concentration: { type: 'string', description: 'Largest customer %, top 10 concentration, key account dependencies, diversification' },
-            customer_geography: { type: 'string', description: 'Where customers are located, service radius, coverage area' },
+            customer_types: { type: 'string', description: 'DETAILED paragraph: segments with % breakdown, description of each segment, how they behave differently, growing/shrinking segments, planned new segments. If no %: note "breakdown not provided" and describe qualitatively.' },
+            end_market_description: { type: 'string', description: 'Ultimate end customers: who they are, profile, how they find company, what triggers need, decision process. May differ from who pays (e.g., insurance pays but homeowner is end market).' },
+            customer_concentration: { type: 'string', description: 'DETAILED text: largest customer %, top 5/10 concentration, key account dependencies, insurance/government dependencies, contractual vs at-will. If not discussed: "Customer concentration not discussed. Recommend follow-up."' },
+            customer_geography: { type: 'string', description: 'Service radius, coverage map, national accounts, urban/rural mix, geographic expansion plans for customer reach.' },
 
             // === STRATEGIC ===
-            competitive_position: { type: 'string', description: 'Differentiators, market position, certifications, unique capabilities, reputation, years in business' },
-            growth_trajectory: { type: 'string', description: 'Historical growth with numbers AND future potential. e.g., "Grew from $2M to $8M over 5 years, targeting $15M"' },
+            competitive_position: { type: 'string', description: 'DETAILED paragraph: market position (leader/niche/premium), reputation + years, certifications (IICRC/ISO/licenses), unique capabilities, customer relationship depth, barriers to entry, named competitors and comparison.' },
+            growth_trajectory: { type: 'string', description: 'DETAILED paragraph in TWO parts: (1) Historical — revenue over time with numbers, employee growth, new services/locations, inflection points. (2) Future — owner\'s view with specific targets, growth levers, what\'s holding them back, acquisition opportunities. Use SPECIFIC NUMBERS.' },
             key_risks: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Every risk: key person, concentration, regulatory, seasonal, workforce, equipment, lease, insurance dependency, tech debt, litigation'
+              description: 'EVERY risk, SPECIFIC not generic. Tag inferred: "(inferred)". Check: key person, customer concentration, workforce, regulatory, seasonal, technology debt, lease/RE, insurance dependency, equipment age, litigation, environmental, supplier, succession gap. Format: "Key person risk — owner personally manages all insurance adjuster relationships"'
             },
-            technology_systems: { type: 'string', description: 'All software/tools: CRM, accounting, estimating, fleet mgmt, scheduling. Note gaps.' },
-            real_estate_info: { type: 'string', description: 'Owned vs leased, sq footage, lease terms/expiry, property value, landlord relationship' },
+            technology_systems: { type: 'string', description: 'ALL tools organized by category: Accounting (QuickBooks etc), CRM (Salesforce/none), Estimating (Xactimate), Scheduling (ServiceTitan), Fleet (GPS), Communication, Industry-specific, Marketing. Note ABSENCE of systems too.' },
+            real_estate_info: { type: 'string', description: 'Each location: owned/leased, sq footage, lease terms (rent/expiry/renewal/related-party), property value if owned, zoning, RE plans ("sell separately"/"buyer assumes lease"), equipment stored. Null if not discussed.' },
 
             // === COMPANY BASICS ===
-            industry: { type: 'string', description: 'Primary industry: "Fire & Water Restoration", "HVAC", "IT Managed Services", etc.' },
-            founded_year: { type: 'number', description: 'Year founded. If "20 years in business" and current year 2025, use 2005.' },
-            full_time_employees: { type: 'number', description: 'Total FT staff: field crews + office + technicians + managers + sales + admin' },
-            part_time_employees: { type: 'number', description: 'Part-time or seasonal workers if mentioned separately' },
-            website: { type: 'string', description: 'Company website URL if mentioned' },
+            industry: { type: 'string', description: 'MOST SPECIFIC category: "Fire & Water Restoration" not "Restoration". "Commercial HVAC Services" not "HVAC". If multi-industry, lead with largest.' },
+            founded_year: { type: 'number', description: 'Year. "20 years in business" + current year 2026 → 2006. "Dad started in the 80s" → estimate (1985).' },
+            full_time_employees: { type: 'number', description: 'ALL FT staff summed: field crews + office + techs + mgmt + sales + admin + owner if FT. "12 field + 3 office" = 15 + owner = 16. Midpoint for ranges.' },
+            part_time_employees: { type: 'number', description: 'Seasonal/PT only. "10 extra in summer"=10. Null if not mentioned.' },
+            website: { type: 'string', description: 'Full URL: "https://www.example.com". Do NOT guess from company name. Null if not mentioned.' },
 
             // === CONTACT ===
-            primary_contact_name: { type: 'string', description: 'Full name of main contact (owner, broker, or representative)' },
-            primary_contact_email: { type: 'string', description: 'Email address if mentioned' },
-            primary_contact_phone: { type: 'string', description: 'Phone number if mentioned' },
+            primary_contact_name: { type: 'string', description: 'Full name of main contact person from the call (owner, broker, CEO, partner).' },
+            primary_contact_email: { type: 'string', description: 'Email if mentioned at any point (often beginning/end of call). Null if not.' },
+            primary_contact_phone: { type: 'string', description: 'Phone if mentioned. Null if not.' },
 
             // === KEY QUOTES (8-10 VERBATIM) ===
             key_quotes: {
               type: 'array',
               items: { type: 'string' },
-              description: '8-10 EXACT verbatim quotes. Priority: financial > growth > owner motivation > competitive > risk > customer insights'
+              description: '8-10 EXACT verbatim quotes (NOT paraphrased). Priority: financial specifics > growth > owner motivation > competitive advantages > risk revelations > customer insights > operational details > deal preferences. Only from the seller/owner, not the interviewer. Include enough context for standalone reading.'
             }
           }
         }
       }
     };
 
-    const systemPrompt = 'You are a senior M&A analyst conducting due diligence on acquisition targets. Your job is to extract EVERY piece of structured data from call transcripts and meeting notes. Be exhaustive — populate as many fields as possible. If information is mentioned even briefly, or can be reasonably inferred from context, include it. Never leave a field empty if there is any relevant information. For financial figures, always convert to raw numbers (e.g., "$7.5M" = 7500000). For key_quotes, extract 8-10 exact verbatim quotes prioritizing financial, growth, motivation, and risk statements.';
+    const systemPrompt = `You are a senior M&A analyst conducting due diligence on acquisition targets. Your job is to extract EVERY piece of structured data from call transcripts and meeting notes.
+
+CRITICAL RULES:
+- Be EXHAUSTIVE — populate as many fields as possible with MAXIMUM DETAIL. Each text field should be a rich, detailed paragraph, not a one-line summary.
+- Search the ENTIRE transcript word by word. Owners reveal information throughout, not just when asked directly.
+- If information is mentioned even briefly or can be reasonably inferred, include it.
+- Never leave a field empty if there is ANY relevant information.
+- For financial figures, ALWAYS convert to raw numbers: "$7.5M" = 7500000, "$500K" = 500000.
+- For percentages, use the raw number: 18% → 18, NOT 0.18.
+- For key_quotes, extract 8-10 EXACT VERBATIM quotes (not paraphrased) prioritizing financial > growth > motivation > risk.
+- When data conflicts, use the most specific and most recent statement.
+- Prioritize accuracy over completeness — null is better than wrong data.`;
 
     // Call Claude API with 90s timeout for long transcripts, 8192 max tokens for detailed extraction
     const { data: extracted, error: aiError } = await callClaudeWithTool(
@@ -572,10 +773,23 @@ IMPORTANT: You MUST populate as many fields as possible. Do not leave fields emp
         if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
         if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
         if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
-        // customer_concentration is NUMERIC in DB — only store if it's a valid number
-        {
-          const n = toFiniteNumber(extracted.customer_concentration);
-          if (n != null) flatExtracted.customer_concentration = n;
+        // customer_concentration is NUMERIC in DB but Claude returns rich text.
+        // Append the text to customer_types so the detail isn't lost,
+        // and try to extract a numeric value for the DB column.
+        if (extracted.customer_concentration) {
+          const concText = String(extracted.customer_concentration);
+          // Try to extract a percentage number from the text (e.g., "largest customer is 15%" → 15)
+          const pctMatch = concText.match(/(\d{1,3})(?:\s*%|\s*percent)/i);
+          if (pctMatch) {
+            const n = Number(pctMatch[1]);
+            if (Number.isFinite(n) && n > 0 && n <= 100) flatExtracted.customer_concentration = n;
+          }
+          // Append concentration details to customer_types so the rich text is preserved
+          if (flatExtracted.customer_types) {
+            flatExtracted.customer_types += '\n\nCustomer Concentration: ' + concText;
+          } else {
+            flatExtracted.customer_types = 'Customer Concentration: ' + concText;
+          }
         }
         if (extracted.customer_geography) flatExtracted.customer_geography = extracted.customer_geography;
         if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
@@ -583,8 +797,10 @@ IMPORTANT: You MUST populate as many fields as possible. Do not leave fields emp
         if (extracted.competitive_position) flatExtracted.competitive_position = extracted.competitive_position;
         if (extracted.growth_trajectory) flatExtracted.growth_trajectory = extracted.growth_trajectory;
         if (extracted.key_risks) {
+          // Store as bullet-pointed text for the text DB column
+          // Each risk on its own line with a bullet for readability
           flatExtracted.key_risks = Array.isArray(extracted.key_risks)
-            ? extracted.key_risks.join('\n')
+            ? extracted.key_risks.map(r => `• ${r}`).join('\n')
             : String(extracted.key_risks);
         }
         if (extracted.technology_systems) flatExtracted.technology_systems = extracted.technology_systems;

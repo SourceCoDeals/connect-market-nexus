@@ -679,7 +679,7 @@ const ReMarketingDealDetail = () => {
         />
 
         <GeographicCoverageCard
-          states={deal.geographic_states}
+          states={Array.isArray(deal.geographic_states) ? deal.geographic_states : null}
           onSave={async (states) => {
             await updateDealMutation.mutateAsync({ geographic_states: states });
           }}
@@ -701,7 +701,7 @@ const ReMarketingDealDetail = () => {
 
       {/* Key Quotes from Seller */}
       <KeyQuotesCard
-        quotes={deal.key_quotes}
+        quotes={Array.isArray(deal.key_quotes) ? deal.key_quotes : null}
         onSave={async (quotes) => {
           await updateDealMutation.mutateAsync({ key_quotes: quotes });
         }}
