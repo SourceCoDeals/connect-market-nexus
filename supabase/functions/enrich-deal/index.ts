@@ -556,8 +556,13 @@ serve(async (req) => {
       transcriptReport.processed = transcriptsProcessed + (transcriptReport.appliedFromExistingTranscripts || 0);
       (transcriptReport as any).processedThisRun = transcriptsProcessed;
       transcriptReport.errors = transcriptErrors;
+    }
 
-      // Re-fetch deal to get updated extraction_sources after transcript processing
+    // ALWAYS re-fetch deal after transcript processing (steps 0A + 0B).
+    // Step 0A and extract-deal-transcript both update enriched_at in the DB
+    // but NOT in the local deal object. Without this re-fetch, the optimistic
+    // lock for the website update will fail with 409 "concurrent_modification".
+    if (transcriptReport.appliedFromExisting > 0 || transcriptsProcessed > 0) {
       const { data: refreshedDeal } = await supabase
         .from('listings')
         .select('*, extraction_sources')
@@ -621,6 +626,19 @@ serve(async (req) => {
     }
     
     if (!websiteUrl) {
+      // If transcripts were processed, return success with a note about website scraping
+      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
+      if (transcriptFieldsApplied > 0) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: no website URL found.`,
+            fieldsUpdated: [],
+            transcriptReport,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: 'No website URL found for this deal. Add a website in the company overview or deal memo.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -644,6 +662,19 @@ serve(async (req) => {
 
     // Check if Firecrawl is configured
     if (!firecrawlApiKey) {
+      // If transcripts were processed, return success with a note about website scraping
+      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
+      if (transcriptFieldsApplied > 0) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: Firecrawl not configured.`,
+            fieldsUpdated: [],
+            transcriptReport,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: false, error: 'Firecrawl API key not configured. Please enable the Firecrawl connector.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -718,6 +749,18 @@ serve(async (req) => {
 
     if (!homepageResult.success) {
       console.error('Failed to scrape homepage');
+      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
+      if (transcriptFieldsApplied > 0) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping failed: could not reach homepage.`,
+            fieldsUpdated: [],
+            transcriptReport,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to scrape website homepage' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -770,6 +813,18 @@ serve(async (req) => {
 
     if (!websiteContent || websiteContent.length < MIN_CONTENT_LENGTH) {
       console.log(`Insufficient website content scraped: ${websiteContent.length} chars (need ${MIN_CONTENT_LENGTH}+)`);
+      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
+      if (transcriptFieldsApplied > 0) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: insufficient content (${websiteContent.length} chars).`,
+            fieldsUpdated: [],
+            transcriptReport,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: false, error: `Could not extract sufficient content from website (${websiteContent.length} chars, need ${MIN_CONTENT_LENGTH}+)` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
