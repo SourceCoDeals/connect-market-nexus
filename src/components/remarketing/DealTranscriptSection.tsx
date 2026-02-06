@@ -118,7 +118,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     
     if (totalToProcess > 0) {
       setEnrichmentPhase('transcripts');
-      setEnrichmentProgress({ current: 0, total: totalToProcess });
+      // Show full count since we process in background (no incremental updates from server)
+      setEnrichmentProgress({ current: totalToProcess, total: totalToProcess });
     } else {
       setEnrichmentPhase('website');
       setEnrichmentProgress({ current: 0, total: 0 });
