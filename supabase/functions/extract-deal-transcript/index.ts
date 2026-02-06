@@ -423,6 +423,7 @@ Use the extract_deal_info tool to return structured data.`;
 
           if (listingUpdateError) {
             console.error('Error updating listing:', listingUpdateError);
+            throw new Error(`Failed to update listing: ${listingUpdateError.message}`);
           } else {
             dealUpdated = true;
             fieldsUpdated = Object.keys(updates);
