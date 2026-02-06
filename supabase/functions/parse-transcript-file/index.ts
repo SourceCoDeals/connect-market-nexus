@@ -85,18 +85,20 @@ serve(async (req) => {
           }),
         });
 
-      // Retry on 429s with small exponential backoff
+      // Retry on 429s with longer exponential backoff (up to 5 attempts)
       let aiResponse: Response | null = null;
       let lastErrorText = '';
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt < 5; attempt++) {
         aiResponse = await makeRequest();
         if (aiResponse.ok) break;
 
         lastErrorText = await aiResponse.text();
-        console.error('Gemini API error:', lastErrorText);
+        console.error(`Gemini API error (attempt ${attempt + 1}/5):`, lastErrorText);
 
-        if (aiResponse.status === 429 && attempt < 2) {
-          await sleep(500 * Math.pow(2, attempt));
+        if (aiResponse.status === 429 && attempt < 4) {
+          const delayMs = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s, 16s
+          console.log(`Rate limited, retrying in ${delayMs}ms...`);
+          await sleep(delayMs);
           continue;
         }
         break;
