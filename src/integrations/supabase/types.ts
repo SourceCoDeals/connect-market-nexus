@@ -844,44 +844,77 @@ export type Database = {
       buyer_transcripts: {
         Row: {
           buyer_id: string
+          call_date: string | null
           created_at: string | null
           created_by: string | null
+          duration_minutes: number | null
           extracted_data: Json | null
+          extracted_insights: Json | null
+          extraction_error: string | null
+          extraction_status: string | null
           file_name: string | null
           file_size: number | null
           file_url: string | null
           id: string
+          participants: string[] | null
           processed_at: string | null
+          processed_by: string | null
+          recording_url: string | null
           source: string | null
+          transcript_source: string | null
           transcript_text: string
+          transcript_type: string | null
+          universe_id: string | null
           updated_at: string | null
         }
         Insert: {
           buyer_id: string
+          call_date?: string | null
           created_at?: string | null
           created_by?: string | null
+          duration_minutes?: number | null
           extracted_data?: Json | null
+          extracted_insights?: Json | null
+          extraction_error?: string | null
+          extraction_status?: string | null
           file_name?: string | null
           file_size?: number | null
           file_url?: string | null
           id?: string
+          participants?: string[] | null
           processed_at?: string | null
+          processed_by?: string | null
+          recording_url?: string | null
           source?: string | null
+          transcript_source?: string | null
           transcript_text: string
+          transcript_type?: string | null
+          universe_id?: string | null
           updated_at?: string | null
         }
         Update: {
           buyer_id?: string
+          call_date?: string | null
           created_at?: string | null
           created_by?: string | null
+          duration_minutes?: number | null
           extracted_data?: Json | null
+          extracted_insights?: Json | null
+          extraction_error?: string | null
+          extraction_status?: string | null
           file_name?: string | null
           file_size?: number | null
           file_url?: string | null
           id?: string
+          participants?: string[] | null
           processed_at?: string | null
+          processed_by?: string | null
+          recording_url?: string | null
           source?: string | null
+          transcript_source?: string | null
           transcript_text?: string
+          transcript_type?: string | null
+          universe_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -890,6 +923,13 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_transcripts_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
             referencedColumns: ["id"]
           },
         ]
