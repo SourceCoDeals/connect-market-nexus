@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle2, XCircle, Globe, FileText, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, Globe, FileText, Zap, MessageSquare } from "lucide-react";
 
 export interface SingleDealEnrichmentResult {
   success: boolean;
@@ -16,6 +16,11 @@ export interface SingleDealEnrichmentResult {
     totalCharactersScraped: number;
     pages: Array<{ url: string; success: boolean; chars: number }>;
   };
+  transcriptReport?: {
+    totalTranscripts: number;
+    processed: number;
+    errors: string[];
+  };
 }
 
 // Map database field names to human-readable labels
@@ -28,6 +33,9 @@ const FIELD_LABELS: Record<string, string> = {
   service_mix: "Service Mix",
   customer_types: "Customer Types",
   address: "Address",
+  address_city: "City",
+  address_state: "State",
+  street_address: "Street Address",
   founded_year: "Founded Year",
   revenue: "Revenue",
   ebitda: "EBITDA",
@@ -35,10 +43,15 @@ const FIELD_LABELS: Record<string, string> = {
   website: "Website",
   location: "Location",
   company_name: "Company Name",
+  internal_company_name: "Company Name",
   deal_summary: "Deal Summary",
   owner_goals: "Owner Goals",
   key_selling_points: "Key Selling Points",
   growth_opportunities: "Growth Opportunities",
+  technology_systems: "Technology Systems",
+  competitive_position: "Competitive Position",
+  key_risks: "Key Risks",
+  number_of_locations: "Number of Locations",
 };
 
 const getFieldLabel = (field: string): string => {
@@ -63,6 +76,7 @@ export const SingleDealEnrichmentDialog = ({
   const isSuccess = result.success;
   const fieldsUpdated = result.fieldsUpdated || [];
   const scrapeReport = result.scrapeReport;
+  const transcriptReport = result.transcriptReport;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -112,6 +126,23 @@ export const SingleDealEnrichmentDialog = ({
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
               <FileText className="h-4 w-4" />
               No new fields were extracted. The deal may already be up to date.
+            </div>
+          )}
+
+          {/* Transcript Report */}
+          {transcriptReport && transcriptReport.totalTranscripts > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border text-sm">
+              <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div>
+                <span className="font-medium">
+                  Processed {transcriptReport.processed} of {transcriptReport.totalTranscripts} transcripts
+                </span>
+                {transcriptReport.errors.length > 0 && (
+                  <span className="text-destructive ml-1">
+                    ({transcriptReport.errors.length} errors)
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
