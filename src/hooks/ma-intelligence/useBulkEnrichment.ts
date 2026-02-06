@@ -105,11 +105,21 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     let enriched = false;
 
     try {
-      if (deal.transcript_link) {
-        const { error } = await supabase.functions.invoke('extract-deal-transcript', {
-          body: { dealId },
-        });
-        if (!error) enriched = true;
+      // FIX: Check for transcripts in deal_transcripts table, not transcript_link field
+      // Query all transcripts for this listing/deal
+      const { data: transcripts, error: fetchError } = await supabase
+        .from('deal_transcripts')
+        .select('id')
+        .eq('listing_id', dealId);
+
+      if (!fetchError && transcripts && transcripts.length > 0) {
+        // Process each transcript
+        for (const transcript of transcripts) {
+          const { error } = await supabase.functions.invoke('extract-deal-transcript', {
+            body: { transcriptId: transcript.id },
+          });
+          if (!error) enriched = true;
+        }
       }
 
       if (deal.additional_info) {
