@@ -108,20 +108,20 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [enrichmentPhase, setEnrichmentPhase] = useState<'transcripts' | 'website' | null>(null);
   const [enrichmentProgress, setEnrichmentProgress] = useState({ current: 0, total: 0 });
   // Enrich deal with AI
-  const handleEnrichDeal = async () => {
+  const handleEnrichDeal = async (forceReExtract = false) => {
     setIsEnriching(true);
     setEnrichmentResult(null);
     
     // Count transcript states for accurate UI messaging
     const totalTranscripts = transcripts.length;
     const unprocessedTranscripts = transcripts.filter(t => !t.processed_at);
-    const totalToProcess = unprocessedTranscripts.length;
+    const totalToProcess = forceReExtract ? totalTranscripts : unprocessedTranscripts.length;
 
     // Show accurate counts (avoid misleading 1/1 when many transcripts already exist)
     setEnrichmentPhase(totalTranscripts > 0 ? 'transcripts' : 'website');
     setEnrichmentProgress({
-      current: totalToProcess,
-      total: totalTranscripts,
+      current: 0,
+      total: forceReExtract ? totalTranscripts : totalToProcess,
     });
 
     
@@ -131,7 +131,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout
       
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
-        body: { dealId }
+        body: { dealId, forceReExtract }
       });
       
       clearTimeout(timeoutId);
@@ -1035,20 +1035,34 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               Call Transcripts
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="gap-2"
-                onClick={handleEnrichDeal}
-                disabled={isEnriching}
-              >
-                {isEnriching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                Enrich
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="gap-2"
+                    disabled={isEnriching}
+                  >
+                    {isEnriching ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Enrich
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleEnrichDeal(false)}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Enrich New Only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEnrichDeal(true)}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Re-extract All Transcripts
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
                 setIsAddDialogOpen(open);
                 if (!open) resetForm();
@@ -1114,7 +1128,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           open={showEnrichmentDialog}
           onOpenChange={setShowEnrichmentDialog}
           result={enrichmentResult}
-          onRetry={handleEnrichDeal}
+          onRetry={() => handleEnrichDeal(false)}
         />
       </Card>
     );
@@ -1143,20 +1157,34 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               </div>
             </CollapsibleTrigger>
             <div className="flex items-center gap-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="gap-2"
-                onClick={handleEnrichDeal}
-                disabled={isEnriching}
-              >
-                {isEnriching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                Enrich
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="gap-2"
+                    disabled={isEnriching}
+                  >
+                    {isEnriching ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Enrich
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleEnrichDeal(false)}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Enrich New Only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEnrichDeal(true)}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Re-extract All Transcripts
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
                 setIsAddDialogOpen(open);
                 if (!open) resetForm();
@@ -1366,7 +1394,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           open={showEnrichmentDialog}
           onOpenChange={setShowEnrichmentDialog}
           result={enrichmentResult}
-          onRetry={handleEnrichDeal}
+          onRetry={() => handleEnrichDeal(false)}
         />
       </Collapsible>
     </Card>
