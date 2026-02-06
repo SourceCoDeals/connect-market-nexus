@@ -380,8 +380,8 @@ serve(async (req) => {
 
           transcriptsAppliedFromExisting++;
 
-          // Merge geographic states rather than replace
-          if (updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
+          // Merge geographic states rather than replace (unless force re-extracting)
+          if (!forceReExtract && updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
             updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as any);
           }
 
@@ -1090,7 +1090,7 @@ For financial data, include confidence levels and source quotes where available.
                       geographic_states: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Two-letter US state codes where they operate (e.g., ["CA", "TX", "FL"])'
+                        description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations explicitly stated in the text. Do NOT infer neighboring states. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
                       },
                       number_of_locations: {
                         type: 'number',
