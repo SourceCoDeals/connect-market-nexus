@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -458,6 +459,24 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
   });
 
+  const [selectedTranscriptIds, setSelectedTranscriptIds] = useState<Set<string>>(new Set());
+
+  const toggleTranscriptSelection = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedTranscriptIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllTranscripts = (transcripts: DealTranscript[]) => {
+    setSelectedTranscriptIds(prev => 
+      prev.size === transcripts.length ? new Set() : new Set(transcripts.map(t => t.id))
+    );
+  };
+
   // Delete transcript mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -471,6 +490,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       toast.success("Transcript deleted");
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('deal_transcripts')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      setSelectedTranscriptIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+      toast.success(`${ids.length} transcript${ids.length > 1 ? 's' : ''} deleted`);
     }
   });
 
@@ -1372,6 +1406,38 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               }
               return null;
             })()}
+            {/* Select all + bulk actions bar */}
+            {transcripts.length > 1 && (
+              <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedTranscriptIds.size === transcripts.length}
+                    onCheckedChange={() => toggleAllTranscripts(transcripts)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {selectedTranscriptIds.size > 0 
+                      ? `${selectedTranscriptIds.size} selected` 
+                      : 'Select all'}
+                  </span>
+                </div>
+                {selectedTranscriptIds.size > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      if (confirm(`Delete ${selectedTranscriptIds.size} transcript${selectedTranscriptIds.size > 1 ? 's' : ''}?`)) {
+                        bulkDeleteMutation.mutate(Array.from(selectedTranscriptIds));
+                      }
+                    }}
+                    disabled={bulkDeleteMutation.isPending}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete Selected
+                  </Button>
+                )}
+              </div>
+            )}
             {transcripts.map((transcript) => {
               const isExpanded = expandedId === transcript.id;
               const hasExtracted = !!transcript.processed_at;
@@ -1392,6 +1458,12 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                     <CollapsibleTrigger className="w-full">
                       <div className="flex items-center justify-between p-3 hover:bg-muted/50">
                         <div className="flex items-center gap-3">
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedTranscriptIds.has(transcript.id)}
+                              onCheckedChange={() => toggleTranscriptSelection(transcript.id)}
+                            />
+                          </div>
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           <div className="text-left">
                             <p className="font-medium text-sm">{displayTitle}</p>
