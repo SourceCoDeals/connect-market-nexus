@@ -579,9 +579,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (extracted.primary_contact_phone) { updateData.primary_contact_phone = extracted.primary_contact_phone; appliedFields.push('Contact Phone'); }
       
       // Key Quotes (now has column!)
+      const safeQuotesForMerge = Array.isArray(extracted.key_quotes) ? extracted.key_quotes : (typeof extracted.key_quotes === 'string' && extracted.key_quotes ? [extracted.key_quotes] : undefined);
       const mergedQuotes = mergeArrays(
         currentData?.key_quotes as string[] | undefined, 
-        extracted.key_quotes as string[] | undefined
+        safeQuotesForMerge
       );
       if (mergedQuotes) { updateData.key_quotes = mergedQuotes; appliedFields.push('Key Quotes'); }
       
@@ -649,7 +650,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     const hasGeography = (extracted.geographic_states as string[] | undefined)?.length || extracted.number_of_locations;
     const hasOwner = extracted.owner_goals || extracted.transition_preferences || extracted.timeline_notes;
     const hasStrategic = extracted.executive_summary || extracted.competitive_position || extracted.growth_trajectory || extracted.key_risks;
-    const hasQuotes = (extracted.key_quotes as string[] | undefined)?.length;
+    const safeKeyQuotes = Array.isArray(extracted.key_quotes) ? extracted.key_quotes : (typeof extracted.key_quotes === 'string' && extracted.key_quotes ? [extracted.key_quotes] : []);
+    const hasQuotes = safeKeyQuotes.length;
     
     const fieldCount = Object.entries(extracted)
       .filter(([key, value]) => key !== 'confidence' && value != null && 
@@ -838,7 +840,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                 Key Quotes
               </div>
               <div className="space-y-2">
-                {(extracted.key_quotes as string[]).map((quote, i) => (
+                {safeKeyQuotes.map((quote: string, i: number) => (
                   <blockquote 
                     key={i} 
                     className="text-sm italic border-l-2 border-primary/30 pl-3 text-muted-foreground"
