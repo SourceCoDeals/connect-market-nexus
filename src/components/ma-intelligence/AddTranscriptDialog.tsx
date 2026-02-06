@@ -196,15 +196,18 @@ export function AddTranscriptDialog({
               }
             }
             
-            // MIGRATION FIX: Insert into unified transcripts table with entity_type
-            const { error } = await supabase.from("transcripts").insert({
-              entity_type: "deal",
+            // Insert into deal_transcripts
+            const safeTranscriptText = (transcriptText || '').trim().length > 0
+              ? transcriptText
+              : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
+
+            const { error } = await supabase.from("deal_transcripts").insert({
               listing_id: dealId,
               title: sf.title.trim() || sf.file.name,
               source: "call",
               transcript_url: fileUrl,
-              call_date: formData.call_date || null,
-              transcript_text: transcriptText,
+              call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
+              transcript_text: safeTranscriptText,
             });
             
             if (error) throw error;
@@ -250,15 +253,22 @@ export function AddTranscriptDialog({
           throw new Error("Please provide a transcript link, paste content, or upload files");
         }
 
-        // MIGRATION FIX: Insert into unified transcripts table with entity_type
-        const { error } = await supabase.from("transcripts").insert({
-          entity_type: "deal",
+        // Insert into deal_transcripts
+        const safeText = (formData.transcript_text || '').trim().length > 0
+          ? formData.transcript_text
+          : (formData.transcript_link ? `[Transcript link added: ${formData.transcript_link}]` : '');
+
+        if (!safeText) {
+          throw new Error("Transcript content cannot be empty");
+        }
+
+        const { error } = await supabase.from("deal_transcripts").insert({
           listing_id: dealId,
           title: formData.title.trim(),
           source: "call",
           transcript_url: formData.transcript_link || null,
-          call_date: formData.call_date || null,
-          transcript_text: formData.transcript_text || "",
+          call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
+          transcript_text: safeText,
         });
 
         if (error) throw error;

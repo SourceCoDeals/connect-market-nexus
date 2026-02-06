@@ -192,22 +192,22 @@ const ReMarketingBuyerDetail = () => {
     enabled: !isNew
   });
 
-  // Fetch transcripts
+  // Fetch transcripts - using backwards-compatible view
   const { data: transcripts = [] } = useQuery({
     queryKey: ['remarketing', 'transcripts', id],
     queryFn: async () => {
       if (isNew) return [];
-
-      // MIGRATION FIX: Use new unified transcripts table with entity_type filter
+      
+      // Use v_buyer_transcripts view (backwards-compatible with unified transcripts table)
       const { data, error } = await supabase
-        .from('transcripts')
+        .from('v_buyer_transcripts' as any)
         .select('*')
         .eq('buyer_id', id)
         .in('entity_type', ['buyer', 'both'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as Transcript[];
+      return (data || []) as unknown as Transcript[];
     },
     enabled: !isNew
   });
@@ -378,9 +378,9 @@ const ReMarketingBuyerDetail = () => {
       fileUrl?: string;
       triggerExtract?: boolean;
     }) => {
-      // MIGRATION FIX: Use new unified transcripts table with entity_type
+      // Use v_buyer_transcripts view (backwards-compatible with unified transcripts table)
       const { data, error } = await supabase
-        .from('transcripts')
+        .from('v_buyer_transcripts' as any)
         .insert([
           {
             entity_type: 'buyer',
@@ -394,7 +394,8 @@ const ReMarketingBuyerDetail = () => {
         .select('id')
         .single();
       if (error) throw error;
-      return { transcriptId: data.id, transcriptText: text, source, triggerExtract: !!triggerExtract };
+      const result = data as unknown as { id: string };
+      return { transcriptId: result.id, transcriptText: text, source, triggerExtract: !!triggerExtract };
     },
     onSuccess: ({ transcriptId, transcriptText, source, triggerExtract }) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
@@ -420,15 +421,15 @@ const ReMarketingBuyerDetail = () => {
           textToExtract = transcript.transcript_text;
           sourceToUse = transcript.source || 'call';
         } else {
-          // Fetch from DB as fallback
-          // MIGRATION FIX: Use new unified transcripts table
+          // Fetch from DB as fallback - use v_buyer_transcripts view
           const { data } = await supabase
-            .from('transcripts')
+            .from('v_buyer_transcripts' as any)
             .select('transcript_text, source')
             .eq('id', params.transcriptId)
             .single();
-          textToExtract = data?.transcript_text || '';
-          sourceToUse = data?.source || 'call';
+          const result = data as unknown as { transcript_text?: string; source?: string } | null;
+          textToExtract = result?.transcript_text || '';
+          sourceToUse = result?.source || 'call';
         }
       }
 
@@ -460,9 +461,9 @@ const ReMarketingBuyerDetail = () => {
 
   const deleteTranscriptMutation = useMutation({
     mutationFn: async (transcriptId: string) => {
-      // MIGRATION FIX: Use new unified transcripts table
+      // Use v_buyer_transcripts view (backwards-compatible with unified transcripts table)
       const { error } = await supabase
-        .from('transcripts')
+        .from('v_buyer_transcripts' as any)
         .delete()
         .eq('id', transcriptId);
       if (error) throw error;

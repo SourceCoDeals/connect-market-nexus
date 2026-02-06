@@ -325,8 +325,8 @@ export const AddDealToUniverseDialog = ({
               transcriptText = await transcriptFile.text();
             }
             
-            // Save transcript record
-            await supabase.from('deal_transcripts').insert({
+            // Save transcript record via v_deal_transcripts view
+            await supabase.from('v_deal_transcripts' as any).insert({
               listing_id: listing.id,
               transcript_url: publicUrl,
               transcript_text: transcriptText || "Pending text extraction",
@@ -345,7 +345,8 @@ export const AddDealToUniverseDialog = ({
       // Handle transcript link
       if (newDealForm.transcriptLink) {
         try {
-          await supabase.from('deal_transcripts').insert({
+          // Use v_deal_transcripts view
+          await supabase.from('v_deal_transcripts' as any).insert({
             listing_id: listing.id,
             transcript_url: newDealForm.transcriptLink,
             transcript_text: "Pending text extraction from link",

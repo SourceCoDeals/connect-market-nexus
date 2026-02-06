@@ -101,6 +101,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [selectedFiles, setSelectedFiles] = useState<{file: File; title: string; status: 'pending' | 'processing' | 'done' | 'error'; text?: string}[]>([]);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isMultiFileMode, setIsMultiFileMode] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
 
   const resetForm = () => {
     setNewTranscript("");
@@ -148,8 +149,11 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
   };
 
-  // Process a single file to extract text
-  const processFileText = async (file: File): Promise<string> => {
+  // Small delay to yield to UI thread
+  const yieldToUI = () => new Promise(resolve => setTimeout(resolve, 50));
+
+  // Process a single file to extract text with retry logic for rate limits
+  const processFileText = async (file: File, retryCount = 0): Promise<string> => {
     const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
     
     if (['.txt', '.vtt', '.srt'].includes(fileExt)) {
@@ -172,9 +176,18 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         }
       );
 
+      // Handle rate limits with retry
+      if (response.status === 429 && retryCount < 3) {
+        const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        toast.info(`Rate limited, retrying ${file.name} in ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return processFileText(file, retryCount + 1);
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to parse ${file.name}`);
+        console.error(`Parse error for ${file.name}:`, errorText);
+        throw new Error(`Failed to parse ${file.name} (${response.status})`);
       }
 
       const result = await response.json();
@@ -188,18 +201,30 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       // Multi-file mode
       if (isMultiFileMode && selectedFiles.length > 0) {
         let successCount = 0;
+        const totalFiles = selectedFiles.length;
+        setProcessingProgress({ current: 0, total: totalFiles });
         
         for (let i = 0; i < selectedFiles.length; i++) {
           const sf = selectedFiles[i];
           
+          // Yield to UI thread between files to prevent freezing
+          await yieldToUI();
+          
           try {
-            // Update status
+            // Update status and progress
             setSelectedFiles(prev => prev.map((f, idx) => 
               idx === i ? { ...f, status: 'processing' as const } : f
             ));
+            setProcessingProgress({ current: i + 1, total: totalFiles });
 
-            // Extract text from file
-            const transcriptText = await processFileText(sf.file);
+            // Extract text from file (has built-in retry for rate limits)
+            let transcriptText = '';
+            try {
+              transcriptText = await processFileText(sf.file);
+            } catch (parseErr: any) {
+              console.warn(`Text extraction failed for ${sf.file.name}:`, parseErr.message);
+              // Continue anyway - we'll save the file without extracted text
+            }
 
             // Upload to storage
             const filePath = `${dealId}/${uuidv4()}-${sf.file.name}`;
@@ -216,12 +241,17 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               fileUrl = urlData.publicUrl;
             }
 
-            // Insert transcript record
+            // Insert transcript record in deal_transcripts table
+            // Ensure we never save empty transcript_text (frontend validation expects non-empty)
+            const safeTranscriptText = (transcriptText || '').trim().length > 0
+              ? transcriptText
+              : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
+
             const { error } = await supabase
               .from('deal_transcripts')
               .insert({
                 listing_id: dealId,
-                transcript_text: transcriptText,
+                transcript_text: safeTranscriptText,
                 source: 'file_upload',
                 title: sf.title.trim() || sf.file.name,
                 transcript_url: fileUrl,
@@ -240,18 +270,32 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               idx === i ? { ...f, status: 'error' as const } : f
             ));
           }
+          
+          // Small delay between files to prevent API rate limits
+          if (i < selectedFiles.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
         }
         
+        setProcessingProgress({ current: 0, total: 0 });
         if (successCount === 0) throw new Error('No files were uploaded successfully');
-        return { count: successCount };
+        return { count: successCount, failed: totalFiles - successCount };
       }
       
       // Single transcript mode (pasted text or link)
+      const safeSingleText = (newTranscript || '').trim().length > 0
+        ? newTranscript
+        : (transcriptUrl ? `[Transcript link added: ${transcriptUrl}]` : '');
+
+      if (!safeSingleText) {
+        throw new Error('Transcript content cannot be empty');
+      }
+
       const { error } = await supabase
         .from('deal_transcripts')
         .insert({
           listing_id: dealId,
-          transcript_text: newTranscript,
+          transcript_text: safeSingleText,
           source: transcriptUrl || 'manual',
           title: transcriptTitle || null,
           transcript_url: transcriptUrl || null,
@@ -263,12 +307,16 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-      toast.success(data?.count && data.count > 1 ? `${data.count} transcripts added` : "Transcript added");
+      const msg = data?.count && data.count > 1 
+        ? `${data.count} transcripts added${data.failed ? ` (${data.failed} failed)` : ''}`
+        : "Transcript added";
+      toast.success(msg);
       resetForm();
       setIsAddDialogOpen(false);
     },
     onError: (error: Error) => {
       toast.error(error.message);
+      setProcessingProgress({ current: 0, total: 0 });
     }
   });
 
@@ -474,9 +522,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         if (error) throw error;
       }
 
-      // Mark as applied
+      // Mark as applied - use v_deal_transcripts view
       await supabase
-        .from('deal_transcripts')
+        .from('v_deal_transcripts' as any)
         .update({ applied_to_deal: true, applied_at: new Date().toISOString() })
         .eq('id', transcript.id);
 
@@ -868,7 +916,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           {addMutation.isPending ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              {selectedFiles.length > 1 ? `Processing ${selectedFiles.filter(f => f.status === 'done').length}/${selectedFiles.length}...` : 'Adding...'}
+              {processingProgress.total > 1 
+                ? `Processing ${processingProgress.current}/${processingProgress.total}...` 
+                : 'Adding...'}
             </>
           ) : selectedFiles.length > 1 ? `Add ${selectedFiles.length} Transcripts` : "Add Transcript"}
         </Button>
