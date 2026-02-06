@@ -42,9 +42,9 @@ const getScoreBgColor = (score: number) => {
 };
 
 const primaryCategories = [
-  { key: 'geography', label: 'Geography', icon: MapPin },
+  { key: 'service', label: 'Services', icon: Briefcase },
   { key: 'size', label: 'Size', icon: DollarSign },
-  { key: 'service', label: 'Service', icon: Briefcase },
+  { key: 'geography', label: 'Geography', icon: MapPin },
   { key: 'ownerGoals', label: 'Owner Goals', icon: Target },
 ] as const;
 
@@ -71,7 +71,7 @@ export const ScoreBreakdown = ({
 }: ScoreBreakdownProps) => {
   const [secondaryOpen, setSecondaryOpen] = useState(false);
   const scores = { geography, size, service, ownerGoals, acquisition, portfolio, businessModel };
-  const defaultWeights = { geography: 35, size: 25, service: 25, ownerGoals: 15 };
+  const defaultWeights = { geography: 25, size: 25, service: 35, ownerGoals: 15 };
   const actualWeights = weights || defaultWeights;
 
   const hasSecondaryScores = acquisition !== undefined || portfolio !== undefined || businessModel !== undefined;

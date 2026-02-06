@@ -184,7 +184,7 @@ export interface DocumentReference {
 export type BuyerType = 'pe_firm' | 'platform' | 'strategic' | 'family_office' | 'other';
 export type DataCompleteness = 'high' | 'medium' | 'low';
 export type ThesisConfidence = 'high' | 'medium' | 'low';
-export type ScoreTier = 'A' | 'B' | 'C' | 'D';
+export type ScoreTier = 'A' | 'B' | 'C' | 'D' | 'F';
 export type ScoreStatus = 'pending' | 'approved' | 'passed' | 'hidden';
 
 export interface ReMarketingBuyer {
@@ -279,6 +279,17 @@ export interface ReMarketingScore {
   size_score: number;
   service_score: number;
   owner_goals_score: number;
+  size_multiplier: number | null;
+  service_multiplier: number | null;
+  geography_mode_factor: number | null;
+  thesis_alignment_bonus: number | null;
+  data_quality_bonus: number | null;
+  learning_penalty: number | null;
+  is_disqualified: boolean | null;
+  disqualification_reason: string | null;
+  needs_review: boolean | null;
+  missing_fields: string[] | null;
+  confidence_level: string | null;
   tier: ScoreTier | null;
   fit_reasoning: string | null;
   data_completeness: DataCompleteness | null;
@@ -338,6 +349,7 @@ export interface ReMarketingStats {
     B: number;
     C: number;
     D: number;
+    F: number;
   };
 }
 

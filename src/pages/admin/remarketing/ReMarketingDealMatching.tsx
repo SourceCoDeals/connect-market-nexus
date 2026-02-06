@@ -233,29 +233,30 @@ const ReMarketingDealMatching = () => {
     return counts;
   }, [allScores, linkedUniverses]);
 
-  // Compute stats including primary disqualification reason
+  // Compute stats including primary disqualification reason (aligned with spec v2 tiers)
   const stats = useMemo(() => {
     if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, passed: 0, total: 0, disqualificationReason: '' };
-    
-    const qualified = scores.filter(s => s.composite_score >= 55 && s.status !== 'passed').length;
-    const disqualifiedScores = scores.filter(s => s.composite_score < 55 || s.fit_reasoning?.toLowerCase().includes('disqualified'));
+
+    const qualified = scores.filter(s => !s.is_disqualified && s.composite_score >= 50 && s.status !== 'passed').length;
+    const disqualifiedScores = scores.filter(s => s.is_disqualified || s.composite_score < 35);
     const disqualified = disqualifiedScores.length;
-    const strong = scores.filter(s => s.composite_score >= 70).length;
+    const strong = scores.filter(s => s.composite_score >= 80).length;
     const approved = scores.filter(s => s.status === 'approved').length;
     const passed = scores.filter(s => s.status === 'passed').length;
-    
-    // Compute most common disqualification reason
+
+    // Compute most common disqualification reason (prefer backend reason)
     const reasons = disqualifiedScores.map(s => {
+      if (s.disqualification_reason) return s.disqualification_reason;
       const r = s.fit_reasoning?.toLowerCase() || '';
       if (r.includes('geography') || r.includes('location') || r.includes('state')) return 'no nearby presence';
       if (r.includes('size') || r.includes('revenue')) return 'size mismatch';
       if (r.includes('service')) return 'service mismatch';
       return 'criteria mismatch';
     });
-    
+
     const reasonCounts = reasons.reduce((acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }), {} as Record<string, number>);
     const topReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
-    
+
     return { qualified, disqualified, strong, approved, passed, total: scores.length, disqualificationReason: topReason };
   }, [scores]);
 
@@ -302,10 +303,10 @@ const ReMarketingDealMatching = () => {
       filtered = filtered.filter(s => activeOutreachScoreIds.includes(s.id));
     }
     
-    // Hide disqualified
+    // Hide disqualified (prefer backend is_disqualified field)
     if (hideDisqualified) {
-      filtered = filtered.filter(s => 
-        s.composite_score >= 55 && !s.fit_reasoning?.toLowerCase().includes('disqualified')
+      filtered = filtered.filter(s =>
+        !s.is_disqualified && s.composite_score >= 35
       );
     }
     
@@ -753,7 +754,7 @@ const ReMarketingDealMatching = () => {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Target className="h-4 w-4 text-blue-500" />
-                <span className="font-medium">{stats.strong} strong matches (&gt;70%)</span>
+                <span className="font-medium">{stats.strong} strong matches (&gt;80%)</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-emerald-600">
                 <Check className="h-4 w-4" />
@@ -783,17 +784,17 @@ const ReMarketingDealMatching = () => {
                     : linkedUniverses?.find(u => u.id === selectedUniverse)?.name
                 }
                 weights={{
-                  geography: (selectedUniverse !== 'all' 
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight 
-                    : linkedUniverses[0]?.geography_weight) || 35,
-                  size: (selectedUniverse !== 'all' 
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight 
+                  geography: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight
+                    : linkedUniverses[0]?.geography_weight) || 25,
+                  size: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight
                     : linkedUniverses[0]?.size_weight) || 25,
-                  service: (selectedUniverse !== 'all' 
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight 
-                    : linkedUniverses[0]?.service_weight) || 25,
-                  ownerGoals: (selectedUniverse !== 'all' 
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight 
+                  service: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight
+                    : linkedUniverses[0]?.service_weight) || 35,
+                  ownerGoals: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight
                     : linkedUniverses[0]?.owner_goals_weight) || 15,
                 }}
                 outcomeStats={{
@@ -847,7 +848,7 @@ const ReMarketingDealMatching = () => {
           currentWeights={{
             geography: linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight || 25,
             size: linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight || 25,
-            service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 25,
+            service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 35,
             owner_goals: linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
           }}
           onApplySuggestions={async (newWeights) => {

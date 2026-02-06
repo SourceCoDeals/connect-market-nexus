@@ -13,47 +13,56 @@ interface ScoreTierBadgeProps {
   className?: string;
 }
 
-const TIER_CONFIG: Record<ScoreTier, { 
-  label: string; 
+const TIER_CONFIG: Record<ScoreTier, {
+  label: string;
   tierLabel: string;
   description: string;
-  bgColor: string; 
+  bgColor: string;
   textColor: string;
   borderColor: string;
   dotColor: string;
 }> = {
-  'A': { 
-    label: 'Strong', 
+  'A': {
+    label: 'Strong',
     tierLabel: 'Tier A',
     description: 'Excellent Match',
-    bgColor: 'bg-emerald-100', 
+    bgColor: 'bg-emerald-100',
     textColor: 'text-emerald-700',
     borderColor: 'border-emerald-200',
     dotColor: 'bg-emerald-500'
   },
-  'B': { 
-    label: 'Moderate', 
+  'B': {
+    label: 'Moderate',
     tierLabel: 'Tier B',
     description: 'Good Match',
-    bgColor: 'bg-blue-100', 
+    bgColor: 'bg-blue-100',
     textColor: 'text-blue-700',
     borderColor: 'border-blue-200',
     dotColor: 'bg-blue-500'
   },
-  'C': { 
-    label: 'Fair', 
+  'C': {
+    label: 'Fair',
     tierLabel: 'Tier C',
     description: 'Fair Match',
-    bgColor: 'bg-amber-100', 
+    bgColor: 'bg-amber-100',
     textColor: 'text-amber-700',
     borderColor: 'border-amber-200',
     dotColor: 'bg-amber-500'
   },
-  'D': { 
-    label: 'Poor', 
+  'D': {
+    label: 'Poor',
     tierLabel: 'Tier D',
     description: 'Poor Match',
-    bgColor: 'bg-red-100', 
+    bgColor: 'bg-orange-100',
+    textColor: 'text-orange-700',
+    borderColor: 'border-orange-200',
+    dotColor: 'bg-orange-500'
+  },
+  'F': {
+    label: 'Fail',
+    tierLabel: 'Tier F',
+    description: 'No Match',
+    bgColor: 'bg-red-100',
     textColor: 'text-red-700',
     borderColor: 'border-red-200',
     dotColor: 'bg-red-500'
@@ -75,7 +84,7 @@ export const ScoreTierBadge = ({
   size = "md",
   className 
 }: ScoreTierBadgeProps) => {
-  const config = TIER_CONFIG[tier] || TIER_CONFIG['D'];
+  const config = TIER_CONFIG[tier] || TIER_CONFIG['F'];
 
   // Full variant: "→Strong 77" format like Whispers
   if (variant === 'full' && score !== undefined) {
@@ -126,11 +135,12 @@ export const ScoreTierBadge = ({
 };
 
 export const getTierFromScore = (score: number): ScoreTier => {
-  // ALIGNED WITH SPEC: Tier1=80+, Tier2=60-79, Tier3=40-59, Pass<40
-  if (score >= 80) return 'A';  // Tier 1
-  if (score >= 60) return 'B';  // Tier 2
-  if (score >= 40) return 'C';  // Tier 3
-  return 'D';                    // Pass
+  // Spec v2: A=80+, B=65-79, C=50-64, D=35-49, F=0-34
+  if (score >= 80) return 'A';
+  if (score >= 65) return 'B';
+  if (score >= 50) return 'C';
+  if (score >= 35) return 'D';
+  return 'F';
 };
 
 export default ScoreTierBadge;
