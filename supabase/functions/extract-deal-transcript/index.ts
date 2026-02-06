@@ -582,7 +582,11 @@ IMPORTANT: You MUST populate as many fields as possible. Do not leave fields emp
         if (extracted.executive_summary) flatExtracted.executive_summary = extracted.executive_summary;
         if (extracted.competitive_position) flatExtracted.competitive_position = extracted.competitive_position;
         if (extracted.growth_trajectory) flatExtracted.growth_trajectory = extracted.growth_trajectory;
-        if (extracted.key_risks?.length) flatExtracted.key_risks = extracted.key_risks.join('\n');
+        if (extracted.key_risks) {
+          flatExtracted.key_risks = Array.isArray(extracted.key_risks)
+            ? extracted.key_risks.join('\n')
+            : String(extracted.key_risks);
+        }
         if (extracted.technology_systems) flatExtracted.technology_systems = extracted.technology_systems;
         if (extracted.real_estate_info) flatExtracted.real_estate_info = extracted.real_estate_info;
         if (extracted.key_quotes?.length) flatExtracted.key_quotes = extracted.key_quotes;
