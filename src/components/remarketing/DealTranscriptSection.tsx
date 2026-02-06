@@ -112,33 +112,53 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     setIsEnriching(true);
     setEnrichmentResult(null);
     
-    // Count transcript states for accurate UI messaging
     const totalTranscripts = transcripts.length;
     const unprocessedTranscripts = transcripts.filter(t => !t.processed_at);
     const totalToProcess = forceReExtract ? totalTranscripts : unprocessedTranscripts.length;
 
-    // Show accurate counts (avoid misleading 1/1 when many transcripts already exist)
     setEnrichmentPhase(totalTranscripts > 0 ? 'transcripts' : 'website');
-    setEnrichmentProgress({
-      current: 0,
-      total: forceReExtract ? totalTranscripts : totalToProcess,
-    });
+    setEnrichmentProgress({ current: 0, total: totalToProcess });
 
+    // Poll deal_transcripts for real-time progress during enrichment
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    if (totalToProcess > 0) {
+      pollInterval = setInterval(async () => {
+        try {
+          const { data: updated } = await supabase
+            .from('deal_transcripts')
+            .select('id, processed_at, extracted_data')
+            .eq('listing_id', dealId);
+          if (updated) {
+            const processed = updated.filter(t => t.processed_at && t.extracted_data).length;
+            const remaining = totalToProcess - Math.min(processed, totalToProcess);
+            setEnrichmentProgress(prev => ({
+              ...prev,
+              current: processed,
+            }));
+            // Switch to website phase when all transcripts are done
+            if (processed >= totalToProcess) {
+              setEnrichmentPhase('website');
+            }
+          }
+        } catch {
+          // Non-critical polling failure, ignore
+        }
+      }, 2000);
+    }
     
     try {
-      // Use AbortController with extended timeout for transcript processing
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout
+      const timeoutId = setTimeout(() => controller.abort(), 180000);
       
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId, forceReExtract }
       });
       
       clearTimeout(timeoutId);
+      if (pollInterval) clearInterval(pollInterval);
       
       if (error) throw error;
       
-      // Store full result for dialog
       const result: SingleDealEnrichmentResult = {
         success: true,
         message: data?.message || 'Deal enriched successfully',
@@ -151,10 +171,11 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       setEnrichmentResult(result);
       setShowEnrichmentDialog(true);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
     } catch (error: any) {
+      if (pollInterval) clearInterval(pollInterval);
       console.error('Enrich error:', error);
       
-      // Check if this is a timeout/network error
       const errorMessage = error.message || '';
       const isTimeout = errorMessage.includes('Failed to send') || 
                         errorMessage.includes('timeout') ||
@@ -162,7 +183,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                         errorMessage.includes('network');
       
       if (isTimeout) {
-        // Enrichment may have succeeded on server - refresh data anyway
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
         
@@ -181,6 +201,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         setShowEnrichmentDialog(true);
       }
     } finally {
+      if (pollInterval) clearInterval(pollInterval);
       setIsEnriching(false);
       setEnrichmentPhase(null);
       setEnrichmentProgress({ current: 0, total: 0 });
@@ -1092,27 +1113,27 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="font-medium text-sm">
                         {enrichmentPhase === 'transcripts'
-                          ? 'Processing transcript intelligence...'
+                          ? 'Processing transcripts...'
                           : 'Scraping website...'}
                       </p>
                       {enrichmentProgress.total > 0 && enrichmentPhase === 'transcripts' && (
-                        <span className="text-xs text-muted-foreground">
-                          {enrichmentProgress.current} pending / {enrichmentProgress.total} total
+                        <span className="text-xs font-medium text-primary">
+                          {enrichmentProgress.current}/{enrichmentProgress.total}
                         </span>
                       )}
                     </div>
                     <Progress
                       value={
                         enrichmentProgress.total > 0
-                          ? ((enrichmentProgress.total - enrichmentProgress.current) / enrichmentProgress.total) * 100
+                          ? (enrichmentProgress.current / enrichmentProgress.total) * 100
                           : undefined
                       }
                       className="h-1.5"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       {enrichmentPhase === 'transcripts' && enrichmentProgress.total > 0
-                        ? `Found ${enrichmentProgress.total} transcript${enrichmentProgress.total > 1 ? 's' : ''} (${enrichmentProgress.current} pending extraction)`
-                        : 'Extracting deal intelligence'}
+                        ? `Extracting intelligence from ${enrichmentProgress.total} transcript${enrichmentProgress.total > 1 ? 's' : ''}`
+                        : enrichmentPhase === 'website' ? 'Scraping website pages...' : 'Extracting deal intelligence'}
                     </p>
                   </div>
                 </div>
