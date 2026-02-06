@@ -98,6 +98,29 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
+
+  // Enrich deal with AI
+  const handleEnrichDeal = async () => {
+    setIsEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-deal', {
+        body: { dealId }
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Deal enriched successfully');
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+    } catch (error: any) {
+      console.error('Enrich error:', error);
+      toast.error('Failed to enrich deal', {
+        description: error.message || 'Please try again'
+      });
+    } finally {
+      setIsEnriching(false);
+    }
+  };
   const [selectedFiles, setSelectedFiles] = useState<{file: File; title: string; status: 'pending' | 'processing' | 'done' | 'error'; text?: string}[]>([]);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isMultiFileMode, setIsMultiFileMode] = useState(false);
@@ -946,18 +969,34 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               <FileText className="h-5 w-5" />
               Call Transcripts
             </CardTitle>
-            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-              setIsAddDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Transcript
-                </Button>
-              </DialogTrigger>
-              {renderDialogContent()}
-            </Dialog>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="gap-2"
+                onClick={handleEnrichDeal}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Enrich
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Transcript
+                  </Button>
+                </DialogTrigger>
+                {renderDialogContent()}
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="py-2 pt-0">
@@ -989,18 +1028,34 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                 )}
               </div>
             </CollapsibleTrigger>
-            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-              setIsAddDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Transcript
-                </Button>
-              </DialogTrigger>
-              {renderDialogContent()}
-            </Dialog>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="gap-2"
+                onClick={handleEnrichDeal}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Enrich
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Transcript
+                  </Button>
+                </DialogTrigger>
+                {renderDialogContent()}
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
 
