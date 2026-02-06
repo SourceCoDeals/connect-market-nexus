@@ -241,23 +241,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               fileUrl = urlData.publicUrl;
             }
 
-            // Insert transcript record - write to the unified table (views are read-only)
+            // Insert transcript record in deal_transcripts table
             // Ensure we never save empty transcript_text (frontend validation expects non-empty)
             const safeTranscriptText = (transcriptText || '').trim().length > 0
               ? transcriptText
               : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
 
             const { error } = await supabase
-              .from('transcripts' as any)
+              .from('deal_transcripts')
               .insert({
-                entity_type: 'deal',
                 listing_id: dealId,
                 transcript_text: safeTranscriptText,
                 source: 'file_upload',
                 title: sf.title.trim() || sf.file.name,
                 transcript_url: fileUrl,
                 call_date: callDate ? new Date(callDate).toISOString() : null,
-                extraction_status: 'pending',
               });
 
             if (error) throw error;
@@ -294,16 +292,14 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       }
 
       const { error } = await supabase
-        .from('transcripts' as any)
+        .from('deal_transcripts')
         .insert({
-          entity_type: 'deal',
           listing_id: dealId,
           transcript_text: safeSingleText,
           source: transcriptUrl || 'manual',
           title: transcriptTitle || null,
           transcript_url: transcriptUrl || null,
           call_date: callDate ? new Date(callDate).toISOString() : null,
-          extraction_status: 'pending',
         });
 
       if (error) throw error;
@@ -327,9 +323,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   // Delete transcript mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Write target: unified transcripts table (views are read-only)
       const { error } = await supabase
-        .from('transcripts' as any)
+        .from('deal_transcripts')
         .delete()
         .eq('id', id);
 
