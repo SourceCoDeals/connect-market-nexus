@@ -86,13 +86,39 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { transcriptId, transcriptText, dealInfo, applyToDeal = true } = await req.json();
+    const { transcriptId, transcriptText: providedText, dealInfo, applyToDeal = true } = await req.json();
 
-    if (!transcriptId || !transcriptText) {
+    if (!transcriptId) {
       return new Response(
-        JSON.stringify({ error: 'Missing transcriptId or transcriptText' }),
+        JSON.stringify({ error: 'Missing transcriptId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Fetch transcript text from database if not provided
+    let transcriptText = providedText;
+    if (!transcriptText) {
+      const { data: transcript, error: fetchError } = await supabase
+        .from('deal_transcripts')
+        .select('transcript_text, listing_id')
+        .eq('id', transcriptId)
+        .single();
+
+      if (fetchError || !transcript) {
+        return new Response(
+          JSON.stringify({ error: 'Transcript not found or has no text content' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      transcriptText = transcript.transcript_text;
+
+      if (!transcriptText || transcriptText.trim().length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Transcript has no text content to extract from' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log(`Extracting intelligence from transcript ${transcriptId}, text length: ${transcriptText.length}`);
