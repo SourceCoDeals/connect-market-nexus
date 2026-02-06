@@ -241,17 +241,23 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               fileUrl = urlData.publicUrl;
             }
 
-            // Insert transcript record - use v_deal_transcripts view
-            // Save even if text extraction failed (file is still uploaded)
+            // Insert transcript record - write to the unified table (views are read-only)
+            // Ensure we never save empty transcript_text (frontend validation expects non-empty)
+            const safeTranscriptText = (transcriptText || '').trim().length > 0
+              ? transcriptText
+              : `[File uploaded: ${sf.file.name} — text extraction pending/failed]`;
+
             const { error } = await supabase
-              .from('v_deal_transcripts' as any)
+              .from('transcripts' as any)
               .insert({
+                entity_type: 'deal',
                 listing_id: dealId,
-                transcript_text: transcriptText,
+                transcript_text: safeTranscriptText,
                 source: 'file_upload',
                 title: sf.title.trim() || sf.file.name,
                 transcript_url: fileUrl,
                 call_date: callDate ? new Date(callDate).toISOString() : null,
+                extraction_status: 'pending',
               });
 
             if (error) throw error;
@@ -278,16 +284,26 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         return { count: successCount, failed: totalFiles - successCount };
       }
       
-      // Single transcript mode (pasted text or link) - use v_deal_transcripts view
+      // Single transcript mode (pasted text or link)
+      const safeSingleText = (newTranscript || '').trim().length > 0
+        ? newTranscript
+        : (transcriptUrl ? `[Transcript link added: ${transcriptUrl}]` : '');
+
+      if (!safeSingleText) {
+        throw new Error('Transcript content cannot be empty');
+      }
+
       const { error } = await supabase
-        .from('v_deal_transcripts' as any)
+        .from('transcripts' as any)
         .insert({
+          entity_type: 'deal',
           listing_id: dealId,
-          transcript_text: newTranscript,
+          transcript_text: safeSingleText,
           source: transcriptUrl || 'manual',
           title: transcriptTitle || null,
           transcript_url: transcriptUrl || null,
           call_date: callDate ? new Date(callDate).toISOString() : null,
+          extraction_status: 'pending',
         });
 
       if (error) throw error;
@@ -311,9 +327,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   // Delete transcript mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Use v_deal_transcripts view (backwards-compatible with unified transcripts table)
+      // Write target: unified transcripts table (views are read-only)
       const { error } = await supabase
-        .from('v_deal_transcripts' as any)
+        .from('transcripts' as any)
         .delete()
         .eq('id', id);
 
