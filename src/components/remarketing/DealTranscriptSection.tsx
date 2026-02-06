@@ -112,18 +112,18 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     setIsEnriching(true);
     setEnrichmentResult(null);
     
-    // Count unprocessed transcripts to show progress
+    // Count transcript states for accurate UI messaging
+    const totalTranscripts = transcripts.length;
     const unprocessedTranscripts = transcripts.filter(t => !t.processed_at);
     const totalToProcess = unprocessedTranscripts.length;
-    
-    if (totalToProcess > 0) {
-      setEnrichmentPhase('transcripts');
-      // Show full count since we process in background (no incremental updates from server)
-      setEnrichmentProgress({ current: totalToProcess, total: totalToProcess });
-    } else {
-      setEnrichmentPhase('website');
-      setEnrichmentProgress({ current: 0, total: 0 });
-    }
+
+    // Show accurate counts (avoid misleading 1/1 when many transcripts already exist)
+    setEnrichmentPhase(totalTranscripts > 0 ? 'transcripts' : 'website');
+    setEnrichmentProgress({
+      current: totalToProcess,
+      total: totalTranscripts,
+    });
+
     
     try {
       // Use AbortController with extended timeout for transcript processing
@@ -1075,25 +1075,27 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="font-medium text-sm">
-                        {enrichmentPhase === 'transcripts' 
-                          ? 'Processing transcripts...' 
+                        {enrichmentPhase === 'transcripts'
+                          ? 'Processing transcript intelligence...'
                           : 'Scraping website...'}
                       </p>
-                      {enrichmentProgress.total > 0 && (
+                      {enrichmentProgress.total > 0 && enrichmentPhase === 'transcripts' && (
                         <span className="text-xs text-muted-foreground">
-                          {enrichmentProgress.current}/{enrichmentProgress.total}
+                          {enrichmentProgress.current} pending / {enrichmentProgress.total} total
                         </span>
                       )}
                     </div>
-                    <Progress 
-                      value={enrichmentProgress.total > 0 
-                        ? (enrichmentProgress.current / enrichmentProgress.total) * 100 
-                        : undefined} 
-                      className="h-1.5" 
+                    <Progress
+                      value={
+                        enrichmentProgress.total > 0
+                          ? ((enrichmentProgress.total - enrichmentProgress.current) / enrichmentProgress.total) * 100
+                          : undefined
+                      }
+                      className="h-1.5"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       {enrichmentPhase === 'transcripts' && enrichmentProgress.total > 0
-                        ? `Extracting intelligence from ${enrichmentProgress.total} transcript${enrichmentProgress.total > 1 ? 's' : ''}`
+                        ? `Found ${enrichmentProgress.total} transcript${enrichmentProgress.total > 1 ? 's' : ''} (${enrichmentProgress.current} pending extraction)`
                         : 'Extracting deal intelligence'}
                     </p>
                   </div>
