@@ -515,8 +515,9 @@ serve(async (req) => {
           .in('id', failedTranscriptIds);
       }
 
-      // Process transcripts in parallel batches of 3 for speed
-      const BATCH_SIZE = 3;
+      // Process transcripts in parallel batches of 5 for speed
+      // With 11 transcripts this means 3 rounds instead of 4, saving ~25-30s
+      const BATCH_SIZE = 5;
       for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
         const batch = validTranscripts.slice(i, i + BATCH_SIZE);
 

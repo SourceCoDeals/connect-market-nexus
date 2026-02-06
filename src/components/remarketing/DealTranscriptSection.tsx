@@ -148,7 +148,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000);
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5-minute timeout for large transcript batches
       
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId, forceReExtract }
