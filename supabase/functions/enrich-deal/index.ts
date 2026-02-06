@@ -112,7 +112,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { dealId } = await req.json();
+    const { dealId, forceReExtract = false } = await req.json();
 
     if (!dealId) {
       return new Response(
@@ -434,20 +434,37 @@ serve(async (req) => {
     }
 
     // 0B) Process transcripts that need AI extraction
-    // Skip: transcripts that already have extracted_data (regardless of processed_at)
-    // Include: no extracted_data AND (never processed OR previously failed)
-    // This ensures we never re-extract successful transcripts, but retry failed ones.
-    const needsExtraction = !transcriptsError && allTranscripts
-      ? allTranscripts.filter((t) => {
-          // If already has good extracted_data, skip — step 0A already applied it
+    // forceReExtract=true: Re-process ALL transcripts with latest prompts (useful after prompt updates)
+    // Otherwise: Only process unprocessed or failed transcripts
+    let needsExtraction: typeof allTranscripts = [];
+    
+    if (!transcriptsError && allTranscripts && allTranscripts.length > 0) {
+      if (forceReExtract) {
+        // Force re-extraction: include ALL transcripts
+        console.log(`[Transcripts] forceReExtract=true: Re-processing ALL ${allTranscripts.length} transcripts with new prompts`);
+        needsExtraction = allTranscripts;
+        
+        // Clear extracted_data and processed_at so fresh extraction can apply
+        const allTranscriptIds = allTranscripts.map((t) => t.id);
+        if (allTranscriptIds.length > 0) {
+          console.log(`[Transcripts] Clearing extracted_data for ${allTranscriptIds.length} transcripts`);
+          await supabase
+            .from('deal_transcripts')
+            .update({ processed_at: null, extracted_data: null, applied_to_deal: false })
+            .in('id', allTranscriptIds);
+        }
+      } else {
+        // Normal mode: only unprocessed or failed transcripts
+        needsExtraction = allTranscripts.filter((t) => {
+          if (!t.processed_at) return true; // Never processed
+          // Previously processed but extraction failed (empty/null extracted_data)
           const hasExtracted = t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data).length > 0;
-          if (hasExtracted) return false;
-          // No extracted_data: include for extraction (whether never processed or previously failed)
-          return true;
-        })
-      : [];
+          return !hasExtracted;
+        });
+      }
+    }
 
-    console.log(`[Transcripts] Total: ${allTranscripts?.length || 0}, Need extraction: ${needsExtraction.length}, Already extracted: ${(allTranscripts?.length || 0) - needsExtraction.length}`);
+    console.log(`[Transcripts] Total: ${allTranscripts?.length || 0}, Need extraction: ${needsExtraction.length}, Already extracted: ${(allTranscripts?.length || 0) - needsExtraction.length}, forceReExtract: ${forceReExtract}`);
 
     if (needsExtraction.length > 0) {
       // Filter valid transcripts (must have >= 100 chars of text)
@@ -490,9 +507,11 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  // Internal call: service role for Authorization + anon key for Edge Gateway routing
-                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  // Internal call: use anon key for Authorization (gateway-safe) +
+                  // pass service role key in custom header for function-level auth
+                  'Authorization': `Bearer ${supabaseAnonKey}`,
                   'apikey': supabaseAnonKey,
+                  'x-internal-secret': supabaseServiceKey,
                 },
                 body: JSON.stringify({
                   transcriptId: transcript.id,

@@ -1,126 +1,69 @@
 
-# Add Progress Feedback for Single Deal Enrichment
 
-## Problem
+## Fix Plan: Transcript Extraction Auth Failure + Build Error
 
-When clicking the "Enrich" button on the Deal Transcript section, there's no visual feedback about:
-- What's happening during enrichment (progress indicator)
-- What was extracted when complete (success details)
-- What went wrong if it failed (error details)
+### Problem Summary
 
-## Solution
+Two separate issues are preventing full enrichment:
 
-Create a **single-deal enrichment progress** experience that shows:
-1. An animated progress card while enriching
-2. A completion dialog with detailed results (fields updated, errors, scrape report)
+1. **All 10 transcript extraction calls fail with `{"code":401,"message":"Invalid JWT"}`** -- The `enrich-deal` function calls `extract-deal-transcript` internally using the service role key as the Bearer token. The Supabase Edge Gateway is rejecting this, meaning the `verify_jwt = false` config is either not deployed or not being honored for this function.
 
-## Implementation
+2. **Build error** -- `parse-tracker-documents/index.ts` imports `npm:@anthropic-ai/sdk@0.30.1` which requires a Deno import map entry.
 
-### 1. Create `SingleDealEnrichmentResult` interface
+The 8 fields that did update (State, City, Street Address, Company Name, LinkedIn data) are all from website scraping, which works because it doesn't make internal function-to-function calls.
 
-Define a type for the enrichment response:
+### Root Cause Analysis
+
+The `enrich-deal` function sends this to `extract-deal-transcript`:
+
+```text
+Authorization: Bearer <SERVICE_ROLE_KEY>
+apikey: <ANON_KEY>
+```
+
+The service role key is NOT a valid JWT in the traditional sense -- it's a special key. When the Edge Gateway has `verify_jwt = true` (or the config hasn't been synced), it tries to verify this as a standard JWT and rejects it.
+
+The `extract-deal-transcript` function has `verify_jwt = false` in config.toml (line 134-135), but this configuration may not be deployed to the live Edge Gateway. Config.toml changes require explicit deployment/sync.
+
+### Fix 1: Auth Pattern for Internal Calls
+
+Modify `extract-deal-transcript` to not perform manual JWT validation that could conflict with the gateway, and ensure the internal call pattern works reliably.
+
+**Option A (Recommended):** Change the internal call headers to use the anon key for both `apikey` AND `Authorization`, then pass the service role key in a custom header (e.g., `x-service-role-key`) for the function to validate internally. This avoids the gateway rejecting the service role key as a JWT.
+
+**Option B:** Ensure `config.toml` is properly deployed and the `verify_jwt = false` is honored. Then the function's internal auth check (line 103) comparing bearer against service role key should work.
+
+We will implement **Option A** as it's more robust:
+
+- In `enrich-deal/index.ts`: Change the internal call to pass `Authorization: Bearer <ANON_KEY>` and add a custom header `x-internal-secret: <SERVICE_ROLE_KEY>`
+- In `extract-deal-transcript/index.ts`: Update auth check to accept the custom header for internal calls while still supporting user JWTs for direct calls
+
+### Fix 2: Build Error (parse-tracker-documents)
+
+Change the import in `parse-tracker-documents/index.ts` from:
 ```typescript
-interface SingleDealEnrichmentResult {
-  success: boolean;
-  message?: string;
-  fieldsUpdated?: string[];
-  error?: string;
-  extracted?: Record<string, unknown>;
-  scrapeReport?: {
-    totalPagesAttempted: number;
-    successfulPages: number;
-    totalCharactersScraped: number;
-    pages: Array<{ url: string; success: boolean; chars: number }>;
-  };
-}
+import Anthropic from "npm:@anthropic-ai/sdk@0.30.1";
+```
+to use `esm.sh` (consistent with other edge functions):
+```typescript
+import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.30.1";
 ```
 
-### 2. Create `SingleDealEnrichmentDialog` component
+### Fix 3: Redeploy config.toml
 
-**File:** `src/components/remarketing/SingleDealEnrichmentDialog.tsx`
+Ensure `verify_jwt = false` is properly applied for `extract-deal-transcript` by redeploying both functions after the code changes.
 
-A dialog that shows:
-- Success/failure status with icon
-- List of fields that were updated (with friendly names)
-- Scrape report (how many pages were scraped)
-- Error message if failed
-- Close button
+### Changes Summary
 
-### 3. Update `DealTranscriptSection.tsx`
-
-Modify the enrichment handler to:
-1. Show an inline progress indicator (reuse `EnrichmentProgressIndicator` pattern)
-2. Capture the full response from the edge function
-3. Open the summary dialog when complete
-
-Changes:
-- Add `enrichmentResult` state to store the response
-- Add `showEnrichmentDialog` state
-- Update `handleEnrichDeal` to capture and store the result
-- Render progress indicator when `isEnriching` is true
-- Render summary dialog when `showEnrichmentDialog` is true
-
-### 4. Progress Indicator Design
-
-Since this is a single-deal operation (not batch), use a simpler indicator:
-- Show "Enriching deal..." with animated spinner
-- Show stages: "Scraping website...", "Extracting data...", "Saving..."
-- Use existing `Card` + `Progress` components for consistency
-
-## Files to Create/Modify
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/components/remarketing/SingleDealEnrichmentDialog.tsx` | Create - summary dialog |
-| `src/components/remarketing/DealTranscriptSection.tsx` | Modify - add progress + dialog |
+| `supabase/functions/enrich-deal/index.ts` | Update internal call headers to use anon key for Authorization + custom header for service role |
+| `supabase/functions/extract-deal-transcript/index.ts` | Update auth check to accept custom internal header |
+| `supabase/functions/parse-tracker-documents/index.ts` | Fix Anthropic SDK import to use esm.sh |
 
-## UI Preview
+### After Implementation
 
-**During enrichment:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│ ⚡ Enriching deal...                                        │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (indeterminate)     │
-│ Scraping website and extracting intelligence               │
-└─────────────────────────────────────────────────────────────┘
-```
+1. Deploy all three edge functions
+2. Re-run enrichment on the failing deal using "Re-extract All Transcripts"
+3. Verify all 10 transcripts process successfully and transcript-derived fields (executive summary, business model, services, owner goals, etc.) are populated
 
-**On completion (success):**
-```
-┌─────────────────────────────────────────────────────────────┐
-│ ✓ Enrichment Complete                                       │
-├─────────────────────────────────────────────────────────────┤
-│ Updated 8 fields:                                           │
-│  • Executive Summary                                        │
-│  • Business Model                                           │
-│  • Geographic States (TX, OK, AR)                          │
-│  • Industry                                                 │
-│  • Services                                                 │
-│  • Customer Types                                           │
-│  • Address (Dallas, TX)                                     │
-│  • Founded Year                                             │
-├─────────────────────────────────────────────────────────────┤
-│ Scraped 3 of 5 pages (12,450 characters)                   │
-├─────────────────────────────────────────────────────────────┤
-│                                              [Close]        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**On failure:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│ ✗ Enrichment Failed                                         │
-├─────────────────────────────────────────────────────────────┤
-│ Error: No website URL found for this deal.                  │
-│ Add a website in the company overview or deal memo.         │
-├─────────────────────────────────────────────────────────────┤
-│                                     [Retry]    [Close]      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Technical Notes
-
-- The `enrich-deal` function already returns detailed response data including `fieldsUpdated`, `extracted`, and `scrapeReport`
-- We'll create a mapping of field names to human-readable labels (e.g., `executive_summary` → "Executive Summary")
-- The progress indicator will be indeterminate since we can't track stages in a single API call
-- Reuses existing UI components: `Dialog`, `Card`, `Progress`, `Badge`, `ScrollArea`
