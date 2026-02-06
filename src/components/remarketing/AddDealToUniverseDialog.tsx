@@ -93,7 +93,7 @@ export const AddDealToUniverseDialog = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [selectedListings, setSelectedListings] = useState<string[]>([]);
-  const [transcriptFile, setTranscriptFile] = useState<File | null>(null);
+  const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
   const [createDealError, setCreateDealError] = useState<string | null>(null);
   const [newDealForm, setNewDealForm] = useState({
     title: "",
@@ -301,44 +301,45 @@ export const AddDealToUniverseDialog = ({
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       toast.success(`Created "${listing.title}" and added to universe`);
       
-      // Handle transcript file upload
-      if (transcriptFile && userId) {
-        try {
-          const fileExt = transcriptFile.name.split('.').pop();
-          const filePath = `${listing.id}/${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('deal-transcripts')
-            .upload(filePath, transcriptFile);
-          
-          if (uploadError) {
-            console.error("Transcript upload error:", uploadError);
-            toast.error("Failed to upload transcript file");
-          } else {
-            const { data: { publicUrl } } = supabase.storage
+      // Handle transcript file uploads (multiple)
+      if (transcriptFiles.length > 0 && userId) {
+        for (const file of transcriptFiles) {
+          try {
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${listing.id}/${Date.now()}-${file.name}`;
+            
+            const { error: uploadError } = await supabase.storage
               .from('deal-transcripts')
-              .getPublicUrl(filePath);
+              .upload(filePath, file);
             
-            // Read file content if it's a text file
-            let transcriptText = "";
-            if (['txt', 'vtt', 'srt'].includes(fileExt?.toLowerCase() || '')) {
-              transcriptText = await transcriptFile.text();
+            if (uploadError) {
+              console.error("Transcript upload error:", uploadError);
+              toast.error(`Failed to upload ${file.name}`);
+            } else {
+              const { data: { publicUrl } } = supabase.storage
+                .from('deal-transcripts')
+                .getPublicUrl(filePath);
+              
+              let transcriptText = "";
+              if (['txt', 'vtt', 'srt'].includes(fileExt?.toLowerCase() || '')) {
+                transcriptText = await file.text();
+              }
+              
+              await supabase.from('deal_transcripts').insert({
+                listing_id: listing.id,
+                transcript_url: publicUrl,
+                transcript_text: transcriptText || "Pending text extraction",
+                title: file.name,
+                created_by: userId,
+                source: 'file_upload',
+              });
             }
-            
-            // Save transcript record
-            await supabase.from('deal_transcripts').insert({
-              listing_id: listing.id,
-              transcript_url: publicUrl,
-              transcript_text: transcriptText || "Pending text extraction",
-              title: transcriptFile.name,
-              created_by: userId,
-              source: 'file_upload',
-            });
-            
-            toast.success("Transcript uploaded");
+          } catch (err) {
+            console.error("Transcript handling error:", err);
           }
-        } catch (err) {
-          console.error("Transcript handling error:", err);
+        }
+        if (transcriptFiles.length > 0) {
+          toast.success(`${transcriptFiles.length} transcript(s) uploaded`);
         }
       }
       
@@ -407,7 +408,7 @@ export const AddDealToUniverseDialog = ({
       });
       
       setNewDealForm({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
-      setTranscriptFile(null);
+      setTranscriptFiles([]);
       onDealAdded?.();
       onOpenChange(false);
     },
@@ -691,7 +692,7 @@ export const AddDealToUniverseDialog = ({
               <div className="space-y-3 border-t pt-4">
                 <Label className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  Call Transcript (Optional)
+                  Call Transcripts (Optional)
                 </Label>
                 
                 {/* Transcript Link */}
@@ -705,7 +706,7 @@ export const AddDealToUniverseDialog = ({
                       onChange={(e) =>
                         setNewDealForm((prev) => ({ ...prev, transcriptLink: e.target.value }))
                       }
-                      disabled={!!transcriptFile}
+                      disabled={transcriptFiles.length > 0}
                       className="flex-1"
                     />
                   </div>
@@ -717,54 +718,59 @@ export const AddDealToUniverseDialog = ({
                   <div className="flex-1 border-t" />
                 </div>
                 
-                {/* File Upload */}
+                {/* File Upload - Multiple */}
                 <div className="space-y-2">
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".txt,.vtt,.srt,.pdf,.doc,.docx"
+                    multiple
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setTranscriptFile(file);
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) {
+                        setTranscriptFiles(prev => [...prev, ...files]);
                         setNewDealForm(prev => ({ ...prev, transcriptLink: "" }));
                       }
+                      if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
                     className="hidden"
                     id="transcript-file-universe"
                   />
                   
-                  {transcriptFile ? (
-                    <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                      <FileText className="h-4 w-4 text-primary" />
-                      <span className="text-sm flex-1 truncate">{transcriptFile.name}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setTranscriptFile(null);
-                          if (fileInputRef.current) fileInputRef.current.value = "";
-                        }}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
+                  {transcriptFiles.length > 0 && (
+                    <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+                      {transcriptFiles.map((file, idx) => (
+                        <div key={`${file.name}-${idx}`} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                          <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="text-sm flex-1 truncate">{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setTranscriptFiles(prev => prev.filter((_, i) => i !== idx));
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={!!newDealForm.transcriptLink}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Transcript File
-                    </Button>
                   )}
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!!newDealForm.transcriptLink}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {transcriptFiles.length > 0 ? `Add More Files (${transcriptFiles.length} selected)` : 'Upload Transcript Files'}
+                  </Button>
                   <p className="text-xs text-muted-foreground">
-                    Supports .txt, .vtt, .srt, .pdf, .doc, .docx
+                    Supports .txt, .vtt, .srt, .pdf, .doc, .docx — select multiple files
                   </p>
                 </div>
               </div>
