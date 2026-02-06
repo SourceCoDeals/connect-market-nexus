@@ -70,11 +70,13 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   const loadTranscripts = async () => {
     try {
+      // MIGRATION FIX: Use new unified transcripts table with entity_type filter
       // deal_transcripts uses listing_id, not deal_id
       const { data, error } = await supabase
-        .from("deal_transcripts")
+        .from("transcripts")
         .select("*")
         .eq("listing_id", dealId)
+        .in("entity_type", ["deal", "both"])
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -127,8 +129,9 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
     if (!confirm("Are you sure you want to delete this transcript?")) return;
 
     try {
+      // MIGRATION FIX: Use new unified transcripts table
       const { error } = await supabase
-        .from("deal_transcripts")
+        .from("transcripts")
         .delete()
         .eq("id", transcriptId);
 

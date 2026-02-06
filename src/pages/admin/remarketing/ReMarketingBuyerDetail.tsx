@@ -197,13 +197,15 @@ const ReMarketingBuyerDetail = () => {
     queryKey: ['remarketing', 'transcripts', id],
     queryFn: async () => {
       if (isNew) return [];
-      
+
+      // MIGRATION FIX: Use new unified transcripts table with entity_type filter
       const { data, error } = await supabase
-        .from('buyer_transcripts')
+        .from('transcripts')
         .select('*')
         .eq('buyer_id', id)
+        .in('entity_type', ['buyer', 'both'])
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return (data || []) as Transcript[];
     },
@@ -376,10 +378,12 @@ const ReMarketingBuyerDetail = () => {
       fileUrl?: string;
       triggerExtract?: boolean;
     }) => {
+      // MIGRATION FIX: Use new unified transcripts table with entity_type
       const { data, error } = await supabase
-        .from('buyer_transcripts')
+        .from('transcripts')
         .insert([
           {
+            entity_type: 'buyer',
             buyer_id: id,
             transcript_text: text,
             source,
@@ -417,8 +421,9 @@ const ReMarketingBuyerDetail = () => {
           sourceToUse = transcript.source || 'call';
         } else {
           // Fetch from DB as fallback
+          // MIGRATION FIX: Use new unified transcripts table
           const { data } = await supabase
-            .from('buyer_transcripts')
+            .from('transcripts')
             .select('transcript_text, source')
             .eq('id', params.transcriptId)
             .single();
@@ -455,8 +460,9 @@ const ReMarketingBuyerDetail = () => {
 
   const deleteTranscriptMutation = useMutation({
     mutationFn: async (transcriptId: string) => {
+      // MIGRATION FIX: Use new unified transcripts table
       const { error } = await supabase
-        .from('buyer_transcripts')
+        .from('transcripts')
         .delete()
         .eq('id', transcriptId);
       if (error) throw error;

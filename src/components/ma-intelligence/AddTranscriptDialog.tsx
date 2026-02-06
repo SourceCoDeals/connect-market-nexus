@@ -196,8 +196,9 @@ export function AddTranscriptDialog({
               }
             }
             
-            // Insert into deal_transcripts table
-            const { error } = await supabase.from("deal_transcripts").insert({
+            // MIGRATION FIX: Insert into unified transcripts table with entity_type
+            const { error } = await supabase.from("transcripts").insert({
+              entity_type: "deal",
               listing_id: dealId,
               title: sf.title.trim() || sf.file.name,
               source: "call",
@@ -249,7 +250,9 @@ export function AddTranscriptDialog({
           throw new Error("Please provide a transcript link, paste content, or upload files");
         }
 
-        const { error } = await supabase.from("deal_transcripts").insert({
+        // MIGRATION FIX: Insert into unified transcripts table with entity_type
+        const { error } = await supabase.from("transcripts").insert({
+          entity_type: "deal",
           listing_id: dealId,
           title: formData.title.trim(),
           source: "call",
