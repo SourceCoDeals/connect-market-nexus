@@ -2,6 +2,7 @@ import { Globe, Pencil, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface GeographicFootprintCardProps {
   targetGeographies?: string[] | null;
@@ -9,6 +10,7 @@ interface GeographicFootprintCardProps {
   geographicFootprint?: string[] | null;
   serviceRegions?: string[] | null;
   onEdit: () => void;
+  className?: string;
 }
 
 export const GeographicFootprintCard = ({
@@ -17,6 +19,7 @@ export const GeographicFootprintCard = ({
   geographicFootprint,
   serviceRegions,
   onEdit,
+  className,
 }: GeographicFootprintCardProps) => {
   // Group operating locations by state
   const locationsByState = operatingLocations?.length
@@ -36,7 +39,7 @@ export const GeographicFootprintCard = ({
   const hasAnyData = hasLocations || hasTargetGeos || hasFootprint || hasServiceRegions;
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">

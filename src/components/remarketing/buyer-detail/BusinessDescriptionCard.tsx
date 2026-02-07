@@ -1,6 +1,7 @@
 import { Building2, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface BusinessDescriptionCardProps {
   industryVertical?: string | null;
@@ -8,6 +9,7 @@ interface BusinessDescriptionCardProps {
   servicesOffered?: string[] | null;
   specializedFocus?: string | null;
   onEdit: () => void;
+  className?: string;
 }
 
 export const BusinessDescriptionCard = ({
@@ -16,11 +18,12 @@ export const BusinessDescriptionCard = ({
   servicesOffered,
   specializedFocus,
   onEdit,
+  className,
 }: BusinessDescriptionCardProps) => {
   const hasContent = industryVertical || businessSummary || servicesOffered?.length || specializedFocus;
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">

@@ -1,6 +1,7 @@
 import { DollarSign, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface DealStructureCardProps {
   minRevenue?: number | null;
@@ -13,6 +14,7 @@ interface DealStructureCardProps {
   acquisitionAppetite?: string | null;
   acquisitionTimeline?: string | null;
   onEdit: () => void;
+  className?: string;
 }
 
 const formatCurrency = (value: number | null | undefined): string => {
@@ -37,13 +39,14 @@ export const DealStructureCard = ({
   acquisitionAppetite,
   acquisitionTimeline,
   onEdit,
+  className,
 }: DealStructureCardProps) => {
   const hasRevenue = minRevenue || maxRevenue || revenueSweetSpot;
   const hasEbitda = minEbitda || maxEbitda || ebitdaSweetSpot;
   const hasContent = hasRevenue || hasEbitda || dealPreferences || acquisitionAppetite || acquisitionTimeline;
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
