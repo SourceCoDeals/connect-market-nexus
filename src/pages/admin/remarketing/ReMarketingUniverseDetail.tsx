@@ -279,7 +279,8 @@ const ReMarketingUniverseDetail = () => {
             id, title, internal_company_name, description, location, revenue, ebitda, 
             enriched_at, geographic_states,
             linkedin_employee_count, linkedin_employee_range,
-            google_rating, google_review_count
+            google_rating, google_review_count,
+            deal_total_score, seller_interest_score
           )
         `)
         .eq('universe_id', id)

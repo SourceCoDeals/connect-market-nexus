@@ -57,6 +57,8 @@ interface UniverseDeal {
     linkedin_employee_range?: string;
     google_rating?: number;
     google_review_count?: number;
+    deal_total_score?: number | null;
+    seller_interest_score?: number | null;
   };
 }
 
@@ -98,6 +100,14 @@ const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
   />
 );
 
+// Score color helper
+const getScoreBg = (score: number) => {
+  if (score >= 80) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
+  if (score >= 60) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400';
+  if (score >= 40) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400';
+  return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
+};
+
 // Default column widths
 const DEFAULT_WIDTHS: Record<string, number> = {
   checkbox: 40,
@@ -112,6 +122,8 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   googleReviews: 110,
   revenue: 85,
   ebitda: 85,
+  quality: 70,
+  sellerInterest: 70,
   score: 70,
   actions: 50,
 };
@@ -252,6 +264,14 @@ export const UniverseDealsTable = ({
               <TableHead style={{ width: w('ebitda') }} className="text-right relative">
                 EBITDA
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('ebitda', e)} />
+              </TableHead>
+              <TableHead style={{ width: w('quality') }} className="text-center relative">
+                Quality
+                <ResizeHandle onMouseDown={(e) => handleResizeStart('quality', e)} />
+              </TableHead>
+              <TableHead style={{ width: w('sellerInterest') }} className="text-center relative">
+                Seller Interest
+                <ResizeHandle onMouseDown={(e) => handleResizeStart('sellerInterest', e)} />
               </TableHead>
               <TableHead style={{ width: w('score') }} className="text-center relative">
                 Score
@@ -428,14 +448,34 @@ export const UniverseDealsTable = ({
                       </span>
                     </TableCell>
 
+                    {/* Deal Quality Score */}
+                    <TableCell style={{ width: w('quality') }} className="text-center">
+                      {deal.listing.deal_total_score != null ? (
+                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(deal.listing.deal_total_score)}`}>
+                          {Math.round(deal.listing.deal_total_score)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+
+                    {/* Seller Interest Score */}
+                    <TableCell style={{ width: w('sellerInterest') }} className="text-center">
+                      {deal.listing.seller_interest_score != null ? (
+                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(deal.listing.seller_interest_score)}`}>
+                          {Math.round(deal.listing.seller_interest_score)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+
+                    {/* Avg Match Score */}
                     <TableCell style={{ width: w('score') }} className="text-center">
                       {engagement.avgScore > 0 ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                          <span className="text-sm font-medium">
-                            {Math.round(engagement.avgScore)}
-                          </span>
-                        </div>
+                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(engagement.avgScore)}`}>
+                          {Math.round(engagement.avgScore)}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
