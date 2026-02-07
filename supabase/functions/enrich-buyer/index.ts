@@ -377,30 +377,35 @@ const PROMPT_3A_GEOGRAPHY = {
       hq_city: { type: 'string' },
       hq_state: { type: 'string', description: '2-letter state code' },
       hq_country: { type: 'string', default: 'USA' },
-      geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'Array of 2-letter state codes where company has PHYSICAL LOCATIONS' },
-      service_regions: { type: 'array', items: { type: 'string' }, description: 'States where company provides services' },
+      geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'Array of 2-letter state codes where company operates, has offices, or provides services. Include states from office addresses, service area lists, and explicitly named states.' },
+      service_regions: { type: 'array', items: { type: 'string' }, description: 'All states where company provides services or has customers, as 2-letter codes' },
     },
   },
 };
 
-const PROMPT_3A_SYSTEM = `CRITICAL GEOGRAPHIC EXTRACTION RULES:
-1. ONLY extract states that appear AS EXPLICIT ADDRESSES or LOCATION NAMES
-2. Do NOT infer states from phrases like "serving the Southeast"
-3. Do NOT expand "national coverage" into a list of states
-4. If a state is not explicitly named as a location, do NOT include it
-5. Return empty array if no explicit locations found
+const PROMPT_3A_SYSTEM = `You are an M&A research analyst extracting geographic coverage from a company website.
 
-Examples of VALID extractions:
-- "123 Main St, Atlanta, GA" → ["GA"]
-- "Locations in Florida, Georgia, and Alabama" → ["FL", "GA", "AL"]
+EXTRACTION RULES:
+1. Extract ALL states where the company operates, has offices, or provides services
+2. Include states from:
+   - Office/location addresses (e.g., "123 Main St, Atlanta, GA" → GA)
+   - Service area descriptions (e.g., "Serving Minnesota, Wisconsin, and Iowa" → MN, WI, IA)
+   - Named state lists (e.g., "Operating in FL, GA, and AL" → FL, GA, AL)
+   - City mentions with known states (e.g., "serving Dallas and Houston" → TX)
+3. geographic_footprint = states with physical presence OR explicitly named service states
+4. service_regions = ALL states the company serves (superset of geographic_footprint)
 
-Examples of INVALID extractions:
-- "Serving the Southeast" → [] (NOT ["GA", "FL", "AL", "SC"])
-- "National coverage" → [] (NOT all 50 states)`;
+DO NOT:
+- Expand vague regions ("Southeast", "Midwest") into state lists — return empty
+- Expand "national coverage" or "nationwide" into all 50 states — return empty
+- Infer neighboring states that are not explicitly mentioned
+- Guess states based on industry norms
+
+Return 2-letter state codes (e.g., MN not Minnesota).`;
 
 async function extractGeography(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 3a: Geographic Footprint');
-  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract geographic footprint information. Only include states that are EXPLICITLY mentioned as physical locations.`;
+  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract geographic coverage information. Include states from addresses, service area descriptions, and any explicitly named states where the company operates or serves customers.`;
   return await callClaudeAI(PROMPT_3A_SYSTEM, userPrompt, PROMPT_3A_GEOGRAPHY, apiKey);
 }
 
@@ -548,8 +553,8 @@ function validateGeography(extracted: any): any {
   if (!extracted?.data) return extracted;
   const data = extracted.data;
 
-  // Anti-hallucination check
-  if (data.service_regions?.length > (data.geographic_footprint?.length || 0) * 3) {
+  // Anti-hallucination check — only flag if service_regions is absurdly large (>15 states with <3 footprint)
+  if (data.service_regions?.length > 15 && (data.geographic_footprint?.length || 0) < 3) {
     console.warn('Possible hallucination in service_regions - reverting to conservative estimate');
     data.service_regions = [...(data.geographic_footprint || [])];
   }
@@ -567,10 +572,20 @@ function validateGeography(extracted: any): any {
       .filter((s: string) => VALID_STATE_CODES.has(s));
   }
 
+  // If geographic_footprint is empty but service_regions has data, promote service_regions
+  if ((!data.geographic_footprint || data.geographic_footprint.length === 0) && data.service_regions?.length > 0) {
+    console.log('Promoting service_regions to geographic_footprint (footprint was empty)');
+    data.geographic_footprint = [...data.service_regions];
+  }
+
   if (data.hq_state) {
     data.hq_state = normalizeStateCode(data.hq_state);
     if (VALID_STATE_CODES.has(data.hq_state)) {
       data.hq_region = getRegionFromState(data.hq_state);
+      // Also ensure hq_state is in geographic_footprint
+      if (data.geographic_footprint && !data.geographic_footprint.includes(data.hq_state)) {
+        data.geographic_footprint.push(data.hq_state);
+      }
     }
   }
 

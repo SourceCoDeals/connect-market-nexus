@@ -460,6 +460,37 @@ async function calculateGeographyScore(
     return normalizeStateCode(s);
   };
 
+  // Helper: extract state codes from a free-text geographic description
+  const extractStatesFromText = (text: string): string[] => {
+    if (!text) return [];
+    const found: string[] = [];
+    // Match 2-letter state codes preceded by comma/space
+    const codePattern = /\b([A-Z]{2})\b/g;
+    let match;
+    while ((match = codePattern.exec(text.toUpperCase())) !== null) {
+      const code = match[1];
+      if (normalizeStateCode(code)) found.push(code);
+    }
+    // Also match full state names
+    const stateNames: Record<string, string> = {
+      'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+      'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+      'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+      'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+      'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+      'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+      'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
+      'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+      'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
+      'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
+    };
+    const lower = text.toLowerCase();
+    for (const [name, code] of Object.entries(stateNames)) {
+      if (lower.includes(name)) found.push(code);
+    }
+    return [...new Set(found)];
+  };
+
   // 1. target_geographies (strongest signal)
   const targetGeos = (buyer.target_geographies || []).filter(Boolean)
     .map((s: string) => normalizeEntry(s)).filter((s: string | null): s is string => s !== null);
@@ -473,8 +504,22 @@ async function calculateGeographyScore(
     if (footprint.length > 0) {
       buyerStates = footprint;
     }
-    // 3. HQ state (weakest signal)
-    else if (buyer.hq_state) {
+    // 3. customer_geographic_reach (text field — parse state names from it)
+    else if (buyer.customer_geographic_reach && typeof buyer.customer_geographic_reach === 'string') {
+      const reachText = buyer.customer_geographic_reach;
+      // Skip vague national/global descriptions
+      const isVague = /\b(national|nationwide|global|international|united states)\b/i.test(reachText) && 
+                      !(/\b(minnesota|texas|florida|california|ohio)\b/i.test(reachText)); // Not vague if specific states listed
+      if (!isVague) {
+        const parsedStates = extractStatesFromText(reachText);
+        if (parsedStates.length > 0) {
+          buyerStates = parsedStates;
+          console.log(`[Geo] Parsed ${parsedStates.length} states from customer_geographic_reach: ${parsedStates.join(', ')}`);
+        }
+      }
+    }
+    // 4. HQ state (weakest signal)
+    if (buyerStates.length === 0 && buyer.hq_state) {
       const normalized = normalizeEntry(buyer.hq_state);
       if (normalized) buyerStates = [normalized];
     }
