@@ -77,7 +77,8 @@ const ReMarketingDealMatching = () => {
   const [hideDisqualified, setHideDisqualified] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  
+  const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
+
   // Custom scoring instructions state
   const [customInstructions, setCustomInstructions] = useState("");
 
@@ -1161,6 +1162,7 @@ const ReMarketingDealMatching = () => {
                   score={score}
                   dealLocation={listing.location}
                   isSelected={selectedIds.has(score.id)}
+                  isHighlighted={highlightedBuyerIds.includes(score.buyer?.id || '')}
                   onSelect={handleSelect}
                   onApprove={handleApprove}
                   onPass={handleOpenPassDialog}
@@ -1212,6 +1214,16 @@ const ReMarketingDealMatching = () => {
       {/* AI Chat */}
       <ReMarketingChat
         context={{ type: "deal", dealId: listingId || '', dealName: listing?.title }}
+        onHighlightItems={(ids) => {
+          setHighlightedBuyerIds(ids);
+          // Scroll to first highlighted buyer
+          if (ids.length > 0) {
+            setTimeout(() => {
+              const el = document.getElementById(`buyer-card-${ids[0]}`);
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+          }
+        }}
       />
     </div>
   );
