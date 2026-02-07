@@ -939,7 +939,7 @@ const ReMarketingDealMatching = () => {
         if (!listing.ebitda) missingFields.push('EBITDA');
         if (!listing.location?.trim()) missingFields.push('Location');
         if (!(listing.services?.length > 0 || listing.categories?.length > 0 || listing.category?.trim())) missingFields.push('Services/Category');
-        if (!(listing.hero_description?.trim() || listing.description?.trim())) missingFields.push('Description');
+        if (!(listing.hero_description?.trim() || listing.description?.trim() || (listing as any).executive_summary?.trim())) missingFields.push('Description');
 
         if (missingFields.length === 0) return null;
 
