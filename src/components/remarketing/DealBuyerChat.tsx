@@ -15,7 +15,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 
 interface DealBuyerChatProps {
@@ -142,13 +142,13 @@ export function DealBuyerChat({
       }
 
       const response = await fetch(
-        `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/chat-buyer-query`,
+        `${SUPABASE_URL}/functions/v1/chat-buyer-query`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${sessionData.session.access_token}`,
-            apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g",
+            apikey: SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
             listingId,
