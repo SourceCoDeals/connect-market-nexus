@@ -1194,11 +1194,11 @@ async function scoreSingleBuyer(
   const behavior: ScoringBehavior = universe.scoring_behavior || {};
   const serviceCriteria: ServiceCriteria | null = universe.service_criteria || null;
 
-  // Default weights per spec: Services 35%, Size 25%, Geography 25%, Owner Goals 15%
-  const sizeWeight = universe.size_weight || 25;
-  const geoWeight = universe.geography_weight || 25;
-  const serviceWeight = universe.service_weight || 35;
-  const ownerGoalsWeight = universe.owner_goals_weight || 15;
+  // Default weights: Services (primary), Size, Geography (varies per search), Owner Goals (minimal)
+  const sizeWeight = universe.size_weight || 30;
+  const geoWeight = universe.geography_weight || 20;
+  const serviceWeight = universe.service_weight || 45;
+  const ownerGoalsWeight = universe.owner_goals_weight || 5;
 
   // === Step a: Size score + multiplier (deterministic) ===
   const sizeResult = calculateSizeScore(listing, buyer, behavior);

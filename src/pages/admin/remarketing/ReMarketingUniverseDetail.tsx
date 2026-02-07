@@ -79,10 +79,10 @@ const ReMarketingUniverseDetail = () => {
     name: '',
     description: '',
     fit_criteria: '',
-    geography_weight: 35,
-    size_weight: 25,
-    service_weight: 25,
-    owner_goals_weight: 15,
+    geography_weight: 20,
+    size_weight: 30,
+    service_weight: 45,
+    owner_goals_weight: 5,
   });
 
   const [sizeCriteria, setSizeCriteria] = useState<SizeCriteria>({});
@@ -337,10 +337,10 @@ const ReMarketingUniverseDetail = () => {
         name: universe.name || '',
         description: universe.description || '',
         fit_criteria: universe.fit_criteria || '',
-        geography_weight: universe.geography_weight || 35,
-        size_weight: universe.size_weight || 25,
-        service_weight: universe.service_weight || 25,
-        owner_goals_weight: universe.owner_goals_weight || 15,
+        geography_weight: universe.geography_weight || 20,
+        size_weight: universe.size_weight || 30,
+        service_weight: universe.service_weight || 45,
+        owner_goals_weight: universe.owner_goals_weight || 5,
       });
       setSizeCriteria((universe.size_criteria as unknown as SizeCriteria) || {});
       setGeographyCriteria((universe.geography_criteria as unknown as GeographyCriteria) || {});

@@ -807,16 +807,16 @@ const ReMarketingDealMatching = () => {
                 weights={{
                   geography: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight
-                    : linkedUniverses[0]?.geography_weight) || 25,
+                    : linkedUniverses[0]?.geography_weight) || 20,
                   size: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight
-                    : linkedUniverses[0]?.size_weight) || 25,
+                    : linkedUniverses[0]?.size_weight) || 30,
                   service: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight
-                    : linkedUniverses[0]?.service_weight) || 35,
+                    : linkedUniverses[0]?.service_weight) || 45,
                   ownerGoals: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight
-                    : linkedUniverses[0]?.owner_goals_weight) || 15,
+                    : linkedUniverses[0]?.owner_goals_weight) || 5,
                 }}
                 outcomeStats={{
                   approved: stats.approved,
@@ -867,10 +867,10 @@ const ReMarketingDealMatching = () => {
         <WeightSuggestionsPanel
           universeId={selectedUniverse}
           currentWeights={{
-            geography: linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight || 25,
-            size: linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight || 25,
-            service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 35,
-            owner_goals: linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
+            geography: linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight || 20,
+            size: linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight || 30,
+            service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 45,
+            owner_goals: linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 5,
           }}
           onApplySuggestions={async (newWeights) => {
             // Update universe weights

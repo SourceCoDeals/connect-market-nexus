@@ -90,10 +90,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: true,
         minimum_data_completeness: 'medium'
       },
-      geography_weight: 30,
-      size_weight: 30,
-      service_weight: 25,
-      owner_goals_weight: 15
+      geography_weight: 25,
+      size_weight: 25,
+      service_weight: 45,
+      owner_goals_weight: 5
     }
   },
   {
@@ -129,10 +129,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: false,
         minimum_data_completeness: 'low'
       },
-      geography_weight: 20,
+      geography_weight: 15,
       size_weight: 35,
-      service_weight: 30,
-      owner_goals_weight: 15
+      service_weight: 45,
+      owner_goals_weight: 5
     }
   },
   {
@@ -168,10 +168,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: true,
         minimum_data_completeness: 'medium'
       },
-      geography_weight: 25,
-      size_weight: 30,
-      service_weight: 30,
-      owner_goals_weight: 15
+      geography_weight: 15,
+      size_weight: 35,
+      service_weight: 45,
+      owner_goals_weight: 5
     }
   },
   {
@@ -207,10 +207,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: false,
         minimum_data_completeness: 'low'
       },
-      geography_weight: 15,
-      size_weight: 30,
-      service_weight: 35,
-      owner_goals_weight: 20
+      geography_weight: 10,
+      size_weight: 35,
+      service_weight: 50,
+      owner_goals_weight: 5
     }
   },
   {
@@ -246,10 +246,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: true,
         minimum_data_completeness: 'high'
       },
-      geography_weight: 20,
+      geography_weight: 15,
       size_weight: 35,
-      service_weight: 30,
-      owner_goals_weight: 15
+      service_weight: 45,
+      owner_goals_weight: 5
     }
   },
   {
@@ -285,10 +285,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: true,
         minimum_data_completeness: 'high'
       },
-      geography_weight: 25,
-      size_weight: 25,
-      service_weight: 35,
-      owner_goals_weight: 15
+      geography_weight: 20,
+      size_weight: 30,
+      service_weight: 45,
+      owner_goals_weight: 5
     }
   },
   {
@@ -324,10 +324,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: false,
         minimum_data_completeness: 'medium'
       },
-      geography_weight: 20,
-      size_weight: 30,
-      service_weight: 30,
-      owner_goals_weight: 20
+      geography_weight: 15,
+      size_weight: 35,
+      service_weight: 45,
+      owner_goals_weight: 5
     }
   },
   {
@@ -364,10 +364,10 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         require_thesis_match: false,
         minimum_data_completeness: 'low'
       },
-      geography_weight: 35,
+      geography_weight: 30,
       size_weight: 25,
-      service_weight: 25,
-      owner_goals_weight: 15
+      service_weight: 40,
+      owner_goals_weight: 5
     }
   }
 ];

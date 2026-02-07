@@ -71,7 +71,7 @@ export const ScoreBreakdown = ({
 }: ScoreBreakdownProps) => {
   const [secondaryOpen, setSecondaryOpen] = useState(false);
   const scores = { geography, size, service, ownerGoals, acquisition, portfolio, businessModel };
-  const defaultWeights = { geography: 25, size: 25, service: 35, ownerGoals: 15 };
+  const defaultWeights = { geography: 20, size: 30, service: 45, ownerGoals: 5 };
   const actualWeights = weights || defaultWeights;
 
   const hasSecondaryScores = acquisition !== undefined || portfolio !== undefined || businessModel !== undefined;
