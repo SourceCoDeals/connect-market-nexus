@@ -23,8 +23,8 @@ export interface EnrichmentSummary {
 }
 
 const POLL_INTERVAL_MS = 3000;
-const PROCESS_INTERVAL_MS = 5000;
-const MAX_POLLING_DURATION_MS = 5 * 60 * 1000; // 5 minutes safety timeout
+const PROCESS_INTERVAL_MS = 30000; // 30s between processor triggers — each run takes 20-60s, avoid concurrent invocations
+const MAX_POLLING_DURATION_MS = 30 * 60 * 1000; // 30 minutes — enriching 43 buyers at ~1/min takes time
 
 export function useBuyerEnrichmentQueue(universeId?: string) {
   const queryClient = useQueryClient();
