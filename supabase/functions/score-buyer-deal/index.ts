@@ -1290,12 +1290,28 @@ async function scoreSingleBuyer(
   ]);
 
   // === Step f: Weighted composite ===
+  // Weight redistribution: when buyer has no size criteria (pre-conversation), size is uninformative.
+  // Redistribute size weight proportionally to service and geography so those dimensions drive ranking.
+  const buyerHasSizeCriteria = buyer.target_revenue_min != null || buyer.target_revenue_max != null
+    || buyer.target_ebitda_min != null || buyer.target_ebitda_max != null
+    || buyer.revenue_sweet_spot != null || buyer.ebitda_sweet_spot != null;
+
+  let effectiveSizeWeight = sizeWeight;
+  let effectiveServiceWeight = serviceWeight;
+  let effectiveGeoWeight = geoWeight;
+  if (!buyerHasSizeCriteria) {
+    // Redistribute size weight: 70% to service, 30% to geography
+    effectiveServiceWeight = serviceWeight + Math.round(sizeWeight * 0.7);
+    effectiveGeoWeight = geoWeight + Math.round(sizeWeight * 0.3);
+    effectiveSizeWeight = 0;
+  }
+
   // Use effective weight sum as divisor so reduced geography mode doesn't systematically lower all scores
-  const effectiveWeightSum = sizeWeight + geoWeight * geoResult.modeFactor + serviceWeight + ownerGoalsWeight;
+  const effectiveWeightSum = effectiveSizeWeight + effectiveGeoWeight * geoResult.modeFactor + effectiveServiceWeight + ownerGoalsWeight;
   const weightedBase = Math.round(
-    (sizeResult.score * sizeWeight +
-     geoResult.score * geoWeight * geoResult.modeFactor +
-     serviceResult.score * serviceWeight +
+    (sizeResult.score * effectiveSizeWeight +
+     geoResult.score * effectiveGeoWeight * geoResult.modeFactor +
+     serviceResult.score * effectiveServiceWeight +
      ownerGoalsResult.score * ownerGoalsWeight) / effectiveWeightSum
   );
 
@@ -1383,7 +1399,9 @@ async function scoreSingleBuyer(
     sizeResult.reasoning,
   ];
 
-  if (sizeResult.multiplier < 1.0 && !isDisqualified) {
+  if (!buyerHasSizeCriteria) {
+    reasoningParts.push(`Size weight redistributed (no buyer size criteria — pre-conversation)`);
+  } else if (sizeResult.multiplier < 1.0 && !isDisqualified) {
     reasoningParts.push(`Size gate: ${Math.round(sizeResult.multiplier * 100)}%`);
   }
   if (serviceResult.multiplier < 1.0 && !isDisqualified) {
