@@ -803,7 +803,8 @@ const ReMarketingUniverseDetail = () => {
                       onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
                       onEnrich={handleEnrichSingleBuyer}
                       onDelete={handleDeleteBuyer}
-                       onSelectionChange={setSelectedBuyerIds}
+                      onSelectionChange={setSelectedBuyerIds}
+                      universeId={id}
                     />
                   </CardContent>
                 </Card>
@@ -955,6 +956,7 @@ const ReMarketingUniverseDetail = () => {
                     <UniverseDealsTable
                       deals={universeDeals || []}
                       engagementStats={dealEngagementStats || {}}
+                      universeId={id}
                       onRemoveDeal={async (dealId, listingId) => {
                         try {
                           await supabase

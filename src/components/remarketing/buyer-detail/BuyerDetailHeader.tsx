@@ -16,6 +16,7 @@ interface BuyerDetailHeaderProps {
   onEdit: () => void;
   onEnrich: () => void;
   isEnriching?: boolean;
+  backTo?: string;
 }
 
 export const BuyerDetailHeader = ({
@@ -30,6 +31,7 @@ export const BuyerDetailHeader = ({
   onEdit,
   onEnrich,
   isEnriching = false,
+  backTo = "/admin/remarketing/buyers",
 }: BuyerDetailHeaderProps) => {
   const hqLocation = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
   
@@ -57,7 +59,7 @@ export const BuyerDetailHeader = ({
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Button variant="ghost" size="icon" asChild className="mt-1">
-            <Link to="/admin/remarketing/buyers">
+            <Link to={backTo}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

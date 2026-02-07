@@ -105,6 +105,8 @@ interface BuyerTableEnhancedProps {
   onSelectionChange?: (selectedIds: string[]) => void;
   /** Called when user clicks "Remove from Universe" on selected items */
   onRemoveFromUniverse?: (buyerIds: string[]) => Promise<void>;
+  /** When provided, back navigation from buyer detail returns to this universe */
+  universeId?: string;
 }
 
 export const BuyerTableEnhanced = ({
@@ -118,6 +120,7 @@ export const BuyerTableEnhanced = ({
   selectable = false,
   onSelectionChange,
   onRemoveFromUniverse,
+  universeId,
 }: BuyerTableEnhancedProps) => {
   const navigate = useNavigate();
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -432,7 +435,7 @@ export const BuyerTableEnhanced = ({
                 <TableRow
                   key={buyer.id}
                   className={`cursor-pointer hover:bg-muted/50 group ${isSelected ? 'bg-muted/30' : ''}`}
-                  onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
+                  onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`, universeId ? { state: { from: `/admin/remarketing/universes/${universeId}` } } : undefined)}
                 >
                   {selectable && (
                     <TableCell

@@ -69,6 +69,8 @@ interface UniverseDealsTableProps {
   onEnrichDeal?: (listingId: string) => void;
   selectedDealIds?: string[];
   onSelectionChange?: (selectedIds: string[]) => void;
+  /** When provided, back navigation from deal detail returns to this universe */
+  universeId?: string;
 }
 
 const formatCurrency = (value: number | null | undefined) => {
@@ -90,6 +92,7 @@ export const UniverseDealsTable = ({
   onEnrichDeal,
   selectedDealIds: controlledSelected,
   onSelectionChange,
+  universeId,
 }: UniverseDealsTableProps) => {
   const navigate = useNavigate();
   const [internalSelected, setInternalSelected] = useState<string[]>([]);
@@ -183,7 +186,7 @@ export const UniverseDealsTable = ({
                 <TableRow
                   key={deal.id}
                   className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
-                  onClick={() => navigate(`/admin/remarketing/deals/${deal.listing.id}`)}
+                  onClick={() => navigate(`/admin/remarketing/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/remarketing/universes/${universeId}` } } : undefined)}
                 >
                   {/* Checkbox */}
                   <TableCell>
@@ -321,7 +324,7 @@ export const UniverseDealsTable = ({
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/admin/remarketing/deals/${deal.listing.id}`);
+                            navigate(`/admin/remarketing/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/remarketing/universes/${universeId}` } } : undefined);
                           }}
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />
