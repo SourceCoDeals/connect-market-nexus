@@ -1029,20 +1029,21 @@ Deno.serve(async (req) => {
     };
 
     // BATCH 1: Core platform extraction (3 calls max)
-    // If platform website is unavailable, fall back to PE firm website for all extractions
+    // Business overview and customer profile ONLY from platform website — PE firm data is different
+    // Geography can fall back to PE firm website
     const batch1: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
-    const batch1Content = platformContent || peContent;
-    const batch1Url = platformContent ? platformWebsite : peFirmWebsite;
-    
-    if (batch1Content) {
+    if (platformContent) {
       batch1.push(
-        extractBusinessOverview(batch1Content, anthropicApiKey).then(r => ({ name: 'business', result: r, url: batch1Url })),
-        extractGeography(batch1Content, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: batch1Url })),
-        extractCustomerProfile(batch1Content, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: batch1Url })),
+        extractBusinessOverview(platformContent, anthropicApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
+        extractGeography(platformContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
+        extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
       );
-      if (!platformContent) {
-        console.log('Platform website unavailable — falling back to PE firm website for business/customer extraction');
-      }
+    } else if (peContent) {
+      // No platform content — only extract geography from PE site
+      console.log('Platform website unavailable — extracting geography only from PE firm website');
+      batch1.push(
+        extractGeography(peContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: peFirmWebsite })),
+      );
     }
 
     if (batch1.length > 0) {
