@@ -748,153 +748,7 @@ const ReMarketingDealMatching = () => {
         
       </div>
 
-      {/* Bulk Actions Toolbar - replaces old floating button */}
-      <BulkActionsToolbar
-        selectedCount={selectedIds.size}
-        onClearSelection={() => setSelectedIds(new Set())}
-        onBulkApprove={handleBulkApprove}
-        onBulkPass={handleBulkPass}
-        onExportCSV={handleExportCSV}
-        onGenerateEmails={() => setEmailDialogOpen(true)}
-        isProcessing={bulkApproveMutation.isPending}
-      />
-
-      {/* Two-Column Stats Row */}
-      {scores && scores.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left: Stats Summary Card */}
-          <Card className="lg:col-span-1 bg-amber-50/50 border-amber-100">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span className="font-medium">{stats.qualified} qualified buyers</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-red-600">
-                <AlertCircle className="h-4 w-4" />
-                <span>{stats.disqualified} disqualified{stats.disqualificationReason && ` (${stats.disqualificationReason})`}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Target className="h-4 w-4 text-blue-500" />
-                <span className="font-medium">{stats.strong} strong matches (&gt;80%)</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-emerald-600">
-                <Check className="h-4 w-4" />
-                <span>{stats.approved} approved</span>
-              </div>
-              <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
-                <Switch
-                  id="hide-disqualified"
-                  checked={hideDisqualified}
-                  onCheckedChange={setHideDisqualified}
-                />
-                <Label htmlFor="hide-disqualified" className="text-sm">
-                  Hide disqualified
-                </Label>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Right: Collapsible Scoring Insights Panel - now shows for all views */}
-          {linkedUniverses && linkedUniverses.length > 0 && (
-            <div className="lg:col-span-2">
-              <ScoringInsightsPanel
-                universeId={selectedUniverse !== 'all' ? selectedUniverse : linkedUniverses[0]?.id}
-                universeName={
-                  selectedUniverse === 'all' 
-                    ? `${linkedUniverses.length} universes` 
-                    : linkedUniverses?.find(u => u.id === selectedUniverse)?.name
-                }
-                weights={{
-                  geography: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight
-                    : linkedUniverses[0]?.geography_weight) || 25,
-                  size: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight
-                    : linkedUniverses[0]?.size_weight) || 25,
-                  service: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight
-                    : linkedUniverses[0]?.service_weight) || 35,
-                  ownerGoals: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight
-                    : linkedUniverses[0]?.owner_goals_weight) || 15,
-                }}
-                outcomeStats={{
-                  approved: stats.approved,
-                  passed: stats.passed,
-                  removed: 0,
-                }}
-                decisionCount={stats.approved + stats.passed}
-                isWeightsAdjusted={!!customInstructions}
-                customInstructions={customInstructions}
-                onInstructionsChange={setCustomInstructions}
-                onApplyAndRescore={handleApplyAndRescore}
-                onRecalculate={() => handleBulkScore()}
-                onReset={handleReset}
-                isRecalculating={isScoring}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Quick Insights Widget - Shows when there are enough decisions */}
-      {(stats.approved + stats.passed) >= 3 && (
-        <QuickInsightsWidget
-          passReasons={passReasons}
-          approvalRate={stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}
-          totalDecisions={stats.approved + stats.passed}
-          averageScore={averageScore}
-        />
-      )}
-
-      {/* Engagement Heatmap Insight - Shows buyer engagement levels */}
-      {scores && scores.length > 0 && (
-        <EngagementHeatmapInsight
-          scores={scores.map(s => ({
-            id: s.id,
-            last_viewed_at: s.last_viewed_at,
-            status: s.status,
-          }))}
-          outreachRecords={outreachRecords?.map(o => ({
-            score_id: o.score_id,
-            status: o.status,
-          }))}
-        />
-      )}
-
-      {/* AI Weight Suggestions Panel */}
-      {selectedUniverse && selectedUniverse !== 'all' && (stats.approved + stats.passed) >= 5 && (
-        <WeightSuggestionsPanel
-          universeId={selectedUniverse}
-          currentWeights={{
-            geography: linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight || 25,
-            size: linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight || 25,
-            service: linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight || 35,
-            owner_goals: linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight || 15,
-          }}
-          onApplySuggestions={async (newWeights) => {
-            // Update universe weights
-            const { error } = await supabase
-              .from('remarketing_buyer_universes')
-              .update({
-                geography_weight: newWeights.geography,
-                size_weight: newWeights.size,
-                service_weight: newWeights.service,
-                owner_goals_weight: newWeights.owner_goals,
-              })
-              .eq('id', selectedUniverse);
-            
-            if (error) {
-              toast.error('Failed to update weights');
-            } else {
-              toast.success('Weights updated - rescore to apply changes');
-              refetchLinkedUniverses();
-            }
-          }}
-        />
-      )}
-
-      {/* Listing Summary Card */}
+      {/* Listing Summary Card — Top of page */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-lg">
@@ -945,6 +799,95 @@ const ReMarketingDealMatching = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Bulk Actions Toolbar */}
+      <BulkActionsToolbar
+        selectedCount={selectedIds.size}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onBulkApprove={handleBulkApprove}
+        onBulkPass={handleBulkPass}
+        onExportCSV={handleExportCSV}
+        onGenerateEmails={() => setEmailDialogOpen(true)}
+        isProcessing={bulkApproveMutation.isPending}
+      />
+
+      {/* Two-Column Stats Row */}
+      {scores && scores.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left: Stats Summary Card */}
+          <Card className="lg:col-span-1 bg-amber-50/50 border-amber-100">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span className="font-medium">{stats.qualified} qualified buyers</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <AlertCircle className="h-4 w-4" />
+                <span>{stats.disqualified} disqualified{stats.disqualificationReason && ` (${stats.disqualificationReason})`}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Target className="h-4 w-4 text-blue-500" />
+                <span className="font-medium">{stats.strong} strong matches (&gt;80%)</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-emerald-600">
+                <Check className="h-4 w-4" />
+                <span>{stats.approved} approved</span>
+              </div>
+              <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
+                <Switch
+                  id="hide-disqualified"
+                  checked={hideDisqualified}
+                  onCheckedChange={setHideDisqualified}
+                />
+                <Label htmlFor="hide-disqualified" className="text-sm">
+                  Hide disqualified
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Right: Collapsible Scoring Insights Panel */}
+          {linkedUniverses && linkedUniverses.length > 0 && (
+            <div className="lg:col-span-2">
+              <ScoringInsightsPanel
+                universeId={selectedUniverse !== 'all' ? selectedUniverse : linkedUniverses[0]?.id}
+                universeName={
+                  selectedUniverse === 'all' 
+                    ? `${linkedUniverses.length} universes` 
+                    : linkedUniverses?.find(u => u.id === selectedUniverse)?.name
+                }
+                weights={{
+                  geography: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight
+                    : linkedUniverses[0]?.geography_weight) || 25,
+                  size: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight
+                    : linkedUniverses[0]?.size_weight) || 25,
+                  service: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight
+                    : linkedUniverses[0]?.service_weight) || 35,
+                  ownerGoals: (selectedUniverse !== 'all'
+                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight
+                    : linkedUniverses[0]?.owner_goals_weight) || 15,
+                }}
+                outcomeStats={{
+                  approved: stats.approved,
+                  passed: stats.passed,
+                  removed: 0,
+                }}
+                decisionCount={stats.approved + stats.passed}
+                isWeightsAdjusted={!!customInstructions}
+                customInstructions={customInstructions}
+                onInstructionsChange={setCustomInstructions}
+                onApplyAndRescore={handleApplyAndRescore}
+                onRecalculate={() => handleBulkScore()}
+                onReset={handleReset}
+                isRecalculating={isScoring}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Deal Data Quality Warning */}
       {listing && (() => {
