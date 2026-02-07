@@ -324,11 +324,9 @@ const ReMarketingDealMatching = () => {
       filtered = filtered.filter(s => activeOutreachScoreIds.includes(s.id));
     }
     
-    // Hide disqualified (prefer backend is_disqualified field)
+    // Hide disqualified (only explicitly disqualified buyers, not just low scores)
     if (hideDisqualified) {
-      filtered = filtered.filter(s =>
-        !s.is_disqualified && s.composite_score >= 35
-      );
+      filtered = filtered.filter(s => !s.is_disqualified);
     }
     
     // Sort

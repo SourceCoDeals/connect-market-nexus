@@ -40,10 +40,11 @@ const STATUS_OPTIONS = [
 
 const TIER_OPTIONS = [
   { value: 'all', label: 'All Tiers' },
-  { value: 'A', label: 'Tier A (85+)' },
-  { value: 'B', label: 'Tier B (70-84)' },
-  { value: 'C', label: 'Tier C (55-69)' },
-  { value: 'D', label: 'Tier D (<55)' }
+  { value: 'A', label: 'Tier A (80+)' },
+  { value: 'B', label: 'Tier B (65-79)' },
+  { value: 'C', label: 'Tier C (50-64)' },
+  { value: 'D', label: 'Tier D (35-49)' },
+  { value: 'F', label: 'Tier F (<35)' }
 ];
 
 const BUYER_TYPE_OPTIONS = [
