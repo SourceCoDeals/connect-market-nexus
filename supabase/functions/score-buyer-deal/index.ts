@@ -1491,7 +1491,7 @@ async function scoreSingleBuyer(
     confidence_level: confidenceLevel,
     fit_reasoning: fitReasoning,
     data_completeness: dataCompleteness,
-    status: "pending",
+    status: "pending", // Will be overridden below if existing score has approved/passed status
     scored_at: new Date().toISOString(),
     deal_snapshot: dealSnapshot,
   };
@@ -1551,6 +1551,19 @@ async function handleSingleScore(
     adjustments, learningPatterns.get(buyerId),
     apiKey, supabaseUrl, supabaseKey, customInstructions
   );
+
+  // Preserve existing status if buyer was already approved/passed
+  const { data: existingScore } = await supabase
+    .from("remarketing_scores")
+    .select("status")
+    .eq("listing_id", score.listing_id)
+    .eq("buyer_id", score.buyer_id)
+    .eq("universe_id", score.universe_id)
+    .maybeSingle();
+
+  if (existingScore?.status === 'approved' || existingScore?.status === 'passed') {
+    score.status = existingScore.status;
+  }
 
   // Upsert score
   const { data: savedScore, error: saveError } = await supabase
@@ -1734,6 +1747,28 @@ async function handleBulkScore(
     const validScores = batchResults.filter((s): s is ScoredResult => s !== null);
 
     if (validScores.length > 0) {
+      // Preserve existing approved/passed statuses during bulk rescore
+      if (rescoreExisting) {
+        const scoreKeys = validScores.map((s: ScoredResult) => `${s.buyer_id}`);
+        const { data: existingStatuses } = await supabase
+          .from("remarketing_scores")
+          .select("buyer_id, status")
+          .eq("listing_id", listingId)
+          .eq("universe_id", universeId)
+          .in("buyer_id", scoreKeys);
+
+        const statusMap = new Map<string, string>();
+        for (const es of (existingStatuses || [])) {
+          if (es.status === 'approved' || es.status === 'passed') {
+            statusMap.set(es.buyer_id, es.status);
+          }
+        }
+        for (const score of validScores) {
+          const preserved = statusMap.get(score.buyer_id);
+          if (preserved) score.status = preserved;
+        }
+      }
+
       const { data: savedScores, error: saveError } = await supabase
         .from("remarketing_scores")
         .upsert(validScores, { onConflict: "listing_id,buyer_id,universe_id" })

@@ -18,8 +18,8 @@ let cacheLoadedAt: number = 0;
 // ============================================================================
 
 const BUILT_IN_ADJACENCY: Record<string, string[]> = {
-  AL: ['FL','GA','MS','TN'], AK: [], AZ: ['CA','CO','NM','NV','UT'],
-  AR: ['LA','MO','MS','OK','TN','TX'], CA: ['AZ','NV','OR'], CO: ['AZ','KS','NE','NM','OK','UT','WY'],
+  AL: ['FL','GA','MS','TN'], AK: [], AZ: ['CA','NM','NV','UT'],
+  AR: ['LA','MO','MS','OK','TN','TX'], CA: ['AZ','NV','OR'], CO: ['KS','NE','NM','OK','UT','WY'],
   CT: ['MA','NY','RI'], DE: ['MD','NJ','PA'], FL: ['AL','GA'],
   GA: ['AL','FL','NC','SC','TN'], HI: [], ID: ['MT','NV','OR','UT','WA','WY'],
   IL: ['IN','IA','KY','MO','WI'], IN: ['IL','KY','MI','OH'], IA: ['IL','MN','MO','NE','SD','WI'],
