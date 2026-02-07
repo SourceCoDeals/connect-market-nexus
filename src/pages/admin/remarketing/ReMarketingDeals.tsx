@@ -646,7 +646,7 @@ const ReMarketingDeals = () => {
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
   
   // Enrichment progress tracking
-  const { progress: enrichmentProgress, summary: enrichmentSummary, showSummary: showEnrichmentSummary, dismissSummary } = useEnrichmentProgress();
+  const { progress: enrichmentProgress, summary: enrichmentSummary, showSummary: showEnrichmentSummary, dismissSummary, pauseEnrichment, resumeEnrichment, cancelEnrichment } = useEnrichmentProgress();
   
   // Multi-select and archive/delete state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
@@ -1611,7 +1611,7 @@ const ReMarketingDeals = () => {
       </div>
 
       {/* Enrichment Progress Indicator */}
-      {enrichmentProgress.isEnriching && (
+      {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
         <EnrichmentProgressIndicator
           completedCount={enrichmentProgress.completedCount}
           totalCount={enrichmentProgress.totalCount}
@@ -1620,6 +1620,10 @@ const ReMarketingDeals = () => {
           processingRate={enrichmentProgress.processingRate}
           successfulCount={enrichmentProgress.successfulCount}
           failedCount={enrichmentProgress.failedCount}
+          isPaused={enrichmentProgress.isPaused}
+          onPause={pauseEnrichment}
+          onResume={resumeEnrichment}
+          onCancel={cancelEnrichment}
         />
       )}
 
