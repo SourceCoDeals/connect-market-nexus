@@ -55,6 +55,103 @@ export const AddDealDialog = ({
   };
 
   // Create new deal mutation
+  // Background transcript upload — fire and forget after dialog closes
+  const uploadTranscriptsInBackground = async (
+    listingId: string,
+    userId: string,
+    files: File[],
+    transcriptLink: string,
+  ) => {
+    // Handle transcript link first (fast)
+    if (transcriptLink) {
+      try {
+        await supabase.from('deal_transcripts').insert({
+          listing_id: listingId,
+          transcript_url: transcriptLink,
+          transcript_text: "Pending text extraction from link",
+          title: "Linked Transcript",
+          created_by: userId,
+          source: 'link',
+        } as any);
+      } catch (err) {
+        console.error("Transcript link error:", err);
+      }
+    }
+
+    // Handle file uploads
+    if (files.length === 0) return;
+
+    const toastId = `transcripts-${listingId}`;
+    toast.info(`Uploading 0/${files.length} transcripts...`, { id: toastId, duration: Infinity });
+    let uploaded = 0;
+
+    for (const file of files) {
+      try {
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'txt';
+        const filePath = `${listingId}/${Date.now()}-${file.name}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('deal-transcripts')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          console.error(`Upload error for ${file.name}:`, uploadError);
+          continue;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('deal-transcripts')
+          .getPublicUrl(filePath);
+
+        // Extract text content
+        let transcriptText = "";
+        if (TEXT_EXTENSIONS.includes(fileExt)) {
+          transcriptText = await file.text();
+        } else if (DOC_EXTENSIONS.includes(fileExt)) {
+          try {
+            const parseFormData = new FormData();
+            parseFormData.append('file', file);
+            const { data: parseResult, error: parseError } = await supabase.functions.invoke(
+              'parse-transcript-file',
+              { body: parseFormData }
+            );
+            if (parseError) {
+              console.error(`Parse error for ${file.name}:`, parseError);
+              transcriptText = "Pending text extraction";
+            } else {
+              transcriptText = parseResult?.text || "Pending text extraction";
+            }
+          } catch (parseErr) {
+            console.error(`Parse exception for ${file.name}:`, parseErr);
+            transcriptText = "Pending text extraction";
+          }
+        }
+
+        await supabase.from('deal_transcripts').insert({
+          listing_id: listingId,
+          transcript_url: publicUrl,
+          transcript_text: transcriptText || "Pending text extraction",
+          title: file.name,
+          created_by: userId,
+          source: 'file_upload',
+        } as any);
+
+        uploaded++;
+        toast.info(`Uploading ${uploaded}/${files.length} transcripts...`, { id: toastId, duration: Infinity });
+
+        if (uploaded < files.length) {
+          await sleep(2000);
+        }
+      } catch (err) {
+        console.error(`Transcript handling error for ${file.name}:`, err);
+      }
+    }
+
+    toast.success(`${uploaded} transcript${uploaded > 1 ? 's' : ''} uploaded for Pro4mance`, { id: toastId });
+    queryClient.invalidateQueries({ queryKey: ["listings"] });
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+  };
+
   const createDealMutation = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -80,103 +177,27 @@ export const AddDealDialog = ({
       if (error) throw error;
       return { listing, userId: user?.id };
     },
-    onSuccess: async ({ listing, userId }) => {
+    onSuccess: ({ listing, userId }) => {
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
       toast.success(`Created "${listing.title}" successfully`);
 
-      // Handle transcript file uploads (use ref for stable reference)
-      const filesToUpload = transcriptFilesRef.current;
-      if (filesToUpload.length > 0 && userId) {
-        const totalFiles = filesToUpload.length;
-        let uploaded = 0;
+      // Capture files and link before resetting form
+      const filesToUpload = [...transcriptFilesRef.current];
+      const linkToSave = formData.transcriptLink;
 
-        for (const file of filesToUpload) {
-          try {
-            const fileExt = file.name.split('.').pop()?.toLowerCase() || 'txt';
-            const filePath = `${listing.id}/${Date.now()}-${file.name}`;
+      // Close dialog immediately
+      setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
+      updateFiles([]);
+      onDealCreated?.();
+      onOpenChange(false);
 
-            const { error: uploadError } = await supabase.storage
-              .from('deal-transcripts')
-              .upload(filePath, file);
-
-            if (uploadError) {
-              console.error(`Upload error for ${file.name}:`, uploadError);
-              toast.error(`Failed to upload ${file.name}`);
-              continue;
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-              .from('deal-transcripts')
-              .getPublicUrl(filePath);
-
-            // Extract text content
-            let transcriptText = "";
-            if (TEXT_EXTENSIONS.includes(fileExt)) {
-              transcriptText = await file.text();
-            } else if (DOC_EXTENSIONS.includes(fileExt)) {
-              // Route through parse-transcript-file for PDF/DOC/DOCX
-              try {
-                const parseFormData = new FormData();
-                parseFormData.append('file', file);
-                const { data: parseResult, error: parseError } = await supabase.functions.invoke(
-                  'parse-transcript-file',
-                  { body: parseFormData }
-                );
-                if (parseError) {
-                  console.error(`Parse error for ${file.name}:`, parseError);
-                  transcriptText = "Pending text extraction";
-                } else {
-                  transcriptText = parseResult?.text || "Pending text extraction";
-                }
-              } catch (parseErr) {
-                console.error(`Parse exception for ${file.name}:`, parseErr);
-                transcriptText = "Pending text extraction";
-              }
-            }
-
-            await supabase.from('deal_transcripts').insert({
-              listing_id: listing.id,
-              transcript_url: publicUrl,
-              transcript_text: transcriptText || "Pending text extraction",
-              title: file.name,
-              created_by: userId,
-              source: 'file_upload',
-            });
-
-            uploaded++;
-            if (uploaded < totalFiles) {
-              toast.info(`Uploaded ${uploaded}/${totalFiles} transcripts...`);
-              await sleep(2000); // Rate-limit protection
-            }
-          } catch (err) {
-            console.error(`Transcript handling error for ${file.name}:`, err);
-          }
-        }
-
-        if (uploaded > 0) {
-          toast.success(`${uploaded} transcript${uploaded > 1 ? 's' : ''} uploaded`);
-        }
+      // Fire background uploads (non-blocking)
+      if (userId && (filesToUpload.length > 0 || linkToSave)) {
+        uploadTranscriptsInBackground(listing.id, userId, filesToUpload, linkToSave);
       }
 
-      // Handle transcript link
-      if (formData.transcriptLink) {
-        try {
-          await supabase.from('deal_transcripts').insert({
-            listing_id: listing.id,
-            transcript_url: formData.transcriptLink,
-            transcript_text: "Pending text extraction from link",
-            title: "Linked Transcript",
-            created_by: userId,
-            source: 'link',
-          });
-          toast.success("Transcript link saved");
-        } catch (err) {
-          console.error("Transcript link error:", err);
-        }
-      }
-
-      // Trigger AI enrichment if website provided
+      // Fire enrichment in background (non-blocking)
       if (listing.website) {
         toast.info("Enriching deal with AI...", { id: `enrich-${listing.id}` });
         supabase.functions.invoke("enrich-deal", {
@@ -192,16 +213,10 @@ export const AddDealDialog = ({
           }
         });
       }
-
-      // Reset form and close
-      setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
-      updateFiles([]);
-      onDealCreated?.();
-      onOpenChange(false);
     },
     onError: (error) => {
       console.error("Failed to create deal:", error);
-      toast.error("Failed to create deal");
+      toast.error(`Failed to create deal: ${error.message}`);
     },
   });
 
