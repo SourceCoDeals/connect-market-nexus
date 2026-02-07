@@ -565,7 +565,14 @@ const ReMarketingUniverseDetail = () => {
 
   // Handler for single buyer enrichment via row dropdown
   const handleEnrichSingleBuyer = async (buyerId: string) => {
-    await queueBuyers([{ id: buyerId }]);
+    const buyer = buyers?.find(b => b.id === buyerId);
+    if (!buyer) return;
+    await queueBuyers([{
+      id: buyer.id,
+      company_website: buyer.company_website ?? null,
+      platform_website: buyer.platform_website ?? null,
+      pe_firm_website: buyer.pe_firm_website ?? null,
+    }]);
   };
 
   // Handler for single buyer removal from universe via row dropdown
