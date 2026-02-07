@@ -1124,11 +1124,11 @@ async function scoreSingleBuyer(
   const behavior: ScoringBehavior = universe.scoring_behavior || {};
   const serviceCriteria: ServiceCriteria | null = universe.service_criteria || null;
 
-  // Default weights per spec: Services 35%, Size 25%, Geography 25%, Owner Goals 15%
-  const sizeWeight = universe.size_weight || 25;
-  const geoWeight = universe.geography_weight || 25;
-  const serviceWeight = universe.service_weight || 35;
-  const ownerGoalsWeight = universe.owner_goals_weight || 15;
+  // Default weights per spec: Services 45%, Size 30%, Geography 20%, Owner Goals 5%
+  let sizeWeight = universe.size_weight || 30;
+  let geoWeight = universe.geography_weight || 20;
+  let serviceWeight = universe.service_weight || 45;
+  let ownerGoalsWeight = universe.owner_goals_weight || 5;
 
   // === Step a: Size score + multiplier (deterministic) ===
   const sizeResult = calculateSizeScore(listing, buyer, behavior);
@@ -1141,6 +1141,54 @@ async function scoreSingleBuyer(
 
   // === Step e: Owner Goals score (AI → buyer-type norms fallback) ===
   const ownerGoalsResult = await calculateOwnerGoalsScore(listing, buyer, apiKey, customInstructions);
+
+  // === Weight Redistribution for Missing Data ===
+  // When buyer has no size criteria, redistribute size weight proportionally to other dimensions
+  // This prevents 30% of the composite from being locked at a flat 60 for all data-sparse buyers
+  const buyerHasSizeData = buyer.target_revenue_min != null || buyer.target_revenue_max != null ||
+    buyer.target_ebitda_min != null || buyer.target_ebitda_max != null ||
+    buyer.revenue_sweet_spot != null || buyer.ebitda_sweet_spot != null;
+  
+  const buyerHasGeoData = (buyer.target_geographies?.length > 0) ||
+    (buyer.geographic_footprint?.length > 0) || buyer.hq_state;
+  
+  const buyerHasServiceData = (buyer.target_services?.length > 0) ||
+    (buyer.services_offered && buyer.services_offered.trim().length > 0);
+
+  // Collect dimensions that have insufficient buyer data
+  const insufficientDimensions: string[] = [];
+  if (!buyerHasSizeData) insufficientDimensions.push('size');
+  if (!buyerHasGeoData) insufficientDimensions.push('geography');
+  if (!buyerHasServiceData) insufficientDimensions.push('services');
+
+  if (insufficientDimensions.length > 0 && insufficientDimensions.length < 3) {
+    // Redistribute weight from insufficient dimensions to scored dimensions
+    let redistributedWeight = 0;
+    if (insufficientDimensions.includes('size')) {
+      redistributedWeight += sizeWeight;
+      sizeWeight = 0;
+    }
+    if (insufficientDimensions.includes('geography')) {
+      redistributedWeight += geoWeight;
+      geoWeight = 0;
+    }
+    if (insufficientDimensions.includes('services')) {
+      redistributedWeight += serviceWeight;
+      serviceWeight = 0;
+    }
+
+    // Distribute proportionally among remaining scored dimensions
+    const remainingWeight = 100 - redistributedWeight;
+    if (remainingWeight > 0) {
+      const scale = (remainingWeight + redistributedWeight) / remainingWeight;
+      if (sizeWeight > 0) sizeWeight = Math.round(sizeWeight * scale);
+      if (geoWeight > 0) geoWeight = Math.round(geoWeight * scale);
+      if (serviceWeight > 0) serviceWeight = Math.round(serviceWeight * scale);
+      if (ownerGoalsWeight > 0) ownerGoalsWeight = Math.round(ownerGoalsWeight * scale);
+    }
+
+    console.log(`[Weight Redistribution] Buyer ${buyer.id}: insufficient data for [${insufficientDimensions.join(', ')}]. Effective weights: size=${sizeWeight}, geo=${geoWeight}, service=${serviceWeight}, owner=${ownerGoalsWeight}`);
+  }
 
   // === Step f: Weighted composite ===
   // Use effective weight sum as divisor so reduced geography mode doesn't systematically lower all scores
