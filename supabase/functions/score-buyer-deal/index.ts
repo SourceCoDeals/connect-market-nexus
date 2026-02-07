@@ -521,7 +521,16 @@ async function calculateGeographyScore(
         console.log(`[Geo] Parsed ${unique.length} states from operating_locations: ${unique.join(', ')}`);
       }
     }
-    // 3. customer_geographic_reach (text field — parse state names from it)
+    // 3. service_regions (broad coverage signal from enrichment)
+    if (buyerStates.length === 0 && buyer.service_regions?.length > 0) {
+      const svcRegions = (buyer.service_regions || []).filter(Boolean)
+        .map((s: string) => normalizeEntry(s)).filter((s: string | null): s is string => s !== null);
+      if (svcRegions.length > 0) {
+        buyerStates = svcRegions;
+        console.log(`[Geo] Using ${svcRegions.length} states from service_regions: ${svcRegions.join(', ')}`);
+      }
+    }
+    // 4. customer_geographic_reach (text field — parse state names from it)
     if (buyerStates.length === 0 && buyer.customer_geographic_reach && typeof buyer.customer_geographic_reach === 'string') {
       const reachText = buyer.customer_geographic_reach;
       // Skip vague national/global descriptions
@@ -535,7 +544,7 @@ async function calculateGeographyScore(
         }
       }
     }
-    // 4. HQ state (weakest signal)
+    // 5. HQ state (weakest signal)
     if (buyerStates.length === 0 && buyer.hq_state) {
       const normalized = normalizeEntry(buyer.hq_state);
       if (normalized) buyerStates = [normalized];
@@ -1366,7 +1375,8 @@ async function scoreSingleBuyer(
     buyer.revenue_sweet_spot != null || buyer.ebitda_sweet_spot != null;
   
   const buyerHasGeoData = (buyer.target_geographies?.length > 0) ||
-    (buyer.geographic_footprint?.length > 0) || buyer.hq_state;
+    (buyer.geographic_footprint?.length > 0) || (buyer.service_regions?.length > 0) ||
+    (buyer.operating_locations?.length > 0) || buyer.hq_state;
   
   const buyerHasServiceData = (buyer.target_services?.length > 0) ||
     (buyer.services_offered && buyer.services_offered.trim().length > 0);
