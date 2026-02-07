@@ -504,8 +504,25 @@ async function calculateGeographyScore(
     if (footprint.length > 0) {
       buyerStates = footprint;
     }
+    // 2.5. operating_locations — extract state codes from "City, ST" entries
+    if (buyerStates.length === 0 && buyer.operating_locations?.length > 0) {
+      const locStates: string[] = [];
+      for (const loc of buyer.operating_locations) {
+        if (typeof loc !== 'string') continue;
+        const stateMatch = loc.match(/,\s*([A-Z]{2})\s*$/i);
+        if (stateMatch) {
+          const code = stateMatch[1].toUpperCase();
+          if (/^[A-Z]{2}$/.test(code)) locStates.push(code);
+        }
+      }
+      const unique = [...new Set(locStates)];
+      if (unique.length > 0) {
+        buyerStates = unique;
+        console.log(`[Geo] Parsed ${unique.length} states from operating_locations: ${unique.join(', ')}`);
+      }
+    }
     // 3. customer_geographic_reach (text field — parse state names from it)
-    else if (buyer.customer_geographic_reach && typeof buyer.customer_geographic_reach === 'string') {
+    if (buyerStates.length === 0 && buyer.customer_geographic_reach && typeof buyer.customer_geographic_reach === 'string') {
       const reachText = buyer.customer_geographic_reach;
       // Skip vague national/global descriptions
       const isVague = /\b(national|nationwide|global|international|united states)\b/i.test(reachText) && 
