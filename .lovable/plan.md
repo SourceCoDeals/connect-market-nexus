@@ -1,69 +1,65 @@
 
 
-## Fix Plan: Transcript Extraction Auth Failure + Build Error
+# Fix Back Navigation from Deal & Buyer Detail Pages
 
-### Problem Summary
+## Problem
+When navigating from a **Buyer Universe** to a deal or buyer detail page, clicking "Back" always takes you to "All Deals" or "All Buyers" instead of returning to the universe you came from.
 
-Two separate issues are preventing full enrichment:
+## Root Cause
+- The **Deal Detail** page uses `navigate(-1)` which can be unreliable
+- The **Buyer Detail** page has a hardcoded back link: `<Link to="/admin/remarketing/buyers">` — it always goes to the "All Buyers" list regardless of where you came from
+- Neither the Universe Deals table nor the Universe Buyers table pass any "origin" information when navigating to detail pages
 
-1. **All 10 transcript extraction calls fail with `{"code":401,"message":"Invalid JWT"}`** -- The `enrich-deal` function calls `extract-deal-transcript` internally using the service role key as the Bearer token. The Supabase Edge Gateway is rejecting this, meaning the `verify_jwt = false` config is either not deployed or not being honored for this function.
+## Solution
+Pass a `from` URL via React Router's **location state** when navigating from the universe, then use it in the back buttons on detail pages. If no state is present (e.g., direct link), fall back to the current default behavior.
 
-2. **Build error** -- `parse-tracker-documents/index.ts` imports `npm:@anthropic-ai/sdk@0.30.1` which requires a Deno import map entry.
+## Changes
 
-The 8 fields that did update (State, City, Street Address, Company Name, LinkedIn data) are all from website scraping, which works because it doesn't make internal function-to-function calls.
-
-### Root Cause Analysis
-
-The `enrich-deal` function sends this to `extract-deal-transcript`:
-
-```text
-Authorization: Bearer <SERVICE_ROLE_KEY>
-apikey: <ANON_KEY>
+### 1. UniverseDealsTable.tsx
+Pass the current universe URL as state when navigating to a deal:
+```tsx
+navigate(`/admin/remarketing/deals/${deal.listing.id}`, {
+  state: { from: `/admin/remarketing/universes/${universeId}` }
+})
 ```
 
-The service role key is NOT a valid JWT in the traditional sense -- it's a special key. When the Edge Gateway has `verify_jwt = true` (or the config hasn't been synced), it tries to verify this as a standard JWT and rejects it.
-
-The `extract-deal-transcript` function has `verify_jwt = false` in config.toml (line 134-135), but this configuration may not be deployed to the live Edge Gateway. Config.toml changes require explicit deployment/sync.
-
-### Fix 1: Auth Pattern for Internal Calls
-
-Modify `extract-deal-transcript` to not perform manual JWT validation that could conflict with the gateway, and ensure the internal call pattern works reliably.
-
-**Option A (Recommended):** Change the internal call headers to use the anon key for both `apikey` AND `Authorization`, then pass the service role key in a custom header (e.g., `x-service-role-key`) for the function to validate internally. This avoids the gateway rejecting the service role key as a JWT.
-
-**Option B:** Ensure `config.toml` is properly deployed and the `verify_jwt = false` is honored. Then the function's internal auth check (line 103) comparing bearer against service role key should work.
-
-We will implement **Option A** as it's more robust:
-
-- In `enrich-deal/index.ts`: Change the internal call to pass `Authorization: Bearer <ANON_KEY>` and add a custom header `x-internal-secret: <SERVICE_ROLE_KEY>`
-- In `extract-deal-transcript/index.ts`: Update auth check to accept the custom header for internal calls while still supporting user JWTs for direct calls
-
-### Fix 2: Build Error (parse-tracker-documents)
-
-Change the import in `parse-tracker-documents/index.ts` from:
-```typescript
-import Anthropic from "npm:@anthropic-ai/sdk@0.30.1";
+### 2. BuyerTableEnhanced.tsx
+Pass the current universe URL as state when navigating to a buyer from the universe:
+```tsx
+navigate(`/admin/remarketing/buyers/${buyer.id}`, {
+  state: { from: `/admin/remarketing/universes/${universeId}` }
+})
 ```
-to use `esm.sh` (consistent with other edge functions):
-```typescript
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.30.1";
+This component needs access to a `universeId` prop (only passed when used inside a universe context).
+
+### 3. ReMarketingDealDetail.tsx
+Update the back button to use `location.state?.from` if available, otherwise fall back to `navigate(-1)`:
+```tsx
+const location = useLocation();
+const backTo = location.state?.from || null;
+
+// Back button:
+backTo
+  ? <Link to={backTo}><ArrowLeft /> Back</Link>
+  : <Button onClick={() => navigate(-1)}><ArrowLeft /> Back</Button>
 ```
 
-### Fix 3: Redeploy config.toml
+### 4. ReMarketingBuyerDetail.tsx
+Replace the hardcoded `<Link to="/admin/remarketing/buyers">` with state-aware navigation:
+```tsx
+const location = useLocation();
+const backTo = location.state?.from || "/admin/remarketing/buyers";
 
-Ensure `verify_jwt = false` is properly applied for `extract-deal-transcript` by redeploying both functions after the code changes.
+<Link to={backTo}><ArrowLeft /></Link>
+```
 
-### Changes Summary
+### 5. BuyerDetailHeader.tsx
+Same change — replace hardcoded `/admin/remarketing/buyers` back link with a `backTo` prop passed from the parent.
 
-| File | Change |
-|------|--------|
-| `supabase/functions/enrich-deal/index.ts` | Update internal call headers to use anon key for Authorization + custom header for service role |
-| `supabase/functions/extract-deal-transcript/index.ts` | Update auth check to accept custom internal header |
-| `supabase/functions/parse-tracker-documents/index.ts` | Fix Anthropic SDK import to use esm.sh |
-
-### After Implementation
-
-1. Deploy all three edge functions
-2. Re-run enrichment on the failing deal using "Re-extract All Transcripts"
-3. Verify all 10 transcripts process successfully and transcript-derived fields (executive summary, business model, services, owner goals, etc.) are populated
+## Summary of Files to Edit
+- `src/components/remarketing/UniverseDealsTable.tsx` — pass `state.from`
+- `src/components/remarketing/BuyerTableEnhanced.tsx` — pass `state.from` when `universeId` is provided
+- `src/pages/admin/remarketing/ReMarketingDealDetail.tsx` — read `state.from` for back button
+- `src/pages/admin/remarketing/ReMarketingBuyerDetail.tsx` — read `state.from` for back button
+- `src/components/remarketing/buyer-detail/BuyerDetailHeader.tsx` — accept `backTo` prop
 
