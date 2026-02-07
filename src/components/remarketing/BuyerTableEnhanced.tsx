@@ -552,9 +552,22 @@ export const BuyerTableEnhanced = ({
 
                   {/* Description Column - Platform company description, fallback to thesis */}
                   <TableCell>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {buyer.business_summary || buyer.thesis_summary || '—'}
-                    </p>
+                    {(buyer.business_summary || buyer.thesis_summary) ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
+                              {buyer.business_summary || buyer.thesis_summary}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
+                            {buyer.business_summary || buyer.thesis_summary}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
                   </TableCell>
 
                   {/* Intel Column */}
