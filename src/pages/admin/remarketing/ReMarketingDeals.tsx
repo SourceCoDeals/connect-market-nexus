@@ -633,6 +633,9 @@ const ReMarketingDeals = () => {
   const [scoreFilter, setScoreFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
 
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -674,7 +677,7 @@ const ReMarketingDeals = () => {
   // Clear the ref when listings change significantly (e.g., page change, filter change)
   useEffect(() => {
     enrichingDealsRef.current.clear();
-  }, [sortColumn, sortDirection, statusFilter, universeFilter, search]);
+  }, [sortColumn, sortDirection, statusFilter, universeFilter, search, industryFilter, stateFilter, employeeFilter]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -921,6 +924,24 @@ const ReMarketingDeals = () => {
     return `${states.slice(0, 2).join(', ')} +${states.length - 2}`;
   };
 
+  // Derive unique filter options from data
+  const filterOptions = useMemo(() => {
+    if (!listings) return { industries: [], states: [], employeeRanges: [] };
+    const industries = new Set<string>();
+    const states = new Set<string>();
+    const employeeRanges = new Set<string>();
+    listings.forEach(l => {
+      if (l.category) industries.add(l.category);
+      if (l.address_state) states.add(l.address_state);
+      if (l.linkedin_employee_range) employeeRanges.add(l.linkedin_employee_range);
+    });
+    return {
+      industries: Array.from(industries).sort(),
+      states: Array.from(states).sort(),
+      employeeRanges: Array.from(employeeRanges).sort(),
+    };
+  }, [listings]);
+
   // Filter listings
   const filteredListings = useMemo(() => {
     if (!listings) return [];
@@ -948,6 +969,18 @@ const ReMarketingDeals = () => {
         if (scoreFilter !== tier) return false;
       }
 
+      if (industryFilter !== "all") {
+        if (listing.category !== industryFilter) return false;
+      }
+
+      if (stateFilter !== "all") {
+        if (listing.address_state !== stateFilter) return false;
+      }
+
+      if (employeeFilter !== "all") {
+        if (listing.linkedin_employee_range !== employeeFilter) return false;
+      }
+
       if (dateFilter !== "all") {
         const createdAt = new Date(listing.created_at);
         const now = new Date();
@@ -960,7 +993,7 @@ const ReMarketingDeals = () => {
 
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, dateFilter, scoreStats]);
+  }, [listings, search, universeFilter, scoreFilter, dateFilter, industryFilter, stateFilter, employeeFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -1628,7 +1661,84 @@ const ReMarketingDeals = () => {
                 <SelectItem value="D">Tier D (&lt;40)</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={industryFilter} onValueChange={setIndustryFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Industries" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Industries</SelectItem>
+                {filterOptions.industries.map(ind => (
+                  <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={stateFilter} onValueChange={setStateFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="All States" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All States</SelectItem>
+                {filterOptions.states.map(st => (
+                  <SelectItem key={st} value={st}>{st}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="All Sizes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sizes</SelectItem>
+                {filterOptions.employeeRanges.map(er => (
+                  <SelectItem key={er} value={er}>{er}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Active filter count */}
+          {(industryFilter !== "all" || stateFilter !== "all" || employeeFilter !== "all" || scoreFilter !== "all" || universeFilter !== "all") && (
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+              <span className="text-xs text-muted-foreground">Active filters:</span>
+              {industryFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setIndustryFilter("all")}>
+                  {industryFilter} ✕
+                </Badge>
+              )}
+              {stateFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setStateFilter("all")}>
+                  {stateFilter} ✕
+                </Badge>
+              )}
+              {employeeFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setEmployeeFilter("all")}>
+                  {employeeFilter} ✕
+                </Badge>
+              )}
+              {scoreFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setScoreFilter("all")}>
+                  Tier {scoreFilter} ✕
+                </Badge>
+              )}
+              {universeFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setUniverseFilter("all")}>
+                  Universe ✕
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
+                setIndustryFilter("all");
+                setStateFilter("all");
+                setEmployeeFilter("all");
+                setScoreFilter("all");
+                setUniverseFilter("all");
+              }}>
+                Clear all
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
