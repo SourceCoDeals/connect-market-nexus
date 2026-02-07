@@ -378,15 +378,15 @@ export function ReMarketingChat({
 
   // Full chat panel
   return (
-    <div className={cn("fixed bottom-8 right-8 z-50 w-[480px] max-w-[calc(100vw-64px)]", className)}>
-      <Card className="flex flex-col h-[650px] max-h-[85vh] shadow-2xl border-2 bg-background">
+    <div className={cn("fixed bottom-8 right-8 z-50 w-[624px] max-w-[calc(100vw-64px)]", className)}>
+      <Card className="flex flex-col h-[845px] max-h-[85vh] shadow-2xl border-2 bg-background">
         <CardHeader className="py-3 px-4 border-b flex-shrink-0 bg-gradient-to-r from-primary/10 to-transparent">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
               {getChatTitle(context)}
               {getSubtitle(context) && (
-                <span className="text-xs text-muted-foreground font-normal truncate max-w-[150px]">
+                <span className="text-sm text-muted-foreground font-normal truncate max-w-[200px]">
                   · {getSubtitle(context)}
                 </span>
               )}
@@ -428,19 +428,19 @@ export function ReMarketingChat({
             <div className="space-y-4">
               <div className="text-center py-6">
                 <Sparkles className="h-10 w-10 mx-auto text-primary/50 mb-3" />
-                <p className="text-sm font-medium">How can I help?</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-base font-medium">How can I help?</p>
+                <p className="text-sm text-muted-foreground mt-1">
                   Ask me anything about your {context.type === "deal" ? "buyers" : context.type}
                 </p>
               </div>
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground px-1">Try asking:</p>
+                <p className="text-sm text-muted-foreground px-1">Try asking:</p>
                 {exampleQueries.map((example, i) => (
                   <Button
                     key={i}
                     variant="outline"
                     size="sm"
-                    className="w-full justify-start text-xs h-auto py-2 px-3"
+                    className="w-full justify-start text-sm h-auto py-2.5 px-3"
                     onClick={() => handleExampleClick(example)}
                   >
                     {example}
@@ -467,11 +467,11 @@ export function ReMarketingChat({
                     )}
                   >
                     {message.role === "assistant" ? (
-                      <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                      <div className="text-base prose prose-base dark:prose-invert max-w-none">
                         <ReactMarkdown>{message.content}</ReactMarkdown>
                       </div>
                     ) : (
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-base">{message.content}</p>
                     )}
                   </div>
                   <span className="text-[10px] text-muted-foreground mt-1 px-1">
@@ -487,7 +487,7 @@ export function ReMarketingChat({
               {streamingContent && (
                 <div className="flex flex-col items-start">
                   <div className="max-w-[90%] rounded-lg px-3 py-2 bg-muted">
-                    <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                    <div className="text-base prose prose-base dark:prose-invert max-w-none">
                       <ReactMarkdown>{streamingContent}</ReactMarkdown>
                     </div>
                   </div>
@@ -512,7 +512,7 @@ export function ReMarketingChat({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={getPlaceholder(context)}
-              className="text-sm"
+              className="text-base"
               disabled={isLoading}
             />
             <Button
