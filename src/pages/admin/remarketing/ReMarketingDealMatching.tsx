@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +32,9 @@ import {
   CheckCircle2,
   ArrowUpDown,
   Mail,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { 
@@ -78,6 +80,7 @@ const ReMarketingDealMatching = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Custom scoring instructions state
   const [customInstructions, setCustomInstructions] = useState("");
@@ -328,6 +331,21 @@ const ReMarketingDealMatching = () => {
     if (hideDisqualified) {
       filtered = filtered.filter(s => !s.is_disqualified);
     }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(s => {
+        const buyer = s.buyer;
+        if (!buyer) return false;
+        const companyName = (buyer.company_name || '').toLowerCase();
+        const peFirm = (buyer.pe_firm_name || '').toLowerCase();
+        const thesis = (buyer.thesis_summary || '').toLowerCase();
+        const location = (buyer.hq_state || '').toLowerCase();
+        const city = (buyer.hq_city || '').toLowerCase();
+        return companyName.includes(q) || peFirm.includes(q) || thesis.includes(q) || location.includes(q) || city.includes(q);
+      });
+    }
     
     // Sort
     filtered.sort((a, b) => {
@@ -358,7 +376,7 @@ const ReMarketingDealMatching = () => {
     });
     
     return filtered;
-  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc, activeOutreachScoreIds, selectedUniverse, linkedUniverses]);
+  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc, activeOutreachScoreIds, selectedUniverse, linkedUniverses, searchQuery]);
 
   // Log learning history helper
   const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
@@ -1051,64 +1069,77 @@ const ReMarketingDealMatching = () => {
         </CardContent>
       </Card>
 
-      {/* Tabs & Sort Controls */}
+      {/* Search, Tabs & Sort Controls */}
       {scores && scores.length > 0 && (
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
-            <TabsList>
-              <TabsTrigger value="all">
-                All Buyers ({stats.total})
-              </TabsTrigger>
-              <TabsTrigger value="approved">
-                Approved ({stats.approved})
-              </TabsTrigger>
-              <TabsTrigger value="passed">
-                Passed ({stats.passed})
-              </TabsTrigger>
-              <TabsTrigger value="outreach">
-                <Mail className="h-3.5 w-3.5 mr-1" />
-                In Outreach ({outreachCount})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          {/* Sort Controls */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Sort by:</span>
-            <div className="flex gap-1">
-              <Button
-                variant={sortBy === 'score' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setSortBy('score')}
-              >
-                <Sparkles className="h-3.5 w-3.5 mr-1" />
-                Score
-              </Button>
-              <Button
-                variant={sortBy === 'geography' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setSortBy('geography')}
-              >
-                <MapPin className="h-3.5 w-3.5 mr-1" />
-                Geography
-              </Button>
-              <Button
-                variant={sortBy === 'score_geo' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setSortBy('score_geo')}
-              >
-                <Sparkles className="h-3.5 w-3.5 mr-1" />
-                Score + Geo
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setSortDesc(!sortDesc)}
-              >
-                <ArrowUpDown className={cn("h-4 w-4", !sortDesc && "rotate-180")} />
-              </Button>
+        <div className="space-y-3">
+          {/* Search Bar */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search buyers by name, firm, location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
+              <TabsList>
+                <TabsTrigger value="all">
+                  All Buyers ({filteredScores.length !== stats.total ? `${filteredScores.length}/` : ''}{stats.total})
+                </TabsTrigger>
+                <TabsTrigger value="approved">
+                  Approved ({stats.approved})
+                </TabsTrigger>
+                <TabsTrigger value="passed">
+                  Passed ({stats.passed})
+                </TabsTrigger>
+                <TabsTrigger value="outreach">
+                  <Mail className="h-3.5 w-3.5 mr-1" />
+                  In Outreach ({outreachCount})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
+            {/* Sort Controls */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Sort by:</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={sortBy === 'score' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSortBy('score')}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  Score
+                </Button>
+                <Button
+                  variant={sortBy === 'geography' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSortBy('geography')}
+                >
+                  <MapPin className="h-3.5 w-3.5 mr-1" />
+                  Geography
+                </Button>
+                <Button
+                  variant={sortBy === 'score_geo' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSortBy('score_geo')}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  Score + Geo
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setSortDesc(!sortDesc)}
+                >
+                  <ArrowUpDown className={cn("h-4 w-4", !sortDesc && "rotate-180")} />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
