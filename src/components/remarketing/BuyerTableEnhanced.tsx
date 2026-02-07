@@ -249,6 +249,13 @@ export const BuyerTableEnhanced = ({
     return parts.length > 0 ? parts.join(', ') : null;
   };
 
+  const getFootprintSummary = (buyer: BuyerRow) => {
+    const fp = buyer.geographic_footprint;
+    if (!fp || fp.length === 0) return null;
+    if (fp.length <= 4) return fp.join(', ');
+    return `${fp.slice(0, 3).join(', ')} +${fp.length - 3} more`;
+  };
+
   const handleSort = (key: SortKey) => {
     setSortConfig((prev) => ({
       key,
@@ -473,10 +480,16 @@ export const BuyerTableEnhanced = ({
                             </Badge>
                           )}
                         </div>
-                        {location && (
+                        {(location || getFootprintSummary(buyer)) && (
                           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                            <MapPin className="h-3 w-3" />
-                            {location}
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span>
+                              {location || ''}
+                              {location && getFootprintSummary(buyer) ? ' · ' : ''}
+                              {getFootprintSummary(buyer) && (
+                                <span className="text-muted-foreground/70">{getFootprintSummary(buyer)}</span>
+                              )}
+                            </span>
                           </div>
                         )}
                         {buyer.company_website && (
