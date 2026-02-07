@@ -322,20 +322,24 @@ const PROMPT_1_BUSINESS = {
     type: 'object',
     properties: {
       company_name: { type: 'string', description: 'Official company name as stated on website' },
-      services_offered: { type: 'string', description: "Comma-separated list of services (e.g., 'HVAC installation, repair, maintenance')" },
+      services_offered: { type: 'string', description: "Detailed description of the services offered. Write as a natural prose paragraph covering: what specific services they provide, revenue mix between service lines if mentioned, whether residential vs commercial, and any specializations. NOT a list — write 2-4 sentences." },
       business_summary: { type: 'string', description: '2-3 sentence overview of what the company does operationally' },
       business_type: { type: 'string', enum: ['Service Provider', 'Distributor', 'Manufacturer', 'Retailer', 'Software', 'Other'] },
       industry_vertical: { type: 'string', description: "Industry category (e.g., 'Home Services - HVAC')" },
       specialized_focus: { type: 'string', description: 'Any niche or specialization mentioned' },
-      revenue_model: { type: 'string', description: 'How the company makes money' },
+      revenue_model: { type: 'string', description: 'Detailed description of how the company generates revenue — include contract types, customer payment models, recurring vs project-based work, franchise fees if applicable. Write 1-3 sentences.' },
     },
   },
 };
 
-const PROMPT_1_SYSTEM = `You are an M&A research analyst extracting company information from website content.
+const PROMPT_1_SYSTEM = `You are an M&A research analyst extracting company information from website content for due diligence purposes.
 Extract ONLY information that is explicitly stated in the content.
 Do NOT infer, guess, or hallucinate any information.
-If a field cannot be determined from the content, return null.`;
+If a field cannot be determined from the content, return null.
+
+IMPORTANT for services_offered: Do NOT return a JSON array or bracketed list. Write a natural prose description of 2-4 sentences covering the service mix, any revenue breakdowns mentioned, and specializations. Example: "The company provides residential and commercial HVAC installation, repair, and maintenance services. They specialize in energy-efficient systems and offer 24/7 emergency service. Approximately 70% of revenue comes from residential customers."
+
+IMPORTANT for revenue_model: Describe how money flows in 1-3 sentences. Include contract types, recurring vs one-time, franchise model if applicable.`;
 
 async function extractBusinessOverview(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 1: Business Overview & Services');
@@ -586,10 +590,15 @@ function validateGeography(extracted: any): any {
   if (!extracted?.data) return extracted;
   const data = extracted.data;
 
-  // Anti-hallucination check — only flag if service_regions is absurdly large (>15 states with <3 footprint)
-  if (data.service_regions?.length > 15 && (data.geographic_footprint?.length || 0) < 3) {
-    console.warn('Possible hallucination in service_regions - reverting to conservative estimate');
-    data.service_regions = [...(data.geographic_footprint || [])];
+  // Anti-hallucination check — only flag if service_regions is suspiciously large
+  // with NO supporting evidence (no footprint, no operating locations, no HQ)
+  const hasAnyGeoEvidence = (data.geographic_footprint?.length || 0) > 0 || 
+    (data.operating_locations?.length || 0) > 0 || 
+    data.hq_state;
+  
+  if (data.service_regions?.length > 30 && !hasAnyGeoEvidence) {
+    console.warn('Possible hallucination in service_regions - no supporting evidence, reverting');
+    data.service_regions = [];
   }
 
   // Normalize state codes
@@ -800,6 +809,25 @@ function buildUpdateObject(
       continue;
     }
 
+    // Normalize services_offered: if it looks like a JSON array, convert to prose
+    if (field === 'services_offered' && typeof value === 'string') {
+      let cleanValue = value.trim();
+      if (cleanValue.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(cleanValue);
+          if (Array.isArray(parsed)) {
+            cleanValue = parsed.join(', ');
+          }
+        } catch {
+          // Not valid JSON, strip brackets
+          cleanValue = cleanValue.replace(/^\[|\]$/g, '').replace(/"/g, '');
+        }
+      }
+      updateData[field] = cleanValue;
+      fieldsUpdated++;
+      continue;
+    }
+
     // Handle strings and other values
     updateData[field] = value;
     fieldsUpdated++;
@@ -1001,7 +1029,7 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================================
-    // RUN 6 EXTRACTION PROMPTS (PARALLELIZED)
+    // RUN EXTRACTION PROMPTS (2 BATCHES to avoid Anthropic RPM limits)
     // ========================================================================
 
     const allExtracted: Record<string, any> = {};
@@ -1011,69 +1039,86 @@ Deno.serve(async (req) => {
     let promptsSuccessful = 0;
     let billingError: { code: string; message: string } | null = null;
 
-    // Run all prompts in parallel using Promise.allSettled
-    // This reduces total time from ~124s (6 * 800ms delays) to ~20s (concurrent)
-    const platformPromises = platformContent ? [
-      extractBusinessOverview(platformContent, anthropicApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
-      extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
-      extractGeography(platformContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
-      extractAcquisitions(platformContent, anthropicApiKey).then(r => ({ name: 'acquisitions', result: r, url: platformWebsite })),
-    ] : [];
+    // Helper to process batch results
+    const processBatchResults = (results: PromiseSettledResult<{ name: string; result: any; url: string | null | undefined }>[]) => {
+      for (const settled of results) {
+        if (settled.status === 'fulfilled') {
+          const { name, result, url } = settled.value;
 
-    const pePromises = peContent ? [
-      extractPEActivity(peContent, anthropicApiKey).then(r => ({ name: 'pe_activity', result: r, url: peFirmWebsite })),
-      extractPortfolio(peContent, anthropicApiKey).then(r => ({ name: 'portfolio', result: r, url: peFirmWebsite })),
-      extractSizeCriteria(peContent, anthropicApiKey).then(r => ({ name: 'size', result: validateSizeCriteria(r), url: peFirmWebsite })),
-    ] : [];
-
-    const allPromises = [...platformPromises, ...pePromises];
-    promptsRun = allPromises.length;
-
-    const results = await Promise.allSettled(allPromises);
-
-    // Process all results
-    for (const settled of results) {
-      if (settled.status === 'fulfilled') {
-        const { name, result, url } = settled.value;
-
-        // Check for billing errors
-        if (result.error?.code === 'payment_required' || result.error?.code === 'rate_limited') {
-          if (!billingError) billingError = result.error; // Record first billing error
-          continue;
-        }
-
-        // Process successful extraction
-        if (result.data) {
-          // Special handling for PE Activity: filter out thesis fields (transcript-only)
-          if (name === 'pe_activity') {
-            const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = result.data;
-            if (thesis_summary || strategic_priorities || thesis_confidence) {
-              console.warn('WARNING: Prompt 4 (PE Activity) returned thesis fields - discarding (transcript-only)');
-            }
-            Object.assign(allExtracted, safeData);
-            if (Object.keys(safeData).length > 0) {
-              promptsSuccessful++;
-              evidenceRecords.push({
-                type: 'website',
-                url,
-                extracted_at: timestamp,
-                fields_extracted: Object.keys(safeData),
-              });
-            }
-          } else {
-            Object.assign(allExtracted, result.data);
-            promptsSuccessful++;
-            evidenceRecords.push({
-              type: 'website',
-              url,
-              extracted_at: timestamp,
-              fields_extracted: Object.keys(result.data),
-            });
+          if (result.error?.code === 'payment_required' || result.error?.code === 'rate_limited') {
+            if (!billingError) billingError = result.error;
+            continue;
           }
+
+          if (result.data) {
+            // Special handling for PE Activity: filter out thesis fields
+            if (name === 'pe_activity') {
+              const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = result.data;
+              if (thesis_summary || strategic_priorities || thesis_confidence) {
+                console.warn('WARNING: PE Activity returned thesis fields - discarding (transcript-only)');
+              }
+              Object.assign(allExtracted, safeData);
+              if (Object.keys(safeData).length > 0) {
+                promptsSuccessful++;
+                evidenceRecords.push({ type: 'website', url, extracted_at: timestamp, fields_extracted: Object.keys(safeData) });
+              }
+            } else {
+              Object.assign(allExtracted, result.data);
+              promptsSuccessful++;
+              evidenceRecords.push({ type: 'website', url, extracted_at: timestamp, fields_extracted: Object.keys(result.data) });
+            }
+          }
+        } else {
+          console.error(`Prompt failed:`, settled.reason);
         }
-      } else {
-        console.error(`Prompt failed:`, settled.reason);
       }
+    };
+
+    // BATCH 1: Core platform extraction (3 calls max)
+    const batch1: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
+    if (platformContent) {
+      batch1.push(
+        extractBusinessOverview(platformContent, anthropicApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
+        extractGeography(platformContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
+        extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
+      );
+    } else if (peContent) {
+      // No platform content — extract geography from PE site
+      batch1.push(
+        extractGeography(peContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: peFirmWebsite })),
+      );
+    }
+
+    if (batch1.length > 0) {
+      promptsRun += batch1.length;
+      const batch1Results = await Promise.allSettled(batch1);
+      processBatchResults(batch1Results);
+      console.log(`Batch 1 complete: ${promptsSuccessful} successful so far`);
+    }
+
+    // Small delay between batches to avoid RPM spike
+    await sleep(500);
+
+    // BATCH 2: Acquisitions + PE firm extraction (3-4 calls max)
+    const batch2: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
+    if (platformContent) {
+      batch2.push(
+        extractAcquisitions(platformContent, anthropicApiKey).then(r => ({ name: 'acquisitions', result: r, url: platformWebsite })),
+      );
+    }
+    if (peContent) {
+      batch2.push(
+        extractPEActivity(peContent, anthropicApiKey).then(r => ({ name: 'pe_activity', result: r, url: peFirmWebsite })),
+        extractPortfolio(peContent, anthropicApiKey).then(r => ({ name: 'portfolio', result: r, url: peFirmWebsite })),
+        extractSizeCriteria(peContent, anthropicApiKey).then(r => ({ name: 'size', result: validateSizeCriteria(r), url: peFirmWebsite })),
+      );
+    }
+
+    if (batch2.length > 0) {
+      promptsRun += batch2.length;
+      const batch2Results = await Promise.allSettled(batch2);
+      processBatchResults(batch2Results);
+      console.log(`Batch 2 complete: ${promptsSuccessful} successful total`);
     }
 
     console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
