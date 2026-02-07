@@ -59,15 +59,13 @@ export const AddDealDialog = ({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const insertData = {
+      const insertData: Record<string, any> = {
         title: formData.title,
         website: formData.website || null,
         location: formData.location || null,
         revenue: formData.revenue ? parseFloat(formData.revenue.replace(/[^0-9.]/g, '')) : null,
         ebitda: formData.ebitda ? parseFloat(formData.ebitda.replace(/[^0-9.]/g, '')) : null,
         description: formData.description || null,
-        is_active: true,
-        created_by: user?.id,
         category: "Other",
         status: "active",
         is_internal_deal: true,
@@ -75,7 +73,7 @@ export const AddDealDialog = ({
 
       const { data: listing, error } = await supabase
         .from("listings")
-        .insert(insertData)
+        .insert(insertData as any)
         .select()
         .single();
 
