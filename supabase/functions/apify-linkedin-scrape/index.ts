@@ -194,11 +194,48 @@ serve(async (req) => {
     // Normalize the LinkedIn URL to direct format
     const normalizedLinkedinUrl = normalizeLinkedInUrl(targetUrl);
 
+    // Calculate match confidence and signals
+    const websiteMatch = !!(companyWebsite && companyData.website);
+    let locationMatchResult = null;
+    if ((city || state) && companyData.headquarters) {
+      locationMatchResult = verifyLocation(companyData.headquarters, city, state);
+    }
+
+    // Determine overall match confidence
+    let matchConfidence: 'high' | 'medium' | 'low' | 'manual' = 'manual'; // Default if manually provided URL
+    if (foundViaSearch) {
+      if (websiteMatch && locationMatchResult?.match && locationMatchResult.confidence === 'high') {
+        matchConfidence = 'high'; // Both website and location verified
+      } else if (websiteMatch || (locationMatchResult?.match && locationMatchResult.confidence === 'high')) {
+        matchConfidence = 'medium'; // Either website OR location verified
+      } else if (locationMatchResult?.match && locationMatchResult.confidence === 'medium') {
+        matchConfidence = 'medium'; // Location matches with medium confidence
+      } else {
+        matchConfidence = 'low'; // No strong verification signals
+      }
+    }
+
+    // Build match signals object
+    const matchSignals = {
+      foundViaSearch,
+      websiteMatch,
+      locationMatch: locationMatchResult ? {
+        match: locationMatchResult.match,
+        confidence: locationMatchResult.confidence,
+        reason: locationMatchResult.reason
+      } : null,
+      companyName: companyData.name,
+      linkedinHeadquarters: companyData.headquarters,
+      expectedLocation: city && state ? `${city}, ${state}` : (state || city || null),
+      verifiedAt: new Date().toISOString()
+    };
+
     const result = {
       success: true,
       scraped: true,
       foundViaSearch,
-      websiteVerified: !!(companyWebsite && companyData.website),
+      websiteVerified: websiteMatch,
+      matchConfidence,
       linkedin_url: normalizedLinkedinUrl,
       linkedin_employee_count: employeeCount,
       linkedin_employee_range: employeeRange,
@@ -208,7 +245,7 @@ serve(async (req) => {
       linkedin_description: companyData.description?.substring(0, 1000) || null,
     };
 
-    console.log(`Apify scrape result: employeeCount=${employeeCount}, employeeRange=${employeeRange}`);
+    console.log(`Apify scrape result: employeeCount=${employeeCount}, employeeRange=${employeeRange}, matchConfidence=${matchConfidence}`);
 
     // If dealId is provided, update the listing directly
     if (dealId) {
@@ -216,6 +253,9 @@ serve(async (req) => {
 
       const updateData: Record<string, unknown> = {
         linkedin_url: normalizedLinkedinUrl,
+        linkedin_match_confidence: matchConfidence,
+        linkedin_match_signals: matchSignals,
+        linkedin_verified_at: new Date().toISOString(),
       };
 
       if (result.linkedin_employee_count) {
@@ -223,6 +263,15 @@ serve(async (req) => {
       }
       if (result.linkedin_employee_range) {
         updateData.linkedin_employee_range = result.linkedin_employee_range;
+      }
+      if (result.linkedin_industry) {
+        updateData.linkedin_industry = result.linkedin_industry;
+      }
+      if (result.linkedin_headquarters) {
+        updateData.linkedin_headquarters = result.linkedin_headquarters;
+      }
+      if (result.linkedin_website) {
+        updateData.linkedin_website = result.linkedin_website;
       }
 
       const { error: updateError } = await supabase
@@ -233,7 +282,7 @@ serve(async (req) => {
       if (updateError) {
         console.error('Error updating listing with LinkedIn data:', updateError);
       } else {
-        console.log(`Updated deal ${dealId} with LinkedIn data (employee count: ${result.linkedin_employee_count}, range: ${result.linkedin_employee_range})`);
+        console.log(`Updated deal ${dealId} with LinkedIn data (employee count: ${result.linkedin_employee_count}, range: ${result.linkedin_employee_range}, confidence: ${matchConfidence})`);
       }
     }
 
