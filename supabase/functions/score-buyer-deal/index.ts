@@ -138,6 +138,9 @@ const DEFAULT_SERVICE_ADJACENCY: Record<string, string[]> = {
   "pest control": ["wildlife removal", "termite", "lawn care", "mosquito control"],
   "janitorial": ["commercial cleaning", "facility maintenance", "carpet cleaning", "window cleaning"],
   "mitigation": ["restoration", "water restoration", "fire restoration", "mold remediation"],
+  "disaster recovery": ["restoration", "fire restoration", "water restoration", "mitigation", "mold remediation", "reconstruction"],
+  "reconstruction": ["restoration", "fire restoration", "water restoration", "general contracting", "disaster recovery"],
+  "contents cleaning": ["restoration", "fire restoration", "water restoration", "pack-out"],
   "automotive": ["auto body", "collision repair", "auto glass", "fleet maintenance", "calibration"],
   "auto glass": ["collision repair", "auto body", "calibration", "automotive"],
 };
@@ -198,12 +201,30 @@ function calculateSizeScore(
   const revenueSweetSpot = buyer.revenue_sweet_spot;
   const ebitdaSweetSpot = buyer.ebitda_sweet_spot;
 
-  // Both deal revenue AND EBITDA are null — can't evaluate
-  if (dealRevenue === null && dealEbitda === null) {
+  // Both deal revenue AND EBITDA are missing — differentiate by buyer flexibility
+  if (dealRevenue == null && dealEbitda == null) {
+    // No buyer size criteria either — both sides unknown, neutral
+    if (buyerMinRevenue == null && buyerMaxRevenue == null && buyerMinEbitda == null && buyerMaxEbitda == null) {
+      return {
+        score: 55,
+        multiplier: 0.8,
+        reasoning: "Deal missing financials, buyer has no size criteria — moderate neutral"
+      };
+    }
+    // Buyer has wide criteria range (max >= 3x min) — flexible buyer, better chance of fit
+    const rangeRatio = (buyerMinRevenue && buyerMaxRevenue) ? buyerMaxRevenue / buyerMinRevenue : 0;
+    if (rangeRatio >= 3) {
+      return {
+        score: 50,
+        multiplier: 0.75,
+        reasoning: "Deal missing financials — buyer has wide size range, moderate fit assumed"
+      };
+    }
+    // Buyer has narrow or specific criteria — can't verify, higher risk of mismatch
     return {
-      score: 40,
-      multiplier: 0.7,
-      reasoning: "Deal missing revenue and EBITDA — penalty for unknown size"
+      score: 35,
+      multiplier: 0.6,
+      reasoning: "Deal missing financials — buyer has specific size criteria, fit uncertain"
     };
   }
 
@@ -221,7 +242,7 @@ function calculateSizeScore(
   let reasoning = "";
 
   // === Revenue-based scoring ===
-  if (dealRevenue !== null && dealRevenue > 0) {
+  if (dealRevenue != null && dealRevenue > 0) {
     // Sweet spot match (±10%)
     if (revenueSweetSpot && Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <= 0.1) {
       score = 97;
@@ -299,7 +320,7 @@ function calculateSizeScore(
   }
 
   // === EBITDA-based scoring (supplement or fallback) ===
-  if (dealEbitda !== null && dealEbitda > 0 && buyerMinEbitda) {
+  if (dealEbitda != null && dealEbitda > 0 && buyerMinEbitda) {
     if (dealEbitda < buyerMinEbitda * 0.5) {
       // EBITDA way below minimum — override if worse
       if (score > 20) {
@@ -374,20 +395,32 @@ async function calculateGeographyScore(
   // Get buyer geographic data (priority order per spec)
   let buyerStates: string[] = [];
 
+  // Helper: normalize a state entry to a 2-letter code (handles full names like "Georgia" → "GA")
+  const normalizeEntry = (s: string): string | null => {
+    const trimmed = s.trim().toUpperCase();
+    // Already a 2-letter code
+    if (/^[A-Z]{2}$/.test(trimmed)) return trimmed;
+    // Try normalizing full state name to code
+    return normalizeStateCode(s);
+  };
+
   // 1. target_geographies (strongest signal)
-  const targetGeos = (buyer.target_geographies || []).filter(Boolean).map((s: string) => s.toUpperCase().trim());
+  const targetGeos = (buyer.target_geographies || []).filter(Boolean)
+    .map((s: string) => normalizeEntry(s)).filter((s: string | null): s is string => s !== null);
   if (targetGeos.length > 0) {
     buyerStates = targetGeos;
   }
   // 2. geographic_footprint (fallback)
   else {
-    const footprint = (buyer.geographic_footprint || []).filter(Boolean).map((s: string) => s.toUpperCase().trim());
+    const footprint = (buyer.geographic_footprint || []).filter(Boolean)
+      .map((s: string) => normalizeEntry(s)).filter((s: string | null): s is string => s !== null);
     if (footprint.length > 0) {
       buyerStates = footprint;
     }
     // 3. HQ state (weakest signal)
     else if (buyer.hq_state) {
-      buyerStates = [buyer.hq_state.toUpperCase().trim()];
+      const normalized = normalizeEntry(buyer.hq_state);
+      if (normalized) buyerStates = [normalized];
     }
   }
 
@@ -508,8 +541,14 @@ async function calculateServiceScore(
   const buyerServicesOffered = (buyer.services_offered || '')
     .toLowerCase().split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
 
-  // Combine buyer services for matching
-  const allBuyerServices = [...new Set([...buyerTargetServices, ...buyerServicesOffered])];
+  const buyerTargetIndustries = (buyer.target_industries || [])
+    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+
+  const buyerSpecializedFocus = (buyer.specialized_focus || '')
+    .toLowerCase().split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+
+  // Combine buyer services for matching (include industries and focus as signals)
+  const allBuyerServices = [...new Set([...buyerTargetServices, ...buyerServicesOffered, ...buyerTargetIndustries, ...buyerSpecializedFocus])];
 
   // STEP 1: Check hard disqualifiers
   const excludedServices = [
@@ -689,19 +728,31 @@ function calculateServiceOverlap(
 ): { percentage: number; matchingServices: string[]; allDealServices: string[] } {
   const dealServices = (listing.services || listing.categories || [listing.category])
     .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+
+  // Include target_industries and specialized_focus as additional buyer service signals
   const buyerServices = [
     ...(buyer.target_services || []),
-    ...(buyer.services_offered || '').split(/[,;]/).filter(Boolean)
+    ...(buyer.target_industries || []),
+    ...(buyer.services_offered || '').split(/[,;]/).filter(Boolean),
+    ...(buyer.specialized_focus || '').split(/[,;]/).filter(Boolean),
   ].map((s: string) => s?.toLowerCase().trim()).filter(Boolean);
 
   if (buyerServices.length === 0 || dealServices.length === 0) {
     return { percentage: 0, matchingServices: [], allDealServices: dealServices };
   }
 
+  // Tokenize for word-level matching (e.g., "fire restoration" matches "restoration")
+  const tokenize = (s: string) => s.split(/[\s\-\/&]+/).filter(w => w.length > 2);
+
   const matching = dealServices.filter((ds: string) =>
-    buyerServices.some((bs: string) =>
-      ds?.includes(bs) || bs?.includes(ds)
-    )
+    buyerServices.some((bs: string) => {
+      // Direct substring match
+      if (ds?.includes(bs) || bs?.includes(ds)) return true;
+      // Word-level match: any significant word overlap
+      const dealTokens = tokenize(ds || '');
+      const buyerTokens = tokenize(bs || '');
+      return dealTokens.some(dt => buyerTokens.some(bt => dt === bt || dt.includes(bt) || bt.includes(dt)));
+    })
   );
 
   const denominator = Math.max(dealServices.length, buyerServices.length, 1);
@@ -788,23 +839,34 @@ Return JSON: {"score": number, "confidence": "high"|"medium"|"low", "reasoning":
 function ownerGoalsFallback(listing: any, buyer: any): { score: number; confidence: string; reasoning: string } {
   const ownerGoals = (listing.owner_goals || listing.seller_motivation || '').toLowerCase();
   const buyerType = (buyer.buyer_type || '').toLowerCase();
-
-  if (!ownerGoals) {
-    return { score: 50, confidence: 'low', reasoning: 'No owner goals data available' };
-  }
+  const thesis = (buyer.thesis_summary || '').toLowerCase();
+  const dealPrefs = (buyer.deal_preferences || '').toLowerCase();
 
   // Buyer-type norms lookup table
   const norms: Record<string, Record<string, number>> = {
-    'pe_firm': { cash_exit: 40, growth_partner: 75, quick_exit: 50, stay_long: 60, retain_employees: 65, keep_autonomy: 50 },
-    'platform': { cash_exit: 50, growth_partner: 80, quick_exit: 40, stay_long: 85, retain_employees: 75, keep_autonomy: 60 },
-    'strategic': { cash_exit: 70, growth_partner: 50, quick_exit: 65, stay_long: 45, retain_employees: 45, keep_autonomy: 30 },
-    'family_office': { cash_exit: 60, growth_partner: 65, quick_exit: 55, stay_long: 70, retain_employees: 70, keep_autonomy: 80 },
+    'pe_firm': { base: 55, cash_exit: 40, growth_partner: 75, quick_exit: 50, stay_long: 60, retain_employees: 65, keep_autonomy: 50 },
+    'platform': { base: 65, cash_exit: 50, growth_partner: 80, quick_exit: 40, stay_long: 85, retain_employees: 75, keep_autonomy: 60 },
+    'strategic': { base: 50, cash_exit: 70, growth_partner: 50, quick_exit: 65, stay_long: 45, retain_employees: 45, keep_autonomy: 30 },
+    'family_office': { base: 60, cash_exit: 60, growth_partner: 65, quick_exit: 55, stay_long: 70, retain_employees: 70, keep_autonomy: 80 },
+    'independent_sponsor': { base: 58, cash_exit: 55, growth_partner: 70, quick_exit: 60, stay_long: 55, retain_employees: 60, keep_autonomy: 55 },
   };
 
-  const typeNorms = norms[buyerType] || norms['platform']; // default to platform norms
+  const typeNorms = norms[buyerType] || norms['platform'];
+
+  if (!ownerGoals) {
+    // No owner goals — differentiate by buyer type and data richness
+    let score = typeNorms.base;
+    // Buyers with explicit deal preferences or thesis get a slight edge (more data = more signal)
+    if (thesis.length > 50) score += 5;
+    if (dealPrefs.length > 10) score += 3;
+    // Check deal_breakers for any red flags
+    const dealBreakers = buyer.deal_breakers || [];
+    if (dealBreakers.length > 0) score -= 5;
+    return { score: Math.max(30, Math.min(85, score)), confidence: 'low', reasoning: `No owner goals — ${buyerType || 'unknown'} type base score` };
+  }
 
   // Match owner goals to categories
-  let score = 50;
+  let score = typeNorms.base;
   if (ownerGoals.includes('cash') && ownerGoals.includes('exit')) score = typeNorms.cash_exit;
   else if (ownerGoals.includes('growth') || ownerGoals.includes('partner') || ownerGoals.includes('rollover')) score = typeNorms.growth_partner;
   else if (ownerGoals.includes('quick') || ownerGoals.includes('fast') || ownerGoals.includes('30 day') || ownerGoals.includes('60 day')) score = typeNorms.quick_exit;
@@ -812,8 +874,16 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
   else if (ownerGoals.includes('employee') || ownerGoals.includes('retain') || ownerGoals.includes('team')) score = typeNorms.retain_employees;
   else if (ownerGoals.includes('autonom') || ownerGoals.includes('independen')) score = typeNorms.keep_autonomy;
 
+  // Bonus/penalty from buyer-specific data
+  if (thesis) {
+    // Check if thesis mentions alignment with owner goals
+    const goalKeywords = ownerGoals.split(/\s+/).filter(w => w.length > 3);
+    const thesisAligns = goalKeywords.some(gw => thesis.includes(gw));
+    if (thesisAligns) score = Math.min(100, score + 8);
+  }
+
   return {
-    score,
+    score: Math.max(0, Math.min(100, score)),
     confidence: 'low',
     reasoning: `Fallback: ${buyerType || 'unknown'} buyer type norms vs owner goals`
   };
@@ -2248,11 +2318,17 @@ Analyze this buyer-deal fit. Use the SERVICE OVERLAP CONTEXT in your reasoning. 
     (listing.categories && Array.isArray(listing.categories) && listing.categories.length > 0) ||
     (listing.category && listing.category.trim())
   );
-  const buyerHasServiceTargets = !!(buyer.target_services && buyer.target_services.length > 0);
+  const buyerHasServiceTargets = !!(
+    (buyer.target_services && buyer.target_services.length > 0) ||
+    (buyer.target_industries && buyer.target_industries.length > 0) ||
+    (buyer.specialized_focus && buyer.specialized_focus.trim()) ||
+    (buyer.services_offered && buyer.services_offered.trim())
+  );
   const dealHasLocation = !!(listing.location && listing.location.trim());
   const buyerHasGeoTargets = !!(
     (buyer.target_geographies && buyer.target_geographies.length > 0) ||
-    (buyer.geographic_footprint && buyer.geographic_footprint.length > 0)
+    (buyer.geographic_footprint && buyer.geographic_footprint.length > 0) ||
+    (buyer.hq_state && buyer.hq_state.trim())
   );
   const buyerHasSizeTargets = !!(buyer.target_revenue_min || buyer.target_revenue_max || buyer.target_ebitda_min);
   const dealHasFinancials = !!(listing.revenue || listing.ebitda);
