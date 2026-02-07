@@ -32,6 +32,7 @@ import {
   EnrichmentSummaryDialog,
   ReMarketingChat
 } from "@/components/remarketing";
+import { AddBuyerToUniverseDialog } from "@/components/remarketing/AddBuyerToUniverseDialog";
 import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichment";
 import { 
   SizeCriteria, 
@@ -109,6 +110,7 @@ const ReMarketingUniverseDetail = () => {
   const [showAIResearch, setShowAIResearch] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
+  const [addBuyerDialogOpen, setAddBuyerDialogOpen] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
    const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
@@ -734,7 +736,7 @@ const ReMarketingUniverseDetail = () => {
                       buyerCount={filteredBuyers.length}
                       searchValue={buyerSearch}
                       onSearchChange={setBuyerSearch}
-                      onAddBuyer={() => navigate('/admin/remarketing/buyers')}
+                      onAddBuyer={() => setAddBuyerDialogOpen(true)}
                       onImportCSV={() => setImportBuyersDialogOpen(true)}
                       onEnrichAll={() => setShowBuyerEnrichDialog(true)}
                       onCancelEnrichment={cancelQueueEnrichment}
@@ -1310,6 +1312,18 @@ const ReMarketingUniverseDetail = () => {
           onComplete={() => {
             queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
             setImportBuyersDialogOpen(false);
+          }}
+        />
+      )}
+
+      {/* Add Buyer Dialog */}
+      {!isNew && id && (
+        <AddBuyerToUniverseDialog
+          open={addBuyerDialogOpen}
+          onOpenChange={setAddBuyerDialogOpen}
+          universeId={id}
+          onBuyerAdded={() => {
+            queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
           }}
         />
       )}
