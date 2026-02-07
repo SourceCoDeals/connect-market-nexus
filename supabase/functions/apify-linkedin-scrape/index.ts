@@ -137,9 +137,55 @@ serve(async (req) => {
         );
       }
       console.log(`Website verification PASSED: "${companyWebsite}" matches LinkedIn "${companyData.website}"`);
-    } else if (foundViaSearch && !companyData.website) {
-      // If we found via search but LinkedIn has no website, log a warning but allow it
-      console.warn('LinkedIn profile found via search has no website to verify against');
+    } else if (foundViaSearch && !companyData.website && companyWebsite) {
+      // CRITICAL FIX: If we found via search but LinkedIn has no website to verify against,
+      // and we HAVE a company website, this is too risky - could be wrong company
+      console.warn(`VERIFICATION FAILED: LinkedIn profile found via search has no website, but we have "${companyWebsite}" to verify. REJECTING to prevent wrong match.`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Found a LinkedIn profile for "${companyName}" but cannot verify it's the correct company (LinkedIn profile has no website listed). Please provide the LinkedIn URL manually to ensure accuracy.`,
+          scraped: false,
+          noWebsiteToVerify: true,
+          needsManualUrl: true,
+          linkedinProfileName: companyData.name,
+          linkedinHeadquarters: companyData.headquarters
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else if (foundViaSearch && !companyData.website && !companyWebsite) {
+      // Both missing website - log warning but continue (can't verify either way)
+      console.warn('Neither LinkedIn profile nor company has website - cannot verify match quality');
+    }
+
+    // LOCATION VERIFICATION: Check if LinkedIn headquarters matches the deal's location
+    // This catches cases like national companies vs local businesses with similar names
+    if (foundViaSearch && (city || state) && companyData.headquarters) {
+      const locationMatch = verifyLocation(companyData.headquarters, city, state);
+      if (!locationMatch.match) {
+        console.warn(`LOCATION MISMATCH: LinkedIn HQ "${companyData.headquarters}" does not match expected location "${city}, ${state}". Confidence: ${locationMatch.confidence}`);
+
+        // Only reject if high confidence mismatch (headquarters clearly elsewhere)
+        if (locationMatch.confidence === 'high') {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `LinkedIn profile headquarters (${companyData.headquarters}) does not match deal location (${city}, ${state}). ${locationMatch.reason}`,
+              scraped: false,
+              locationMismatch: true,
+              linkedinHeadquarters: companyData.headquarters,
+              expectedLocation: `${city}, ${state}`,
+              needsManualUrl: true
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          // Medium/low confidence - log warning but allow (might be multi-location company)
+          console.warn(`Location mismatch with ${locationMatch.confidence} confidence: ${locationMatch.reason}. Allowing as company may have multiple locations.`);
+        }
+      } else {
+        console.log(`Location verification PASSED: "${companyData.headquarters}" matches expected location (${locationMatch.confidence} confidence)`);
+      }
     }
 
     // Parse employee data from Apify result
@@ -516,4 +562,85 @@ function doWebsitesMatch(website1: string, website2: string): boolean {
   }
   
   return false;
+}
+
+/**
+ * Verify if LinkedIn headquarters location matches expected deal location
+ * Returns match status and confidence level
+ */
+function verifyLocation(
+  linkedinHeadquarters: string,
+  expectedCity?: string,
+  expectedState?: string
+): { match: boolean; confidence: 'high' | 'medium' | 'low'; reason: string } {
+  if (!expectedCity && !expectedState) {
+    return { match: true, confidence: 'low', reason: 'No expected location provided' };
+  }
+
+  const hqLower = linkedinHeadquarters.toLowerCase().trim();
+  const cityLower = expectedCity?.toLowerCase().trim() || '';
+  const stateLower = expectedState?.toLowerCase().trim() || '';
+
+  // Build state name map for matching (e.g., "TX" <-> "Texas")
+  const stateMap: Record<string, string> = {
+    'al': 'alabama', 'ak': 'alaska', 'az': 'arizona', 'ar': 'arkansas',
+    'ca': 'california', 'co': 'colorado', 'ct': 'connecticut', 'de': 'delaware',
+    'fl': 'florida', 'ga': 'georgia', 'hi': 'hawaii', 'id': 'idaho',
+    'il': 'illinois', 'in': 'indiana', 'ia': 'iowa', 'ks': 'kansas',
+    'ky': 'kentucky', 'la': 'louisiana', 'me': 'maine', 'md': 'maryland',
+    'ma': 'massachusetts', 'mi': 'michigan', 'mn': 'minnesota', 'ms': 'mississippi',
+    'mo': 'missouri', 'mt': 'montana', 'ne': 'nebraska', 'nv': 'nevada',
+    'nh': 'new hampshire', 'nj': 'new jersey', 'nm': 'new mexico', 'ny': 'new york',
+    'nc': 'north carolina', 'nd': 'north dakota', 'oh': 'ohio', 'ok': 'oklahoma',
+    'or': 'oregon', 'pa': 'pennsylvania', 'ri': 'rhode island', 'sc': 'south carolina',
+    'sd': 'south dakota', 'tn': 'tennessee', 'tx': 'texas', 'ut': 'utah',
+    'vt': 'vermont', 'va': 'virginia', 'wa': 'washington', 'wv': 'west virginia',
+    'wi': 'wisconsin', 'wy': 'wyoming', 'dc': 'district of columbia'
+  };
+
+  const stateFullName = stateMap[stateLower] || stateLower;
+
+  // HIGH CONFIDENCE MATCH: City and state both present in headquarters
+  if (cityLower && stateLower) {
+    const hasBothCityAndState = hqLower.includes(cityLower) && (hqLower.includes(stateLower) || hqLower.includes(stateFullName));
+    if (hasBothCityAndState) {
+      return { match: true, confidence: 'high', reason: `HQ "${linkedinHeadquarters}" matches ${cityLower}, ${stateLower}` };
+    }
+  }
+
+  // MEDIUM CONFIDENCE MATCH: State matches (company might have multiple offices)
+  if (stateLower && (hqLower.includes(stateLower) || hqLower.includes(stateFullName))) {
+    if (cityLower && !hqLower.includes(cityLower)) {
+      // State matches but city doesn't - might be multi-location company
+      return { match: true, confidence: 'medium', reason: `State matches but city differs - may have multiple offices in ${stateLower}` };
+    }
+    return { match: true, confidence: 'high', reason: `HQ in ${stateLower}` };
+  }
+
+  // LOW CONFIDENCE MATCH: City matches but state unknown/missing
+  if (cityLower && hqLower.includes(cityLower)) {
+    return { match: true, confidence: 'low', reason: `City "${cityLower}" mentioned but state unclear` };
+  }
+
+  // Check for nationwide/multi-location indicators
+  const multiLocationIndicators = ['nationwide', 'multiple locations', 'various locations', 'across the us', 'national'];
+  const isMultiLocation = multiLocationIndicators.some(indicator => hqLower.includes(indicator));
+  if (isMultiLocation) {
+    return { match: true, confidence: 'low', reason: 'Company operates nationwide/multiple locations' };
+  }
+
+  // HIGH CONFIDENCE MISMATCH: HQ clearly in different state
+  const hqHasDifferentState = Object.entries(stateMap).some(([code, name]) => {
+    // Skip if it's the expected state
+    if (code === stateLower || name === stateFullName) return false;
+    // Check if HQ mentions a different state
+    return hqLower.includes(`, ${code}`) || hqLower.includes(`, ${name}`) || hqLower.includes(` ${name}`);
+  });
+
+  if (hqHasDifferentState && stateLower) {
+    return { match: false, confidence: 'high', reason: `Headquarters "${linkedinHeadquarters}" is in a different state than expected (${expectedState})` };
+  }
+
+  // MEDIUM CONFIDENCE MISMATCH: Expected location not mentioned at all
+  return { match: false, confidence: 'medium', reason: `Expected location "${expectedCity}, ${expectedState}" not found in HQ "${linkedinHeadquarters}"` };
 }
