@@ -53,8 +53,15 @@ const LOCATION_PATTERNS = [
   '/locations',
   '/our-locations',
   '/service-areas',
+  '/service-area',
   '/branches',
   '/offices',
+  '/coverage',
+  '/where-we-work',
+  '/markets',
+  '/about-us',
+  '/about',
+  '/contact',
 ];
 
 const PLACEHOLDER_STRINGS = new Set([
@@ -379,7 +386,7 @@ const PROMPT_3A_GEOGRAPHY = {
       hq_country: { type: 'string', default: 'USA' },
       geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'Array of 2-letter state codes where company operates, has offices, or provides services. Include states from office addresses, service area lists, explicitly named states, and cities with known states.' },
       service_regions: { type: 'array', items: { type: 'string' }, description: 'All states where company provides services or has customers, as 2-letter codes. Superset of geographic_footprint.' },
-      operating_locations: { type: 'array', items: { type: 'string' }, description: 'Specific "City, ST" strings for every physical office, branch, or location mentioned (e.g., "Dallas, TX", "Atlanta, GA")' },
+      operating_locations: { type: 'array', items: { type: 'string' }, description: 'REQUIRED: Every physical office, branch, store, or location mentioned on the website as "City, ST" (e.g., "Dallas, TX", "Atlanta, GA"). Extract from addresses, location lists, footer, contact pages, and branch directories. This is a critical field — extract aggressively.' },
     },
   },
 };
@@ -397,19 +404,27 @@ EXTRACTION RULES:
    - Footer addresses or contact pages
 3. geographic_footprint = states with physical presence OR explicitly named service states
 4. service_regions = ALL states the company serves (superset of geographic_footprint)
-5. operating_locations = every specific "City, ST" location found (e.g., "Dallas, TX")
+5. operating_locations = CRITICAL FIELD: every "City, ST" pair found anywhere on the site. Look in:
+   - Location/branch directory pages
+   - Addresses in the footer or contact page
+   - "Our Locations" sections
+   - Store/branch finder results
+   - Any mention of a city with a state (e.g., "our Birmingham, AL office")
+   Example: ["Dallas, TX", "Atlanta, GA", "Chicago, IL", "Tampa, FL"]
 6. hq_state MUST be a 2-letter code (e.g., TX not Texas)
+7. hq_city MUST be a real city name (not a region like "West Coast")
 
 HANDLING NATIONAL/VAGUE COVERAGE:
 - If the site says "nationwide", "national", "serving all 50 states", etc., set service_regions to an empty array
-- BUT still extract any specifically named states/cities into geographic_footprint
-- Example: "National coverage with offices in Dallas, Atlanta, and Chicago" → geographic_footprint: ["TX", "GA", "IL"]
+- BUT still extract any specifically named states/cities into geographic_footprint and operating_locations
+- Example: "National coverage with offices in Dallas, Atlanta, and Chicago" → geographic_footprint: ["TX", "GA", "IL"], operating_locations: ["Dallas, TX", "Atlanta, GA", "Chicago, IL"]
 
 DO NOT:
 - Expand vague regions ("Southeast", "Midwest") into state lists — only use explicitly named states
 - Infer neighboring states that are not explicitly mentioned
 - Guess states based on industry norms
 - Return full state names — always use 2-letter codes
+- Use region names as hq_city (e.g., "West Coast" is NOT a city)
 
 Return 2-letter state codes (e.g., MN not Minnesota).`;
 
