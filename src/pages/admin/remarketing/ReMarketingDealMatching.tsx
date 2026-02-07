@@ -47,6 +47,7 @@ import {
   StaleScoreWarning,
   WeightSuggestionsPanel,
   type OutreachStatus,
+  ReMarketingChat,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
@@ -1206,6 +1207,11 @@ const ReMarketingDealMatching = () => {
           category: listing?.category || undefined,
           description: listing?.hero_description || undefined,
         }}
+      />
+
+      {/* AI Chat */}
+      <ReMarketingChat
+        context={{ type: "deal", dealId: listingId || '', dealName: listing?.title }}
       />
     </div>
   );
