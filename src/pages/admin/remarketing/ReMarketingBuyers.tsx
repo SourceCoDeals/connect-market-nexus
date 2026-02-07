@@ -51,7 +51,10 @@ import {
   Trash2,
   MapPin,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
@@ -75,7 +78,8 @@ const ReMarketingBuyers = () => {
   const [activeTab, setActiveTab] = useState<BuyerTab>('all');
   const [universeFilter, setUniverseFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  
+  const [sortColumn, setSortColumn] = useState<string>('company_name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   // New buyer form state
   const [newBuyer, setNewBuyer] = useState({
     company_name: "",
@@ -217,15 +221,61 @@ const ReMarketingBuyers = () => {
   // Filter buyers by search
   const filteredBuyers = useMemo(() => {
     if (!buyers) return [];
-    if (!search) return buyers;
+    let result = buyers;
     
-    const searchLower = search.toLowerCase();
-    return buyers.filter(b => 
-      b.company_name?.toLowerCase().includes(searchLower) ||
-      b.company_website?.toLowerCase().includes(searchLower) ||
-      b.thesis_summary?.toLowerCase().includes(searchLower)
-    );
-  }, [buyers, search]);
+    if (search) {
+      const searchLower = search.toLowerCase();
+      result = result.filter(b => 
+        b.company_name?.toLowerCase().includes(searchLower) ||
+        b.company_website?.toLowerCase().includes(searchLower) ||
+        b.thesis_summary?.toLowerCase().includes(searchLower) ||
+        b.pe_firm_name?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let valA: any, valB: any;
+      switch (sortColumn) {
+        case 'company_name':
+          valA = a.company_name?.toLowerCase() || '';
+          valB = b.company_name?.toLowerCase() || '';
+          break;
+        case 'pe_firm_name':
+          valA = a.pe_firm_name?.toLowerCase() || '';
+          valB = b.pe_firm_name?.toLowerCase() || '';
+          break;
+        case 'universe':
+          valA = (a as any).universe?.name?.toLowerCase() || '';
+          valB = (b as any).universe?.name?.toLowerCase() || '';
+          break;
+        default:
+          valA = a.company_name?.toLowerCase() || '';
+          valB = b.company_name?.toLowerCase() || '';
+      }
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [buyers, search, sortColumn, sortDirection]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortColumn !== column) return <ArrowUpDown className="h-3.5 w-3.5 ml-1 opacity-40" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-3.5 w-3.5 ml-1" /> 
+      : <ArrowDown className="h-3.5 w-3.5 ml-1" />;
+  };
 
   // Using IntelligenceBadge component instead of icons
 
@@ -404,9 +454,15 @@ const ReMarketingBuyers = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[280px]">Platform / Buyer</TableHead>
-                <TableHead className="w-[180px]">PE Firm</TableHead>
-                <TableHead>Universe</TableHead>
+                <TableHead className="w-[280px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('company_name')}>
+                  <span className="flex items-center">Platform / Buyer <SortIcon column="company_name" /></span>
+                </TableHead>
+                <TableHead className="w-[180px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('pe_firm_name')}>
+                  <span className="flex items-center">PE Firm <SortIcon column="pe_firm_name" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('universe')}>
+                  <span className="flex items-center">Universe <SortIcon column="universe" /></span>
+                </TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="w-[130px]">Intel</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
