@@ -294,9 +294,7 @@ serve(async (req) => {
       }
 
       listingsToScore = [listing];
-      
-      // Always queue single listing for enrichment when scoring
-      enrichmentQueued = await queueDealsForEnrichment([listingId], 'single deal score');
+      // No auto-enrichment — only enrich when explicitly requested
     } else if (forceRecalculate) {
       // Force recalculate ALL active listings (even if already scored)
       const { data: listings, error: listingsError } = await supabase
@@ -304,7 +302,7 @@ serve(async (req) => {
         .select("*")
         .eq("status", "active")
         .is("deleted_at", null)
-        .limit(100); // Process in larger batches for rescore
+        .limit(100);
 
       if (listingsError) {
         throw new Error("Failed to fetch listings");
@@ -313,12 +311,10 @@ serve(async (req) => {
       listingsToScore = listings || [];
       console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
 
-      // If triggerEnrichment is true, queue ALL deals for re-enrichment
-      // AND reset their enriched_at to force full re-processing
+      // Only queue enrichment when explicitly requested via triggerEnrichment flag
       if (triggerEnrichment && listingsToScore.length > 0) {
         const dealIds = listingsToScore.map(l => l.id);
         
-        // Reset enriched_at to null so the queue processor actually processes them
         console.log(`Resetting enriched_at for ${dealIds.length} deals to force re-enrichment`);
         const { error: resetError } = await supabase
           .from("listings")
@@ -337,44 +333,14 @@ serve(async (req) => {
         .from("listings")
         .select("*")
         .is("deal_total_score", null)
-        .limit(50); // Process in batches
+        .limit(50);
 
       if (listingsError) {
         throw new Error("Failed to fetch listings");
       }
 
       listingsToScore = listings || [];
-
-      // Queue unscored deals for enrichment (they likely need it)
-      if (listingsToScore.length > 0) {
-        const unscoredIds = listingsToScore
-          .filter(l => !l.enriched_at) // Only those not enriched
-          .map(l => l.id);
-        
-        if (unscoredIds.length > 0) {
-          enrichmentQueued = await queueDealsForEnrichment(unscoredIds, 'unscored deals');
-        }
-      }
-
-      // Also queue enrichment for stale deals (not enriched in 30+ days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
-
-      const { data: staleDeals, error: staleError } = await supabase
-        .from("listings")
-        .select("id, enriched_at")
-        .eq("status", "active")
-        .is("deleted_at", null)
-        .or(`enriched_at.is.null,enriched_at.lt.${thirtyDaysAgoISO}`)
-        .limit(20);
-
-      if (!staleError && staleDeals && staleDeals.length > 0) {
-        console.log(`Found ${staleDeals.length} deals needing enrichment (stale or never enriched)`);
-        const staleIds = staleDeals.map(d => d.id);
-        const staleQueued = await queueDealsForEnrichment(staleIds, 'stale deals');
-        enrichmentQueued += staleQueued;
-      }
+      // No auto-enrichment — scoring only uses existing data
     } else {
       return new Response(
         JSON.stringify({ error: "Must provide listingId, calculateAll: true, or forceRecalculate: true" }),
