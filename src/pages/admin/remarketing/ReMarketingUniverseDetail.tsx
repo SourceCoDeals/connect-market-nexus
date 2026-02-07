@@ -276,8 +276,10 @@ const ReMarketingUniverseDetail = () => {
           added_at,
           status,
           listing:listings(
-            id, title, internal_company_name, location, revenue, ebitda, 
-            enriched_at, geographic_states
+            id, title, internal_company_name, description, location, revenue, ebitda, 
+            enriched_at, geographic_states,
+            linkedin_employee_count, linkedin_employee_range,
+            google_rating, google_review_count
           )
         `)
         .eq('universe_id', id)
