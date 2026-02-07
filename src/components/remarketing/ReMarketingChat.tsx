@@ -19,6 +19,11 @@ import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations
 import ReactMarkdown from "react-markdown";
 import { useChatPersistence } from "@/hooks/use-chat-persistence";
 import type { ConversationContext } from "@/integrations/supabase/chat-persistence";
+import { ChatFeedbackButtons } from "./ChatFeedbackButtons";
+import { SmartSuggestions, type Suggestion } from "./SmartSuggestions";
+import { ProactiveRecommendation, type Recommendation } from "./ProactiveRecommendation";
+import { generateSmartSuggestions } from "@/utils/smart-suggestions-client";
+import { generateProactiveRecommendations } from "@/utils/proactive-recommendations-client";
 
 export type ChatContext = 
   | { type: "deal"; dealId: string; dealName?: string }
@@ -118,6 +123,8 @@ export function ReMarketingChat({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [smartSuggestions, setSmartSuggestions] = useState<Suggestion[]>([]);
+  const [activeRecommendation, setActiveRecommendation] = useState<Recommendation | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -342,6 +349,22 @@ export function ReMarketingChat({
           }))
         ).catch((err) => console.error('[ReMarketingChat] Save error:', err));
 
+        // Generate smart suggestions
+        const suggestions = generateSmartSuggestions(
+          updatedMessages.map(m => ({ role: m.role, content: m.content })),
+          { type: context.type, dealId: context.type === 'deal' ? context.dealId : undefined, universeId: context.type === 'universe' ? context.universeId : undefined }
+        );
+        setSmartSuggestions(suggestions);
+
+        // Proactive recommendations every 3 exchanges
+        if (updatedMessages.length % 6 === 0) {
+          const recs = generateProactiveRecommendations(
+            updatedMessages.map(m => ({ role: m.role, content: m.content })),
+            { type: context.type }
+          );
+          if (recs.length > 0) setActiveRecommendation(recs[0]);
+        }
+
         return updatedMessages;
       });
       setStreamingContent("");
@@ -464,6 +487,22 @@ export function ReMarketingChat({
         </CardHeader>
 
         <ScrollArea ref={scrollRef} className="flex-1 p-4">
+          {/* Proactive recommendation */}
+          {activeRecommendation && (
+            <ProactiveRecommendation
+              recommendation={activeRecommendation}
+              onAccept={(query) => {
+                if (query) {
+                  setInput(query);
+                  setTimeout(() => inputRef.current?.focus(), 100);
+                }
+                setActiveRecommendation(null);
+              }}
+              onDismiss={() => setActiveRecommendation(null)}
+              className="mb-4"
+            />
+          )}
+
           {messages.length === 0 && !streamingContent ? (
             <div className="space-y-4">
               <div className="text-center py-6">
@@ -514,14 +553,37 @@ export function ReMarketingChat({
                       <p className="text-base">{message.content}</p>
                     )}
                   </div>
-                  <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                    {message.timestamp.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground mt-1 px-1">
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {message.role === 'assistant' && conversationId && (
+                      <ChatFeedbackButtons
+                        conversationId={conversationId}
+                        messageIndex={messages.indexOf(message)}
+                        messageContent={message.content}
+                        className="mt-1"
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
+
+              {/* Smart suggestions after last message */}
+              {smartSuggestions.length > 0 && !isLoading && !streamingContent && (
+                <SmartSuggestions
+                  suggestions={smartSuggestions}
+                  onSelectSuggestion={(text) => {
+                    setInput(text);
+                    inputRef.current?.focus();
+                    setSmartSuggestions([]);
+                  }}
+                  className="mt-3"
+                />
+              )}
 
               {/* Streaming content */}
               {streamingContent && (
