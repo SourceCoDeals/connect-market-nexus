@@ -2,46 +2,90 @@
  * Geography Utilities for Proximity-Based Scoring
  *
  * Provides state adjacency lookups and proximity scoring for buyer-deal matching.
- * Adjacent states are considered ~100 miles apart on average.
+ * Uses a built-in adjacency map with optional DB override via geographic_adjacency table.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-// Cache for adjacency data to avoid repeated DB queries
-// TTL of 30 minutes to pick up DB changes without restarting the isolate
+// Cache for adjacency data
 const CACHE_TTL_MS = 30 * 60 * 1000;
 let adjacencyCache: Map<string, string[]> | null = null;
 let regionCache: Map<string, string> | null = null;
 let cacheLoadedAt: number = 0;
 
+// ============================================================================
+// BUILT-IN STATE ADJACENCY + REGION DATA (fallback when DB table missing)
+// ============================================================================
+
+const BUILT_IN_ADJACENCY: Record<string, string[]> = {
+  AL: ['FL','GA','MS','TN'], AK: [], AZ: ['CA','CO','NM','NV','UT'],
+  AR: ['LA','MO','MS','OK','TN','TX'], CA: ['AZ','NV','OR'], CO: ['AZ','KS','NE','NM','OK','UT','WY'],
+  CT: ['MA','NY','RI'], DE: ['MD','NJ','PA'], FL: ['AL','GA'],
+  GA: ['AL','FL','NC','SC','TN'], HI: [], ID: ['MT','NV','OR','UT','WA','WY'],
+  IL: ['IN','IA','KY','MO','WI'], IN: ['IL','KY','MI','OH'], IA: ['IL','MN','MO','NE','SD','WI'],
+  KS: ['CO','MO','NE','OK'], KY: ['IL','IN','MO','OH','TN','VA','WV'],
+  LA: ['AR','MS','TX'], ME: ['NH'], MD: ['DE','PA','VA','WV','DC'],
+  MA: ['CT','NH','NY','RI','VT'], MI: ['IN','OH','WI'], MN: ['IA','ND','SD','WI'],
+  MS: ['AL','AR','LA','TN'], MO: ['AR','IL','IA','KS','KY','NE','OK','TN'],
+  MT: ['ID','ND','SD','WY'], NE: ['CO','IA','KS','MO','SD','WY'],
+  NV: ['AZ','CA','ID','OR','UT'], NH: ['MA','ME','VT'], NJ: ['DE','NY','PA'],
+  NM: ['AZ','CO','OK','TX','UT'], NY: ['CT','MA','NJ','PA','VT'],
+  NC: ['GA','SC','TN','VA'], ND: ['MN','MT','SD'], OH: ['IN','KY','MI','PA','WV'],
+  OK: ['AR','CO','KS','MO','NM','TX'], OR: ['CA','ID','NV','WA'],
+  PA: ['DE','MD','NJ','NY','OH','WV'], RI: ['CT','MA'], SC: ['GA','NC'],
+  SD: ['IA','MN','MT','ND','NE','WY'], TN: ['AL','AR','GA','KY','MO','MS','NC','VA'],
+  TX: ['AR','LA','NM','OK'], UT: ['AZ','CO','ID','NM','NV','WY'],
+  VT: ['MA','NH','NY'], VA: ['KY','MD','NC','TN','WV','DC'], WA: ['ID','OR'],
+  WV: ['KY','MD','OH','PA','VA'], WI: ['IA','IL','MI','MN'], WY: ['CO','ID','MT','NE','SD','UT'],
+  DC: ['MD','VA'],
+};
+
+const BUILT_IN_REGIONS: Record<string, string> = {
+  CT: 'Northeast', ME: 'Northeast', MA: 'Northeast', NH: 'Northeast', RI: 'Northeast', VT: 'Northeast',
+  NJ: 'Northeast', NY: 'Northeast', PA: 'Northeast',
+  IL: 'Midwest', IN: 'Midwest', MI: 'Midwest', OH: 'Midwest', WI: 'Midwest',
+  IA: 'Midwest', KS: 'Midwest', MN: 'Midwest', MO: 'Midwest', NE: 'Midwest', ND: 'Midwest', SD: 'Midwest',
+  DE: 'Southeast', FL: 'Southeast', GA: 'Southeast', MD: 'Southeast', NC: 'Southeast', SC: 'Southeast',
+  VA: 'Southeast', DC: 'Southeast', WV: 'Southeast', AL: 'Southeast', KY: 'Southeast',
+  MS: 'Southeast', TN: 'Southeast', AR: 'Southeast', LA: 'Southeast',
+  AZ: 'Southwest', NM: 'Southwest', OK: 'Southwest', TX: 'Southwest',
+  CO: 'West', ID: 'West', MT: 'West', NV: 'West', UT: 'West', WY: 'West',
+  AK: 'Pacific', CA: 'Pacific', HI: 'Pacific', OR: 'Pacific', WA: 'Pacific',
+};
+
 /**
- * Initialize adjacency cache from database
+ * Initialize adjacency cache — tries DB first, falls back to built-in data
  */
 async function initializeCache(supabaseUrl: string, supabaseKey: string) {
   const now = Date.now();
   if (adjacencyCache && regionCache && (now - cacheLoadedAt) < CACHE_TTL_MS) return;
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data, error } = await supabase
+      .from('geographic_adjacency')
+      .select('state_code, adjacent_states, region');
 
-  const { data, error } = await supabase
-    .from('geographic_adjacency')
-    .select('state_code, adjacent_states, region');
-
-  if (error) {
-    console.error('Failed to load geographic adjacency data:', error);
-    throw error;
+    if (!error && data && data.length > 0) {
+      adjacencyCache = new Map();
+      regionCache = new Map();
+      for (const row of data) {
+        adjacencyCache.set(row.state_code, row.adjacent_states);
+        regionCache.set(row.state_code, row.region);
+      }
+      cacheLoadedAt = Date.now();
+      console.log(`Loaded adjacency data from DB for ${adjacencyCache.size} states`);
+      return;
+    }
+  } catch {
+    // DB table doesn't exist or query failed — use built-in
   }
 
-  adjacencyCache = new Map();
-  regionCache = new Map();
-
-  for (const row of data || []) {
-    adjacencyCache.set(row.state_code, row.adjacent_states);
-    regionCache.set(row.state_code, row.region);
-  }
-
+  // Fall back to built-in adjacency data
+  adjacencyCache = new Map(Object.entries(BUILT_IN_ADJACENCY));
+  regionCache = new Map(Object.entries(BUILT_IN_REGIONS));
   cacheLoadedAt = Date.now();
-  console.log(`Loaded adjacency data for ${adjacencyCache.size} states`);
+  console.log(`Using built-in adjacency data for ${adjacencyCache.size} states`);
 }
 
 /**
@@ -123,7 +167,7 @@ export async function isSameRegion(
   const region1 = regionCache?.get(normalized1);
   const region2 = regionCache?.get(normalized2);
 
-  return region1 !== null && region1 === region2;
+  return region1 !== undefined && region1 !== null && region1 === region2;
 }
 
 /**

@@ -745,17 +745,24 @@ async function callServiceFitAI(
   const buyerOffered = buyer.services_offered || '';
   const buyerIndustries = (buyer.target_industries || []).filter(Boolean).join(', ');
   const buyerFocus = buyer.specialized_focus || '';
+  const buyerCompanyName = buyer.company_name || buyer.pe_firm_name || '';
+  const buyerWebsite = buyer.company_website || '';
+  const universeIndustry = tracker?.industry || tracker?.name || '';
 
   const customContext = customInstructions ? `\nADDITIONAL SCORING INSTRUCTIONS: ${customInstructions}` : '';
   const prompt = `Score 0-100 how well these services align:
 DEAL SERVICES: ${dealServices}
 DEAL INDUSTRY: ${listing.category || 'Unknown'}
+BUYER COMPANY: ${buyerCompanyName}
+BUYER WEBSITE: ${buyerWebsite}
 BUYER TARGET SERVICES: ${buyerServices || 'Not specified'}
 BUYER CURRENT SERVICES: ${buyerOffered || 'Not specified'}
 BUYER TARGET INDUSTRIES: ${buyerIndustries || 'Not specified'}
 BUYER SPECIALIZED FOCUS: ${buyerFocus || 'Not specified'}
-BUYER THESIS: ${(buyer.thesis_summary || '').substring(0, 200)}${customContext}
+BUYER THESIS: ${(buyer.thesis_summary || '').substring(0, 200)}
+UNIVERSE INDUSTRY CONTEXT: ${universeIndustry || 'Not specified'}${customContext}
 
+IMPORTANT: If buyer services are "Not specified" but the buyer company name or website suggests they operate in the same industry as the deal, score 55-70 (inferred match). Only score 20-40 if company name/website clearly suggest a different industry. Do NOT default to 50 for all unknown cases — use company name and context to differentiate.
 Score guide: 85-100 = exact match, 60-84 = strong overlap, 40-59 = partial/adjacent, 20-39 = weak adjacency, 0-19 = unrelated.
 Return JSON: {"score": number, "reasoning": "one sentence"}`;
 
@@ -1290,8 +1297,8 @@ async function scoreSingleBuyer(
   ]);
 
   // === Weight Redistribution for Missing Data ===
-  // When buyer has no size criteria, redistribute size weight proportionally to other dimensions
-  // This prevents 30% of the composite from being locked at a flat 60 for all data-sparse buyers
+  // When buyer lacks data for a dimension, that dimension produces a flat neutral score.
+  // To prevent clustering, redistribute its weight to dimensions that CAN differentiate.
   const buyerHasSizeData = buyer.target_revenue_min != null || buyer.target_revenue_max != null ||
     buyer.target_ebitda_min != null || buyer.target_ebitda_max != null ||
     buyer.revenue_sweet_spot != null || buyer.ebitda_sweet_spot != null;
@@ -1302,65 +1309,47 @@ async function scoreSingleBuyer(
   const buyerHasServiceData = (buyer.target_services?.length > 0) ||
     (buyer.services_offered && buyer.services_offered.trim().length > 0);
 
-  // Collect dimensions that have insufficient buyer data
-  const insufficientDimensions: string[] = [];
-  if (!buyerHasSizeData) insufficientDimensions.push('size');
-  if (!buyerHasGeoData) insufficientDimensions.push('geography');
-  if (!buyerHasServiceData) insufficientDimensions.push('services');
-
-  if (insufficientDimensions.length > 0 && insufficientDimensions.length < 3) {
-    // Redistribute weight from insufficient dimensions to scored dimensions
-    let redistributedWeight = 0;
-    if (insufficientDimensions.includes('size')) {
-      redistributedWeight += sizeWeight;
-      sizeWeight = 0;
-    }
-    if (insufficientDimensions.includes('geography')) {
-      redistributedWeight += geoWeight;
-      geoWeight = 0;
-    }
-    if (insufficientDimensions.includes('services')) {
-      redistributedWeight += serviceWeight;
-      serviceWeight = 0;
-    }
-
-    // Distribute proportionally among remaining scored dimensions
-    const remainingWeight = 100 - redistributedWeight;
-    if (remainingWeight > 0) {
-      const scale = (remainingWeight + redistributedWeight) / remainingWeight;
-      if (sizeWeight > 0) sizeWeight = Math.round(sizeWeight * scale);
-      if (geoWeight > 0) geoWeight = Math.round(geoWeight * scale);
-      if (serviceWeight > 0) serviceWeight = Math.round(serviceWeight * scale);
-      if (ownerGoalsWeight > 0) ownerGoalsWeight = Math.round(ownerGoalsWeight * scale);
-    }
-
-    console.log(`[Weight Redistribution] Buyer ${buyer.id}: insufficient data for [${insufficientDimensions.join(', ')}]. Effective weights: size=${sizeWeight}, geo=${geoWeight}, service=${serviceWeight}, owner=${ownerGoalsWeight}`);
-  }
-
-  // === Step f: Weighted composite ===
-  // Weight redistribution: when buyer has no size criteria (pre-conversation), size is uninformative.
-  // Redistribute size weight proportionally to service and geography so those dimensions drive ranking.
-  const buyerHasSizeCriteria = buyer.target_revenue_min != null || buyer.target_revenue_max != null
-    || buyer.target_ebitda_min != null || buyer.target_ebitda_max != null
-    || buyer.revenue_sweet_spot != null || buyer.ebitda_sweet_spot != null;
-
   let effectiveSizeWeight = sizeWeight;
   let effectiveServiceWeight = serviceWeight;
   let effectiveGeoWeight = geoWeight;
-  if (!buyerHasSizeCriteria) {
-    // Redistribute size weight: 70% to service, 30% to geography
-    effectiveServiceWeight = serviceWeight + Math.round(sizeWeight * 0.7);
-    effectiveGeoWeight = geoWeight + Math.round(sizeWeight * 0.3);
+  let effectiveOwnerWeight = ownerGoalsWeight;
+
+  // Collect weight from insufficient dimensions
+  let pooledWeight = 0;
+  if (!buyerHasSizeData) {
+    pooledWeight += effectiveSizeWeight;
     effectiveSizeWeight = 0;
   }
+  if (!buyerHasGeoData) {
+    pooledWeight += effectiveGeoWeight;
+    effectiveGeoWeight = 0;
+  }
+  if (!buyerHasServiceData) {
+    pooledWeight += effectiveServiceWeight;
+    effectiveServiceWeight = 0;
+  }
 
+  // Redistribute pooled weight proportionally among dimensions that DO have data
+  if (pooledWeight > 0) {
+    const scoredWeight = effectiveSizeWeight + effectiveGeoWeight + effectiveServiceWeight + effectiveOwnerWeight;
+    if (scoredWeight > 0) {
+      const scale = (scoredWeight + pooledWeight) / scoredWeight;
+      effectiveSizeWeight = Math.round(effectiveSizeWeight * scale);
+      effectiveGeoWeight = Math.round(effectiveGeoWeight * scale);
+      effectiveServiceWeight = Math.round(effectiveServiceWeight * scale);
+      effectiveOwnerWeight = Math.round(effectiveOwnerWeight * scale);
+    }
+    console.log(`[Weight Redistribution] Buyer ${buyer.id}: missing [${!buyerHasSizeData ? 'size' : ''}${!buyerHasGeoData ? ' geo' : ''}${!buyerHasServiceData ? ' svc' : ''}]. Effective: size=${effectiveSizeWeight}, geo=${effectiveGeoWeight}, svc=${effectiveServiceWeight}, owner=${effectiveOwnerWeight}`);
+  }
+
+  // === Step f: Weighted composite ===
   // Use effective weight sum as divisor so reduced geography mode doesn't systematically lower all scores
-  const effectiveWeightSum = effectiveSizeWeight + effectiveGeoWeight * geoResult.modeFactor + effectiveServiceWeight + ownerGoalsWeight;
+  const effectiveWeightSum = effectiveSizeWeight + effectiveGeoWeight * geoResult.modeFactor + effectiveServiceWeight + effectiveOwnerWeight;
   const weightedBase = Math.round(
     (sizeResult.score * effectiveSizeWeight +
      geoResult.score * effectiveGeoWeight * geoResult.modeFactor +
      serviceResult.score * effectiveServiceWeight +
-     ownerGoalsResult.score * ownerGoalsWeight) / effectiveWeightSum
+     ownerGoalsResult.score * effectiveOwnerWeight) / effectiveWeightSum
   );
 
   // === Step g+h: Apply BOTH gates ===
@@ -1447,7 +1436,7 @@ async function scoreSingleBuyer(
     sizeResult.reasoning,
   ];
 
-  if (!buyerHasSizeCriteria) {
+  if (!buyerHasSizeData) {
     reasoningParts.push(`Size weight redistributed (no buyer size criteria — pre-conversation)`);
   } else if (sizeResult.multiplier < 1.0 && !isDisqualified) {
     reasoningParts.push(`Size gate: ${Math.round(sizeResult.multiplier * 100)}%`);
