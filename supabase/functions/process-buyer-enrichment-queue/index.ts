@@ -7,12 +7,14 @@ const corsHeaders = {
 };
 
 // Configuration
-const BATCH_SIZE = 10;
-const CONCURRENCY_LIMIT = 3; // Lower than deals since buyer enrichment is more intensive
+const BATCH_SIZE = 6;
+const CONCURRENCY_LIMIT = 1; // Sequential: each buyer makes 6+ Claude calls, parallel causes rate limits
 const MAX_ATTEMPTS = 3;
 const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes per buyer
 const MAX_FUNCTION_RUNTIME_MS = 110000; // ~110s safety cutoff
 const RATE_LIMIT_BACKOFF_MS = 60000; // 1 minute backoff on rate limit
+const INTER_BUYER_DELAY_MS = 3000; // 3s delay between buyers to let rate limits recover
+const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -37,7 +39,7 @@ serve(async (req) => {
     console.log('Processing buyer enrichment queue...');
 
     // Recovery: reset stale processing items (stuck for 3+ minutes)
-    const staleCutoffIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const staleCutoffIso = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000).toISOString();
     await supabase
       .from('buyer_enrichment_queue')
       .update({
@@ -128,11 +130,15 @@ serve(async (req) => {
         break;
       }
 
-      console.log(`Processing chunk of ${chunk.length} buyers in parallel...`);
+      console.log(`Processing chunk of ${chunk.length} buyers sequentially...`);
 
-      // Mark as processing
-      await Promise.all(chunk.map((item) =>
-        supabase
+      for (const item of chunk) {
+        // Safety cutoff per-item
+        if (Date.now() - startedAt > MAX_FUNCTION_RUNTIME_MS) break;
+        if (hitRateLimit) break;
+
+        // Mark as processing
+        await supabase
           .from('buyer_enrichment_queue')
           .update({
             status: 'processing',
@@ -141,70 +147,32 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq('id', item.id)
-          .eq('status', 'pending')
-      ));
+          .eq('status', 'pending');
 
-      // Process chunk in parallel
-      const chunkResults = await Promise.allSettled(
-        chunk.map(async (item) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), PROCESSING_TIMEOUT_MS);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), PROCESSING_TIMEOUT_MS);
 
-          try {
-            console.log(`Enriching buyer ${item.buyer_id}`);
+        try {
+          console.log(`Enriching buyer ${item.buyer_id}`);
 
-            // Call the enrich-buyer function with service role key for server-to-server auth
-            const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseServiceKey,
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({ buyerId: item.buyer_id, skipLock: true }),
-              signal: controller.signal,
-            });
+          const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseServiceKey,
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({ buyerId: item.buyer_id, skipLock: true }),
+            signal: controller.signal,
+          });
 
-            clearTimeout(timeoutId);
+          clearTimeout(timeoutId);
 
-            const data = await response.json().catch(() => ({}));
+          const data = await response.json().catch(() => ({}));
 
-            if (response.status === 401) {
-              console.error('enrich-buyer returned 401', {
-                buyerId: item.buyer_id,
-                bodyKeys: typeof data === 'object' && data ? Object.keys(data) : [],
-                error: (data as any)?.error,
-                success: (data as any)?.success,
-              });
-            }
-
-            if (response.status === 429 || data.error_code === 'rate_limited') {
-              return { item, rateLimited: true, resetTime: data.resetTime };
-            }
-
-            if (!response.ok || !data.success) {
-              throw new Error(data.error || `HTTP ${response.status}`);
-            }
-
-            return { item, success: true, fieldsUpdated: data.fieldsUpdated };
-          } catch (error) {
-            clearTimeout(timeoutId);
-            throw { item, error };
-          }
-        })
-      );
-
-      // Process results
-      for (const result of chunkResults) {
-        results.processed++;
-
-        if (result.status === 'fulfilled') {
-          const value = result.value;
-
-          if (value.rateLimited) {
-            // Rate limited - mark for retry after backoff
+          if (response.status === 429 || data.error_code === 'rate_limited') {
             hitRateLimit = true;
-            const resetAt = value.resetTime || new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
+            const resetAt = data.resetTime || new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
             
             await supabase
               .from('buyer_enrichment_queue')
@@ -214,49 +182,76 @@ serve(async (req) => {
                 last_error: 'Rate limited - will retry after reset',
                 updated_at: new Date().toISOString(),
               })
-              .eq('id', value.item.id);
+              .eq('id', item.id);
 
             results.rateLimited++;
-            console.log(`Buyer ${value.item.buyer_id} rate limited, will retry after ${resetAt}`);
-          } else if (value.success) {
-            // Success
+            results.processed++;
+            console.log(`Buyer ${item.buyer_id} rate limited, will retry after ${resetAt}`);
+            continue;
+          }
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+          }
+
+          // Check for partial enrichment (rate limited mid-execution but saved partial data)
+          const wasPartial = data.extractionDetails?.rateLimited === true;
+          
+          if (wasPartial && item.attempts < MAX_ATTEMPTS - 1) {
+            // Partial enrichment - data was saved but re-queue for remaining prompts
+            await supabase
+              .from('buyer_enrichment_queue')
+              .update({
+                status: 'pending',
+                started_at: null,
+                last_error: `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts completed`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', item.id);
+
+            results.processed++;
+            console.log(`Buyer ${item.buyer_id} partially enriched (${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts), re-queued`);
+          } else {
+            // Full success or max attempts reached with partial data
             await supabase
               .from('buyer_enrichment_queue')
               .update({
                 status: 'completed',
                 completed_at: new Date().toISOString(),
-                last_error: null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', value.item.id);
-
-            results.succeeded++;
-            console.log(`Successfully enriched buyer ${value.item.buyer_id}: ${value.fieldsUpdated} fields`);
-          }
-        } else {
-          // Error
-          const reason = result.reason as { item?: { id: string; buyer_id: string; attempts: number }; error?: Error };
-          const item = reason?.item;
-          const errorMsg = reason?.error instanceof Error ? reason.error.message : 'Unknown error';
-
-          if (item?.id) {
-            const currentAttempts = item.attempts + 1;
-            const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
-
-            await supabase
-              .from('buyer_enrichment_queue')
-              .update({
-                status: newStatus,
-                last_error: errorMsg,
-                started_at: null,
+                last_error: wasPartial ? `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts` : null,
                 updated_at: new Date().toISOString(),
               })
               .eq('id', item.id);
 
-            results.errors.push(`${item.buyer_id}: ${errorMsg}`);
+            results.succeeded++;
+            results.processed++;
+            console.log(`Successfully enriched buyer ${item.buyer_id}: ${data.fieldsUpdated} fields`);
           }
 
+          // Inter-buyer delay to prevent rate limits
+          if (INTER_BUYER_DELAY_MS > 0) {
+            await new Promise(resolve => setTimeout(resolve, INTER_BUYER_DELAY_MS));
+          }
+
+        } catch (error) {
+          clearTimeout(timeoutId);
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          const currentAttempts = item.attempts + 1;
+          const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+
+          await supabase
+            .from('buyer_enrichment_queue')
+            .update({
+              status: newStatus,
+              last_error: errorMsg,
+              started_at: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+
+          results.errors.push(`${item.buyer_id}: ${errorMsg}`);
           results.failed++;
+          results.processed++;
           console.error(`Failed to enrich buyer:`, errorMsg);
         }
       }
