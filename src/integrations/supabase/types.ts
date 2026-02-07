@@ -7929,6 +7929,7 @@ export type Database = {
         Returns: undefined
       }
       normalize_company_name: { Args: { name: string }; Returns: string }
+      normalize_state_name: { Args: { state_name: string }; Returns: string }
       preview_profile_data_restoration: {
         Args: never
         Returns: {
