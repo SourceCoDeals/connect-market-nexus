@@ -85,6 +85,7 @@ serve(async (req) => {
             search: 'team leadership about people contact',
             limit: 10
           }),
+          signal: AbortSignal.timeout(15000),
         });
 
         let teamPages: string[] = [];
@@ -118,6 +119,7 @@ serve(async (req) => {
                 formats: ['markdown'],
                 onlyMainContent: true,
               }),
+              signal: AbortSignal.timeout(15000),
             });
 
             if (!scrapeResponse.ok) continue;
@@ -216,8 +218,9 @@ Only include people with clear names and titles. Return empty array if no contac
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Extract contacts from this page:\n\n${content.substring(0, 8000)}` }
         ],
-        temperature: 0.1,
+        temperature: 0,
       }),
+      signal: AbortSignal.timeout(20000),
     });
 
     if (!response.ok) {

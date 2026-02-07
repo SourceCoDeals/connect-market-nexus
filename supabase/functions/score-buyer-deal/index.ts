@@ -848,6 +848,7 @@ Return JSON: {"score": number, "reasoning": "one sentence"}`;
       ],
       response_format: { type: "json_object" },
       max_tokens: 200,
+      temperature: 0,
     }),
     signal: AbortSignal.timeout(10000),
   });
@@ -960,6 +961,7 @@ Return JSON: {"score": number, "confidence": "high"|"medium"|"low", "reasoning":
       ],
       response_format: { type: "json_object" },
       max_tokens: 200,
+      temperature: 0,
     }),
     signal: AbortSignal.timeout(10000),
   });
