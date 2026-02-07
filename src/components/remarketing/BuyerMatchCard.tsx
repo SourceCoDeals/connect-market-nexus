@@ -70,6 +70,7 @@ interface BuyerMatchCardProps {
   };
   dealLocation?: string;
   isSelected?: boolean;
+  isHighlighted?: boolean;
   onSelect?: (id: string, selected: boolean) => void;
   onApprove: (scoreId: string, scoreData: any) => void;
   onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
@@ -257,6 +258,7 @@ export const BuyerMatchCard = ({
   score,
   dealLocation,
   isSelected = false,
+  isHighlighted = false,
   onSelect,
   onApprove,
   onPass,
@@ -332,10 +334,14 @@ export const BuyerMatchCard = ({
   };
 
   return (
-    <div className={cn(
-      "border rounded-lg transition-all bg-background",
-      score.status === 'passed' && "opacity-60"
-    )}>
+    <div
+      id={`buyer-card-${score.buyer?.id}`}
+      className={cn(
+        "border rounded-lg transition-all bg-background",
+        score.status === 'passed' && "opacity-60",
+        isHighlighted && "ring-2 ring-primary border-primary shadow-lg shadow-primary/10"
+      )}
+    >
       {/* Main Header Row - White background */}
       <div className="p-4 pb-3">
         <div className="flex items-start gap-4">
