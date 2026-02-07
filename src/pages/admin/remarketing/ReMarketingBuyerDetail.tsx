@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,7 +143,9 @@ type EditDialogType = 'business' | 'investment' | 'dealStructure' | 'geographic'
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+  const backTo = (location.state as any)?.from || "/admin/remarketing/buyers";
   const isNew = id === 'new';
 
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
@@ -535,6 +537,7 @@ const ReMarketingBuyerDetail = () => {
         onEdit={() => setActiveEditDialog('business')}
         onEnrich={() => enrichMutation.mutate()}
         isEnriching={enrichMutation.isPending}
+        backTo={backTo}
       />
 
       {/* Criteria Completeness Banner */}
