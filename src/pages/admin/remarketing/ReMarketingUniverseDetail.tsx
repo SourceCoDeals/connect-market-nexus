@@ -1316,9 +1316,25 @@ const ReMarketingUniverseDetail = () => {
           open={importBuyersDialogOpen}
           onOpenChange={setImportBuyersDialogOpen}
           hideTrigger
-          onComplete={() => {
+          onComplete={async () => {
             queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
             setImportBuyersDialogOpen(false);
+            
+            // Auto-score new buyers against all deals in universe
+            if (id) {
+              const { data: deals } = await supabase
+                .from('remarketing_universe_deals')
+                .select('listing_id')
+                .eq('universe_id', id);
+              if (deals && deals.length > 0) {
+                toast.info('Scoring new buyers against deals...');
+                for (const deal of deals) {
+                  supabase.functions.invoke('score-buyer-deal', {
+                    body: { bulk: true, listingId: deal.listing_id, universeId: id }
+                  });
+                }
+              }
+            }
           }}
         />
       )}
