@@ -110,8 +110,9 @@ interface BuyerData {
   employee_range?: string | null;
   number_of_locations?: number | null;
   operating_locations?: string[] | null;
+  service_regions?: string[] | null;
   services_offered?: string | null;
-  business_model?: string | null;
+  business_type?: string | null;
   revenue_model?: string | null;
 }
 
@@ -598,7 +599,7 @@ const ReMarketingBuyerDetail = () => {
           
           <BuyerServicesBusinessModelCard
             servicesOffered={buyer?.services_offered}
-            businessModel={buyer?.business_model}
+            businessModel={buyer?.business_type}
             revenueModel={buyer?.revenue_model}
             onEdit={() => setActiveEditDialog('servicesModel')}
           />
@@ -614,6 +615,8 @@ const ReMarketingBuyerDetail = () => {
           <GeographicFootprintCard
             targetGeographies={buyer?.target_geographies}
             operatingLocations={buyer?.operating_locations}
+            geographicFootprint={buyer?.geographic_footprint}
+            serviceRegions={buyer?.service_regions}
             onEdit={() => setActiveEditDialog('geographic')}
           />
           
@@ -1009,7 +1012,7 @@ const ReMarketingBuyerDetail = () => {
         open={activeEditDialog === 'servicesModel'}
         onOpenChange={(open) => !open && setActiveEditDialog(null)}
         servicesOffered={buyer?.services_offered}
-        businessModel={buyer?.business_model}
+        businessModel={buyer?.business_type}
         revenueModel={buyer?.revenue_model}
         onSave={async (data) => {
           updateBuyerMutation.mutate(data);

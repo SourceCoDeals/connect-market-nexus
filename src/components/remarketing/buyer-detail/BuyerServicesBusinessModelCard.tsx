@@ -1,63 +1,106 @@
- import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
- import { Button } from "@/components/ui/button";
- import { Store, Pencil } from "lucide-react";
- 
- interface BuyerServicesBusinessModelCardProps {
-   servicesOffered?: string | null;
-   businessModel?: string | null;
-   revenueModel?: string | null;
-   onEdit: () => void;
- }
- 
- export const BuyerServicesBusinessModelCard = ({
-   servicesOffered,
-   businessModel,
-   revenueModel,
-   onEdit,
- }: BuyerServicesBusinessModelCardProps) => {
-   const hasContent = servicesOffered || businessModel || revenueModel;
- 
-   return (
-     <Card>
-       <CardHeader className="pb-3">
-         <div className="flex items-center justify-between">
-           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-             <Store className="h-4 w-4" />
-             Services & Business Model
-           </CardTitle>
-           <Button variant="ghost" size="icon" onClick={onEdit}>
-             <Pencil className="h-4 w-4" />
-           </Button>
-         </div>
-       </CardHeader>
-       <CardContent className="space-y-4">
-         {!hasContent ? (
-           <p className="text-sm text-muted-foreground italic">No services or business model specified</p>
-         ) : (
-           <>
-             {servicesOffered && (
-               <div>
-                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                   Service Mix
-                 </p>
-                 <p className="text-sm text-primary">{servicesOffered}</p>
-               </div>
-             )}
-             {(businessModel || revenueModel) && (
-               <div className="pt-2 border-t">
-                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                   Business Model
-                 </p>
-                 <p className="text-sm text-muted-foreground">
-                   {businessModel || revenueModel}
-                 </p>
-               </div>
-             )}
-           </>
-         )}
-       </CardContent>
-     </Card>
-   );
- };
- 
- export default BuyerServicesBusinessModelCard;
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Store, Pencil } from "lucide-react";
+
+interface BuyerServicesBusinessModelCardProps {
+  servicesOffered?: string | null;
+  businessModel?: string | null;
+  revenueModel?: string | null;
+  onEdit: () => void;
+}
+
+/**
+ * Parse services_offered which may be:
+ * - A JSON array string: '["Water mitigation", "Roofing"]'
+ * - A comma-separated string: 'Water mitigation, Roofing'
+ * - A plain text description
+ */
+function parseServices(raw: string): { items: string[] | null; text: string | null } {
+  const trimmed = raw.trim();
+  
+  // Try JSON array parse
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return { items: parsed.map(String).filter(Boolean), text: null };
+      }
+    } catch {
+      // Not valid JSON, treat as text
+    }
+  }
+  
+  // If it's short and comma-separated (no long sentences), treat as list
+  const parts = trimmed.split(",").map(s => s.trim()).filter(Boolean);
+  if (parts.length > 1 && parts.every(p => p.length < 60)) {
+    return { items: parts, text: null };
+  }
+  
+  // Otherwise it's a prose description
+  return { items: null, text: trimmed };
+}
+
+export const BuyerServicesBusinessModelCard = ({
+  servicesOffered,
+  businessModel,
+  revenueModel,
+  onEdit,
+}: BuyerServicesBusinessModelCardProps) => {
+  const hasContent = servicesOffered || businessModel || revenueModel;
+  const services = servicesOffered ? parseServices(servicesOffered) : null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Store className="h-4 w-4" />
+            Services & Business Model
+          </CardTitle>
+          <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!hasContent ? (
+          <p className="text-sm text-muted-foreground italic">No services or business model specified</p>
+        ) : (
+          <>
+            {services && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Service Mix
+                </p>
+                {services.items ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {services.items.map((service, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        {service}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm">{services.text}</p>
+                )}
+              </div>
+            )}
+            {(businessModel || revenueModel) && (
+              <div className={services ? "pt-3 border-t" : ""}>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Business Model
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {businessModel || revenueModel}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default BuyerServicesBusinessModelCard;
