@@ -153,7 +153,7 @@ serve(async (req) => {
         .eq('id', listingId)
         .single(),
       
-      // 2. Fetch all buyers in the deal's universe
+      // 2. Fetch buyers scored for this deal (universe-scoped via scores)
       supabase
         .from('remarketing_buyers')
         .select(`
@@ -164,7 +164,8 @@ serve(async (req) => {
           total_acquisitions, last_acquisition_date, acquisition_appetite,
           universe_id
         `)
-        .eq('archived', false),
+        .eq('archived', false)
+        .in('id', (await supabase.from('remarketing_scores').select('buyer_id').eq('listing_id', listingId)).data?.map((s: any) => s.buyer_id) || []),
       
       // 3. Fetch scores for this deal
       supabase
@@ -357,6 +358,7 @@ When answering questions:
         stream: true,
         max_tokens: 2000,
       }),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (response.status === 429) {
