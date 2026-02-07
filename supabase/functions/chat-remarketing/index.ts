@@ -130,17 +130,19 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
     return "No deal selected. Please select a deal to get buyer recommendations.";
   }
 
-  const [dealResult, buyersResult, scoresResult, universesResult] = await Promise.all([
+  const [dealResult, buyersResult, scoresResult, universesResult, transcriptsResult] = await Promise.all([
     supabase.from('listings').select('*').eq('id', listingId).single(),
     supabase.from('remarketing_buyers').select('*').eq('archived', false).limit(150),
     supabase.from('remarketing_scores').select('*').eq('listing_id', listingId),
     supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria, scoring_behavior').eq('archived', false),
+    supabase.from('call_transcripts').select('key_quotes, ceo_detected, extracted_insights, created_at, call_type').eq('listing_id', listingId).order('created_at', { ascending: false }).limit(3),
   ]);
 
   const deal = dealResult.data;
   const buyers = buyersResult.data || [];
   const scores = scoresResult.data || [];
   const universes = universesResult.data || [];
+  const transcripts = transcriptsResult.data || [];
 
   if (!deal) {
     return "Deal not found.";
@@ -197,6 +199,16 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
 - Scoring: ${JSON.stringify(u.scoring_behavior || {})}
 `).join('\n');
 
+  const transcriptContext = transcripts && transcripts.length > 0
+    ? `\n\nRECENT CALL TRANSCRIPTS (${transcripts.length} calls):\n${transcripts.map((t: any, idx: number) => `
+**Call ${idx + 1}** (${new Date(t.created_at).toLocaleDateString()}):
+- Type: ${t.call_type || 'Unknown'}
+- CEO Detected: ${t.ceo_detected ? 'Yes' : 'No'}
+- Key Quotes: ${JSON.stringify(t.key_quotes) || 'None'}
+- Extracted Insights: ${JSON.stringify(t.extracted_insights) || 'None'}
+`).join('\n')}`
+    : '\n\n(No call transcripts available for this deal)';
+
   return `You are an M&A analyst assistant with deep knowledge of buyers, deals, and industry dynamics.
 
 CURRENT DEAL:
@@ -213,6 +225,7 @@ CURRENT DEAL:
 - Key Risks: ${Array.isArray(deal.key_risks) ? deal.key_risks.join(', ') : (deal.key_risks || 'None identified')}
 - Location Count: ${deal.location_count || 'Unknown'}
 - Employee Count: ${deal.employees || 'Unknown'}
+${transcriptContext}
 
 ${guideContext ? `INDUSTRY RESEARCH GUIDES:\n${guideContext}\n` : ''}
 
@@ -228,8 +241,18 @@ INSTRUCTIONS:
 4. Use score breakdowns (geo, size, service) to justify recommendations
 5. Mention deal breakers if any apply
 6. Prioritize PENDING buyers unless asked otherwise
-7. Keep responses concise with bullet points
-8. At the end, include: <!-- HIGHLIGHT: ["buyer-id-1", "buyer-id-2"] -->`;
+7. When referencing transcript content, cite the call date and insights
+8. If asked about transcripts but none available, explicitly state this
+9. Never hallucinate transcript quotes - only use actual extracted_insights data
+10. Keep responses concise with bullet points
+11. At the end, include: <!-- HIGHLIGHT: ["buyer-id-1", "buyer-id-2"] -->
+
+## DATA QUALITY GUARDRAILS:
+- Transcript availability: ${transcripts.length > 0 ? `✅ ${transcripts.length} transcript(s) loaded` : '⚠️ No transcripts available'}
+- Buyer count: Showing ${Math.min(60, buyerSummaries.length)} of ${buyerSummaries.length} total buyers
+- If data is incomplete, use phrases like "Based on available data..." or "According to the current profile..."
+- Never invent or guess information not explicitly provided
+- If asked about missing data, acknowledge the limitation clearly`;
 }
 
 // Build context for all-deals queries

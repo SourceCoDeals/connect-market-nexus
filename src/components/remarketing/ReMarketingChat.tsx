@@ -15,8 +15,10 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import { useChatPersistence } from "@/hooks/use-chat-persistence";
+import type { ConversationContext } from "@/integrations/supabase/chat-persistence";
 
 export type ChatContext = 
   | { type: "deal"; dealId: string; dealName?: string }
@@ -122,6 +124,24 @@ export function ReMarketingChat({
 
   const exampleQueries = getExampleQueries(context);
 
+  // Convert ChatContext to ConversationContext
+  const persistenceContext: ConversationContext = {
+    type: context.type,
+    dealId: context.type === 'deal' ? context.dealId : undefined,
+    universeId: context.type === 'universe' ? context.universeId : undefined,
+  };
+
+  // Conversation persistence hook
+  const {
+    conversationId,
+    save: saveConversation,
+    startNew: startNewConversation,
+    isSaving,
+  } = useChatPersistence({
+    context: persistenceContext,
+    autoLoad: true, // Auto-load latest conversation for this context
+  });
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
@@ -212,13 +232,13 @@ export function ReMarketingChat({
       }
 
       const response = await fetch(
-        `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/chat-remarketing`,
+        `${SUPABASE_URL}/functions/v1/chat-remarketing`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${sessionData.session.access_token}`,
-            apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g",
+            apikey: SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify(requestBody),
           signal: abortControllerRef.current.signal,
@@ -310,7 +330,20 @@ export function ReMarketingChat({
         content: cleanContent(fullContent),
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => {
+        const updatedMessages = [...prev, assistantMessage];
+
+        // Save conversation to database
+        saveConversation(
+          updatedMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp.toISOString(),
+          }))
+        ).catch((err) => console.error('[ReMarketingChat] Save error:', err));
+
+        return updatedMessages;
+      });
       setStreamingContent("");
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -338,6 +371,8 @@ export function ReMarketingChat({
   const clearConversation = () => {
     setMessages([]);
     setStreamingContent("");
+    // Start a new conversation in persistence
+    startNewConversation();
   };
 
   // Floating chat bubble (closed state)
@@ -388,6 +423,11 @@ export function ReMarketingChat({
               {getSubtitle(context) && (
                 <span className="text-sm text-muted-foreground font-normal truncate max-w-[200px]">
                   · {getSubtitle(context)}
+                </span>
+              )}
+              {isSaving && (
+                <span className="text-xs text-muted-foreground">
+                  (saving...)
                 </span>
               )}
             </CardTitle>
