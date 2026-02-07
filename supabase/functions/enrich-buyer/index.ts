@@ -832,7 +832,7 @@ Deno.serve(async (req) => {
 
   try {
     console.log('[enrich-buyer] request received');
-    const { buyerId } = await req.json();
+    const { buyerId, skipLock } = await req.json();
 
     if (!buyerId) {
       return new Response(
@@ -894,28 +894,36 @@ Deno.serve(async (req) => {
     }
 
     // ATOMIC ENRICHMENT LOCK: Prevent concurrent enrichments via single UPDATE + WHERE clause
-    // Only update if data_last_updated is NULL or older than 60 seconds
-    // If no rows are updated, another enrichment already acquired the lock
-    const ENRICHMENT_LOCK_SECONDS = 60;
-    const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
+    // Skip lock when called from queue worker (queue already manages concurrency via status)
+    if (!skipLock) {
+      const ENRICHMENT_LOCK_SECONDS = 60;
+      const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
 
-    const { count: lockAcquired } = await supabase
-      .from('remarketing_buyers')
-      .update({ data_last_updated: new Date().toISOString() })
-      .eq('id', buyerId)
-      .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
-      .select('*', { count: 'exact', head: true });
+      const { count: lockAcquired } = await supabase
+        .from('remarketing_buyers')
+        .update({ data_last_updated: new Date().toISOString() })
+        .eq('id', buyerId)
+        .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
+        .select('*', { count: 'exact', head: true });
 
-    if (!lockAcquired || lockAcquired === 0) {
-      console.log(`[enrich-buyer] Lock acquisition failed for buyer ${buyerId}: enrichment already in progress`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Enrichment already in progress for this buyer. Please wait and try again.',
-          statusCode: 429
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (!lockAcquired || lockAcquired === 0) {
+        console.log(`[enrich-buyer] Lock acquisition failed for buyer ${buyerId}: enrichment already in progress`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Enrichment already in progress for this buyer. Please wait and try again.',
+            statusCode: 429
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Queue-based call: just update timestamp without lock check
+      await supabase
+        .from('remarketing_buyers')
+        .update({ data_last_updated: new Date().toISOString() })
+        .eq('id', buyerId);
+      console.log(`[enrich-buyer] Skipping lock (queue-based call) for buyer ${buyerId}`);
     }
 
     console.log(`Starting 6-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
