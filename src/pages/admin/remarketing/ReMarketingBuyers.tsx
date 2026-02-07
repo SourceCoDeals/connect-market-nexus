@@ -100,10 +100,11 @@ const ReMarketingBuyers = () => {
         .order('company_name');
 
       // Filter by tab (buyer type)
+      // Note: many buyers have NULL buyer_type but are effectively platforms (have pe_firm_name)
       if (activeTab === 'pe_firm') {
         query = query.eq('buyer_type', 'pe_firm');
       } else if (activeTab === 'platform') {
-        query = query.eq('buyer_type', 'platform');
+        query = query.or('buyer_type.eq.platform,buyer_type.is.null');
       }
 
       // Filter by universe
@@ -163,7 +164,7 @@ const ReMarketingBuyers = () => {
       const counts = { pe_firm: 0, platform: 0, other: 0 };
       data?.forEach(b => {
         if (b.buyer_type === 'pe_firm') counts.pe_firm++;
-        else if (b.buyer_type === 'platform') counts.platform++;
+        else if (b.buyer_type === 'platform' || !b.buyer_type) counts.platform++;
         else counts.other++;
       });
       return counts;
