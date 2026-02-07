@@ -434,18 +434,37 @@ const ReMarketingDealMatching = () => {
       
       if (error) throw error;
       
-      // Log learning history for each
+      // Log learning history + create outreach + discover contacts for each
       for (const id of ids) {
         const scoreData = scores?.find(s => s.id === id);
         if (scoreData) {
           await logLearningHistory(scoreData, 'approved');
+          
+          // Auto-create outreach record
+          try {
+            await supabase.from('remarketing_outreach').upsert({
+              score_id: id,
+              listing_id: listingId,
+              buyer_id: scoreData.buyer_id,
+              status: 'pending',
+              created_by: user?.id,
+            }, { onConflict: 'score_id' });
+          } catch { /* ignore */ }
+          
+          // Fire-and-forget: discover contacts
+          if (scoreData.buyer_id) {
+            supabase.functions.invoke('find-buyer-contacts', {
+              body: { buyerId: scoreData.buyer_id }
+            }).catch(err => console.warn('Contact discovery failed (non-blocking):', err));
+          }
         }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+      refetchOutreach();
       setSelectedIds(new Set());
-      toast.success(`Approved ${selectedIds.size} buyers`);
+      toast.success(`Approved ${selectedIds.size} buyers — outreach tracking started`);
     },
     onError: () => {
       toast.error('Failed to bulk approve');
