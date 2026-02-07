@@ -312,6 +312,25 @@ export const BuyerMatchCard = ({
     return 'bg-muted/50 border-border';
   };
 
+  // Score ring color
+  const getScoreRingColor = () => {
+    if (disqualified) return "border-red-300 bg-red-50 text-red-600";
+    if (score.composite_score >= 80) return "border-emerald-400 bg-emerald-50 text-emerald-700";
+    if (score.composite_score >= 65) return "border-blue-400 bg-blue-50 text-blue-700";
+    if (score.composite_score >= 50) return "border-amber-400 bg-amber-50 text-amber-700";
+    if (score.composite_score >= 35) return "border-orange-400 bg-orange-50 text-orange-600";
+    return "border-red-300 bg-red-50 text-red-600";
+  };
+
+  const getTierLabel = () => {
+    if (disqualified) return "DQ";
+    if (score.composite_score >= 80) return "A";
+    if (score.composite_score >= 65) return "B";
+    if (score.composite_score >= 50) return "C";
+    if (score.composite_score >= 35) return "D";
+    return "F";
+  };
+
   return (
     <div className={cn(
       "border rounded-lg transition-all bg-background",
@@ -319,15 +338,38 @@ export const BuyerMatchCard = ({
     )}>
       {/* Main Header Row - White background */}
       <div className="p-4 pb-3">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-4">
           {/* Checkbox */}
           {onSelect && (
             <Checkbox
               checked={isSelected}
               onCheckedChange={(checked) => onSelect(score.id, checked as boolean)}
-              className="mt-1"
+              className="mt-5"
             />
           )}
+
+          {/* Large Score Circle */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={cn(
+                  "flex-shrink-0 w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center cursor-help",
+                  getScoreRingColor()
+                )}>
+                  <span className="text-xl font-bold leading-none">
+                    {disqualified ? '—' : Math.round(score.composite_score)}
+                  </span>
+                  <span className="text-[10px] font-semibold leading-none mt-0.5 opacity-70">
+                    {getTierLabel()}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="font-medium">{getScoreDescription(score.composite_score, disqualified)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Score: {score.composite_score}/100</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           
           {/* Buyer Info */}
           <div className="flex-1 min-w-0">
@@ -335,7 +377,7 @@ export const BuyerMatchCard = ({
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <Link 
                 to={`/admin/remarketing/buyers/${buyer?.id}`}
-                className="font-semibold text-base hover:underline"
+                className="font-semibold text-lg hover:underline leading-tight"
               >
                 {buyer?.company_name || 'Unknown Buyer'}
               </Link>
@@ -466,44 +508,8 @@ export const BuyerMatchCard = ({
             </div>
           </div>
           
-          {/* Right Side: Data + Score + Actions */}
+          {/* Right Side: Intel + Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Data Completeness Icon with Tooltip */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="p-1 rounded hover:bg-muted">
-                    <FileText className={cn(
-                      "h-4 w-4",
-                      score.data_completeness === 'high' ? "text-emerald-500" :
-                      score.data_completeness === 'medium' ? "text-amber-500" : "text-muted-foreground"
-                    )} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-xs">
-                  <p className="font-medium mb-1">
-                    {score.data_completeness === 'high' ? '✅ Complete Data' :
-                     score.data_completeness === 'medium' ? '⚠ Partial Data' : '❌ Needs Research'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {score.data_completeness === 'high' 
-                      ? 'Buyer profile has sufficient data for confident scoring'
-                      : 'Some data points are missing which may affect score accuracy'}
-                  </p>
-                  {missingData.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">Missing data:</p>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        {missingData.map((field, i) => (
-                          <li key={i}>• {field}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            
             {/* Intelligence Badge with missing fields */}
             <IntelligenceBadge
               completeness={score.data_completeness}
@@ -511,32 +517,6 @@ export const BuyerMatchCard = ({
               missingFields={missingData}
               size="sm"
             />
-            
-            {/* Score Badge with Rich Tooltip - "→Strong 77" format or "Not Eligible" */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    {disqualified ? (
-                      <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-xs">
-                        Not Eligible
-                      </Badge>
-                    ) : (
-                      <ScoreTierBadge 
-                        tier={tier} 
-                        score={score.composite_score}
-                        variant="full"
-                        size="sm"
-                      />
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-xs">
-                  <p className="font-medium">{getScoreDescription(score.composite_score, disqualified)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Score: {score.composite_score}/100</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             
             {/* Expand Chevron - Circular Button Style */}
             <Collapsible open={isExpanded} onOpenChange={handleExpand}>
