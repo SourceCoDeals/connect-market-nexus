@@ -402,27 +402,35 @@ EXTRACTION RULES:
    - City mentions with known states (e.g., "serving Dallas and Houston" → TX)
    - "Locations" or "Branches" pages listing cities
    - Footer addresses or contact pages
-3. geographic_footprint = states with physical presence OR explicitly named service states
-4. service_regions = ALL states the company serves (superset of geographic_footprint)
-5. operating_locations = CRITICAL FIELD: every "City, ST" pair found anywhere on the site. Look in:
-   - Location/branch directory pages
-   - Addresses in the footer or contact page
-   - "Our Locations" sections
-   - Store/branch finder results
-   - Any mention of a city with a state (e.g., "our Birmingham, AL office")
+3. geographic_footprint = states with physical presence (offices, branches, stores)
+4. service_regions = ALL states where company provides services, has customers, or claims coverage.
+   IMPORTANT: Expand regional language into state codes:
+   - "Southeast" → FL, GA, AL, SC, NC, TN, MS, LA, AR, KY, VA, WV
+   - "Northeast" → CT, ME, MA, NH, RI, VT, NJ, NY, PA
+   - "Mid-Atlantic" → NJ, NY, PA, DE, MD, VA, DC
+   - "Midwest" → IL, IN, MI, OH, WI, IA, KS, MN, MO, NE, ND, SD
+   - "Southwest" → AZ, NM, TX, OK
+   - "West" or "West Coast" → CA, OR, WA, NV, AZ, CO, UT
+   - "Pacific Northwest" → WA, OR, ID
+   - "Mountain West" → CO, MT, ID, WY, UT, NV
+   - "Sun Belt" → FL, GA, TX, AZ, NV, SC, NC, TN, AL
+   - "National" or "Nationwide" → set service_regions to ALL 50 state codes
+   - "Gulf Coast" → TX, LA, MS, AL, FL
+   - "Great Lakes" → MI, OH, WI, IL, IN, MN
+5. operating_locations = CRITICAL FIELD: every "City, ST" pair found anywhere on the site.
    Example: ["Dallas, TX", "Atlanta, GA", "Chicago, IL", "Tampa, FL"]
 6. hq_state MUST be a 2-letter code (e.g., TX not Texas)
 7. hq_city MUST be a real city name (not a region like "West Coast")
 
-HANDLING NATIONAL/VAGUE COVERAGE:
-- If the site says "nationwide", "national", "serving all 50 states", etc., set service_regions to an empty array
-- BUT still extract any specifically named states/cities into geographic_footprint and operating_locations
-- Example: "National coverage with offices in Dallas, Atlanta, and Chicago" → geographic_footprint: ["TX", "GA", "IL"], operating_locations: ["Dallas, TX", "Atlanta, GA", "Chicago, IL"]
+IMPORTANT FOR M&A BUYERS:
+- PE firms and platform companies often describe coverage using regional language.
+  "We serve the Southeast and Mid-Atlantic" is VALID — expand into service_regions state codes.
+- "National coverage" → service_regions should contain all 50 state codes.
+- geographic_footprint stays strict (physical presence only).
+- service_regions should be BROAD and inclusive — it's better to over-include than miss states.
 
 DO NOT:
-- Expand vague regions ("Southeast", "Midwest") into state lists — only use explicitly named states
-- Infer neighboring states that are not explicitly mentioned
-- Guess states based on industry norms
+- Guess states based on industry norms alone
 - Return full state names — always use 2-letter codes
 - Use region names as hq_city (e.g., "West Coast" is NOT a city)
 
