@@ -438,14 +438,13 @@ export const BuyerMatchCard = ({
               )}
             </div>
             
-            {/* Row 2: Location (HQ preferred, then footprint) */}
-            <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
-              <MapPin className="h-3.5 w-3.5" />
-              <span>{getBuyerLocationDisplay(buyer)}</span>
-            </div>
-            
-            {/* Row 3: Website links (Company + PE Firm) */}
-            <div className="flex items-center gap-4 text-sm mb-1">
+            {/* Row 2: Location + Website + PE Firm (compact single row) */}
+            <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap mb-1">
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {getBuyerLocationDisplay(buyer)}
+              </span>
+              
               {buyer?.company_website && (
                 <a 
                   href={buyer.company_website.startsWith('http') ? buyer.company_website : `https://${buyer.company_website}`}
@@ -460,13 +459,12 @@ export const BuyerMatchCard = ({
                 </a>
               )}
               
-              {/* PE Firm Website (separate link if available) */}
               {(buyer as any)?.pe_firm_website && (
                 <a 
                   href={(buyer as any).pe_firm_website.startsWith('http') ? (buyer as any).pe_firm_website : `https://${(buyer as any).pe_firm_website}`}
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-muted-foreground hover:underline"
+                  className="flex items-center gap-1 hover:underline"
                 >
                   <Building2 className="h-3.5 w-3.5" />
                   <span className="truncate max-w-[180px]">
@@ -474,15 +472,14 @@ export const BuyerMatchCard = ({
                   </span>
                 </a>
               )}
+              
+              {(buyer as any)?.pe_firm_name && (
+                <span className="flex items-center gap-1">
+                  <Landmark className="h-3.5 w-3.5" />
+                  {(buyer as any).pe_firm_name}
+                </span>
+              )}
             </div>
-            
-            {/* Row 4: PE Firm Name (if available) */}
-            {(buyer as any)?.pe_firm_name && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                <Landmark className="h-3.5 w-3.5" />
-                <span>{(buyer as any).pe_firm_name}</span>
-              </div>
-            )}
             
             {/* Row 5: Thesis Summary (truncated) */}
             {buyer?.thesis_summary && (
