@@ -17,6 +17,8 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import { useChatPersistence } from "@/hooks/use-chat-persistence";
+import type { ConversationContext } from "@/integrations/supabase/chat-persistence";
 
 export type ChatContext = 
   | { type: "deal"; dealId: string; dealName?: string }
@@ -121,6 +123,24 @@ export function ReMarketingChat({
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const exampleQueries = getExampleQueries(context);
+
+  // Convert ChatContext to ConversationContext
+  const persistenceContext: ConversationContext = {
+    type: context.type,
+    dealId: context.type === 'deal' ? context.dealId : undefined,
+    universeId: context.type === 'universe' ? context.universeId : undefined,
+  };
+
+  // Conversation persistence hook
+  const {
+    conversationId,
+    save: saveConversation,
+    startNew: startNewConversation,
+    isSaving,
+  } = useChatPersistence({
+    context: persistenceContext,
+    autoLoad: true, // Auto-load latest conversation for this context
+  });
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -310,7 +330,20 @@ export function ReMarketingChat({
         content: cleanContent(fullContent),
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => {
+        const updatedMessages = [...prev, assistantMessage];
+
+        // Save conversation to database
+        saveConversation(
+          updatedMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp.toISOString(),
+          }))
+        ).catch((err) => console.error('[ReMarketingChat] Save error:', err));
+
+        return updatedMessages;
+      });
       setStreamingContent("");
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -338,6 +371,8 @@ export function ReMarketingChat({
   const clearConversation = () => {
     setMessages([]);
     setStreamingContent("");
+    // Start a new conversation in persistence
+    startNewConversation();
   };
 
   // Floating chat bubble (closed state)
@@ -388,6 +423,11 @@ export function ReMarketingChat({
               {getSubtitle(context) && (
                 <span className="text-sm text-muted-foreground font-normal truncate max-w-[200px]">
                   · {getSubtitle(context)}
+                </span>
+              )}
+              {isSaving && (
+                <span className="text-xs text-muted-foreground">
+                  (saving...)
                 </span>
               )}
             </CardTitle>

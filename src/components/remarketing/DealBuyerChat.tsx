@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import { useChatPersistence } from "@/hooks/use-chat-persistence";
 
 interface DealBuyerChatProps {
   listingId: string;
@@ -86,6 +87,18 @@ export function DealBuyerChat({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const exampleQueries = getExampleQueries(approvedCount, passedCount, pendingCount);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Conversation persistence hook
+  const {
+    conversationId,
+    save: saveConversation,
+    startNew: startNewConversation,
+    isSaving,
+  } = useChatPersistence({
+    context: { type: 'deal', dealId: listingId },
+    autoLoad: true,
+  });
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -246,7 +259,20 @@ export function DealBuyerChat({
         content: cleanContent(fullContent),
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => {
+        const updatedMessages = [...prev, assistantMessage];
+
+        // Save conversation to database
+        saveConversation(
+          updatedMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp.toISOString(),
+          }))
+        ).catch((err) => console.error('[DealBuyerChat] Save error:', err));
+
+        return updatedMessages;
+      });
       setStreamingContent("");
     } catch (error) {
       console.error("Chat error:", error);
@@ -271,6 +297,8 @@ export function DealBuyerChat({
   const clearConversation = () => {
     setMessages([]);
     setStreamingContent("");
+    // Start a new conversation in persistence
+    startNewConversation();
   };
 
   // Floating chat bubble (closed state)
