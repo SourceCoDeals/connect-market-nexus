@@ -79,6 +79,9 @@ const ReMarketingDealMatching = () => {
   
   // Custom scoring instructions state
   const [customInstructions, setCustomInstructions] = useState("");
+
+  // Geography mode state (critical/preferred/minimal)
+  const [geographyMode, setGeographyMode] = useState<'critical' | 'preferred' | 'minimal'>('critical');
   
   // Background scoring progress hook
   const backgroundScoring = useBackgroundScoringProgress(
@@ -337,18 +340,25 @@ const ReMarketingDealMatching = () => {
         case 'geography':
           comparison = (a.geography_score || 0) - (b.geography_score || 0);
           break;
-        case 'score_geo':
-          const aWeighted = (a.composite_score || 0) * 0.6 + (a.geography_score || 0) * 0.4;
-          const bWeighted = (b.composite_score || 0) * 0.6 + (b.geography_score || 0) * 0.4;
+        case 'score_geo': {
+          // Use actual geography weight ratio instead of hardcoded 60/40
+          const activeUniverse = selectedUniverse !== 'all'
+            ? linkedUniverses?.find(u => u.id === selectedUniverse)
+            : linkedUniverses?.[0];
+          const geoRatio = Math.min(0.5, (activeUniverse?.geography_weight || 20) / 100);
+          const scoreRatio = 1 - geoRatio;
+          const aWeighted = (a.composite_score || 0) * scoreRatio + (a.geography_score || 0) * geoRatio;
+          const bWeighted = (b.composite_score || 0) * scoreRatio + (b.geography_score || 0) * geoRatio;
           comparison = aWeighted - bWeighted;
           break;
+        }
       }
       
       return sortDesc ? -comparison : comparison;
     });
     
     return filtered;
-  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc, activeOutreachScoreIds]);
+  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc, activeOutreachScoreIds, selectedUniverse, linkedUniverses]);
 
   // Log learning history helper
   const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
@@ -459,6 +469,7 @@ const ReMarketingDealMatching = () => {
           listingId,
           universeId: selectedUniverse,
           customInstructions: instructions || customInstructions || undefined,
+          geographyMode: geographyMode !== 'critical' ? geographyMode : undefined,
           options: { rescoreExisting: !!instructions } // Force rescore when using custom instructions
         }
       });
@@ -555,11 +566,11 @@ const ReMarketingDealMatching = () => {
     }
   };
 
-  // Handle approve - now auto-creates outreach record
+  // Handle approve - auto-creates outreach record + triggers contact discovery
   const handleApprove = async (scoreId: string, scoreData?: any) => {
     // First update the score status
     await updateScoreMutation.mutateAsync({ id: scoreId, status: 'approved', scoreData });
-    
+
     // Auto-create outreach record for approved buyer
     try {
       const { error } = await supabase.from('remarketing_outreach').upsert({
@@ -569,7 +580,7 @@ const ReMarketingDealMatching = () => {
         status: 'pending',
         created_by: user?.id,
       }, { onConflict: 'score_id' });
-      
+
       if (error) {
         console.error('Failed to auto-create outreach:', error);
       } else {
@@ -578,6 +589,13 @@ const ReMarketingDealMatching = () => {
       }
     } catch (error) {
       console.error('Failed to auto-create outreach:', error);
+    }
+
+    // Fire-and-forget: auto-discover buyer contacts for approved buyer
+    if (scoreData?.buyer_id) {
+      supabase.functions.invoke('find-buyer-contacts', {
+        body: { buyerId: scoreData.buyer_id }
+      }).catch(err => console.warn('Contact discovery failed (non-blocking):', err));
     }
   };
 
@@ -625,6 +643,9 @@ const ReMarketingDealMatching = () => {
       geography_score: s.geography_score,
       size_score: s.size_score,
       service_score: s.service_score,
+      owner_goals_score: s.owner_goals_score,
+      size_multiplier: s.size_multiplier,
+      service_multiplier: s.service_multiplier,
       status: s.status,
       fit_reasoning: s.fit_reasoning || '',
     }));
@@ -859,16 +880,16 @@ const ReMarketingDealMatching = () => {
                 weights={{
                   geography: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight
-                    : linkedUniverses[0]?.geography_weight) || 25,
+                    : linkedUniverses[0]?.geography_weight) || 20,
                   size: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight
-                    : linkedUniverses[0]?.size_weight) || 25,
+                    : linkedUniverses[0]?.size_weight) || 30,
                   service: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight
-                    : linkedUniverses[0]?.service_weight) || 35,
+                    : linkedUniverses[0]?.service_weight) || 45,
                   ownerGoals: (selectedUniverse !== 'all'
                     ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight
-                    : linkedUniverses[0]?.owner_goals_weight) || 15,
+                    : linkedUniverses[0]?.owner_goals_weight) || 5,
                 }}
                 outcomeStats={{
                   approved: stats.approved,
@@ -883,6 +904,8 @@ const ReMarketingDealMatching = () => {
                 onRecalculate={() => handleBulkScore()}
                 onReset={handleReset}
                 isRecalculating={isScoring}
+                geographyMode={geographyMode}
+                onGeographyModeChange={setGeographyMode}
               />
             </div>
           )}

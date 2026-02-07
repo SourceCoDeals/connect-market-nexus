@@ -30,9 +30,11 @@ serve(async (req) => {
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (!ANTHROPIC_API_KEY) {
+      console.warn('ANTHROPIC_API_KEY not configured — returning keyword-based fallback rules');
+      const fallbackRules = parseInstructionsKeywordFallback(instructions);
       return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY is not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: true, rules: fallbackRules, originalInstructions: instructions, method: 'keyword_fallback' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -92,9 +94,11 @@ Examples:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Anthropic API error:', response.status, errorText);
+      // Fall back to keyword parsing instead of failing
+      const fallbackRules = parseInstructionsKeywordFallback(instructions);
       return new Response(
-        JSON.stringify({ error: `AI API error: ${response.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: true, rules: fallbackRules, originalInstructions: instructions, method: 'keyword_fallback' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -129,9 +133,80 @@ Examples:
 
   } catch (error: any) {
     console.error('Error in parse-scoring-instructions:', error);
+    // Fall back to keyword parsing on any error
+    try {
+      const { instructions: rawInstructions } = await req.clone().json().catch(() => ({ instructions: '' }));
+      if (rawInstructions) {
+        const fallbackRules = parseInstructionsKeywordFallback(rawInstructions);
+        return new Response(
+          JSON.stringify({ success: true, rules: fallbackRules, originalInstructions: rawInstructions, method: 'keyword_fallback' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch { /* ignore fallback errors */ }
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+// Keyword-based fallback when AI is unavailable
+function parseInstructionsKeywordFallback(instructions: string): ScoringRule[] {
+  const rules: ScoringRule[] = [];
+  const lower = instructions.toLowerCase();
+
+  // Quick close pattern
+  if (lower.includes('quick close') || lower.includes('fast close') || lower.includes('60 day')) {
+    rules.push({
+      type: 'bonus',
+      condition: 'Buyer has fast close track record',
+      adjustment: 10,
+      reasoning: 'Quick close preference detected',
+    });
+  }
+
+  // Owner staying pattern
+  if (lower.includes('owner wants to stay') || lower.includes('equity rollover') || lower.includes('owner transition')) {
+    rules.push({
+      type: 'bonus',
+      condition: 'Buyer supports owner transitions and equity rollovers',
+      adjustment: 10,
+      reasoning: 'Owner continuity preference detected',
+    });
+  }
+
+  // Employee retention pattern
+  if (lower.includes('key employee') || lower.includes('retain management') || lower.includes('retain team')) {
+    rules.push({
+      type: 'bonus',
+      condition: 'Buyer retains existing management teams',
+      adjustment: 8,
+      reasoning: 'Employee retention preference detected',
+    });
+  }
+
+  // Exclude/no pattern
+  const excludeMatch = lower.match(/(?:no|exclude|avoid|not)\s+(pe|private equity|strategic|family office|drp)/);
+  if (excludeMatch) {
+    rules.push({
+      type: 'disqualify',
+      condition: `Buyer is ${excludeMatch[1]}`,
+      adjustment: 0,
+      reasoning: `Exclusion of ${excludeMatch[1]} buyers detected`,
+    });
+  }
+
+  // Prioritize pattern
+  const prioritizeMatch = lower.match(/(?:prioritize|prefer|focus on|boost)\s+(.+?)(?:\.|$)/);
+  if (prioritizeMatch) {
+    rules.push({
+      type: 'bonus',
+      condition: prioritizeMatch[1].trim(),
+      adjustment: 10,
+      reasoning: `Priority preference: ${prioritizeMatch[1].trim()}`,
+    });
+  }
+
+  return rules;
+}

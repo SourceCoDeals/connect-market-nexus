@@ -74,10 +74,11 @@ export const IntelligenceBadge = ({
   size = "sm",
   className,
 }: IntelligenceBadgeProps) => {
-  // CRITICAL RULE: Without a transcript, max intel is "medium" (Some Intel)
-  // "Strong" (high) intel REQUIRES call transcripts to understand investment thesis
+  // Strong Intel requires transcript data — websites alone don't provide enough depth
+  // (thesis, investment preferences, deal terms). BuyerMatchCard now passes hasTranscript
+  // from extraction_sources.
   let effectiveCompleteness = completeness;
-  if (completeness === 'high' && !hasTranscript) {
+  if (effectiveCompleteness === 'high' && !hasTranscript) {
     effectiveCompleteness = 'medium';
   }
 

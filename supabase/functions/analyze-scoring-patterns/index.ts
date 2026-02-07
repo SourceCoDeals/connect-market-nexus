@@ -124,14 +124,13 @@ serve(async (req) => {
     // Calculate approval rate by tier
     const tierCounts: Record<string, { approved: number; total: number }> = {};
     for (const h of history) {
-      // Determine tier from composite score
-      // FIXED: Use correct thresholds matching scoring algorithm v6.1
-      // See: score-buyer-deal/index.ts calculateTier function
+      // Determine tier from composite score — must match score-buyer-deal tier boundaries
       const score = h.composite_score || 0;
-      let tier = 'D';
-      if (score >= 80) tier = 'A';      // Was incorrectly 85
-      else if (score >= 60) tier = 'B'; // Was incorrectly 70
-      else if (score >= 40) tier = 'C'; // Was incorrectly 55
+      let tier = 'F';
+      if (score >= 80) tier = 'A';
+      else if (score >= 65) tier = 'B';
+      else if (score >= 50) tier = 'C';
+      else if (score >= 35) tier = 'D';
       
       if (!tierCounts[tier]) {
         tierCounts[tier] = { approved: 0, total: 0 };
@@ -154,10 +153,10 @@ serve(async (req) => {
     const insights: string[] = [];
 
     const currentWeights = {
-      geography: universe.geography_weight || 25,
-      size: universe.size_weight || 25,
-      service: universe.service_weight || 25,
-      owner_goals: universe.owner_goals_weight || 25,
+      geography: universe.geography_weight || 20,
+      size: universe.size_weight || 30,
+      service: universe.service_weight || 45,
+      owner_goals: universe.owner_goals_weight || 5,
     };
 
     // Analyze each dimension

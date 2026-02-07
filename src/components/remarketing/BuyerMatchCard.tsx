@@ -505,10 +505,11 @@ export const BuyerMatchCard = ({
             </TooltipProvider>
             
             {/* Intelligence Badge with missing fields */}
-            <IntelligenceBadge 
-              completeness={score.data_completeness} 
+            <IntelligenceBadge
+              completeness={score.data_completeness}
+              hasTranscript={!!buyer?.extraction_sources?.some((s: any) => s.type === 'transcript')}
               missingFields={missingData}
-              size="sm" 
+              size="sm"
             />
             
             {/* Score Badge with Rich Tooltip - "→Strong 77" format or "Not Eligible" */}
@@ -633,7 +634,7 @@ export const BuyerMatchCard = ({
           {getFitLabel(score.composite_score, disqualified)} {score.fit_reasoning || 'No reasoning available'}
         </p>
         
-        {/* Inline Score Breakdown - Services (35%), Size (25%), Geography (25%), Owner Goals (15%) */}
+        {/* Inline Score Breakdown - Services (45%), Size (30%), Geography (20%), Owner Goals (5%) */}
         <div className="grid grid-cols-4 gap-4 mb-3">
           <div>
             <p className="text-xs text-muted-foreground mb-1">
