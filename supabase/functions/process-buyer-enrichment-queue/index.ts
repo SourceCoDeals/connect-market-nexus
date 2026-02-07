@@ -13,7 +13,7 @@ const MAX_ATTEMPTS = 3;
 const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes per buyer
 const MAX_FUNCTION_RUNTIME_MS = 110000; // ~110s safety cutoff
 const RATE_LIMIT_BACKOFF_MS = 60000; // 1 minute backoff on rate limit
-const INTER_BUYER_DELAY_MS = 1500; // 1.5s delay between buyers — rate limits handled by retry logic
+const INTER_BUYER_DELAY_MS = 8000; // 8s delay between buyers — each buyer makes 6-7 Claude calls, need spacing to avoid RPM limits
 const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items
 
 function chunkArray<T>(arr: T[], size: number): T[][] {

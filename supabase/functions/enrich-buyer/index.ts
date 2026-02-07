@@ -1096,8 +1096,8 @@ Deno.serve(async (req) => {
       console.log(`Batch 1 complete: ${promptsSuccessful} successful so far`);
     }
 
-    // Small delay between batches to avoid RPM spike
-    await sleep(500);
+    // Delay between batches to avoid Anthropic RPM limits
+    await sleep(2000);
 
     // BATCH 2: Acquisitions + PE firm extraction (3-4 calls max)
     const batch2: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
