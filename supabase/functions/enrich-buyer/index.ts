@@ -1029,18 +1029,20 @@ Deno.serve(async (req) => {
     };
 
     // BATCH 1: Core platform extraction (3 calls max)
+    // If platform website is unavailable, fall back to PE firm website for all extractions
     const batch1: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
-    if (platformContent) {
+    const batch1Content = platformContent || peContent;
+    const batch1Url = platformContent ? platformWebsite : peFirmWebsite;
+    
+    if (batch1Content) {
       batch1.push(
-        extractBusinessOverview(platformContent, anthropicApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
-        extractGeography(platformContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
-        extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
+        extractBusinessOverview(batch1Content, anthropicApiKey).then(r => ({ name: 'business', result: r, url: batch1Url })),
+        extractGeography(batch1Content, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: batch1Url })),
+        extractCustomerProfile(batch1Content, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: batch1Url })),
       );
-    } else if (peContent) {
-      // No platform content — extract geography from PE site
-      batch1.push(
-        extractGeography(peContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: peFirmWebsite })),
-      );
+      if (!platformContent) {
+        console.log('Platform website unavailable — falling back to PE firm website for business/customer extraction');
+      }
     }
 
     if (batch1.length > 0) {
