@@ -2,12 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Store, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface BuyerServicesBusinessModelCardProps {
   servicesOffered?: string | null;
   businessModel?: string | null;
   revenueModel?: string | null;
   onEdit: () => void;
+  className?: string;
 }
 
 /**
@@ -52,12 +54,13 @@ export const BuyerServicesBusinessModelCard = ({
   businessModel,
   revenueModel,
   onEdit,
+  className,
 }: BuyerServicesBusinessModelCardProps) => {
   const hasContent = servicesOffered || businessModel || revenueModel;
   const services = servicesOffered ? parseServices(servicesOffered) : null;
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
