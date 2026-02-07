@@ -375,10 +375,11 @@ const PROMPT_3A_GEOGRAPHY = {
     type: 'object',
     properties: {
       hq_city: { type: 'string' },
-      hq_state: { type: 'string', description: '2-letter state code' },
+      hq_state: { type: 'string', description: '2-letter US state code (e.g., TX not Texas)' },
       hq_country: { type: 'string', default: 'USA' },
-      geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'Array of 2-letter state codes where company operates, has offices, or provides services. Include states from office addresses, service area lists, and explicitly named states.' },
-      service_regions: { type: 'array', items: { type: 'string' }, description: 'All states where company provides services or has customers, as 2-letter codes' },
+      geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'Array of 2-letter state codes where company operates, has offices, or provides services. Include states from office addresses, service area lists, explicitly named states, and cities with known states.' },
+      service_regions: { type: 'array', items: { type: 'string' }, description: 'All states where company provides services or has customers, as 2-letter codes. Superset of geographic_footprint.' },
+      operating_locations: { type: 'array', items: { type: 'string' }, description: 'Specific "City, ST" strings for every physical office, branch, or location mentioned (e.g., "Dallas, TX", "Atlanta, GA")' },
     },
   },
 };
@@ -392,20 +393,29 @@ EXTRACTION RULES:
    - Service area descriptions (e.g., "Serving Minnesota, Wisconsin, and Iowa" → MN, WI, IA)
    - Named state lists (e.g., "Operating in FL, GA, and AL" → FL, GA, AL)
    - City mentions with known states (e.g., "serving Dallas and Houston" → TX)
+   - "Locations" or "Branches" pages listing cities
+   - Footer addresses or contact pages
 3. geographic_footprint = states with physical presence OR explicitly named service states
 4. service_regions = ALL states the company serves (superset of geographic_footprint)
+5. operating_locations = every specific "City, ST" location found (e.g., "Dallas, TX")
+6. hq_state MUST be a 2-letter code (e.g., TX not Texas)
+
+HANDLING NATIONAL/VAGUE COVERAGE:
+- If the site says "nationwide", "national", "serving all 50 states", etc., set service_regions to an empty array
+- BUT still extract any specifically named states/cities into geographic_footprint
+- Example: "National coverage with offices in Dallas, Atlanta, and Chicago" → geographic_footprint: ["TX", "GA", "IL"]
 
 DO NOT:
-- Expand vague regions ("Southeast", "Midwest") into state lists — return empty
-- Expand "national coverage" or "nationwide" into all 50 states — return empty
+- Expand vague regions ("Southeast", "Midwest") into state lists — only use explicitly named states
 - Infer neighboring states that are not explicitly mentioned
 - Guess states based on industry norms
+- Return full state names — always use 2-letter codes
 
 Return 2-letter state codes (e.g., MN not Minnesota).`;
 
 async function extractGeography(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 3a: Geographic Footprint');
-  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract geographic coverage information. Include states from addresses, service area descriptions, and any explicitly named states where the company operates or serves customers.`;
+  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract geographic coverage information. Include states from addresses, service area descriptions, location pages, contact info, and any explicitly named states or cities where the company operates or serves customers. For each city found, add it to operating_locations as "City, ST" format. Always use 2-letter state codes.`;
   return await callClaudeAI(PROMPT_3A_SYSTEM, userPrompt, PROMPT_3A_GEOGRAPHY, apiKey);
 }
 
@@ -572,6 +582,29 @@ function validateGeography(extracted: any): any {
       .filter((s: string) => VALID_STATE_CODES.has(s));
   }
 
+  // Normalize operating_locations — extract state codes from "City, ST" entries
+  if (data.operating_locations && Array.isArray(data.operating_locations)) {
+    // Keep the "City, ST" format but also extract states into geographic_footprint
+    const locStates: string[] = [];
+    data.operating_locations = data.operating_locations.filter((loc: string) => {
+      if (typeof loc !== 'string') return false;
+      const stateMatch = loc.match(/,\s*([A-Z]{2})\s*$/i);
+      if (stateMatch) {
+        const code = stateMatch[1].toUpperCase();
+        if (VALID_STATE_CODES.has(code)) locStates.push(code);
+      }
+      return true;
+    });
+    // Merge operating_locations states into geographic_footprint
+    if (locStates.length > 0) {
+      if (!data.geographic_footprint) data.geographic_footprint = [];
+      for (const s of locStates) {
+        if (!data.geographic_footprint.includes(s)) data.geographic_footprint.push(s);
+      }
+      console.log(`Added ${locStates.length} states from operating_locations to geographic_footprint`);
+    }
+  }
+
   // If geographic_footprint is empty but service_regions has data, promote service_regions
   if ((!data.geographic_footprint || data.geographic_footprint.length === 0) && data.service_regions?.length > 0) {
     console.log('Promoting service_regions to geographic_footprint (footprint was empty)');
@@ -583,8 +616,17 @@ function validateGeography(extracted: any): any {
     if (VALID_STATE_CODES.has(data.hq_state)) {
       data.hq_region = getRegionFromState(data.hq_state);
       // Also ensure hq_state is in geographic_footprint
-      if (data.geographic_footprint && !data.geographic_footprint.includes(data.hq_state)) {
+      if (!data.geographic_footprint) data.geographic_footprint = [];
+      if (!data.geographic_footprint.includes(data.hq_state)) {
         data.geographic_footprint.push(data.hq_state);
+      }
+      // Also add HQ to operating_locations if not present
+      if (data.hq_city) {
+        const hqLoc = `${data.hq_city}, ${data.hq_state}`;
+        if (!data.operating_locations) data.operating_locations = [];
+        if (!data.operating_locations.some((l: string) => l.toLowerCase() === hqLoc.toLowerCase())) {
+          data.operating_locations.push(hqLoc);
+        }
       }
     }
   }
@@ -645,28 +687,28 @@ function shouldOverwrite(
     }
   }
 
-  // For strings: new value must be longer or existing is empty
+  // Existing value is empty/null → always overwrite
+  const existingIsEmpty = existingValue === null || existingValue === undefined || existingValue === '' ||
+    (Array.isArray(existingValue) && existingValue.length === 0);
+  if (existingIsEmpty) return true;
+
+  // For strings: overwrite if new value is non-empty (don't use length comparison —
+  // "TX" is more correct than "Texas" for state codes)
   if (typeof newValue === 'string') {
-    if (!existingValue || existingValue === '') return true;
-    if (typeof existingValue === 'string') {
-      return newValue.length > existingValue.length;
-    }
-    return true;
+    return newValue.trim().length > 0;
   }
 
-  // For arrays: new value must have more items or existing is empty
+  // For arrays: overwrite if new value has items
   if (Array.isArray(newValue)) {
-    if (!existingValue || !Array.isArray(existingValue) || existingValue.length === 0) return true;
-    return newValue.length > existingValue.length;
+    return newValue.length > 0;
   }
 
-  // For numbers: only overwrite if existing is null
+  // For numbers: only overwrite if existing is null (already handled above)
   if (typeof newValue === 'number') {
-    return existingValue === null || existingValue === undefined;
+    return false;
   }
 
-  // Default: overwrite if existing is empty
-  return existingValue === null || existingValue === undefined || existingValue === '';
+  return true;
 }
 
 function buildUpdateObject(
