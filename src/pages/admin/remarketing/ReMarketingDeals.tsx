@@ -83,10 +83,12 @@ import {
   Zap,
   Plus,
   Trash2,
+  FolderPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat } from "@/components/remarketing";
 import { DealEnrichmentSummaryDialog } from "@/components/remarketing";
+import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import {
   DndContext,
@@ -649,6 +651,7 @@ const ReMarketingDeals = () => {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showUniverseDialog, setShowUniverseDialog] = useState(false);
   
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
@@ -1646,6 +1649,14 @@ const ReMarketingDeals = () => {
               <Button
                 size="sm"
                 variant="outline"
+                onClick={() => setShowUniverseDialog(true)}
+              >
+                <FolderPlus className="h-4 w-4 mr-1" />
+                Send to Universe
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 className="text-amber-600 border-amber-200 hover:bg-amber-50"
                 onClick={() => setShowArchiveDialog(true)}
               >
@@ -1720,7 +1731,14 @@ const ReMarketingDeals = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Single Deal Delete Confirmation Dialog */}
+      {/* Bulk Assign to Universe Dialog */}
+      <BulkAssignUniverseDialog
+        open={showUniverseDialog}
+        onOpenChange={setShowUniverseDialog}
+        dealIds={Array.from(selectedDeals)}
+        onComplete={() => setSelectedDeals(new Set())}
+      />
+
       <AlertDialog open={!!singleDeleteTarget} onOpenChange={(open) => !open && setSingleDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
