@@ -1534,7 +1534,7 @@ const ReMarketingDeals = () => {
             className="bg-slate-800 hover:bg-slate-700 text-white"
           >
             <Calculator className="h-4 w-4 mr-2" />
-            {isCalculating ? "Calculating..." : "Calculate Scores"}
+            {isCalculating ? "Scoring..." : "Score Deals"}
           </Button>
           <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="w-[140px]">
