@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, ANTHROPIC_API_URL, getAnthropicHeaders, DEFAULT_CLAUDE_FAST_MODEL, callClaudeWithTool } from "../_shared/ai-providers.ts";
-import { calculateProximityScore, getProximityTier } from "../_shared/geography-utils.ts";
+import { calculateProximityScore, getProximityTier, normalizeStateCode } from "../_shared/geography-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +16,7 @@ interface ScoreRequest {
   listingId: string;
   buyerId: string;
   universeId: string;
+  customInstructions?: string;
 }
 
 interface BulkScoreRequest {
@@ -137,6 +138,8 @@ const DEFAULT_SERVICE_ADJACENCY: Record<string, string[]> = {
   "pest control": ["wildlife removal", "termite", "lawn care", "mosquito control"],
   "janitorial": ["commercial cleaning", "facility maintenance", "carpet cleaning", "window cleaning"],
   "mitigation": ["restoration", "water restoration", "fire restoration", "mold remediation"],
+  "automotive": ["auto body", "collision repair", "auto glass", "fleet maintenance", "calibration"],
+  "auto glass": ["collision repair", "auto body", "calibration", "automotive"],
 };
 
 // ============================================================================
@@ -149,9 +152,9 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
     if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+      console.warn("GEMINI_API_KEY is not configured — AI scoring will use deterministic fallbacks");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -205,7 +208,7 @@ function calculateSizeScore(
   }
 
   // No buyer size criteria at all — use moderate default
-  if (!buyerMinRevenue && !buyerMaxRevenue && !buyerMinEbitda && !buyerMaxEbitda) {
+  if (buyerMinRevenue == null && buyerMaxRevenue == null && buyerMinEbitda == null && buyerMaxEbitda == null) {
     return {
       score: 60,
       multiplier: 1.0,
@@ -357,9 +360,16 @@ async function calculateGeographyScore(
       scoreFloor = 0;
   }
 
-  // Extract deal state
+  // Extract deal state — try regex first, then normalizeStateCode fallback
   const dealLocation = listing.location || "";
-  const dealState = dealLocation.match(/,\s*([A-Z]{2})\s*$/i)?.[1]?.toUpperCase();
+  let dealState = dealLocation.match(/,\s*([A-Z]{2})\s*$/i)?.[1]?.toUpperCase() || null;
+  if (!dealState) {
+    // Fallback: try to extract state from "City, State Name" or "City, ST ZIP" patterns
+    const stateMatch = dealLocation.match(/,\s*([A-Za-z\s]+?)(?:\s+\d{5})?$/);
+    if (stateMatch) {
+      dealState = normalizeStateCode(stateMatch[1].trim());
+    }
+  }
 
   // Get buyer geographic data (priority order per spec)
   let buyerStates: string[] = [];
@@ -486,7 +496,8 @@ async function calculateServiceScore(
   tracker: any,
   behavior: ScoringBehavior,
   serviceCriteria: ServiceCriteria | null,
-  apiKey: string
+  apiKey: string,
+  customInstructions?: string
 ): Promise<{ score: number; multiplier: number; reasoning: string }> {
   const dealServices = (listing.services || listing.categories || [listing.category])
     .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
@@ -521,7 +532,7 @@ async function calculateServiceScore(
   let aiScore: { score: number; reasoning: string } | null = null;
   if (behavior.service_matching_mode !== 'keyword') {
     try {
-      aiScore = await callServiceFitAI(listing, buyer, tracker, apiKey);
+      aiScore = await callServiceFitAI(listing, buyer, tracker, apiKey, customInstructions);
     } catch (e) {
       console.warn("Service fit AI call failed, falling back to keyword+adjacency:", e);
     }
@@ -630,18 +641,20 @@ async function callServiceFitAI(
   listing: any,
   buyer: any,
   tracker: any,
-  apiKey: string
+  apiKey: string,
+  customInstructions?: string
 ): Promise<{ score: number; reasoning: string }> {
   const dealServices = (listing.services || listing.categories || [listing.category]).filter(Boolean).join(', ');
   const buyerServices = (buyer.target_services || []).filter(Boolean).join(', ');
   const buyerOffered = buyer.services_offered || '';
 
+  const customContext = customInstructions ? `\nADDITIONAL SCORING INSTRUCTIONS: ${customInstructions}` : '';
   const prompt = `Score 0-100 how well these services align:
 DEAL SERVICES: ${dealServices}
 DEAL INDUSTRY: ${listing.category || 'Unknown'}
 BUYER TARGET SERVICES: ${buyerServices || 'Not specified'}
 BUYER CURRENT SERVICES: ${buyerOffered || 'Not specified'}
-BUYER THESIS: ${(buyer.thesis_summary || '').substring(0, 200)}
+BUYER THESIS: ${(buyer.thesis_summary || '').substring(0, 200)}${customContext}
 
 Score guide: 85-100 = exact match, 60-84 = strong overlap, 40-59 = partial/adjacent, 20-39 = weak adjacency, 0-19 = unrelated.
 Return JSON: {"score": number, "reasoning": "one sentence"}`;
@@ -687,12 +700,7 @@ function calculateServiceOverlap(
 
   const matching = dealServices.filter((ds: string) =>
     buyerServices.some((bs: string) =>
-      ds?.includes(bs) || bs?.includes(ds) ||
-      (ds?.includes('collision') && bs?.includes('body')) ||
-      (ds?.includes('body') && bs?.includes('collision')) ||
-      (ds?.includes('restoration') && bs?.includes('restoration')) ||
-      (ds?.includes('repair') && bs?.includes('service')) ||
-      (ds?.includes('auto') && bs?.includes('automotive'))
+      ds?.includes(bs) || bs?.includes(ds)
     )
   );
 
@@ -708,11 +716,12 @@ function calculateServiceOverlap(
 async function calculateOwnerGoalsScore(
   listing: any,
   buyer: any,
-  apiKey: string
+  apiKey: string,
+  customInstructions?: string
 ): Promise<{ score: number; confidence: string; reasoning: string }> {
   // Try AI scoring first
   try {
-    return await callOwnerGoalsFitAI(listing, buyer, apiKey);
+    return await callOwnerGoalsFitAI(listing, buyer, apiKey, customInstructions);
   } catch (e) {
     console.warn("Owner goals AI call failed, using fallback:", e);
   }
@@ -724,8 +733,10 @@ async function calculateOwnerGoalsScore(
 async function callOwnerGoalsFitAI(
   listing: any,
   buyer: any,
-  apiKey: string
+  apiKey: string,
+  customInstructions?: string
 ): Promise<{ score: number; confidence: string; reasoning: string }> {
+  const customContext = customInstructions ? `\nADDITIONAL SCORING INSTRUCTIONS: ${customInstructions}` : '';
   const prompt = `Score 0-100 how well this buyer aligns with what the seller wants:
 
 DEAL:
@@ -738,7 +749,7 @@ BUYER:
 - Type: ${buyer.buyer_type || 'Unknown'}
 - Thesis: ${(buyer.thesis_summary || '').substring(0, 300)}
 - Deal Preferences: ${buyer.deal_preferences || 'Not specified'}
-- Buyer Type Norms: PE=majority recap+rollover+1-2yr transition, Platform=operators stay, Strategic=full buyout, Family Office=flexible
+- Buyer Type Norms: PE=majority recap+rollover+1-2yr transition, Platform=operators stay, Strategic=full buyout, Family Office=flexible${customContext}
 
 If buyer data is sparse, score based on buyer TYPE norms vs seller goals.
 Conflicts (exit timing, structure mismatch) pull score down 25-35.
@@ -818,7 +829,7 @@ async function calculateThesisAlignmentBonus(
   apiKey: string
 ): Promise<{ bonus: number; reasoning: string }> {
   const thesis = buyer.thesis_summary || '';
-  if (thesis.length <= 50) {
+  if (thesis.length <= 30) {
     return { bonus: 0, reasoning: '' };
   }
 
@@ -1095,22 +1106,6 @@ function applyCustomInstructionBonus(adjustments: any[]): { bonus: number; reaso
 }
 
 // ============================================================================
-// ENGAGEMENT BONUS (DISABLED in scoring pipeline per spec — kept for future)
-// ============================================================================
-
-// Engagement bonus code is kept but NOT called during scoring.
-// To re-enable, uncomment the engagement bonus application in the composite assembly.
-
-async function fetchEngagementBonus(
-  supabase: any,
-  listingId: string,
-  buyerId: string
-): Promise<{ bonus: number; reasoning: string }> {
-  // DISABLED per spec — scoring happens pre-engagement
-  return { bonus: 0, reasoning: '' };
-}
-
-// ============================================================================
 // COMPOSITE ASSEMBLY (Phase 7)
 // ============================================================================
 
@@ -1142,17 +1137,19 @@ async function scoreSingleBuyer(
   const geoResult = await calculateGeographyScore(listing, buyer, tracker, supabaseUrl, supabaseKey);
 
   // === Step d: Service score + multiplier (AI → keyword+adjacency fallback) ===
-  const serviceResult = await calculateServiceScore(listing, buyer, tracker, behavior, serviceCriteria, apiKey);
+  const serviceResult = await calculateServiceScore(listing, buyer, tracker, behavior, serviceCriteria, apiKey, customInstructions);
 
   // === Step e: Owner Goals score (AI → buyer-type norms fallback) ===
-  const ownerGoalsResult = await calculateOwnerGoalsScore(listing, buyer, apiKey);
+  const ownerGoalsResult = await calculateOwnerGoalsScore(listing, buyer, apiKey, customInstructions);
 
   // === Step f: Weighted composite ===
+  // Use effective weight sum as divisor so reduced geography mode doesn't systematically lower all scores
+  const effectiveWeightSum = sizeWeight + geoWeight * geoResult.modeFactor + serviceWeight + ownerGoalsWeight;
   const weightedBase = Math.round(
     (sizeResult.score * sizeWeight +
      geoResult.score * geoWeight * geoResult.modeFactor +
      serviceResult.score * serviceWeight +
-     ownerGoalsResult.score * ownerGoalsWeight) / 100
+     ownerGoalsResult.score * ownerGoalsWeight) / effectiveWeightSum
   );
 
   // === Step g+h: Apply BOTH gates ===
@@ -1165,8 +1162,8 @@ async function scoreSingleBuyer(
   // === Step j: Data quality bonus ===
   const dataQualityResult = calculateDataQualityBonus(buyer);
 
-  // === Step k: KPI bonus (keep existing logic — deterministic from tracker config) ===
-  const kpiBonus = 0; // TODO: implement from tracker.kpi_scoring_config if present
+  // === Step k: KPI bonus (intentionally disabled — no tracker KPI config schema defined yet) ===
+  const kpiBonus = 0;
 
   // === Step l: Custom instruction adjustments ===
   const customResult = applyCustomInstructionBonus(adjustments);
@@ -1227,12 +1224,13 @@ async function scoreSingleBuyer(
     dataCompleteness === 'low'
   );
 
-  // === Build reasoning ===
+  // === Build reasoning (aligned with frontend tier bands) ===
   let fitLabel: string;
   if (isDisqualified) fitLabel = "DISQUALIFIED";
-  else if (finalScore >= 70) fitLabel = "Strong fit";
-  else if (finalScore >= 55) fitLabel = "Moderate fit";
-  else fitLabel = "Weak fit";
+  else if (finalScore >= 80) fitLabel = "Strong fit";
+  else if (finalScore >= 65) fitLabel = "Good fit";
+  else if (finalScore >= 50) fitLabel = "Fair fit";
+  else fitLabel = "Poor fit";
 
   const reasoningParts = [
     `${fitLabel}: ${geoResult.reasoning}`,
@@ -1273,9 +1271,9 @@ async function scoreSingleBuyer(
     size_score: sizeResult.score,
     service_score: serviceResult.score,
     owner_goals_score: ownerGoalsResult.score,
-    acquisition_score: 50, // Secondary — kept at neutral default
-    portfolio_score: 50,
-    business_model_score: 50,
+    acquisition_score: 0, // Not calculated — reserved for future use
+    portfolio_score: 0,
+    business_model_score: 0,
     size_multiplier: sizeResult.multiplier,
     service_multiplier: serviceResult.multiplier,
     geography_mode_factor: geoResult.modeFactor,
@@ -1309,7 +1307,7 @@ async function handleSingleScore(
   apiKey: string,
   corsHeaders: Record<string, string>
 ) {
-  const { listingId, buyerId, universeId } = request;
+  const { listingId, buyerId, universeId, customInstructions } = request;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -1344,13 +1342,13 @@ async function handleSingleScore(
   const score = await scoreSingleBuyer(
     listing, buyer, universe, tracker,
     adjustments, learningPatterns.get(buyerId),
-    apiKey, supabaseUrl, supabaseKey
+    apiKey, supabaseUrl, supabaseKey, customInstructions
   );
 
   // Upsert score
   const { data: savedScore, error: saveError } = await supabase
     .from("remarketing_scores")
-    .upsert(score, { onConflict: "listing_id,buyer_id" })
+    .upsert(score, { onConflict: "listing_id,buyer_id,universe_id" })
     .select()
     .single();
 
@@ -1464,7 +1462,7 @@ async function handleBulkScore(
   let buyersToScore = buyers;
   if (!rescoreExisting) {
     const { data: existingScores } = await supabase
-      .from("remarketing_scores").select("buyer_id").eq("listing_id", listingId);
+      .from("remarketing_scores").select("buyer_id").eq("listing_id", listingId).eq("universe_id", universeId);
     const scoredIds = new Set((existingScores || []).map((s: any) => s.buyer_id));
     buyersToScore = buyers.filter((b: any) => !scoredIds.has(b.id));
     if (buyersToScore.length === 0) {
@@ -1531,7 +1529,7 @@ async function handleBulkScore(
     if (validScores.length > 0) {
       const { data: savedScores, error: saveError } = await supabase
         .from("remarketing_scores")
-        .upsert(validScores, { onConflict: "listing_id,buyer_id" })
+        .upsert(validScores, { onConflict: "listing_id,buyer_id,universe_id" })
         .select();
 
       if (saveError) {

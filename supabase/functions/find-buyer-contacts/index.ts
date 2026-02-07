@@ -15,7 +15,7 @@ serve(async (req) => {
     const { buyerId, peFirmWebsite, platformWebsite } = await req.json();
 
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
     if (!FIRECRAWL_API_KEY) {
       return new Response(
@@ -24,9 +24,9 @@ serve(async (req) => {
       );
     }
 
-    if (!LOVABLE_API_KEY) {
+    if (!GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: 'LOVABLE_API_KEY is not configured' }),
+        JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -38,11 +38,11 @@ serve(async (req) => {
     let websites: string[] = [];
     let buyer: any = null;
 
-    // Get buyer info if buyerId provided
+    // Get buyer info if buyerId provided (use remarketing_buyers — the active schema)
     if (buyerId) {
       const { data, error } = await supabase
-        .from('buyers')
-        .select('id, pe_firm_name, pe_firm_website, platform_website')
+        .from('remarketing_buyers')
+        .select('id, company_name, pe_firm_website, company_website')
         .eq('id', buyerId)
         .single();
 
@@ -50,7 +50,7 @@ serve(async (req) => {
       buyer = data;
 
       if (buyer.pe_firm_website) websites.push(buyer.pe_firm_website);
-      if (buyer.platform_website) websites.push(buyer.platform_website);
+      if (buyer.company_website) websites.push(buyer.company_website);
     }
 
     // Add provided websites
@@ -128,7 +128,7 @@ serve(async (req) => {
             if (pageContent.length < 100) continue;
 
             // Step 3: Extract contacts using AI
-            const contacts = await extractContactsWithAI(pageContent, pageUrl, LOVABLE_API_KEY);
+            const contacts = await extractContactsWithAI(pageContent, pageUrl, GEMINI_API_KEY);
             allContacts.push(...contacts);
 
           } catch (pageError) {
@@ -147,7 +147,7 @@ serve(async (req) => {
     // Save contacts if buyerId provided
     if (buyerId && uniqueContacts.length > 0) {
       for (const contact of uniqueContacts) {
-        await supabase.from('buyer_contacts').upsert({
+        await supabase.from('remarketing_buyer_contacts').upsert({
           buyer_id: buyerId,
           name: contact.name,
           title: contact.title,
@@ -204,14 +204,14 @@ Role categories:
 Only include people with clear names and titles. Return empty array if no contacts found.`;
 
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.0-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Extract contacts from this page:\n\n${content.substring(0, 8000)}` }

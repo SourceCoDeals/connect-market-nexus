@@ -83,10 +83,10 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch deal location
+    // Fetch deal location from listings table (active schema)
     const { data: deal, error: dealError } = await supabase
-      .from('deals')
-      .select('id, company_address')
+      .from('listings')
+      .select('id, location')
       .eq('id', dealId)
       .single();
 
@@ -97,13 +97,13 @@ serve(async (req) => {
       );
     }
 
-    // Parse deal state from address
-    const dealState = extractState(deal.company_address);
+    // Parse deal state from location
+    const dealState = extractState(deal.location);
 
-    // Fetch buyers
+    // Fetch buyers from remarketing_buyers table (active schema)
     let buyerQuery = supabase
-      .from('buyers')
-      .select('id, pe_firm_name, geographic_footprint, acquisition_geography, target_geographies, hq_state');
+      .from('remarketing_buyers')
+      .select('id, company_name, geographic_footprint, target_geographies, hq_state');
 
     if (buyerIds && buyerIds.length > 0) {
       buyerQuery = buyerQuery.in('id', buyerIds);
@@ -127,7 +127,7 @@ serve(async (req) => {
       const result = calculateGeographyScore(dealState, buyer);
       scores.push({
         buyerId: buyer.id,
-        buyerName: buyer.pe_firm_name,
+        buyerName: buyer.company_name,
         ...result
       });
     }
@@ -211,27 +211,28 @@ function calculateGeographyScore(
 
   // Check for national buyers
   if (buyerStates.has('NATIONAL') || buyerStates.size === 0) {
-    return { score: 70, matchType: 'national', details: 'Buyer has national acquisition scope' };
+    return { score: 60, matchType: 'national', details: 'Buyer has national acquisition scope' };
   }
 
-  // Exact state match
+  // Exact state match (aligned with geography-utils.ts: exact=95)
   if (buyerStates.has(dealState)) {
-    return { score: 100, matchType: 'exact', details: `Exact match: ${dealState}` };
+    return { score: 95, matchType: 'exact', details: `Exact match: ${dealState}` };
   }
 
-  // Adjacent state match (100-mile rule approximation)
+  // Adjacent state match (aligned with geography-utils.ts: adjacent=70-85)
   const adjacentStates = STATE_ADJACENCY[dealState] || [];
-  const adjacentMatch = adjacentStates.find(s => buyerStates.has(s));
-  if (adjacentMatch) {
-    return { score: 85, matchType: 'adjacent', details: `Adjacent state match via ${adjacentMatch}` };
+  const adjacentMatches = adjacentStates.filter(s => buyerStates.has(s));
+  if (adjacentMatches.length > 0) {
+    const score = Math.min(85, 70 + adjacentMatches.length * 5);
+    return { score, matchType: 'adjacent', details: `Adjacent state match via ${adjacentMatches[0]}` };
   }
 
-  // Regional match (within 2 degrees of separation)
+  // Regional match (aligned with geography-utils.ts: regional=45-60)
   for (const adjState of adjacentStates) {
     const secondDegree = STATE_ADJACENCY[adjState] || [];
     const regionalMatch = secondDegree.find(s => buyerStates.has(s));
     if (regionalMatch) {
-      return { score: 60, matchType: 'regional', details: `Regional match via ${adjState} → ${regionalMatch}` };
+      return { score: 50, matchType: 'regional', details: `Regional match via ${adjState} → ${regionalMatch}` };
     }
   }
 
