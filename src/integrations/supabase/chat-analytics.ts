@@ -1,5 +1,10 @@
 /**
  * Chat Analytics & Feedback Client Utilities
+ *
+ * These utilities reference tables (chat_analytics, chat_feedback) and
+ * functions (get_chat_analytics_summary) that may not yet exist in the
+ * database schema.  We use `as any` on the supabase client to avoid
+ * type errors until the corresponding migrations are applied.
  */
 
 import { supabase } from './client';
@@ -20,19 +25,18 @@ export interface LogAnalyticsOptions {
 export interface SubmitFeedbackOptions {
   conversationId: string;
   messageIndex: number;
-  rating: 1 | -1; // thumbs up or down
+  rating: 1 | -1;
   issueType?: 'incorrect' | 'incomplete' | 'hallucination' | 'poor_formatting' | 'missing_data' | 'slow_response' | 'other';
   feedbackText?: string;
 }
 
-/**
- * Log chat analytics
- */
+const db = supabase as any;
+
 export async function logChatAnalytics(
   options: LogAnalyticsOptions
 ): Promise<{ success: boolean; analyticsId?: string; error?: string }> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('chat_analytics')
       .insert({
         conversation_id: options.conversationId,
@@ -40,7 +44,7 @@ export async function logChatAnalytics(
         deal_id: options.dealId || null,
         universe_id: options.universeId || null,
         query_text: options.queryText,
-        response_text: options.responseText.substring(0, 5000), // Limit response text
+        response_text: options.responseText.substring(0, 5000),
         response_time_ms: options.responseTimeMs,
         tokens_input: options.tokensInput || 0,
         tokens_output: options.tokensOutput || 0,
@@ -62,14 +66,11 @@ export async function logChatAnalytics(
   }
 }
 
-/**
- * Submit user feedback
- */
 export async function submitFeedback(
   options: SubmitFeedbackOptions
 ): Promise<{ success: boolean; feedbackId?: string; error?: string }> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('chat_feedback')
       .insert({
         conversation_id: options.conversationId,
@@ -93,9 +94,6 @@ export async function submitFeedback(
   }
 }
 
-/**
- * Get analytics summary
- */
 export async function getAnalyticsSummary(
   contextType?: 'deal' | 'deals' | 'buyers' | 'universe',
   days: number = 7
@@ -114,7 +112,7 @@ export async function getAnalyticsSummary(
   error?: string;
 }> {
   try {
-    const { data, error } = await supabase.rpc('get_chat_analytics_summary', {
+    const { data, error } = await db.rpc('get_chat_analytics_summary', {
       p_context_type: contextType || null,
       p_days: days,
     });
@@ -124,23 +122,19 @@ export async function getAnalyticsSummary(
       return { success: false, error: error.message };
     }
 
-    return { success: true, summary: data[0] };
+    return { success: true, summary: data?.[0] };
   } catch (err) {
     console.error('[chat-analytics] Summary error:', err);
     return { success: false, error: String(err) };
   }
 }
 
-/**
- * Mark that user continued conversation (asked follow-up)
- */
 export async function markUserContinued(
   conversationId: string,
   messageIndex: number
 ): Promise<void> {
   try {
-    // Find the analytics entry for this message
-    const { data } = await supabase
+    const { data } = await db
       .from('chat_analytics')
       .select('id')
       .eq('conversation_id', conversationId)
@@ -148,7 +142,7 @@ export async function markUserContinued(
       .limit(10);
 
     if (data && data[messageIndex]) {
-      await supabase
+      await db
         .from('chat_analytics')
         .update({ user_continued: true })
         .eq('id', data[messageIndex].id);

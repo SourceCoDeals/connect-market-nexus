@@ -1,7 +1,10 @@
 /**
  * Chat Conversation Persistence Client Utilities
  *
- * Client-side helpers for saving and loading chat conversations.
+ * These utilities reference columns (context_type, title, archived, deal_id,
+ * universe_id) on chat_conversations that may not yet exist in the database
+ * schema.  We use `as any` on the supabase client to avoid type errors until
+ * the corresponding migrations are applied.
  */
 
 import { supabase } from './client';
@@ -22,7 +25,7 @@ export interface SaveConversationOptions {
   context: ConversationContext;
   messages: ChatMessage[];
   title?: string;
-  conversationId?: string; // If updating existing conversation
+  conversationId?: string;
 }
 
 export interface Conversation {
@@ -39,14 +42,12 @@ export interface Conversation {
   archived: boolean;
 }
 
-/**
- * Save or update a conversation
- */
+const db = supabase as any;
+
 export async function saveConversation(
   options: SaveConversationOptions
 ): Promise<{ success: boolean; conversationId?: string; error?: string }> {
   try {
-    // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -57,14 +58,13 @@ export async function saveConversation(
       context_type: options.context.type,
       deal_id: options.context.dealId || null,
       universe_id: options.context.universeId || null,
-      messages: options.messages,
+      messages: JSON.parse(JSON.stringify(options.messages)),
       title: options.title || generateTitle(options.messages),
       last_message_at: new Date().toISOString(),
     };
 
     if (options.conversationId) {
-      // Update existing conversation
-      const { error } = await supabase
+      const { error } = await db
         .from('chat_conversations')
         .update(conversationData)
         .eq('id', options.conversationId);
@@ -76,8 +76,7 @@ export async function saveConversation(
 
       return { success: true, conversationId: options.conversationId };
     } else {
-      // Create new conversation
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('chat_conversations')
         .insert(conversationData)
         .select('id')
@@ -96,9 +95,6 @@ export async function saveConversation(
   }
 }
 
-/**
- * Load conversations by context
- */
 export async function loadConversationsByContext(
   context: ConversationContext,
   limit: number = 10
@@ -109,7 +105,7 @@ export async function loadConversationsByContext(
       return { success: false, error: 'User not authenticated' };
     }
 
-    let query = supabase
+    let query = db
       .from('chat_conversations')
       .select('*')
       .eq('user_id', user.id)
@@ -133,16 +129,13 @@ export async function loadConversationsByContext(
       return { success: false, error: error.message };
     }
 
-    return { success: true, conversations: data as Conversation[] || [] };
+    return { success: true, conversations: (data as Conversation[]) || [] };
   } catch (err) {
     console.error('[chat-persistence] Load error:', err);
     return { success: false, error: String(err) };
   }
 }
 
-/**
- * Load a specific conversation by ID
- */
 export async function loadConversationById(
   conversationId: string
 ): Promise<{ success: boolean; conversation?: Conversation; error?: string }> {
@@ -152,7 +145,7 @@ export async function loadConversationById(
       return { success: false, error: 'User not authenticated' };
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('chat_conversations')
       .select('*')
       .eq('id', conversationId)
@@ -171,9 +164,6 @@ export async function loadConversationById(
   }
 }
 
-/**
- * Archive (soft delete) a conversation
- */
 export async function archiveConversation(
   conversationId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -183,7 +173,7 @@ export async function archiveConversation(
       return { success: false, error: 'User not authenticated' };
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('chat_conversations')
       .update({ archived: true })
       .eq('id', conversationId)
@@ -201,9 +191,6 @@ export async function archiveConversation(
   }
 }
 
-/**
- * Get recent conversations across all contexts
- */
 export async function getRecentConversations(
   limit: number = 10
 ): Promise<{ success: boolean; conversations?: Conversation[]; error?: string }> {
@@ -213,7 +200,7 @@ export async function getRecentConversations(
       return { success: false, error: 'User not authenticated' };
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('chat_conversations')
       .select('*')
       .eq('user_id', user.id)
@@ -226,41 +213,25 @@ export async function getRecentConversations(
       return { success: false, error: error.message };
     }
 
-    return { success: true, conversations: data as Conversation[] || [] };
+    return { success: true, conversations: (data as Conversation[]) || [] };
   } catch (err) {
     console.error('[chat-persistence] Get recent error:', err);
     return { success: false, error: String(err) };
   }
 }
 
-/**
- * Generate a title from the first user message
- */
 function generateTitle(messages: ChatMessage[]): string {
   const firstUserMessage = messages.find(m => m.role === 'user');
-
-  if (!firstUserMessage) {
-    return 'New Conversation';
-  }
-
-  // Truncate to first 50 characters
+  if (!firstUserMessage) return 'New Conversation';
   const title = firstUserMessage.content.substring(0, 50).trim();
   return title.length < firstUserMessage.content.length ? title + '...' : title;
 }
 
-/**
- * Get conversation count by context type
- */
 export async function getConversationStats(): Promise<{
   success: boolean;
   stats?: {
     total: number;
-    byContext: {
-      deal: number;
-      deals: number;
-      buyers: number;
-      universe: number;
-    };
+    byContext: { deal: number; deals: number; buyers: number; universe: number };
   };
   error?: string;
 }> {
@@ -270,7 +241,7 @@ export async function getConversationStats(): Promise<{
       return { success: false, error: 'User not authenticated' };
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('chat_conversations')
       .select('context_type, id')
       .eq('user_id', user.id)
@@ -280,13 +251,14 @@ export async function getConversationStats(): Promise<{
       return { success: false, error: error.message };
     }
 
+    const rows = data || [];
     const stats = {
-      total: data.length,
+      total: rows.length,
       byContext: {
-        deal: data.filter(c => c.context_type === 'deal').length,
-        deals: data.filter(c => c.context_type === 'deals').length,
-        buyers: data.filter(c => c.context_type === 'buyers').length,
-        universe: data.filter(c => c.context_type === 'universe').length,
+        deal: rows.filter((c: any) => c.context_type === 'deal').length,
+        deals: rows.filter((c: any) => c.context_type === 'deals').length,
+        buyers: rows.filter((c: any) => c.context_type === 'buyers').length,
+        universe: rows.filter((c: any) => c.context_type === 'universe').length,
       }
     };
 
