@@ -34,7 +34,8 @@ import {
   Clock,
   MoreHorizontal,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Star
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -46,11 +47,16 @@ interface UniverseDeal {
     id: string;
     title: string;
     internal_company_name?: string;
+    description?: string;
     location?: string;
     revenue?: number;
     ebitda?: number;
     enriched_at?: string;
     geographic_states?: string[];
+    linkedin_employee_count?: number;
+    linkedin_employee_range?: string;
+    google_rating?: number;
+    google_review_count?: number;
   };
 }
 
@@ -130,8 +136,9 @@ export const UniverseDealsTable = ({
                 aria-label="Select all deals"
               />
             </TableHead>
-            <TableHead className="w-[240px]">Deal Name</TableHead>
-            <TableHead className="w-[140px]">Service Area</TableHead>
+            <TableHead className="w-[220px]">Deal Name</TableHead>
+            <TableHead className="w-[200px]">Description</TableHead>
+            <TableHead className="w-[130px]">Service Area</TableHead>
             <TableHead className="w-[80px] text-center">
               <Tooltip>
                 <TooltipTrigger className="flex items-center gap-1">
@@ -156,17 +163,19 @@ export const UniverseDealsTable = ({
                 <TooltipContent>Passed buyers</TooltipContent>
               </Tooltip>
             </TableHead>
-            <TableHead className="w-[100px]">Added</TableHead>
-            <TableHead className="w-[90px] text-right">Revenue</TableHead>
-            <TableHead className="w-[90px] text-right">EBITDA</TableHead>
-            <TableHead className="w-[80px] text-center">Score</TableHead>
+            <TableHead className="w-[90px]">Added</TableHead>
+            <TableHead className="w-[80px] text-center">LI Employees</TableHead>
+            <TableHead className="w-[100px] text-center">Google Reviews</TableHead>
+            <TableHead className="w-[80px] text-right">Revenue</TableHead>
+            <TableHead className="w-[80px] text-right">EBITDA</TableHead>
+            <TableHead className="w-[70px] text-center">Score</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {deals.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+              <TableCell colSpan={14} className="text-center py-12 text-muted-foreground">
                 <Target className="h-8 w-8 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">No deals in this universe</p>
                 <p className="text-sm">Add deals to start matching with buyers</p>
@@ -223,6 +232,17 @@ export const UniverseDealsTable = ({
                         )}
                       </div>
                     </div>
+                  </TableCell>
+
+                  {/* Description */}
+                  <TableCell>
+                    {deal.listing.description ? (
+                      <p className="text-sm text-muted-foreground line-clamp-2 max-w-[200px]">
+                        {deal.listing.description}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
                   </TableCell>
 
                   {/* Service Area */}
@@ -282,6 +302,42 @@ export const UniverseDealsTable = ({
                     <span className="text-sm text-muted-foreground">
                       {formatDistanceToNow(new Date(deal.added_at), { addSuffix: true })}
                     </span>
+                  </TableCell>
+
+                  {/* LinkedIn Employees */}
+                  <TableCell className="text-center">
+                    {deal.listing.linkedin_employee_count ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <Badge variant="secondary" className="text-xs font-medium">
+                          <span className="text-blue-600 mr-1">LI</span>
+                          {deal.listing.linkedin_employee_count.toLocaleString()}
+                        </Badge>
+                      </div>
+                    ) : deal.listing.linkedin_employee_range ? (
+                      <Badge variant="secondary" className="text-xs">
+                        <span className="text-blue-600 mr-1">LI</span>
+                        {deal.listing.linkedin_employee_range}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+
+                  {/* Google Reviews */}
+                  <TableCell className="text-center">
+                    {deal.listing.google_rating ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                        <span className="text-sm font-medium">{deal.listing.google_rating}</span>
+                        {deal.listing.google_review_count != null && (
+                          <span className="text-xs text-muted-foreground">
+                            ({deal.listing.google_review_count})
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
 
                   {/* Revenue */}
