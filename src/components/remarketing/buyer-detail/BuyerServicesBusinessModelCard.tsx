@@ -14,7 +14,7 @@ interface BuyerServicesBusinessModelCardProps {
  * Parse services_offered which may be:
  * - A JSON array string: '["Water mitigation", "Roofing"]'
  * - A comma-separated string: 'Water mitigation, Roofing'
- * - A plain text description
+ * - A plain text description (prose)
  */
 function parseServices(raw: string): { items: string[] | null; text: string | null } {
   const trimmed = raw.trim();
@@ -31,13 +31,19 @@ function parseServices(raw: string): { items: string[] | null; text: string | nu
     }
   }
   
+  // Check if it reads like prose (has periods, long sentences, etc.)
+  const hasSentences = trimmed.includes('. ') || trimmed.length > 120;
+  if (hasSentences) {
+    return { items: null, text: trimmed };
+  }
+  
   // If it's short and comma-separated (no long sentences), treat as list
   const parts = trimmed.split(",").map(s => s.trim()).filter(Boolean);
   if (parts.length > 1 && parts.every(p => p.length < 60)) {
     return { items: parts, text: null };
   }
   
-  // Otherwise it's a prose description
+  // Single short value — treat as text
   return { items: null, text: trimmed };
 }
 
@@ -68,12 +74,27 @@ export const BuyerServicesBusinessModelCard = ({
           <p className="text-sm text-muted-foreground italic">No services or business model specified</p>
         ) : (
           <>
-            {services && (
+            {/* Business Type as a badge label */}
+            {businessModel && (
               <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Business Type
+                </p>
+                <Badge variant="outline" className="text-xs">
+                  {businessModel}
+                </Badge>
+              </div>
+            )}
+
+            {/* Services - prose or badges */}
+            {services && (
+              <div className={businessModel ? "pt-3 border-t" : ""}>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                   Service Mix
                 </p>
-                {services.items ? (
+                {services.text ? (
+                  <p className="text-sm leading-relaxed">{services.text}</p>
+                ) : services.items ? (
                   <div className="flex flex-wrap gap-1.5">
                     {services.items.map((service, i) => (
                       <Badge key={i} variant="secondary" className="text-xs">
@@ -81,18 +102,18 @@ export const BuyerServicesBusinessModelCard = ({
                       </Badge>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-sm">{services.text}</p>
-                )}
+                ) : null}
               </div>
             )}
-            {(businessModel || revenueModel) && (
-              <div className={services ? "pt-3 border-t" : ""}>
+
+            {/* Revenue Model - always prose */}
+            {revenueModel && (
+              <div className={(businessModel || services) ? "pt-3 border-t" : ""}>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                  Business Model
+                  Revenue Model
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {businessModel || revenueModel}
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {revenueModel}
                 </p>
               </div>
             )}
