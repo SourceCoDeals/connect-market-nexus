@@ -161,7 +161,7 @@ serve(async (req) => {
                 'apikey': supabaseServiceKey,
                 'Authorization': `Bearer ${supabaseServiceKey}`,
               },
-              body: JSON.stringify({ buyerId: item.buyer_id }),
+              body: JSON.stringify({ buyerId: item.buyer_id, skipLock: true }),
               signal: controller.signal,
             });
 
