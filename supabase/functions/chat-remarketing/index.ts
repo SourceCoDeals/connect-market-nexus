@@ -210,7 +210,7 @@ CURRENT DEAL:
 - Business Model: ${deal.business_model || 'Not specified'}
 - Description: ${deal.description || 'Not available'}
 - Owner Goals: ${deal.owner_goals || 'Not specified'}
-- Key Risks: ${deal.key_risks?.join(', ') || 'None identified'}
+- Key Risks: ${Array.isArray(deal.key_risks) ? deal.key_risks.join(', ') : (deal.key_risks || 'None identified')}
 - Location Count: ${deal.location_count || 'Unknown'}
 - Employee Count: ${deal.employees || 'Unknown'}
 
