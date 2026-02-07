@@ -1,3 +1,6 @@
+// DEPRECATED: This standalone function is no longer invoked by any frontend or backend code.
+// Service scoring is handled inline by calculateServiceScore() in score-buyer-deal/index.ts.
+// Kept for reference only.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -58,7 +61,8 @@ ${buyerServicesOffered ? `Buyer Services Offered: ${buyerServicesOffered}` : ''}
 
 Analyze the service fit between this deal and the buyer's preferences.`;
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GEMINI_API_KEY}`,

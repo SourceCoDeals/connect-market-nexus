@@ -74,12 +74,10 @@ export const IntelligenceBadge = ({
   size = "sm",
   className,
 }: IntelligenceBadgeProps) => {
-  // CRITICAL RULE: Without a transcript, max intel is "medium" (Some Intel)
-  // "Strong" (high) intel REQUIRES call transcripts to understand investment thesis
+  // Use the completeness level as-is from the backend scoring engine.
+  // The backend assessDataCompleteness already requires thesis+targets+financials+acquisitions for 'high'.
+  // Previous hasTranscript downgrade was always triggered because BuyerMatchCard never passes this prop.
   let effectiveCompleteness = completeness;
-  if (completeness === 'high' && !hasTranscript) {
-    effectiveCompleteness = 'medium';
-  }
 
   if (!effectiveCompleteness) {
     return (

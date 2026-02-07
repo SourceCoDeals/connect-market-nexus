@@ -17,6 +17,7 @@ interface ScoreRequest {
   buyerId: string;
   universeId: string;
   customInstructions?: string;
+  geographyMode?: 'critical' | 'preferred' | 'minimal';
 }
 
 interface BulkScoreRequest {
@@ -24,6 +25,7 @@ interface BulkScoreRequest {
   universeId: string;
   buyerIds?: string[];
   customInstructions?: string;
+  geographyMode?: 'critical' | 'preferred' | 'minimal';
   options?: {
     rescoreExisting?: boolean;
     minDataCompleteness?: 'high' | 'medium' | 'low';
@@ -141,6 +143,18 @@ const DEFAULT_SERVICE_ADJACENCY: Record<string, string[]> = {
   "contents cleaning": ["restoration", "fire restoration", "water restoration", "pack-out"],
   "automotive": ["auto body", "collision repair", "auto glass", "fleet maintenance", "calibration"],
   "auto glass": ["collision repair", "auto body", "calibration", "automotive"],
+  "healthcare": ["medical", "dental", "urgent care", "physical therapy", "home health", "behavioral health"],
+  "medical": ["healthcare", "dental", "urgent care", "home health", "physician services"],
+  "dental": ["healthcare", "medical", "orthodontics"],
+  "it services": ["managed services", "cybersecurity", "cloud", "msp", "technology"],
+  "managed services": ["it services", "msp", "cybersecurity", "cloud", "saas"],
+  "msp": ["managed services", "it services", "cybersecurity"],
+  "accounting": ["tax", "bookkeeping", "financial services", "cpa", "advisory"],
+  "engineering": ["consulting", "environmental", "surveying", "architecture"],
+  "staffing": ["recruiting", "temp services", "workforce", "hr services"],
+  "insurance": ["benefits", "risk management", "brokerage"],
+  "home services": ["residential hvac", "plumbing", "electrical", "roofing", "landscaping", "pest control"],
+  "solar": ["electrical", "renewable energy", "energy services"],
 };
 
 // ============================================================================
@@ -344,21 +358,38 @@ function calculateSizeScore(
     }
   }
 
-  // === EBITDA-based scoring (supplement or fallback) ===
-  if (dealEbitda != null && dealEbitda > 0 && buyerMinEbitda) {
-    if (dealEbitda < buyerMinEbitda * 0.5) {
-      // EBITDA way below minimum — override if worse
-      if (score > 20) {
-        score = 20;
-        multiplier = Math.min(multiplier, 0.25);
-        reasoning += `. EBITDA $${(dealEbitda/1e6).toFixed(1)}M — far below buyer min ($${(buyerMinEbitda/1e6).toFixed(1)}M)`;
+  // === EBITDA-based scoring (sweet spot, supplement, or fallback) ===
+  if (dealEbitda != null && dealEbitda <= 0) {
+    // Negative or zero EBITDA — note in reasoning but don't use for size scoring
+    reasoning += `. Note: EBITDA is ${dealEbitda <= 0 ? 'negative' : 'zero'} ($${(dealEbitda/1e6).toFixed(1)}M) — excluded from size scoring`;
+  }
+  if (dealEbitda != null && dealEbitda > 0) {
+    // EBITDA sweet spot match (boost if revenue didn't already match)
+    if (ebitdaSweetSpot && score < 90) {
+      if (Math.abs(dealEbitda - ebitdaSweetSpot) / ebitdaSweetSpot <= 0.1) {
+        score = Math.max(score, 95);
+        multiplier = Math.max(multiplier, 1.0);
+        reasoning += `. EBITDA $${(dealEbitda/1e6).toFixed(1)}M — exact EBITDA sweet spot`;
+      } else if (Math.abs(dealEbitda - ebitdaSweetSpot) / ebitdaSweetSpot <= 0.2) {
+        score = Math.max(score, 88);
+        multiplier = Math.max(multiplier, 0.95);
+        reasoning += `. EBITDA $${(dealEbitda/1e6).toFixed(1)}M — near EBITDA sweet spot`;
       }
-    } else if (dealEbitda < buyerMinEbitda) {
-      // EBITDA below minimum — penalize
-      if (score > 40) {
-        score = Math.min(score, 40);
-        multiplier = Math.min(multiplier, 0.6);
-        reasoning += `. EBITDA below buyer minimum`;
+    }
+    // EBITDA below minimum — penalize
+    if (buyerMinEbitda) {
+      if (dealEbitda < buyerMinEbitda * 0.5) {
+        if (score > 20) {
+          score = 20;
+          multiplier = Math.min(multiplier, 0.25);
+          reasoning += `. EBITDA $${(dealEbitda/1e6).toFixed(1)}M — far below buyer min ($${(buyerMinEbitda/1e6).toFixed(1)}M)`;
+        }
+      } else if (dealEbitda < buyerMinEbitda) {
+        if (score > 40) {
+          score = Math.min(score, 40);
+          multiplier = Math.min(multiplier, 0.6);
+          reasoning += `. EBITDA below buyer minimum`;
+        }
       }
     }
   }
@@ -896,27 +927,40 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
     return { score: Math.max(30, Math.min(85, score)), confidence: 'low', reasoning: `No owner goals — ${buyerType || 'unknown'} type base score` };
   }
 
-  // Match owner goals to categories
+  // Match owner goals to categories using word-boundary-safe checks
   let score = typeNorms.base;
-  if (ownerGoals.includes('cash') && ownerGoals.includes('exit')) score = typeNorms.cash_exit;
-  else if (ownerGoals.includes('growth') || ownerGoals.includes('partner') || ownerGoals.includes('rollover')) score = typeNorms.growth_partner;
-  else if (ownerGoals.includes('quick') || ownerGoals.includes('fast') || ownerGoals.includes('30 day') || ownerGoals.includes('60 day')) score = typeNorms.quick_exit;
-  else if (ownerGoals.includes('stay') || ownerGoals.includes('continue') || ownerGoals.includes('long')) score = typeNorms.stay_long;
-  else if (ownerGoals.includes('employee') || ownerGoals.includes('retain') || ownerGoals.includes('team')) score = typeNorms.retain_employees;
-  else if (ownerGoals.includes('autonom') || ownerGoals.includes('independen')) score = typeNorms.keep_autonomy;
+  let matchedCategory = '';
+  if (ownerGoals.includes('cash') && ownerGoals.includes('exit')) { score = typeNorms.cash_exit; matchedCategory = 'cash exit'; }
+  else if (ownerGoals.includes('growth') || ownerGoals.includes('partner') || ownerGoals.includes('rollover')) { score = typeNorms.growth_partner; matchedCategory = 'growth/partner'; }
+  else if (ownerGoals.includes('quick') || ownerGoals.includes('fast') || ownerGoals.includes('30 day') || ownerGoals.includes('60 day')) { score = typeNorms.quick_exit; matchedCategory = 'quick exit'; }
+  else if (/\bstay\b/.test(ownerGoals) || /\bcontinue\b/.test(ownerGoals) || /\blong[\s-]?term\b/.test(ownerGoals)) { score = typeNorms.stay_long; matchedCategory = 'stay/continue'; }
+  else if (/\bemployee/.test(ownerGoals) || /\bretain\b/.test(ownerGoals) || /\bteam\b/.test(ownerGoals)) { score = typeNorms.retain_employees; matchedCategory = 'retain employees'; }
+  else if (/\bautonom/.test(ownerGoals) || /\bindependen/.test(ownerGoals)) { score = typeNorms.keep_autonomy; matchedCategory = 'autonomy'; }
+
+  // Check special_requirements for deal-breaker conflicts
+  const specialReqs = (listing.special_requirements || '').toLowerCase();
+  if (specialReqs) {
+    if (specialReqs.includes('no pe') && buyerType === 'pe_firm') score = Math.max(0, score - 25);
+    else if (specialReqs.includes('no strategic') && buyerType === 'strategic') score = Math.max(0, score - 25);
+    else if (specialReqs.includes('no family office') && buyerType === 'family_office') score = Math.max(0, score - 25);
+  }
 
   // Bonus/penalty from buyer-specific data
   if (thesis) {
-    // Check if thesis mentions alignment with owner goals
     const goalKeywords = ownerGoals.split(/\s+/).filter(w => w.length > 3);
     const thesisAligns = goalKeywords.some(gw => thesis.includes(gw));
     if (thesisAligns) score = Math.min(100, score + 8);
   }
 
+  // Confidence is 'medium' when we matched a specific keyword category, 'low' when using base only
+  const confidence = matchedCategory ? 'medium' : 'low';
+
   return {
     score: Math.max(0, Math.min(100, score)),
-    confidence: 'low',
-    reasoning: `Fallback: ${buyerType || 'unknown'} buyer type norms vs owner goals`
+    confidence,
+    reasoning: matchedCategory
+      ? `Fallback: ${buyerType || 'unknown'} norms for "${matchedCategory}" goals`
+      : `Fallback: ${buyerType || 'unknown'} buyer type base score`
   };
 }
 
@@ -1189,9 +1233,10 @@ async function fetchScoringAdjustments(supabase: any, listingId: string): Promis
   return data || [];
 }
 
-function applyCustomInstructionBonus(adjustments: any[]): { bonus: number; reasoning: string } {
+function applyCustomInstructionBonus(adjustments: any[]): { bonus: number; reasoning: string; disqualify?: boolean } {
   let bonus = 0;
   const reasons: string[] = [];
+  let disqualify = false;
 
   for (const adj of adjustments) {
     if (adj.adjustment_type === 'boost') {
@@ -1200,10 +1245,13 @@ function applyCustomInstructionBonus(adjustments: any[]): { bonus: number; reaso
     } else if (adj.adjustment_type === 'penalize') {
       bonus -= adj.adjustment_value;
       reasons.push(`-${adj.adjustment_value} (${adj.reason || 'penalty'})`);
+    } else if (adj.adjustment_type === 'disqualify') {
+      disqualify = true;
+      reasons.push(`DISQUALIFIED (${adj.reason || 'custom rule'})`);
     }
   }
 
-  return { bonus, reasoning: reasons.join('; ') };
+  return { bonus, reasoning: reasons.join('; '), disqualify };
 }
 
 // ============================================================================
@@ -1231,13 +1279,14 @@ async function scoreSingleBuyer(
   const serviceWeight = universe.service_weight || 45;
   const ownerGoalsWeight = universe.owner_goals_weight || 5;
 
-  // === Steps a-e: Score all dimensions (parallelize independent calls) ===
+  // === Steps a-e: Score all dimensions (parallelize ALL independent calls including thesis) ===
   const sizeResult = calculateSizeScore(listing, buyer, behavior);
 
-  const [geoResult, serviceResult, ownerGoalsResult] = await Promise.all([
+  const [geoResult, serviceResult, ownerGoalsResult, thesisResult] = await Promise.all([
     calculateGeographyScore(listing, buyer, tracker, supabaseUrl, supabaseKey),
     calculateServiceScore(listing, buyer, tracker, behavior, serviceCriteria, apiKey, customInstructions),
     calculateOwnerGoalsScore(listing, buyer, apiKey, customInstructions),
+    calculateThesisAlignmentBonus(listing, buyer, apiKey),
   ]);
 
   // === Step f: Weighted composite ===
@@ -1254,16 +1303,13 @@ async function scoreSingleBuyer(
   let gatedScore = Math.round(weightedBase * sizeResult.multiplier * serviceResult.multiplier);
   gatedScore = Math.max(0, Math.min(100, gatedScore));
 
-  // === Step i: Thesis alignment bonus ===
-  const thesisResult = await calculateThesisAlignmentBonus(listing, buyer, apiKey);
-
-  // === Step j: Data quality bonus ===
+  // === Step i: Data quality bonus ===
   const dataQualityResult = calculateDataQualityBonus(buyer);
 
-  // === Step k: Custom instruction adjustments ===
+  // === Step j: Custom instruction adjustments ===
   const customResult = applyCustomInstructionBonus(adjustments);
 
-  // === Step l: Learning penalty ===
+  // === Step k: Learning penalty ===
   const learningResult = calculateLearningPenalty(learningPattern);
 
   // === Step l: Final assembly ===
@@ -1292,6 +1338,11 @@ async function scoreSingleBuyer(
   if (geoResult.score === 0 && geoResult.reasoning.includes('DISQUALIFIED')) {
     isDisqualified = true;
     disqualificationReason = geoResult.reasoning;
+    finalScore = 0;
+  }
+  if (customResult.disqualify) {
+    isDisqualified = true;
+    disqualificationReason = customResult.reasoning;
     finalScore = 0;
   }
 
@@ -1401,7 +1452,7 @@ async function handleSingleScore(
   apiKey: string,
   corsHeaders: Record<string, string>
 ) {
-  const { listingId, buyerId, universeId, customInstructions } = request;
+  const { listingId, buyerId, universeId, customInstructions, geographyMode } = request;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -1425,6 +1476,13 @@ async function handleSingleScore(
   if (buyer.industry_tracker_id) {
     const { data } = await supabase.from("industry_trackers").select("*").eq("id", buyer.industry_tracker_id).single();
     tracker = data;
+  }
+
+  // Apply geography mode override from request (takes precedence over tracker)
+  if (geographyMode && tracker) {
+    tracker = { ...tracker, geography_mode: geographyMode };
+  } else if (geographyMode && !tracker) {
+    tracker = { geography_mode: geographyMode };
   }
 
   // Fetch adjustments and learning patterns
@@ -1467,7 +1525,7 @@ async function handleBulkScore(
   apiKey: string,
   corsHeaders: Record<string, string>
 ) {
-  const { listingId, universeId, buyerIds, customInstructions, options } = request;
+  const { listingId, universeId, buyerIds, customInstructions, geographyMode, options } = request;
   const rescoreExisting = options?.rescoreExisting ?? false;
   const minDataCompleteness = options?.minDataCompleteness;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -1600,7 +1658,11 @@ async function handleBulkScore(
 
     const batchPromises = batch.map(async (buyer: any) => {
       try {
-        const tracker = buyer.industry_tracker_id ? trackerMap.get(buyer.industry_tracker_id) : null;
+        let tracker = buyer.industry_tracker_id ? trackerMap.get(buyer.industry_tracker_id) : null;
+        // Apply geography mode override from request
+        if (geographyMode) {
+          tracker = tracker ? { ...tracker, geography_mode: geographyMode } : { geography_mode: geographyMode };
+        }
         return await scoreSingleBuyer(
           listing, buyer, universe, tracker,
           adjustments, learningPatterns.get(buyer.id),
@@ -1630,9 +1692,10 @@ async function handleBulkScore(
       }
     }
 
-    // Rate limit delay between batches
+    // Adaptive rate limit delay — increase for large runs to avoid API rate limits
     if (i + batchSize < buyersToScore.length) {
-      await new Promise(r => setTimeout(r, 300));
+      const delay = buyersToScore.length > 100 ? 600 : buyersToScore.length > 50 ? 400 : 300;
+      await new Promise(r => setTimeout(r, delay));
     }
   }
 

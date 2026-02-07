@@ -6,6 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -25,6 +32,7 @@ import {
   Sparkles,
   X,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +58,8 @@ interface ScoringInsightsPanelProps {
   onRecalculate: () => void;
   onReset: () => void;
   isRecalculating?: boolean;
+  geographyMode?: 'critical' | 'preferred' | 'minimal';
+  onGeographyModeChange?: (mode: 'critical' | 'preferred' | 'minimal') => void;
   className?: string;
 }
 
@@ -80,6 +90,8 @@ export const ScoringInsightsPanel = ({
   onRecalculate,
   onReset,
   isRecalculating = false,
+  geographyMode,
+  onGeographyModeChange,
   className,
 }: ScoringInsightsPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -190,28 +202,67 @@ export const ScoringInsightsPanel = ({
         {/* Expanded Content */}
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4 space-y-4 border-t">
-            {/* Category Progress Bars */}
-            <div className="grid grid-cols-4 gap-4 pt-4">
-              {categoryConfig.map((cat) => {
-                const weight = weights[cat.key as keyof typeof weights];
-                const Icon = cat.icon;
-                
-                return (
-                  <div key={cat.key} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Icon className="h-3.5 w-3.5" />
-                        {cat.label}
-                      </span>
-                      <span className="font-medium">{weight}%</span>
+            {/* Geography Mode + Category Progress Bars */}
+            <div className="space-y-3 pt-4">
+              {/* Geography Mode Selector */}
+              {onGeographyModeChange && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    Geography Importance
+                  </span>
+                  <Select
+                    value={geographyMode || 'critical'}
+                    onValueChange={(v) => onGeographyModeChange(v as 'critical' | 'preferred' | 'minimal')}
+                  >
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="preferred">Preferred</SelectItem>
+                      <SelectItem value="minimal">Minimal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Weight validation warning */}
+              {(() => {
+                const sum = weights.geography + weights.size + weights.service + weights.ownerGoals;
+                if (sum !== 100) {
+                  return (
+                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-md p-2">
+                      <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>Weights sum to {sum}% (should be 100%). Scores use relative ratios.</span>
                     </div>
-                    <Progress 
-                      value={weight} 
-                      className="h-2"
-                    />
-                  </div>
-                );
-              })}
+                  );
+                }
+                return null;
+              })()}
+
+              <div className="grid grid-cols-4 gap-4">
+                {categoryConfig.map((cat) => {
+                  const weight = weights[cat.key as keyof typeof weights];
+                  const Icon = cat.icon;
+
+                  return (
+                    <div key={cat.key} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <Icon className="h-3.5 w-3.5" />
+                          {cat.label}
+                        </span>
+                        <span className="font-medium">{weight}%</span>
+                      </div>
+                      <Progress
+                        value={weight}
+                        className="h-2"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Outcome Stats */}

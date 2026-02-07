@@ -1,3 +1,6 @@
+// DEPRECATED: This standalone function duplicates logic now in score-buyer-deal/index.ts.
+// The main scoring engine uses DB-backed adjacency (geography-utils.ts) instead of this hardcoded map.
+// Kept for backwards compatibility with any external callers.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
