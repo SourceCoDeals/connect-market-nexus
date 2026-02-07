@@ -90,7 +90,7 @@ export const ScoreBreakdown = ({
             </div>
           );
         })}
-        {thesisBonus && thesisBonus > 0 && (
+        {thesisBonus != null && thesisBonus > 0 && (
           <div className="flex items-center gap-1 text-primary">
             <span className="text-xs">+{thesisBonus}</span>
           </div>
@@ -135,7 +135,7 @@ export const ScoreBreakdown = ({
       </div>
 
       {/* Thesis Bonus */}
-      {thesisBonus && thesisBonus > 0 && (
+      {thesisBonus != null && thesisBonus > 0 && (
         <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 text-primary">
           <TrendingUp className="h-4 w-4" />
           <span className="text-sm font-medium">Thesis Match Bonus: +{thesisBonus} points</span>

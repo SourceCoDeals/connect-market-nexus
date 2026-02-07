@@ -8,14 +8,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 // Cache for adjacency data to avoid repeated DB queries
+// TTL of 30 minutes to pick up DB changes without restarting the isolate
+const CACHE_TTL_MS = 30 * 60 * 1000;
 let adjacencyCache: Map<string, string[]> | null = null;
 let regionCache: Map<string, string> | null = null;
+let cacheLoadedAt: number = 0;
 
 /**
  * Initialize adjacency cache from database
  */
 async function initializeCache(supabaseUrl: string, supabaseKey: string) {
-  if (adjacencyCache && regionCache) return;
+  const now = Date.now();
+  if (adjacencyCache && regionCache && (now - cacheLoadedAt) < CACHE_TTL_MS) return;
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -36,6 +40,7 @@ async function initializeCache(supabaseUrl: string, supabaseKey: string) {
     regionCache.set(row.state_code, row.region);
   }
 
+  cacheLoadedAt = Date.now();
   console.log(`Loaded adjacency data for ${adjacencyCache.size} states`);
 }
 

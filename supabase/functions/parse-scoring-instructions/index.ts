@@ -40,9 +40,9 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch deal context
+    // Fetch deal context from listings table (active schema)
     const { data: deal } = await supabase
-      .from('deals')
+      .from('listings')
       .select('*')
       .eq('id', dealId)
       .single();
