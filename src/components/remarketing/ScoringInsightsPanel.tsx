@@ -6,17 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Settings2,
   RefreshCw,
@@ -32,9 +32,10 @@ import {
   Sparkles,
   X,
   Loader2,
-  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export type GeographyMode = 'critical' | 'preferred' | 'minimal';
 
 interface ScoringInsightsPanelProps {
   universeId?: string;
@@ -52,14 +53,14 @@ interface ScoringInsightsPanelProps {
   };
   decisionCount: number;
   isWeightsAdjusted?: boolean;
+  geographyMode?: GeographyMode;
+  onGeographyModeChange?: (mode: GeographyMode) => void;
   customInstructions: string;
   onInstructionsChange: (value: string) => void;
   onApplyAndRescore: (instructions: string) => void;
   onRecalculate: () => void;
   onReset: () => void;
   isRecalculating?: boolean;
-  geographyMode?: 'critical' | 'preferred' | 'minimal';
-  onGeographyModeChange?: (mode: 'critical' | 'preferred' | 'minimal') => void;
   className?: string;
 }
 
@@ -77,6 +78,12 @@ const categoryConfig = [
   { key: 'ownerGoals', label: 'Owner Goals', icon: Target, color: 'bg-amber-500' },
 ];
 
+const GEOGRAPHY_MODE_CONFIG: Record<GeographyMode, { label: string; description: string }> = {
+  critical: { label: 'Critical', description: 'Geography is a hard requirement (1.0x factor)' },
+  preferred: { label: 'Preferred', description: 'Geography is preferred but not required (0.6x factor)' },
+  minimal: { label: 'Minimal', description: 'Geography has minimal impact on scoring (0.25x factor)' },
+};
+
 export const ScoringInsightsPanel = ({
   universeId,
   universeName,
@@ -84,14 +91,14 @@ export const ScoringInsightsPanel = ({
   outcomeStats,
   decisionCount,
   isWeightsAdjusted = false,
+  geographyMode = 'critical',
+  onGeographyModeChange,
   customInstructions,
   onInstructionsChange,
   onApplyAndRescore,
   onRecalculate,
   onReset,
   isRecalculating = false,
-  geographyMode,
-  onGeographyModeChange,
   className,
 }: ScoringInsightsPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -131,11 +138,16 @@ export const ScoringInsightsPanel = ({
                   Custom Instructions
                 </Badge>
               )}
+
+              {geographyMode !== 'critical' && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  Geo: {GEOGRAPHY_MODE_CONFIG[geographyMode].label}
+                </Badge>
+              )}
               
               {/* Decisions dropdown trigger (inline) */}
               {decisionCount > 0 && (
                 <Collapsible open={isDecisionsOpen} onOpenChange={(open) => {
-                  // Prevent parent collapsible from triggering
                   setIsDecisionsOpen(open);
                 }}>
                   <CollapsibleTrigger 
@@ -202,68 +214,56 @@ export const ScoringInsightsPanel = ({
         {/* Expanded Content */}
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4 space-y-4 border-t">
-            {/* Geography Mode + Category Progress Bars */}
-            <div className="space-y-3 pt-4">
-              {/* Geography Mode Selector */}
-              {onGeographyModeChange && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5" />
-                    Geography Importance
-                  </span>
-                  <Select
-                    value={geographyMode || 'critical'}
-                    onValueChange={(v) => onGeographyModeChange(v as 'critical' | 'preferred' | 'minimal')}
-                  >
-                    <SelectTrigger className="w-[140px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="preferred">Preferred</SelectItem>
-                      <SelectItem value="minimal">Minimal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Weight validation warning */}
-              {(() => {
-                const sum = weights.geography + weights.size + weights.service + weights.ownerGoals;
-                if (sum !== 100) {
-                  return (
-                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-md p-2">
-                      <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span>Weights sum to {sum}% (should be 100%). Scores use relative ratios.</span>
+            {/* Category Progress Bars */}
+            <div className="grid grid-cols-4 gap-4 pt-4">
+              {categoryConfig.map((cat) => {
+                const weight = weights[cat.key as keyof typeof weights];
+                const Icon = cat.icon;
+                
+                return (
+                  <div key={cat.key} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Icon className="h-3.5 w-3.5" />
+                        {cat.label}
+                      </span>
+                      <span className="font-medium">{weight}%</span>
                     </div>
-                  );
-                }
-                return null;
-              })()}
-
-              <div className="grid grid-cols-4 gap-4">
-                {categoryConfig.map((cat) => {
-                  const weight = weights[cat.key as keyof typeof weights];
-                  const Icon = cat.icon;
-
-                  return (
-                    <div key={cat.key} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-1.5 text-muted-foreground">
-                          <Icon className="h-3.5 w-3.5" />
-                          {cat.label}
-                        </span>
-                        <span className="font-medium">{weight}%</span>
-                      </div>
-                      <Progress
-                        value={weight}
-                        className="h-2"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                    <Progress 
+                      value={weight} 
+                      className="h-2"
+                    />
+                  </div>
+                );
+              })}
             </div>
+
+            {/* Geography Mode Selector */}
+            {onGeographyModeChange && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-medium">Geography Mode</span>
+                </div>
+                <Select value={geographyMode} onValueChange={(v) => onGeographyModeChange(v as GeographyMode)}>
+                  <SelectTrigger className="w-[140px] h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(GEOGRAPHY_MODE_CONFIG) as GeographyMode[]).map((mode) => (
+                      <SelectItem key={mode} value={mode}>
+                        <div>
+                          <span>{GEOGRAPHY_MODE_CONFIG[mode].label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground">
+                  {GEOGRAPHY_MODE_CONFIG[geographyMode].description}
+                </span>
+              </div>
+            )}
 
             {/* Outcome Stats */}
             <div className="flex items-center gap-4 text-sm">
