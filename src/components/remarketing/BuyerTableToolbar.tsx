@@ -20,6 +20,7 @@ import {
 interface EnrichmentProgress {
   current: number;
   total: number;
+  startedAt?: number;
   successful?: number;
   failed?: number;
   creditsDepleted?: boolean;
@@ -86,6 +87,39 @@ export const BuyerTableToolbar = ({
   const alignmentProgressPercent = showAlignmentProgress 
     ? (alignmentProgress.current / alignmentProgress.total) * 100 
     : 0;
+
+  // ETA calculation for enrichment
+  const [enrichElapsed, setEnrichElapsed] = useState(0);
+  const enrichStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isEnriching && enrichmentProgress && enrichmentProgress.current > 0) {
+      if (!enrichStartRef.current) {
+        enrichStartRef.current = enrichmentProgress.startedAt || Date.now();
+      }
+      const interval = setInterval(() => {
+        if (enrichStartRef.current) {
+          setEnrichElapsed(Math.floor((Date.now() - enrichStartRef.current) / 1000));
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    } else if (!isEnriching) {
+      enrichStartRef.current = null;
+      setEnrichElapsed(0);
+    }
+  }, [isEnriching, enrichmentProgress?.current, enrichmentProgress?.startedAt]);
+
+  const getEnrichETA = () => {
+    if (!enrichmentProgress || enrichmentProgress.current === 0 || enrichElapsed === 0) return null;
+    const avgPerItem = enrichElapsed / enrichmentProgress.current;
+    const remaining = enrichmentProgress.total - enrichmentProgress.current;
+    const etaSec = Math.ceil(avgPerItem * remaining);
+    if (etaSec < 60) return `~${etaSec}s left`;
+    if (etaSec < 3600) return `~${Math.ceil(etaSec / 60)}m left`;
+    const h = Math.floor(etaSec / 3600);
+    const m = Math.ceil((etaSec % 3600) / 60);
+    return `~${h}h ${m}m left`;
+  };
 
   // Time estimation for alignment scoring
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -273,12 +307,25 @@ export const BuyerTableToolbar = ({
               <span>
                 Enriching buyers... {enrichmentProgress.current} of {enrichmentProgress.total}
               </span>
-              {enrichmentProgress.successful !== undefined && (
-                <span className="text-muted-foreground">
-                  {enrichmentProgress.successful} successful
-                  {enrichmentProgress.failed ? `, ${enrichmentProgress.failed} failed` : ''}
-                </span>
-              )}
+              <div className="flex items-center gap-3 text-muted-foreground">
+                {enrichElapsed > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatElapsed(enrichElapsed)}
+                  </span>
+                )}
+                {getEnrichETA() && (
+                  <span className="text-xs font-medium text-primary">
+                    {getEnrichETA()}
+                  </span>
+                )}
+                {enrichmentProgress.successful !== undefined && (
+                  <span>
+                    {enrichmentProgress.successful} successful
+                    {enrichmentProgress.failed ? `, ${enrichmentProgress.failed} failed` : ''}
+                  </span>
+                )}
+              </div>
             </div>
             <Progress value={enrichProgressPercent} className="h-2" />
           </div>

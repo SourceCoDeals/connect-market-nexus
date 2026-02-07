@@ -229,7 +229,7 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 // ============================================================================
 
 // Inter-call delay to avoid Anthropic rate limits (RPM)
-const CLAUDE_INTER_CALL_DELAY_MS = 800;
+const CLAUDE_INTER_CALL_DELAY_MS = 300; // Reduced — prompts run in parallel so delay is per-promise
 const CLAUDE_MAX_RETRIES = 3;
 const CLAUDE_RETRY_BASE_DELAY_MS = 3000;
 

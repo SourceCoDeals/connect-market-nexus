@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 export interface EnrichmentProgress {
   current: number;
   total: number;
+  startedAt?: number;
 }
 
 export interface BulkEnrichmentResult {
@@ -30,9 +31,8 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     onComplete,
     maxRetries = 3,
     retryDelayMs = 2000,
-    // Default to 6.5s to comfortably stay under 10 calls/hour per user (server-side limit)
-    // and reduce burstiness when users click repeatedly.
-    betweenItemDelayMs = 6500,
+    // 1.5s delay between items — rate limits are managed by the queue/edge function layer
+    betweenItemDelayMs = 1500,
   } = options;
 
   const [isEnriching, setIsEnriching] = useState(false);
@@ -158,7 +158,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     }
 
     setIsEnriching(true);
-    setProgress({ current: 0, total: unenrichedBuyers.length });
+    setProgress({ current: 0, total: unenrichedBuyers.length, startedAt: Date.now() });
 
     let enrichedCount = 0;
     let failedCount = 0;
@@ -169,7 +169,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
       for (let i = 0; i < unenrichedBuyers.length; i++) {
         const buyer = unenrichedBuyers[i];
         setEnrichingIds(prev => new Set(prev).add(buyer.id));
-        setProgress({ current: i + 1, total: unenrichedBuyers.length });
+        setProgress(prev => ({ ...prev, current: i + 1 }));
 
         const result = await enrichBuyer(buyer.id);
 
@@ -248,7 +248,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     }
 
     setIsEnriching(true);
-    setProgress({ current: 0, total: enrichableDeals.length });
+    setProgress({ current: 0, total: enrichableDeals.length, startedAt: Date.now() });
 
     let enrichedCount = 0;
     let failedCount = 0;
@@ -257,7 +257,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
       for (let i = 0; i < enrichableDeals.length; i++) {
         const deal = enrichableDeals[i];
         setEnrichingIds(prev => new Set(prev).add(deal.id));
-        setProgress({ current: i + 1, total: enrichableDeals.length });
+        setProgress(prev => ({ ...prev, current: i + 1 }));
 
         const result = await enrichDeal(deal.id, deal);
 
