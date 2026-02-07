@@ -33,6 +33,7 @@ serve(async (req) => {
     const startedAt = Date.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -155,11 +156,13 @@ serve(async (req) => {
         try {
           console.log(`Enriching buyer ${item.buyer_id}`);
 
+          // CRITICAL: Use anon key for 'apikey' header (gateway routing)
+          // and service role key for 'Authorization' (permissions)
           const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'apikey': supabaseServiceKey,
+              'apikey': supabaseAnonKey,
               'Authorization': `Bearer ${supabaseServiceKey}`,
             },
             body: JSON.stringify({ buyerId: item.buyer_id, skipLock: true }),
