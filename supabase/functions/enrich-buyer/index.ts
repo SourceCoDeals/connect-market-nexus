@@ -447,15 +447,16 @@ async function extractGeography(content: string, apiKey: string): Promise<any> {
 }
 
 // ============================================================================
-// PROMPT 3b: ACQUISITION HISTORY
+// PROMPT 3b: COMBINED PE INTELLIGENCE (Acquisitions + Activity + Portfolio)
 // ============================================================================
 
-const PROMPT_3B_ACQUISITIONS = {
-  name: 'extract_acquisitions',
-  description: 'Extract acquisition history from website content',
+const PROMPT_3B_PE_INTELLIGENCE = {
+  name: 'extract_pe_intelligence',
+  description: 'Extract acquisition history, PE activity, and portfolio from website content',
   input_schema: {
     type: 'object',
     properties: {
+      // Acquisition History
       recent_acquisitions: {
         type: 'array',
         items: {
@@ -469,81 +470,34 @@ const PROMPT_3B_ACQUISITIONS = {
       },
       total_acquisitions: { type: 'integer', description: 'Total number of acquisitions mentioned' },
       acquisition_frequency: { type: 'string', description: "e.g., '2-3 per year', 'Monthly'" },
-    },
-  },
-};
-
-const PROMPT_3B_SYSTEM = `You are an M&A research analyst extracting acquisition history from website content.
-Extract ONLY information that is explicitly stated in the content.
-Do NOT infer or guess acquisition information.`;
-
-async function extractAcquisitions(content: string, apiKey: string): Promise<any> {
-  console.log('Running Prompt 3b: Acquisition History');
-  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract any acquisition history mentioned on this website.`;
-  return await callClaudeAI(PROMPT_3B_SYSTEM, userPrompt, PROMPT_3B_ACQUISITIONS, apiKey);
-}
-
-// ============================================================================
-// PROMPT 4: PE FIRM ACTIVITY (NO THESIS - thesis ONLY from transcripts)
-// ============================================================================
-// CRITICAL: thesis_summary, strategic_priorities, thesis_confidence are NEVER
-// extracted from websites. They MUST come from call transcripts or notes only.
-// This ensures the thesis reflects the platform company's perspective, not the
-// PE firm's marketing materials.
-
-const PROMPT_4_PE_ACTIVITY = {
-  name: 'extract_pe_activity',
-  description: 'Extract PE firm activity data (NOT thesis - thesis only from transcripts)',
-  input_schema: {
-    type: 'object',
-    properties: {
-      // ONLY non-thesis fields extracted from PE website
+      // PE Activity (NO THESIS - thesis ONLY from transcripts)
       target_industries: { type: 'array', items: { type: 'string' }, description: 'Industries the PE firm focuses on' },
       target_services: { type: 'array', items: { type: 'string' }, description: 'Service types of interest' },
       acquisition_appetite: { type: 'string', description: "Activity level, e.g., 'Very Active - 15-20 deals annually'" },
-    },
-  },
-};
-
-const PROMPT_4_SYSTEM = `You are analyzing a private equity firm's website to extract their acquisition activity.
-
-CRITICAL: Do NOT extract investment thesis, strategic priorities, or thesis confidence.
-These fields MUST come from direct conversations with the platform company, not websites.
-
-Only extract:
-- Target industries they invest in
-- Target services/business types
-- Acquisition activity level`;
-
-async function extractPEActivity(content: string, apiKey: string): Promise<any> {
-  console.log('Running Prompt 4: PE Firm Activity (thesis excluded - transcript only)');
-  const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract acquisition activity data. Do NOT extract thesis, strategic priorities, or thesis confidence.`;
-  return await callClaudeAI(PROMPT_4_SYSTEM, userPrompt, PROMPT_4_PE_ACTIVITY, apiKey);
-}
-
-// ============================================================================
-// PROMPT 5: PORTFOLIO COMPANIES (PE FIRM)
-// ============================================================================
-
-const PROMPT_5_PORTFOLIO = {
-  name: 'extract_portfolio',
-  description: 'Extract portfolio companies from PE firm website',
-  input_schema: {
-    type: 'object',
-    properties: {
+      // Portfolio
       portfolio_companies: { type: 'array', items: { type: 'string' }, description: 'List of portfolio company names' },
       num_platforms: { type: 'integer', description: 'Number of platform investments' },
     },
   },
 };
 
-const PROMPT_5_SYSTEM = `You are an M&A research analyst extracting portfolio company information from a PE firm's website.
-Extract ONLY information that is explicitly stated in the content.`;
+const PROMPT_3B_SYSTEM = `You are an M&A research analyst extracting PE firm intelligence from website content.
 
-async function extractPortfolio(content: string, apiKey: string): Promise<any> {
-  console.log('Running Prompt 5: Portfolio Companies');
-  const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the portfolio companies mentioned on this PE firm's website.`;
-  return await callClaudeAI(PROMPT_5_SYSTEM, userPrompt, PROMPT_5_PORTFOLIO, apiKey);
+Extract THREE categories of information:
+1. ACQUISITION HISTORY: Recent deals, total count, frequency
+2. INVESTMENT FOCUS: Target industries, services, and activity level
+3. PORTFOLIO: Current and past portfolio company names
+
+CRITICAL: Do NOT extract investment thesis, strategic priorities, or thesis confidence.
+These fields MUST come from direct conversations with the platform company, not websites.
+
+Extract ONLY information that is explicitly stated in the content.
+Do NOT infer or guess any information.`;
+
+async function extractPEIntelligence(content: string, apiKey: string): Promise<any> {
+  console.log('Running Prompt 3b: Combined PE Intelligence (Acquisitions + Activity + Portfolio)');
+  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract acquisition history, investment focus areas, and portfolio companies. Do NOT extract thesis, strategic priorities, or thesis confidence.`;
+  return await callClaudeAI(PROMPT_3B_SYSTEM, userPrompt, PROMPT_3B_PE_INTELLIGENCE, apiKey);
 }
 
 // ============================================================================
@@ -954,7 +908,7 @@ Deno.serve(async (req) => {
       console.log(`[enrich-buyer] Skipping lock (queue-based call) for buyer ${buyerId}`);
     }
 
-    console.log(`Starting 6-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
+    console.log(`Starting 4-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
     console.log(`Platform website: ${platformWebsite || 'none'}`);
     console.log(`PE firm website: ${peFirmWebsite || 'none'}`);
 
@@ -1051,11 +1005,11 @@ Deno.serve(async (req) => {
           }
 
           if (result.data) {
-            // Special handling for PE Activity: filter out thesis fields
-            if (name === 'pe_activity') {
+            // Special handling for PE Intelligence: filter out thesis fields
+            if (name === 'pe_intelligence') {
               const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = result.data;
               if (thesis_summary || strategic_priorities || thesis_confidence) {
-                console.warn('WARNING: PE Activity returned thesis fields - discarding (transcript-only)');
+                console.warn('WARNING: PE Intelligence returned thesis fields - discarding (transcript-only)');
               }
               Object.assign(allExtracted, safeData);
               if (Object.keys(safeData).length > 0) {
@@ -1099,17 +1053,16 @@ Deno.serve(async (req) => {
     // Delay between batches to avoid Anthropic RPM limits
     await sleep(2000);
 
-    // BATCH 2: Acquisitions + PE firm extraction (3-4 calls max)
+    // BATCH 2: PE firm extraction (1 combined call + size criteria)
     const batch2: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
     if (platformContent) {
       batch2.push(
-        extractAcquisitions(platformContent, anthropicApiKey).then(r => ({ name: 'acquisitions', result: r, url: platformWebsite })),
+        extractPEIntelligence(platformContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
       );
     }
     if (peContent) {
       batch2.push(
-        extractPEActivity(peContent, anthropicApiKey).then(r => ({ name: 'pe_activity', result: r, url: peFirmWebsite })),
-        extractPortfolio(peContent, anthropicApiKey).then(r => ({ name: 'portfolio', result: r, url: peFirmWebsite })),
+        extractPEIntelligence(peContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
         extractSizeCriteria(peContent, anthropicApiKey).then(r => ({ name: 'size', result: validateSizeCriteria(r), url: peFirmWebsite })),
       );
     }
