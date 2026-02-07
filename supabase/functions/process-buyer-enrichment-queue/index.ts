@@ -7,14 +7,14 @@ const corsHeaders = {
 };
 
 // Configuration
-const BATCH_SIZE = 6;
+const BATCH_SIZE = 3; // Process 3 buyers per invocation max
 const CONCURRENCY_LIMIT = 1; // Sequential: each buyer makes 6+ Claude calls, parallel causes rate limits
 const MAX_ATTEMPTS = 3;
 const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes per buyer
-const MAX_FUNCTION_RUNTIME_MS = 110000; // ~110s safety cutoff
+const MAX_FUNCTION_RUNTIME_MS = 50000; // ~50s safety cutoff (edge function limit ~60s)
 const RATE_LIMIT_BACKOFF_MS = 60000; // 1 minute backoff on rate limit
-const INTER_BUYER_DELAY_MS = 8000; // 8s delay between buyers — each buyer makes 6-7 Claude calls, need spacing to avoid RPM limits
-const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items
+const INTER_BUYER_DELAY_MS = 10000; // 10s delay between buyers — each buyer makes 6-7 Claude calls
+const STALE_PROCESSING_MINUTES = 3; // Recovery timeout for stuck items
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
