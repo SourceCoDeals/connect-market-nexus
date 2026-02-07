@@ -2547,6 +2547,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           extracted_data: Json | null
+          extraction_status: string | null
           id: string
           listing_id: string
           processed_at: string | null
@@ -2563,6 +2564,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           extracted_data?: Json | null
+          extraction_status?: string | null
           id?: string
           listing_id: string
           processed_at?: string | null
@@ -2579,6 +2581,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           extracted_data?: Json | null
+          extraction_status?: string | null
           id?: string
           listing_id?: string
           processed_at?: string | null
@@ -7104,6 +7107,10 @@ export type Database = {
         Row: {
           acquisition_type: string | null
           address: string | null
+          address_city: string | null
+          address_country: string | null
+          address_state: string | null
+          address_zip: string | null
           ai_description: string | null
           business_model: string | null
           calculated_rank: number | null
@@ -7132,14 +7139,17 @@ export type Database = {
           ebitda: number | null
           ebitda_confidence: string | null
           ebitda_is_inferred: boolean | null
+          ebitda_margin: number | null
           ebitda_metric_subtitle: string | null
           ebitda_source_quote: string | null
-          effective_ebitda: number | null
-          effective_ebitda_confidence: string | null
+          effective_rank: number | null
+          end_market_description: string | null
           enriched_at: string | null
           enrichment_error_message: string | null
           enrichment_last_attempted_at: string | null
           enrichment_last_successful_at: string | null
+          enrichment_refresh_due_at: string | null
+          enrichment_scheduled_at: string | null
           enrichment_status: string | null
           estimated_ebitda: number | null
           executive_summary: string | null
@@ -7148,17 +7158,25 @@ export type Database = {
           extraction_sources: Json | null
           files: string[] | null
           final_rank: number | null
+          financial_followup_questions: string[] | null
+          financial_notes: string | null
+          fireflies_url: string | null
           founded_year: number | null
           full_time_employees: number | null
           general_notes: string | null
           geographic_states: string[] | null
+          google_maps_url: string | null
+          google_place_id: string | null
+          google_rating: number | null
           google_review_count: number | null
           growth_drivers: Json | null
           growth_trajectory: string | null
           has_management_team: boolean | null
           has_multiple_locations: boolean | null
+          headquarters_address: string | null
           hero_description: string | null
           id: string | null
+          ideal_buyer: string | null
           image_url: string | null
           industry: string | null
           industry_tier: number | null
@@ -7170,13 +7188,18 @@ export type Database = {
           internal_primary_owner: string | null
           internal_salesforce_link: string | null
           investment_thesis: string | null
+          is_internal_deal: boolean | null
           is_owner_dependent: boolean | null
+          is_priority_target: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
+          last_enriched_at: string | null
           last_ranked_at: string | null
           lead_source_id: string | null
           lead_source_notes: string | null
           linkedin_employee_count: number | null
+          linkedin_employee_range: string | null
+          linkedin_url: string | null
           location: string | null
           location_radius_requirement: string | null
           management_depth: string | null
@@ -7190,7 +7213,6 @@ export type Database = {
           metric_4_custom_subtitle: string | null
           metric_4_custom_value: string | null
           metric_4_type: string | null
-          motivation_tier: string | null
           mr_notes: string | null
           notes: string | null
           notes_analyzed_at: string | null
@@ -7211,8 +7233,9 @@ export type Database = {
           primary_owner_id: string | null
           product_revenue_percentage: number | null
           project_revenue_percentage: number | null
+          published_at: string | null
+          published_by_admin_id: string | null
           rank_locked: boolean | null
-          rank_source: string | null
           real_estate_info: string | null
           recurring_revenue_percentage: number | null
           referral_partner_id: string | null
@@ -7224,7 +7247,6 @@ export type Database = {
           revenue_model_breakdown: Json | null
           revenue_source_quote: string | null
           revenue_trend: string | null
-          score_tier: string | null
           seller_interest_analyzed_at: string | null
           seller_interest_confidence: string | null
           seller_interest_notes: Json | null
@@ -7238,12 +7260,15 @@ export type Database = {
           status: string | null
           status_label: string | null
           status_tag: string | null
+          street_address: string | null
           tags: string[] | null
           team_page_employee_count: number | null
           technology_systems: string | null
+          timeline_notes: string | null
           timeline_preference: string | null
           title: string | null
           transaction_preferences: Json | null
+          transition_preferences: string | null
           updated_at: string | null
           visible_to_buyer_types: string[] | null
           website: string | null
@@ -7251,6 +7276,10 @@ export type Database = {
         Insert: {
           acquisition_type?: string | null
           address?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          address_state?: string | null
+          address_zip?: string | null
           ai_description?: string | null
           business_model?: string | null
           calculated_rank?: number | null
@@ -7279,14 +7308,17 @@ export type Database = {
           ebitda?: number | null
           ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
+          ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
-          effective_ebitda?: never
-          effective_ebitda_confidence?: never
+          effective_rank?: never
+          end_market_description?: string | null
           enriched_at?: string | null
           enrichment_error_message?: string | null
           enrichment_last_attempted_at?: string | null
           enrichment_last_successful_at?: string | null
+          enrichment_refresh_due_at?: string | null
+          enrichment_scheduled_at?: string | null
           enrichment_status?: string | null
           estimated_ebitda?: number | null
           executive_summary?: string | null
@@ -7295,17 +7327,25 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          financial_followup_questions?: string[] | null
+          financial_notes?: string | null
+          fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          google_rating?: number | null
           google_review_count?: number | null
           growth_drivers?: Json | null
           growth_trajectory?: string | null
           has_management_team?: boolean | null
           has_multiple_locations?: boolean | null
+          headquarters_address?: string | null
           hero_description?: string | null
           id?: string | null
+          ideal_buyer?: string | null
           image_url?: string | null
           industry?: string | null
           industry_tier?: number | null
@@ -7317,13 +7357,18 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          is_internal_deal?: boolean | null
           is_owner_dependent?: boolean | null
+          is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
+          last_enriched_at?: string | null
           last_ranked_at?: string | null
           lead_source_id?: string | null
           lead_source_notes?: string | null
           linkedin_employee_count?: number | null
+          linkedin_employee_range?: string | null
+          linkedin_url?: string | null
           location?: string | null
           location_radius_requirement?: string | null
           management_depth?: string | null
@@ -7337,7 +7382,6 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
-          motivation_tier?: never
           mr_notes?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
@@ -7358,8 +7402,9 @@ export type Database = {
           primary_owner_id?: string | null
           product_revenue_percentage?: number | null
           project_revenue_percentage?: number | null
+          published_at?: string | null
+          published_by_admin_id?: string | null
           rank_locked?: boolean | null
-          rank_source?: never
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
           referral_partner_id?: string | null
@@ -7371,7 +7416,6 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_source_quote?: string | null
           revenue_trend?: string | null
-          score_tier?: never
           seller_interest_analyzed_at?: string | null
           seller_interest_confidence?: string | null
           seller_interest_notes?: Json | null
@@ -7385,12 +7429,15 @@ export type Database = {
           status?: string | null
           status_label?: string | null
           status_tag?: string | null
+          street_address?: string | null
           tags?: string[] | null
           team_page_employee_count?: number | null
           technology_systems?: string | null
+          timeline_notes?: string | null
           timeline_preference?: string | null
           title?: string | null
           transaction_preferences?: Json | null
+          transition_preferences?: string | null
           updated_at?: string | null
           visible_to_buyer_types?: string[] | null
           website?: string | null
@@ -7398,6 +7445,10 @@ export type Database = {
         Update: {
           acquisition_type?: string | null
           address?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          address_state?: string | null
+          address_zip?: string | null
           ai_description?: string | null
           business_model?: string | null
           calculated_rank?: number | null
@@ -7426,14 +7477,17 @@ export type Database = {
           ebitda?: number | null
           ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
+          ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
           ebitda_source_quote?: string | null
-          effective_ebitda?: never
-          effective_ebitda_confidence?: never
+          effective_rank?: never
+          end_market_description?: string | null
           enriched_at?: string | null
           enrichment_error_message?: string | null
           enrichment_last_attempted_at?: string | null
           enrichment_last_successful_at?: string | null
+          enrichment_refresh_due_at?: string | null
+          enrichment_scheduled_at?: string | null
           enrichment_status?: string | null
           estimated_ebitda?: number | null
           executive_summary?: string | null
@@ -7442,17 +7496,25 @@ export type Database = {
           extraction_sources?: Json | null
           files?: string[] | null
           final_rank?: number | null
+          financial_followup_questions?: string[] | null
+          financial_notes?: string | null
+          fireflies_url?: string | null
           founded_year?: number | null
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          google_rating?: number | null
           google_review_count?: number | null
           growth_drivers?: Json | null
           growth_trajectory?: string | null
           has_management_team?: boolean | null
           has_multiple_locations?: boolean | null
+          headquarters_address?: string | null
           hero_description?: string | null
           id?: string | null
+          ideal_buyer?: string | null
           image_url?: string | null
           industry?: string | null
           industry_tier?: number | null
@@ -7464,13 +7526,18 @@ export type Database = {
           internal_primary_owner?: string | null
           internal_salesforce_link?: string | null
           investment_thesis?: string | null
+          is_internal_deal?: boolean | null
           is_owner_dependent?: boolean | null
+          is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
+          last_enriched_at?: string | null
           last_ranked_at?: string | null
           lead_source_id?: string | null
           lead_source_notes?: string | null
           linkedin_employee_count?: number | null
+          linkedin_employee_range?: string | null
+          linkedin_url?: string | null
           location?: string | null
           location_radius_requirement?: string | null
           management_depth?: string | null
@@ -7484,7 +7551,6 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
-          motivation_tier?: never
           mr_notes?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
@@ -7505,8 +7571,9 @@ export type Database = {
           primary_owner_id?: string | null
           product_revenue_percentage?: number | null
           project_revenue_percentage?: number | null
+          published_at?: string | null
+          published_by_admin_id?: string | null
           rank_locked?: boolean | null
-          rank_source?: never
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
           referral_partner_id?: string | null
@@ -7518,7 +7585,6 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_source_quote?: string | null
           revenue_trend?: string | null
-          score_tier?: never
           seller_interest_analyzed_at?: string | null
           seller_interest_confidence?: string | null
           seller_interest_notes?: Json | null
@@ -7532,12 +7598,15 @@ export type Database = {
           status?: string | null
           status_label?: string | null
           status_tag?: string | null
+          street_address?: string | null
           tags?: string[] | null
           team_page_employee_count?: number | null
           technology_systems?: string | null
+          timeline_notes?: string | null
           timeline_preference?: string | null
           title?: string | null
           transaction_preferences?: Json | null
+          transition_preferences?: string | null
           updated_at?: string | null
           visible_to_buyer_types?: string[] | null
           website?: string | null
@@ -7565,6 +7634,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "listings_published_by_admin_id_fkey"
+            columns: ["published_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "listings_referral_partner_id_fkey"
             columns: ["referral_partner_id"]
             isOneToOne: false
@@ -7577,28 +7653,33 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string | null
-          internal_company_name: string | null
           internal_primary_owner: string | null
-          migration_status: string | null
+          primary_owner_id: string | null
           title: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string | null
-          internal_company_name?: string | null
           internal_primary_owner?: string | null
-          migration_status?: never
+          primary_owner_id?: string | null
           title?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string | null
-          internal_company_name?: string | null
           internal_primary_owner?: string | null
-          migration_status?: never
+          primary_owner_id?: string | null
           title?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "listings_primary_owner_id_fkey"
+            columns: ["primary_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
