@@ -445,19 +445,22 @@ export const BuyerMatchCard = ({
                 {getBuyerLocationDisplay(buyer)}
               </span>
               
-              {buyer?.company_website && (
-                <a 
-                  href={buyer.company_website.startsWith('http') ? buyer.company_website : `https://${buyer.company_website}`}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  <span className="truncate max-w-[180px]">
-                    {buyer.company_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
-                  </span>
-                </a>
-              )}
+              {(buyer?.company_website || (buyer as any)?.platform_website) && (() => {
+                const siteUrl = buyer?.company_website || (buyer as any)?.platform_website;
+                return (
+                  <a 
+                    href={siteUrl.startsWith('http') ? siteUrl : `https://${siteUrl}`}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    <span className="truncate max-w-[180px]">
+                      {siteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                    </span>
+                  </a>
+                );
+              })()}
               
               {(buyer as any)?.pe_firm_website && (
                 <a 
