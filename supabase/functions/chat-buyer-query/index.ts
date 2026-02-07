@@ -212,7 +212,28 @@ serve(async (req) => {
     const callTranscripts = callTranscriptsResult.data || [];
     const dealTranscripts = dealTranscriptsResult.data || [];
 
-    console.log(`[chat-buyer-query] Loaded ${callTranscripts.length} call transcripts and ${dealTranscripts.length} deal transcripts`);
+    // Debug/Trace: Log data fetch results
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      deal_id: listingId,
+      deal_name: deal?.company_name || deal?.codename || 'Unknown',
+      query_preview: query.substring(0, 100),
+      data_loaded: {
+        deal: !!deal,
+        buyers_total: buyers.length,
+        scores_total: scores.length,
+        contacts_total: contacts.length,
+        call_transcripts: callTranscripts.length,
+        deal_transcripts: dealTranscripts.length,
+      },
+      data_quality: {
+        buyers_with_low_completeness: buyers.filter((b: any) => (b.data_completeness || 0) < 50).length,
+        buyers_missing_footprint: buyers.filter((b: any) => !b.geographic_footprint || b.geographic_footprint.length === 0).length,
+        buyers_with_deal_breakers: buyers.filter((b: any) => b.deal_breakers && b.deal_breakers.length > 0).length,
+      },
+    };
+
+    console.log(`[chat-buyer-query] Data fetch complete:`, JSON.stringify(debugInfo, null, 2));
 
     // Build score lookup
     const scoreMap = new Map(scores.map(s => [s.buyer_id, s]));
@@ -392,7 +413,45 @@ When answering questions:
 17. When transcript data is available, reference specific quotes and insights to support recommendations
 18. At the END of your response, include a hidden marker with buyer IDs you mentioned:
     <!-- BUYER_HIGHLIGHT: ["buyer-uuid-1", "buyer-uuid-2"] -->
-19. For CITY-SPECIFIC queries, search hq field for that city name`;
+19. For CITY-SPECIFIC queries, search hq field for that city name
+
+## DATA AVAILABILITY & QUALITY GUARDRAILS (CRITICAL):
+
+**You MUST follow these rules to maintain response accuracy:**
+
+1. **Transcript Availability:**
+   - ${callTranscripts.length === 0 ? '⚠️ NO TRANSCRIPTS available for this deal' : `✅ ${callTranscripts.length} transcript(s) available`}
+   - If asked about call content, owner statements, or CEO engagement:
+     ${callTranscripts.length === 0 ? '→ Say: "I don\'t have transcript data for this deal yet. Transcript information will be available once calls are uploaded or processed."' : '→ Reference specific quotes and insights from the transcript data above'}
+   - NEVER guess or hallucinate what was said in calls
+
+2. **Data Completeness Warnings:**
+   - If discussing a buyer with data_completeness < 50%, mention: "Note: This buyer's profile is partially complete (XX% complete)"
+   - If a buyer's geographic_footprint is empty, say: "This buyer's geographic footprint has not been fully mapped yet"
+   - If target criteria fields are null/empty, acknowledge the limitation
+
+3. **Buyer Count Limitation:**
+   - ${buyerSummaries.length > 100 ? `⚠️ Only showing top 100 of ${buyerSummaries.length} buyers in context` : `✅ All ${buyerSummaries.length} buyers included`}
+   - If asked to compare or analyze more than 100 buyers, note: "I'm currently analyzing the top 100 scored buyers. Additional buyers may exist but are not in my current context."
+
+4. **Missing Data Handling:**
+   - If asked about information NOT in the context (e.g., portfolio companies, full acquisition history), say:
+     "That specific information is not available in my current context. I can see [list what you DO have]."
+   - NEVER make up or infer data that isn't explicitly provided
+
+5. **Confidence Language:**
+   - Use "Based on available data..." when data quality is uncertain
+   - Use "According to the scoring..." when referencing scores
+   - Use "The transcript shows..." when citing transcript data
+   - Avoid absolute statements when data is incomplete
+
+6. **Deal Breaker Context:**
+   ${buyerSummaries.some(b => b.dealBreakers && b.dealBreakers.length > 0) ? '✅ Some buyers have deal_breakers defined - reference these when explaining poor fits' : '⚠️ Most buyers do not have deal_breakers defined - rely on scores and pass_reason fields'}
+
+7. **Strategic Context:**
+   ${buyerSummaries.some(b => b.strategicPriorities) ? '✅ Some buyers have strategic_priorities - use these to explain current focus' : '⚠️ Strategic priorities not available for most buyers'}
+
+**FAIL-SAFE RULE:** When in doubt about data availability, explicitly state what you DO and DON'T have access to rather than making assumptions.`;
 
     // Build conversation messages
     const conversationMessages = [
@@ -400,6 +459,19 @@ When answering questions:
       ...messages.slice(-10), // Keep last 10 messages for context
       { role: 'user', content: query },
     ];
+
+    // Debug/Trace: Log context assembly
+    const contextStats = {
+      system_prompt_chars: systemPrompt.length,
+      system_prompt_tokens_estimate: Math.ceil(systemPrompt.length / 4),
+      message_history_count: messages.slice(-10).length,
+      total_messages: conversationMessages.length,
+      buyers_in_context: Math.min(100, buyerSummaries.length),
+      buyers_excluded: Math.max(0, buyerSummaries.length - 100),
+      context_size_estimate_kb: Math.ceil(JSON.stringify(conversationMessages).length / 1024),
+    };
+
+    console.log(`[chat-buyer-query] Context assembled:`, JSON.stringify(contextStats, null, 2));
 
     // Stream response from AI
     const response = await fetch(LOVABLE_AI_URL, {

@@ -245,7 +245,14 @@ INSTRUCTIONS:
 8. If asked about transcripts but none available, explicitly state this
 9. Never hallucinate transcript quotes - only use actual extracted_insights data
 10. Keep responses concise with bullet points
-11. At the end, include: <!-- HIGHLIGHT: ["buyer-id-1", "buyer-id-2"] -->`;
+11. At the end, include: <!-- HIGHLIGHT: ["buyer-id-1", "buyer-id-2"] -->
+
+## DATA QUALITY GUARDRAILS:
+- Transcript availability: ${transcripts.length > 0 ? `✅ ${transcripts.length} transcript(s) loaded` : '⚠️ No transcripts available'}
+- Buyer count: Showing ${Math.min(60, buyerSummaries.length)} of ${buyerSummaries.length} total buyers
+- If data is incomplete, use phrases like "Based on available data..." or "According to the current profile..."
+- Never invent or guess information not explicitly provided
+- If asked about missing data, acknowledge the limitation clearly`;
 }
 
 // Build context for all-deals queries
