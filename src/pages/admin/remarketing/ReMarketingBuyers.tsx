@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -516,16 +516,18 @@ const ReMarketingBuyers = () => {
                       {/* Description Column */}
                       <TableCell>
                         {(buyer.business_summary || buyer.thesis_summary) ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
+                                  {buyer.business_summary || buyer.thesis_summary}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
                                 {buyer.business_summary || buyer.thesis_summary}
-                              </p>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
-                              {buyer.business_summary || buyer.thesis_summary}
-                            </TooltipContent>
-                          </Tooltip>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
