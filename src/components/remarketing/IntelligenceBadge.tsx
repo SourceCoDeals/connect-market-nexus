@@ -74,10 +74,13 @@ export const IntelligenceBadge = ({
   size = "sm",
   className,
 }: IntelligenceBadgeProps) => {
-  // Use the completeness level as-is from the backend scoring engine.
-  // The backend assessDataCompleteness already requires thesis+targets+financials+acquisitions for 'high'.
-  // Previous hasTranscript downgrade was always triggered because BuyerMatchCard never passes this prop.
+  // Strong Intel requires transcript data — websites alone don't provide enough depth
+  // (thesis, investment preferences, deal terms). BuyerMatchCard now passes hasTranscript
+  // from extraction_sources.
   let effectiveCompleteness = completeness;
+  if (effectiveCompleteness === 'high' && !hasTranscript) {
+    effectiveCompleteness = 'medium';
+  }
 
   if (!effectiveCompleteness) {
     return (

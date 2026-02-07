@@ -505,10 +505,11 @@ export const BuyerMatchCard = ({
             </TooltipProvider>
             
             {/* Intelligence Badge with missing fields */}
-            <IntelligenceBadge 
-              completeness={score.data_completeness} 
+            <IntelligenceBadge
+              completeness={score.data_completeness}
+              hasTranscript={!!buyer?.extraction_sources?.some((s: any) => s.type === 'transcript')}
               missingFields={missingData}
-              size="sm" 
+              size="sm"
             />
             
             {/* Score Badge with Rich Tooltip - "→Strong 77" format or "Not Eligible" */}
