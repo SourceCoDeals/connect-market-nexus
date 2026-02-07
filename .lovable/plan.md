@@ -1,65 +1,31 @@
 
+## Multi-File Transcript Upload for Add Deal Dialog
 
-# Fix Back Navigation from Deal & Buyer Detail Pages
+### What Changes
+The "Add New Deal" dialog currently only supports a single transcript file. This update will allow selecting and uploading multiple transcript files at once.
 
-## Problem
-When navigating from a **Buyer Universe** to a deal or buyer detail page, clicking "Back" always takes you to "All Deals" or "All Buyers" instead of returning to the universe you came from.
+### UI Changes
+- The file input will accept multiple files (`multiple` attribute)
+- Instead of showing one file, a list of selected files will be displayed with individual remove buttons
+- A file count indicator (e.g., "3 files selected") for clarity
+- The transcript link input remains as-is (links and files can coexist since they serve different purposes)
 
-## Root Cause
-- The **Deal Detail** page uses `navigate(-1)` which can be unreliable
-- The **Buyer Detail** page has a hardcoded back link: `<Link to="/admin/remarketing/buyers">` — it always goes to the "All Buyers" list regardless of where you came from
-- Neither the Universe Deals table nor the Universe Buyers table pass any "origin" information when navigating to detail pages
+### Upload Logic Changes
+- `transcriptFile` (single `File`) becomes `transcriptFiles` (array of `File[]`)
+- On deal creation, each file is uploaded and inserted as a separate `deal_transcripts` row (with a 2-second delay between files to avoid rate-limiting the AI parser, consistent with the existing pattern elsewhere in the app)
+- PDF/DOC/DOCX files are routed through the `parse-transcript-file` edge function for text extraction before insertion
+- Duplicate detection: files with the same normalized name are skipped
 
-## Solution
-Pass a `from` URL via React Router's **location state** when navigating from the universe, then use it in the back buttons on detail pages. If no state is present (e.g., direct link), fall back to the current default behavior.
+### Technical Details
 
-## Changes
+**File: `src/components/remarketing/AddDealDialog.tsx`**
 
-### 1. UniverseDealsTable.tsx
-Pass the current universe URL as state when navigating to a deal:
-```tsx
-navigate(`/admin/remarketing/deals/${deal.listing.id}`, {
-  state: { from: `/admin/remarketing/universes/${universeId}` }
-})
-```
+1. Change state from `useState<File | null>(null)` to `useState<File[]>([])`
+2. Update `handleFileChange` to append files to the array (and dedupe by name)
+3. Update `clearFile` to remove a specific file by index
+4. Update the file input to include `multiple`
+5. Render a list of selected files instead of a single file chip
+6. In `onSuccess`, loop through all files with a delay between each, uploading to storage and inserting transcript records
+7. For PDF/DOC/DOCX files, call `parse-transcript-file` to extract text before saving
 
-### 2. BuyerTableEnhanced.tsx
-Pass the current universe URL as state when navigating to a buyer from the universe:
-```tsx
-navigate(`/admin/remarketing/buyers/${buyer.id}`, {
-  state: { from: `/admin/remarketing/universes/${universeId}` }
-})
-```
-This component needs access to a `universeId` prop (only passed when used inside a universe context).
-
-### 3. ReMarketingDealDetail.tsx
-Update the back button to use `location.state?.from` if available, otherwise fall back to `navigate(-1)`:
-```tsx
-const location = useLocation();
-const backTo = location.state?.from || null;
-
-// Back button:
-backTo
-  ? <Link to={backTo}><ArrowLeft /> Back</Link>
-  : <Button onClick={() => navigate(-1)}><ArrowLeft /> Back</Button>
-```
-
-### 4. ReMarketingBuyerDetail.tsx
-Replace the hardcoded `<Link to="/admin/remarketing/buyers">` with state-aware navigation:
-```tsx
-const location = useLocation();
-const backTo = location.state?.from || "/admin/remarketing/buyers";
-
-<Link to={backTo}><ArrowLeft /></Link>
-```
-
-### 5. BuyerDetailHeader.tsx
-Same change — replace hardcoded `/admin/remarketing/buyers` back link with a `backTo` prop passed from the parent.
-
-## Summary of Files to Edit
-- `src/components/remarketing/UniverseDealsTable.tsx` — pass `state.from`
-- `src/components/remarketing/BuyerTableEnhanced.tsx` — pass `state.from` when `universeId` is provided
-- `src/pages/admin/remarketing/ReMarketingDealDetail.tsx` — read `state.from` for back button
-- `src/pages/admin/remarketing/ReMarketingBuyerDetail.tsx` — read `state.from` for back button
-- `src/components/remarketing/buyer-detail/BuyerDetailHeader.tsx` — accept `backTo` prop
-
+No database or backend changes needed -- the `deal_transcripts` table already supports multiple rows per listing.
