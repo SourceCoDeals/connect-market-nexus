@@ -401,7 +401,7 @@ RULES:
 
   const result = await callClaudeWithTool(
     systemPrompt,
-    `Extract all deal-relevant information from this transcript. Capture every financial figure, owner detail, and deal-relevant data point.\n\nTRANSCRIPT:\n${transcriptText.substring(0, 12000)}`,
+    `Extract all deal-relevant information from this transcript. Capture every financial figure, owner detail, and deal-relevant data point.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
     DEFAULT_CLAUDE_MODEL,
@@ -522,7 +522,7 @@ CRITICAL RULES — READ CAREFULLY:
 
   const result = await callClaudeWithTool(
     systemPrompt,
-    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If data is insufficient, that is a valid answer — set thesis_confidence to "insufficient" and list what's missing.\n\nTRANSCRIPT:\n${transcriptText.substring(0, 12000)}`,
+    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If data is insufficient, that is a valid answer — set thesis_confidence to "insufficient" and list what's missing.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
     DEFAULT_CLAUDE_MODEL,
