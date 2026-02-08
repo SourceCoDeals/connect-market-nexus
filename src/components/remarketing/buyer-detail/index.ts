@@ -13,6 +13,7 @@ export { KeyQuotesCard } from './KeyQuotesCard';
 export { TranscriptsListCard } from './TranscriptsListCard';
 export { BuyerCompanyOverviewCard } from './BuyerCompanyOverviewCard';
 export { BuyerServicesBusinessModelCard } from './BuyerServicesBusinessModelCard';
+export { BuyerNotesSection } from './BuyerNotesSection';
 
 // Edit Dialogs
 export { EditBusinessDescriptionDialog } from './EditBusinessDescriptionDialog';
