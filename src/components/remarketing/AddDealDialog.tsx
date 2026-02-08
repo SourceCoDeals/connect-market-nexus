@@ -87,6 +87,8 @@ export const AddDealDialog = ({
         .from('listings')
         .select('id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal')
         .is('deleted_at', null)
+        .eq('is_internal_deal', false)
+        .eq('status', 'active')
         .order('created_at', { ascending: false })
         .range(pageParam, pageParam + PAGE_SIZE - 1);
 
