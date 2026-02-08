@@ -436,39 +436,50 @@ async function extractBuyerInsights(
   peFirmName?: string
 ): Promise<BuyerInsights> {
   const companyContext = platformCompanyName
-    ? `\n\nIMPORTANT CONTEXT:
-- The PLATFORM COMPANY (operating company) is: "${platformCompanyName}"
-- The PE FIRM SPONSOR is: "${peFirmName || 'unknown'}"
-- ALL operational fields (business_summary, services_offered, operating_locations, geographic_footprint) MUST describe "${platformCompanyName}", NOT "${peFirmName || 'the PE firm'}".
-- The thesis_summary should describe what "${platformCompanyName}" is looking for in acquisitions.
-- Do NOT put the PE firm's HQ, description, or investment thesis into platform company fields.`
+    ? `\n\nKNOWN ENTITIES:
+- PLATFORM COMPANY (operating company): "${platformCompanyName}"
+- PE FIRM SPONSOR: "${peFirmName || 'unknown'}"`
     : '';
 
-  const systemPrompt = `You are an M&A analyst extracting the PLATFORM COMPANY'S acquisition thesis from a call transcript. You must distinguish between the platform company's operating perspective and the PE firm sponsor's investment perspective. The platform company's actual operational needs and stated criteria take precedence.
+  const systemPrompt = `You are an M&A analyst extracting the PLATFORM COMPANY'S acquisition thesis from a call transcript. You must distinguish between the platform company and the PE firm sponsor using BOTH names and contextual clues.
 ${companyContext}
 
-CRITICAL RULES — READ CAREFULLY:
+DISTINGUISHING PLATFORM vs PE FIRM — USE THESE CONTEXTUAL SIGNALS:
 
-1. TRANSCRIPT-ONLY EXTRACTION: Every statement in thesis_summary MUST be directly traceable to something said in the call. If you cannot point to a specific moment in the transcript that supports a claim, do not include it.
+PLATFORM COMPANY signals (use for business_summary, services_offered, operating_locations, geographic_footprint):
+- Discussions about day-to-day operations, service delivery, crews, trucks, jobs
+- "We do [service]", "our technicians", "we serve [area]", "our office in [city]"
+- Mentions of specific service types (restoration, roofing, HVAC, plumbing, etc.)
+- Customer relationships, project descriptions, seasonal patterns
+- Where they physically have offices, warehouses, or serve customers
 
-2. DO NOT INFER, FILL GAPS, OR "ROUND OUT" THE THESIS WITH:
-   - Typical PE criteria for this industry
-   - Language from the company's website or marketing materials
-   - Generic industry knowledge ("most restoration companies prefer…")
-   - What "comparable platforms" usually look for
-   - Your own assessment of what would be logical for them to want
+PE FIRM signals (do NOT use for platform operational fields):
+- "We invested in...", "our portfolio includes...", "our fund..."
+- Investment thesis language: "we look for...", "our criteria...", "we target..."
+- Fund structure, capital deployment, returns, hold periods
+- HQ location of the investment firm (NOT the platform's operating locations)
+- General industry preferences from an investor lens
 
-3. PLATFORM vs PE FIRM: The PE firm sponsor is incidental context. Focus on the platform company's criteria, operations, and locations — NOT the PE firm's HQ or general investment strategy.
+CRITICAL ATTRIBUTION RULES:
+1. business_summary = What the PLATFORM COMPANY does operationally (services, customers, market)
+2. services_offered = Services the PLATFORM delivers to its customers
+3. operating_locations = Cities where the PLATFORM has physical operations (offices, crews, service areas) — NOT the PE firm's HQ
+4. geographic_footprint = States where the PLATFORM operates — NOT where the PE firm is based
+5. thesis_summary = What the PLATFORM (guided by PE sponsor) is looking for in acquisitions
+6. If a location is only mentioned as where the PE firm or its partners are based, do NOT put it in operating_locations or geographic_footprint
+7. If the platform's actual locations aren't discussed, leave operating_locations and geographic_footprint EMPTY — do not default to PE firm locations
 
-4. INSUFFICIENT DATA IS A VALID ANSWER: If the transcript doesn't contain enough information to construct a meaningful thesis, set thesis_confidence to "insufficient" and explain what's missing in missing_information. This is BETTER than fabricating a thesis.
+OTHER CRITICAL RULES:
 
-5. QUOTE YOUR SOURCES: For every claim in the thesis_summary, you should be able to identify the approximate part of the transcript it came from. If you can't, remove the claim.
+1. TRANSCRIPT-ONLY EXTRACTION: Every statement must be directly traceable to something said in the call.
 
-6. NUMBERS AS RAW INTEGERS: All dollar amounts as raw numbers. "$7.5M" = 7500000.
+2. DO NOT INFER OR FILL GAPS with typical PE criteria, website content, or industry knowledge.
 
-7. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."
+3. INSUFFICIENT DATA IS A VALID ANSWER: Set thesis_confidence to "insufficient" if the transcript lacks enough info.
 
-8. OPERATING LOCATIONS & GEOGRAPHIC FOOTPRINT: These fields describe where the PLATFORM COMPANY physically operates — NOT where the PE firm is headquartered. If the platform's locations aren't mentioned, leave these empty rather than using the PE firm's location.`;
+4. NUMBERS AS RAW INTEGERS: "$7.5M" = 7500000.
+
+5. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."`;
 
   const tool = {
     type: "function",
