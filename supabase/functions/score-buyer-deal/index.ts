@@ -240,39 +240,35 @@ function calculateSizeScore(
   const revenueSweetSpot = buyer.revenue_sweet_spot;
   const ebitdaSweetSpot = buyer.ebitda_sweet_spot;
 
-  // Both deal revenue AND EBITDA are missing — differentiate by buyer flexibility
+  // Both deal revenue AND EBITDA are missing — cannot score without data
   if (dealRevenue == null && dealEbitda == null) {
-    // No buyer size criteria either — both sides unknown, neutral
+    // No buyer size criteria either — both sides unknown, insufficient data
     if (buyerMinRevenue == null && buyerMaxRevenue == null && buyerMinEbitda == null && buyerMaxEbitda == null) {
       return {
-        score: 55,
-        multiplier: 0.8,
-        reasoning: "Deal missing financials, buyer has no size criteria — moderate neutral"
+        score: null,
+        multiplier: 0,
+        reasoning: "INSUFFICIENT_DATA: Deal has no revenue/EBITDA and buyer has no size criteria",
+        data_quality: "missing_both_sides"
       };
     }
-    // Buyer has wide criteria range (max >= 3x min) — flexible buyer, better chance of fit
-    const rangeRatio = (buyerMinRevenue && buyerMaxRevenue) ? buyerMaxRevenue / buyerMinRevenue : 0;
-    if (rangeRatio >= 3) {
-      return {
-        score: 50,
-        multiplier: 0.75,
-        reasoning: "Deal missing financials — buyer has wide size range, moderate fit assumed"
-      };
-    }
-    // Buyer has narrow or specific criteria — can't verify, higher risk of mismatch
+    // Buyer has criteria but deal has no financials — cannot verify fit
     return {
-      score: 35,
-      multiplier: 0.6,
-      reasoning: "Deal missing financials — buyer has specific size criteria, fit uncertain"
+      score: null,
+      multiplier: 0,
+      reasoning: "INSUFFICIENT_DATA: Deal missing revenue and EBITDA (buyer has size criteria but cannot verify match)",
+      data_quality: "missing_deal_financials",
+      suggestion: "Add deal revenue or EBITDA to enable size scoring"
     };
   }
 
-  // No buyer size criteria at all — use moderate default
+  // No buyer size criteria at all — cannot score without buyer preferences
   if (buyerMinRevenue == null && buyerMaxRevenue == null && buyerMinEbitda == null && buyerMaxEbitda == null) {
     return {
-      score: 60,
-      multiplier: 1.0,
-      reasoning: "No buyer size criteria available — neutral scoring"
+      score: null,
+      multiplier: 0,
+      reasoning: "INSUFFICIENT_DATA: Buyer has no size criteria (revenue or EBITDA targets)",
+      data_quality: "missing_buyer_criteria",
+      suggestion: "Add target revenue/EBITDA range to buyer profile"
     };
   }
 
@@ -574,14 +570,19 @@ async function calculateGeographyScore(
     };
   }
 
-  // No deal state or no buyer states — limited data
+  // No deal state or no buyer states — insufficient data for geography scoring
   if (!dealState || buyerStates.length === 0) {
-    const limitedScore = Math.max(scoreFloor, 50);
     return {
-      score: limitedScore,
-      modeFactor,
-      reasoning: "Limited geography data available",
-      tier: 'regional'
+      score: null,
+      modeFactor: 0,
+      reasoning: !dealState
+        ? "INSUFFICIENT_DATA: Deal has no state/location defined"
+        : "INSUFFICIENT_DATA: Buyer has no geographic footprint defined",
+      tier: 'unknown',
+      data_quality: "missing_geography",
+      suggestion: !dealState
+        ? "Add deal location to enable geography scoring"
+        : "Add buyer geographic footprint to enable geography scoring"
     };
   }
 
@@ -1389,62 +1390,96 @@ async function scoreSingleBuyer(
     calculateThesisAlignmentBonus(listing, buyer, apiKey),
   ]);
 
-  // === Weight Redistribution for Missing Data ===
-  // When buyer lacks data for a dimension, that dimension produces a flat neutral score.
-  // To prevent clustering, redistribute its weight to dimensions that CAN differentiate.
-  const buyerHasSizeData = buyer.target_revenue_min != null || buyer.target_revenue_max != null ||
-    buyer.target_ebitda_min != null || buyer.target_ebitda_max != null ||
-    buyer.revenue_sweet_spot != null || buyer.ebitda_sweet_spot != null;
-  
-  const buyerHasGeoData = (buyer.target_geographies?.length > 0) ||
-    (buyer.geographic_footprint?.length > 0) || (buyer.service_regions?.length > 0) ||
-    (buyer.operating_locations?.length > 0) || buyer.hq_state;
-  
-  const buyerHasServiceData = (buyer.target_services?.length > 0) ||
-    (buyer.services_offered && buyer.services_offered.trim().length > 0);
+  // === NULL-Aware Scoring: Track Valid Dimensions ===
+  // Count dimensions with valid (non-NULL) scores
+  // Require at least 3 of 4 dimensions to compute reliable composite score
+  const scoredDimensions: Array<{ name: string; score: number; weight: number }> = [];
+  const missingDimensions: string[] = [];
 
-  let effectiveSizeWeight = sizeWeight;
-  let effectiveServiceWeight = serviceWeight;
-  let effectiveGeoWeight = geoWeight;
-  let effectiveOwnerWeight = ownerGoalsWeight;
-
-  // Collect weight from insufficient dimensions
-  let pooledWeight = 0;
-  if (!buyerHasSizeData) {
-    pooledWeight += effectiveSizeWeight;
-    effectiveSizeWeight = 0;
-  }
-  if (!buyerHasGeoData) {
-    pooledWeight += effectiveGeoWeight;
-    effectiveGeoWeight = 0;
-  }
-  if (!buyerHasServiceData) {
-    pooledWeight += effectiveServiceWeight;
-    effectiveServiceWeight = 0;
+  if (sizeResult.score !== null && sizeResult.score !== undefined) {
+    scoredDimensions.push({ name: 'size', score: sizeResult.score, weight: sizeWeight });
+  } else {
+    missingDimensions.push('size');
   }
 
-  // Redistribute pooled weight proportionally among dimensions that DO have data
-  if (pooledWeight > 0) {
-    const scoredWeight = effectiveSizeWeight + effectiveGeoWeight + effectiveServiceWeight + effectiveOwnerWeight;
-    if (scoredWeight > 0) {
-      const scale = (scoredWeight + pooledWeight) / scoredWeight;
-      effectiveSizeWeight = Math.round(effectiveSizeWeight * scale);
-      effectiveGeoWeight = Math.round(effectiveGeoWeight * scale);
-      effectiveServiceWeight = Math.round(effectiveServiceWeight * scale);
-      effectiveOwnerWeight = Math.round(effectiveOwnerWeight * scale);
-    }
-    console.log(`[Weight Redistribution] Buyer ${buyer.id}: missing [${!buyerHasSizeData ? 'size' : ''}${!buyerHasGeoData ? ' geo' : ''}${!buyerHasServiceData ? ' svc' : ''}]. Effective: size=${effectiveSizeWeight}, geo=${effectiveGeoWeight}, svc=${effectiveServiceWeight}, owner=${effectiveOwnerWeight}`);
+  if (geoResult.score !== null && geoResult.score !== undefined) {
+    scoredDimensions.push({ name: 'geography', score: geoResult.score, weight: geoWeight * geoResult.modeFactor });
+  } else {
+    missingDimensions.push('geography');
   }
 
-  // === Step f: Weighted composite ===
-  // Use effective weight sum as divisor so reduced geography mode doesn't systematically lower all scores
-  const effectiveWeightSum = effectiveSizeWeight + effectiveGeoWeight * geoResult.modeFactor + effectiveServiceWeight + effectiveOwnerWeight;
-  const weightedBase = Math.round(
-    (sizeResult.score * effectiveSizeWeight +
-     geoResult.score * effectiveGeoWeight * geoResult.modeFactor +
-     serviceResult.score * effectiveServiceWeight +
-     ownerGoalsResult.score * effectiveOwnerWeight) / effectiveWeightSum
-  );
+  if (serviceResult.score !== null && serviceResult.score !== undefined) {
+    scoredDimensions.push({ name: 'service', score: serviceResult.score, weight: serviceWeight });
+  } else {
+    missingDimensions.push('service');
+  }
+
+  if (ownerGoalsResult.score !== null && ownerGoalsResult.score !== undefined) {
+    scoredDimensions.push({ name: 'owner_goals', score: ownerGoalsResult.score, weight: ownerGoalsWeight });
+  } else {
+    missingDimensions.push('owner_goals');
+  }
+
+  // === Require Minimum Data Quality ===
+  // Need at least 3 of 4 dimensions to compute reliable score
+  if (scoredDimensions.length < 3) {
+    console.warn(`[INSUFFICIENT_DATA] Buyer ${buyer.id}: Only ${scoredDimensions.length}/4 dimensions have valid scores. Missing: ${missingDimensions.join(', ')}. Cannot compute reliable composite score.`);
+
+    // Return NULL score with diagnostic information
+    return {
+      listing_id: listing.id,
+      buyer_id: buyer.id,
+      universe_id: universe.id,
+      composite_score: null as any,  // NULL score
+      geography_score: geoResult.score,
+      size_score: sizeResult.score,
+      service_score: serviceResult.score,
+      owner_goals_score: ownerGoalsResult.score,
+      acquisition_score: 0,
+      portfolio_score: 0,
+      business_model_score: 0,
+      size_multiplier: sizeResult.multiplier || 0,
+      service_multiplier: serviceResult.multiplier || 0,
+      geography_mode_factor: geoResult.modeFactor || 0,
+      thesis_alignment_bonus: 0,
+      data_quality_bonus: 0,
+      custom_bonus: 0,
+      learning_penalty: 0,
+      tier: 'UNSCORED',
+      is_disqualified: false,
+      disqualification_reason: null,
+      needs_review: true,
+      missing_fields: missingDimensions,
+      confidence_level: 'insufficient_data',
+      fit_reasoning: `INSUFFICIENT_DATA: Only ${scoredDimensions.length} of 4 dimensions have valid scores (need at least 3). Missing: ${missingDimensions.join(', ')}. Cannot compute reliable composite score.`,
+      data_completeness: 'low',
+      status: 'pending',
+      scored_at: new Date().toISOString(),
+      deal_snapshot: {
+        revenue: listing.revenue,
+        ebitda: listing.ebitda,
+        location: listing.location,
+        category: listing.category,
+        services: listing.services || listing.categories || [listing.category].filter(Boolean),
+        owner_goals: listing.asking_price ? 'has_asking_price' : listing.seller_motivation || null,
+        snapshot_at: new Date().toISOString(),
+      },
+      _data_quality_diagnostic: {
+        scored_dimensions: scoredDimensions.length,
+        total_dimensions: 4,
+        missing_dimensions: missingDimensions,
+        scored_dimension_names: scoredDimensions.map(d => d.name)
+      }
+    };
+  }
+
+  // === Step f: Weighted composite (using ORIGINAL weights - NO redistribution) ===
+  // Compute weighted average using only scored dimensions
+  const totalWeight = scoredDimensions.reduce((sum, d) => sum + d.weight, 0);
+  const weightedSum = scoredDimensions.reduce((sum, d) => sum + (d.score * d.weight), 0);
+  const weightedBase = Math.round(weightedSum / totalWeight);
+
+  console.log(`[SCORING] Buyer ${buyer.id}: ${scoredDimensions.length}/4 dimensions scored. Weighted base: ${weightedBase}. ${missingDimensions.length > 0 ? `Missing: ${missingDimensions.join(', ')}` : 'All dimensions present'}`);
 
   // === Step g+h: Apply BOTH gates ===
   let gatedScore = Math.round(weightedBase * sizeResult.multiplier * serviceResult.multiplier);
@@ -1530,9 +1565,11 @@ async function scoreSingleBuyer(
     sizeResult.reasoning,
   ];
 
-  if (!buyerHasSizeData) {
-    reasoningParts.push(`Size weight redistributed (no buyer size criteria — insufficient data, not scored)`);
-  } else if (sizeResult.multiplier < 1.0 && !isDisqualified) {
+  // Note: NO weight redistribution - missing dimensions are tracked in missing_fields
+  if (missingDimensions.length > 0) {
+    reasoningParts.push(`⚠️ ${missingDimensions.length} dimension(s) missing data: ${missingDimensions.join(', ')}`);
+  }
+  if (sizeResult.multiplier < 1.0 && !isDisqualified) {
     reasoningParts.push(`Size gate: ${Math.round(sizeResult.multiplier * 100)}%`);
   }
   if (serviceResult.multiplier < 1.0 && !isDisqualified) {
