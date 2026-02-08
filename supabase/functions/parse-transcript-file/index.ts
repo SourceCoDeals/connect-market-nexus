@@ -58,7 +58,7 @@ serve(async (req) => {
           headers: getAnthropicHeaders(anthropicApiKey),
           body: JSON.stringify({
             model: DEFAULT_CLAUDE_FAST_MODEL,
-            max_tokens: 8192,
+            max_tokens: 32768,
             messages: [
               {
                 role: 'user',
