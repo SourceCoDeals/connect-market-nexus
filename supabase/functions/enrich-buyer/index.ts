@@ -1216,7 +1216,8 @@ Deno.serve(async (req) => {
           delete validated.data.hq_country;
           delete validated.data.hq_region;
           delete validated.data.operating_locations;
-          console.log('Stripped hq_city, hq_state, hq_country, hq_region, operating_locations from PE geography extraction');
+          delete validated.data.service_regions;
+          console.log('Stripped hq_city, hq_state, hq_country, hq_region, operating_locations, service_regions from PE geography extraction');
         }
         return { name: 'geography', result: validated, url: peFirmWebsite };
       }),
