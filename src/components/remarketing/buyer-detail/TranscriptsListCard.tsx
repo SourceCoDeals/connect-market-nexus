@@ -37,7 +37,7 @@ interface Transcript {
 interface TranscriptsListCardProps {
   transcripts: Transcript[];
   buyerId: string;
-  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => void;
+  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<any> | void;
   onExtract: (transcriptId: string) => void;
   onExtractAll: () => void;
   onDelete: (transcriptId: string) => void;
@@ -237,7 +237,7 @@ export const TranscriptsListCard = ({
           }
         }
 
-        onAddTranscript(text, "call", nameWithoutExt, fileUrl, false);
+        await onAddTranscript(text, "call", nameWithoutExt, fileUrl, false);
         successCount++;
 
         toast({ title: `Uploaded ${i + 1}/${total}`, description: file.name });
