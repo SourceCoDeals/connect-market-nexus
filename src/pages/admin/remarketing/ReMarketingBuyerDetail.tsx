@@ -481,22 +481,21 @@ const ReMarketingBuyerDetail = () => {
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number; isRunning: boolean }>({ current: 0, total: 0, isRunning: false });
 
   const handleExtractAll = async () => {
-    const pendingTranscripts = transcripts.filter(t => !t.processed_at);
-    if (pendingTranscripts.length === 0) return;
+    if (transcripts.length === 0) return;
     
-    setExtractionProgress({ current: 0, total: pendingTranscripts.length, isRunning: true });
+    setExtractionProgress({ current: 0, total: transcripts.length, isRunning: true });
     let successCount = 0;
     let errorCount = 0;
     
-    for (let i = 0; i < pendingTranscripts.length; i++) {
+    for (let i = 0; i < transcripts.length; i++) {
       try {
-        await extractTranscriptMutation.mutateAsync({ transcriptId: pendingTranscripts[i].id });
+        await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
         successCount++;
       } catch (e) {
-        console.warn(`Extraction failed for ${pendingTranscripts[i].id}:`, e);
+        console.warn(`Extraction failed for ${transcripts[i].id}:`, e);
         errorCount++;
       }
-      setExtractionProgress({ current: i + 1, total: pendingTranscripts.length, isRunning: i < pendingTranscripts.length - 1 });
+      setExtractionProgress({ current: i + 1, total: transcripts.length, isRunning: i < transcripts.length - 1 });
     }
     
     setExtractionProgress(prev => ({ ...prev, isRunning: false }));
