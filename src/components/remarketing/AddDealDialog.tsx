@@ -78,8 +78,9 @@ export const AddDealDialog = ({
       let query = supabase
         .from('listings')
         .select('id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(200);
 
       if (searchQuery.trim()) {
         query = query.or(`title.ilike.%${searchQuery}%,internal_company_name.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%`);
