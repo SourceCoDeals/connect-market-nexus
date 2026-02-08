@@ -11,7 +11,7 @@ const corsHeaders = {
 // For documents larger than this threshold, we use Sonnet which supports 64K+ output.
 const LARGE_DOCUMENT_THRESHOLD_BYTES = 50_000; // ~50KB → likely multi-page transcript
 const HAIKU_MAX_TOKENS = 8192;
-const SONNET_MAX_TOKENS = 65536; // 64K tokens for full transcript extraction
+const SONNET_MAX_TOKENS = 64000; // Sonnet 4 max output limit
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
