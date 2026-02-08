@@ -58,6 +58,8 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (revenue >= 500000) revPts = 4;
     else if (revenue > 0) revPts = 2;
 
+    revenueScore = revPts;
+
     // EBITDA scoring (0-13 pts)
     let ebitdaPts = 0;
     if (ebitda >= 5000000) ebitdaPts = 13;
@@ -66,6 +68,8 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (ebitda >= 500000) ebitdaPts = 7;
     else if (ebitda >= 300000) ebitdaPts = 5;
     else if (ebitda >= 150000) ebitdaPts = 3;
+
+    ebitdaScore = ebitdaPts;
 
     financialScore = Math.min(35, revPts + ebitdaPts);
   }
@@ -88,6 +92,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   else if (employeeCount > 0) signalsScore += 2;
 
   if (employeeCount > 0) {
+    linkedinBoost = signalsScore; // Track LinkedIn contribution
     notes.push(`LinkedIn: ${employeeCount} employees`);
   }
 
@@ -233,6 +238,10 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   return {
     deal_total_score: Math.min(100, Math.max(0, totalScore)),
     deal_size_score: Math.min(70, Math.max(0, sizeIndicator)),
+    revenue_score: hasFinancials ? revenueScore : undefined,
+    ebitda_score: hasFinancials ? ebitdaScore : undefined,
+    linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
+    quality_calculation_version: 'v2',
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
