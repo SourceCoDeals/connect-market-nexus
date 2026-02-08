@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useRef, useCallback } from "react";
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -71,16 +71,24 @@ export const AddDealDialog = ({
     transcriptFilesRef.current = files;
   };
 
-  // Search marketplace listings
-  const { data: marketplaceListings, isLoading: searchLoading } = useQuery({
+  const PAGE_SIZE = 50;
+
+  // Search marketplace listings with infinite scroll
+  const {
+    data: marketplaceData,
+    isLoading: searchLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['marketplace-search', searchQuery],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       let query = supabase
         .from('listings')
         .select('id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .limit(200);
+        .range(pageParam, pageParam + PAGE_SIZE - 1);
 
       if (searchQuery.trim()) {
         query = query.or(`title.ilike.%${searchQuery}%,internal_company_name.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%`);
@@ -88,10 +96,33 @@ export const AddDealDialog = ({
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data || [];
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < PAGE_SIZE) return undefined;
+      return allPages.length * PAGE_SIZE;
     },
     enabled: open && activeTab === "marketplace",
   });
+
+  const marketplaceListings = marketplaceData?.pages.flat() ?? [];
+
+  // Infinite scroll sentinel callback
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const lastItemRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (isFetchingNextPage) return;
+      if (observerRef.current) observerRef.current.disconnect();
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasNextPage) {
+          fetchNextPage();
+        }
+      });
+      if (node) observerRef.current.observe(node);
+    },
+    [isFetchingNextPage, hasNextPage, fetchNextPage],
+  );
 
   // Check which listings are already remarketing deals
   const { data: existingDealIds } = useQuery({
@@ -351,14 +382,16 @@ export const AddDealDialog = ({
                     </p>
                   </div>
                 ) : (
-                  marketplaceListings.map((listing) => {
+                  marketplaceListings.map((listing, index) => {
                     const displayName = listing.internal_company_name || listing.title || "Untitled";
                     const isAlreadyInternal = existingDealIds?.has(listing.id);
                     const justAdded = addedIds.has(listing.id);
+                    const isLast = index === marketplaceListings.length - 1;
 
                     return (
                       <div
                         key={listing.id}
+                        ref={isLast ? lastItemRef : undefined}
                         className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors"
                       >
                         <div className="flex-1 min-w-0">
@@ -414,6 +447,11 @@ export const AddDealDialog = ({
                       </div>
                     );
                   })
+                )}
+                {isFetchingNextPage && (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
                 )}
               </div>
             </ScrollArea>
