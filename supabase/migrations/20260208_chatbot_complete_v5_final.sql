@@ -259,11 +259,11 @@ CREATE INDEX IF NOT EXISTS idx_chat_feedback_user_created ON public.chat_feedbac
 CREATE INDEX IF NOT EXISTS idx_chat_feedback_rating ON public.chat_feedback(rating);
 CREATE INDEX IF NOT EXISTS idx_chat_feedback_issue_type ON public.chat_feedback(issue_type) WHERE issue_type IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_chat_feedback_unresolved ON public.chat_feedback(created_at DESC) WHERE resolved = FALSE;
-CREATE INDEX IF NOT EXISTS idx_smart_suggestions_context ON public.chat_smart_suggestions(context_type, universe_id, deal_id) WHERE created_at > NOW() - INTERVAL '7 days';
+CREATE INDEX IF NOT EXISTS idx_smart_suggestions_context ON public.chat_smart_suggestions(context_type, universe_id, deal_id);
 CREATE INDEX IF NOT EXISTS idx_smart_suggestions_performance ON public.chat_smart_suggestions(click_through_rate DESC) WHERE times_shown > 10;
 CREATE INDEX IF NOT EXISTS idx_chat_recommendations_user ON public.chat_recommendations(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_recommendations_conversation ON public.chat_recommendations(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_chat_recommendations_active ON public.chat_recommendations(created_at DESC) WHERE shown = FALSE AND (expires_at IS NULL OR expires_at > NOW());
+CREATE INDEX IF NOT EXISTS idx_chat_recommendations_active ON public.chat_recommendations(created_at DESC) WHERE shown = FALSE;
 CREATE INDEX IF NOT EXISTS idx_chat_recommendations_type ON public.chat_recommendations(recommendation_type);
 
 -- PART 7: TRIGGERS
