@@ -83,10 +83,12 @@ import {
   Zap,
   Plus,
   Trash2,
+  FolderPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat } from "@/components/remarketing";
 import { DealEnrichmentSummaryDialog } from "@/components/remarketing";
+import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import {
   DndContext,
@@ -631,6 +633,9 @@ const ReMarketingDeals = () => {
   const [scoreFilter, setScoreFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
 
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -641,7 +646,7 @@ const ReMarketingDeals = () => {
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
   
   // Enrichment progress tracking
-  const { progress: enrichmentProgress, summary: enrichmentSummary, showSummary: showEnrichmentSummary, dismissSummary } = useEnrichmentProgress();
+  const { progress: enrichmentProgress, summary: enrichmentSummary, showSummary: showEnrichmentSummary, dismissSummary, pauseEnrichment, resumeEnrichment, cancelEnrichment } = useEnrichmentProgress();
   
   // Multi-select and archive/delete state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
@@ -649,6 +654,7 @@ const ReMarketingDeals = () => {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showUniverseDialog, setShowUniverseDialog] = useState(false);
   
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
@@ -671,7 +677,7 @@ const ReMarketingDeals = () => {
   // Clear the ref when listings change significantly (e.g., page change, filter change)
   useEffect(() => {
     enrichingDealsRef.current.clear();
-  }, [sortColumn, sortDirection, statusFilter, universeFilter, search]);
+  }, [sortColumn, sortDirection, statusFilter, universeFilter, search, industryFilter, stateFilter, employeeFilter]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -918,6 +924,24 @@ const ReMarketingDeals = () => {
     return `${states.slice(0, 2).join(', ')} +${states.length - 2}`;
   };
 
+  // Derive unique filter options from data
+  const filterOptions = useMemo(() => {
+    if (!listings) return { industries: [], states: [], employeeRanges: [] };
+    const industries = new Set<string>();
+    const states = new Set<string>();
+    const employeeRanges = new Set<string>();
+    listings.forEach(l => {
+      if (l.category) industries.add(l.category);
+      if (l.address_state) states.add(l.address_state);
+      if (l.linkedin_employee_range) employeeRanges.add(l.linkedin_employee_range);
+    });
+    return {
+      industries: Array.from(industries).sort(),
+      states: Array.from(states).sort(),
+      employeeRanges: Array.from(employeeRanges).sort(),
+    };
+  }, [listings]);
+
   // Filter listings
   const filteredListings = useMemo(() => {
     if (!listings) return [];
@@ -945,6 +969,18 @@ const ReMarketingDeals = () => {
         if (scoreFilter !== tier) return false;
       }
 
+      if (industryFilter !== "all") {
+        if (listing.category !== industryFilter) return false;
+      }
+
+      if (stateFilter !== "all") {
+        if (listing.address_state !== stateFilter) return false;
+      }
+
+      if (employeeFilter !== "all") {
+        if (listing.linkedin_employee_range !== employeeFilter) return false;
+      }
+
       if (dateFilter !== "all") {
         const createdAt = new Date(listing.created_at);
         const now = new Date();
@@ -957,7 +993,7 @@ const ReMarketingDeals = () => {
 
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, dateFilter, scoreStats]);
+  }, [listings, search, universeFilter, scoreFilter, dateFilter, industryFilter, stateFilter, employeeFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -1498,7 +1534,7 @@ const ReMarketingDeals = () => {
             className="bg-slate-800 hover:bg-slate-700 text-white"
           >
             <Calculator className="h-4 w-4 mr-2" />
-            {isCalculating ? "Calculating..." : "Calculate Scores"}
+            {isCalculating ? "Scoring..." : "Score Deals"}
           </Button>
           <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="w-[140px]">
@@ -1575,7 +1611,7 @@ const ReMarketingDeals = () => {
       </div>
 
       {/* Enrichment Progress Indicator */}
-      {enrichmentProgress.isEnriching && (
+      {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
         <EnrichmentProgressIndicator
           completedCount={enrichmentProgress.completedCount}
           totalCount={enrichmentProgress.totalCount}
@@ -1584,6 +1620,10 @@ const ReMarketingDeals = () => {
           processingRate={enrichmentProgress.processingRate}
           successfulCount={enrichmentProgress.successfulCount}
           failedCount={enrichmentProgress.failedCount}
+          isPaused={enrichmentProgress.isPaused}
+          onPause={pauseEnrichment}
+          onResume={resumeEnrichment}
+          onCancel={cancelEnrichment}
         />
       )}
 
@@ -1625,7 +1665,84 @@ const ReMarketingDeals = () => {
                 <SelectItem value="D">Tier D (&lt;40)</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={industryFilter} onValueChange={setIndustryFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Industries" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Industries</SelectItem>
+                {filterOptions.industries.map(ind => (
+                  <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={stateFilter} onValueChange={setStateFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="All States" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All States</SelectItem>
+                {filterOptions.states.map(st => (
+                  <SelectItem key={st} value={st}>{st}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="All Sizes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sizes</SelectItem>
+                {filterOptions.employeeRanges.map(er => (
+                  <SelectItem key={er} value={er}>{er}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Active filter count */}
+          {(industryFilter !== "all" || stateFilter !== "all" || employeeFilter !== "all" || scoreFilter !== "all" || universeFilter !== "all") && (
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+              <span className="text-xs text-muted-foreground">Active filters:</span>
+              {industryFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setIndustryFilter("all")}>
+                  {industryFilter} ✕
+                </Badge>
+              )}
+              {stateFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setStateFilter("all")}>
+                  {stateFilter} ✕
+                </Badge>
+              )}
+              {employeeFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setEmployeeFilter("all")}>
+                  {employeeFilter} ✕
+                </Badge>
+              )}
+              {scoreFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setScoreFilter("all")}>
+                  Tier {scoreFilter} ✕
+                </Badge>
+              )}
+              {universeFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setUniverseFilter("all")}>
+                  Universe ✕
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
+                setIndustryFilter("all");
+                setStateFilter("all");
+                setEmployeeFilter("all");
+                setScoreFilter("all");
+                setUniverseFilter("all");
+              }}>
+                Clear all
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1643,6 +1760,14 @@ const ReMarketingDeals = () => {
               </Button>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowUniverseDialog(true)}
+              >
+                <FolderPlus className="h-4 w-4 mr-1" />
+                Send to Universe
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -1720,7 +1845,14 @@ const ReMarketingDeals = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Single Deal Delete Confirmation Dialog */}
+      {/* Bulk Assign to Universe Dialog */}
+      <BulkAssignUniverseDialog
+        open={showUniverseDialog}
+        onOpenChange={setShowUniverseDialog}
+        dealIds={Array.from(selectedDeals)}
+        onComplete={() => setSelectedDeals(new Set())}
+      />
+
       <AlertDialog open={!!singleDeleteTarget} onOpenChange={(open) => !open && setSingleDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

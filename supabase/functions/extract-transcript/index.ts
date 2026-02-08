@@ -171,7 +171,20 @@ serve(async (req) => {
 
     if ((entity_type === 'buyer' || entity_type === 'both') && buyerIdToUpdate) {
       console.log(`[TranscriptExtraction] Extracting buyer insights for ${buyerIdToUpdate}`);
-      const buyerInsights = await extractBuyerInsights(transcriptTextToProcess, ANTHROPIC_API_KEY);
+      
+      // Fetch buyer context so the prompt can distinguish platform vs PE firm
+      const { data: buyerContext } = await supabase
+        .from('remarketing_buyers')
+        .select('company_name, pe_firm_name')
+        .eq('id', buyerIdToUpdate)
+        .single();
+      
+      const buyerInsights = await extractBuyerInsights(
+        transcriptTextToProcess,
+        ANTHROPIC_API_KEY,
+        buyerContext?.company_name || undefined,
+        buyerContext?.pe_firm_name || undefined
+      );
       insights.buyer = buyerInsights;
 
       // Update buyer with extracted data
@@ -401,7 +414,7 @@ RULES:
 
   const result = await callClaudeWithTool(
     systemPrompt,
-    `Extract all deal-relevant information from this transcript. Capture every financial figure, owner detail, and deal-relevant data point.\n\nTRANSCRIPT:\n${transcriptText.substring(0, 12000)}`,
+    `Extract all deal-relevant information from this transcript. Capture every financial figure, owner detail, and deal-relevant data point.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
     DEFAULT_CLAUDE_MODEL,
@@ -416,29 +429,57 @@ RULES:
 // BUYER THESIS EXTRACTION (Spec Section 3: Generic Transcript — Buyer Thesis)
 // ============================================================================
 
-async function extractBuyerInsights(transcriptText: string, apiKey: string): Promise<BuyerInsights> {
-  const systemPrompt = `You are an M&A analyst extracting the PLATFORM COMPANY'S acquisition thesis from a call transcript. You must distinguish between the platform company's operating perspective and the PE firm sponsor's investment perspective. The platform company's actual operational needs and stated criteria take precedence.
+async function extractBuyerInsights(
+  transcriptText: string,
+  apiKey: string,
+  platformCompanyName?: string,
+  peFirmName?: string
+): Promise<BuyerInsights> {
+  const companyContext = platformCompanyName
+    ? `\n\nKNOWN ENTITIES:
+- PLATFORM COMPANY (operating company): "${platformCompanyName}"
+- PE FIRM SPONSOR: "${peFirmName || 'unknown'}"`
+    : '';
 
-CRITICAL RULES — READ CAREFULLY:
+  const systemPrompt = `You are an M&A analyst extracting the PLATFORM COMPANY'S acquisition thesis from a call transcript. You must distinguish between the platform company and the PE firm sponsor using BOTH names and contextual clues.
+${companyContext}
 
-1. TRANSCRIPT-ONLY EXTRACTION: Every statement in thesis_summary MUST be directly traceable to something said in the call. If you cannot point to a specific moment in the transcript that supports a claim, do not include it.
+DISTINGUISHING PLATFORM vs PE FIRM — USE THESE CONTEXTUAL SIGNALS:
 
-2. DO NOT INFER, FILL GAPS, OR "ROUND OUT" THE THESIS WITH:
-   - Typical PE criteria for this industry
-   - Language from the company's website or marketing materials
-   - Generic industry knowledge ("most restoration companies prefer…")
-   - What "comparable platforms" usually look for
-   - Your own assessment of what would be logical for them to want
+PLATFORM COMPANY signals (use for business_summary, services_offered, operating_locations, geographic_footprint):
+- Discussions about day-to-day operations, service delivery, crews, trucks, jobs
+- "We do [service]", "our technicians", "we serve [area]", "our office in [city]"
+- Mentions of specific service types (restoration, roofing, HVAC, plumbing, etc.)
+- Customer relationships, project descriptions, seasonal patterns
+- Where they physically have offices, warehouses, or serve customers
 
-3. PLATFORM vs PE FIRM: The PE firm sponsor is incidental context. "Apex Capital partners with Apex Restoration to pursue add-ons" — focus on Apex Restoration's criteria, not Apex Capital's general investment thesis.
+PE FIRM signals (do NOT use for platform operational fields):
+- "We invested in...", "our portfolio includes...", "our fund..."
+- Investment thesis language: "we look for...", "our criteria...", "we target..."
+- Fund structure, capital deployment, returns, hold periods
+- HQ location of the investment firm (NOT the platform's operating locations)
+- General industry preferences from an investor lens
 
-4. INSUFFICIENT DATA IS A VALID ANSWER: If the transcript doesn't contain enough information to construct a meaningful thesis, set thesis_confidence to "insufficient" and explain what's missing in missing_information. This is BETTER than fabricating a thesis.
+CRITICAL ATTRIBUTION RULES:
+1. business_summary = What the PLATFORM COMPANY does operationally (services, customers, market)
+2. services_offered = Services the PLATFORM delivers to its customers
+3. operating_locations = Cities where the PLATFORM has physical operations (offices, crews, service areas) — NOT the PE firm's HQ
+4. geographic_footprint = States where the PLATFORM operates — NOT where the PE firm is based
+5. thesis_summary = What the PLATFORM (guided by PE sponsor) is looking for in acquisitions
+6. If a location is only mentioned as where the PE firm or its partners are based, do NOT put it in operating_locations or geographic_footprint
+7. If the platform's actual locations aren't discussed, leave operating_locations and geographic_footprint EMPTY — do not default to PE firm locations
 
-5. QUOTE YOUR SOURCES: For every claim in the thesis_summary, you should be able to identify the approximate part of the transcript it came from. If you can't, remove the claim.
+OTHER CRITICAL RULES:
 
-6. NUMBERS AS RAW INTEGERS: All dollar amounts as raw numbers. "$7.5M" = 7500000.
+1. TRANSCRIPT-ONLY EXTRACTION: Every statement must be directly traceable to something said in the call.
 
-7. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."`;
+2. DO NOT INFER OR FILL GAPS with typical PE criteria, website content, or industry knowledge.
+
+3. INSUFFICIENT DATA IS A VALID ANSWER: Set thesis_confidence to "insufficient" if the transcript lacks enough info.
+
+4. NUMBERS AS RAW INTEGERS: "$7.5M" = 7500000.
+
+5. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."`;
 
   const tool = {
     type: "function",
@@ -522,7 +563,7 @@ CRITICAL RULES — READ CAREFULLY:
 
   const result = await callClaudeWithTool(
     systemPrompt,
-    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If data is insufficient, that is a valid answer — set thesis_confidence to "insufficient" and list what's missing.\n\nTRANSCRIPT:\n${transcriptText.substring(0, 12000)}`,
+    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If data is insufficient, that is a valid answer — set thesis_confidence to "insufficient" and list what's missing.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
     DEFAULT_CLAUDE_MODEL,
@@ -632,21 +673,24 @@ async function updateBuyerFromTranscript(
   if (insights.thesis_summary && insights.thesis_confidence !== 'insufficient') {
     updates.thesis_summary = insights.thesis_summary;
   }
-  if (insights.thesis_confidence) {
+  if (insights.thesis_confidence && insights.thesis_confidence !== 'insufficient') {
     updates.thesis_confidence = insights.thesis_confidence;
   }
   if (insights.strategic_priorities?.length) {
-    updates.strategic_priorities = insights.strategic_priorities;
+    updates.strategic_priorities = Array.isArray(insights.strategic_priorities)
+      ? insights.strategic_priorities : [String(insights.strategic_priorities)];
   }
 
   // Other buyer criteria
   if (insights.target_industries?.length) {
-    updates.target_industries = insights.target_industries;
+    updates.target_industries = Array.isArray(insights.target_industries)
+      ? insights.target_industries : [String(insights.target_industries)];
   }
   // Handle structured geography
   if (insights.target_geography) {
-    if (insights.target_geography.states?.length) {
-      updates.target_geographies = insights.target_geography.states;
+    const states = insights.target_geography.states;
+    if (states?.length) {
+      updates.target_geographies = Array.isArray(states) ? states : [String(states)];
     }
   }
   if (insights.acquisition_timeline) {
@@ -654,17 +698,21 @@ async function updateBuyerFromTranscript(
   }
 
   // Platform company operational details
-  if (insights.services_offered?.length) {
-    updates.services_offered = insights.services_offered.join(', ');
+  if (insights.services_offered) {
+    updates.services_offered = Array.isArray(insights.services_offered)
+      ? insights.services_offered.join(', ')
+      : String(insights.services_offered);
   }
   if (insights.business_summary) {
     updates.business_summary = insights.business_summary;
   }
   if (insights.operating_locations?.length) {
-    updates.operating_locations = insights.operating_locations;
+    updates.operating_locations = Array.isArray(insights.operating_locations)
+      ? insights.operating_locations : [String(insights.operating_locations)];
   }
   if (insights.geographic_footprint?.length) {
-    updates.geographic_footprint = insights.geographic_footprint;
+    updates.geographic_footprint = Array.isArray(insights.geographic_footprint)
+      ? insights.geographic_footprint : [String(insights.geographic_footprint)];
   }
 
   if (Object.keys(updates).length > 0) {
@@ -709,8 +757,7 @@ async function updateBuyerFromTranscript(
     const existingSources = (existingBuyer?.extraction_sources || []) as any[];
 
     // Save insufficient flag and missing questions
-    const insufficientUpdate = {
-      thesis_confidence: 'insufficient',
+    const insufficientUpdate: Record<string, unknown> = {
       notes: `Insufficient transcript data. Follow-up questions needed:\n${(insights.missing_information || []).map((q, i) => `${i + 1}. ${q}`).join('\n')}`,
       extraction_sources: [
         ...existingSources,

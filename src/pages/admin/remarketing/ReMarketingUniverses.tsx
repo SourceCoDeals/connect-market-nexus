@@ -359,7 +359,7 @@ const ReMarketingUniverses = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 h-fit">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -510,14 +510,18 @@ const ReMarketingUniverses = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <Globe2 className="h-4 w-4 text-primary" />
                           </div>
-                          <div>
+                          <div className="min-w-0 max-w-[400px]">
                             <p className="font-medium text-foreground">{universe.name}</p>
-                            {universe.description && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[250px]">
+                            {universe.description ? (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
                                 {universe.description}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-muted-foreground/50 italic">
+                                No description
                               </p>
                             )}
                           </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,7 +143,9 @@ type EditDialogType = 'business' | 'investment' | 'dealStructure' | 'geographic'
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+  const backTo = (location.state as any)?.from || "/admin/remarketing/buyers";
   const isNew = id === 'new';
 
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
@@ -476,10 +478,34 @@ const ReMarketingBuyerDetail = () => {
     }
   });
 
+  const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number; isRunning: boolean }>({ current: 0, total: 0, isRunning: false });
+
   const handleExtractAll = async () => {
-    const pendingTranscripts = transcripts.filter(t => !t.processed_at);
-    for (const transcript of pendingTranscripts) {
-      await extractTranscriptMutation.mutateAsync({ transcriptId: transcript.id });
+    if (transcripts.length === 0) return;
+    
+    setExtractionProgress({ current: 0, total: transcripts.length, isRunning: true });
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (let i = 0; i < transcripts.length; i++) {
+      try {
+        await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
+        successCount++;
+      } catch (e) {
+        console.warn(`Extraction failed for ${transcripts[i].id}:`, e);
+        errorCount++;
+      }
+      setExtractionProgress({ current: i + 1, total: transcripts.length, isRunning: i < transcripts.length - 1 });
+    }
+    
+    setExtractionProgress(prev => ({ ...prev, isRunning: false }));
+    
+    if (errorCount > 0 && successCount === 0) {
+      toast.error(`All ${errorCount} extractions failed. Some transcripts may have empty text — try re-uploading them.`);
+    } else if (errorCount > 0) {
+      toast.warning(`${successCount} extracted, ${errorCount} failed (possibly empty text).`);
+    } else {
+      toast.success(`All ${successCount} transcripts extracted successfully.`);
     }
   };
 
@@ -535,6 +561,7 @@ const ReMarketingBuyerDetail = () => {
         onEdit={() => setActiveEditDialog('business')}
         onEnrich={() => enrichMutation.mutate()}
         isEnriching={enrichMutation.isPending}
+        backTo={backTo}
       />
 
       {/* Criteria Completeness Banner */}
@@ -588,64 +615,73 @@ const ReMarketingBuyerDetail = () => {
 
         {/* Intelligence Tab */}
         <TabsContent value="intelligence" className="space-y-4">
-          {/* Full Width Cards - Stacked Vertically */}
-          <BusinessDescriptionCard
-            industryVertical={buyer?.industry_vertical}
-            businessSummary={buyer?.business_summary}
-            servicesOffered={buyer?.target_services}
-            specializedFocus={buyer?.specialized_focus}
-            onEdit={() => setActiveEditDialog('business')}
-          />
-          
-          <BuyerServicesBusinessModelCard
-            servicesOffered={buyer?.services_offered}
-            businessModel={buyer?.business_type}
-            revenueModel={buyer?.revenue_model}
-            onEdit={() => setActiveEditDialog('servicesModel')}
-          />
-          
-          <CustomerEndMarketCard
-            primaryCustomerSize={buyer?.primary_customer_size}
-            customerGeographicReach={buyer?.customer_geographic_reach}
-            customerIndustries={buyer?.customer_industries}
-            targetCustomerProfile={buyer?.target_customer_profile}
-            onEdit={() => setActiveEditDialog('customer')}
-          />
-          
-          <GeographicFootprintCard
-            targetGeographies={buyer?.target_geographies}
-            operatingLocations={buyer?.operating_locations}
-            geographicFootprint={buyer?.geographic_footprint}
-            serviceRegions={buyer?.service_regions}
-            onEdit={() => setActiveEditDialog('geographic')}
-          />
-          
-          <InvestmentCriteriaCard
-            investmentThesis={buyer?.thesis_summary}
-            thesisConfidence={buyer?.thesis_confidence}
-            strategicPriorities={buyer?.strategic_priorities}
-            dealBreakers={buyer?.deal_breakers}
-            onEdit={() => setActiveEditDialog('investment')}
-          />
-          
-          <DealStructureCard
-            minRevenue={buyer?.target_revenue_min}
-            maxRevenue={buyer?.target_revenue_max}
-            revenueSweetSpot={buyer?.revenue_sweet_spot}
-            minEbitda={buyer?.target_ebitda_min}
-            maxEbitda={buyer?.target_ebitda_max}
-            ebitdaSweetSpot={buyer?.ebitda_sweet_spot}
-            dealPreferences={buyer?.deal_preferences}
-            acquisitionAppetite={buyer?.acquisition_appetite}
-            acquisitionTimeline={buyer?.acquisition_timeline}
-            onEdit={() => setActiveEditDialog('dealStructure')}
-          />
-          
-          <AcquisitionHistoryCard
-            totalAcquisitions={buyer?.total_acquisitions}
-            acquisitionFrequency={buyer?.acquisition_frequency}
-            onEdit={() => setActiveEditDialog('acquisition')}
-          />
+          {/* Two-Column Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <BusinessDescriptionCard
+              industryVertical={buyer?.industry_vertical}
+              businessSummary={buyer?.business_summary}
+              servicesOffered={buyer?.target_services}
+              specializedFocus={buyer?.specialized_focus}
+              onEdit={() => setActiveEditDialog('business')}
+              className="bg-muted/30"
+            />
+            
+            <InvestmentCriteriaCard
+              investmentThesis={buyer?.thesis_summary}
+              thesisConfidence={buyer?.thesis_confidence}
+              strategicPriorities={buyer?.strategic_priorities}
+              dealBreakers={buyer?.deal_breakers}
+              onEdit={() => setActiveEditDialog('investment')}
+              className="bg-accent/20"
+            />
+            
+            <BuyerServicesBusinessModelCard
+              servicesOffered={buyer?.services_offered}
+              businessModel={buyer?.business_type}
+              revenueModel={buyer?.revenue_model}
+              onEdit={() => setActiveEditDialog('servicesModel')}
+              className="bg-accent/20"
+            />
+            
+            <GeographicFootprintCard
+              targetGeographies={buyer?.target_geographies}
+              operatingLocations={buyer?.operating_locations}
+              geographicFootprint={buyer?.geographic_footprint}
+              serviceRegions={buyer?.service_regions}
+              onEdit={() => setActiveEditDialog('geographic')}
+              className="bg-muted/30"
+            />
+            
+            <CustomerEndMarketCard
+              primaryCustomerSize={buyer?.primary_customer_size}
+              customerGeographicReach={buyer?.customer_geographic_reach}
+              customerIndustries={buyer?.customer_industries}
+              targetCustomerProfile={buyer?.target_customer_profile}
+              onEdit={() => setActiveEditDialog('customer')}
+              className="bg-muted/30"
+            />
+            
+            <DealStructureCard
+              minRevenue={buyer?.target_revenue_min}
+              maxRevenue={buyer?.target_revenue_max}
+              revenueSweetSpot={buyer?.revenue_sweet_spot}
+              minEbitda={buyer?.target_ebitda_min}
+              maxEbitda={buyer?.target_ebitda_max}
+              ebitdaSweetSpot={buyer?.ebitda_sweet_spot}
+              dealPreferences={buyer?.deal_preferences}
+              acquisitionAppetite={buyer?.acquisition_appetite}
+              acquisitionTimeline={buyer?.acquisition_timeline}
+              onEdit={() => setActiveEditDialog('dealStructure')}
+              className="bg-accent/20"
+            />
+            
+            <AcquisitionHistoryCard
+              totalAcquisitions={buyer?.total_acquisitions}
+              acquisitionFrequency={buyer?.acquisition_frequency}
+              onEdit={() => setActiveEditDialog('acquisition')}
+              className="bg-accent/20"
+            />
+          </div>
 
           {/* Full Width: Key Quotes */}
           <KeyQuotesCard quotes={buyer?.key_quotes} />
@@ -655,7 +691,7 @@ const ReMarketingBuyerDetail = () => {
             transcripts={transcripts}
             buyerId={buyer.id}
             onAddTranscript={(text, source, fileName, fileUrl, triggerExtract) =>
-              addTranscriptMutation.mutate({ text, source, fileName, fileUrl, triggerExtract })
+              addTranscriptMutation.mutateAsync({ text, source, fileName, fileUrl, triggerExtract })
             }
             onExtract={(transcriptId) => extractTranscriptMutation.mutate({ transcriptId })}
             onExtractAll={handleExtractAll}
@@ -665,7 +701,8 @@ const ReMarketingBuyerDetail = () => {
               }
             }}
             isAdding={addTranscriptMutation.isPending}
-            isExtracting={extractTranscriptMutation.isPending}
+            isExtracting={extractTranscriptMutation.isPending || extractionProgress.isRunning}
+            extractionProgress={extractionProgress.isRunning ? extractionProgress : undefined}
           />
         </TabsContent>
 

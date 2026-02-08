@@ -2,6 +2,7 @@ import { Users, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface CustomerEndMarketCardProps {
   primaryCustomerSize?: string | null;
@@ -9,6 +10,7 @@ interface CustomerEndMarketCardProps {
   customerIndustries?: string[] | null;
   targetCustomerProfile?: string | null;
   onEdit: () => void;
+  className?: string;
 }
 
 export const CustomerEndMarketCard = ({
@@ -17,11 +19,12 @@ export const CustomerEndMarketCard = ({
   customerIndustries,
   targetCustomerProfile,
   onEdit,
+  className,
 }: CustomerEndMarketCardProps) => {
   const hasContent = primaryCustomerSize || customerGeographicReach || customerIndustries?.length || targetCustomerProfile;
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">

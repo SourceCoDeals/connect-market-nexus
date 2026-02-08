@@ -1252,40 +1252,109 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_analytics: {
+        Row: {
+          context_type: string | null
+          conversation_id: string | null
+          created_at: string
+          deal_id: string | null
+          id: string
+          query_text: string
+          response_text: string | null
+          response_time_ms: number | null
+          tokens_input: number | null
+          tokens_output: number | null
+          tokens_total: number | null
+          tools_called: string | null
+          universe_id: string | null
+          user_continued: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          context_type?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          query_text: string
+          response_text?: string | null
+          response_time_ms?: number | null
+          tokens_input?: number | null
+          tokens_output?: number | null
+          tokens_total?: number | null
+          tools_called?: string | null
+          universe_id?: string | null
+          user_continued?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          context_type?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          query_text?: string
+          response_text?: string | null
+          response_time_ms?: number | null
+          tokens_input?: number | null
+          tokens_output?: number | null
+          tokens_total?: number | null
+          tools_called?: string | null
+          universe_id?: string | null
+          user_continued?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       chat_conversations: {
         Row: {
+          archived: boolean | null
+          context_type: string | null
           conversation_type: string
           created_at: string
+          deal_id: string | null
           id: string
           last_message_at: string | null
           listing_id: string
           message_count: number
           messages: Json
+          title: string | null
           tracker_id: string | null
+          universe_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          archived?: boolean | null
+          context_type?: string | null
           conversation_type?: string
           created_at?: string
+          deal_id?: string | null
           id?: string
           last_message_at?: string | null
           listing_id: string
           message_count?: number
           messages?: Json
+          title?: string | null
           tracker_id?: string | null
+          universe_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          archived?: boolean | null
+          context_type?: string | null
           conversation_type?: string
           created_at?: string
+          deal_id?: string | null
           id?: string
           last_message_at?: string | null
           listing_id?: string
           message_count?: number
           messages?: Json
+          title?: string | null
           tracker_id?: string | null
+          universe_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1326,6 +1395,117 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      chat_feedback: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          feedback_text: string | null
+          id: string
+          issue_type: string | null
+          message_index: number
+          rating: number
+          resolved: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          feedback_text?: string | null
+          id?: string
+          issue_type?: string | null
+          message_index: number
+          rating: number
+          resolved?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          feedback_text?: string | null
+          id?: string
+          issue_type?: string | null
+          message_index?: number
+          rating?: number
+          resolved?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chat_recommendations: {
+        Row: {
+          action_query: string | null
+          action_text: string | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          message: string | null
+          priority: string | null
+          recommendation_type: string
+          title: string
+          user_id: string | null
+          was_accepted: boolean | null
+          was_dismissed: boolean | null
+        }
+        Insert: {
+          action_query?: string | null
+          action_text?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          priority?: string | null
+          recommendation_type: string
+          title: string
+          user_id?: string | null
+          was_accepted?: boolean | null
+          was_dismissed?: boolean | null
+        }
+        Update: {
+          action_query?: string | null
+          action_text?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          priority?: string | null
+          recommendation_type?: string
+          title?: string
+          user_id?: string | null
+          was_accepted?: boolean | null
+          was_dismissed?: boolean | null
+        }
+        Relationships: []
+      }
+      chat_smart_suggestions: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          id: string
+          intent: string | null
+          suggestion_text: string
+          user_id: string | null
+          was_selected: boolean | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          intent?: string | null
+          suggestion_text: string
+          user_id?: string | null
+          was_selected?: boolean | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          intent?: string | null
+          suggestion_text?: string
+          user_id?: string | null
+          was_selected?: boolean | null
+        }
+        Relationships: []
       }
       collection_items: {
         Row: {

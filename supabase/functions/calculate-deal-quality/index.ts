@@ -23,213 +23,103 @@ interface DealQualityScores {
  *
  * SCORING METHODOLOGY V2 (0-100):
  *
- * 1. SIZE (0-70 pts) - 70% weight - This is what matters most
- *    A. Revenue Score (0-60 pts) - Exponential curve
- *       - $0-1M: 0-15 pts (linear)
- *       - $1M-5M: 15-35 pts (accelerating)
- *       - $5M-10M: 35-50 pts (strong acceleration)
- *       - $10M+: 50-60 pts (premium tier)
+ * 1. FINANCIAL SIZE (0-35 pts) — Revenue & EBITDA when available
+ * 2. COMPANY SIGNALS (0-30 pts) — LinkedIn employees, Google reviews/rating
+ * 3. MARKET POSITION (0-20 pts) — Geography, services, multi-location
+ * 4. SELLER READINESS (0-15 pts) — Seller interest score
  *
- *    B. EBITDA Score (0-40 pts) - Exponential curve
- *       - $0-300K: 0 pts (below threshold)
- *       - $300K-1M: 0-15 pts (linear)
- *       - $1M-3M: 15-28 pts (accelerating)
- *       - $3M-5M: 28-35 pts (strong)
- *       - $5M+: 35-40 pts (premium)
- *
- *    C. LinkedIn Employee Boost (0-25 pts BONUS) - Applied even with financials
- *       - 100+ employees: +20-25 pts (validates large operation)
- *       - 50-99 employees: +10-15 pts (validates mid-size)
- *       - 25-49 employees: +5-10 pts (validates small-mid)
- *       - <25 employees: No boost (financials tell the story)
- *
- *    D. Proxy Scoring (when NO financials): LinkedIn employee count only
- *       - Uses employee count to estimate both revenue and EBITDA
- *       - Same 0-100 scale as financial scoring
- *
- * 2. GEOGRAPHY (0-10 pts) - 10% weight
- *    - Urban/metro areas score higher than rural
- *    - Major cities get bonus points
- *
- * 3. SERVICES/BUSINESS TYPE (0-5 pts) - 5% weight
- *    - Recurring revenue and essential services score higher
- *
- * 4. SELLER INTEREST (0-15 pts) - 15% weight (bonus when available)
- *    - Pulled from seller_interest_score (AI-analyzed separately)
- *    - If no seller interest score, base score is scaled to 100
- *    - Great deals without seller interest data can still score 100
- *
- * NOTE: Data completeness does NOT affect score. A great deal with little
- * data is still a great deal - we just need to get more info on it.
+ * KEY PRINCIPLE: When financials are missing, their 35 points are
+ * redistributed proportionally to Company Signals and Market Position.
+ * This ensures companies with strong LinkedIn/Google presence aren't
+ * penalized just because we haven't gotten financial data yet.
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
-  let sizeScore = 0;
-  let geographyScore = 0;
-  let servicesScore = 0;
-  let sellerInterestScore = 0;
   const notes: string[] = [];
 
-  // ===== SIZE SCORE (0-100 pts max with LinkedIn boost) =====
-  // Size is 70% of what matters in deal quality
+  // ===== FINANCIAL SIZE (0-35 pts) =====
   const revenue = deal.revenue || 0;
   const ebitda = deal.ebitda || 0;
-  const employeeCount = deal.linkedin_employee_count || 0;
-  const reviewCount = deal.google_review_count || 0;
   const hasFinancials = revenue > 0 || ebitda > 0;
+  let financialScore = 0;
 
   let revenueScore = 0;
   let ebitdaScore = 0;
   let linkedinBoost = 0;
 
   if (hasFinancials) {
-    // PRIMARY PATH: Use actual financials when available
+    // Revenue scoring (0-22 pts)
+    let revPts = 0;
+    if (revenue >= 10000000) revPts = 22;
+    else if (revenue >= 7000000) revPts = 20;
+    else if (revenue >= 5000000) revPts = 18;
+    else if (revenue >= 3000000) revPts = 14;
+    else if (revenue >= 2000000) revPts = 11;
+    else if (revenue >= 1000000) revPts = 8;
+    else if (revenue >= 500000) revPts = 4;
+    else if (revenue > 0) revPts = 2;
 
-    // A. Revenue Score (0-60 pts) - EXPONENTIAL CURVE
-    if (revenue >= 20000000) {
-      revenueScore = 60; // $20M+ revenue - top tier
-    } else if (revenue >= 15000000) {
-      revenueScore = 58; // $15-20M revenue
-    } else if (revenue >= 10000000) {
-      revenueScore = 54; // $10-15M revenue - strong acceleration
-    } else if (revenue >= 7000000) {
-      revenueScore = 48; // $7-10M revenue
-    } else if (revenue >= 5000000) {
-      revenueScore = 40; // $5-7M revenue - entering sweet spot
-    } else if (revenue >= 3000000) {
-      revenueScore = 30; // $3-5M revenue - good size
-    } else if (revenue >= 2000000) {
-      revenueScore = 22; // $2-3M revenue
-    } else if (revenue >= 1000000) {
-      revenueScore = 15; // $1-2M revenue - baseline
-    } else if (revenue >= 500000) {
-      revenueScore = 8;  // $500K-1M revenue
-    } else if (revenue > 0) {
-      revenueScore = 3;  // Under $500K - very small
-    }
+    // EBITDA scoring (0-13 pts)
+    let ebitdaPts = 0;
+    if (ebitda >= 5000000) ebitdaPts = 13;
+    else if (ebitda >= 2000000) ebitdaPts = 11;
+    else if (ebitda >= 1000000) ebitdaPts = 9;
+    else if (ebitda >= 500000) ebitdaPts = 7;
+    else if (ebitda >= 300000) ebitdaPts = 5;
+    else if (ebitda >= 150000) ebitdaPts = 3;
 
-    // B. EBITDA Score (0-40 pts) - EXPONENTIAL CURVE
-    if (ebitda >= 5000000) {
-      ebitdaScore = 40; // $5M+ EBITDA - premium
-    } else if (ebitda >= 3000000) {
-      ebitdaScore = 35; // $3-5M EBITDA - strong
-    } else if (ebitda >= 2000000) {
-      ebitdaScore = 28; // $2-3M EBITDA - accelerating
-    } else if (ebitda >= 1000000) {
-      ebitdaScore = 20; // $1-2M EBITDA - good
-    } else if (ebitda >= 500000) {
-      ebitdaScore = 12; // $500K-1M EBITDA
-    } else if (ebitda >= 300000) {
-      ebitdaScore = 5;  // $300K-500K EBITDA - minimum threshold
-    }
-    // Below $300K EBITDA gets 0 points (too small)
-
-    sizeScore = revenueScore + ebitdaScore;
-
-    // C. LinkedIn Employee BOOST (0-25 pts) - Validates scale even with financials
-    if (employeeCount >= 200) {
-      linkedinBoost = 25; // 200+ employees confirms massive operation
-      notes.push('Large team (200+ employees) validates premium scale');
-    } else if (employeeCount >= 150) {
-      linkedinBoost = 22; // 150-199 employees
-    } else if (employeeCount >= 100) {
-      linkedinBoost = 20; // 100-149 employees confirms large operation
-      notes.push('Large team (100+ employees) confirms significant scale');
-    } else if (employeeCount >= 75) {
-      linkedinBoost = 15; // 75-99 employees
-    } else if (employeeCount >= 50) {
-      linkedinBoost = 12; // 50-74 employees validates mid-size
-      notes.push('Mid-size team (50+ employees) validates operation');
-    } else if (employeeCount >= 35) {
-      linkedinBoost = 8; // 35-49 employees
-    } else if (employeeCount >= 25) {
-      linkedinBoost = 5; // 25-34 employees validates small-mid
-    }
-    // <25 employees: No boost when we have financials
-
-    sizeScore += linkedinBoost;
-
-  } else if (employeeCount > 0) {
-    // PROXY PATH: Estimate size from LinkedIn employee count when no financials
-    // Use employee count to estimate BOTH revenue and EBITDA scores
-    notes.push('Size estimated from LinkedIn employee count (no financials)');
-
-    // Estimated revenue score based on ~$500K-800K revenue per employee
-    if (employeeCount >= 200) {
-      revenueScore = 60; // Likely $100M+ revenue
-      ebitdaScore = 40; // Likely $10M+ EBITDA
-    } else if (employeeCount >= 150) {
-      revenueScore = 58; // Likely $75M+ revenue
-      ebitdaScore = 38;
-    } else if (employeeCount >= 100) {
-      revenueScore = 54; // Likely $50M+ revenue
-      ebitdaScore = 35;
-    } else if (employeeCount >= 75) {
-      revenueScore = 48; // Likely $37M+ revenue
-      ebitdaScore = 30;
-    } else if (employeeCount >= 50) {
-      revenueScore = 40; // Likely $25M+ revenue
-      ebitdaScore = 25;
-    } else if (employeeCount >= 35) {
-      revenueScore = 30; // Likely $17M+ revenue
-      ebitdaScore = 18;
-    } else if (employeeCount >= 25) {
-      revenueScore = 22; // Likely $12M+ revenue
-      ebitdaScore = 12;
-    } else if (employeeCount >= 15) {
-      revenueScore = 15; // Likely $7M+ revenue
-      ebitdaScore = 8;
-    } else if (employeeCount >= 10) {
-      revenueScore = 10; // Likely $5M+ revenue
-      ebitdaScore = 5;
-    } else if (employeeCount >= 5) {
-      revenueScore = 6; // Likely $2M+ revenue
-      ebitdaScore = 0;
-    } else {
-      revenueScore = 3;  // Small business
-      ebitdaScore = 0;
-    }
-
-    sizeScore = revenueScore + ebitdaScore;
-
-  } else if (reviewCount > 0) {
-    // TERTIARY PROXY: Estimate size from Google review count when no financials or employees
-    // For consumer-facing businesses, review volume indicates customer throughput
-    notes.push('Size estimated from Google review count');
-
-    if (reviewCount >= 1000) {
-      revenueScore = 50;
-      ebitdaScore = 20; // Very high volume - likely $10M+ revenue
-    } else if (reviewCount >= 250) {
-      revenueScore = 35;
-      ebitdaScore = 15; // High volume - likely $5M+ revenue
-    } else if (reviewCount >= 100) {
-      revenueScore = 20;
-      ebitdaScore = 8;  // Established - likely $2M+ revenue
-    } else if (reviewCount >= 50) {
-      revenueScore = 10;
-      ebitdaScore = 0;  // Growing - likely $1M revenue
-    } else {
-      revenueScore = 3;
-      ebitdaScore = 0;  // Under 50 reviews - small/new business
-    }
-
-    sizeScore = revenueScore + ebitdaScore;
-
-  } else {
-    notes.push('No financials, employee, or review data - size unknown');
-    // No penalty - just can't score size yet
+    financialScore = Math.min(35, revPts + ebitdaPts);
   }
 
-  // Cap size score at 100 (with LinkedIn boost, this is possible)
-  sizeScore = Math.min(100, sizeScore);
+  // ===== COMPANY SIGNALS (0-30 pts) =====
+  const employeeCount = deal.linkedin_employee_count || 0;
+  const reviewCount = deal.google_review_count || 0;
+  const googleRating = deal.google_rating || 0;
+  let signalsScore = 0;
 
-  // ===== GEOGRAPHY SCORE (0-10 pts) =====
-  // Urban/metro areas are more valuable than rural
+  // LinkedIn employees (0-20 pts) — calibrated for SMBs
+  if (employeeCount >= 200) signalsScore += 20;
+  else if (employeeCount >= 100) signalsScore += 18;
+  else if (employeeCount >= 50) signalsScore += 16;
+  else if (employeeCount >= 25) signalsScore += 14;
+  else if (employeeCount >= 15) signalsScore += 12;
+  else if (employeeCount >= 10) signalsScore += 10;
+  else if (employeeCount >= 5) signalsScore += 7;
+  else if (employeeCount >= 3) signalsScore += 4;
+  else if (employeeCount > 0) signalsScore += 2;
+
+  if (employeeCount > 0) {
+    notes.push(`LinkedIn: ${employeeCount} employees`);
+  }
+
+  // Google review count (0-5 pts) — customer volume indicator
+  if (reviewCount >= 200) signalsScore += 5;
+  else if (reviewCount >= 100) signalsScore += 4;
+  else if (reviewCount >= 50) signalsScore += 3;
+  else if (reviewCount >= 20) signalsScore += 2;
+  else if (reviewCount > 0) signalsScore += 1;
+
+  // Google rating (0-5 pts)
+  if (googleRating >= 4.5) signalsScore += 5;
+  else if (googleRating >= 4.0) signalsScore += 4;
+  else if (googleRating >= 3.5) signalsScore += 3;
+  else if (googleRating >= 3.0) signalsScore += 1;
+  // Below 3.0 = 0 pts
+
+  if (reviewCount > 0) {
+    notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating`);
+  }
+
+  signalsScore = Math.min(30, signalsScore);
+
+  // ===== MARKET POSITION (0-20 pts) =====
+  let marketScore = 0;
+
+  // Geography (0-10 pts)
   const city = (deal.address_city || '').toLowerCase();
   const state = (deal.address_state || '').toUpperCase();
   const location = (deal.location || '').toLowerCase();
+  const locationText = `${city} ${location}`;
 
-  // Major metro areas (10 pts)
   const majorMetros = [
     'new york', 'los angeles', 'chicago', 'houston', 'phoenix', 'philadelphia',
     'san antonio', 'san diego', 'dallas', 'austin', 'san jose', 'san francisco',
@@ -237,84 +127,112 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     'minneapolis', 'tampa', 'orlando', 'detroit', 'portland', 'charlotte',
     'nashville', 'las vegas', 'baltimore', 'indianapolis', 'columbus', 'jacksonville'
   ];
-
-  // Secondary cities (7 pts)
   const secondaryCities = [
     'raleigh', 'richmond', 'sacramento', 'kansas city', 'st louis', 'pittsburgh',
     'cincinnati', 'milwaukee', 'oklahoma city', 'memphis', 'louisville', 'tucson',
     'albuquerque', 'fresno', 'mesa', 'omaha', 'colorado springs', 'tulsa',
-    'arlington', 'bakersfield', 'wichita', 'boise', 'salt lake'
+    'arlington', 'bakersfield', 'wichita', 'boise', 'salt lake', 'madison',
+    'green bay', 'des moines', 'knoxville', 'chattanooga', 'birmingham'
   ];
-
-  // High-value states for services businesses (bonus for being in these states at all)
   const highValueStates = ['TX', 'FL', 'CA', 'AZ', 'NC', 'GA', 'TN', 'CO', 'WA'];
 
-  const locationText = `${city} ${location}`;
-
   if (majorMetros.some(metro => locationText.includes(metro))) {
-    geographyScore = 10;
+    marketScore += 10;
     notes.push('Major metro area');
   } else if (secondaryCities.some(c => locationText.includes(c))) {
-    geographyScore = 7;
+    marketScore += 7;
   } else if (highValueStates.includes(state)) {
-    geographyScore = 5; // In a good state but not a major city
+    marketScore += 5;
   } else if (city || state) {
-    geographyScore = 3; // Has location but not premium
+    marketScore += 3;
   }
-  // No geography info = 0 pts (not penalized, just can't contribute)
 
-  // ===== SERVICES/BUSINESS TYPE SCORE (0-5 pts) =====
+  // Services/business type (0-5 pts)
   const category = (deal.category || '').toLowerCase();
   const serviceMix = (deal.service_mix || '').toLowerCase();
   const businessModel = (deal.business_model || '').toLowerCase();
   const description = (deal.description || deal.executive_summary || '').toLowerCase();
   const allText = `${category} ${serviceMix} ${businessModel} ${description}`;
 
-  // High-value recurring revenue or essential services (5 pts)
   const highValueKeywords = [
     'recurring', 'subscription', 'contract', 'maintenance', 'managed services',
     'hvac', 'plumbing', 'electrical', 'roofing', 'pest control', 'waste',
-    'healthcare', 'dental', 'veterinary'
+    'healthcare', 'dental', 'veterinary', 'restoration', 'remediation',
+    'fire', 'water damage', 'environmental', 'janitorial', 'landscaping'
   ];
+
   if (highValueKeywords.some(kw => allText.includes(kw))) {
-    servicesScore = 5;
-  }
-  // Other services (3 pts)
-  else if (category) {
-    servicesScore = 3;
+    marketScore += 5;
+  } else if (category) {
+    marketScore += 3;
   }
 
-  // ===== CALCULATE TOTAL =====
-  // Base score from size + geography + services (max 115 pts with LinkedIn boost, typically max 85-100)
-  // Note: Size can exceed 70 pts with LinkedIn boost (up to 100 pts theoretically)
-  // We'll cap the base at 100 before adding seller interest
-  const baseScore = Math.min(100, sizeScore + geographyScore + servicesScore);
+  // Multi-location bonus (0-5 pts)
+  const locationCount = deal.location_count || 0;
+  if (locationCount >= 5) marketScore += 5;
+  else if (locationCount >= 3) marketScore += 4;
+  else if (locationCount >= 2) marketScore += 3;
 
-  // If we have seller interest score, add it (max 15 pts)
-  // If we don't have it, scale the base score to 100 so great deals aren't penalized
-  let totalScore: number;
+  marketScore = Math.min(20, marketScore);
 
-  if (deal.seller_interest_score !== null && deal.seller_interest_score !== undefined) {
-    // We have seller interest - add it to the base (0-15 pts)
-    sellerInterestScore = Math.round((deal.seller_interest_score / 100) * 15);
-    // Cap at 85 before adding seller interest so final doesn't exceed 100
-    totalScore = Math.min(85, baseScore) + sellerInterestScore;
+  // ===== DYNAMIC WEIGHT REDISTRIBUTION =====
+  // When financials are missing, redistribute those 35 points
+  // proportionally to Company Signals (60%) and Market Position (40%)
+  let adjustedSignals = signalsScore;
+  let adjustedMarket = marketScore;
 
+  if (!hasFinancials) {
+    // Scale signals and market up to absorb the financial weight
+    const signalsMax = 30;
+    const marketMax = 20;
+    const totalAvailableMax = signalsMax + marketMax; // 50
+    const scaleFactor = (35 + totalAvailableMax) / totalAvailableMax; // 85/50 = 1.7
+
+    adjustedSignals = Math.round(signalsScore * scaleFactor);
+    adjustedMarket = Math.round(marketScore * scaleFactor);
+
+    // Cap at scaled maximums
+    adjustedSignals = Math.min(Math.round(signalsMax * scaleFactor), adjustedSignals);
+    adjustedMarket = Math.min(Math.round(marketMax * scaleFactor), adjustedMarket);
+
+    if (signalsScore > 0 || marketScore > 0) {
+      notes.push('No financials — score weighted to company signals & market position');
+    } else {
+      notes.push('No financials, employee, or review data — limited scoring data');
+    }
+  }
+
+  // ===== SELLER READINESS (0-15 pts) =====
+  let sellerScore = 0;
+  const hasSeller = deal.seller_interest_score !== null && deal.seller_interest_score !== undefined;
+
+  if (hasSeller) {
+    sellerScore = Math.round((deal.seller_interest_score / 100) * 15);
     if (deal.seller_interest_score >= 70) {
       notes.push('High seller motivation');
     }
-  } else {
-    // No seller interest score - use base score directly (already 0-100)
-    totalScore = baseScore;
   }
+
+  // ===== CALCULATE TOTAL =====
+  let totalScore: number;
+  const baseScore = (hasFinancials ? financialScore : 0) + adjustedSignals + adjustedMarket;
+
+  if (hasSeller) {
+    totalScore = baseScore + sellerScore;
+  } else {
+    // Scale base to 100 so great deals without seller data can still score high
+    const maxBase = hasFinancials ? 85 : 85; // 35+30+20 or redistributed equivalent
+    totalScore = Math.round((baseScore / maxBase) * 100);
+  }
+
+  // Store the size indicator for the dashboard (use financial or employee proxy)
+  const sizeIndicator = hasFinancials
+    ? financialScore
+    : Math.round(signalsScore * (35 / 30)); // Scale signals to size range for display
 
   return {
     deal_total_score: Math.min(100, Math.max(0, totalScore)),
-    deal_size_score: sizeScore,
-    revenue_score: revenueScore || undefined,
-    ebitda_score: ebitdaScore || undefined,
-    linkedin_boost: linkedinBoost || undefined,
-    quality_calculation_version: 'v2.0',
+    deal_size_score: Math.min(70, Math.max(0, sizeIndicator)),
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
@@ -384,9 +302,7 @@ serve(async (req) => {
       }
 
       listingsToScore = [listing];
-      
-      // Always queue single listing for enrichment when scoring
-      enrichmentQueued = await queueDealsForEnrichment([listingId], 'single deal score');
+      // No auto-enrichment — only enrich when explicitly requested
     } else if (forceRecalculate) {
       // Force recalculate ALL active listings (even if already scored)
       const { data: listings, error: listingsError } = await supabase
@@ -394,7 +310,7 @@ serve(async (req) => {
         .select("*")
         .eq("status", "active")
         .is("deleted_at", null)
-        .limit(100); // Process in larger batches for rescore
+        .limit(100);
 
       if (listingsError) {
         throw new Error("Failed to fetch listings");
@@ -403,12 +319,10 @@ serve(async (req) => {
       listingsToScore = listings || [];
       console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
 
-      // If triggerEnrichment is true, queue ALL deals for re-enrichment
-      // AND reset their enriched_at to force full re-processing
+      // Only queue enrichment when explicitly requested via triggerEnrichment flag
       if (triggerEnrichment && listingsToScore.length > 0) {
         const dealIds = listingsToScore.map(l => l.id);
         
-        // Reset enriched_at to null so the queue processor actually processes them
         console.log(`Resetting enriched_at for ${dealIds.length} deals to force re-enrichment`);
         const { error: resetError } = await supabase
           .from("listings")
@@ -427,44 +341,14 @@ serve(async (req) => {
         .from("listings")
         .select("*")
         .is("deal_total_score", null)
-        .limit(50); // Process in batches
+        .limit(50);
 
       if (listingsError) {
         throw new Error("Failed to fetch listings");
       }
 
       listingsToScore = listings || [];
-
-      // Queue unscored deals for enrichment (they likely need it)
-      if (listingsToScore.length > 0) {
-        const unscoredIds = listingsToScore
-          .filter(l => !l.enriched_at) // Only those not enriched
-          .map(l => l.id);
-        
-        if (unscoredIds.length > 0) {
-          enrichmentQueued = await queueDealsForEnrichment(unscoredIds, 'unscored deals');
-        }
-      }
-
-      // Also queue enrichment for stale deals (not enriched in 30+ days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
-
-      const { data: staleDeals, error: staleError } = await supabase
-        .from("listings")
-        .select("id, enriched_at")
-        .eq("status", "active")
-        .is("deleted_at", null)
-        .or(`enriched_at.is.null,enriched_at.lt.${thirtyDaysAgoISO}`)
-        .limit(20);
-
-      if (!staleError && staleDeals && staleDeals.length > 0) {
-        console.log(`Found ${staleDeals.length} deals needing enrichment (stale or never enriched)`);
-        const staleIds = staleDeals.map(d => d.id);
-        const staleQueued = await queueDealsForEnrichment(staleIds, 'stale deals');
-        enrichmentQueued += staleQueued;
-      }
+      // No auto-enrichment — scoring only uses existing data
     } else {
       return new Response(
         JSON.stringify({ error: "Must provide listingId, calculateAll: true, or forceRecalculate: true" }),

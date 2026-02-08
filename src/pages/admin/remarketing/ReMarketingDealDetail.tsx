@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAutoEnrichment } from "@/hooks/useAutoEnrichment";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +59,8 @@ import {
 const ReMarketingDealDetail = () => {
   const { dealId } = useParams<{ dealId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const backTo = (location.state as any)?.from || null;
   const queryClient = useQueryClient();
   
   const [isEnriching, setIsEnriching] = useState(false);
@@ -318,10 +320,19 @@ const ReMarketingDealDetail = () => {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
+            {backTo ? (
+              <Button variant="ghost" size="sm" asChild>
+                <Link to={backTo}>
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>

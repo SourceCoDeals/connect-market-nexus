@@ -1,22 +1,25 @@
 import { History, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface AcquisitionHistoryCardProps {
   totalAcquisitions?: number | null;
   acquisitionFrequency?: string | null;
   onEdit: () => void;
+  className?: string;
 }
 
 export const AcquisitionHistoryCard = ({
   totalAcquisitions,
   acquisitionFrequency,
   onEdit,
+  className,
 }: AcquisitionHistoryCardProps) => {
   const hasContent = totalAcquisitions !== null || acquisitionFrequency;
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">

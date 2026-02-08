@@ -32,6 +32,7 @@ import {
   EnrichmentSummaryDialog,
   ReMarketingChat
 } from "@/components/remarketing";
+import { AddBuyerToUniverseDialog } from "@/components/remarketing/AddBuyerToUniverseDialog";
 import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichment";
 import { 
   SizeCriteria, 
@@ -109,10 +110,12 @@ const ReMarketingUniverseDetail = () => {
   const [showAIResearch, setShowAIResearch] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
+  const [addBuyerDialogOpen, setAddBuyerDialogOpen] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
    const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
    const [isRemovingSelected, setIsRemovingSelected] = useState(false);
+   const [editingHeader, setEditingHeader] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
   const { 
@@ -274,8 +277,11 @@ const ReMarketingUniverseDetail = () => {
           added_at,
           status,
           listing:listings(
-            id, title, internal_company_name, location, revenue, ebitda, 
-            enriched_at, geographic_states
+            id, title, internal_company_name, description, location, revenue, ebitda, 
+            enriched_at, geographic_states,
+            linkedin_employee_count, linkedin_employee_range,
+            google_rating, google_review_count,
+            deal_total_score, seller_interest_score
           )
         `)
         .eq('universe_id', id)
@@ -563,7 +569,14 @@ const ReMarketingUniverseDetail = () => {
 
   // Handler for single buyer enrichment via row dropdown
   const handleEnrichSingleBuyer = async (buyerId: string) => {
-    await queueBuyers([{ id: buyerId }]);
+    const buyer = buyers?.find(b => b.id === buyerId);
+    if (!buyer) return;
+    await queueBuyers([{
+      id: buyer.id,
+      company_website: buyer.company_website ?? null,
+      platform_website: buyer.platform_website ?? null,
+      pe_firm_website: buyer.pe_firm_website ?? null,
+    }]);
   };
 
   // Handler for single buyer removal from universe via row dropdown
@@ -656,19 +669,49 @@ const ReMarketingUniverseDetail = () => {
             </Link>
           </Button>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">
-                {isNew ? 'New Universe' : formData.name || 'Universe'}
-              </h1>
-              {!isNew && (
-                <span className="text-muted-foreground text-sm">
-                  · {buyers?.length || 0} buyers · {universeDeals?.length || 0} deals
-                </span>
-              )}
-            </div>
-            <p className="text-muted-foreground">
-              {isNew ? 'Create a new buyer universe' : 'Edit universe settings and criteria'}
-            </p>
+            {!isNew && editingHeader ? (
+              <div className="space-y-2">
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="text-2xl font-bold h-10 px-2"
+                  placeholder="Universe name"
+                  autoFocus
+                />
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="text-sm resize-none"
+                  placeholder="Add a description for this universe..."
+                  rows={2}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" variant="default" onClick={() => { saveMutation.mutate(); setEditingHeader(false); }} disabled={saveMutation.isPending}>
+                    <Save className="h-3 w-3 mr-1" />Save
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingHeader(false)}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={!isNew ? "cursor-pointer group rounded-md px-2 py-1 -mx-2 -my-1 hover:bg-muted/50 transition-colors" : ""}
+                onClick={() => !isNew && setEditingHeader(true)}
+              >
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    {isNew ? 'New Universe' : formData.name || 'Universe'}
+                  </h1>
+                  {!isNew && (
+                    <span className="text-muted-foreground text-sm">
+                      · {buyers?.length || 0} buyers · {universeDeals?.length || 0} deals
+                    </span>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {isNew ? 'Create a new buyer universe' : (formData.description || 'Click to add a description...')}
+                </p>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -734,7 +777,7 @@ const ReMarketingUniverseDetail = () => {
                       buyerCount={filteredBuyers.length}
                       searchValue={buyerSearch}
                       onSearchChange={setBuyerSearch}
-                      onAddBuyer={() => navigate('/admin/remarketing/buyers')}
+                      onAddBuyer={() => setAddBuyerDialogOpen(true)}
                       onImportCSV={() => setImportBuyersDialogOpen(true)}
                       onEnrichAll={() => setShowBuyerEnrichDialog(true)}
                       onCancelEnrichment={cancelQueueEnrichment}
@@ -794,7 +837,8 @@ const ReMarketingUniverseDetail = () => {
                       onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
                       onEnrich={handleEnrichSingleBuyer}
                       onDelete={handleDeleteBuyer}
-                       onSelectionChange={setSelectedBuyerIds}
+                      onSelectionChange={setSelectedBuyerIds}
+                      universeId={id}
                     />
                   </CardContent>
                 </Card>
@@ -946,6 +990,7 @@ const ReMarketingUniverseDetail = () => {
                     <UniverseDealsTable
                       deals={universeDeals || []}
                       engagementStats={dealEngagementStats || {}}
+                      universeId={id}
                       onRemoveDeal={async (dealId, listingId) => {
                         try {
                           await supabase
@@ -1307,9 +1352,37 @@ const ReMarketingUniverseDetail = () => {
           open={importBuyersDialogOpen}
           onOpenChange={setImportBuyersDialogOpen}
           hideTrigger
-          onComplete={() => {
+          onComplete={async () => {
             queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
             setImportBuyersDialogOpen(false);
+            
+            // Auto-score new buyers against all deals in universe
+            if (id) {
+              const { data: deals } = await supabase
+                .from('remarketing_universe_deals')
+                .select('listing_id')
+                .eq('universe_id', id);
+              if (deals && deals.length > 0) {
+                toast.info('Scoring new buyers against deals...');
+                for (const deal of deals) {
+                  supabase.functions.invoke('score-buyer-deal', {
+                    body: { bulk: true, listingId: deal.listing_id, universeId: id }
+                  });
+                }
+              }
+            }
+          }}
+        />
+      )}
+
+      {/* Add Buyer Dialog */}
+      {!isNew && id && (
+        <AddBuyerToUniverseDialog
+          open={addBuyerDialogOpen}
+          onOpenChange={setAddBuyerDialogOpen}
+          universeId={id}
+          onBuyerAdded={() => {
+            queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
           }}
         />
       )}

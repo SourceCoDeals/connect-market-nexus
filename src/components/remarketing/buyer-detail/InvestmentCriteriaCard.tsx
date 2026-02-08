@@ -2,6 +2,7 @@ import { Target, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface InvestmentCriteriaCardProps {
   investmentThesis?: string | null;
@@ -9,6 +10,7 @@ interface InvestmentCriteriaCardProps {
   strategicPriorities?: string[] | null;
   dealBreakers?: string[] | null;
   onEdit: () => void;
+  className?: string;
 }
 
 export const InvestmentCriteriaCard = ({
@@ -17,6 +19,7 @@ export const InvestmentCriteriaCard = ({
   strategicPriorities,
   dealBreakers,
   onEdit,
+  className,
 }: InvestmentCriteriaCardProps) => {
   const hasContent = investmentThesis || strategicPriorities?.length || dealBreakers?.length;
 
@@ -34,7 +37,7 @@ export const InvestmentCriteriaCard = ({
   };
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">

@@ -20,6 +20,81 @@ const MIN_CONTENT_LENGTH = 200;
 const SCRAPE_TIMEOUT_MS = 15000;
 const AI_TIMEOUT_MS = 20000;
 
+// ============================================================================
+// DATA PROVENANCE: CANONICAL FIELD OWNERSHIP CONTRACT
+// ============================================================================
+// This contract defines which fields may be populated from which source.
+// Violations are REJECTED at write time and logged as errors.
+// This is the SINGLE SOURCE OF TRUTH for data provenance rules.
+
+type SourceType = 'platform_website' | 'pe_firm_website' | 'transcript' | 'csv' | 'manual';
+
+// Fields that may ONLY be populated from platform website or transcripts — NEVER from PE firm website
+const PLATFORM_OWNED_FIELDS = new Set([
+  // Business Identity
+  'company_name', 'business_summary', 'services_offered', 'business_type',
+  'industry_vertical', 'specialized_focus', 'revenue_model',
+  // Customer Profile
+  'primary_customer_size', 'customer_industries', 'customer_geographic_reach', 'target_customer_profile',
+]);
+
+// Fields that may ONLY be populated from PE firm website (or transcripts)
+const PE_FIRM_OWNED_FIELDS = new Set([
+  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
+  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
+  'num_platforms',
+]);
+
+// Fields allowed to fall back from PE firm website when platform website is unavailable
+// ONLY geographic fields are permitted for PE→platform fallback
+const PE_FALLBACK_ALLOWED_FIELDS = new Set([
+  'hq_city', 'hq_state', 'hq_country', 'hq_region',
+  'geographic_footprint', 'service_regions', 'operating_locations',
+]);
+
+// Fields that can be populated from either source (shared/neutral)
+const SHARED_FIELDS = new Set([
+  'target_industries', 'target_services', 'target_geographies',
+  'deal_preferences', 'deal_breakers', 'acquisition_timeline',
+  'acquisition_appetite', 'acquisition_frequency',
+  'recent_acquisitions', 'portfolio_companies', 'total_acquisitions',
+  'strategic_priorities', 'thesis_summary', 'thesis_confidence',
+  'data_completeness', 'data_last_updated', 'extraction_sources',
+  'key_quotes', 'notes', 'has_fee_agreement',
+]);
+
+/**
+ * Validates whether a field may be written from a given source type.
+ * Returns { allowed: true } or { allowed: false, reason: string }.
+ */
+function validateFieldProvenance(
+  fieldName: string,
+  sourceType: SourceType,
+): { allowed: boolean; reason?: string } {
+  // Transcripts, CSV, and manual sources can write to any field
+  if (sourceType === 'transcript' || sourceType === 'csv' || sourceType === 'manual') {
+    return { allowed: true };
+  }
+
+  // PE firm website → platform-owned fields = FORBIDDEN
+  if (sourceType === 'pe_firm_website' && PLATFORM_OWNED_FIELDS.has(fieldName)) {
+    return {
+      allowed: false,
+      reason: `PROVENANCE VIOLATION: Attempted to write pe_firm_website data to platform-owned field '${fieldName}'. This is forbidden.`,
+    };
+  }
+
+  // Platform website → PE-owned fields = FORBIDDEN
+  if (sourceType === 'platform_website' && PE_FIRM_OWNED_FIELDS.has(fieldName)) {
+    return {
+      allowed: false,
+      reason: `PROVENANCE VIOLATION: Attempted to write platform_website data to PE-owned field '${fieldName}'. This is forbidden.`,
+    };
+  }
+
+  return { allowed: true };
+}
+
 // 26 fields that are NEVER overwritten from website if they have transcript source
 const TRANSCRIPT_PROTECTED_FIELDS = [
   // Investment Thesis
@@ -332,7 +407,14 @@ const PROMPT_1_BUSINESS = {
   },
 };
 
-const PROMPT_1_SYSTEM = `You are an M&A research analyst extracting company information from website content for due diligence purposes.
+const PROMPT_1_SYSTEM = `You are an M&A research analyst extracting PLATFORM COMPANY (operating company) information from its website for due diligence purposes.
+
+CRITICAL DATA PROVENANCE RULE:
+- You are analyzing the PLATFORM/OPERATING COMPANY website ONLY.
+- Extract information about THIS company's operations, services, and business model.
+- Do NOT use, reference, or infer any information from a PE firm, investment firm, or parent company.
+- If the website content describes the PE firm's investment strategy instead of the operating company, return null for ALL fields.
+
 Extract ONLY information that is explicitly stated in the content.
 Do NOT infer, guess, or hallucinate any information.
 If a field cannot be determined from the content, return null.
@@ -365,7 +447,13 @@ const PROMPT_2_CUSTOMER = {
   },
 };
 
-const PROMPT_2_SYSTEM = `You are an M&A research analyst extracting customer profile information from website content.
+const PROMPT_2_SYSTEM = `You are an M&A research analyst extracting PLATFORM COMPANY (operating company) customer profile information from its website.
+
+CRITICAL DATA PROVENANCE RULE:
+- You are analyzing the PLATFORM/OPERATING COMPANY website ONLY.
+- Extract information about THIS company's customers, not the PE firm's portfolio or investment targets.
+- If the website describes PE firm investment criteria instead of the company's customers, return null for ALL fields.
+
 Extract ONLY information that is explicitly stated in the content.
 Do NOT infer, guess, or hallucinate any information.`;
 
@@ -702,7 +790,8 @@ function buildUpdateObject(
   extractedData: Record<string, any>,
   hasTranscriptSource: boolean,
   existingSources: any[],
-  evidenceRecords: any[]
+  evidenceRecords: any[],
+  fieldSourceMap: Record<string, SourceType> = {},
 ): Record<string, any> {
   const updateData: Record<string, any> = {
     data_last_updated: new Date().toISOString(),
@@ -721,6 +810,16 @@ function buildUpdateObject(
     if (!VALID_BUYER_COLUMNS.has(field)) {
       console.warn(`Skipping non-existent column: ${rawField} (mapped to: ${field})`);
       continue;
+    }
+
+    // WRITE-TIME PROVENANCE ENFORCEMENT (second layer — belt AND suspenders)
+    const fieldSource = fieldSourceMap[field];
+    if (fieldSource) {
+      const validation = validateFieldProvenance(field, fieldSource);
+      if (!validation.allowed) {
+        console.error(`🚫 WRITE-TIME BLOCK: ${validation.reason}`);
+        continue;
+      }
     }
 
     // Skip placeholder values
@@ -987,17 +1086,30 @@ Deno.serve(async (req) => {
     // ========================================================================
 
     const allExtracted: Record<string, any> = {};
+    // Track which source type each field came from for provenance enforcement
+    const fieldSourceMap: Record<string, SourceType> = {};
     const evidenceRecords: any[] = [];
     const timestamp = new Date().toISOString();
     let promptsRun = 0;
     let promptsSuccessful = 0;
     let billingError: { code: string; message: string } | null = null;
+    let provenanceViolations: string[] = [];
 
-    // Helper to process batch results
+    // Determine source type from URL
+    const getSourceType = (url: string | null | undefined): SourceType => {
+      if (!url) return 'manual';
+      const normalizedUrl = url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const normalizedPE = peFirmWebsite?.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      if (normalizedPE && normalizedUrl === normalizedPE) return 'pe_firm_website';
+      return 'platform_website';
+    };
+
+    // Helper to process batch results with provenance tracking
     const processBatchResults = (results: PromiseSettledResult<{ name: string; result: any; url: string | null | undefined }>[]) => {
       for (const settled of results) {
         if (settled.status === 'fulfilled') {
           const { name, result, url } = settled.value;
+          const sourceType = getSourceType(url);
 
           if (result.error?.code === 'payment_required' || result.error?.code === 'rate_limited') {
             if (!billingError) billingError = result.error;
@@ -1006,20 +1118,44 @@ Deno.serve(async (req) => {
 
           if (result.data) {
             // Special handling for PE Intelligence: filter out thesis fields
+            let dataToMerge = result.data;
             if (name === 'pe_intelligence') {
               const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = result.data;
               if (thesis_summary || strategic_priorities || thesis_confidence) {
                 console.warn('WARNING: PE Intelligence returned thesis fields - discarding (transcript-only)');
               }
-              Object.assign(allExtracted, safeData);
-              if (Object.keys(safeData).length > 0) {
-                promptsSuccessful++;
-                evidenceRecords.push({ type: 'website', url, extracted_at: timestamp, fields_extracted: Object.keys(safeData) });
+              dataToMerge = safeData;
+            }
+
+            // Track source type per field and validate provenance BEFORE merging
+            const acceptedFields: string[] = [];
+            for (const [field, value] of Object.entries(dataToMerge)) {
+              if (value === null || value === undefined) continue;
+              
+              const mappedField = FIELD_TO_COLUMN_MAP[field] || field;
+              const validation = validateFieldProvenance(mappedField, sourceType);
+              
+              if (!validation.allowed) {
+                console.error(`🚫 ${validation.reason}`);
+                provenanceViolations.push(validation.reason!);
+                // DO NOT merge this field
+                continue;
               }
-            } else {
-              Object.assign(allExtracted, result.data);
+              
+              allExtracted[field] = value;
+              fieldSourceMap[mappedField] = sourceType;
+              acceptedFields.push(field);
+            }
+
+            if (acceptedFields.length > 0) {
               promptsSuccessful++;
-              evidenceRecords.push({ type: 'website', url, extracted_at: timestamp, fields_extracted: Object.keys(result.data) });
+              evidenceRecords.push({
+                type: 'website',
+                source_type: sourceType,
+                url,
+                extracted_at: timestamp,
+                fields_extracted: acceptedFields,
+              });
             }
           }
         } else {
@@ -1029,6 +1165,8 @@ Deno.serve(async (req) => {
     };
 
     // BATCH 1: Core platform extraction (3 calls max)
+    // Business overview and customer profile ONLY from platform website — PE firm data is different
+    // Geography can fall back to PE firm website
     const batch1: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
     if (platformContent) {
       batch1.push(
@@ -1037,7 +1175,8 @@ Deno.serve(async (req) => {
         extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
       );
     } else if (peContent) {
-      // No platform content — extract geography from PE site
+      // No platform content — only extract geography from PE site
+      console.log('Platform website unavailable — extracting geography only from PE firm website');
       batch1.push(
         extractGeography(peContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: peFirmWebsite })),
       );
@@ -1080,7 +1219,7 @@ Deno.serve(async (req) => {
     if (billingError) {
       const fieldsExtracted = Object.keys(allExtracted).length;
       if (fieldsExtracted > 0) {
-        const partialUpdate = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords);
+        const partialUpdate = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);
         await supabase.from('remarketing_buyers').update(partialUpdate).eq('id', buyerId);
       }
 
@@ -1122,7 +1261,7 @@ Deno.serve(async (req) => {
     // SAVE TO DATABASE
     // ========================================================================
 
-    const updateData = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords);
+    const updateData = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);
 
     const { error: updateError } = await supabase
       .from('remarketing_buyers')
@@ -1140,17 +1279,28 @@ Deno.serve(async (req) => {
     const fieldsUpdated = Object.keys(updateData).length - 2; // Exclude metadata fields
     console.log(`Successfully enriched buyer ${buyerId}: ${fieldsUpdated} fields updated`);
 
+    // Log provenance violations as prominent warnings
+    if (provenanceViolations.length > 0) {
+      console.error(`⚠️ PROVENANCE REPORT: ${provenanceViolations.length} violation(s) blocked during enrichment of buyer ${buyerId}:`);
+      for (const v of provenanceViolations) {
+        console.error(`  → ${v}`);
+      }
+      warnings.push(...provenanceViolations.map(v => `[BLOCKED] ${v}`));
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         fieldsUpdated,
         sources,
         warnings: warnings.length > 0 ? warnings : undefined,
+        provenanceViolations: provenanceViolations.length > 0 ? provenanceViolations : undefined,
         extractionDetails: {
           promptsRun,
           promptsSuccessful,
           platformScraped: !!platformContent,
           peFirmScraped: !!peContent,
+          provenanceViolationsBlocked: provenanceViolations.length,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

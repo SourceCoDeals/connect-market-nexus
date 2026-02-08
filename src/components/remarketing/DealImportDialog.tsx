@@ -607,25 +607,48 @@ export function DealImportDialog({
                     ? `Successfully imported ${importResults.imported} deals`
                     : "No deals were imported"}
                 </p>
-                {importResults.errors.length > 0 && (
-                  <div className="mt-4 text-left max-w-md">
-                    <p className="text-sm font-medium text-destructive mb-2">
-                      {importResults.errors.length} error(s):
-                    </p>
-                    <ScrollArea className="h-32 border rounded p-2">
-                      {importResults.errors.slice(0, 10).map((err, i) => (
-                        <p key={i} className="text-xs text-muted-foreground">
-                          {err}
-                        </p>
-                      ))}
-                      {importResults.errors.length > 10 && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          ...and {importResults.errors.length - 10} more errors
-                        </p>
+                {importResults.errors.length > 0 && (() => {
+                  const duplicateErrors = importResults.errors.filter(e => 
+                    e.includes('duplicate key') || e.includes('unique constraint') || e.includes('idx_listings_unique')
+                  );
+                  const otherErrors = importResults.errors.filter(e => 
+                    !e.includes('duplicate key') && !e.includes('unique constraint') && !e.includes('idx_listings_unique')
+                  );
+
+                  return (
+                    <div className="mt-4 text-left max-w-md space-y-3">
+                      {duplicateErrors.length > 0 && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                            {duplicateErrors.length} already existed
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300">
+                            These deals were skipped because they already exist in the system (matched by website URL or name).
+                          </p>
+                        </div>
                       )}
-                    </ScrollArea>
-                  </div>
-                )}
+                      {otherErrors.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-destructive mb-2">
+                            {otherErrors.length} failed to import:
+                          </p>
+                          <ScrollArea className="h-32 border rounded p-2">
+                            {otherErrors.slice(0, 10).map((err, i) => (
+                              <p key={i} className="text-xs text-muted-foreground">
+                                {err}
+                              </p>
+                            ))}
+                            {otherErrors.length > 10 && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                ...and {otherErrors.length - 10} more
+                              </p>
+                            )}
+                          </ScrollArea>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
