@@ -220,20 +220,24 @@ serve(async (req) => {
     let aiExtracted: Record<string, unknown> = {};
     
     if (geminiApiKey) {
-      const systemPrompt = `You are an M&A analyst extracting deal intelligence from internal notes.
-Focus on:
-- Owner goals and motivations
-- Timeline and urgency
-- Special requirements or deal breakers
-- Customer information
-- Competitive position
-- Risks or concerns mentioned`;
+      const systemPrompt = `You are an M&A analyst extracting comprehensive deal intelligence from internal notes.
 
-      const userPrompt = `Analyze these deal notes and extract key information:
+Extract ALL available information including:
+- Business fundamentals (name, description, services, industries)
+- Owner/seller information and motivations
+- Financial data and deal structure
+- Operational details (employees, locations, geography)
+- Customer information and market position
+- Timeline, requirements, and risk factors
+- Contact information and next steps
 
-${notes.substring(0, 10000)}
+Be thorough and extract every piece of structured data available.`;
 
-Extract the relevant information using the provided tool.`;
+      const userPrompt = `Analyze these deal notes and extract ALL key information:
+
+${notes.substring(0, 50000)}
+
+Extract the relevant information using the provided tool. Be comprehensive - extract every detail available.`;
 
       try {
         const aiResponse = await fetch(GEMINI_API_URL, {
@@ -249,36 +253,57 @@ Extract the relevant information using the provided tool.`;
               type: 'function',
               function: {
                 name: 'extract_notes_intelligence',
-                description: 'Extract deal intelligence from internal notes',
+                description: 'Extract comprehensive deal intelligence from internal notes',
                 parameters: {
                   type: 'object',
                   properties: {
+                    // Business Fundamentals
+                    internal_company_name: { type: 'string', description: 'Company/business name' },
+                    description: { type: 'string', description: 'Business description and what they do' },
+                    executive_summary: { type: 'string', description: 'Executive summary of the business' },
+                    services_offered: { type: 'string', description: 'Services or products offered (comma-separated if multiple)' },
+                    category: { type: 'string', description: 'Primary business category or industry' },
+
+                    // Owner/Seller Information
+                    owner_name: { type: 'string', description: 'Owner or contact person name' },
                     owner_goals: { type: 'string', description: 'Owner goals and motivations for selling' },
                     transition_preferences: { type: 'string', description: 'Transition timeline and preferences' },
                     special_requirements: { type: 'string', description: 'Deal breakers or must-haves' },
+
+                    // Timeline & Urgency
                     timeline_notes: { type: 'string', description: 'Timeline and urgency notes' },
-                    customer_types: { type: 'string', description: 'Customer types mentioned' },
-                    customer_concentration: { type: 'string', description: 'Customer concentration info' },
-                    competitive_position: { type: 'string', description: 'Competitive advantages or market position' },
-                    key_risks: { type: 'string', description: 'Risk factors or concerns' },
-                    geographic_states: { 
-                      type: 'array', 
+                    expected_close_date: { type: 'string', description: 'Expected close date if mentioned' },
+
+                    // Operational Details
+                    full_time_employees: { type: 'number', description: 'Number of full-time employees' },
+                    number_of_locations: { type: 'number', description: 'Number of physical locations/offices/branches' },
+                    geographic_states: {
+                      type: 'array',
                       items: { type: 'string' },
-                      description: 'US states mentioned (2-letter codes)'
+                      description: 'US states where business operates (2-letter codes)'
                     },
-                    number_of_locations: { 
-                      type: 'number',
-                      description: 'Number of physical locations/offices/branches'
-                    },
+
+                    // Customer Information
+                    customer_types: { type: 'string', description: 'Customer types and segments served' },
+                    customer_concentration: { type: 'string', description: 'Customer concentration and top customer info' },
+                    competitive_position: { type: 'string', description: 'Competitive advantages and market position' },
+
+                    // Risk & Concerns
+                    key_risks: { type: 'string', description: 'Risk factors, concerns, or red flags' },
+
+                    // Financial Details
+                    financial_notes: { type: 'string', description: 'Notes about financial data, quality, or concerns' },
                     financial_followup_questions: {
                       type: 'array',
                       items: { type: 'string' },
                       description: 'Questions to clarify financials if data is unclear'
                     },
-                    financial_notes: {
-                      type: 'string',
-                      description: 'Notes about financial data quality or concerns'
-                    },
+
+                    // Contact & Next Steps
+                    contact_name: { type: 'string', description: 'Primary contact name' },
+                    contact_email: { type: 'string', description: 'Contact email address' },
+                    contact_phone: { type: 'string', description: 'Contact phone number' },
+                    next_steps: { type: 'string', description: 'Next steps or action items mentioned' },
                   }
                 }
               }
