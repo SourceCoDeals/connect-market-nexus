@@ -126,6 +126,8 @@ export interface MABuyer {
   call_history: CallRecord[] | null;
   created_at: string;
   data_last_updated: string;
+  notes: string | null;
+  notes_analyzed_at: string | null;
 }
 
 export interface AcquisitionRecord {

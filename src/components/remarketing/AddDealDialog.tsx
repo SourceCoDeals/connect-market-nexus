@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check } from "lucide-react";
+import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check, Users } from "lucide-react";
 import { toast } from "sonner";
 
 interface AddDealDialogProps {
@@ -59,6 +59,10 @@ export const AddDealDialog = ({
     ebitda: "",
     description: "",
     transcriptLink: "",
+    mainContactName: "",
+    mainContactEmail: "",
+    mainContactPhone: "",
+    mainContactTitle: "",
   });
   const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
 
@@ -217,6 +221,10 @@ export const AddDealDialog = ({
         category: "Other",
         status: "active",
         is_internal_deal: true,
+        main_contact_name: formData.mainContactName || null,
+        main_contact_email: formData.mainContactEmail || null,
+        main_contact_phone: formData.mainContactPhone || null,
+        main_contact_title: formData.mainContactTitle || null,
       };
 
       const { data: listing, error } = await supabase
@@ -236,7 +244,7 @@ export const AddDealDialog = ({
       const filesToUpload = [...transcriptFilesRef.current];
       const linkToSave = formData.transcriptLink;
 
-      setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
+      setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "", mainContactName: "", mainContactEmail: "", mainContactPhone: "", mainContactTitle: "" });
       updateFiles([]);
       onDealCreated?.();
       onOpenChange(false);
@@ -476,6 +484,57 @@ export const AddDealDialog = ({
                   onChange={(e) => handleFormChange("description", e.target.value)}
                   rows={3}
                 />
+              </div>
+
+              {/* Main Contact Section */}
+              <div className="space-y-3 border-t pt-4">
+                <Label className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Main Contact
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="mainContactName" className="text-xs">Name</Label>
+                    <Input
+                      id="mainContactName"
+                      placeholder="Contact name"
+                      value={formData.mainContactName}
+                      onChange={(e) => handleFormChange("mainContactName", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="mainContactEmail" className="text-xs">Email</Label>
+                    <Input
+                      id="mainContactEmail"
+                      type="email"
+                      placeholder="email@example.com"
+                      value={formData.mainContactEmail}
+                      onChange={(e) => handleFormChange("mainContactEmail", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="mainContactPhone" className="text-xs">Phone</Label>
+                    <Input
+                      id="mainContactPhone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={formData.mainContactPhone}
+                      onChange={(e) => handleFormChange("mainContactPhone", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="mainContactTitle" className="text-xs">Title</Label>
+                    <Input
+                      id="mainContactTitle"
+                      placeholder="CEO, CFO, Owner..."
+                      value={formData.mainContactTitle}
+                      onChange={(e) => handleFormChange("mainContactTitle", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Used to find Fireflies transcripts automatically
+                </p>
               </div>
 
               {/* Transcript Section */}

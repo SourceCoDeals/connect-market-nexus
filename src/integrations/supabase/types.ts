@@ -950,78 +950,57 @@ export type Database = {
       }
       buyer_transcripts: {
         Row: {
+          action_items: string[] | null
           buyer_id: string
           call_date: string | null
           created_at: string | null
-          created_by: string | null
           duration_minutes: number | null
-          extracted_data: Json | null
-          extracted_insights: Json | null
-          extraction_error: string | null
-          extraction_status: string | null
-          file_name: string | null
-          file_size: number | null
-          file_url: string | null
+          fireflies_transcript_id: string
           id: string
-          participants: string[] | null
-          processed_at: string | null
-          processed_by: string | null
-          recording_url: string | null
-          source: string | null
-          transcript_source: string | null
-          transcript_text: string
-          transcript_type: string | null
-          universe_id: string | null
+          key_points: string[] | null
+          linked_at: string | null
+          linked_by: string | null
+          notes: string | null
+          participants: Json | null
+          summary: string | null
+          title: string | null
+          transcript_url: string | null
           updated_at: string | null
         }
         Insert: {
+          action_items?: string[] | null
           buyer_id: string
           call_date?: string | null
           created_at?: string | null
-          created_by?: string | null
           duration_minutes?: number | null
-          extracted_data?: Json | null
-          extracted_insights?: Json | null
-          extraction_error?: string | null
-          extraction_status?: string | null
-          file_name?: string | null
-          file_size?: number | null
-          file_url?: string | null
+          fireflies_transcript_id: string
           id?: string
-          participants?: string[] | null
-          processed_at?: string | null
-          processed_by?: string | null
-          recording_url?: string | null
-          source?: string | null
-          transcript_source?: string | null
-          transcript_text: string
-          transcript_type?: string | null
-          universe_id?: string | null
+          key_points?: string[] | null
+          linked_at?: string | null
+          linked_by?: string | null
+          notes?: string | null
+          participants?: Json | null
+          summary?: string | null
+          title?: string | null
+          transcript_url?: string | null
           updated_at?: string | null
         }
         Update: {
+          action_items?: string[] | null
           buyer_id?: string
           call_date?: string | null
           created_at?: string | null
-          created_by?: string | null
           duration_minutes?: number | null
-          extracted_data?: Json | null
-          extracted_insights?: Json | null
-          extraction_error?: string | null
-          extraction_status?: string | null
-          file_name?: string | null
-          file_size?: number | null
-          file_url?: string | null
+          fireflies_transcript_id?: string
           id?: string
-          participants?: string[] | null
-          processed_at?: string | null
-          processed_by?: string | null
-          recording_url?: string | null
-          source?: string | null
-          transcript_source?: string | null
-          transcript_text?: string
-          transcript_type?: string | null
-          universe_id?: string | null
+          key_points?: string[] | null
+          linked_at?: string | null
+          linked_by?: string | null
+          notes?: string | null
+          participants?: Json | null
+          summary?: string | null
+          title?: string | null
+          transcript_url?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1030,13 +1009,6 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "buyer_transcripts_universe_id_fkey"
-            columns: ["universe_id"]
-            isOneToOne: false
-            referencedRelation: "remarketing_buyer_universes"
             referencedColumns: ["id"]
           },
         ]
@@ -1314,51 +1286,78 @@ export type Database = {
           conversation_id: string | null
           created_at: string
           deal_id: string | null
+          feedback_provided: boolean | null
           id: string
+          mentioned_buyer_ids: string[] | null
+          mentioned_deal_ids: string[] | null
+          model_used: string | null
+          query_complexity: string | null
+          query_intent: string | null
           query_text: string
           response_text: string | null
           response_time_ms: number | null
+          session_id: string | null
           tokens_input: number | null
           tokens_output: number | null
           tokens_total: number | null
-          tools_called: string | null
+          tool_execution_time_ms: number | null
+          tools_called: Json | null
           universe_id: string | null
           user_continued: boolean | null
           user_id: string | null
+          user_rating: number | null
         }
         Insert: {
           context_type?: string | null
           conversation_id?: string | null
           created_at?: string
           deal_id?: string | null
+          feedback_provided?: boolean | null
           id?: string
+          mentioned_buyer_ids?: string[] | null
+          mentioned_deal_ids?: string[] | null
+          model_used?: string | null
+          query_complexity?: string | null
+          query_intent?: string | null
           query_text: string
           response_text?: string | null
           response_time_ms?: number | null
+          session_id?: string | null
           tokens_input?: number | null
           tokens_output?: number | null
           tokens_total?: number | null
-          tools_called?: string | null
+          tool_execution_time_ms?: number | null
+          tools_called?: Json | null
           universe_id?: string | null
           user_continued?: boolean | null
           user_id?: string | null
+          user_rating?: number | null
         }
         Update: {
           context_type?: string | null
           conversation_id?: string | null
           created_at?: string
           deal_id?: string | null
+          feedback_provided?: boolean | null
           id?: string
+          mentioned_buyer_ids?: string[] | null
+          mentioned_deal_ids?: string[] | null
+          model_used?: string | null
+          query_complexity?: string | null
+          query_intent?: string | null
           query_text?: string
           response_text?: string | null
           response_time_ms?: number | null
+          session_id?: string | null
           tokens_input?: number | null
           tokens_output?: number | null
           tokens_total?: number | null
-          tools_called?: string | null
+          tool_execution_time_ms?: number | null
+          tools_called?: Json | null
           universe_id?: string | null
           user_continued?: boolean | null
           user_id?: string | null
+          user_rating?: number | null
         }
         Relationships: []
       }
@@ -1372,7 +1371,7 @@ export type Database = {
           id: string
           last_message_at: string | null
           listing_id: string
-          message_count: number
+          message_count: number | null
           messages: Json
           title: string | null
           tracker_id: string | null
@@ -1389,7 +1388,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           listing_id: string
-          message_count?: number
+          message_count?: number | null
           messages?: Json
           title?: string | null
           tracker_id?: string | null
@@ -1406,7 +1405,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           listing_id?: string
-          message_count?: number
+          message_count?: number | null
           messages?: Json
           title?: string | null
           tracker_id?: string | null
@@ -1506,12 +1505,19 @@ export type Database = {
         Row: {
           action_query: string | null
           action_text: string | null
+          clicked: boolean | null
+          clicked_at: string | null
           conversation_id: string | null
           created_at: string
+          dismissed: boolean | null
+          dismissed_at: string | null
+          expires_at: string | null
           id: string
           message: string | null
           priority: string | null
           recommendation_type: string
+          shown: boolean | null
+          shown_at: string | null
           title: string
           user_id: string | null
           was_accepted: boolean | null
@@ -1520,12 +1526,19 @@ export type Database = {
         Insert: {
           action_query?: string | null
           action_text?: string | null
+          clicked?: boolean | null
+          clicked_at?: string | null
           conversation_id?: string | null
           created_at?: string
+          dismissed?: boolean | null
+          dismissed_at?: string | null
+          expires_at?: string | null
           id?: string
           message?: string | null
           priority?: string | null
           recommendation_type: string
+          shown?: boolean | null
+          shown_at?: string | null
           title: string
           user_id?: string | null
           was_accepted?: boolean | null
@@ -1534,12 +1547,19 @@ export type Database = {
         Update: {
           action_query?: string | null
           action_text?: string | null
+          clicked?: boolean | null
+          clicked_at?: string | null
           conversation_id?: string | null
           created_at?: string
+          dismissed?: boolean | null
+          dismissed_at?: string | null
+          expires_at?: string | null
           id?: string
           message?: string | null
           priority?: string | null
           recommendation_type?: string
+          shown?: boolean | null
+          shown_at?: string | null
           title?: string
           user_id?: string | null
           was_accepted?: boolean | null
@@ -1549,33 +1569,101 @@ export type Database = {
       }
       chat_smart_suggestions: {
         Row: {
+          click_through_rate: number | null
+          context_type: string
           conversation_id: string | null
           created_at: string
+          deal_id: string | null
           id: string
           intent: string | null
           suggestion_text: string
+          times_clicked: number | null
+          times_shown: number | null
+          universe_id: string | null
           user_id: string | null
           was_selected: boolean | null
         }
         Insert: {
+          click_through_rate?: number | null
+          context_type?: string
           conversation_id?: string | null
           created_at?: string
+          deal_id?: string | null
           id?: string
           intent?: string | null
           suggestion_text: string
+          times_clicked?: number | null
+          times_shown?: number | null
+          universe_id?: string | null
           user_id?: string | null
           was_selected?: boolean | null
         }
         Update: {
+          click_through_rate?: number | null
+          context_type?: string
           conversation_id?: string | null
           created_at?: string
+          deal_id?: string | null
           id?: string
           intent?: string | null
           suggestion_text?: string
+          times_clicked?: number | null
+          times_shown?: number | null
+          universe_id?: string | null
           user_id?: string | null
           was_selected?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_smart_suggestions_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       collection_items: {
         Row: {
@@ -2863,13 +2951,19 @@ export type Database = {
         Row: {
           applied_at: string | null
           applied_to_deal: boolean | null
+          auto_linked: boolean | null
           call_date: string | null
           created_at: string | null
           created_by: string | null
+          duration_minutes: number | null
           extracted_data: Json | null
           extraction_status: string | null
+          fireflies_meeting_id: string | null
+          fireflies_transcript_id: string | null
           id: string
           listing_id: string
+          meeting_attendees: string[] | null
+          participants: Json | null
           processed_at: string | null
           source: string | null
           title: string | null
@@ -2880,13 +2974,19 @@ export type Database = {
         Insert: {
           applied_at?: string | null
           applied_to_deal?: boolean | null
+          auto_linked?: boolean | null
           call_date?: string | null
           created_at?: string | null
           created_by?: string | null
+          duration_minutes?: number | null
           extracted_data?: Json | null
           extraction_status?: string | null
+          fireflies_meeting_id?: string | null
+          fireflies_transcript_id?: string | null
           id?: string
           listing_id: string
+          meeting_attendees?: string[] | null
+          participants?: Json | null
           processed_at?: string | null
           source?: string | null
           title?: string | null
@@ -2897,13 +2997,19 @@ export type Database = {
         Update: {
           applied_at?: string | null
           applied_to_deal?: boolean | null
+          auto_linked?: boolean | null
           call_date?: string | null
           created_at?: string | null
           created_by?: string | null
+          duration_minutes?: number | null
           extracted_data?: Json | null
           extraction_status?: string | null
+          fireflies_meeting_id?: string | null
+          fireflies_transcript_id?: string | null
           id?: string
           listing_id?: string
+          meeting_attendees?: string[] | null
+          participants?: Json | null
           processed_at?: string | null
           source?: string | null
           title?: string | null
@@ -4371,6 +4477,10 @@ export type Database = {
           linkedin_verified_at: string | null
           location: string | null
           location_radius_requirement: string | null
+          main_contact_email: string | null
+          main_contact_name: string | null
+          main_contact_phone: string | null
+          main_contact_title: string | null
           management_depth: string | null
           manual_rank_override: number | null
           market_position: Json | null
@@ -4545,6 +4655,10 @@ export type Database = {
           linkedin_verified_at?: string | null
           location?: string | null
           location_radius_requirement?: string | null
+          main_contact_email?: string | null
+          main_contact_name?: string | null
+          main_contact_phone?: string | null
+          main_contact_title?: string | null
           management_depth?: string | null
           manual_rank_override?: number | null
           market_position?: Json | null
@@ -4719,6 +4833,10 @@ export type Database = {
           linkedin_verified_at?: string | null
           location?: string | null
           location_radius_requirement?: string | null
+          main_contact_email?: string | null
+          main_contact_name?: string | null
+          main_contact_phone?: string | null
+          main_contact_title?: string | null
           management_depth?: string | null
           manual_rank_override?: number | null
           market_position?: Json | null
@@ -6140,6 +6258,7 @@ export type Database = {
           key_quotes: string[] | null
           last_contact_discovery_at: string | null
           notes: string | null
+          notes_analyzed_at: string | null
           num_employees: number | null
           num_platforms: number | null
           number_of_locations: number | null
@@ -6218,6 +6337,7 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
+          notes_analyzed_at?: string | null
           num_employees?: number | null
           num_platforms?: number | null
           number_of_locations?: number | null
@@ -6296,6 +6416,7 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           notes?: string | null
+          notes_analyzed_at?: string | null
           num_employees?: number | null
           num_platforms?: number | null
           number_of_locations?: number | null
