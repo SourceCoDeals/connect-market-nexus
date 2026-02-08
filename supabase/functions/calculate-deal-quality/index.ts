@@ -10,6 +10,10 @@ const corsHeaders = {
 interface DealQualityScores {
   deal_total_score: number;
   deal_size_score: number;
+  revenue_score?: number;
+  ebitda_score?: number;
+  linkedin_boost?: number;
+  quality_calculation_version?: string;
   scoring_notes?: string;
 }
 
@@ -17,7 +21,7 @@ interface DealQualityScores {
  * Calculate deal quality score based on deal attributes.
  * This is the overall quality of the deal, NOT how well it fits a specific buyer.
  *
- * SCORING METHODOLOGY (0-100):
+ * SCORING METHODOLOGY V2 (0-100):
  *
  * 1. FINANCIAL SIZE (0-35 pts) — Revenue & EBITDA when available
  * 2. COMPANY SIGNALS (0-30 pts) — LinkedIn employees, Google reviews/rating
@@ -37,6 +41,10 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const ebitda = deal.ebitda || 0;
   const hasFinancials = revenue > 0 || ebitda > 0;
   let financialScore = 0;
+
+  let revenueScore = 0;
+  let ebitdaScore = 0;
+  let linkedinBoost = 0;
 
   if (hasFinancials) {
     // Revenue scoring (0-22 pts)
@@ -370,13 +378,16 @@ serve(async (req) => {
         // Calculate scores based on deal data
         const scores = calculateScoresFromData(listing);
 
-        // Update the listing
-        // Note: deal_quality_score field stores the services score (repurposed)
+        // Update the listing with all scoring fields
         const { error: updateError } = await supabase
           .from("listings")
           .update({
             deal_total_score: scores.deal_total_score,
             deal_size_score: scores.deal_size_score,
+            revenue_score: scores.revenue_score,
+            ebitda_score: scores.ebitda_score,
+            linkedin_boost: scores.linkedin_boost,
+            quality_calculation_version: scores.quality_calculation_version,
           })
           .eq("id", listing.id);
 
