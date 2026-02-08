@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { FileText, Plus, Sparkles, Link2, Trash2, ChevronDown, Check, Upload, X, Calendar } from "lucide-react";
+import { FileText, Plus, Sparkles, Link2, Trash2, ChevronDown, Check, Upload, X, Calendar, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,7 @@ interface TranscriptsListCardProps {
   onDelete: (transcriptId: string) => void;
   isAdding?: boolean;
   isExtracting?: boolean;
+  extractionProgress?: { current: number; total: number; isRunning: boolean };
 }
 
 export const TranscriptsListCard = ({
@@ -54,6 +55,7 @@ export const TranscriptsListCard = ({
   onDelete,
   isAdding = false,
   isExtracting = false,
+  extractionProgress,
 }: TranscriptsListCardProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -293,8 +295,12 @@ export const TranscriptsListCard = ({
                 onClick={onExtractAll}
                 disabled={isExtracting || pendingCount === 0}
               >
-                <Sparkles className="mr-2 h-4 w-4" />
-                Re-extract All ({pendingCount})
+                {isExtracting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                {isExtracting ? 'Extracting...' : `Re-extract All (${pendingCount})`}
               </Button>
             )}
             <Button 
@@ -309,6 +315,22 @@ export const TranscriptsListCard = ({
         </div>
       </CardHeader>
       <CardContent>
+        {extractionProgress?.isRunning && (
+          <div className="mb-4 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+            <div className="flex items-center gap-3 mb-2">
+              <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+              <span className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                Extracting intelligence... {extractionProgress.current}/{extractionProgress.total}
+              </span>
+            </div>
+            <div className="w-full bg-amber-200 dark:bg-amber-800 rounded-full h-2">
+              <div 
+                className="bg-amber-500 h-2 rounded-full transition-all duration-500" 
+                style={{ width: `${Math.max(5, (extractionProgress.current / extractionProgress.total) * 100)}%` }} 
+              />
+            </div>
+          </div>
+        )}
         {transcripts.length === 0 ? (
           <p className="text-sm text-muted-foreground italic py-4">
             No transcripts linked yet.
