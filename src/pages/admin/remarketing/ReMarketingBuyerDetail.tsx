@@ -667,7 +667,7 @@ const ReMarketingBuyerDetail = () => {
             transcripts={transcripts}
             buyerId={buyer.id}
             onAddTranscript={(text, source, fileName, fileUrl, triggerExtract) =>
-              addTranscriptMutation.mutate({ text, source, fileName, fileUrl, triggerExtract })
+              addTranscriptMutation.mutateAsync({ text, source, fileName, fileUrl, triggerExtract })
             }
             onExtract={(transcriptId) => extractTranscriptMutation.mutate({ transcriptId })}
             onExtractAll={handleExtractAll}
