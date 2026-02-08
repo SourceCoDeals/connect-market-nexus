@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Building2,
+  Check,
   DollarSign,
   ExternalLink,
   Globe,
@@ -25,6 +26,7 @@ import {
   Pencil,
   AlertTriangle,
   Eye,
+  X,
 } from "lucide-react";
 import {
   Tooltip,
@@ -284,7 +286,44 @@ const ReMarketingDealDetail = () => {
     return `$${value}`;
   };
 
-  if (dealLoading) {
+  // Inline editing state for company name (must be before early returns)
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+
+  const updateNameMutation = useMutation({
+    mutationFn: async (newName: string) => {
+      const { error } = await supabase
+        .from('listings')
+        .update({ internal_company_name: newName })
+        .eq('id', dealId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing-deal', dealId] });
+      toast.success('Company name updated');
+      setIsEditingName(false);
+    },
+    onError: (err: Error) => {
+      toast.error(`Failed to update name: ${err.message}`);
+    },
+  });
+
+  const currentName = deal?.internal_company_name || deal?.title || '';
+
+  const handleSaveName = () => {
+    const trimmed = editedName.trim();
+    if (!trimmed || trimmed === currentName) {
+      setIsEditingName(false);
+      return;
+    }
+    updateNameMutation.mutate(trimmed);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedName(currentName);
+    setIsEditingName(false);
+  };
+
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -320,6 +359,7 @@ const ReMarketingDealDetail = () => {
   const listedName = deal.internal_company_name && deal.title !== deal.internal_company_name 
     ? deal.title 
     : null;
+
 
   return (
     <div className="p-6 space-y-6">
@@ -362,7 +402,39 @@ const ReMarketingDealDetail = () => {
             )}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  className="text-2xl font-bold text-foreground bg-transparent border-b-2 border-primary outline-none px-0 py-0.5 min-w-[200px]"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveName();
+                    if (e.key === 'Escape') handleCancelEdit();
+                  }}
+                  autoFocus
+                  disabled={updateNameMutation.isPending}
+                />
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveName} disabled={updateNameMutation.isPending}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit} disabled={updateNameMutation.isPending}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 group">
+                <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => { setEditedName(displayName); setIsEditingName(true); }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
             {deal.category && (
               <Badge variant="secondary">{deal.category}</Badge>
             )}
