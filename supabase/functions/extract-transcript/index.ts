@@ -437,124 +437,130 @@ async function extractBuyerInsights(
 ): Promise<BuyerInsights> {
   const companyContext = platformCompanyName
     ? `\n\nKNOWN ENTITIES:
-- PLATFORM COMPANY (operating company): "${platformCompanyName}"
+- PLATFORM COMPANY (the buyer / operating company): "${platformCompanyName}"
 - PE FIRM SPONSOR: "${peFirmName || 'unknown'}"`
     : '';
 
   const systemPrompt = `You are an M&A analyst extracting the PLATFORM COMPANY'S acquisition thesis from a call transcript. You must distinguish between the platform company and the PE firm sponsor using BOTH names and contextual clues.
 ${companyContext}
 
+CRITICAL — EVALUATION CALLS vs THESIS CALLS:
+Some transcripts are calls where the BUYER is EVALUATING a potential acquisition target. In these calls:
+- The TARGET company describes THEIR operations, services, locations, and financials
+- The BUYER asks questions to evaluate fit
+- DO NOT extract the target company's data as if it belongs to the buyer
+- ONLY extract what you learn about the BUYER's acquisition criteria, strategy, and preferences
+- If the call is primarily about evaluating a target, set thesis_confidence to "insufficient" and leave services_offered, business_summary, operating_locations, and geographic_footprint EMPTY
+- The target's services, location, and financials are NOT the buyer's — they belong to the target
+
 DISTINGUISHING PLATFORM vs PE FIRM — USE THESE CONTEXTUAL SIGNALS:
 
 PLATFORM COMPANY signals (use for business_summary, services_offered, operating_locations, geographic_footprint):
-- Discussions about day-to-day operations, service delivery, crews, trucks, jobs
-- "We do [service]", "our technicians", "we serve [area]", "our office in [city]"
-- Mentions of specific service types (restoration, roofing, HVAC, plumbing, etc.)
-- Customer relationships, project descriptions, seasonal patterns
-- Where they physically have offices, warehouses, or serve customers
+- Discussions about the PLATFORM's own day-to-day operations, service delivery, crews, trucks, jobs
+- "We do [service]", "our technicians", "we serve [area]", "our office in [city]" — ONLY when spoken BY the platform company
+- Mentions of the platform's own specific service types (restoration, roofing, HVAC, plumbing, etc.)
+- The platform company's own customer relationships, project descriptions, seasonal patterns
+- Where the PLATFORM physically has offices, warehouses, or serves customers
 
-PE FIRM signals (do NOT use for platform operational fields):
-- "We invested in...", "our portfolio includes...", "our fund..."
-- Investment thesis language: "we look for...", "our criteria...", "we target..."
-- Fund structure, capital deployment, returns, hold periods
-- HQ location of the investment firm (NOT the platform's operating locations)
-- General industry preferences from an investor lens
+PE FIRM signals (NEVER use for platform operational fields):
+- Investment thesis, fund structure, LP discussions, portfolio strategy
+- "Our fund", "our portfolio companies", "we've invested in"
+- HQ of the PE firm — this is NOT an operating location
+- Board-level strategy that doesn't describe day-to-day operations
 
-CRITICAL ATTRIBUTION RULES:
-1. business_summary = What the PLATFORM COMPANY does operationally (services, customers, market)
-2. services_offered = Services the PLATFORM delivers to its customers
-3. operating_locations = Cities where the PLATFORM has physical operations (offices, crews, service areas) — NOT the PE firm's HQ
-4. geographic_footprint = States where the PLATFORM operates — NOT where the PE firm is based
-5. thesis_summary = What the PLATFORM (guided by PE sponsor) is looking for in acquisitions
-6. If a location is only mentioned as where the PE firm or its partners are based, do NOT put it in operating_locations or geographic_footprint
-7. If the platform's actual locations aren't discussed, leave operating_locations and geographic_footprint EMPTY — do not default to PE firm locations
+TARGET COMPANY signals (NEVER use for buyer/platform fields):
+- The person being interviewed describes THEIR company's operations
+- "We have X employees", "we do $Y in revenue", "we're based in [city]"
+- When spoken by someone who is NOT part of the buyer/platform organization
+- Financial metrics of the company being evaluated for acquisition
 
-OTHER CRITICAL RULES:
+GEOGRAPHIC FOOTPRINT — Only include states where the PLATFORM COMPANY physically operates. Never include:
+- PE firm HQ location
+- Target company locations
+- States mentioned only as potential expansion targets
 
-1. TRANSCRIPT-ONLY EXTRACTION: Every statement must be directly traceable to something said in the call.
-
-2. DO NOT INFER OR FILL GAPS with typical PE criteria, website content, or industry knowledge.
-
-3. INSUFFICIENT DATA IS A VALID ANSWER: Set thesis_confidence to "insufficient" if the transcript lacks enough info.
-
-4. NUMBERS AS RAW INTEGERS: "$7.5M" = 7500000.
-
-5. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."`;
+If the transcript is primarily an evaluation of a target company (not a discussion of the platform's own thesis), return:
+- thesis_confidence: "insufficient"
+- business_summary: "" (empty)
+- services_offered: [] (empty)
+- operating_locations: [] (empty)
+- geographic_footprint: [] (empty)
+- missing_information: explain that this was a target evaluation call`;
 
   const tool = {
     type: "function",
     function: {
       name: "extract_buyer_thesis",
-      description: "Extract platform company thesis, operations, and acquisition criteria from call transcript. Every claim must be traceable to the transcript.",
+      description: "Extract the platform company's acquisition thesis and buyer profile from a transcript. NEVER extract a target company's data as if it belongs to the buyer.",
       parameters: {
         type: "object",
         properties: {
           thesis_summary: {
             type: "string",
-            description: "3-5 sentence thesis based SOLELY on what was stated in the call. What they're looking for, why, and ideal target. Every sentence must be directly supportable by the transcript. DO NOT use marketing language or infer from website content."
+            description: "The platform company's OWN acquisition thesis — what they're looking to buy and why. NOT the target company's description. Leave empty if this is a target evaluation call."
           },
           thesis_confidence: {
             type: "string",
             enum: ["high", "medium", "low", "insufficient"],
-            description: "high=clear specific detailed criteria, medium=some criteria with gaps, low=vague statements only, insufficient=not enough info for meaningful thesis"
+            description: "How clearly the thesis was articulated. Set to 'insufficient' if this is primarily a target evaluation call rather than a thesis discussion."
           },
           strategic_priorities: {
             type: "array",
             items: { type: "string" },
-            description: "Priorities IN THE ORDER OF EMPHASIS given during the call. Only include priorities actually stated, not inferred."
+            description: "The platform company's strategic goals and priorities. NOT the target's goals."
           },
           target_industries: {
             type: "array",
             items: { type: "string" },
-            description: "Specific industries mentioned as targets. Use specific labels: 'fire & water restoration' not just 'restoration'. Only include industries explicitly mentioned."
+            description: "Industries the buyer is targeting for acquisitions."
           },
           target_geography: {
             type: "object",
             properties: {
-              regions: { type: "array", items: { type: "string" }, description: "Regions explicitly stated." },
-              states: { type: "array", items: { type: "string" }, description: "2-letter state codes. Map cities to states. Do not assume adjacent states." },
-              notes: { type: "string", description: "Additional geographic context." }
+              regions: { type: "array", items: { type: "string" }, description: "Regional targets (e.g., 'Southeast', 'Mid-Atlantic')" },
+              states: { type: "array", items: { type: "string" }, description: "2-letter state codes of target geographies" },
+              notes: { type: "string", description: "Additional geographic context" }
             },
-            description: "Only geography explicitly stated in the call."
+            description: "Where the buyer wants to acquire companies."
           },
           deal_size_range: {
             type: "object",
             properties: {
-              revenue_min: { type: "number", description: "Minimum target revenue for ADD-ON acquisitions in raw dollars. NOT the PE firm's new platform criteria." },
-              revenue_max: { type: "number", description: "Maximum target revenue for ADD-ON acquisitions in raw dollars." },
-              ebitda_min: { type: "number", description: "Minimum target EBITDA for ADD-ON acquisitions in raw dollars." },
-              ebitda_max: { type: "number", description: "Maximum target EBITDA for ADD-ON acquisitions in raw dollars." },
-              notes: { type: "string", description: "Context on deal size preferences for add-ons." }
+              revenue_min: { type: "number" },
+              revenue_max: { type: "number" },
+              ebitda_min: { type: "number" },
+              ebitda_max: { type: "number" },
+              notes: { type: "string" }
             },
-            description: "Size criteria for ADD-ON acquisitions only. Do NOT use PE firm's general platform investment criteria. Do NOT infer from the platform's own financials. Only extract if explicitly discussed as what they're looking for in add-on targets."
+            description: "Target acquisition size criteria."
           },
           acquisition_timeline: {
             type: "string",
-            description: "'active' (actively looking, capital deployed), 'opportunistic' (if right thing comes along), or 'on_hold' (pausing, digesting). Include brief explanation."
+            description: "How actively is the buyer looking? E.g., 'active', 'exploring', 'paused'. Use 'insufficient' if not discussed."
           },
           services_offered: {
             type: "array",
             items: { type: "string" },
-            description: "Services the PLATFORM COMPANY currently offers (their existing services, helps understand complementary vs overlapping)."
+            description: "Services the PLATFORM COMPANY itself provides (NOT the target's services). Leave empty if this is a target evaluation call."
           },
           business_summary: {
             type: "string",
-            description: "2-3 sentence overview of what the platform company does operationally."
+            description: "Summary of the PLATFORM COMPANY's own business (NOT the target being evaluated). Leave empty if this is a target evaluation call."
           },
           operating_locations: {
             type: "array",
             items: { type: "string" },
-            description: "Cities where the platform currently operates, formatted as 'City, ST'."
+            description: "'City, ST' format. Only the PLATFORM COMPANY's own physical locations. NOT PE firm HQ. NOT target company locations."
           },
           geographic_footprint: {
             type: "array",
             items: { type: "string" },
-            description: "2-letter state codes where the platform has PHYSICAL LOCATIONS or currently operates."
+            description: "2-letter state codes where the PLATFORM COMPANY physically operates. NOT PE firm HQ states. NOT target company states."
           },
           missing_information: {
             type: "array",
             items: { type: "string" },
-            description: "EVERYTHING the transcript did NOT cover that would be needed for complete buyer matching. E.g., 'No EBITDA range specified', 'Geographic preferences not discussed', 'Valuation expectations not discussed'. Critical — tells the team what to ask on the next call."
+            description: "EVERYTHING the transcript did NOT cover. If this is a target evaluation call, note that the buyer's thesis/criteria were not discussed."
           }
         }
       }
@@ -563,7 +569,7 @@ OTHER CRITICAL RULES:
 
   const result = await callClaudeWithTool(
     systemPrompt,
-    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If data is insufficient, that is a valid answer — set thesis_confidence to "insufficient" and list what's missing.\n\nTRANSCRIPT:\n${transcriptText}`,
+    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If the call is primarily about evaluating a target company for acquisition (not about the buyer's own thesis), set thesis_confidence to "insufficient" and leave operational fields empty.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
     DEFAULT_CLAUDE_MODEL,
@@ -582,7 +588,18 @@ OTHER CRITICAL RULES:
       "What is your acquisition timeline?",
       "What are your deal structure preferences?"
     ];
-    insights.thesis_summary = "Insufficient source data. See missing_information for required follow-up questions.";
+  }
+
+  // CRITICAL: If thesis_confidence is insufficient, force-clear operational fields
+  // These are likely from the TARGET company, not the buyer
+  if (insights.thesis_confidence === 'insufficient') {
+    insights.business_summary = '';
+    insights.services_offered = [];
+    insights.operating_locations = [];
+    insights.geographic_footprint = [];
+    // Keep thesis_summary blank too - insufficient means we don't have a real thesis
+    insights.thesis_summary = '';
+    insights.strategic_priorities = [];
   }
 
   return insights;
@@ -661,43 +678,79 @@ async function updateListingFromTranscript(
 
 // Update buyer with extracted transcript data
 // CRITICAL: This is the ONLY place thesis_summary should be saved from
+// CRITICAL: Merges with existing data — never overwrites good data with empty/insufficient data
 async function updateBuyerFromTranscript(
   supabase: any,
   buyerId: string,
   insights: BuyerInsights,
   transcriptId: string
 ) {
+  // Fetch existing buyer data for merge logic
+  const { data: existingBuyer } = await supabase
+    .from('remarketing_buyers')
+    .select('extraction_sources, thesis_summary, thesis_confidence, strategic_priorities, target_industries, services_offered, business_summary, operating_locations, geographic_footprint, key_quotes, target_geographies, acquisition_timeline')
+    .eq('id', buyerId)
+    .single();
+
+  const existing = existingBuyer || {};
   const updates: Record<string, unknown> = {};
 
-  // THESIS FIELDS - Only saved from transcripts, never from websites
-  if (insights.thesis_summary && insights.thesis_confidence !== 'insufficient') {
-    updates.thesis_summary = insights.thesis_summary;
-  }
-  if (insights.thesis_confidence && insights.thesis_confidence !== 'insufficient') {
-    updates.thesis_confidence = insights.thesis_confidence;
-  }
-  if (insights.strategic_priorities?.length) {
-    updates.strategic_priorities = Array.isArray(insights.strategic_priorities)
-      ? insights.strategic_priorities : [String(insights.strategic_priorities)];
-  }
+  // Helper: only overwrite if new value is non-empty AND (existing is empty OR new is better)
+  const shouldUpdate = (field: string, newValue: unknown): boolean => {
+    if (newValue === null || newValue === undefined) return false;
+    if (typeof newValue === 'string' && newValue.trim() === '') return false;
+    if (Array.isArray(newValue) && newValue.length === 0) return false;
+    return true;
+  };
 
-  // Other buyer criteria
-  if (insights.target_industries?.length) {
-    updates.target_industries = Array.isArray(insights.target_industries)
-      ? insights.target_industries : [String(insights.target_industries)];
-  }
-  // Handle structured geography
-  if (insights.target_geography) {
-    const states = insights.target_geography.states;
-    if (states?.length) {
-      updates.target_geographies = Array.isArray(states) ? states : [String(states)];
+  // Helper: merge arrays (union, deduplicated)
+  const mergeArrays = (existing: unknown, newArr: string[]): string[] => {
+    const existingArr = Array.isArray(existing) ? existing : [];
+    const merged = new Set([...existingArr, ...newArr]);
+    return Array.from(merged);
+  };
+
+  // THESIS FIELDS - Only saved from transcripts, never from websites
+  // Only overwrite thesis if new one is meaningful (not insufficient)
+  if (shouldUpdate('thesis_summary', insights.thesis_summary) && insights.thesis_confidence !== 'insufficient') {
+    // Only overwrite if existing is empty OR new confidence is higher/equal
+    const existingConfidence = existing.thesis_confidence || '';
+    const confidenceRank: Record<string, number> = { 'high': 4, 'medium': 3, 'low': 2, 'insufficient': 1, '': 0 };
+    const existingRank = confidenceRank[existingConfidence] || 0;
+    const newRank = confidenceRank[insights.thesis_confidence || ''] || 0;
+
+    if (!existing.thesis_summary || newRank >= existingRank) {
+      updates.thesis_summary = insights.thesis_summary;
+      updates.thesis_confidence = insights.thesis_confidence;
     }
   }
-  if (insights.acquisition_timeline) {
-    updates.acquisition_timeline = insights.acquisition_timeline;
+
+  // Strategic priorities — merge, don't overwrite
+  if (insights.strategic_priorities?.length) {
+    const merged = mergeArrays(existing.strategic_priorities, insights.strategic_priorities);
+    if (merged.length > 0) updates.strategic_priorities = merged;
   }
 
-  // Deal structure — ONLY from transcripts, never websites
+  // Target industries — merge
+  if (insights.target_industries?.length) {
+    const merged = mergeArrays(existing.target_industries, insights.target_industries);
+    if (merged.length > 0) updates.target_industries = merged;
+  }
+
+  // Handle structured geography — merge
+  if (insights.target_geography?.states?.length) {
+    const merged = mergeArrays(existing.target_geographies, insights.target_geography.states);
+    if (merged.length > 0) updates.target_geographies = merged;
+  }
+
+  // Acquisition timeline — only update if currently empty or new is more specific
+  if (shouldUpdate('acquisition_timeline', insights.acquisition_timeline) && insights.acquisition_timeline !== 'insufficient') {
+    if (!existing.acquisition_timeline || existing.acquisition_timeline === 'insufficient') {
+      updates.acquisition_timeline = insights.acquisition_timeline;
+    }
+  }
+
+  // Deal structure — ONLY from transcripts
   if (insights.deal_size_range) {
     if (insights.deal_size_range.revenue_min) updates.target_revenue_min = insights.deal_size_range.revenue_min;
     if (insights.deal_size_range.revenue_max) updates.target_revenue_max = insights.deal_size_range.revenue_max;
@@ -705,36 +758,42 @@ async function updateBuyerFromTranscript(
     if (insights.deal_size_range.ebitda_max) updates.target_ebitda_max = insights.deal_size_range.ebitda_max;
   }
 
-  // Platform company operational details — guard against empty values clearing existing data
-  if (insights.services_offered && (
-    (Array.isArray(insights.services_offered) && insights.services_offered.length > 0) ||
-    (!Array.isArray(insights.services_offered) && String(insights.services_offered).trim().length > 0)
-  )) {
-    updates.services_offered = Array.isArray(insights.services_offered)
+  // Platform company operational details — ONLY update if non-empty (guards already in extractBuyerInsights)
+  if (shouldUpdate('services_offered', insights.services_offered)) {
+    const newServices = Array.isArray(insights.services_offered)
       ? insights.services_offered.join(', ')
       : String(insights.services_offered);
+    // Only overwrite if existing is empty or new has more detail
+    if (!existing.services_offered || existing.services_offered.trim() === '') {
+      updates.services_offered = newServices;
+    }
   }
-  if (insights.business_summary && insights.business_summary.trim().length > 0) {
-    updates.business_summary = insights.business_summary;
+
+  if (shouldUpdate('business_summary', insights.business_summary)) {
+    // Only overwrite if existing is empty or new is longer (more detailed)
+    if (!existing.business_summary || existing.business_summary.trim() === '') {
+      updates.business_summary = insights.business_summary;
+    } else if (insights.business_summary!.length > existing.business_summary.length) {
+      updates.business_summary = insights.business_summary;
+    }
   }
+
+  // Operating locations — merge
   if (insights.operating_locations?.length) {
-    updates.operating_locations = Array.isArray(insights.operating_locations)
-      ? insights.operating_locations : [String(insights.operating_locations)];
+    const existingLocs = Array.isArray(existing.operating_locations) ? existing.operating_locations : [];
+    const merged = mergeArrays(existingLocs, insights.operating_locations);
+    if (merged.length > 0) updates.operating_locations = merged;
   }
+
+  // Geographic footprint — merge
   if (insights.geographic_footprint?.length) {
-    updates.geographic_footprint = Array.isArray(insights.geographic_footprint)
-      ? insights.geographic_footprint : [String(insights.geographic_footprint)];
+    const existingGeo = Array.isArray(existing.geographic_footprint) ? existing.geographic_footprint : [];
+    const merged = mergeArrays(existingGeo, insights.geographic_footprint);
+    if (merged.length > 0) updates.geographic_footprint = merged;
   }
 
   if (Object.keys(updates).length > 0) {
-    // Fetch existing extraction_sources and append (don't overwrite)
-    const { data: existingBuyer } = await supabase
-      .from('remarketing_buyers')
-      .select('extraction_sources')
-      .eq('id', buyerId)
-      .single();
-
-    const existingSources = (existingBuyer?.extraction_sources || []) as any[];
+    const existingSources = (existing.extraction_sources || []) as any[];
 
     // Mark extraction source as transcript (highest priority) - APPEND to array
     const newSource = {
@@ -758,25 +817,18 @@ async function updateBuyerFromTranscript(
       console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary}). Total extraction sources: ${(updates.extraction_sources as any[]).length}`);
     }
   } else if (insights.thesis_confidence === 'insufficient') {
-    // Fetch existing extraction_sources and append (don't overwrite) - insufficient data case
-    const { data: existingBuyer } = await supabase
-      .from('remarketing_buyers')
-      .select('extraction_sources')
-      .eq('id', buyerId)
-      .single();
+    const existingSources = (existing.extraction_sources || []) as any[];
 
-    const existingSources = (existingBuyer?.extraction_sources || []) as any[];
-
-    // Save insufficient flag and missing questions
+    // Log insufficient extraction but DON'T overwrite any existing data
     const insufficientUpdate: Record<string, unknown> = {
-      notes: `Insufficient transcript data. Follow-up questions needed:\n${(insights.missing_information || []).map((q, i) => `${i + 1}. ${q}`).join('\n')}`,
       extraction_sources: [
         ...existingSources,
         {
           type: 'transcript',
           transcript_id: transcriptId,
           extracted_at: new Date().toISOString(),
-          status: 'insufficient_data'
+          status: 'insufficient_data',
+          note: 'Target evaluation call — no buyer thesis data extracted'
         }
       ],
       data_last_updated: new Date().toISOString(),
@@ -790,7 +842,7 @@ async function updateBuyerFromTranscript(
     if (error) {
       console.error("Failed to update buyer with insufficient status:", error);
     } else {
-      console.log(`[TranscriptExtraction] Marked buyer ${buyerId} as insufficient - follow-up needed. Total extraction sources: ${insufficientUpdate.extraction_sources.length}`);
+      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${insufficientUpdate.extraction_sources.length}`);
     }
   }
 }
