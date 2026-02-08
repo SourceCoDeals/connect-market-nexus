@@ -1,11 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { ANTHROPIC_API_URL, getAnthropicHeaders, DEFAULT_CLAUDE_FAST_MODEL } from "../_shared/ai-providers.ts";
+import { ANTHROPIC_API_URL, getAnthropicHeaders, DEFAULT_CLAUDE_MODEL, DEFAULT_CLAUDE_FAST_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Claude 3.5 Haiku max output = 8192 tokens (~6K chars).
+// For documents larger than this threshold, we use Sonnet which supports 64K+ output.
+const LARGE_DOCUMENT_THRESHOLD_BYTES = 50_000; // ~50KB → likely multi-page transcript
+const HAIKU_MAX_TOKENS = 8192;
+const SONNET_MAX_TOKENS = 65536; // 64K tokens for full transcript extraction
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -43,7 +49,12 @@ serve(async (req) => {
         mimeType = 'application/msword';
       }
       
-      console.log(`Document file, size: ${arrayBuffer.byteLength} bytes, mime: ${mimeType}`);
+      // Use Sonnet for large documents to avoid Haiku's 8K token output limit
+      const isLargeDoc = arrayBuffer.byteLength > LARGE_DOCUMENT_THRESHOLD_BYTES;
+      const model = isLargeDoc ? DEFAULT_CLAUDE_MODEL : DEFAULT_CLAUDE_FAST_MODEL;
+      const maxTokens = isLargeDoc ? SONNET_MAX_TOKENS : HAIKU_MAX_TOKENS;
+      
+      console.log(`Document file, size: ${arrayBuffer.byteLength} bytes, mime: ${mimeType}, model: ${model}, maxTokens: ${maxTokens}`);
       
       const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
       if (!anthropicApiKey) {
@@ -57,8 +68,8 @@ serve(async (req) => {
           method: 'POST',
           headers: getAnthropicHeaders(anthropicApiKey),
           body: JSON.stringify({
-            model: DEFAULT_CLAUDE_FAST_MODEL,
-            max_tokens: 8192,
+            model,
+            max_tokens: maxTokens,
             messages: [
               {
                 role: 'user',
@@ -73,7 +84,7 @@ serve(async (req) => {
                   },
                   {
                     type: 'text',
-                    text: 'Extract ALL text content from this document. Return ONLY the extracted text, preserving structure. No commentary.',
+                    text: 'Extract ALL text content from this document verbatim. This is a meeting transcript — preserve every speaker label, timestamp, and spoken word exactly as written. Return ONLY the extracted text with no commentary, no summaries, no omissions. Include every single page.',
                   },
                 ],
               },
@@ -119,7 +130,54 @@ serve(async (req) => {
 
       const aiData = await aiResponse.json();
       extractedText = aiData.content?.[0]?.text || '';
-      console.log(`Document text extracted via Claude Haiku, length: ${extractedText.length}`);
+      
+      // Detect truncation: if stop_reason is 'max_tokens', the output was cut off
+      const stopReason = aiData.stop_reason;
+      if (stopReason === 'max_tokens') {
+        console.warn(`[TRUNCATION WARNING] Document output was truncated at ${maxTokens} tokens. File: ${file.name}, size: ${arrayBuffer.byteLength} bytes`);
+        // If Haiku truncated, retry with Sonnet
+        if (model === DEFAULT_CLAUDE_FAST_MODEL) {
+          console.log(`Retrying with Sonnet for full extraction...`);
+          const retryResponse = await fetch(ANTHROPIC_API_URL, {
+            method: 'POST',
+            headers: getAnthropicHeaders(anthropicApiKey),
+            body: JSON.stringify({
+              model: DEFAULT_CLAUDE_MODEL,
+              max_tokens: SONNET_MAX_TOKENS,
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'document',
+                      source: {
+                        type: 'base64',
+                        media_type: mimeType,
+                        data: base64Content,
+                      },
+                    },
+                    {
+                      type: 'text',
+                      text: 'Extract ALL text content from this document verbatim. This is a meeting transcript — preserve every speaker label, timestamp, and spoken word exactly as written. Return ONLY the extracted text with no commentary, no summaries, no omissions. Include every single page.',
+                    },
+                  ],
+                },
+              ],
+            }),
+          });
+          
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            const retryText = retryData.content?.[0]?.text || '';
+            if (retryText.length > extractedText.length) {
+              extractedText = retryText;
+              console.log(`Sonnet retry successful, new length: ${extractedText.length}`);
+            }
+          }
+        }
+      }
+      
+      console.log(`Document text extracted via Claude ${model}, length: ${extractedText.length}, stop_reason: ${stopReason}`);
     }
     else {
       return new Response(
