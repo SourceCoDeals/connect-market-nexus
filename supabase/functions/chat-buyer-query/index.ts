@@ -145,7 +145,7 @@ serve(async (req) => {
     console.log(`[chat-buyer-query] Processing query for listing ${listingId}: "${query.substring(0, 100)}..."`);
 
     // Parallel data fetching
-    const [dealResult, buyersResult, scoresResult, contactsResult, callTranscriptsResult, dealTranscriptsResult] = await Promise.all([
+    const [dealResult, buyersResult, scoresResult, contactsResult, callTranscriptsResult, dealTranscriptsResult, buyerTranscriptsResult] = await Promise.all([
       // 1. Fetch deal/listing data
       supabase
         .from('listings')
@@ -163,7 +163,8 @@ serve(async (req) => {
           data_completeness, pe_firm_name, hq_city, hq_state,
           total_acquisitions, last_acquisition_date, acquisition_appetite,
           universe_id, deal_breakers, strategic_priorities, target_industries,
-          recent_acquisitions
+          recent_acquisitions, services_offered, business_summary, operating_locations,
+          extraction_sources
         `)
         .eq('archived', false)
         .in('id', (await supabase.from('remarketing_scores').select('buyer_id').eq('listing_id', listingId)).data?.map((s: any) => s.buyer_id) || []),
@@ -195,6 +196,14 @@ serve(async (req) => {
         .eq('listing_id', listingId)
         .order('created_at', { ascending: false })
         .limit(3),
+
+      // 7. Fetch buyer transcripts for scored buyers (NEW — enables transcript-based intelligence)
+      supabase
+        .from('buyer_transcripts')
+        .select('id, buyer_id, transcript_text, extracted_insights, extraction_status, file_name, created_at')
+        .eq('extraction_status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(20),
     ]);
 
     if (dealResult.error || !dealResult.data) {
@@ -211,6 +220,14 @@ serve(async (req) => {
     const contacts = contactsResult.data || [];
     const callTranscripts = callTranscriptsResult.data || [];
     const dealTranscripts = dealTranscriptsResult.data || [];
+    const buyerTranscripts = buyerTranscriptsResult.data || [];
+
+    // Build buyer transcript lookup (buyer_id → transcripts)
+    const buyerTranscriptMap = new Map<string, typeof buyerTranscripts>();
+    for (const bt of buyerTranscripts) {
+      if (!buyerTranscriptMap.has(bt.buyer_id)) buyerTranscriptMap.set(bt.buyer_id, []);
+      buyerTranscriptMap.get(bt.buyer_id)!.push(bt);
+    }
 
     // Debug/Trace: Log data fetch results
     const debugInfo = {
@@ -265,6 +282,14 @@ serve(async (req) => {
       const hasAdjacentPresence = adjacentStates.some(s => buyerFootprint.includes(s));
       const hasNearbyPresence = nearbyStates.some(s => buyerFootprint.includes(s));
 
+      // Get buyer transcripts
+      const bTranscripts = buyerTranscriptMap.get(buyer.id) || [];
+      
+      // Determine data provenance
+      const sources = buyer.extraction_sources || [];
+      const hasTranscriptData = sources.some((s: any) => s.type === 'transcript' || s.source === 'transcript');
+      const hasWebsiteData = sources.some((s: any) => s.type === 'website' || s.source_type?.includes('website'));
+
       return {
         id: buyer.id,
         name: buyer.company_name || buyer.pe_firm_name || 'Unknown',
@@ -285,6 +310,14 @@ serve(async (req) => {
         lastAcquisitionDate: buyer.last_acquisition_date,
         thesisSummary: buyer.thesis_summary?.substring(0, 200),
         recentAcquisitions: buyer.recent_acquisitions,
+        servicesOffered: buyer.services_offered,
+        businessSummary: buyer.business_summary?.substring(0, 200),
+        operatingLocations: buyer.operating_locations,
+
+        // Data provenance flags
+        dataSource: hasTranscriptData ? 'transcript' : hasWebsiteData ? 'website' : 'unknown',
+        hasTranscriptData,
+        transcriptCount: bTranscripts.length,
 
         // Strategic context
         dealBreakers: buyer.deal_breakers,
@@ -414,6 +447,21 @@ When answering questions:
 18. At the END of your response, include a hidden marker with buyer IDs you mentioned:
     <!-- BUYER_HIGHLIGHT: ["buyer-uuid-1", "buyer-uuid-2"] -->
 19. For CITY-SPECIFIC queries, search hq field for that city name
+
+## CRITICAL: PE FIRM vs PLATFORM COMPANY DATA PROVENANCE
+
+**You MUST distinguish between PE firm data and platform company data. They are DIFFERENT ENTITIES.**
+
+- **Platform company** = the operating business (e.g., "Rewind Restoration Partners") — has crews, offices, customers, services
+- **PE firm** = the investor/sponsor (e.g., "LP First Capital") — manages funds, invests in companies
+
+**RULES:**
+1. When describing a buyer's operations, services, geography, or business model, ONLY reference the **platform company** data (businessSummary, servicesOffered, operatingLocations)
+2. NEVER attribute PE firm characteristics (fund size, investment criteria, PE firm HQ) to the platform company
+3. If a buyer's dataSource is "website" and NOT "transcript", note: "Based on website data (no call transcripts available for this buyer)"
+4. If a buyer has hasTranscriptData=true, their thesis and criteria are derived from direct call conversations
+5. If asked about a buyer's specific acquisition preferences and they have no transcripts, say: "This buyer's acquisition criteria are based on website analysis. Call transcripts would provide more reliable criteria."
+6. NEVER say "PE firm X is looking for Y services" — instead say "Platform company X (backed by PE firm Y) is looking for..."
 
 ## DATA AVAILABILITY & QUALITY GUARDRAILS (CRITICAL):
 

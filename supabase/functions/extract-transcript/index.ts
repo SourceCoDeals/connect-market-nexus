@@ -705,8 +705,7 @@ async function updateBuyerFromTranscript(
     if (insights.deal_size_range.ebitda_max) updates.target_ebitda_max = insights.deal_size_range.ebitda_max;
   }
 
-  // Platform company operational details
-  // Only write services_offered if non-empty — prevent empty arrays from clearing transcript data
+  // Platform company operational details — guard against empty values clearing existing data
   if (insights.services_offered && (
     (Array.isArray(insights.services_offered) && insights.services_offered.length > 0) ||
     (!Array.isArray(insights.services_offered) && String(insights.services_offered).trim().length > 0)
@@ -715,7 +714,7 @@ async function updateBuyerFromTranscript(
       ? insights.services_offered.join(', ')
       : String(insights.services_offered);
   }
-  if (insights.business_summary) {
+  if (insights.business_summary && insights.business_summary.trim().length > 0) {
     updates.business_summary = insights.business_summary;
   }
   if (insights.operating_locations?.length) {
