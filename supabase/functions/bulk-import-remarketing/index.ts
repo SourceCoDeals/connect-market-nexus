@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { validateFieldProvenance, isProtectedByTranscript } from '../_shared/buyer-provenance.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -323,15 +324,24 @@ serve(async (req) => {
       }
       console.log(`Imported ${results.universes.imported} universes`);
 
-      // Step 2: Import Buyers
+      // Step 2: Import Buyers (with provenance validation)
       console.log(`Importing ${data.buyers?.length || 0} buyers...`);
       for (const row of (data.buyers || [])) {
         try {
           const mappedUniverseId = universeIdMap[row.tracker_id] || null;
-          
-          const buyerData = {
+          const companyName = row.platform_company_name || row.company_name || 'Unknown';
+
+          // Check if buyer already exists
+          const { data: existingBuyer } = await supabase
+            .from('remarketing_buyers')
+            .select('*')
+            .eq('company_name', companyName)
+            .maybeSingle();
+
+          // Build full buyer data from CSV
+          const csvBuyerData: Record<string, any> = {
             universe_id: mappedUniverseId,
-            company_name: row.platform_company_name || row.company_name || 'Unknown',
+            company_name: companyName,
             company_website: row.platform_website || null,
             buyer_type: row.pe_firm_name ? 'platform' : 'strategic',
             thesis_summary: row.thesis_summary || null,
@@ -346,7 +356,6 @@ serve(async (req) => {
             geographic_footprint: parseArray(row.geographic_footprint) || [],
             recent_acquisitions: parseJson(row.recent_acquisitions) || [],
             portfolio_companies: parseJson(row.portfolio_companies) || [],
-            extraction_sources: parseJson(row.extraction_sources) || [],
             data_completeness: mapCompleteness(row),
             notes: null,
             archived: false,
@@ -368,17 +377,124 @@ serve(async (req) => {
             fee_agreement_status: row.fee_agreement_status || null,
           };
 
-          const { data: inserted, error } = await supabase
-            .from('remarketing_buyers')
-            .insert(buyerData)
-            .select('id')
-            .single();
+          if (existingBuyer) {
+            // BUYER EXISTS - Apply provenance validation before update
+            console.log(`[PROVENANCE] Buyer "${companyName}" exists - validating CSV import against provenance rules`);
 
-          if (error) {
-            results.buyers.errors.push(`Buyer ${row.platform_company_name || row.company_name}: ${error.message}`);
+            const safeUpdates: Record<string, any> = {};
+            const blockedFields: string[] = [];
+            const skippedFields: string[] = [];
+
+            for (const [fieldName, newValue] of Object.entries(csvBuyerData)) {
+              // Skip metadata fields
+              if (['company_name', 'archived', 'notes'].includes(fieldName)) {
+                continue;
+              }
+
+              // Skip if CSV has no value
+              if (newValue === null || newValue === undefined ||
+                  (Array.isArray(newValue) && newValue.length === 0)) {
+                continue;
+              }
+
+              // Layer 1: Field-level provenance check
+              const provenanceCheck = validateFieldProvenance(fieldName, 'csv');
+              if (!provenanceCheck.allowed) {
+                console.log(`[PROVENANCE BLOCK] ${provenanceCheck.reason}`);
+                blockedFields.push(fieldName);
+                continue;
+              }
+
+              // Layer 2: Transcript protection check
+              if (isProtectedByTranscript(fieldName, existingBuyer, existingBuyer[fieldName])) {
+                console.log(`[TRANSCRIPT PROTECTION] Field "${fieldName}" protected by transcript source - CSV cannot overwrite`);
+                skippedFields.push(fieldName);
+                continue;
+              }
+
+              // Layer 3: Value completeness check - only update if new value is more complete
+              const existingValue = existingBuyer[fieldName];
+              if (existingValue !== null && existingValue !== undefined) {
+                // For arrays, only update if CSV has more items
+                if (Array.isArray(existingValue) && Array.isArray(newValue)) {
+                  if (newValue.length <= existingValue.length) {
+                    console.log(`[COMPLETENESS] Field "${fieldName}" - CSV has ${newValue.length} items vs existing ${existingValue.length} - skipping`);
+                    continue;
+                  }
+                }
+                // For strings, only update if CSV is longer
+                if (typeof existingValue === 'string' && typeof newValue === 'string') {
+                  if (newValue.length <= existingValue.length) {
+                    console.log(`[COMPLETENESS] Field "${fieldName}" - CSV has ${newValue.length} chars vs existing ${existingValue.length} - skipping`);
+                    continue;
+                  }
+                }
+              }
+
+              // Passed all checks - safe to update
+              safeUpdates[fieldName] = newValue;
+            }
+
+            if (Object.keys(safeUpdates).length > 0) {
+              // Add extraction source for CSV import
+              const existingSources = Array.isArray(existingBuyer.extraction_sources)
+                ? existingBuyer.extraction_sources
+                : [];
+              safeUpdates.extraction_sources = [
+                ...existingSources,
+                {
+                  type: 'csv',
+                  imported_at: new Date().toISOString(),
+                  fields_updated: Object.keys(safeUpdates).filter(k => k !== 'extraction_sources'),
+                  blocked_fields: blockedFields,
+                  skipped_fields: skippedFields,
+                }
+              ];
+
+              const { error: updateError } = await supabase
+                .from('remarketing_buyers')
+                .update(safeUpdates)
+                .eq('id', existingBuyer.id);
+
+              if (updateError) {
+                results.buyers.errors.push(`Buyer ${companyName}: Update failed - ${updateError.message}`);
+              } else {
+                buyerIdMap[row.id] = existingBuyer.id;
+                results.buyers.imported++;
+                console.log(`[CSV IMPORT] Updated ${Object.keys(safeUpdates).length} fields for "${companyName}" (blocked: ${blockedFields.length}, skipped: ${skippedFields.length})`);
+              }
+            } else {
+              // No safe updates - just use existing buyer
+              buyerIdMap[row.id] = existingBuyer.id;
+              results.buyers.imported++;
+              console.log(`[CSV IMPORT] Buyer "${companyName}" - no safe updates (all fields blocked/protected/less complete)`);
+            }
+
           } else {
-            buyerIdMap[row.id] = inserted.id;
-            results.buyers.imported++;
+            // BUYER DOES NOT EXIST - Insert with CSV source attribution
+            const extractionSources = parseJson(row.extraction_sources) || [];
+            csvBuyerData.extraction_sources = [
+              ...extractionSources,
+              {
+                type: 'csv',
+                imported_at: new Date().toISOString(),
+                fields_extracted: Object.keys(csvBuyerData).filter(k => k !== 'extraction_sources'),
+              }
+            ];
+
+            const { data: inserted, error } = await supabase
+              .from('remarketing_buyers')
+              .insert(csvBuyerData)
+              .select('id')
+              .single();
+
+            if (error) {
+              results.buyers.errors.push(`Buyer ${companyName}: ${error.message}`);
+            } else {
+              buyerIdMap[row.id] = inserted.id;
+              results.buyers.imported++;
+              console.log(`[CSV IMPORT] Created new buyer "${companyName}"`);
+            }
           }
         } catch (e) {
           results.buyers.errors.push(`Buyer ${row.platform_company_name || row.company_name}: ${getErrorMessage(e)}`);
