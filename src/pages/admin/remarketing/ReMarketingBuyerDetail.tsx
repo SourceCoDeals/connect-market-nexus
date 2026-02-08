@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { ExtractionSummaryDialog } from "@/components/remarketing/buyer-detail/ExtractionSummaryDialog";
+import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
+import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -387,11 +389,9 @@ const ReMarketingBuyerDetail = () => {
         .insert([
           {
             buyer_id: id,
-            transcript_text: text,
-            source,
-            file_name: fileName || null,
-            file_url: fileUrl || null,
-          },
+            fireflies_transcript_id: `manual-${Date.now()}`,
+            title: fileName || 'Manual Transcript',
+          } as any,
         ])
         .select('id')
         .single();
@@ -631,6 +631,10 @@ const ReMarketingBuyerDetail = () => {
             <BarChart2 className="mr-1.5 h-3.5 w-3.5" />
             Intelligence
           </TabsTrigger>
+          <TabsTrigger value="call-history" className="text-sm">
+            <Phone className="mr-1.5 h-3.5 w-3.5" />
+            Call History
+          </TabsTrigger>
           <TabsTrigger value="history" className="text-sm">
             <Clock className="mr-1.5 h-3.5 w-3.5" />
             Deal History ({recentScores?.length || 0})
@@ -643,6 +647,13 @@ const ReMarketingBuyerDetail = () => {
 
         {/* Intelligence Tab */}
         <TabsContent value="intelligence" className="space-y-4">
+          {/* Buyer Notes Section */}
+          <BuyerNotesSection
+            notes={buyer?.notes || null}
+            onSave={async (notes) => {
+              await updateBuyerMutation.mutateAsync({ notes });
+            }}
+          />
           {/* Two-Column Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <BusinessDescriptionCard
@@ -732,6 +743,27 @@ const ReMarketingBuyerDetail = () => {
             isExtracting={extractTranscriptMutation.isPending || extractionProgress.isRunning}
             extractionProgress={extractionProgress.isRunning ? extractionProgress : undefined}
           />
+        </TabsContent>
+
+        {/* Call History Tab */}
+        <TabsContent value="call-history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Find Call Transcripts</CardTitle>
+              <CardDescription>
+                Search your Fireflies call history to link relevant conversations with this buyer
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FirefliesTranscriptSearch
+                buyerId={buyer?.id || ''}
+                companyName={buyer?.company_name || buyer?.pe_firm_name || ''}
+                onTranscriptLinked={() => {
+                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
+                }}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Deal History Tab */}

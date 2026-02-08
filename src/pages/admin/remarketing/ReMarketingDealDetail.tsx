@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore, PipelineSummaryCard, DealBuyerChat } from "@/components/remarketing";
 import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
+import { FirefliesTranscriptSync } from "@/components/remarketing/FirefliesTranscriptSync";
 import {
   GeneralNotesSection,
   ExecutiveSummaryCard,
@@ -932,6 +933,17 @@ const ReMarketingDealDetail = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Fireflies Transcript Sync */}
+      <FirefliesTranscriptSync
+        listingId={dealId!}
+        contactEmail={deal.main_contact_email ?? deal.primary_contact_email ?? null}
+        contactName={deal.main_contact_name ?? deal.primary_contact_name ?? null}
+        existingTranscripts={transcripts?.filter((t: any) => t.source === 'fireflies').length || 0}
+        onSyncComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+        }}
+      />
 
       {/* Transcripts Section */}
       <DealTranscriptSection dealId={dealId!} transcripts={transcripts || []} isLoading={transcriptsLoading} />
