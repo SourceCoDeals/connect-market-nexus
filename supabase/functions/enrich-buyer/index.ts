@@ -38,11 +38,13 @@ const PLATFORM_OWNED_FIELDS = new Set([
   'primary_customer_size', 'customer_industries', 'customer_geographic_reach', 'target_customer_profile',
 ]);
 
-// Fields that may ONLY be populated from PE firm website (or transcripts)
-const PE_FIRM_OWNED_FIELDS = new Set([
+// Fields that may ONLY be populated from TRANSCRIPTS — NEVER from any website
+// Deal structure criteria from a PE firm's website represent their NEW PLATFORM criteria,
+// NOT their add-on acquisition criteria for an existing portfolio company.
+const TRANSCRIPT_ONLY_FIELDS = new Set([
   'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
   'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
-  'num_platforms',
+  'num_platforms', 'deal_preferences',
 ]);
 
 // Fields allowed to fall back from PE firm website when platform website is unavailable
@@ -84,11 +86,12 @@ function validateFieldProvenance(
     };
   }
 
-  // Platform website → PE-owned fields = FORBIDDEN
-  if (sourceType === 'platform_website' && PE_FIRM_OWNED_FIELDS.has(fieldName)) {
+  // ANY website → transcript-only fields = FORBIDDEN
+  // Deal structure (revenue/EBITDA ranges) can ONLY come from transcripts
+  if ((sourceType === 'platform_website' || sourceType === 'pe_firm_website') && TRANSCRIPT_ONLY_FIELDS.has(fieldName)) {
     return {
       allowed: false,
-      reason: `PROVENANCE VIOLATION: Attempted to write platform_website data to PE-owned field '${fieldName}'. This is forbidden.`,
+      reason: `PROVENANCE VIOLATION: Attempted to write ${sourceType} data to transcript-only field '${fieldName}'. Deal structure can only come from transcripts.`,
     };
   }
 
@@ -1202,7 +1205,9 @@ Deno.serve(async (req) => {
     if (peContent) {
       batch2.push(
         extractPEIntelligence(peContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
-        extractSizeCriteria(peContent, anthropicApiKey).then(r => ({ name: 'size', result: validateSizeCriteria(r), url: peFirmWebsite })),
+        // NOTE: Size criteria extraction from PE website is DISABLED.
+        // PE firm websites show NEW PLATFORM criteria, not add-on criteria.
+        // Deal structure data can ONLY come from transcripts.
       );
     }
 
