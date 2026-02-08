@@ -1266,8 +1266,9 @@ function calculateLearningPenalty(pattern: LearningPattern | undefined): { penal
 // DATA COMPLETENESS & MISSING FIELDS
 // ============================================================================
 
-function assessDataCompleteness(buyer: any): { level: string; missingFields: string[] } {
+function assessDataCompleteness(buyer: any): { level: string; missingFields: string[]; provenanceWarnings: string[] } {
   const missing: string[] = [];
+  const provenanceWarnings: string[] = [];
 
   if (!buyer.thesis_summary || buyer.thesis_summary.length < 20) missing.push('Investment thesis');
   if (!buyer.target_services || buyer.target_services.length === 0) missing.push('Target services');
@@ -1277,6 +1278,25 @@ function assessDataCompleteness(buyer: any): { level: string; missingFields: str
   if (!buyer.key_quotes || buyer.key_quotes.length === 0) missing.push('Key quotes');
   if (!buyer.hq_state && !buyer.hq_city) missing.push('HQ location');
   if (!buyer.buyer_type) missing.push('Buyer type');
+
+  // PROVENANCE CHECK: Warn if critical fields have no transcript source
+  const sources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
+  const hasTranscript = sources.some((s: any) => s.type === 'transcript' || s.source === 'transcript');
+  
+  if (!hasTranscript) {
+    if (buyer.thesis_summary) provenanceWarnings.push('thesis_summary has no transcript backing');
+    if (buyer.target_revenue_min || buyer.target_revenue_max) provenanceWarnings.push('deal structure has no transcript backing — may be PE firm new-platform criteria');
+    if (buyer.target_ebitda_min || buyer.target_ebitda_max) provenanceWarnings.push('EBITDA range has no transcript backing');
+  }
+
+  // Check for suspicious HQ data (PE firm HQ leakage indicator)
+  if (buyer.hq_city && buyer.pe_firm_website && !hasTranscript) {
+    const peWebsiteClean = (buyer.pe_firm_website || '').toLowerCase().replace(/https?:\/\//, '').replace(/\/$/, '');
+    const platformWebsiteClean = (buyer.platform_website || buyer.company_website || '').toLowerCase().replace(/https?:\/\//, '').replace(/\/$/, '');
+    if (!platformWebsiteClean || platformWebsiteClean === peWebsiteClean) {
+      provenanceWarnings.push(`HQ (${buyer.hq_city}, ${buyer.hq_state}) may be PE firm HQ — no platform website to verify`);
+    }
+  }
 
   let level: string;
   const hasThesis = buyer.thesis_summary && buyer.thesis_summary.length > 50;
@@ -1293,7 +1313,7 @@ function assessDataCompleteness(buyer: any): { level: string; missingFields: str
     level = 'low';
   }
 
-  return { level, missingFields: missing };
+  return { level, missingFields: missing, provenanceWarnings };
 }
 
 // ============================================================================
@@ -1482,13 +1502,13 @@ async function scoreSingleBuyer(
   else if (finalScore >= 35) tier = "D";
   else tier = "F";
 
-  // === Data completeness ===
-  const { level: dataCompleteness, missingFields } = assessDataCompleteness(buyer);
+  // === Data completeness + provenance ===
+  const { level: dataCompleteness, missingFields, provenanceWarnings } = assessDataCompleteness(buyer);
 
-  // === Confidence level ===
+  // === Confidence level — downgrade if provenance warnings exist ===
   let confidenceLevel = 'medium';
-  if (dataCompleteness === 'high' && ownerGoalsResult.confidence !== 'low') confidenceLevel = 'high';
-  else if (dataCompleteness === 'low') confidenceLevel = 'low';
+  if (dataCompleteness === 'high' && ownerGoalsResult.confidence !== 'low' && provenanceWarnings.length === 0) confidenceLevel = 'high';
+  else if (dataCompleteness === 'low' || provenanceWarnings.length > 0) confidenceLevel = 'low';
 
   // === Needs review flag (only in ambiguous score zone with low-quality data) ===
   const needsReview = (
@@ -1511,7 +1531,7 @@ async function scoreSingleBuyer(
   ];
 
   if (!buyerHasSizeData) {
-    reasoningParts.push(`Size weight redistributed (no buyer size criteria — pre-conversation)`);
+    reasoningParts.push(`Size weight redistributed (no buyer size criteria — insufficient data, not scored)`);
   } else if (sizeResult.multiplier < 1.0 && !isDisqualified) {
     reasoningParts.push(`Size gate: ${Math.round(sizeResult.multiplier * 100)}%`);
   }
@@ -1523,6 +1543,10 @@ async function scoreSingleBuyer(
   }
   if (learningResult.penalty > 0) {
     reasoningParts.push(`-${learningResult.penalty}pt learning penalty`);
+  }
+  // Add provenance warnings to reasoning so users see potential data quality issues
+  if (provenanceWarnings.length > 0) {
+    reasoningParts.push(`⚠️ Data provenance: ${provenanceWarnings.join('; ')}`);
   }
 
   const fitReasoning = reasoningParts.filter(Boolean).join('. ');

@@ -491,59 +491,74 @@ serve(async (req) => {
       if (buyer_id) {
         const buyerUpdates: any = {};
 
+        // Fetch existing buyer data for source priority checks
+        const { data: existingBuyer } = await supabase
+          .from('remarketing_buyers')
+          .select('*')
+          .eq('id', buyer_id)
+          .single();
+
+        const existingSources = (existingBuyer?.extraction_sources || []) as any[];
+
+        // Helper: only set field if it doesn't already have higher-priority data
+        // Transcripts are highest priority (100), so they can overwrite anything
+        const safeSet = (field: string, value: any) => {
+          if (value === null || value === undefined) return;
+          if (Array.isArray(value) && value.length === 0) return;
+          if (typeof value === 'string' && value.trim() === '') return;
+          buyerUpdates[field] = value;
+        };
+
         // Map buyer_profile fields
         if (insights.buyer_profile) {
           if (insights.buyer_profile.thesis_summary) {
-            buyerUpdates.thesis_summary = insights.buyer_profile.thesis_summary;
+            safeSet('thesis_summary', insights.buyer_profile.thesis_summary);
           }
           if (insights.buyer_profile.strategic_priorities?.length) {
-            buyerUpdates.strategic_priorities = insights.buyer_profile.strategic_priorities;
+            safeSet('strategic_priorities', insights.buyer_profile.strategic_priorities);
           }
           if (insights.buyer_profile.acquisition_timeline) {
-            buyerUpdates.acquisition_timeline = insights.buyer_profile.acquisition_timeline;
+            safeSet('acquisition_timeline', insights.buyer_profile.acquisition_timeline);
           }
           if (insights.buyer_profile.deal_breakers?.length) {
-            buyerUpdates.deal_breakers = insights.buyer_profile.deal_breakers;
+            safeSet('deal_breakers', insights.buyer_profile.deal_breakers);
           }
         }
 
         // Map buyer_criteria fields to buyer record
         if (insights.buyer_criteria) {
-          // Map service targets to target_industries
+          // Map service targets to target_services (NOT target_industries — that's a different field)
           if (insights.buyer_criteria.service_criteria?.target_services?.length) {
-            buyerUpdates.target_industries = insights.buyer_criteria.service_criteria.target_services;
+            safeSet('target_services', insights.buyer_criteria.service_criteria.target_services);
           }
 
           // Map geography targets
           if (insights.buyer_criteria.geography_criteria?.target_states?.length) {
-            buyerUpdates.target_geographies = insights.buyer_criteria.geography_criteria.target_states;
+            safeSet('target_geographies', insights.buyer_criteria.geography_criteria.target_states);
           }
-          if (insights.buyer_criteria.geography_criteria?.target_regions?.length) {
-            // target_regions = where buyer WANTS to acquire (e.g., "Southeast")
-            // This maps to target_geographies (acquisition targets), NOT geographic_footprint (current operations)
-            if (!buyerUpdates.target_geographies) {
-              buyerUpdates.target_geographies = [];
-            }
-            // Don't overwrite target_states with region names — regions are supplementary context
-            // Store them as notes or skip if target_states already captured the intent
+
+          // Map size criteria — deal structure can ONLY come from transcripts
+          const size = insights.buyer_criteria.size_criteria;
+          if (size) {
+            if (size.revenue_min) safeSet('target_revenue_min', size.revenue_min);
+            if (size.revenue_max) safeSet('target_revenue_max', size.revenue_max);
+            if (size.revenue_sweet_spot) safeSet('revenue_sweet_spot', size.revenue_sweet_spot);
+            if (size.ebitda_min) safeSet('target_ebitda_min', size.ebitda_min);
+            if (size.ebitda_max) safeSet('target_ebitda_max', size.ebitda_max);
+            if (size.ebitda_sweet_spot) safeSet('ebitda_sweet_spot', size.ebitda_sweet_spot);
           }
         }
 
-        // Add key quotes to buyer record
+        // Add key quotes — MERGE with existing rather than replace
         if (insights.key_quotes?.length > 0) {
-          buyerUpdates.key_quotes = insights.key_quotes.map(q => `"${q.quote}" - ${q.speaker}`);
+          const newQuotes = insights.key_quotes.map(q => `"${q.quote}" - ${q.speaker}`);
+          const existingQuotes = existingBuyer?.key_quotes || [];
+          // Append new quotes, deduplicate
+          const mergedQuotes = [...new Set([...existingQuotes, ...newQuotes])];
+          safeSet('key_quotes', mergedQuotes);
         }
 
         if (Object.keys(buyerUpdates).length > 0) {
-          // Fetch existing extraction_sources and append (don't overwrite)
-          const { data: existingBuyer } = await supabase
-            .from('remarketing_buyers')
-            .select('extraction_sources')
-            .eq('id', buyer_id)
-            .single();
-
-          const existingSources = (existingBuyer?.extraction_sources || []) as any[];
-
           buyerUpdates.extraction_sources = [
             ...existingSources,
             {
@@ -561,7 +576,7 @@ serve(async (req) => {
             .update(buyerUpdates)
             .eq('id', buyer_id);
 
-          console.log(`[BUYER_UPDATED] Applied ${Object.keys(buyerUpdates).length} fields to buyer ${buyer_id}. Confidence: ${insights.overall_confidence}`);
+          console.log(`[BUYER_UPDATED] Applied ${Object.keys(buyerUpdates).length} fields to buyer ${buyer_id}. Confidence: ${insights.overall_confidence}. Fields: ${Object.keys(buyerUpdates).filter(k => k !== 'extraction_sources' && k !== 'data_last_updated').join(', ')}`);
         }
       }
 

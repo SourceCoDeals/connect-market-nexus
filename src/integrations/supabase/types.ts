@@ -267,6 +267,20 @@ export type Database = {
             foreignKeyName: "alert_delivery_logs_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_delivery_logs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_delivery_logs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -360,6 +374,20 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_approve_decisions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_approve_decisions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -786,6 +814,20 @@ export type Database = {
             foreignKeyName: "buyer_learning_history_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_learning_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_learning_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -860,6 +902,20 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_pass_decisions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_pass_decisions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -1363,6 +1419,20 @@ export type Database = {
             foreignKeyName: "chat_conversations_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -1532,6 +1602,20 @@ export type Database = {
             columns: ["collection_id"]
             isOneToOne: false
             referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -1836,6 +1920,20 @@ export type Database = {
             columns: ["firm_id"]
             isOneToOne: false
             referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -2276,6 +2374,20 @@ export type Database = {
             foreignKeyName: "deal_ranking_history_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_ranking_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_ranking_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -2352,6 +2464,20 @@ export type Database = {
           sent_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "deal_referrals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_referrals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deal_referrals_listing_id_fkey"
             columns: ["listing_id"]
@@ -2450,6 +2576,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "deal_scoring_adjustments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_scoring_adjustments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deal_scoring_adjustments_listing_id_fkey"
             columns: ["listing_id"]
@@ -2776,6 +2916,20 @@ export type Database = {
             foreignKeyName: "deal_transcripts_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_transcripts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_transcripts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -2956,6 +3110,20 @@ export type Database = {
             columns: ["inbound_lead_id"]
             isOneToOne: false
             referencedRelation: "inbound_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -3159,6 +3327,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "enrichment_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
@@ -3602,6 +3784,20 @@ export type Database = {
             foreignKeyName: "inbound_leads_mapped_to_listing_id_fkey"
             columns: ["mapped_to_listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_leads_mapped_to_listing_id_fkey"
+            columns: ["mapped_to_listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_leads_mapped_to_listing_id_fkey"
+            columns: ["mapped_to_listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -3852,6 +4048,20 @@ export type Database = {
             foreignKeyName: "listing_analytics_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_analytics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_analytics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -3922,6 +4132,20 @@ export type Database = {
             columns: ["connection_request_id"]
             isOneToOne: true
             referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -4082,6 +4306,7 @@ export type Database = {
           ebitda_is_inferred: boolean | null
           ebitda_margin: number | null
           ebitda_metric_subtitle: string | null
+          ebitda_score: number | null
           ebitda_source_quote: string | null
           end_market_description: string | null
           enriched_at: string | null
@@ -4137,9 +4362,13 @@ export type Database = {
           last_ranked_at: string | null
           lead_source_id: string | null
           lead_source_notes: string | null
+          linkedin_boost: number | null
           linkedin_employee_count: number | null
           linkedin_employee_range: string | null
+          linkedin_match_confidence: string | null
+          linkedin_match_signals: Json | null
           linkedin_url: string | null
+          linkedin_verified_at: string | null
           location: string | null
           location_radius_requirement: string | null
           management_depth: string | null
@@ -4175,6 +4404,7 @@ export type Database = {
           project_revenue_percentage: number | null
           published_at: string | null
           published_by_admin_id: string | null
+          quality_calculation_version: string | null
           rank_locked: boolean | null
           real_estate_info: string | null
           recurring_revenue_percentage: number | null
@@ -4185,6 +4415,7 @@ export type Database = {
           revenue_metric_subtitle: string | null
           revenue_model: string | null
           revenue_model_breakdown: Json | null
+          revenue_score: number | null
           revenue_source_quote: string | null
           revenue_trend: string | null
           seller_interest_analyzed_at: string | null
@@ -4249,6 +4480,7 @@ export type Database = {
           ebitda_is_inferred?: boolean | null
           ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
+          ebitda_score?: number | null
           ebitda_source_quote?: string | null
           end_market_description?: string | null
           enriched_at?: string | null
@@ -4304,9 +4536,13 @@ export type Database = {
           last_ranked_at?: string | null
           lead_source_id?: string | null
           lead_source_notes?: string | null
+          linkedin_boost?: number | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
+          linkedin_match_confidence?: string | null
+          linkedin_match_signals?: Json | null
           linkedin_url?: string | null
+          linkedin_verified_at?: string | null
           location?: string | null
           location_radius_requirement?: string | null
           management_depth?: string | null
@@ -4342,6 +4578,7 @@ export type Database = {
           project_revenue_percentage?: number | null
           published_at?: string | null
           published_by_admin_id?: string | null
+          quality_calculation_version?: string | null
           rank_locked?: boolean | null
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
@@ -4352,6 +4589,7 @@ export type Database = {
           revenue_metric_subtitle?: string | null
           revenue_model?: string | null
           revenue_model_breakdown?: Json | null
+          revenue_score?: number | null
           revenue_source_quote?: string | null
           revenue_trend?: string | null
           seller_interest_analyzed_at?: string | null
@@ -4416,6 +4654,7 @@ export type Database = {
           ebitda_is_inferred?: boolean | null
           ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
+          ebitda_score?: number | null
           ebitda_source_quote?: string | null
           end_market_description?: string | null
           enriched_at?: string | null
@@ -4471,9 +4710,13 @@ export type Database = {
           last_ranked_at?: string | null
           lead_source_id?: string | null
           lead_source_notes?: string | null
+          linkedin_boost?: number | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
+          linkedin_match_confidence?: string | null
+          linkedin_match_signals?: Json | null
           linkedin_url?: string | null
+          linkedin_verified_at?: string | null
           location?: string | null
           location_radius_requirement?: string | null
           management_depth?: string | null
@@ -4509,6 +4752,7 @@ export type Database = {
           project_revenue_percentage?: number | null
           published_at?: string | null
           published_by_admin_id?: string | null
+          quality_calculation_version?: string | null
           rank_locked?: boolean | null
           real_estate_info?: string | null
           recurring_revenue_percentage?: number | null
@@ -4519,6 +4763,7 @@ export type Database = {
           revenue_metric_subtitle?: string | null
           revenue_model?: string | null
           revenue_model_breakdown?: Json | null
+          revenue_score?: number | null
           revenue_source_quote?: string | null
           revenue_trend?: string | null
           seller_interest_analyzed_at?: string | null
@@ -4812,6 +5057,20 @@ export type Database = {
             foreignKeyName: "outreach_records_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_records_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_records_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -4895,6 +5154,20 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_intro_notifications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_intro_notifications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -6190,6 +6463,20 @@ export type Database = {
             foreignKeyName: "remarketing_outreach_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -6374,6 +6661,20 @@ export type Database = {
             foreignKeyName: "remarketing_scores_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scores_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scores_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -6440,6 +6741,20 @@ export type Database = {
             foreignKeyName: "remarketing_universe_deals_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_universe_deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_universe_deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -6493,6 +6808,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "saved_listings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_listings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "saved_listings_listing_id_fkey"
             columns: ["listing_id"]
@@ -6616,6 +6945,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "similar_deal_alerts_source_listing_id_fkey"
+            columns: ["source_listing_id"]
+            isOneToOne: false
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "similar_deal_alerts_source_listing_id_fkey"
+            columns: ["source_listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "similar_deal_alerts_source_listing_id_fkey"
             columns: ["source_listing_id"]
@@ -7266,6 +7609,108 @@ export type Database = {
       }
     }
     Views: {
+      deal_quality_analysis: {
+        Row: {
+          address_city: string | null
+          address_state: string | null
+          deal_size_score: number | null
+          deal_total_score: number | null
+          ebitda: number | null
+          ebitda_score: number | null
+          google_rating: number | null
+          google_review_count: number | null
+          id: string | null
+          linkedin_boost: number | null
+          linkedin_employee_count: number | null
+          linkedin_match_confidence: string | null
+          quality_calculation_version: string | null
+          quality_tier: string | null
+          revenue: number | null
+          revenue_score: number | null
+          seller_interest_score: number | null
+          title: string | null
+        }
+        Insert: {
+          address_city?: string | null
+          address_state?: string | null
+          deal_size_score?: number | null
+          deal_total_score?: number | null
+          ebitda?: number | null
+          ebitda_score?: number | null
+          google_rating?: number | null
+          google_review_count?: number | null
+          id?: string | null
+          linkedin_boost?: number | null
+          linkedin_employee_count?: number | null
+          linkedin_match_confidence?: string | null
+          quality_calculation_version?: string | null
+          quality_tier?: never
+          revenue?: number | null
+          revenue_score?: number | null
+          seller_interest_score?: number | null
+          title?: string | null
+        }
+        Update: {
+          address_city?: string | null
+          address_state?: string | null
+          deal_size_score?: number | null
+          deal_total_score?: number | null
+          ebitda?: number | null
+          ebitda_score?: number | null
+          google_rating?: number | null
+          google_review_count?: number | null
+          id?: string | null
+          linkedin_boost?: number | null
+          linkedin_employee_count?: number | null
+          linkedin_match_confidence?: string | null
+          quality_calculation_version?: string | null
+          quality_tier?: never
+          revenue?: number | null
+          revenue_score?: number | null
+          seller_interest_score?: number | null
+          title?: string | null
+        }
+        Relationships: []
+      }
+      linkedin_manual_review_queue: {
+        Row: {
+          address_city: string | null
+          address_state: string | null
+          id: string | null
+          linkedin_employee_count: number | null
+          linkedin_employee_range: string | null
+          linkedin_match_confidence: string | null
+          linkedin_match_signals: Json | null
+          linkedin_url: string | null
+          linkedin_verified_at: string | null
+          title: string | null
+        }
+        Insert: {
+          address_city?: string | null
+          address_state?: string | null
+          id?: string | null
+          linkedin_employee_count?: number | null
+          linkedin_employee_range?: string | null
+          linkedin_match_confidence?: string | null
+          linkedin_match_signals?: Json | null
+          linkedin_url?: string | null
+          linkedin_verified_at?: string | null
+          title?: string | null
+        }
+        Update: {
+          address_city?: string | null
+          address_state?: string | null
+          id?: string | null
+          linkedin_employee_count?: number | null
+          linkedin_employee_range?: string | null
+          linkedin_match_confidence?: string | null
+          linkedin_match_signals?: Json | null
+          linkedin_url?: string | null
+          linkedin_verified_at?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       listings_needing_enrichment: {
         Row: {
           attempts: number | null

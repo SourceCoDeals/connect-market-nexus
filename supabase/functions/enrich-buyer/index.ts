@@ -36,20 +36,26 @@ const PLATFORM_OWNED_FIELDS = new Set([
   'industry_vertical', 'specialized_focus', 'revenue_model',
   // Customer Profile
   'primary_customer_size', 'customer_industries', 'customer_geographic_reach', 'target_customer_profile',
+  // HQ Location — PE firm HQ is NOT the platform's HQ
+  'hq_city', 'hq_state', 'hq_country', 'hq_region',
+  // Operating footprint — PE firm offices are NOT platform operating locations
+  'operating_locations',
 ]);
 
-// Fields that may ONLY be populated from PE firm website (or transcripts)
-const PE_FIRM_OWNED_FIELDS = new Set([
+// Fields that may ONLY be populated from TRANSCRIPTS — NEVER from any website
+// Deal structure criteria from a PE firm's website represent their NEW PLATFORM criteria,
+// NOT their add-on acquisition criteria for an existing portfolio company.
+const TRANSCRIPT_ONLY_FIELDS = new Set([
   'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
   'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
-  'num_platforms',
+  'num_platforms', 'deal_preferences',
 ]);
 
 // Fields allowed to fall back from PE firm website when platform website is unavailable
-// ONLY geographic fields are permitted for PE→platform fallback
+// ONLY broad geographic coverage fields — NEVER HQ or operating locations
+// PE firm HQ (e.g., Dallas TX) is NOT the platform company's HQ
 const PE_FALLBACK_ALLOWED_FIELDS = new Set([
-  'hq_city', 'hq_state', 'hq_country', 'hq_region',
-  'geographic_footprint', 'service_regions', 'operating_locations',
+  'geographic_footprint', 'service_regions',
 ]);
 
 // Fields that can be populated from either source (shared/neutral)
@@ -84,11 +90,12 @@ function validateFieldProvenance(
     };
   }
 
-  // Platform website → PE-owned fields = FORBIDDEN
-  if (sourceType === 'platform_website' && PE_FIRM_OWNED_FIELDS.has(fieldName)) {
+  // ANY website → transcript-only fields = FORBIDDEN
+  // Deal structure (revenue/EBITDA ranges) can ONLY come from transcripts
+  if ((sourceType === 'platform_website' || sourceType === 'pe_firm_website') && TRANSCRIPT_ONLY_FIELDS.has(fieldName)) {
     return {
       allowed: false,
-      reason: `PROVENANCE VIOLATION: Attempted to write platform_website data to PE-owned field '${fieldName}'. This is forbidden.`,
+      reason: `PROVENANCE VIOLATION: Attempted to write ${sourceType} data to transcript-only field '${fieldName}'. Deal structure can only come from transcripts.`,
     };
   }
 
@@ -737,27 +744,47 @@ function shouldOverwrite(
   existingValue: any,
   newValue: any,
   hasTranscriptSource: boolean,
-  existingSources: any[]
+  existingSources: any[],
+  newSourceType: SourceType = 'platform_website'
 ): boolean {
-  // Never overwrite transcript-protected fields if they have transcript source
-  if (TRANSCRIPT_PROTECTED_FIELDS.includes(fieldName)) {
-    // Check if field has transcript source
-    const fieldHasTranscript = existingSources.some(
-      (src: any) => 
-        (src.type === 'transcript' || src.type === 'buyer_transcript' || src.source === 'transcript') &&
-        (src.fields_extracted?.includes(fieldName) || src.fields?.includes(fieldName))
+  // RULE 1: If field has been written by a transcript, NEVER allow any website to overwrite it.
+  // This is absolute — transcripts are always higher priority than any website.
+  if (newSourceType === 'platform_website' || newSourceType === 'pe_firm_website') {
+    // Check if ANY transcript source has written this specific field
+    const fieldHasTranscriptSource = existingSources.some(
+      (src: any) => {
+        const isTranscript = src.type === 'transcript' || src.type === 'buyer_transcript' || src.source === 'transcript';
+        if (!isTranscript) return false;
+        // Check if this specific field was extracted by a transcript
+        const extractedFields = src.fields_extracted || src.fields || [];
+        return extractedFields.includes(fieldName);
+      }
     );
 
-    if (fieldHasTranscript || hasTranscriptSource) {
+    if (fieldHasTranscriptSource) {
       const hasExistingData = existingValue !== null &&
         existingValue !== undefined &&
         (typeof existingValue !== 'string' || existingValue.trim() !== '') &&
         (!Array.isArray(existingValue) || existingValue.length > 0);
 
       if (hasExistingData) {
-        console.log(`Skipping ${fieldName}: protected by transcript data`);
+        console.log(`🛡️ TRANSCRIPT PROTECTION: Skipping ${fieldName} — already set by transcript, website cannot overwrite`);
         return false;
       }
+    }
+  }
+
+  // RULE 2: Never overwrite transcript-protected fields if buyer has ANY transcript source
+  // (even if we can't confirm the specific field was from a transcript)
+  if (TRANSCRIPT_PROTECTED_FIELDS.includes(fieldName) && hasTranscriptSource) {
+    const hasExistingData = existingValue !== null &&
+      existingValue !== undefined &&
+      (typeof existingValue !== 'string' || existingValue.trim() !== '') &&
+      (!Array.isArray(existingValue) || existingValue.length > 0);
+
+    if (hasExistingData && (newSourceType === 'platform_website' || newSourceType === 'pe_firm_website')) {
+      console.log(`🛡️ PROTECTED FIELD: Skipping ${fieldName} — transcript-protected and buyer has transcript data`);
+      return false;
     }
   }
 
@@ -766,8 +793,7 @@ function shouldOverwrite(
     (Array.isArray(existingValue) && existingValue.length === 0);
   if (existingIsEmpty) return true;
 
-  // For strings: overwrite if new value is non-empty (don't use length comparison —
-  // "TX" is more correct than "Texas" for state codes)
+  // For strings: overwrite if new value is non-empty
   if (typeof newValue === 'string') {
     return newValue.trim().length > 0;
   }
@@ -825,8 +851,9 @@ function buildUpdateObject(
     // Skip placeholder values
     if (typeof value === 'string' && PLACEHOLDER_STRINGS.has(value.toLowerCase())) continue;
 
-    // Check overwrite rules
-    if (!shouldOverwrite(field, buyer[field], value, hasTranscriptSource, existingSources)) {
+    // Check overwrite rules — pass the source type so we can enforce transcript > website
+    const sourceType = fieldSourceMap[field] || 'platform_website';
+    if (!shouldOverwrite(field, buyer[field], value, hasTranscriptSource, existingSources, sourceType)) {
       continue;
     }
 
@@ -1174,13 +1201,28 @@ Deno.serve(async (req) => {
         extractGeography(platformContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
         extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
       );
-    } else if (peContent) {
-      // No platform content — only extract geography from PE site
-      console.log('Platform website unavailable — extracting geography only from PE firm website');
-      batch1.push(
-        extractGeography(peContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: peFirmWebsite })),
-      );
-    }
+  } else if (peContent) {
+    // No platform content — only extract geography from PE site
+    // CRITICAL: PE firm geography → ONLY geographic_footprint and service_regions
+    // PE firm HQ is NOT the platform's HQ. operating_locations are NOT platform locations.
+    console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website (NO HQ, NO operating_locations)');
+    batch1.push(
+      extractGeography(peContent, anthropicApiKey).then(r => {
+        const validated = validateGeography(r);
+        // STRIP PE-firm-specific fields that would contaminate platform data
+        if (validated?.data) {
+          delete validated.data.hq_city;
+          delete validated.data.hq_state;
+          delete validated.data.hq_country;
+          delete validated.data.hq_region;
+          delete validated.data.operating_locations;
+          delete validated.data.service_regions;
+          console.log('Stripped hq_city, hq_state, hq_country, hq_region, operating_locations, service_regions from PE geography extraction');
+        }
+        return { name: 'geography', result: validated, url: peFirmWebsite };
+      }),
+    );
+  }
 
     if (batch1.length > 0) {
       promptsRun += batch1.length;
@@ -1202,7 +1244,9 @@ Deno.serve(async (req) => {
     if (peContent) {
       batch2.push(
         extractPEIntelligence(peContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
-        extractSizeCriteria(peContent, anthropicApiKey).then(r => ({ name: 'size', result: validateSizeCriteria(r), url: peFirmWebsite })),
+        // NOTE: Size criteria extraction from PE website is DISABLED.
+        // PE firm websites show NEW PLATFORM criteria, not add-on criteria.
+        // Deal structure data can ONLY come from transcripts.
       );
     }
 

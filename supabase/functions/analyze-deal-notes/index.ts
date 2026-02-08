@@ -220,24 +220,24 @@ serve(async (req) => {
     let aiExtracted: Record<string, unknown> = {};
     
     if (geminiApiKey) {
-      const systemPrompt = `You are an M&A analyst extracting comprehensive deal intelligence from internal notes.
+      const systemPrompt = `You are an elite M&A analyst extracting EVERY piece of deal intelligence from internal notes, call summaries, and broker memos.
 
-Extract ALL available information including:
-- Business fundamentals (name, description, services, industries)
-- Owner/seller information and motivations
-- Financial data and deal structure
-- Operational details (employees, locations, geography)
-- Customer information and market position
-- Timeline, requirements, and risk factors
-- Contact information and next steps
+RULES:
+1. Extract EXHAUSTIVELY — capture every detail mentioned, no matter how minor.
+2. Accuracy over completeness — never fabricate or infer data not explicitly stated.
+3. Numbers as raw integers (e.g., 5000000 not "5M").
+4. US states as 2-letter codes (e.g., "TX", "AZ").
+5. Key quotes must be VERBATIM from the notes — include speaker attribution if available.
+6. For services, describe the business model and service mix in 2-4 sentences, not just a list.
+7. Growth trajectory should describe the trend (e.g., "Increasing revenue growth at all locations").
+8. Financial notes should capture EBITDA status, revenue breakdowns, margin info — even if incomplete.
+9. Capture management/team details, expansion potential, valuation context, and technology/systems.`;
 
-Be thorough and extract every piece of structured data available.`;
+      const userPrompt = `Extract ALL deal intelligence from these notes. Be exhaustive — every detail matters for buyer matching:
 
-      const userPrompt = `Analyze these deal notes and extract ALL key information:
+${notes.substring(0, 15000)}
 
-${notes.substring(0, 50000)}
-
-Extract the relevant information using the provided tool. Be comprehensive - extract every detail available.`;
+Use the tool to return structured data.`;
 
       try {
         const aiResponse = await fetch(GEMINI_API_URL, {
@@ -257,54 +257,39 @@ Extract the relevant information using the provided tool. Be comprehensive - ext
                 parameters: {
                   type: 'object',
                   properties: {
-                    // Business Fundamentals
-                    internal_company_name: { type: 'string', description: 'Company/business name' },
-                    description: { type: 'string', description: 'Business description and what they do' },
-                    executive_summary: { type: 'string', description: 'Executive summary of the business' },
-                    services_offered: { type: 'string', description: 'Services or products offered (comma-separated if multiple)' },
-                    category: { type: 'string', description: 'Primary business category or industry' },
-
-                    // Owner/Seller Information
-                    owner_name: { type: 'string', description: 'Owner or contact person name' },
-                    owner_goals: { type: 'string', description: 'Owner goals and motivations for selling' },
-                    transition_preferences: { type: 'string', description: 'Transition timeline and preferences' },
-                    special_requirements: { type: 'string', description: 'Deal breakers or must-haves' },
-
-                    // Timeline & Urgency
-                    timeline_notes: { type: 'string', description: 'Timeline and urgency notes' },
-                    expected_close_date: { type: 'string', description: 'Expected close date if mentioned' },
-
-                    // Operational Details
-                    full_time_employees: { type: 'number', description: 'Number of full-time employees' },
-                    number_of_locations: { type: 'number', description: 'Number of physical locations/offices/branches' },
-                    geographic_states: {
-                      type: 'array',
-                      items: { type: 'string' },
-                      description: 'US states where business operates (2-letter codes)'
-                    },
-
-                    // Customer Information
-                    customer_types: { type: 'string', description: 'Customer types and segments served' },
-                    customer_concentration: { type: 'string', description: 'Customer concentration and top customer info' },
-                    competitive_position: { type: 'string', description: 'Competitive advantages and market position' },
-
-                    // Risk & Concerns
-                    key_risks: { type: 'string', description: 'Risk factors, concerns, or red flags' },
-
-                    // Financial Details
-                    financial_notes: { type: 'string', description: 'Notes about financial data, quality, or concerns' },
-                    financial_followup_questions: {
-                      type: 'array',
-                      items: { type: 'string' },
-                      description: 'Questions to clarify financials if data is unclear'
-                    },
-
-                    // Contact & Next Steps
-                    contact_name: { type: 'string', description: 'Primary contact name' },
-                    contact_email: { type: 'string', description: 'Contact email address' },
-                    contact_phone: { type: 'string', description: 'Contact phone number' },
-                    next_steps: { type: 'string', description: 'Next steps or action items mentioned' },
-                  }
+                    owner_goals: { type: 'string', description: 'Owner goals and motivations for selling. Empty string if not mentioned.' },
+                    ownership_structure: { type: 'string', description: 'Ownership structure (sole owner, partnership, family-owned). Empty string if not mentioned.' },
+                    transition_preferences: { type: 'string', description: 'Transition timeline, preferences, management continuity plans. Empty string if not mentioned.' },
+                    seller_motivation: { type: 'string', description: 'Why the seller wants to sell, urgency level. Empty string if not mentioned.' },
+                    special_requirements: { type: 'string', description: 'Deal breakers, must-haves, valuation expectations. Empty string if not mentioned.' },
+                    timeline_notes: { type: 'string', description: 'Timeline and urgency notes. Empty string if not mentioned.' },
+                    description: { type: 'string', description: 'Business description — what the company does, model, market position (2-4 sentences). Empty string if not mentioned.' },
+                    services: { type: 'array', items: { type: 'string' }, description: 'List of specific services offered. Empty array if not mentioned.' },
+                    service_mix: { type: 'string', description: 'Service mix and revenue model in detail (2-4 sentences). Empty string if not mentioned.' },
+                    industry: { type: 'string', description: 'Industry vertical (e.g., "Automotive Repair"). Empty string if not mentioned.' },
+                    customer_types: { type: 'string', description: 'Customer types and segments served. Empty string if not mentioned.' },
+                    competitive_position: { type: 'string', description: 'Competitive advantages, differentiators. Empty string if not mentioned.' },
+                    geographic_states: { type: 'array', items: { type: 'string' }, description: 'US states where business operates (2-letter codes). Empty array if not mentioned.' },
+                    location: { type: 'string', description: 'Primary location/HQ (city, state format). Empty string if not mentioned.' },
+                    number_of_locations: { type: 'number', description: 'Total physical locations. 0 if not mentioned.' },
+                    financial_notes: { type: 'string', description: 'Detailed financial notes — revenue breakdown by segment/location, EBITDA status, margins, growth rates, addbacks, caveats. Empty string if not mentioned.' },
+                    growth_trajectory: { type: 'string', description: 'Revenue/business growth trend. Empty string if not mentioned.' },
+                    revenue_trend: { type: 'string', description: 'Revenue trend: "growing", "stable", or "declining". Empty string if not mentioned.' },
+                    management_depth: { type: 'string', description: 'Management team details, key personnel. Empty string if not mentioned.' },
+                    has_management_team: { type: 'boolean', description: 'Whether management team exists beyond owner.' },
+                    key_risks: { type: 'array', items: { type: 'string' }, description: 'Risk factors, concerns, red flags. Empty array if not mentioned.' },
+                    key_quotes: { type: 'array', items: { type: 'string' }, description: 'VERBATIM notable quotes from the notes. Empty array if none.' },
+                    growth_drivers: { type: 'array', items: { type: 'string' }, description: 'Growth opportunities and expansion potential. Empty array if not mentioned.' },
+                    real_estate_info: { type: 'string', description: 'Real estate details — owned vs leased. Empty string if not mentioned.' },
+                    technology_systems: { type: 'string', description: 'Technology/software/systems used. Empty string if not mentioned.' },
+                  },
+                  required: [
+                    'owner_goals', 'ownership_structure', 'transition_preferences', 'special_requirements',
+                    'description', 'services', 'industry', 'customer_types', 'competitive_position',
+                    'geographic_states', 'location', 'number_of_locations',
+                    'financial_notes', 'growth_trajectory', 'management_depth', 'has_management_team',
+                    'key_risks', 'key_quotes', 'growth_drivers'
+                  ]
                 }
               }
             }],
@@ -317,10 +302,33 @@ Extract the relevant information using the provided tool. Be comprehensive - ext
           const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall?.function?.arguments) {
             aiExtracted = JSON.parse(toolCall.function.arguments);
+            console.log('AI extracted fields:', Object.keys(aiExtracted).filter(k => {
+              const v = aiExtracted[k];
+              return v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
+            }));
           }
+        } else {
+          const errText = await aiResponse.text();
+          console.error('AI extraction failed:', aiResponse.status, errText.slice(0, 500));
         }
       } catch (e) {
         console.error('AI extraction error:', e);
+      }
+    }
+
+    // Post-process: key_risks and growth_drivers are JSONB in DB
+    // Wrap arrays so they serialize correctly
+    if (aiExtracted.key_risks && Array.isArray(aiExtracted.key_risks)) {
+      // DB stores as Json, keep as array — Supabase handles serialization
+    }
+    if (aiExtracted.growth_drivers && Array.isArray(aiExtracted.growth_drivers)) {
+      // Same — keep as array
+    }
+
+    // Strip empty/null values from AI extraction
+    for (const [k, v] of Object.entries(aiExtracted)) {
+      if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
+        delete aiExtracted[k];
       }
     }
 

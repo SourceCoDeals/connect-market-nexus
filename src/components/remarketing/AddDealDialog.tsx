@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -8,11 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Loader2, Link2, Upload, X, FileText } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface AddDealDialogProps {
@@ -26,8 +30,14 @@ const TEXT_EXTENSIONS = ['txt', 'vtt', 'srt'];
 const DOC_EXTENSIONS = ['pdf', 'doc', 'docx'];
 
 const normalizeName = (name: string) => name.trim().toLowerCase().replace(/\.[^.]+$/, '');
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const formatCurrency = (value: number | null) => {
+  if (!value) return null;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+  return `$${value}`;
+};
 
 export const AddDealDialog = ({
   open,
@@ -35,8 +45,12 @@ export const AddDealDialog = ({
   onDealCreated,
 }: AddDealDialogProps) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transcriptFilesRef = useRef<File[]>([]);
+  const [activeTab, setActiveTab] = useState<"marketplace" | "new">("marketplace");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     title: "",
     website: "",
@@ -48,21 +62,62 @@ export const AddDealDialog = ({
   });
   const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
 
-  // Keep ref in sync for stable closure access during async upload
   const updateFiles = (files: File[]) => {
     setTranscriptFiles(files);
     transcriptFilesRef.current = files;
   };
 
-  // Create new deal mutation
-  // Background transcript upload — fire and forget after dialog closes
+  // Search marketplace listings
+  const { data: marketplaceListings, isLoading: searchLoading } = useQuery({
+    queryKey: ['marketplace-search', searchQuery],
+    queryFn: async () => {
+      let query = supabase
+        .from('listings')
+        .select('id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (searchQuery.trim()) {
+        query = query.or(`title.ilike.%${searchQuery}%,internal_company_name.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && activeTab === "marketplace",
+  });
+
+  // Check which listings are already remarketing deals
+  const { data: existingDealIds } = useQuery({
+    queryKey: ['existing-remarketing-deal-ids'],
+    queryFn: async () => {
+      // Get all listing IDs that have scores or are internal deals
+      const { data } = await supabase
+        .from('listings')
+        .select('id')
+        .eq('is_internal_deal', true);
+      return new Set((data || []).map(d => d.id));
+    },
+    enabled: open && activeTab === "marketplace",
+  });
+
+  const handleAddFromMarketplace = (listing: any) => {
+    // Navigate to the deal detail page
+    setAddedIds(prev => new Set(prev).add(listing.id));
+    toast.success(`Opening "${listing.title || listing.internal_company_name}"`, { duration: 2000 });
+    onOpenChange(false);
+    navigate(`/admin/remarketing/deals/${listing.id}`);
+    onDealCreated?.();
+  };
+
+  // Background transcript upload
   const uploadTranscriptsInBackground = async (
     listingId: string,
     userId: string,
     files: File[],
     transcriptLink: string,
   ) => {
-    // Handle transcript link first (fast)
     if (transcriptLink) {
       try {
         await supabase.from('deal_transcripts').insert({
@@ -78,7 +133,6 @@ export const AddDealDialog = ({
       }
     }
 
-    // Handle file uploads
     if (files.length === 0) return;
 
     const toastId = `transcripts-${listingId}`;
@@ -103,7 +157,6 @@ export const AddDealDialog = ({
           .from('deal-transcripts')
           .getPublicUrl(filePath);
 
-        // Extract text content
         let transcriptText = "";
         if (TEXT_EXTENSIONS.includes(fileExt)) {
           transcriptText = await file.text();
@@ -116,13 +169,11 @@ export const AddDealDialog = ({
               { body: parseFormData }
             );
             if (parseError) {
-              console.error(`Parse error for ${file.name}:`, parseError);
               transcriptText = "Pending text extraction";
             } else {
               transcriptText = parseResult?.text || "Pending text extraction";
             }
           } catch (parseErr) {
-            console.error(`Parse exception for ${file.name}:`, parseErr);
             transcriptText = "Pending text extraction";
           }
         }
@@ -147,7 +198,7 @@ export const AddDealDialog = ({
       }
     }
 
-    toast.success(`${uploaded} transcript${uploaded > 1 ? 's' : ''} uploaded for Pro4mance`, { id: toastId });
+    toast.success(`${uploaded} transcript${uploaded > 1 ? 's' : ''} uploaded`, { id: toastId });
     queryClient.invalidateQueries({ queryKey: ["listings"] });
     queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
   };
@@ -182,29 +233,25 @@ export const AddDealDialog = ({
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
       toast.success(`Created "${listing.title}" successfully`);
 
-      // Capture files and link before resetting form
       const filesToUpload = [...transcriptFilesRef.current];
       const linkToSave = formData.transcriptLink;
 
-      // Close dialog immediately
       setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
       updateFiles([]);
       onDealCreated?.();
       onOpenChange(false);
+      navigate(`/admin/remarketing/deals/${listing.id}`);
 
-      // Fire background uploads (non-blocking)
       if (userId && (filesToUpload.length > 0 || linkToSave)) {
         uploadTranscriptsInBackground(listing.id, userId, filesToUpload, linkToSave);
       }
 
-      // Fire enrichment in background (non-blocking)
       if (listing.website) {
         toast.info("Enriching deal with AI...", { id: `enrich-${listing.id}` });
         supabase.functions.invoke("enrich-deal", {
           body: { dealId: listing.id },
         }).then(({ data, error }) => {
           if (error) {
-            console.error("Enrichment error:", error);
             toast.error("Enrichment failed", { id: `enrich-${listing.id}` });
           } else if (data?.success) {
             toast.success(`Enriched with ${data.fieldsUpdated?.length || 0} fields`, { id: `enrich-${listing.id}` });
@@ -228,7 +275,6 @@ export const AddDealDialog = ({
     const newFiles = Array.from(e.target.files || []);
     if (newFiles.length === 0) return;
 
-    // Dedupe by normalized name against existing files
     const existingNames = new Set(transcriptFilesRef.current.map(f => normalizeName(f.name)));
     const uniqueNew = newFiles.filter(f => !existingNames.has(normalizeName(f.name)));
 
@@ -239,11 +285,9 @@ export const AddDealDialog = ({
 
     if (uniqueNew.length > 0) {
       updateFiles([...transcriptFilesRef.current, ...uniqueNew]);
-      // Clear link when files are selected
       setFormData(prev => ({ ...prev, transcriptLink: "" }));
     }
 
-    // Reset input so the same file(s) can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -253,176 +297,283 @@ export const AddDealDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add New Deal</DialogTitle>
+          <DialogTitle>Add Deal</DialogTitle>
           <DialogDescription>
-            Create a new deal manually. Website is required for AI enrichment.
+            Add an existing marketplace listing or create a new deal
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
-          <div className="space-y-2">
-            <Label htmlFor="title">Company Name *</Label>
-            <Input
-              id="title"
-              placeholder="Enter company name"
-              value={formData.title}
-              onChange={(e) => handleFormChange("title", e.target.value)}
-            />
-          </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 overflow-hidden flex flex-col">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="marketplace">From Marketplace</TabsTrigger>
+            <TabsTrigger value="new">Create New</TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="website">Website *</Label>
-            <Input
-              id="website"
-              placeholder="https://example.com"
-              value={formData.website}
-              onChange={(e) => handleFormChange("website", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Required for AI enrichment to extract company data
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              placeholder="City, State"
-              value={formData.location}
-              onChange={(e) => handleFormChange("location", e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="revenue">Revenue</Label>
+          {/* Marketplace Tab */}
+          <TabsContent value="marketplace" className="flex-1 overflow-hidden flex flex-col mt-4 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                id="revenue"
-                placeholder="$0"
-                value={formData.revenue}
-                onChange={(e) => handleFormChange("revenue", e.target.value)}
+                placeholder="Search by company name or location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ebitda">EBITDA</Label>
-              <Input
-                id="ebitda"
-                placeholder="$0"
-                value={formData.ebitda}
-                onChange={(e) => handleFormChange("ebitda", e.target.value)}
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              placeholder="Brief description of the business..."
-              value={formData.description}
-              onChange={(e) => handleFormChange("description", e.target.value)}
-              rows={3}
-            />
-          </div>
+            <ScrollArea className="flex-1 max-h-[50vh]">
+              <div className="space-y-2 pr-4">
+                {searchLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-40 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                      </div>
+                    </div>
+                  ))
+                ) : !marketplaceListings?.length ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">
+                      {searchQuery ? "No listings match your search" : "No marketplace listings found"}
+                    </p>
+                  </div>
+                ) : (
+                  marketplaceListings.map((listing) => {
+                    const displayName = listing.internal_company_name || listing.title || "Untitled";
+                    const isAlreadyInternal = existingDealIds?.has(listing.id);
+                    const justAdded = addedIds.has(listing.id);
 
-          {/* Transcript Section */}
-          <div className="space-y-3 border-t pt-4">
-            <Label className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Call Transcripts (Optional)
-            </Label>
+                    return (
+                      <div
+                        key={listing.id}
+                        className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{displayName}</p>
+                            {listing.category && (
+                              <Badge variant="secondary" className="text-xs shrink-0">
+                                {listing.category}
+                              </Badge>
+                            )}
+                            {isAlreadyInternal && (
+                              <Badge variant="outline" className="text-xs shrink-0">
+                                Internal
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            {listing.location && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {listing.location}
+                              </span>
+                            )}
+                            {listing.revenue && (
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" />
+                                {formatCurrency(listing.revenue)} Rev
+                              </span>
+                            )}
+                            {listing.ebitda && (
+                              <span>{formatCurrency(listing.ebitda)} EBITDA</span>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={justAdded ? "secondary" : "outline"}
+                          onClick={() => handleAddFromMarketplace(listing)}
+                          disabled={justAdded}
+                        >
+                          {justAdded ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Added
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              View
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
 
-            {/* Transcript Link */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-muted-foreground" />
+          {/* Create New Tab */}
+          <TabsContent value="new" className="flex-1 overflow-auto mt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Company Name *</Label>
                 <Input
-                  id="transcriptLink"
-                  placeholder="Fireflies, Otter.ai, or other transcript link..."
-                  value={formData.transcriptLink}
-                  onChange={(e) => handleFormChange("transcriptLink", e.target.value)}
-                  disabled={transcriptFiles.length > 0}
-                  className="flex-1"
+                  id="title"
+                  placeholder="Enter company name"
+                  value={formData.title}
+                  onChange={(e) => handleFormChange("title", e.target.value)}
                 />
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="flex-1 border-t" />
-              <span>or</span>
-              <div className="flex-1 border-t" />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="website">Website *</Label>
+                <Input
+                  id="website"
+                  placeholder="https://example.com"
+                  value={formData.website}
+                  onChange={(e) => handleFormChange("website", e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required for AI enrichment to extract company data
+                </p>
+              </div>
 
-            {/* File Upload */}
-            <div className="space-y-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.vtt,.srt,.pdf,.doc,.docx"
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-                id="transcript-file"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  placeholder="City, State"
+                  value={formData.location}
+                  onChange={(e) => handleFormChange("location", e.target.value)}
+                />
+              </div>
 
-              {transcriptFiles.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground font-medium">
-                    {transcriptFiles.length} file{transcriptFiles.length > 1 ? 's' : ''} selected
-                  </p>
-                  {transcriptFiles.map((file, index) => (
-                    <div key={`${file.name}-${index}`} className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                      <FileText className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="text-sm flex-1 truncate">{file.name}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {(file.size / 1024).toFixed(0)}KB
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                        className="h-6 w-6 p-0 shrink-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="revenue">Revenue</Label>
+                  <Input
+                    id="revenue"
+                    placeholder="$0"
+                    value={formData.revenue}
+                    onChange={(e) => handleFormChange("revenue", e.target.value)}
+                  />
                 </div>
-              )}
+                <div className="space-y-2">
+                  <Label htmlFor="ebitda">EBITDA</Label>
+                  <Input
+                    id="ebitda"
+                    placeholder="$0"
+                    value={formData.ebitda}
+                    onChange={(e) => handleFormChange("ebitda", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Brief description of the business..."
+                  value={formData.description}
+                  onChange={(e) => handleFormChange("description", e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              {/* Transcript Section */}
+              <div className="space-y-3 border-t pt-4">
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Call Transcripts (Optional)
+                </Label>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="transcriptLink"
+                      placeholder="Fireflies, Otter.ai, or other transcript link..."
+                      value={formData.transcriptLink}
+                      onChange={(e) => handleFormChange("transcriptLink", e.target.value)}
+                      disabled={transcriptFiles.length > 0}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex-1 border-t" />
+                  <span>or</span>
+                  <div className="flex-1 border-t" />
+                </div>
+
+                <div className="space-y-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.vtt,.srt,.pdf,.doc,.docx"
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="transcript-file"
+                  />
+
+                  {transcriptFiles.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        {transcriptFiles.length} file{transcriptFiles.length > 1 ? 's' : ''} selected
+                      </p>
+                      {transcriptFiles.map((file, index) => (
+                        <div key={`${file.name}-${index}`} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                          <FileText className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="text-sm flex-1 truncate">{file.name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {(file.size / 1024).toFixed(0)}KB
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(index)}
+                            className="h-6 w-6 p-0 shrink-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!!formData.transcriptLink}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {transcriptFiles.length > 0 ? 'Add More Files' : 'Upload Transcript Files'}
+                  </Button>
+
+                  <p className="text-xs text-muted-foreground">
+                    Supports .txt, .vtt, .srt, .pdf, .doc, .docx — select multiple files at once
+                  </p>
+                </div>
+              </div>
 
               <Button
-                type="button"
-                variant="outline"
+                onClick={() => createDealMutation.mutate()}
+                disabled={!formData.title || !formData.website || createDealMutation.isPending}
                 className="w-full"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!!formData.transcriptLink}
               >
-                <Upload className="h-4 w-4 mr-2" />
-                {transcriptFiles.length > 0 ? 'Add More Files' : 'Upload Transcript Files'}
+                {createDealMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Create Deal
               </Button>
-
-              <p className="text-xs text-muted-foreground">
-                Supports .txt, .vtt, .srt, .pdf, .doc, .docx — select multiple files at once
-              </p>
             </div>
-          </div>
-
-          <Button
-            onClick={() => createDealMutation.mutate()}
-            disabled={!formData.title || !formData.website || createDealMutation.isPending}
-            className="w-full"
-          >
-            {createDealMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4 mr-2" />
-            )}
-            Create Deal
-          </Button>
-        </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

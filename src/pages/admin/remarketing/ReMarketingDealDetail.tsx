@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Building2,
+  Check,
   DollarSign,
   ExternalLink,
   Globe,
@@ -25,6 +26,7 @@ import {
   Pencil,
   AlertTriangle,
   Eye,
+  X,
 } from "lucide-react";
 import {
   Tooltip,
@@ -225,29 +227,56 @@ const ReMarketingDealDetail = () => {
 
   const dataCompleteness = calculateDataCompleteness();
 
-  // Handle website enrichment
+  // Handle website enrichment with progress tracking
+  const [enrichmentProgress, setEnrichmentProgress] = useState(0);
+  const [enrichmentStage, setEnrichmentStage] = useState('');
+
   const handleEnrichFromWebsite = async () => {
     if (!deal) return;
     
     setIsEnriching(true);
+    setEnrichmentProgress(10);
+    setEnrichmentStage('Scraping website...');
+
+    // Simulate progress stages while waiting for the edge function
+    const progressTimer = setInterval(() => {
+      setEnrichmentProgress(prev => {
+        if (prev >= 85) { clearInterval(progressTimer); return 85; }
+        if (prev < 30) { setEnrichmentStage('Scraping website...'); return prev + 3; }
+        if (prev < 55) { setEnrichmentStage('Extracting business intelligence...'); return prev + 2; }
+        if (prev < 75) { setEnrichmentStage('Processing company data...'); return prev + 1.5; }
+        setEnrichmentStage('Saving enriched data...');
+        return prev + 1;
+      });
+    }, 500);
+
     try {
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId }
       });
 
+      clearInterval(progressTimer);
+
       if (error) throw error;
 
       if (data?.success) {
+        setEnrichmentProgress(100);
+        setEnrichmentStage('Complete!');
         toast.success(`Enriched ${data.fieldsUpdated?.length || 0} fields from website`);
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+        // Reset after brief delay
+        setTimeout(() => { setIsEnriching(false); setEnrichmentProgress(0); setEnrichmentStage(''); }, 1500);
+        return;
       } else {
         toast.error(data?.error || "Failed to enrich from website");
       }
     } catch (error: any) {
+      clearInterval(progressTimer);
       toast.error(error.message || "Failed to enrich from website");
-    } finally {
-      setIsEnriching(false);
     }
+    setIsEnriching(false);
+    setEnrichmentProgress(0);
+    setEnrichmentStage('');
   };
 
   const formatCurrency = (value: number | null) => {
@@ -255,6 +284,44 @@ const ReMarketingDealDetail = () => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
     return `$${value}`;
+  };
+
+  // Inline editing state for company name (must be before early returns)
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+
+  const updateNameMutation = useMutation({
+    mutationFn: async (newName: string) => {
+      const { error } = await supabase
+        .from('listings')
+        .update({ internal_company_name: newName })
+        .eq('id', dealId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      toast.success('Company name updated');
+      setIsEditingName(false);
+    },
+    onError: (err: Error) => {
+      toast.error(`Failed to update name: ${err.message}`);
+    },
+  });
+
+  const currentName = deal?.internal_company_name || deal?.title || '';
+
+  const handleSaveName = () => {
+    const trimmed = editedName.trim();
+    if (!trimmed || trimmed === currentName) {
+      setIsEditingName(false);
+      return;
+    }
+    updateNameMutation.mutate(trimmed);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedName(currentName);
+    setIsEditingName(false);
   };
 
   if (dealLoading) {
@@ -293,6 +360,7 @@ const ReMarketingDealDetail = () => {
   const listedName = deal.internal_company_name && deal.title !== deal.internal_company_name 
     ? deal.title 
     : null;
+
 
   return (
     <div className="p-6 space-y-6">
@@ -335,7 +403,39 @@ const ReMarketingDealDetail = () => {
             )}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  className="text-2xl font-bold text-foreground bg-transparent border-b-2 border-primary outline-none px-0 py-0.5 min-w-[200px]"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveName();
+                    if (e.key === 'Escape') handleCancelEdit();
+                  }}
+                  autoFocus
+                  disabled={updateNameMutation.isPending}
+                />
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveName} disabled={updateNameMutation.isPending}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit} disabled={updateNameMutation.isPending}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 group">
+                <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => { setEditedName(displayName); setIsEditingName(true); }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
             {deal.category && (
               <Badge variant="secondary">{deal.category}</Badge>
             )}
@@ -407,6 +507,17 @@ const ReMarketingDealDetail = () => {
         </div>
       </div>
 
+      {/* Pipeline Summary Card - Shows conversion funnel */}
+      {scoreStats && scoreStats.count > 0 && (
+        <PipelineSummaryCard
+          scored={scoreStats.count}
+          approved={scoreStats.approved}
+          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
+          meetingScheduled={pipelineStats?.meetingScheduled || 0}
+          closedWon={pipelineStats?.closedWon || 0}
+        />
+      )}
+
       {/* Website & Actions */}
       <Card>
         <CardHeader className="py-3">
@@ -462,6 +573,18 @@ const ReMarketingDealDetail = () => {
               Buyer History
             </Button>
           </div>
+          {isEnriching && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {enrichmentStage}
+                </span>
+                <span className="text-muted-foreground font-medium">{Math.round(enrichmentProgress)}%</span>
+              </div>
+              <Progress value={enrichmentProgress} className="h-2" />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -657,16 +780,6 @@ const ReMarketingDealDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Pipeline Summary Card - Shows conversion funnel */}
-      {scoreStats && scoreStats.count > 0 && (
-        <PipelineSummaryCard
-          scored={scoreStats.count}
-          approved={scoreStats.approved}
-          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
-          meetingScheduled={pipelineStats?.meetingScheduled || 0}
-          closedWon={pipelineStats?.closedWon || 0}
-        />
-      )}
 
       {/* Executive Summary */}
       <ExecutiveSummaryCard
