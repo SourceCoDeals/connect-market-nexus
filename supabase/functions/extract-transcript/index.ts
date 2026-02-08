@@ -636,17 +636,20 @@ async function updateBuyerFromTranscript(
     updates.thesis_confidence = insights.thesis_confidence;
   }
   if (insights.strategic_priorities?.length) {
-    updates.strategic_priorities = insights.strategic_priorities;
+    updates.strategic_priorities = Array.isArray(insights.strategic_priorities)
+      ? insights.strategic_priorities : [String(insights.strategic_priorities)];
   }
 
   // Other buyer criteria
   if (insights.target_industries?.length) {
-    updates.target_industries = insights.target_industries;
+    updates.target_industries = Array.isArray(insights.target_industries)
+      ? insights.target_industries : [String(insights.target_industries)];
   }
   // Handle structured geography
   if (insights.target_geography) {
-    if (insights.target_geography.states?.length) {
-      updates.target_geographies = insights.target_geography.states;
+    const states = insights.target_geography.states;
+    if (states?.length) {
+      updates.target_geographies = Array.isArray(states) ? states : [String(states)];
     }
   }
   if (insights.acquisition_timeline) {
@@ -654,17 +657,21 @@ async function updateBuyerFromTranscript(
   }
 
   // Platform company operational details
-  if (insights.services_offered?.length) {
-    updates.services_offered = insights.services_offered.join(', ');
+  if (insights.services_offered) {
+    updates.services_offered = Array.isArray(insights.services_offered)
+      ? insights.services_offered.join(', ')
+      : String(insights.services_offered);
   }
   if (insights.business_summary) {
     updates.business_summary = insights.business_summary;
   }
   if (insights.operating_locations?.length) {
-    updates.operating_locations = insights.operating_locations;
+    updates.operating_locations = Array.isArray(insights.operating_locations)
+      ? insights.operating_locations : [String(insights.operating_locations)];
   }
   if (insights.geographic_footprint?.length) {
-    updates.geographic_footprint = insights.geographic_footprint;
+    updates.geographic_footprint = Array.isArray(insights.geographic_footprint)
+      ? insights.geographic_footprint : [String(insights.geographic_footprint)];
   }
 
   if (Object.keys(updates).length > 0) {
