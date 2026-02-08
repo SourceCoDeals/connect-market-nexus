@@ -519,13 +519,20 @@ serve(async (req) => {
             buyerUpdates.target_geographies = insights.buyer_criteria.geography_criteria.target_states;
           }
           if (insights.buyer_criteria.geography_criteria?.target_regions?.length) {
-            // target_regions = where buyer WANTS to acquire (e.g., "Southeast")
-            // This maps to target_geographies (acquisition targets), NOT geographic_footprint (current operations)
             if (!buyerUpdates.target_geographies) {
               buyerUpdates.target_geographies = [];
             }
-            // Don't overwrite target_states with region names — regions are supplementary context
-            // Store them as notes or skip if target_states already captured the intent
+          }
+
+          // Map size criteria — deal structure can ONLY come from transcripts
+          const size = insights.buyer_criteria.size_criteria;
+          if (size) {
+            if (size.revenue_min) buyerUpdates.target_revenue_min = size.revenue_min;
+            if (size.revenue_max) buyerUpdates.target_revenue_max = size.revenue_max;
+            if (size.revenue_sweet_spot) buyerUpdates.revenue_sweet_spot = size.revenue_sweet_spot;
+            if (size.ebitda_min) buyerUpdates.target_ebitda_min = size.ebitda_min;
+            if (size.ebitda_max) buyerUpdates.target_ebitda_max = size.ebitda_max;
+            if (size.ebitda_sweet_spot) buyerUpdates.ebitda_sweet_spot = size.ebitda_sweet_spot;
           }
         }
 
