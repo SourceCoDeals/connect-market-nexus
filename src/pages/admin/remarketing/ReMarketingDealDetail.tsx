@@ -299,7 +299,7 @@ const ReMarketingDealDetail = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['remarketing-deal', dealId] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       toast.success('Company name updated');
       setIsEditingName(false);
     },
@@ -324,6 +324,7 @@ const ReMarketingDealDetail = () => {
     setIsEditingName(false);
   };
 
+  if (dealLoading) {
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-8 w-48" />
