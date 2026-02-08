@@ -478,23 +478,35 @@ const ReMarketingBuyerDetail = () => {
     }
   });
 
+  const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number; isRunning: boolean }>({ current: 0, total: 0, isRunning: false });
+
   const handleExtractAll = async () => {
     const pendingTranscripts = transcripts.filter(t => !t.processed_at);
+    if (pendingTranscripts.length === 0) return;
+    
+    setExtractionProgress({ current: 0, total: pendingTranscripts.length, isRunning: true });
     let successCount = 0;
     let errorCount = 0;
-    for (const transcript of pendingTranscripts) {
+    
+    for (let i = 0; i < pendingTranscripts.length; i++) {
       try {
-        await extractTranscriptMutation.mutateAsync({ transcriptId: transcript.id });
+        await extractTranscriptMutation.mutateAsync({ transcriptId: pendingTranscripts[i].id });
         successCount++;
       } catch (e) {
-        console.warn(`Extraction failed for ${transcript.id}:`, e);
+        console.warn(`Extraction failed for ${pendingTranscripts[i].id}:`, e);
         errorCount++;
       }
+      setExtractionProgress({ current: i + 1, total: pendingTranscripts.length, isRunning: i < pendingTranscripts.length - 1 });
     }
+    
+    setExtractionProgress(prev => ({ ...prev, isRunning: false }));
+    
     if (errorCount > 0 && successCount === 0) {
       toast.error(`All ${errorCount} extractions failed. Some transcripts may have empty text — try re-uploading them.`);
     } else if (errorCount > 0) {
       toast.warning(`${successCount} extracted, ${errorCount} failed (possibly empty text).`);
+    } else {
+      toast.success(`All ${successCount} transcripts extracted successfully.`);
     }
   };
 
@@ -690,7 +702,8 @@ const ReMarketingBuyerDetail = () => {
               }
             }}
             isAdding={addTranscriptMutation.isPending}
-            isExtracting={extractTranscriptMutation.isPending}
+            isExtracting={extractTranscriptMutation.isPending || extractionProgress.isRunning}
+            extractionProgress={extractionProgress.isRunning ? extractionProgress : undefined}
           />
         </TabsContent>
 
