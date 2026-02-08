@@ -152,6 +152,9 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
   
   const buyerSummaries = buyers.map((buyer: any) => {
     const score = scoreMap.get(buyer.id) as any;
+    // Track provenance for data quality signaling
+    const sources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
+    const hasTranscriptSource = sources.some((s: any) => s.type === 'transcript' || s.source === 'transcript');
     return {
       id: buyer.id,
       name: buyer.company_name || buyer.pe_firm_name,
@@ -182,6 +185,9 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
       serviceScore: score?.service_score,
       status: score?.status?.toUpperCase() || 'PENDING',
       fitReasoning: score?.fit_reasoning,
+      // PROVENANCE FLAGS — helps chatbot cite sources correctly
+      hasTranscriptData: hasTranscriptSource,
+      dataSources: hasTranscriptSource ? 'transcript+website' : 'website-only',
     };
   });
 
@@ -246,6 +252,17 @@ INSTRUCTIONS:
 9. Never hallucinate transcript quotes - only use actual extracted_insights data
 10. Keep responses concise with bullet points
 11. At the end, include: <!-- HIGHLIGHT: ["buyer-id-1", "buyer-id-2"] -->
+
+## DATA PROVENANCE RULES (CRITICAL):
+- **NEVER** attribute PE firm information to the platform company. The PE firm's HQ is NOT the platform's HQ. The PE firm's investment criteria are NOT the platform's add-on criteria.
+- When citing buyer data, indicate the source where possible:
+  - Thesis, deal structure, key quotes → "Per call transcript..."
+  - Business summary, services, locations → "Per company website..." or "Per transcript..."
+  - Acquisition history, portfolio → "Per PE firm website..."
+- If a buyer's deal structure (revenue/EBITDA ranges) has NO transcript backing, explicitly say: "Note: Size criteria may be from PE firm website and may represent new-platform criteria, not add-on criteria."
+- If a buyer's HQ/location data has no platform website source, say: "Note: HQ location may be the PE firm's headquarters, not the platform's operating base."
+- When data is missing, say "This information is not available from transcripts" — NEVER infer or guess.
+- If buyer has dataQuality = 'low', flag this: "⚠️ Limited data — scoring confidence is low."
 
 ## DATA QUALITY GUARDRAILS:
 - Transcript availability: ${transcripts.length > 0 ? `✅ ${transcripts.length} transcript(s) loaded` : '⚠️ No transcripts available'}
@@ -406,7 +423,13 @@ INSTRUCTIONS:
 5. Mention deal breakers and strategic priorities
 6. Group by type when comparing buyers
 7. Keep responses concise with bullet points
-8. At the end for buyers mentioned, include: <!-- HIGHLIGHT: ["buyer-id-1", "buyer-id-2"] -->`;
+8. At the end for buyers mentioned, include: <!-- HIGHLIGHT: ["buyer-id-1", "buyer-id-2"] -->
+
+## DATA PROVENANCE RULES:
+- NEVER attribute PE firm information to the platform company
+- When citing size criteria, note if buyer has dataSources='website-only' — their revenue/EBITDA ranges may be PE firm new-platform criteria, NOT add-on criteria
+- If a buyer has no transcript data, say: "Note: No call transcript available — data is from website enrichment only"
+- Empty data is better than wrong data — do not infer or guess missing fields`;
 }
 
 // Build context for universe-level queries  
