@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check, Users } from "lucide-react";
+import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check, Users, ChevronDown, ChevronUp, ExternalLink, Globe, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface AddDealDialogProps {
@@ -51,6 +51,8 @@ export const AddDealDialog = ({
   const [activeTab, setActiveTab] = useState<"marketplace" | "new">("marketplace");
   const [searchQuery, setSearchQuery] = useState("");
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [addingToRemarketing, setAddingToRemarketing] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     website: "",
@@ -85,7 +87,7 @@ export const AddDealDialog = ({
     queryFn: async ({ pageParam = 0 }) => {
       let query = supabase
         .from('listings')
-        .select('id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal')
+        .select('id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal, description, executive_summary, created_at')
         .is('deleted_at', null)
         .eq('is_internal_deal', false)
         .eq('status', 'active')
@@ -140,13 +142,26 @@ export const AddDealDialog = ({
     enabled: open && activeTab === "marketplace",
   });
 
-  const handleAddFromMarketplace = (listing: any) => {
-    // Navigate to the deal detail page
-    setAddedIds(prev => new Set(prev).add(listing.id));
-    toast.success(`Opening "${listing.title || listing.internal_company_name}"`, { duration: 2000 });
-    onOpenChange(false);
-    navigate(`/admin/remarketing/deals/${listing.id}`);
-    onDealCreated?.();
+  const handleAddFromMarketplace = async (listing: any) => {
+    setAddingToRemarketing(listing.id);
+    try {
+      const { error } = await supabase
+        .from('listings')
+        .update({ is_internal_deal: true } as any)
+        .eq('id', listing.id);
+
+      if (error) throw error;
+
+      setAddedIds(prev => new Set(prev).add(listing.id));
+      toast.success(`"${listing.title || listing.internal_company_name}" added to remarketing`);
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['existing-remarketing-deal-ids'] });
+    } catch (err: any) {
+      toast.error(`Failed to add: ${err.message}`);
+    } finally {
+      setAddingToRemarketing(null);
+    }
   };
 
   // Background transcript upload
@@ -386,66 +401,142 @@ export const AddDealDialog = ({
                 ) : (
                   marketplaceListings.map((listing, index) => {
                     const displayName = listing.internal_company_name || listing.title || "Untitled";
-                    const isAlreadyInternal = existingDealIds?.has(listing.id);
-                    const justAdded = addedIds.has(listing.id);
+                    const isAlreadyAdded = addedIds.has(listing.id);
                     const isLast = index === marketplaceListings.length - 1;
+                    const isExpanded = expandedId === listing.id;
+                    const isAdding = addingToRemarketing === listing.id;
 
                     return (
                       <div
                         key={listing.id}
                         ref={isLast ? lastItemRef : undefined}
-                        className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                        className={`border rounded-lg transition-colors ${isExpanded ? 'bg-accent/30 border-primary/30' : 'hover:bg-accent/50'}`}
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm truncate">{displayName}</p>
-                            {listing.category && (
-                              <Badge variant="secondary" className="text-xs shrink-0">
-                                {listing.category}
-                              </Badge>
-                            )}
-                            {isAlreadyInternal && (
-                              <Badge variant="outline" className="text-xs shrink-0">
-                                Internal
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                            {listing.location && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {listing.location}
-                              </span>
-                            )}
-                            {listing.revenue && (
-                              <span className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                {formatCurrency(listing.revenue)} Rev
-                              </span>
-                            )}
-                            {listing.ebitda && (
-                              <span>{formatCurrency(listing.ebitda)} EBITDA</span>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={justAdded ? "secondary" : "outline"}
-                          onClick={() => handleAddFromMarketplace(listing)}
-                          disabled={justAdded}
+                        {/* Collapsed row */}
+                        <div
+                          className="flex items-center gap-3 p-3 cursor-pointer"
+                          onClick={() => setExpandedId(isExpanded ? null : listing.id)}
                         >
-                          {justAdded ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 mr-1" />
-                              Added
-                            </>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm truncate">{displayName}</p>
+                              {listing.category && (
+                                <Badge variant="secondary" className="text-xs shrink-0">
+                                  {listing.category}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                              {listing.location && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {listing.location}
+                                </span>
+                              )}
+                              {listing.revenue != null && (
+                                <span className="flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  {formatCurrency(listing.revenue)} Rev
+                                </span>
+                              )}
+                              {listing.ebitda != null && (
+                                <span>{formatCurrency(listing.ebitda)} EBITDA</span>
+                              )}
+                            </div>
+                          </div>
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
                           ) : (
-                            <>
-                              <Plus className="h-3.5 w-3.5 mr-1" />
-                              View
-                            </>
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                           )}
-                        </Button>
+                        </div>
+
+                        {/* Expanded details */}
+                        {isExpanded && (
+                          <div className="px-3 pb-3 space-y-3 border-t border-border/50 pt-3">
+                            {listing.executive_summary && (
+                              <p className="text-xs text-muted-foreground line-clamp-3">
+                                {listing.executive_summary}
+                              </p>
+                            )}
+                            {!listing.executive_summary && listing.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-3">
+                                {listing.description}
+                              </p>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {listing.revenue != null && (
+                                <div className="bg-muted/50 rounded p-2">
+                                  <span className="text-muted-foreground">Revenue</span>
+                                  <p className="font-medium">{formatCurrency(listing.revenue)}</p>
+                                </div>
+                              )}
+                              {listing.ebitda != null && (
+                                <div className="bg-muted/50 rounded p-2">
+                                  <span className="text-muted-foreground">EBITDA</span>
+                                  <p className="font-medium">{formatCurrency(listing.ebitda)}</p>
+                                </div>
+                              )}
+                              {listing.revenue != null && listing.ebitda != null && listing.revenue > 0 && (
+                                <div className="bg-muted/50 rounded p-2">
+                                  <span className="text-muted-foreground">Margin</span>
+                                  <p className="font-medium">{((listing.ebitda / listing.revenue) * 100).toFixed(0)}%</p>
+                                </div>
+                              )}
+                              {listing.website && (
+                                <div className="bg-muted/50 rounded p-2">
+                                  <span className="text-muted-foreground">Website</span>
+                                  <p className="font-medium truncate flex items-center gap-1">
+                                    <Globe className="h-3 w-3" />
+                                    {listing.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddFromMarketplace(listing);
+                                }}
+                                disabled={isAlreadyAdded || isAdding}
+                                className="flex-1"
+                              >
+                                {isAdding ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                    Adding...
+                                  </>
+                                ) : isAlreadyAdded ? (
+                                  <>
+                                    <Check className="h-3.5 w-3.5 mr-1" />
+                                    Added to Remarketing
+                                  </>
+                                ) : (
+                                  <>
+                                    <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                                    Add to Remarketing
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenChange(false);
+                                  navigate(`/admin/remarketing/deals/${listing.id}`);
+                                }}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                                Open
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
