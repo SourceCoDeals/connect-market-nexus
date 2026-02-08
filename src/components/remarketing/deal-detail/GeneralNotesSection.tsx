@@ -100,12 +100,12 @@ export const GeneralNotesSection = ({
                   ) : (
                     <Sparkles className="h-4 w-4 mr-2" />
                   )}
-                  Analyze Notes
+                  Enrich Notes
                 </Button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Use "Analyze Notes" to automatically extract deal information from pasted notes.
+              Use "Enrich Notes" to automatically extract deal information from pasted notes.
             </p>
           </CardContent>
         </CollapsibleContent>
