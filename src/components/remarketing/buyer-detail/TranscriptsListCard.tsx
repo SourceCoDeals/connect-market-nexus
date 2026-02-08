@@ -77,7 +77,7 @@ export const TranscriptsListCard = ({
     transcript_text: "",
   });
 
-  const pendingCount = transcripts.filter(t => !t.processed_at).length;
+  const pendingCount = transcripts.length;
 
   const parseTranscriptFile = async (file: File): Promise<string> => {
     const form = new FormData();
