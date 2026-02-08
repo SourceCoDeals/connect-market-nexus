@@ -44,6 +44,7 @@ import { BuyerDealHistoryTab } from "@/components/ma-intelligence/BuyerDealHisto
 import { BuyerContactsTab } from "@/components/ma-intelligence/BuyerContactsTab";
 import { BuyerActivitySection } from "@/components/ma-intelligence/BuyerActivitySection";
 import { PassReasonDialog } from "@/components/ma-intelligence/PassReasonDialog";
+import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
 
 export default function BuyerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +58,7 @@ export default function BuyerDetail() {
   const [activeTab, setActiveTab] = useState("overview");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [isPassDialogOpen, setIsPassDialogOpen] = useState(false);
+  const [isAnalyzingNotes, setIsAnalyzingNotes] = useState(false);
 
   // Edit form state
   const [formData, setFormData] = useState<Partial<MABuyer>>({});
@@ -461,6 +463,53 @@ export default function BuyerDetail() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {/* General Notes Section */}
+          <BuyerNotesSection
+            notes={buyer.notes}
+            onSave={async (notes) => {
+              try {
+                const { error } = await supabase
+                  .from('remarketing_buyers')
+                  .update({ notes })
+                  .eq('id', buyer.id);
+
+                if (error) throw error;
+                setBuyer({ ...buyer, notes });
+              } catch (error: any) {
+                throw new Error(error.message || 'Failed to save notes');
+              }
+            }}
+            isAnalyzing={isAnalyzingNotes}
+            onAnalyze={async (notes) => {
+              setIsAnalyzingNotes(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('analyze-buyer-notes', {
+                  body: { buyerId: buyer.id, notesText: notes }
+                });
+
+                if (error) throw error;
+
+                if (data?.success) {
+                  toast({
+                    title: "Notes analyzed successfully",
+                    description: `Extracted ${data.fieldsUpdated?.length || 0} fields from notes`,
+                  });
+                  loadBuyer();
+                } else {
+                  throw new Error(data?.error || "Failed to analyze notes");
+                }
+              } catch (error: any) {
+                toast({
+                  title: "Error analyzing notes",
+                  description: error.message || "Failed to analyze notes",
+                  variant: "destructive",
+                });
+              } finally {
+                setIsAnalyzingNotes(false);
+              }
+            }}
+          />
+
           {/* Business Summary Section */}
           <BuyerDataSection
             title="Business Summary"
