@@ -480,8 +480,21 @@ const ReMarketingBuyerDetail = () => {
 
   const handleExtractAll = async () => {
     const pendingTranscripts = transcripts.filter(t => !t.processed_at);
+    let successCount = 0;
+    let errorCount = 0;
     for (const transcript of pendingTranscripts) {
-      await extractTranscriptMutation.mutateAsync({ transcriptId: transcript.id });
+      try {
+        await extractTranscriptMutation.mutateAsync({ transcriptId: transcript.id });
+        successCount++;
+      } catch (e) {
+        console.warn(`Extraction failed for ${transcript.id}:`, e);
+        errorCount++;
+      }
+    }
+    if (errorCount > 0 && successCount === 0) {
+      toast.error(`All ${errorCount} extractions failed. Some transcripts may have empty text — try re-uploading them.`);
+    } else if (errorCount > 0) {
+      toast.warning(`${successCount} extracted, ${errorCount} failed (possibly empty text).`);
     }
   };
 
