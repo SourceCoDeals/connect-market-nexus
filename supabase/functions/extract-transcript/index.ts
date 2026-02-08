@@ -632,7 +632,7 @@ async function updateBuyerFromTranscript(
   if (insights.thesis_summary && insights.thesis_confidence !== 'insufficient') {
     updates.thesis_summary = insights.thesis_summary;
   }
-  if (insights.thesis_confidence) {
+  if (insights.thesis_confidence && insights.thesis_confidence !== 'insufficient') {
     updates.thesis_confidence = insights.thesis_confidence;
   }
   if (insights.strategic_priorities?.length) {
@@ -709,8 +709,7 @@ async function updateBuyerFromTranscript(
     const existingSources = (existingBuyer?.extraction_sources || []) as any[];
 
     // Save insufficient flag and missing questions
-    const insufficientUpdate = {
-      thesis_confidence: 'insufficient',
+    const insufficientUpdate: Record<string, unknown> = {
       notes: `Insufficient transcript data. Follow-up questions needed:\n${(insights.missing_information || []).map((q, i) => `${i + 1}. ${q}`).join('\n')}`,
       extraction_sources: [
         ...existingSources,
