@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ExtractionSummaryDialog } from "@/components/remarketing/buyer-detail/ExtractionSummaryDialog";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -453,7 +454,7 @@ const ReMarketingBuyerDetail = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', id] });
-      toast.success('Intelligence extracted');
+      // Summary dialog handles user feedback - no toast needed
     },
     onError: (error: Error) => {
       toast.error(`Extraction failed: ${error.message}`);
@@ -479,6 +480,13 @@ const ReMarketingBuyerDetail = () => {
   });
 
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number; isRunning: boolean }>({ current: 0, total: 0, isRunning: false });
+  const [extractionSummary, setExtractionSummary] = useState<{
+    open: boolean;
+    results: Array<{ fileName?: string; insights?: any; error?: string }>;
+    totalCount: number;
+    successCount: number;
+    errorCount: number;
+  }>({ open: false, results: [], totalCount: 0, successCount: 0, errorCount: 0 });
 
   const handleExtractAll = async () => {
     if (transcripts.length === 0) return;
@@ -486,26 +494,46 @@ const ReMarketingBuyerDetail = () => {
     setExtractionProgress({ current: 0, total: transcripts.length, isRunning: true });
     let successCount = 0;
     let errorCount = 0;
+    const results: Array<{ fileName?: string; insights?: any; error?: string }> = [];
     
     for (let i = 0; i < transcripts.length; i++) {
       try {
-        await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
+        const data = await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
         successCount++;
-      } catch (e) {
+        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, insights: data?.insights?.buyer });
+      } catch (e: any) {
         console.warn(`Extraction failed for ${transcripts[i].id}:`, e);
         errorCount++;
+        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e?.message || 'Failed' });
       }
       setExtractionProgress({ current: i + 1, total: transcripts.length, isRunning: i < transcripts.length - 1 });
     }
     
     setExtractionProgress(prev => ({ ...prev, isRunning: false }));
-    
-    if (errorCount > 0 && successCount === 0) {
-      toast.error(`All ${errorCount} extractions failed. Some transcripts may have empty text — try re-uploading them.`);
-    } else if (errorCount > 0) {
-      toast.warning(`${successCount} extracted, ${errorCount} failed (possibly empty text).`);
-    } else {
-      toast.success(`All ${successCount} transcripts extracted successfully.`);
+    setExtractionSummary({ open: true, results, totalCount: transcripts.length, successCount, errorCount });
+  };
+
+  // Also show summary for single extraction
+  const handleSingleExtractWithSummary = async (transcriptId: string) => {
+    try {
+      const transcript = transcripts.find(t => t.id === transcriptId);
+      const data = await extractTranscriptMutation.mutateAsync({ transcriptId });
+      setExtractionSummary({
+        open: true,
+        results: [{ fileName: transcript?.file_name || 'Transcript', insights: data?.insights?.buyer }],
+        totalCount: 1,
+        successCount: 1,
+        errorCount: 0,
+      });
+    } catch (e: any) {
+      const transcript = transcripts.find(t => t.id === transcriptId);
+      setExtractionSummary({
+        open: true,
+        results: [{ fileName: transcript?.file_name || 'Transcript', error: e?.message || 'Failed' }],
+        totalCount: 1,
+        successCount: 0,
+        errorCount: 1,
+      });
     }
   };
 
@@ -693,7 +721,7 @@ const ReMarketingBuyerDetail = () => {
             onAddTranscript={(text, source, fileName, fileUrl, triggerExtract) =>
               addTranscriptMutation.mutateAsync({ text, source, fileName, fileUrl, triggerExtract })
             }
-            onExtract={(transcriptId) => extractTranscriptMutation.mutate({ transcriptId })}
+            onExtract={(transcriptId) => handleSingleExtractWithSummary(transcriptId)}
             onExtractAll={handleExtractAll}
             onDelete={(transcriptId) => {
               if (confirm('Delete this transcript?')) {
@@ -1055,6 +1083,15 @@ const ReMarketingBuyerDetail = () => {
           updateBuyerMutation.mutate(data);
         }}
         isSaving={updateBuyerMutation.isPending}
+      />
+
+      <ExtractionSummaryDialog
+        open={extractionSummary.open}
+        onOpenChange={(open) => setExtractionSummary(prev => ({ ...prev, open }))}
+        results={extractionSummary.results}
+        totalCount={extractionSummary.totalCount}
+        successCount={extractionSummary.successCount}
+        errorCount={extractionSummary.errorCount}
       />
     </div>
   );
