@@ -509,9 +509,9 @@ serve(async (req) => {
 
         // Map buyer_criteria fields to buyer record
         if (insights.buyer_criteria) {
-          // Map service targets to target_industries
+          // Map service targets to target_services (NOT target_industries — that's a different field)
           if (insights.buyer_criteria.service_criteria?.target_services?.length) {
-            buyerUpdates.target_industries = insights.buyer_criteria.service_criteria.target_services;
+            buyerUpdates.target_services = insights.buyer_criteria.service_criteria.target_services;
           }
 
           // Map geography targets

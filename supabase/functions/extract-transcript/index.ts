@@ -706,7 +706,11 @@ async function updateBuyerFromTranscript(
   }
 
   // Platform company operational details
-  if (insights.services_offered) {
+  // Only write services_offered if non-empty — prevent empty arrays from clearing transcript data
+  if (insights.services_offered && (
+    (Array.isArray(insights.services_offered) && insights.services_offered.length > 0) ||
+    (!Array.isArray(insights.services_offered) && String(insights.services_offered).trim().length > 0)
+  )) {
     updates.services_offered = Array.isArray(insights.services_offered)
       ? insights.services_offered.join(', ')
       : String(insights.services_offered);
