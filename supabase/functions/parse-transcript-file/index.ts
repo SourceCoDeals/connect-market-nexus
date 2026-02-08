@@ -1,17 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { ANTHROPIC_API_URL, getAnthropicHeaders, DEFAULT_CLAUDE_MODEL, DEFAULT_CLAUDE_FAST_MODEL } from "../_shared/ai-providers.ts";
+import { GEMINI_API_BASE } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Claude 3.5 Haiku max output = 8192 tokens (~6K chars).
-// For documents larger than this threshold, we use Sonnet which supports 64K+ output.
-const LARGE_DOCUMENT_THRESHOLD_BYTES = 50_000; // ~50KB → likely multi-page transcript
-const HAIKU_MAX_TOKENS = 8192;
-const SONNET_MAX_TOKENS = 64000; // Sonnet 4 max output limit
+// Use Gemini Flash for PDF text extraction — fast, cheap, high output limits
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,46 +46,41 @@ serve(async (req) => {
         mimeType = 'application/msword';
       }
       
-      // Use Sonnet for large documents to avoid Haiku's 8K token output limit
-      const isLargeDoc = arrayBuffer.byteLength > LARGE_DOCUMENT_THRESHOLD_BYTES;
-      const model = isLargeDoc ? DEFAULT_CLAUDE_MODEL : DEFAULT_CLAUDE_FAST_MODEL;
-      const maxTokens = isLargeDoc ? SONNET_MAX_TOKENS : HAIKU_MAX_TOKENS;
+      console.log(`Document file, size: ${arrayBuffer.byteLength} bytes, mime: ${mimeType}, model: ${GEMINI_MODEL}`);
       
-      console.log(`Document file, size: ${arrayBuffer.byteLength} bytes, mime: ${mimeType}, model: ${model}, maxTokens: ${maxTokens}`);
-      
-      const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-      if (!anthropicApiKey) {
-        throw new Error('ANTHROPIC_API_KEY not configured');
+      const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+      if (!geminiApiKey) {
+        throw new Error('GEMINI_API_KEY not configured');
       }
 
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+      const geminiUrl = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`;
+
       const makeRequest = () =>
-        fetch(ANTHROPIC_API_URL, {
+        fetch(geminiUrl, {
           method: 'POST',
-          headers: getAnthropicHeaders(anthropicApiKey),
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model,
-            max_tokens: maxTokens,
-            messages: [
+            contents: [
               {
-                role: 'user',
-                content: [
+                parts: [
                   {
-                    type: 'document',
-                    source: {
-                      type: 'base64',
-                      media_type: mimeType,
+                    inline_data: {
+                      mime_type: mimeType,
                       data: base64Content,
                     },
                   },
                   {
-                    type: 'text',
-                    text: 'Extract ALL text content from this document verbatim. This is a meeting transcript — preserve every speaker label, timestamp, and spoken word exactly as written. Return ONLY the extracted text with no commentary, no summaries, no omissions. Include every single page.',
+                    text: 'Extract ALL text content from this document verbatim. This is a meeting transcript — preserve every speaker label, timestamp, and spoken word exactly as written. Return ONLY the extracted text with no commentary, no summaries, no omissions. Include every single page from start to finish.',
                   },
                 ],
               },
             ],
+            generationConfig: {
+              maxOutputTokens: 65536,
+              temperature: 0,
+            },
           }),
         });
 
@@ -100,7 +92,7 @@ serve(async (req) => {
         if (aiResponse.ok) break;
 
         lastErrorText = await aiResponse.text();
-        console.error(`Claude API error (attempt ${attempt + 1}/5):`, lastErrorText);
+        console.error(`Gemini API error (attempt ${attempt + 1}/5):`, lastErrorText);
 
         if (aiResponse.status === 429 && attempt < 4) {
           const delayMs = 2000 * Math.pow(2, attempt);
@@ -129,55 +121,17 @@ serve(async (req) => {
       }
 
       const aiData = await aiResponse.json();
-      extractedText = aiData.content?.[0]?.text || '';
       
-      // Detect truncation: if stop_reason is 'max_tokens', the output was cut off
-      const stopReason = aiData.stop_reason;
-      if (stopReason === 'max_tokens') {
-        console.warn(`[TRUNCATION WARNING] Document output was truncated at ${maxTokens} tokens. File: ${file.name}, size: ${arrayBuffer.byteLength} bytes`);
-        // If Haiku truncated, retry with Sonnet
-        if (model === DEFAULT_CLAUDE_FAST_MODEL) {
-          console.log(`Retrying with Sonnet for full extraction...`);
-          const retryResponse = await fetch(ANTHROPIC_API_URL, {
-            method: 'POST',
-            headers: getAnthropicHeaders(anthropicApiKey),
-            body: JSON.stringify({
-              model: DEFAULT_CLAUDE_MODEL,
-              max_tokens: SONNET_MAX_TOKENS,
-              messages: [
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'document',
-                      source: {
-                        type: 'base64',
-                        media_type: mimeType,
-                        data: base64Content,
-                      },
-                    },
-                    {
-                      type: 'text',
-                      text: 'Extract ALL text content from this document verbatim. This is a meeting transcript — preserve every speaker label, timestamp, and spoken word exactly as written. Return ONLY the extracted text with no commentary, no summaries, no omissions. Include every single page.',
-                    },
-                  ],
-                },
-              ],
-            }),
-          });
-          
-          if (retryResponse.ok) {
-            const retryData = await retryResponse.json();
-            const retryText = retryData.content?.[0]?.text || '';
-            if (retryText.length > extractedText.length) {
-              extractedText = retryText;
-              console.log(`Sonnet retry successful, new length: ${extractedText.length}`);
-            }
-          }
-        }
+      // Extract text from Gemini native response format
+      extractedText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      
+      // Check for truncation
+      const finishReason = aiData.candidates?.[0]?.finishReason;
+      if (finishReason === 'MAX_TOKENS') {
+        console.warn(`[TRUNCATION WARNING] Output was truncated for ${file.name}`);
       }
       
-      console.log(`Document text extracted via Claude ${model}, length: ${extractedText.length}, stop_reason: ${stopReason}`);
+      console.log(`Document text extracted via Gemini Flash, length: ${extractedText.length}, finishReason: ${finishReason}`);
     }
     else {
       return new Response(
