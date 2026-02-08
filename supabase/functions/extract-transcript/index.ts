@@ -171,7 +171,20 @@ serve(async (req) => {
 
     if ((entity_type === 'buyer' || entity_type === 'both') && buyerIdToUpdate) {
       console.log(`[TranscriptExtraction] Extracting buyer insights for ${buyerIdToUpdate}`);
-      const buyerInsights = await extractBuyerInsights(transcriptTextToProcess, ANTHROPIC_API_KEY);
+      
+      // Fetch buyer context so the prompt can distinguish platform vs PE firm
+      const { data: buyerContext } = await supabase
+        .from('remarketing_buyers')
+        .select('company_name, pe_firm_name')
+        .eq('id', buyerIdToUpdate)
+        .single();
+      
+      const buyerInsights = await extractBuyerInsights(
+        transcriptTextToProcess,
+        ANTHROPIC_API_KEY,
+        buyerContext?.company_name || undefined,
+        buyerContext?.pe_firm_name || undefined
+      );
       insights.buyer = buyerInsights;
 
       // Update buyer with extracted data
@@ -416,8 +429,23 @@ RULES:
 // BUYER THESIS EXTRACTION (Spec Section 3: Generic Transcript — Buyer Thesis)
 // ============================================================================
 
-async function extractBuyerInsights(transcriptText: string, apiKey: string): Promise<BuyerInsights> {
+async function extractBuyerInsights(
+  transcriptText: string,
+  apiKey: string,
+  platformCompanyName?: string,
+  peFirmName?: string
+): Promise<BuyerInsights> {
+  const companyContext = platformCompanyName
+    ? `\n\nIMPORTANT CONTEXT:
+- The PLATFORM COMPANY (operating company) is: "${platformCompanyName}"
+- The PE FIRM SPONSOR is: "${peFirmName || 'unknown'}"
+- ALL operational fields (business_summary, services_offered, operating_locations, geographic_footprint) MUST describe "${platformCompanyName}", NOT "${peFirmName || 'the PE firm'}".
+- The thesis_summary should describe what "${platformCompanyName}" is looking for in acquisitions.
+- Do NOT put the PE firm's HQ, description, or investment thesis into platform company fields.`
+    : '';
+
   const systemPrompt = `You are an M&A analyst extracting the PLATFORM COMPANY'S acquisition thesis from a call transcript. You must distinguish between the platform company's operating perspective and the PE firm sponsor's investment perspective. The platform company's actual operational needs and stated criteria take precedence.
+${companyContext}
 
 CRITICAL RULES — READ CAREFULLY:
 
@@ -430,7 +458,7 @@ CRITICAL RULES — READ CAREFULLY:
    - What "comparable platforms" usually look for
    - Your own assessment of what would be logical for them to want
 
-3. PLATFORM vs PE FIRM: The PE firm sponsor is incidental context. "Apex Capital partners with Apex Restoration to pursue add-ons" — focus on Apex Restoration's criteria, not Apex Capital's general investment thesis.
+3. PLATFORM vs PE FIRM: The PE firm sponsor is incidental context. Focus on the platform company's criteria, operations, and locations — NOT the PE firm's HQ or general investment strategy.
 
 4. INSUFFICIENT DATA IS A VALID ANSWER: If the transcript doesn't contain enough information to construct a meaningful thesis, set thesis_confidence to "insufficient" and explain what's missing in missing_information. This is BETTER than fabricating a thesis.
 
@@ -438,7 +466,9 @@ CRITICAL RULES — READ CAREFULLY:
 
 6. NUMBERS AS RAW INTEGERS: All dollar amounts as raw numbers. "$7.5M" = 7500000.
 
-7. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."`;
+7. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."
+
+8. OPERATING LOCATIONS & GEOGRAPHIC FOOTPRINT: These fields describe where the PLATFORM COMPANY physically operates — NOT where the PE firm is headquartered. If the platform's locations aren't mentioned, leave these empty rather than using the PE firm's location.`;
 
   const tool = {
     type: "function",
