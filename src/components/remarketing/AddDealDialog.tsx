@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -35,6 +36,7 @@ export const AddDealDialog = ({
   onDealCreated,
 }: AddDealDialogProps) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transcriptFilesRef = useRef<File[]>([]);
   const [formData, setFormData] = useState({
@@ -186,11 +188,12 @@ export const AddDealDialog = ({
       const filesToUpload = [...transcriptFilesRef.current];
       const linkToSave = formData.transcriptLink;
 
-      // Close dialog immediately
+      // Close dialog and navigate to new deal
       setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
       updateFiles([]);
       onDealCreated?.();
       onOpenChange(false);
+      navigate(`/admin/remarketing/deals/${listing.id}`);
 
       // Fire background uploads (non-blocking)
       if (userId && (filesToUpload.length > 0 || linkToSave)) {
