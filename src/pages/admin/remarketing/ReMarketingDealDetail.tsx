@@ -225,29 +225,56 @@ const ReMarketingDealDetail = () => {
 
   const dataCompleteness = calculateDataCompleteness();
 
-  // Handle website enrichment
+  // Handle website enrichment with progress tracking
+  const [enrichmentProgress, setEnrichmentProgress] = useState(0);
+  const [enrichmentStage, setEnrichmentStage] = useState('');
+
   const handleEnrichFromWebsite = async () => {
     if (!deal) return;
     
     setIsEnriching(true);
+    setEnrichmentProgress(10);
+    setEnrichmentStage('Scraping website...');
+
+    // Simulate progress stages while waiting for the edge function
+    const progressTimer = setInterval(() => {
+      setEnrichmentProgress(prev => {
+        if (prev >= 85) { clearInterval(progressTimer); return 85; }
+        if (prev < 30) { setEnrichmentStage('Scraping website...'); return prev + 3; }
+        if (prev < 55) { setEnrichmentStage('Extracting business intelligence...'); return prev + 2; }
+        if (prev < 75) { setEnrichmentStage('Processing company data...'); return prev + 1.5; }
+        setEnrichmentStage('Saving enriched data...');
+        return prev + 1;
+      });
+    }, 500);
+
     try {
       const { data, error } = await supabase.functions.invoke('enrich-deal', {
         body: { dealId }
       });
 
+      clearInterval(progressTimer);
+
       if (error) throw error;
 
       if (data?.success) {
+        setEnrichmentProgress(100);
+        setEnrichmentStage('Complete!');
         toast.success(`Enriched ${data.fieldsUpdated?.length || 0} fields from website`);
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+        // Reset after brief delay
+        setTimeout(() => { setIsEnriching(false); setEnrichmentProgress(0); setEnrichmentStage(''); }, 1500);
+        return;
       } else {
         toast.error(data?.error || "Failed to enrich from website");
       }
     } catch (error: any) {
+      clearInterval(progressTimer);
       toast.error(error.message || "Failed to enrich from website");
-    } finally {
-      setIsEnriching(false);
     }
+    setIsEnriching(false);
+    setEnrichmentProgress(0);
+    setEnrichmentStage('');
   };
 
   const formatCurrency = (value: number | null) => {
@@ -462,6 +489,18 @@ const ReMarketingDealDetail = () => {
               Buyer History
             </Button>
           </div>
+          {isEnriching && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {enrichmentStage}
+                </span>
+                <span className="text-muted-foreground font-medium">{Math.round(enrichmentProgress)}%</span>
+              </div>
+              <Progress value={enrichmentProgress} className="h-2" />
+            </div>
+          )}
         </CardContent>
       </Card>
 
