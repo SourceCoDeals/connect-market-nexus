@@ -520,13 +520,13 @@ OTHER CRITICAL RULES:
           deal_size_range: {
             type: "object",
             properties: {
-              revenue_min: { type: "number", description: "Minimum target revenue in raw dollars." },
-              revenue_max: { type: "number", description: "Maximum target revenue in raw dollars." },
-              ebitda_min: { type: "number", description: "Minimum target EBITDA in raw dollars." },
-              ebitda_max: { type: "number", description: "Maximum target EBITDA in raw dollars." },
-              notes: { type: "string", description: "Context on deal size preferences." }
+              revenue_min: { type: "number", description: "Minimum target revenue for ADD-ON acquisitions in raw dollars. NOT the PE firm's new platform criteria." },
+              revenue_max: { type: "number", description: "Maximum target revenue for ADD-ON acquisitions in raw dollars." },
+              ebitda_min: { type: "number", description: "Minimum target EBITDA for ADD-ON acquisitions in raw dollars." },
+              ebitda_max: { type: "number", description: "Maximum target EBITDA for ADD-ON acquisitions in raw dollars." },
+              notes: { type: "string", description: "Context on deal size preferences for add-ons." }
             },
-            description: "Only stated ranges. Do NOT infer from the platform's own size."
+            description: "Size criteria for ADD-ON acquisitions only. Do NOT use PE firm's general platform investment criteria. Do NOT infer from the platform's own financials. Only extract if explicitly discussed as what they're looking for in add-on targets."
           },
           acquisition_timeline: {
             type: "string",
@@ -695,6 +695,14 @@ async function updateBuyerFromTranscript(
   }
   if (insights.acquisition_timeline) {
     updates.acquisition_timeline = insights.acquisition_timeline;
+  }
+
+  // Deal structure — ONLY from transcripts, never websites
+  if (insights.deal_size_range) {
+    if (insights.deal_size_range.revenue_min) updates.target_revenue_min = insights.deal_size_range.revenue_min;
+    if (insights.deal_size_range.revenue_max) updates.target_revenue_max = insights.deal_size_range.revenue_max;
+    if (insights.deal_size_range.ebitda_min) updates.target_ebitda_min = insights.deal_size_range.ebitda_min;
+    if (insights.deal_size_range.ebitda_max) updates.target_ebitda_max = insights.deal_size_range.ebitda_max;
   }
 
   // Platform company operational details
