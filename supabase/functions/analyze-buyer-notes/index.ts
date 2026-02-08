@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, extractStatesFromText, mergeStates } from "../_shared/geography.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { validateFieldProvenance, isProtectedByTranscript, TRANSCRIPT_PROTECTED_FIELDS } from "../_shared/buyer-provenance.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -370,12 +371,31 @@ Extract the relevant information using the provided tool. Be comprehensive - ext
       key_quotes: 'key_quotes',
     };
 
+    // Track provenance violations for logging
+    const provenanceViolations: string[] = [];
+    const transcriptProtections: string[] = [];
+
     for (const [extractedKey, dbColumn] of Object.entries(fieldMapping)) {
       if (extracted[extractedKey] !== undefined && extracted[extractedKey] !== null) {
-        // Only update if current value is null/empty or new value is more complete
         const currentValue = buyer[dbColumn];
         const newValue = extracted[extractedKey];
 
+        // CHECK 1: Validate provenance (notes = manual source)
+        const validation = validateFieldProvenance(dbColumn, 'notes');
+        if (!validation.allowed) {
+          provenanceViolations.push(`${dbColumn}: ${validation.reason}`);
+          console.warn(`[PROVENANCE_BLOCK] ${validation.reason}`);
+          continue;
+        }
+
+        // CHECK 2: Protect transcript-sourced fields
+        if (isProtectedByTranscript(dbColumn, buyer, currentValue)) {
+          transcriptProtections.push(dbColumn);
+          console.warn(`[TRANSCRIPT_PROTECTED] Skipping ${dbColumn} - protected by transcript source (current value: ${JSON.stringify(currentValue).substring(0, 100)})`);
+          continue;
+        }
+
+        // CHECK 3: Only update if current value is null/empty or new value is more complete
         if (!currentValue ||
             (Array.isArray(newValue) && newValue.length > 0) ||
             (typeof newValue === 'string' && newValue.length > 0) ||
@@ -384,6 +404,14 @@ Extract the relevant information using the provided tool. Be comprehensive - ext
           updates[dbColumn] = newValue;
         }
       }
+    }
+
+    // Log protection summary
+    if (provenanceViolations.length > 0) {
+      console.log(`[PROVENANCE_SUMMARY] Blocked ${provenanceViolations.length} provenance violations:`, provenanceViolations);
+    }
+    if (transcriptProtections.length > 0) {
+      console.log(`[TRANSCRIPT_PROTECTION_SUMMARY] Protected ${transcriptProtections.length} transcript-sourced fields from notes overwrite:`, transcriptProtections);
     }
 
     // Handle contact information separately (store in buyer_contacts table if provided)
@@ -420,12 +448,51 @@ Extract the relevant information using the provided tool. Be comprehensive - ext
 
     // Add timestamp
     updates.notes_analyzed_at = new Date().toISOString();
+
+    // ATOMIC ENRICHMENT LOCK: Check if enrichment is in progress (60-second window)
+    const ENRICHMENT_LOCK_SECONDS = 60;
+    const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
+
+    const { data: lockCheck } = await supabase
+      .from('remarketing_buyers')
+      .select('data_last_updated, id')
+      .eq('id', buyerId)
+      .single();
+
+    if (lockCheck?.data_last_updated && lockCheck.data_last_updated > lockCutoff) {
+      console.warn(`[LOCK_CONFLICT] Cannot analyze notes - buyer ${buyerId} enrichment in progress`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Cannot analyze notes - buyer enrichment is currently in progress. Please wait 60 seconds and try again.',
+        statusCode: 429,
+        retry_after: 60
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' }
+      });
+    }
+
+    // Atomic update with lock acquisition
     updates.data_last_updated = new Date().toISOString();
 
-    const { error: updateError } = await supabase
+    const { count: lockAcquired, error: updateError } = await supabase
       .from('remarketing_buyers')
       .update(updates)
-      .eq('id', buyerId);
+      .eq('id', buyerId)
+      .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
+      .select('*', { count: 'exact', head: true });
+
+    if (!lockAcquired || lockAcquired === 0) {
+      console.warn(`[LOCK_ACQUISITION_FAILED] Another process acquired lock for buyer ${buyerId}`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Lock acquisition failed - another process is updating this buyer. Please retry in a moment.',
+        statusCode: 409
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (updateError) {
       console.error('Update error:', updateError);

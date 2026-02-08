@@ -191,7 +191,24 @@ Extract 6-10 key quotes. Rules:
 Now analyze the transcript below and return a JSON object with all fields above.
 
 TRANSCRIPT:
-${transcriptText.slice(0, 50000)}`;
+${(() => {
+  // Use 90% of Claude's 200k char capacity (leaving room for prompts and response)
+  const MAX_CHARS = 180000;
+  const transcriptLength = transcriptText.length;
+
+  if (transcriptLength <= MAX_CHARS) {
+    return transcriptText;
+  }
+
+  // Strategy: Keep first 60% + last 40% (prioritize opening and closing)
+  // Opening often has intro/overview, closing has next steps and criteria recap
+  const firstPart = transcriptText.slice(0, Math.floor(MAX_CHARS * 0.6));
+  const lastPart = transcriptText.slice(-Math.floor(MAX_CHARS * 0.4));
+
+  console.warn(`[TRUNCATION] Transcript was ${transcriptLength} chars (${Math.round(transcriptLength/1000)}k). Truncated to ${MAX_CHARS} chars (${Math.round(MAX_CHARS/1000)}k). Kept first 60% + last 40%. Consider chunked processing for full extraction.`);
+
+  return firstPart + '\n\n[... MIDDLE SECTION TRUNCATED - ' + (transcriptLength - MAX_CHARS) + ' CHARACTERS OMITTED ...]\n\n' + lastPart;
+})()}`;
 
   const tools = [{
     name: "extract_buyer_insights",
@@ -569,12 +586,73 @@ serve(async (req) => {
               confidence: insights.overall_confidence
             }
           ];
+
+          // ATOMIC ENRICHMENT LOCK: Check if enrichment is in progress (60-second window)
+          const ENRICHMENT_LOCK_SECONDS = 60;
+          const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
+
+          const { data: lockCheck } = await supabase
+            .from('remarketing_buyers')
+            .select('data_last_updated, id')
+            .eq('id', buyer_id)
+            .single();
+
+          if (lockCheck?.data_last_updated && lockCheck.data_last_updated > lockCutoff) {
+            console.warn(`[LOCK_CONFLICT] Cannot update buyer ${buyer_id} - enrichment in progress. Marking transcript as completed but buyer not updated.`);
+
+            // Mark transcript as completed with warning
+            await supabase
+              .from('buyer_transcripts')
+              .update({
+                extraction_status: 'completed_with_warnings',
+                extraction_error: 'Buyer enrichment was in progress - transcript extracted but buyer record not updated. Re-run extraction when enrichment completes.',
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', transcriptRecord.id);
+
+            throw new Error('Lock conflict: Buyer enrichment in progress. Please retry extraction in 60 seconds.');
+          }
+
+          // Atomic update with lock acquisition
           buyerUpdates.data_last_updated = new Date().toISOString();
 
-          await supabase
+          const { count: lockAcquired, error: updateError } = await supabase
             .from('remarketing_buyers')
             .update(buyerUpdates)
-            .eq('id', buyer_id);
+            .eq('id', buyer_id)
+            .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
+            .select('*', { count: 'exact', head: true });
+
+          if (updateError) {
+            console.error(`[DB_WRITE_FAILED] Failed to update buyer ${buyer_id}:`, updateError);
+
+            // Mark transcript as partially successful
+            await supabase
+              .from('buyer_transcripts')
+              .update({
+                extraction_status: 'completed_with_errors',
+                extraction_error: `Insights extracted but buyer update failed: ${updateError.message}`,
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', transcriptRecord.id);
+
+            throw new Error(`Database update failed: ${updateError.message}`);
+          }
+
+          if (!lockAcquired || lockAcquired === 0) {
+            console.warn(`[LOCK_ACQUISITION_FAILED] Another process acquired lock for buyer ${buyer_id}`);
+
+            await supabase
+              .from('buyer_transcripts')
+              .update({
+                extraction_status: 'completed_with_warnings',
+                extraction_error: 'Lock acquisition failed - another process updated buyer. Transcript extracted successfully.',
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', transcriptRecord.id);
+
+            throw new Error('Lock acquisition failed - another process is updating this buyer');
+          }
 
           console.log(`[BUYER_UPDATED] Applied ${Object.keys(buyerUpdates).length} fields to buyer ${buyer_id}. Confidence: ${insights.overall_confidence}. Fields: ${Object.keys(buyerUpdates).filter(k => k !== 'extraction_sources' && k !== 'data_last_updated').join(', ')}`);
         }
