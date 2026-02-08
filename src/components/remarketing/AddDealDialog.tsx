@@ -363,8 +363,8 @@ export const AddDealDialog = ({
               />
             </div>
 
-            <ScrollArea className="flex-1 max-h-[50vh]">
-              <div className="space-y-2 pr-4">
+            <div className="flex-1 max-h-[50vh] overflow-y-auto border rounded-md">
+              <div className="space-y-2 p-2">
                 {searchLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
@@ -453,8 +453,15 @@ export const AddDealDialog = ({
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
                 )}
+                {hasNextPage && !isFetchingNextPage && marketplaceListings.length > 0 && (
+                  <div className="flex justify-center py-2">
+                    <Button variant="ghost" size="sm" onClick={() => fetchNextPage()}>
+                      Load more listings...
+                    </Button>
+                  </div>
+                )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           {/* Create New Tab */}
