@@ -1,0 +1,1 @@
+ALTER TABLE public.trigger_logs ADD COLUMN IF NOT EXISTS success boolean DEFAULT true;

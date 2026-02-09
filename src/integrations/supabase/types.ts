@@ -7168,6 +7168,7 @@ export type Database = {
           id: string
           metadata: Json | null
           status: string
+          success: boolean | null
           trigger_name: string
           user_email: string | null
           user_id: string | null
@@ -7178,6 +7179,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           status?: string
+          success?: boolean | null
           trigger_name: string
           user_email?: string | null
           user_id?: string | null
@@ -7188,6 +7190,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           status?: string
+          success?: boolean | null
           trigger_name?: string
           user_email?: string | null
           user_id?: string | null
