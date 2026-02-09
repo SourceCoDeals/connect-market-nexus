@@ -1,40 +1,38 @@
 
-# Fix: Signup "Database error saving new user" 
 
-## Root Cause
+# Fix: Missing `details` column in `trigger_logs` (the REAL remaining blocker)
 
-The signup process fails with a **500 error** because the `handle_new_user` database trigger references a column called `success` in the `trigger_logs` table, but that column does not exist. The actual column is named `status` (text type).
+## What happened
 
-When a new user signs up, Supabase calls the `handle_new_user` trigger to create a profile. At the end of that trigger (and in its error handler), it tries to log the result:
+Our previous fix added the `success` column, but the `handle_new_user` trigger also references a **`details`** column (jsonb) that doesn't exist in `trigger_logs`. The latest error logs confirm:
 
-```sql
--- Line that fails:
-INSERT INTO public.trigger_logs (trigger_name, user_id, success, details) ...
+```
+ERROR: column "details" of relation "trigger_logs" does not exist
 ```
 
-Since `success` doesn't exist, the INSERT fails, which aborts the entire transaction -- including the profile creation AND the auth user creation. This is why signup is completely broken.
+Both the success path (line 405) and the error handler (line 416) of the trigger INSERT into `details`, so signups are still completely blocked.
 
 ## The Fix
 
-Run a SQL migration to add the missing `success` column to the `trigger_logs` table. This is a single-line database change:
+Run a single SQL migration to add the missing column:
 
 ```sql
-ALTER TABLE public.trigger_logs ADD COLUMN success boolean DEFAULT true;
+ALTER TABLE public.trigger_logs ADD COLUMN IF NOT EXISTS details jsonb;
 ```
-
-This will:
-1. Add the `success` column the trigger expects
-2. Allow the trigger to log its results without error
-3. Unblock all signups immediately
-
-## Important Notes
-
-- **No code changes are needed** -- the frontend signup code is correct. The issue is entirely in the database schema.
-- This fix needs to be applied to the **Live** database as well (since signups are happening on production). You can do this from Cloud View > Run SQL with "Live" selected.
-- Existing rows in `trigger_logs` will get `success = true` as a default, which is harmless since those rows use the `status` text column.
 
 ## Steps
 
-1. Run the `ALTER TABLE` migration to add the `success` column
-2. Verify signup works by testing end-to-end
-3. Publish and apply the same migration to the Live database
+1. Run the migration above to add the `details` jsonb column to `trigger_logs`
+2. After publishing, run the same SQL on the **Live** database (or simply publish, which pushes migrations automatically)
+3. Test signup end-to-end with adambhaile00@gmail.com or a new email
+
+## Technical Details
+
+The `handle_new_user` trigger function has two INSERT statements into `trigger_logs`:
+- **Success log** (line 405): `INSERT INTO public.trigger_logs (trigger_name, user_id, success, details) VALUES (...)`
+- **Error log** (line 416): `INSERT INTO public.trigger_logs (trigger_name, user_id, success, error_message, details) VALUES (...)`
+
+Both use the `details` column to store a jsonb object with diagnostic info (email, buyer_type, etc.). Without this column, the INSERT fails, which aborts the entire signup transaction.
+
+The current `trigger_logs` columns are: `id`, `trigger_name`, `user_id`, `user_email`, `status`, `error_message`, `metadata`, `created_at`, `success`. The `details` column is simply missing.
+
