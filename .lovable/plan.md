@@ -1,27 +1,40 @@
 
+# Fix: Signup "Database error saving new user" 
 
-# Editable Company Name on Deal Detail Page
+## Root Cause
 
-## What Changes
-The company name (the big heading) on the deal detail page will become editable inline. Clicking a pencil icon next to it will let you type the real company name, which saves to the `internal_company_name` field in the database.
+The signup process fails with a **500 error** because the `handle_new_user` database trigger references a column called `success` in the `trigger_logs` table, but that column does not exist. The actual column is named `status` (text type).
 
-## How It Works
-- A small pencil icon appears next to the company name heading
-- Clicking it turns the name into a text input pre-filled with the current name
-- You can type the real company name and press Enter or click a checkmark to save
-- Press Escape or click away to cancel
-- The update saves to `internal_company_name` on the `listings` table
-- If the deal came from the marketplace with an anonymous title, the "Listed as:" subtitle continues showing the original anonymous name
+When a new user signs up, Supabase calls the `handle_new_user` trigger to create a profile. At the end of that trigger (and in its error handler), it tries to log the result:
 
-## Technical Details
+```sql
+-- Line that fails:
+INSERT INTO public.trigger_logs (trigger_name, user_id, success, details) ...
+```
 
-**File: `src/pages/admin/remarketing/ReMarketingDealDetail.tsx`**
+Since `success` doesn't exist, the INSERT fails, which aborts the entire transaction -- including the profile creation AND the auth user creation. This is why signup is completely broken.
 
-1. Add local state for inline editing: `isEditingName`, `editedName`
-2. Replace the static `<h1>` at line 365 with a conditional render:
-   - **View mode**: Show current `displayName` with a `Pencil` icon button beside it
-   - **Edit mode**: Show an `<Input>` with the current name, plus Save (check) and Cancel (X) icon buttons
-3. On save, call `supabase.from('listings').update({ internal_company_name: editedName }).eq('id', dealId)` and invalidate the query cache
-4. Update `displayName` logic: after saving, the new `internal_company_name` takes priority over the anonymous `title`
+## The Fix
 
-No new components or dependencies needed -- reuses existing `Input`, `Button`, `Pencil`/`Check`/`X` icons already imported in the file.
+Run a SQL migration to add the missing `success` column to the `trigger_logs` table. This is a single-line database change:
+
+```sql
+ALTER TABLE public.trigger_logs ADD COLUMN success boolean DEFAULT true;
+```
+
+This will:
+1. Add the `success` column the trigger expects
+2. Allow the trigger to log its results without error
+3. Unblock all signups immediately
+
+## Important Notes
+
+- **No code changes are needed** -- the frontend signup code is correct. The issue is entirely in the database schema.
+- This fix needs to be applied to the **Live** database as well (since signups are happening on production). You can do this from Cloud View > Run SQL with "Live" selected.
+- Existing rows in `trigger_logs` will get `success = true` as a default, which is harmless since those rows use the `status` text column.
+
+## Steps
+
+1. Run the `ALTER TABLE` migration to add the `success` column
+2. Verify signup works by testing end-to-end
+3. Publish and apply the same migration to the Live database
