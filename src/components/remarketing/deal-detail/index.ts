@@ -10,3 +10,4 @@ export { AdditionalInfoCard } from './AdditionalInfoCard';
 export { KeyQuotesCard } from './KeyQuotesCard';
 export { UniverseAssignmentButton } from './UniverseAssignmentButton';
 export { BuyerHistoryDialog } from './BuyerHistoryDialog';
+export { EditFinancialsDialog } from './EditFinancialsDialog';
