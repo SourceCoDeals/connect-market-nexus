@@ -57,6 +57,7 @@ import {
   KeyQuotesCard,
   UniverseAssignmentButton,
   BuyerHistoryDialog,
+  EditFinancialsDialog,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -69,6 +70,7 @@ const ReMarketingDealDetail = () => {
   const [isEnriching, setIsEnriching] = useState(false);
   const [isAnalyzingNotes, setIsAnalyzingNotes] = useState(false);
   const [buyerHistoryOpen, setBuyerHistoryOpen] = useState(false);
+  const [editFinancialsOpen, setEditFinancialsOpen] = useState(false);
 
   // Fetch deal/listing data
   const { data: deal, isLoading: dealLoading } = useQuery({
@@ -660,7 +662,7 @@ const ReMarketingDealDetail = () => {
               <DollarSign className="h-5 w-5" />
               Financial Overview
             </CardTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditFinancialsOpen(true)}>
               <Pencil className="h-4 w-4" />
             </Button>
           </div>
@@ -780,6 +782,22 @@ const ReMarketingDealDetail = () => {
           </div>
         </CardContent>
       </Card>
+
+      <EditFinancialsDialog
+        open={editFinancialsOpen}
+        onOpenChange={setEditFinancialsOpen}
+        data={{
+          revenue: deal.revenue,
+          ebitda: deal.ebitda,
+          revenue_confidence: deal.revenue_confidence,
+          ebitda_confidence: deal.ebitda_confidence,
+        }}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync(data);
+          setEditFinancialsOpen(false);
+        }}
+        isSaving={updateDealMutation.isPending}
+      />
 
 
       {/* Executive Summary */}
