@@ -7164,6 +7164,7 @@ export type Database = {
       trigger_logs: {
         Row: {
           created_at: string | null
+          details: Json | null
           error_message: string | null
           id: string
           metadata: Json | null
@@ -7175,6 +7176,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          details?: Json | null
           error_message?: string | null
           id?: string
           metadata?: Json | null
@@ -7186,6 +7188,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          details?: Json | null
           error_message?: string | null
           id?: string
           metadata?: Json | null
