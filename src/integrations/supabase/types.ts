@@ -5760,6 +5760,7 @@ export type Database = {
           referral_source_detail: string | null
           revenue_range_max: string | null
           revenue_range_min: string | null
+          role: string | null
           search_stage: string | null
           search_type: string | null
           specific_business_search: string | null
@@ -5849,6 +5850,7 @@ export type Database = {
           referral_source_detail?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
+          role?: string | null
           search_stage?: string | null
           search_type?: string | null
           specific_business_search?: string | null
@@ -5938,6 +5940,7 @@ export type Database = {
           referral_source_detail?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
+          role?: string | null
           search_stage?: string | null
           search_type?: string | null
           specific_business_search?: string | null
