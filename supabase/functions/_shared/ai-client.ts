@@ -84,8 +84,19 @@ async function sleep(ms: number): Promise<void> {
 }
 
 function isRetryableError(status: number): boolean {
-  // Retry on: rate limit (429), server errors (5xx), network errors
-  return status === 429 || status >= 500;
+  // Retry on: rate limit (429), Anthropic overload (529), server errors (5xx)
+  return status === 429 || status === 529 || status >= 500;
+}
+
+/**
+ * Parse Retry-After header into milliseconds.
+ */
+function parseRetryAfterHeader(response: Response): number | null {
+  const header = response.headers.get('retry-after');
+  if (!header) return null;
+  const seconds = parseInt(header, 10);
+  if (!isNaN(seconds)) return seconds * 1000;
+  return null;
 }
 
 // ============= GEMINI CLIENT =============
@@ -486,9 +497,13 @@ export async function callAI(options: AICallOptions): Promise<AICallResult> {
     // Don't retry on last attempt
     if (attempt < retryAttempts) {
       retryCount++;
-      const delay = retryDelayMs * Math.pow(2, attempt); // Exponential backoff
-      console.warn(`AI call failed (attempt ${attempt + 1}/${retryAttempts + 1}), retrying in ${delay}ms...`);
-      await sleep(delay);
+      // For rate limits (429), use longer delays to let the limit window pass
+      const isRateLimit = result.error?.code?.includes('429') || result.error?.code === 'http_429';
+      const baseDelay = isRateLimit ? Math.max(retryDelayMs, 5000) : retryDelayMs;
+      const delay = baseDelay * Math.pow(2, attempt);
+      const jitter = Math.random() * 1000; // Add jitter to prevent thundering herd
+      console.warn(`AI call failed (attempt ${attempt + 1}/${retryAttempts + 1})${isRateLimit ? ' [rate limited]' : ''}, retrying in ${Math.round(delay + jitter)}ms...`);
+      await sleep(delay + jitter);
     }
   }
 

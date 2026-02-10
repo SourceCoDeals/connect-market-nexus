@@ -18,7 +18,7 @@ const AI_CONFIG = {
 
 const MIN_CONTENT_LENGTH = 200;
 const SCRAPE_TIMEOUT_MS = 15000;
-const AI_TIMEOUT_MS = 20000;
+const AI_TIMEOUT_MS = 45000; // Increased from 20s — callClaudeWithTool now auto-retries on 429
 
 // ============================================================================
 // DATA PROVENANCE: CANONICAL FIELD OWNERSHIP CONTRACT
@@ -355,15 +355,30 @@ async function callClaudeAI(
     if (response.status === 429) {
       // Retry with exponential backoff for Anthropic rate limits
       if (retryCount < CLAUDE_MAX_RETRIES) {
-        const retryDelay = CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
-        console.warn(`Claude rate limited, retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
-        await sleep(retryDelay);
+        // Respect Retry-After header if present
+        const retryAfter = response.headers.get('retry-after');
+        const retryDelay = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
+        const jitter = Math.random() * 1000;
+        console.warn(`Claude rate limited, waiting ${Math.round(retryDelay + jitter)}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
+        await sleep(retryDelay + jitter);
         return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
       }
       // After max retries, return the rate limit error
       return { data: null, error: { code: 'rate_limited', message: 'Rate limit exceeded after retries' } };
     }
-    
+
+    // Retry on server errors (500, 502, 503, 529 Anthropic overload)
+    if (response.status >= 500 || response.status === 529) {
+      if (retryCount < CLAUDE_MAX_RETRIES) {
+        const retryDelay = CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
+        console.warn(`Claude server error (${response.status}), retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
+        await sleep(retryDelay);
+        return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
+      }
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Claude call failed: ${response.status}`, errorText.substring(0, 500));
@@ -1004,7 +1019,7 @@ Deno.serve(async (req) => {
     // ATOMIC ENRICHMENT LOCK: Prevent concurrent enrichments via single UPDATE + WHERE clause
     // Skip lock when called from queue worker (queue already manages concurrency via status)
     if (!skipLock) {
-      const ENRICHMENT_LOCK_SECONDS = 60;
+      const ENRICHMENT_LOCK_SECONDS = 120; // Increased from 60s — AI calls now auto-retry on rate limits
       const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
 
       const { count: lockAcquired } = await supabase

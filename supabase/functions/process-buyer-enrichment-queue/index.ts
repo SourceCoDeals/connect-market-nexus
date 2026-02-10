@@ -7,12 +7,13 @@ const corsHeaders = {
 };
 
 // Configuration — conservative to avoid Claude rate limits
-// Each buyer makes 6-7 Claude API calls, so we process ONE at a time
+// Each buyer makes 4-5 Claude API calls, so we process ONE at a time.
+// Timeout is generous to accommodate automatic retry-on-429 in callClaudeWithTool.
 const BATCH_SIZE = 1;
 const MAX_ATTEMPTS = 3;
-const PROCESSING_TIMEOUT_MS = 120000; // 2 minutes per buyer
-const RATE_LIMIT_BACKOFF_MS = 90000; // 90s backoff on rate limit
-const STALE_PROCESSING_MINUTES = 3; // Recovery timeout for stuck items
+const PROCESSING_TIMEOUT_MS = 180000; // 3 minutes per buyer (increased from 2min to allow retries on 429)
+const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit (reduced — callClaudeWithTool now handles retries)
+const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items (increased from 3min to match longer timeout)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

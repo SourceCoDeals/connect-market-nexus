@@ -104,9 +104,14 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     // Edge Gateway routing requires the anon key in the `apikey` header.
-    // This is a *public* key, so we safely fall back to the known project anon key.
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ||
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    if (!supabaseAnonKey) {
+      console.error('SUPABASE_ANON_KEY is not set — internal function calls will fail');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: SUPABASE_ANON_KEY not set' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -1197,8 +1202,9 @@ For financial data, include confidence levels and source quotes where available.
         if (aiResponse.status === 429) {
           const retryAfter = aiResponse.headers.get('Retry-After');
           const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : AI_RETRY_DELAYS[attempt];
-          console.log(`AI rate limited (429), retrying in ${waitMs}ms (attempt ${attempt + 1}/${MAX_AI_RETRIES})`);
-          await new Promise(r => setTimeout(r, waitMs));
+          const jitter = Math.random() * 1000;
+          console.log(`AI rate limited (429), waiting ${Math.round(waitMs + jitter)}ms (attempt ${attempt + 1}/${MAX_AI_RETRIES})`);
+          await new Promise(r => setTimeout(r, waitMs + jitter));
           continue;
         }
 
@@ -1207,7 +1213,20 @@ For financial data, include confidence levels and source quotes where available.
           break;
         }
 
-        // Non-429 error - log and continue
+        // Server errors (500, 502, 503, 529) — retry with backoff
+        if (aiResponse.status >= 500 || aiResponse.status === 529) {
+          lastAiError = await aiResponse.text().catch(() => `HTTP ${aiResponse!.status}`);
+          if (attempt < MAX_AI_RETRIES - 1) {
+            const waitMs = AI_RETRY_DELAYS[attempt];
+            console.warn(`AI server error (${aiResponse.status}), retrying in ${waitMs}ms (attempt ${attempt + 1}/${MAX_AI_RETRIES})`);
+            await new Promise(r => setTimeout(r, waitMs));
+            continue;
+          }
+          console.error(`AI server error (${aiResponse.status}) after ${MAX_AI_RETRIES} attempts:`, lastAiError);
+          break;
+        }
+
+        // Non-retryable error - log and continue
         lastAiError = await aiResponse.text();
         console.error(`AI extraction error (attempt ${attempt + 1}):`, lastAiError);
         
