@@ -30,6 +30,8 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
+import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useAuth } from "@/context/AuthContext";
 
 interface BulkScoringPanelProps {
   listingId: string;
@@ -60,6 +62,8 @@ export const BulkScoringPanel = ({
   onScoringComplete,
   existingScoresCount
 }: BulkScoringPanelProps) => {
+  const { user } = useAuth();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
   const [isScoring, setIsScoring] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
@@ -77,10 +81,24 @@ export const BulkScoringPanel = ({
 
     setIsScoring(true);
     setProgress(5);
-    setProgressMessage("Initializing scoring engine...");
+    setProgressMessage("Checking activity queue...");
     setLastResult(null);
 
     try {
+      // Gate check: register as major operation
+      const { queued } = await startOrQueueMajorOp({
+        operationType: 'buyer_scoring',
+        totalItems: 0, // Will be determined by the edge function
+        description: `Score buyers for deal`,
+        userId: user?.id || 'unknown',
+      });
+      if (queued) {
+        setIsScoring(false);
+        setProgress(0);
+        setProgressMessage("");
+        return;
+      }
+
       // Simulate progress updates
       const progressInterval = setInterval(() => {
         setProgress(prev => {

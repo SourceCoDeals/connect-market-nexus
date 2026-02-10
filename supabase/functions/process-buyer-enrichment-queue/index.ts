@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -105,8 +106,19 @@ Deno.serve(async (req) => {
 
     if (!queueItems || queueItems.length === 0) {
       console.log('No pending buyer enrichment items in queue');
+      // All done — complete the global queue operation
+      await completeGlobalQueueOperation(supabase, 'buyer_enrichment');
       return new Response(
         JSON.stringify({ success: true, message: 'No pending items', processed: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if operation was paused by user
+    if (await isOperationPaused(supabase, 'buyer_enrichment')) {
+      console.log('Buyer enrichment paused by user — stopping');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Paused by user', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -199,6 +211,7 @@ Deno.serve(async (req) => {
 
         console.log(`Successfully enriched buyer ${item.buyer_id}: ${data.fieldsUpdated} fields`);
       }
+      await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
 
       return new Response(
         JSON.stringify({ success: true, processed: 1, succeeded: 1 }),
@@ -222,6 +235,11 @@ Deno.serve(async (req) => {
         .eq('id', item.id);
 
       console.error(`Failed to enrich buyer ${item.buyer_id}:`, errorMsg);
+      await updateGlobalQueueProgress(supabase, 'buyer_enrichment', {
+        failedDelta: 1,
+        errorEntry: { itemId: item.buyer_id, error: errorMsg },
+      });
+
       return new Response(
         JSON.stringify({ success: true, processed: 1, failed: 1, error: errorMsg }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
 
 interface GenerationStatus {
   id: string;
@@ -28,6 +29,7 @@ export function useBackgroundGuideGeneration({
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentGeneration, setCurrentGeneration] = useState<GenerationStatus | null>(null);
   const [progress, setProgress] = useState(0);
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
 
   const pollIntervalRef = useRef<number | null>(null);
   const hasCompletedRef = useRef(false);
@@ -81,6 +83,19 @@ export function useBackgroundGuideGeneration({
     hasCompletedRef.current = false;
 
     try {
+      // Gate check: register as major operation
+      const { data: sessionData } = await supabase.auth.getUser();
+      const { queued } = await startOrQueueMajorOp({
+        operationType: 'guide_generation',
+        totalItems: 14, // 14 phases
+        description: 'Generate M&A Guide',
+        userId: sessionData?.user?.id || 'unknown',
+      });
+      if (queued) {
+        setIsGenerating(false);
+        return;
+      }
+
       // Call the background generation endpoint using supabase functions invoke
       const { data, error } = await supabase.functions.invoke('generate-ma-guide-background', {
         body: { universe_id: universeId }

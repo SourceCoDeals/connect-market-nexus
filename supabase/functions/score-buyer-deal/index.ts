@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, ANTHROPIC_API_URL, getAnthropicHeaders, DEFAULT_CLAUDE_FAST_MODEL, callClaudeWithTool } from "../_shared/ai-providers.ts";
 import { calculateProximityScore, getProximityTier, normalizeStateCode } from "../_shared/geography-utils.ts";
+import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1820,6 +1821,12 @@ async function handleBulkScore(
   const errors: string[] = [];
 
   for (let i = 0; i < buyersToScore.length; i += batchSize) {
+    // Check if operation was paused by user
+    if (await isOperationPaused(supabase, 'buyer_scoring')) {
+      console.log('Scoring paused by user — stopping processing');
+      break;
+    }
+
     const batch = buyersToScore.slice(i, i + batchSize);
 
     const batchPromises = batch.map(async (buyer: any) => {
@@ -1880,6 +1887,16 @@ async function handleBulkScore(
       }
     }
 
+    // Report progress to global activity queue
+    const batchSucceeded = validScores.length;
+    const batchFailed = batch.length - batchResults.filter((s): s is NonNullable<typeof s> => s !== null).length;
+    if (batchSucceeded > 0) {
+      await updateGlobalQueueProgress(supabase, 'buyer_scoring', { completedDelta: batchSucceeded });
+    }
+    if (batchFailed > 0) {
+      await updateGlobalQueueProgress(supabase, 'buyer_scoring', { failedDelta: batchFailed });
+    }
+
     // Adaptive rate limit delay — increase for large runs to avoid API rate limits
     if (i + batchSize < buyersToScore.length) {
       const delay = buyersToScore.length > 100 ? 600 : buyersToScore.length > 50 ? 400 : 300;
@@ -1909,6 +1926,9 @@ async function handleBulkScore(
       dealDiagnostics.warnings.push(`All scores clustered in tight band (${minScore}-${maxScore}) — possible data issue`);
     }
   }
+
+  // Mark global activity queue operation as complete
+  await completeGlobalQueueOperation(supabase, 'buyer_scoring', errors.length > 0 ? 'failed' : 'completed');
 
   return new Response(
     JSON.stringify({

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
+import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -162,6 +163,12 @@ serve(async (req) => {
         break;
       }
 
+      // Check if operation was paused by user
+      if (await isOperationPaused(supabase, 'deal_enrichment')) {
+        console.log('Operation paused by user — stopping processing');
+        break;
+      }
+
       console.log(`Processing chunk of ${chunk.length} items in parallel...`);
 
       // Mark all items in chunk as processing (if not already claimed via RPC)
@@ -237,6 +244,7 @@ serve(async (req) => {
 
             console.log(`Successfully enriched listing ${item.listing_id}: ${pipeline.fieldsUpdated.length} fields`);
             results.succeeded++;
+            await updateGlobalQueueProgress(supabase, 'deal_enrichment', { completedDelta: 1 });
           } else {
             // Pipeline error
             const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
@@ -252,6 +260,10 @@ serve(async (req) => {
             console.error(`Enrichment failed for listing ${item.listing_id}: ${pipeline.error}`);
             results.failed++;
             results.errors.push(`${item.listing_id}: ${pipeline.error}`);
+            await updateGlobalQueueProgress(supabase, 'deal_enrichment', {
+              failedDelta: 1,
+              errorEntry: { itemId: item.listing_id, error: pipeline.error || 'Unknown error' },
+            });
           }
          } else {
            // Promise rejected - network/timeout/uncaught error.
@@ -289,11 +301,24 @@ serve(async (req) => {
            }
 
            results.failed++;
+           await updateGlobalQueueProgress(supabase, 'deal_enrichment', {
+             failedDelta: 1,
+             errorEntry: { itemId: item?.listing_id || 'unknown', error: errorMsg },
+           });
          }
       }
     }
 
     console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed} processed`);
+
+    // Check if all items in the enrichment_queue are done (no more pending)
+    const { count: remainingPending } = await supabase
+      .from('enrichment_queue')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['pending', 'processing']);
+    if (remainingPending === 0) {
+      await completeGlobalQueueOperation(supabase, 'deal_enrichment');
+    }
 
     return new Response(
       JSON.stringify({

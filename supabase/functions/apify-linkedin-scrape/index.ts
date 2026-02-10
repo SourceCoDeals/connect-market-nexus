@@ -411,7 +411,8 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url: [linkedinUrl]  // Apify actor expects "url" field (array)
+        urls: [linkedinUrl],  // Apify actor documented field name (array)
+        url: [linkedinUrl],   // Fallback — some actor versions use singular "url"
       }),
       signal: AbortSignal.timeout(120000) // 2 minute timeout for actor run
     });
@@ -473,7 +474,9 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
       employeeCount: rawEmployeeCount,
       headquarters: companyProfile.Headquarters || companyProfile.mainAddress,
       foundedYear: companyProfile.Founded ? parseInt(companyProfile.Founded, 10) : undefined,
-      specialties: companyProfile.Specialties?.split(',').map((s: string) => s.trim()),
+      specialties: Array.isArray(companyProfile.Specialties)
+        ? companyProfile.Specialties
+        : companyProfile.Specialties?.split(',').map((s: string) => s.trim()),
       logoUrl: companyProfile.logo,
       linkedinUrl: companyProfile.url || linkedinUrl,
     };

@@ -1,5 +1,6 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+ import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
  
  const corsHeaders = {
    'Access-Control-Allow-Origin': '*',
@@ -79,7 +80,16 @@ const TOTAL_PHASES = 14;
      // Get previous content from generated_content
      const previousContent = generation.generated_content?.content || '';
  
-     // Call generate-ma-guide for this batch
+     // Check if paused by user before processing
+    if (await isOperationPaused(supabase, 'guide_generation')) {
+      console.log('[process-ma-guide-queue] Operation paused by user — skipping this batch');
+      return new Response(
+        JSON.stringify({ message: 'Operation paused', generation_id: generation.id }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Call generate-ma-guide for this batch
      console.log(`[process-ma-guide-queue] Calling generate-ma-guide for batch ${currentBatch}`);
      
      const response = await fetch(`${supabaseUrl}/functions/v1/generate-ma-guide`, {
@@ -153,6 +163,10 @@ const TOTAL_PHASES = 14;
          .eq('id', generation.universe_id);
  
        console.log(`[process-ma-guide-queue] Generation ${generation.id} COMPLETED`);
+       await completeGlobalQueueOperation(supabase, 'guide_generation');
+     } else {
+       // Update progress: each batch = 1 completed phase
+       await updateGlobalQueueProgress(supabase, 'guide_generation', { completedDelta: BATCH_SIZE });
      }
  
      await supabase
@@ -224,6 +238,8 @@ const TOTAL_PHASES = 14;
              })
            })
            .eq('id', activeGen.id);
+
+         await completeGlobalQueueOperation(supabase, 'guide_generation', 'failed');
        }
        // If recoverable, leave as processing for next cron run
      }
