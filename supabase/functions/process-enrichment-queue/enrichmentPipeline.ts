@@ -26,8 +26,10 @@ async function callFn(
   body: Record<string, unknown>
 ): Promise<{ ok: boolean; status: number; json: any }>
 {
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ||
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g';
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!anonKey) {
+    throw new Error('SUPABASE_ANON_KEY is not set — cannot make internal function calls');
+  }
 
   const res = await fetch(`${input.supabaseUrl}/functions/v1/${fnName}`, {
     method: 'POST',

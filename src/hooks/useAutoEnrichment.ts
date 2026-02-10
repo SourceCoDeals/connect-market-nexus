@@ -146,11 +146,22 @@
          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
        } else {
          console.warn('[AutoEnrich] Failed:', data?.error);
-         // Don't show error toast for auto-enrichment failures - they're non-blocking
+         // Surface rate limit and payment errors so user knows what happened
+         if (data?.error_code === 'rate_limited' || data?.error?.includes?.('429')) {
+           toast.info('Auto-enrichment delayed — API is busy. Will retry on next visit.', { duration: 4000 });
+         } else if (data?.error_code === 'payment_required') {
+           toast.warning('Auto-enrichment skipped — AI credits depleted.', { duration: 6000 });
+         }
        }
      } catch (error: any) {
        console.error('[AutoEnrich] Error:', error);
-       // Silent failure for auto-enrichment
+       // Surface rate limit and payment errors; stay silent on transient failures
+       const msg = error?.message || '';
+       if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
+         toast.info('Auto-enrichment delayed — API is busy.', { duration: 4000 });
+       } else if (msg.includes('402') || msg.toLowerCase().includes('credit')) {
+         toast.warning('Auto-enrichment skipped — AI credits depleted.', { duration: 6000 });
+       }
      } finally {
        setIsAutoEnriching(false);
      }

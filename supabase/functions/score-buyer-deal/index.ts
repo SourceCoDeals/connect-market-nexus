@@ -165,21 +165,44 @@ const DEFAULT_SERVICE_ADJACENCY: Record<string, string[]> = {
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  maxRetries: number = 1,
-  baseDelayMs: number = 1000
+  maxRetries: number = 3,
+  baseDelayMs: number = 2000
 ): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url, options);
-      if (response.ok || response.status < 500) return response;
-      // Server error — retry
-      lastError = new Error(`HTTP ${response.status}`);
+      // Success or non-retryable client errors
+      if (response.ok || (response.status >= 400 && response.status < 429)) return response;
+
+      // Rate limited (429) — wait with Retry-After header or exponential backoff
+      if (response.status === 429) {
+        if (attempt === maxRetries) return response;
+        const retryAfter = response.headers.get('retry-after');
+        const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : baseDelayMs * Math.pow(2, attempt);
+        const jitter = Math.random() * 1000;
+        console.warn(`[score-buyer-deal] Rate limited (429), waiting ${Math.round(waitMs + jitter)}ms (attempt ${attempt + 1}/${maxRetries})...`);
+        await new Promise(r => setTimeout(r, waitMs + jitter));
+        continue;
+      }
+
+      // Server error (5xx, 529) — retry with backoff
+      if (response.status >= 500) {
+        if (attempt === maxRetries) return response;
+        lastError = new Error(`HTTP ${response.status}`);
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        console.warn(`[score-buyer-deal] Server error (${response.status}), retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+
+      return response;
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e));
-    }
-    if (attempt < maxRetries) {
-      await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise(r => setTimeout(r, delay));
+      }
     }
   }
   throw lastError || new Error("fetchWithRetry failed");
