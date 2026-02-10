@@ -5963,12 +5963,12 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean | null
+          last_viewed_at: string | null
           name: string
           notes: string | null
           phone: string | null
-          share_token: string | null
           share_password_hash: string | null
-          last_viewed_at: string | null
+          share_token: string | null
           updated_at: string | null
         }
         Insert: {
@@ -5978,12 +5978,12 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean | null
+          last_viewed_at?: string | null
           name: string
           notes?: string | null
           phone?: string | null
-          share_token?: string | null
           share_password_hash?: string | null
-          last_viewed_at?: string | null
+          share_token?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -5993,80 +5993,87 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean | null
+          last_viewed_at?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
-          share_token?: string | null
           share_password_hash?: string | null
-          last_viewed_at?: string | null
+          share_token?: string | null
           updated_at?: string | null
         }
         Relationships: []
       }
       referral_submissions: {
         Row: {
-          id: string
-          referral_partner_id: string
           company_name: string
-          website: string | null
-          industry: string | null
-          revenue: number | null
-          ebitda: number | null
-          location: string | null
-          contact_name: string | null
           contact_email: string | null
+          contact_name: string | null
           contact_phone: string | null
-          notes: string | null
-          status: string
+          created_at: string | null
+          ebitda: number | null
+          id: string
+          industry: string | null
           listing_id: string | null
+          location: string | null
+          notes: string | null
+          referral_partner_id: string
+          revenue: number | null
           reviewed_at: string | null
           reviewed_by: string | null
-          created_at: string
+          status: string
+          website: string | null
         }
         Insert: {
-          id?: string
-          referral_partner_id: string
           company_name: string
-          website?: string | null
-          industry?: string | null
-          revenue?: number | null
-          ebitda?: number | null
-          location?: string | null
-          contact_name?: string | null
           contact_email?: string | null
+          contact_name?: string | null
           contact_phone?: string | null
-          notes?: string | null
-          status?: string
+          created_at?: string | null
+          ebitda?: number | null
+          id?: string
+          industry?: string | null
           listing_id?: string | null
+          location?: string | null
+          notes?: string | null
+          referral_partner_id: string
+          revenue?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          created_at?: string
+          status?: string
+          website?: string | null
         }
         Update: {
-          id?: string
-          referral_partner_id?: string
           company_name?: string
-          website?: string | null
-          industry?: string | null
-          revenue?: number | null
-          ebitda?: number | null
-          location?: string | null
-          contact_name?: string | null
           contact_email?: string | null
+          contact_name?: string | null
           contact_phone?: string | null
-          notes?: string | null
-          status?: string
+          created_at?: string | null
+          ebitda?: number | null
+          id?: string
+          industry?: string | null
           listing_id?: string | null
+          location?: string | null
+          notes?: string | null
+          referral_partner_id?: string
+          revenue?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          created_at?: string
+          status?: string
+          website?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "referral_submissions_referral_partner_id_fkey"
-            columns: ["referral_partner_id"]
+            foreignKeyName: "referral_submissions_listing_id_fkey"
+            columns: ["listing_id"]
             isOneToOne: false
-            referencedRelation: "referral_partners"
+            referencedRelation: "deal_quality_analysis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_submissions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
@@ -6074,6 +6081,34 @@ export type Database = {
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_submissions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_submissions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_submissions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_submissions_referral_partner_id_fkey"
+            columns: ["referral_partner_id"]
+            isOneToOne: false
+            referencedRelation: "referral_partners"
             referencedColumns: ["id"]
           },
         ]
