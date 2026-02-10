@@ -23,6 +23,7 @@ interface AddDealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDealCreated?: () => void;
+  referralPartnerId?: string;
 }
 
 const SUPPORTED_EXTENSIONS = ['txt', 'vtt', 'srt', 'pdf', 'doc', 'docx'];
@@ -43,6 +44,7 @@ export const AddDealDialog = ({
   open,
   onOpenChange,
   onDealCreated,
+  referralPartnerId,
 }: AddDealDialogProps) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -145,9 +147,13 @@ export const AddDealDialog = ({
   const handleAddFromMarketplace = async (listing: any) => {
     setAddingToRemarketing(listing.id);
     try {
+      const updateData: Record<string, any> = { is_internal_deal: true };
+      if (referralPartnerId) {
+        updateData.referral_partner_id = referralPartnerId;
+      }
       const { error } = await supabase
         .from('listings')
-        .update({ is_internal_deal: true } as any)
+        .update(updateData as any)
         .eq('id', listing.id);
 
       if (error) throw error;
@@ -275,6 +281,11 @@ export const AddDealDialog = ({
         main_contact_phone: formData.mainContactPhone || null,
         main_contact_title: formData.mainContactTitle || null,
       };
+
+      // Tag with referral partner if provided
+      if (referralPartnerId) {
+        insertData.referral_partner_id = referralPartnerId;
+      }
 
       const { data: listing, error } = await supabase
         .from("listings")

@@ -138,6 +138,9 @@ interface DealListing {
   // Structured address fields
   address_city: string | null;
   address_state: string | null;
+  // Referral partner
+  referral_partner_id: string | null;
+  referral_partners: { id: string; name: string } | null;
 }
 
 // Column width configuration
@@ -145,6 +148,7 @@ interface ColumnWidths {
   select: number;
   rank: number;
   dealName: number;
+  referralSource: number;
   industry: number;
   description: number;
   location: number;
@@ -164,6 +168,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   select: 40,
   rank: 60,
   dealName: 200,
+  referralSource: 120,
   industry: 120,
   description: 180,
   location: 100,
@@ -410,6 +415,23 @@ const SortableTableRow = ({
         </div>
       </TableCell>
 
+      {/* Referral Source */}
+      <TableCell style={{ width: columnWidths.referralSource, minWidth: 60 }}>
+        {listing.referral_partners?.name ? (
+          <span
+            className="text-sm text-blue-600 hover:underline cursor-pointer truncate block"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/admin/remarketing/referral-partners/${listing.referral_partners!.id}`);
+            }}
+          >
+            {listing.referral_partners.name}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
       {/* Industry */}
       <TableCell style={{ width: columnWidths.industry, minWidth: 60 }}>
         {listing.category ? (
@@ -636,6 +658,7 @@ const ReMarketingDeals = () => {
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+  const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
 
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -677,7 +700,7 @@ const ReMarketingDeals = () => {
   // Clear the ref when listings change significantly (e.g., page change, filter change)
   useEffect(() => {
     enrichingDealsRef.current.clear();
-  }, [sortColumn, sortDirection, statusFilter, universeFilter, search, industryFilter, stateFilter, employeeFilter]);
+  }, [sortColumn, sortDirection, statusFilter, universeFilter, search, industryFilter, stateFilter, employeeFilter, referralPartnerFilter]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -725,7 +748,9 @@ const ReMarketingDeals = () => {
           seller_interest_score,
           manual_rank_override,
           address_city,
-          address_state
+          address_state,
+          referral_partner_id,
+          referral_partners(id, name)
         `)
         .eq('status', 'active')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
@@ -969,6 +994,14 @@ const ReMarketingDeals = () => {
         if (scoreFilter !== tier) return false;
       }
 
+      if (referralPartnerFilter !== "all") {
+        if (referralPartnerFilter === "referred") {
+          if (!listing.referral_partner_id) return false;
+        } else {
+          if (listing.referral_partner_id !== referralPartnerFilter) return false;
+        }
+      }
+
       if (industryFilter !== "all") {
         if (listing.category !== industryFilter) return false;
       }
@@ -993,7 +1026,7 @@ const ReMarketingDeals = () => {
 
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, dateFilter, industryFilter, stateFilter, employeeFilter, scoreStats]);
+  }, [listings, search, universeFilter, scoreFilter, dateFilter, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -1040,6 +1073,10 @@ const ReMarketingDeals = () => {
         case "deal_name":
           aVal = (a.internal_company_name || a.title || "").toLowerCase();
           bVal = (b.internal_company_name || b.title || "").toLowerCase();
+          break;
+        case "referral_source":
+          aVal = (a.referral_partners?.name || "").toLowerCase();
+          bVal = (b.referral_partners?.name || "").toLowerCase();
           break;
         case "industry":
           aVal = (a.category || "").toLowerCase();
@@ -1666,6 +1703,27 @@ const ReMarketingDeals = () => {
               </SelectContent>
             </Select>
 
+            <Select value={referralPartnerFilter} onValueChange={setReferralPartnerFilter}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                <SelectItem value="referred">Referred Deals Only</SelectItem>
+                {(() => {
+                  const partners = new Map<string, string>();
+                  listings?.forEach(l => {
+                    if (l.referral_partners?.id && l.referral_partners?.name) {
+                      partners.set(l.referral_partners.id, l.referral_partners.name);
+                    }
+                  });
+                  return Array.from(partners.entries()).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ));
+                })()}
+              </SelectContent>
+            </Select>
+
             <Select value={industryFilter} onValueChange={setIndustryFilter}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="All Industries" />
@@ -1704,9 +1762,17 @@ const ReMarketingDeals = () => {
           </div>
 
           {/* Active filter count */}
-          {(industryFilter !== "all" || stateFilter !== "all" || employeeFilter !== "all" || scoreFilter !== "all" || universeFilter !== "all") && (
+          {(referralPartnerFilter !== "all" || industryFilter !== "all" || stateFilter !== "all" || employeeFilter !== "all" || scoreFilter !== "all" || universeFilter !== "all") && (
             <div className="flex items-center gap-2 mt-3 pt-3 border-t">
               <span className="text-xs text-muted-foreground">Active filters:</span>
+              {referralPartnerFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setReferralPartnerFilter("all")}>
+                  {referralPartnerFilter === "referred" ? "Referred Deals" : (() => {
+                    const p = listings?.find(l => l.referral_partners?.id === referralPartnerFilter);
+                    return p?.referral_partners?.name || "Partner";
+                  })()} ✕
+                </Badge>
+              )}
               {industryFilter !== "all" && (
                 <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setIndustryFilter("all")}>
                   {industryFilter} ✕
@@ -1899,6 +1965,9 @@ const ReMarketingDeals = () => {
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.dealName} onResize={(w) => handleColumnResize('dealName', w)} minWidth={100}>
                       <SortableHeader column="deal_name" label="Deal Name" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.referralSource} onResize={(w) => handleColumnResize('referralSource', w)} minWidth={60}>
+                      <SortableHeader column="referral_source" label="Referral Source" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.industry} onResize={(w) => handleColumnResize('industry', w)} minWidth={60}>
                       <SortableHeader column="industry" label="Industry" />
