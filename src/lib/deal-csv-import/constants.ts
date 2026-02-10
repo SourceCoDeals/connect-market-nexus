@@ -37,6 +37,7 @@ export const DEAL_IMPORT_FIELDS: DealImportField[] = [
   
   // Contact
   { value: "primary_contact_name", label: "Contact Name", description: "Full name of primary contact" },
+  { value: "primary_contact_title", label: "Contact Title", description: "Job title or role (e.g., CFO, CEO)" },
   { value: "primary_contact_first_name", label: "Contact First Name", description: "First name (will combine with last)" },
   { value: "primary_contact_last_name", label: "Contact Last Name", description: "Last name (will combine with first)" },
   { value: "primary_contact_email", label: "Contact Email", description: "Email address" },

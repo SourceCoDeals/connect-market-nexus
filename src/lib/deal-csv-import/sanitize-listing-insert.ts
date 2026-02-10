@@ -15,6 +15,11 @@ const EXTRA_ALLOWED_FIELDS = [
   'category',
   // row-processor address default
   'address_country',
+  // DB uses main_contact_* but import uses primary_contact_* — these are remapped in row-processor
+  'main_contact_name',
+  'main_contact_title',
+  'main_contact_email',
+  'main_contact_phone',
 ] as const;
 
 export const ALLOWED_LISTING_INSERT_FIELDS = new Set<string>([

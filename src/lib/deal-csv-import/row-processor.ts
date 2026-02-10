@@ -155,6 +155,20 @@ export function processRow(
     return { data: null, errors };
   }
   
+  // Remap primary_contact_* → main_contact_* (import uses primary_, DB uses main_)
+  const contactRemap: Record<string, string> = {
+    primary_contact_name: 'main_contact_name',
+    primary_contact_title: 'main_contact_title',
+    primary_contact_email: 'main_contact_email',
+    primary_contact_phone: 'main_contact_phone',
+  };
+  for (const [from, to] of Object.entries(contactRemap)) {
+    if (data[from] !== undefined) {
+      data[to] = data[from];
+      delete data[from];
+    }
+  }
+  
   // Set defaults
   if (!data.category) {
     data.category = 'Other';
