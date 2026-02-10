@@ -160,7 +160,7 @@ serve(async (req) => {
       const { data: listings } = await supabase
         .from("listings")
         .select(
-          "id, title, internal_company_name, category, revenue, ebitda, full_time_employees, location, status"
+          "id, title, internal_company_name, category, revenue, ebitda, full_time_employees, location, status, is_priority_target"
         )
         .eq("referral_partner_id", partner.id)
         .order("created_at", { ascending: false });

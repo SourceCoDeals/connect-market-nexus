@@ -39,6 +39,7 @@ interface DealRow {
   location: string | null;
   source: "listing" | "submission";
   status?: string;
+  is_priority_target?: boolean;
 }
 
 const formatCurrency = (value: number | null) => {
@@ -118,6 +119,7 @@ export default function ReferralTrackerPage() {
             location: l.location,
             source: "listing",
             status: l.status,
+            is_priority_target: l.is_priority_target,
           });
         }
       }
@@ -296,7 +298,7 @@ export default function ReferralTrackerPage() {
                   </TableHeader>
                   <TableBody>
                     {deals.map((deal) => (
-                      <TableRow key={deal.id} className="border-gray-700">
+                      <TableRow key={deal.id} className={`border-gray-700 ${deal.is_priority_target ? "bg-amber-900/20" : ""}`}>
                         <TableCell className="font-medium text-white">
                           {deal.title || "Untitled"}
                         </TableCell>
