@@ -938,17 +938,15 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
                           {deal.linkedin_employee_count ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1 text-sm">
-                                  <Users className="h-3 w-3 text-blue-600" />
-                                  {deal.linkedin_employee_count.toLocaleString()}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {deal.linkedin_employee_range || `${deal.linkedin_employee_count} employees`}
-                              </TooltipContent>
-                            </Tooltip>
+                            <div className="text-xs space-y-0.5">
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3 text-blue-600" />
+                                <span className="font-medium">{deal.linkedin_employee_count.toLocaleString()}</span>
+                              </div>
+                              {deal.linkedin_employee_range && (
+                                <div className="text-muted-foreground">{deal.linkedin_employee_range}</div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
