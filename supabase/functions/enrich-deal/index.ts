@@ -4,6 +4,7 @@ import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
+import { logAICallCost } from "../_shared/cost-tracker.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1254,6 +1255,15 @@ For financial data, include confidence levels and source quotes where available.
 
     const aiData = await aiResponse.json();
     console.log('AI response:', JSON.stringify(aiData, null, 2));
+
+    // Cost tracking: log Gemini usage (non-blocking)
+    const geminiUsage = aiData.usage;
+    if (geminiUsage) {
+      logAICallCost(supabase, 'enrich-deal', 'gemini', DEFAULT_GEMINI_MODEL,
+        { inputTokens: geminiUsage.prompt_tokens || 0, outputTokens: geminiUsage.completion_tokens || 0 },
+        undefined, { dealId }
+      ).catch(() => {});
+    }
 
     // Extract tool call results
     let extracted: Record<string, unknown> = {};

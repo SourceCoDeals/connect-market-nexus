@@ -8,6 +8,8 @@ import { DealCSVImport } from "../DealCSVImport";
 import { InterruptedSessionBanner, saveSessionState, clearSessionState } from "./InterruptedSessionBanner";
 import { useToast } from "@/hooks/use-toast";
 import type { MADeal } from "@/lib/ma-intelligence/types";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useAuth } from "@/context/AuthContext";
 
 interface TrackerDealsTabProps {
   trackerId: string;
@@ -31,6 +33,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
   const [filterScore, setFilterScore] = useState<string>("all");
   const [scoringProgress, setScoringProgress] = useState<ScoringProgress | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { completeOperation, updateProgress } = useGlobalActivityMutations();
 
   useEffect(() => {
     if (trackerId && trackerId !== 'new') {
@@ -75,23 +80,54 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       return;
     }
 
+    // Register in global activity queue
+    let activityItem: { id: string } | null = null;
     try {
+      const result = await startOrQueueMajorOp({
+        operationType: "deal_enrichment",
+        totalItems: dealIds.length,
+        description: `Enriching ${dealIds.length} tracker deals`,
+        userId: user?.id || "",
+        contextJson: { trackerId, source: "tracker_deals" },
+      });
+      activityItem = result.item;
+    } catch {
+      // Non-blocking
+    }
+
+    try {
+      let successCount = 0;
       for (const dealId of dealIds) {
-        await supabase.functions.invoke("enrich-deal", {
-          body: { dealId },
-        });
+        try {
+          await supabase.functions.invoke("enrich-deal", {
+            body: { dealId },
+          });
+          successCount++;
+          if (activityItem) {
+            updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
+          }
+        } catch (error: any) {
+          console.error(`Error enriching deal ${dealId}:`, error);
+        }
       }
 
       toast({
-        title: "Enrichment started",
-        description: `Enriching ${dealIds.length} deals in the background`,
+        title: "Enrichment complete",
+        description: `Enriched ${successCount} of ${dealIds.length} deals`,
       });
+
+      if (activityItem) {
+        completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+      }
 
       setTimeout(() => {
         loadDeals();
         setSelectedDeals(new Set());
       }, 2000);
     } catch (error: any) {
+      if (activityItem) {
+        completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+      }
       toast({
         title: "Error enriching deals",
         description: error.message,
@@ -109,6 +145,21 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         variant: "destructive",
       });
       return;
+    }
+
+    // Register in global activity queue
+    let activityItem: { id: string } | null = null;
+    try {
+      const result = await startOrQueueMajorOp({
+        operationType: "buyer_scoring",
+        totalItems: dealIds.length,
+        description: `Scoring ${dealIds.length} tracker deals`,
+        userId: user?.id || "",
+        contextJson: { trackerId, source: "tracker_deals_scoring" },
+      });
+      activityItem = result.item;
+    } catch {
+      // Non-blocking
     }
 
     const progress: ScoringProgress = {
@@ -134,6 +185,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
           progress.completedIds.push(dealId);
           setScoringProgress({ ...progress });
 
+          if (activityItem) {
+            updateProgress.mutate({ id: activityItem.id, completedItems: progress.current });
+          }
+
           // Save progress to localStorage
           saveSessionState(trackerId, "Bulk Scoring", progress.current, progress.total);
         } catch (error: any) {
@@ -146,11 +201,18 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       setSelectedDeals(new Set());
       loadDeals();
 
+      if (activityItem) {
+        completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+      }
+
       toast({
         title: "Scoring complete",
         description: `Successfully scored ${progress.completedIds.length} of ${dealIds.length} deals`,
       });
     } catch (error: any) {
+      if (activityItem) {
+        completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+      }
       toast({
         title: "Error during scoring",
         description: error.message,

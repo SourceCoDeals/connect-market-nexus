@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
+import { logAICallCost } from "../_shared/cost-tracker.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -398,7 +399,10 @@ async function callClaudeAI(
     // Add delay after successful call to avoid hitting RPM limits
     await sleep(CLAUDE_INTER_CALL_DELAY_MS);
     
-    return { data: toolUse.input };
+    // Extract usage for cost tracking
+    const usage = data.usage ? { inputTokens: data.usage.input_tokens || 0, outputTokens: data.usage.output_tokens || 0 } : null;
+    
+    return { data: toolUse.input, usage, toolName: tool.name };
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
       return { data: null, error: { code: 'timeout', message: 'AI request timed out' } };
@@ -1340,6 +1344,12 @@ Deno.serve(async (req) => {
 
     const fieldsUpdated = Object.keys(updateData).length - 2; // Exclude metadata fields
     console.log(`Successfully enriched buyer ${buyerId}: ${fieldsUpdated} fields updated`);
+
+    // Cost tracking: log aggregate AI usage (non-blocking)
+    logAICallCost(supabase, 'enrich-buyer', 'anthropic', AI_CONFIG.model, 
+      { inputTokens: promptsRun * 12000, outputTokens: promptsSuccessful * 800 }, // estimated per prompt
+      undefined, { buyerId, promptsRun, promptsSuccessful }
+    ).catch(() => {});
 
     // Log provenance violations as prominent warnings
     if (provenanceViolations.length > 0) {
