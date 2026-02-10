@@ -59,6 +59,7 @@ interface DealImportDialogProps {
   onOpenChange: (open: boolean) => void;
   onImportComplete: () => void;
   onImportCompleteWithIds?: (importedIds: string[]) => void;
+  referralPartnerId?: string;
 }
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
@@ -68,6 +69,7 @@ export function DealImportDialog({
   onOpenChange,
   onImportComplete,
   onImportCompleteWithIds,
+  referralPartnerId,
 }: DealImportDialogProps) {
   const [step, setStep] = useState<ImportStep>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -256,6 +258,11 @@ export function DealImportDialog({
             revenue: listingData.revenue,
             ebitda: listingData.ebitda,
           });
+
+          // Inject referral partner ID AFTER sanitization (critical — not part of CSV fields)
+          if (referralPartnerId) {
+            (listingData as any).referral_partner_id = referralPartnerId;
+          }
 
           // Insert the listing
           const { data: insertedData, error: insertError } = await supabase

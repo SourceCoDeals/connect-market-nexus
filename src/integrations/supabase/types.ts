@@ -5966,6 +5966,9 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          share_token: string | null
+          share_password_hash: string | null
+          last_viewed_at: string | null
           updated_at: string | null
         }
         Insert: {
@@ -5978,6 +5981,9 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          share_token?: string | null
+          share_password_hash?: string | null
+          last_viewed_at?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -5990,9 +5996,87 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          share_token?: string | null
+          share_password_hash?: string | null
+          last_viewed_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      referral_submissions: {
+        Row: {
+          id: string
+          referral_partner_id: string
+          company_name: string
+          website: string | null
+          industry: string | null
+          revenue: number | null
+          ebitda: number | null
+          location: string | null
+          contact_name: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          notes: string | null
+          status: string
+          listing_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          referral_partner_id: string
+          company_name: string
+          website?: string | null
+          industry?: string | null
+          revenue?: number | null
+          ebitda?: number | null
+          location?: string | null
+          contact_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          notes?: string | null
+          status?: string
+          listing_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          referral_partner_id?: string
+          company_name?: string
+          website?: string | null
+          industry?: string | null
+          revenue?: number | null
+          ebitda?: number | null
+          location?: string | null
+          contact_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          notes?: string | null
+          status?: string
+          listing_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_submissions_referral_partner_id_fkey"
+            columns: ["referral_partner_id"]
+            isOneToOne: false
+            referencedRelation: "referral_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_submissions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registration_funnel: {
         Row: {

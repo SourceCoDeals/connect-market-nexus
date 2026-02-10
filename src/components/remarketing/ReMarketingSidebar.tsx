@@ -1,9 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Globe2, 
-  Building2, 
+import {
+  LayoutDashboard,
+  Globe2,
+  Building2,
   Users,
   Plus,
   ChevronLeft,
@@ -12,9 +12,13 @@ import {
   Upload,
   Database,
   Trophy,
+  Handshake,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface NavItem {
@@ -22,55 +26,76 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   exact?: boolean;
+  badge?: number;
 }
-
-const navItems: NavItem[] = [
-  {
-    label: "Dashboard",
-    href: "/admin/remarketing",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-    exact: true,
-  },
-  {
-    label: "Buyer Universes",
-    href: "/admin/remarketing/universes",
-    icon: <Globe2 className="h-5 w-5" />,
-  },
-  {
-    label: "All Deals",
-    href: "/admin/remarketing/deals",
-    icon: <Building2 className="h-5 w-5" />,
-  },
-  {
-    label: "All Buyers",
-    href: "/admin/remarketing/buyers",
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
-    label: "Analytics",
-    href: "/admin/remarketing/analytics",
-    icon: <BarChart3 className="h-5 w-5" />,
-  },
-  {
-    label: "Advanced Analytics",
-    href: "/admin/remarketing/analytics/advanced",
-    icon: <Trophy className="h-5 w-5" />,
-  },
-  {
-    label: "Data Import",
-    href: "/admin/remarketing/import",
-    icon: <Upload className="h-5 w-5" />,
-  },
-  {
-    label: "Bulk Import",
-    href: "/admin/remarketing/bulk-import",
-    icon: <Database className="h-5 w-5" />,
-  },
-];
 
 export function ReMarketingSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+
+  // Fetch pending submissions count for badge
+  const { data: pendingCount } = useQuery({
+    queryKey: ["pending-submissions-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("referral_submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+      if (error) return 0;
+      return count || 0;
+    },
+    refetchInterval: 30000, // Refresh every 30s
+  });
+
+  const navItems: NavItem[] = [
+    {
+      label: "Dashboard",
+      href: "/admin/remarketing",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      exact: true,
+    },
+    {
+      label: "Buyer Universes",
+      href: "/admin/remarketing/universes",
+      icon: <Globe2 className="h-5 w-5" />,
+    },
+    {
+      label: "All Deals",
+      href: "/admin/remarketing/deals",
+      icon: <Building2 className="h-5 w-5" />,
+    },
+    {
+      label: "Referral Partners",
+      href: "/admin/remarketing/referral-partners",
+      icon: <Handshake className="h-5 w-5" />,
+      badge: pendingCount || undefined,
+    },
+    {
+      label: "All Buyers",
+      href: "/admin/remarketing/buyers",
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      label: "Analytics",
+      href: "/admin/remarketing/analytics",
+      icon: <BarChart3 className="h-5 w-5" />,
+    },
+    {
+      label: "Advanced Analytics",
+      href: "/admin/remarketing/analytics/advanced",
+      icon: <Trophy className="h-5 w-5" />,
+    },
+    {
+      label: "Data Import",
+      href: "/admin/remarketing/import",
+      icon: <Upload className="h-5 w-5" />,
+    },
+    {
+      label: "Bulk Import",
+      href: "/admin/remarketing/bulk-import",
+      icon: <Database className="h-5 w-5" />,
+    },
+  ];
 
   const isActive = (item: NavItem) => {
     if (item.exact) {
@@ -115,7 +140,7 @@ export function ReMarketingSidebar() {
         <nav className="flex-1 p-2 space-y-1">
           {navItems.map((item) => {
             const active = isActive(item);
-            
+
             if (collapsed) {
               return (
                 <Tooltip key={item.href}>
@@ -123,17 +148,23 @@ export function ReMarketingSidebar() {
                     <Link
                       to={item.href}
                       className={cn(
-                        "flex items-center justify-center h-10 w-full rounded-lg transition-colors",
+                        "flex items-center justify-center h-10 w-full rounded-lg transition-colors relative",
                         active
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
                       {item.icon}
+                      {item.badge && item.badge > 0 && (
+                        <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent side="right">
                     {item.label}
+                    {item.badge && item.badge > 0 ? ` (${item.badge})` : ""}
                   </TooltipContent>
                 </Tooltip>
               );
@@ -151,7 +182,15 @@ export function ReMarketingSidebar() {
                 )}
               >
                 {item.icon}
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {item.badge && item.badge > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="h-5 min-w-[20px] px-1.5 text-[10px] font-bold"
+                  >
+                    {item.badge}
+                  </Badge>
+                )}
               </Link>
             );
           })}

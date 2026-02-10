@@ -49,8 +49,11 @@ import ReMarketingDeals from "@/pages/admin/remarketing/ReMarketingDeals";
 import ReMarketingDealDetail from "@/pages/admin/remarketing/ReMarketingDealDetail";
 import ReMarketingDataImport from "@/pages/admin/remarketing/ReMarketingDataImport";
 import ReMarketingBulkImport from "@/pages/admin/remarketing/ReMarketingBulkImport";
+import ReMarketingReferralPartners from "@/pages/admin/remarketing/ReMarketingReferralPartners";
+import ReMarketingReferralPartnerDetail from "@/pages/admin/remarketing/ReMarketingReferralPartnerDetail";
 
 import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
+import ReferralTrackerPage from "@/pages/ReferralTrackerPage";
 import { ReMarketingLayout } from "@/components/remarketing";
 import WebhooksPage from "@/pages/admin/settings/WebhooksPage";
 import TranscriptAnalytics from "@/pages/admin/analytics/TranscriptAnalytics";
@@ -111,7 +114,10 @@ function App() {
             <Route path="/pending-approval" element={<PendingApproval />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
-            
+
+            {/* Public referral tracker - partner-facing, no auth required */}
+            <Route path="/referrals/:shareToken" element={<ReferralTrackerPage />} />
+
             {/* Main app routes with MainLayout - require approval */}
             <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
               <Route index element={<Marketplace />} />
@@ -151,6 +157,8 @@ function App() {
               <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
               <Route path="analytics" element={<ReMarketingAnalytics />} />
               <Route path="analytics/advanced" element={<ReMarketingAdvancedAnalytics />} />
+              <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
+              <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
               <Route path="import" element={<ReMarketingDataImport />} />
               <Route path="bulk-import" element={<ReMarketingBulkImport />} />
 

@@ -122,3 +122,9 @@ export { AIResearchSection } from './AIResearchSection';
 export { CriteriaValidationAlert, CriteriaValidationBadge } from './CriteriaValidationAlert';
 export { GenerationSummaryPanel } from './GenerationSummaryPanel';
 export type { GenerationSummary, GenerationOutcome } from './GenerationSummaryPanel';
+
+// Referral Partner Components
+export { AddPartnerDialog } from './AddPartnerDialog';
+export { SubmissionReviewQueue } from './SubmissionReviewQueue';
+export { ReferralSubmissionForm } from './ReferralSubmissionForm';
+export { ReferralCSVUpload } from './ReferralCSVUpload';
