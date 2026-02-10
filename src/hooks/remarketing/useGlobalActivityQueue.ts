@@ -20,7 +20,7 @@ export function useGlobalActivityQueue() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("global_activity_queue")
-        .select("*, profiles:created_by(full_name, email)")
+        .select("*")
         .in("status", ["queued", "running", "paused", "completed", "failed", "cancelled"])
         .order("queued_at", { ascending: false })
         .limit(50);
@@ -76,7 +76,7 @@ export function useGlobalGateCheck() {
   const checkGate = useCallback(async (): Promise<GlobalActivityQueueItem | null> => {
     const { data } = await supabase
       .from("global_activity_queue")
-      .select("*, profiles:created_by(full_name, email)")
+      .select("*")
       .eq("classification", "major")
       .in("status", ["running", "paused"])
       .limit(1);
@@ -108,12 +108,12 @@ export function useGlobalGateCheck() {
             description: params.description || null,
             created_by: params.userId,
           }])
-          .select("*, profiles:created_by(full_name, email)")
+          .select("*")
           .single();
 
         if (error) throw error;
 
-        const blockerName = (blocker.profiles as any)?.full_name || "Someone";
+        const blockerName = "Another user";
         toast.info(
           `${blockerName} is running ${blocker.description || blocker.operation_type}. Your operation has been queued and will start automatically.`
         );
@@ -134,7 +134,7 @@ export function useGlobalGateCheck() {
           created_by: params.userId,
           started_at: new Date().toISOString(),
         }])
-        .select("*, profiles:created_by(full_name, email)")
+        .select("*")
         .single();
 
       if (error) throw error;
