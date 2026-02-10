@@ -36,9 +36,22 @@ interface DealQualityScores {
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
 
+  // ===== NORMALIZE FINANCIALS =====
+  // Some deals store revenue/ebitda as millions (e.g., 20 = $20M) while
+  // others store as raw integers (e.g., 50000000 = $50M). Normalize to raw integers.
+  const normalizeFinancial = (val: number): number => {
+    if (val <= 0) return 0;
+    // Values under 1000 are assumed to be in millions (e.g., 20 → 20,000,000)
+    if (val < 1000) return Math.round(val * 1_000_000);
+    // Values 1000-99999 are assumed to be in thousands (e.g., 5000 → 5,000,000)
+    if (val < 100000) return Math.round(val * 1_000);
+    // Values >= 100000 are already raw integers
+    return val;
+  };
+
   // ===== FINANCIAL SIZE (0-35 pts) =====
-  const revenue = deal.revenue || 0;
-  const ebitda = deal.ebitda || 0;
+  const revenue = normalizeFinancial(deal.revenue || 0);
+  const ebitda = normalizeFinancial(deal.ebitda || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
   let financialScore = 0;
 
