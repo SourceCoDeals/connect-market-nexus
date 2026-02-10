@@ -138,20 +138,6 @@ const ReMarketingDealMatching = () => {
     enabled: !!listingId
   });
 
-  // Fetch all universes for scoring new
-  const { data: allUniverses } = useQuery({
-    queryKey: ['remarketing', 'universes'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('remarketing_buyer_universes')
-        .select('*')
-        .eq('archived', false)
-        .order('name');
-      
-      if (error) throw error;
-      return data || [];
-    }
-  });
 
   // Load saved custom instructions for this listing
   const { data: savedAdjustments } = useQuery({
@@ -1065,14 +1051,9 @@ const ReMarketingDealMatching = () => {
             <div className="flex-1 min-w-[250px]">
               <Select value={selectedUniverse} onValueChange={setSelectedUniverse}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filter by universe" />
+                  <SelectValue placeholder="Select a universe" />
                 </SelectTrigger>
                 <SelectContent>
-                  {linkedUniverses && linkedUniverses.length > 0 && (
-                    <SelectItem value="all">
-                      All Universes ({allScores?.length || 0} matches)
-                    </SelectItem>
-                  )}
                   {linkedUniverses?.map((universe) => (
                     <SelectItem key={universe.id} value={universe.id}>
                       {universe.name} ({universeMatchCounts[universe.id] || 0} matches)
@@ -1082,58 +1063,23 @@ const ReMarketingDealMatching = () => {
               </Select>
             </div>
             
-            {/* Score with New Universe */}
-            <div className="flex items-center gap-2">
-              <Select 
-                value="" 
-                onValueChange={(id) => {
-                  setSelectedUniverse(id);
-                  // Will trigger scoring in next step
-                }}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Score new universe" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allUniverses?.filter(u => !linkedUniverses?.some(l => l.id === u.id)).map((universe) => (
-                    <SelectItem key={universe.id} value={universe.id}>
-                      {universe.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Button 
-                onClick={() => handleBulkScore()}
-                disabled={!selectedUniverse || selectedUniverse === 'all' || isScoring}
-              >
-                {isScoring ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Scoring...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Score Buyers
-                  </>
-                )}
-              </Button>
-            </div>
+            <Button 
+              onClick={() => handleBulkScore()}
+              disabled={!selectedUniverse || selectedUniverse === 'all' || isScoring}
+            >
+              {isScoring ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scoring...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Score Buyers
+                </>
+              )}
+            </Button>
           </div>
-          
-          {/* Universe Summary Row */}
-          {linkedUniverses && linkedUniverses.length > 1 && selectedUniverse === 'all' && (
-            <div className="mt-4 pt-4 border-t flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-              {linkedUniverses.map((u, i) => (
-                <span key={u.id} className="flex items-center gap-1">
-                  {i > 0 && <span className="mx-1">•</span>}
-                  <span className="font-medium text-foreground">{u.name}:</span>
-                  <span>{universeMatchCounts[u.id] || 0} matches</span>
-                </span>
-              ))}
-            </div>
-          )}
           
           {(isScoring || backgroundScoring.isScoring) && (
             <div className="mt-4">

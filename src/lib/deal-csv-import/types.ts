@@ -65,6 +65,7 @@ export interface ParsedDealData {
   
   // Contact
   primary_contact_name?: string;
+  primary_contact_title?: string;
   primary_contact_first_name?: string;
   primary_contact_last_name?: string;
   primary_contact_email?: string;

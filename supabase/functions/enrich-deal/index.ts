@@ -1240,9 +1240,14 @@ For financial data, include confidence levels and source quotes where available.
     }
 
     if (!aiResponse || !aiResponse.ok) {
-      console.error('AI extraction failed after retries:', lastAiError);
+      const errorDetail = lastAiError || 'No response from AI provider';
+      console.error('AI extraction failed after retries:', errorDetail);
       return new Response(
-        JSON.stringify({ success: false, error: 'AI extraction failed' }),
+        JSON.stringify({ 
+          success: false, 
+          error: `AI extraction failed: ${errorDetail.substring(0, 300)}`,
+          retries: MAX_AI_RETRIES,
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
