@@ -816,7 +816,9 @@ export default function ReMarketingReferralPartnerDetail() {
                     <TableHead>Status</TableHead>
                     <TableHead>Quality</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>LinkedIn</TableHead>
+                    <TableHead>Employees</TableHead>
+                    <TableHead>Range</TableHead>
+                    <TableHead>Rating</TableHead>
                     <TableHead>Reviews</TableHead>
                     <TableHead>Added</TableHead>
                     <TableHead className="w-[40px]" />
@@ -948,14 +950,24 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
                           {deal.linkedin_employee_count ? (
-                            <div className="text-xs space-y-0.5">
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3 text-blue-600" />
-                                <span className="font-medium">{deal.linkedin_employee_count.toLocaleString()}</span>
-                              </div>
-                              {deal.linkedin_employee_range && (
-                                <div className="text-muted-foreground">{deal.linkedin_employee_range}</div>
-                              )}
+                            <div className="flex items-center gap-1 text-xs">
+                              <Users className="h-3 w-3 text-blue-600" />
+                              <span className="font-medium">{deal.linkedin_employee_count.toLocaleString()}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                          <span className="text-xs text-muted-foreground">
+                            {deal.linkedin_employee_range || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                          {deal.google_rating ? (
+                            <div className="flex items-center gap-1 text-xs">
+                              <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                              <span className="font-medium">{deal.google_rating.toFixed(1)}</span>
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
@@ -963,19 +975,7 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
                           {deal.google_review_count ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1 text-sm">
-                                  <Star className="h-3 w-3 text-amber-500" />
-                                  {deal.google_review_count}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {deal.google_rating
-                                  ? `${deal.google_rating.toFixed(1)}★ · ${deal.google_review_count} reviews`
-                                  : `${deal.google_review_count} reviews`}
-                              </TooltipContent>
-                            </Tooltip>
+                            <span className="text-xs font-medium">{deal.google_review_count.toLocaleString()}</span>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
