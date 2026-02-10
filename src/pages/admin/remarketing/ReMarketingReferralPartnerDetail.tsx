@@ -119,7 +119,8 @@ export default function ReMarketingReferralPartnerDetail() {
            status, created_at, full_time_employees, address_city, address_state,
            enriched_at, deal_total_score, deal_quality_score, 
            linkedin_employee_count, linkedin_employee_range,
-           google_review_count, google_rating, is_priority_target`
+           google_review_count, google_rating, is_priority_target,
+           main_contact_name, main_contact_title, main_contact_email`
         )
         .eq("referral_partner_id", partnerId!)
         .order("created_at", { ascending: false });
@@ -797,12 +798,14 @@ export default function ReMarketingReferralPartnerDetail() {
                       />
                     </TableHead>
                     <TableHead>Deal Name</TableHead>
+                    <TableHead>Website</TableHead>
                     <TableHead>Industry</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead className="text-right">Revenue</TableHead>
                     <TableHead className="text-right">EBITDA</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Quality</TableHead>
+                    <TableHead>Contact</TableHead>
                     <TableHead>LinkedIn</TableHead>
                     <TableHead>Reviews</TableHead>
                     <TableHead>Added</TableHead>
@@ -843,6 +846,24 @@ export default function ReMarketingReferralPartnerDetail() {
                           </div>
                           {domain && (
                             <div className="text-xs text-muted-foreground">{domain}</div>
+                          )}
+                        </TableCell>
+                        <TableCell
+                          className="text-sm text-muted-foreground"
+                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                        >
+                          {deal.website ? (
+                            <a
+                              href={deal.website.startsWith("http") ? deal.website : `https://${deal.website}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-primary hover:underline text-xs truncate max-w-[140px] block"
+                            >
+                              {getDomain(deal.website) || deal.website}
+                            </a>
+                          ) : (
+                            <span className="text-xs">-</span>
                           )}
                         </TableCell>
                         <TableCell
@@ -890,6 +911,27 @@ export default function ReMarketingReferralPartnerDetail() {
                               showScore
                               size="sm"
                             />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                          {deal.main_contact_name ? (
+                            <div className="text-xs space-y-0.5">
+                              <div className="font-medium">{deal.main_contact_name}</div>
+                              {deal.main_contact_title && (
+                                <div className="text-muted-foreground">{deal.main_contact_title}</div>
+                              )}
+                              {deal.main_contact_email && (
+                                <a
+                                  href={`mailto:${deal.main_contact_email}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-primary hover:underline"
+                                >
+                                  {deal.main_contact_email}
+                                </a>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
