@@ -1,0 +1,1 @@
+ALTER TABLE public.referral_partners ADD COLUMN share_password_plaintext text;
