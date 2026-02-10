@@ -25,13 +25,13 @@ interface DealQualityScores {
  *
  * 1. FINANCIAL SIZE (0-35 pts) — Revenue & EBITDA when available
  * 2. COMPANY SIGNALS (0-30 pts) — LinkedIn employees, Google reviews/rating
- * 3. MARKET POSITION (0-20 pts) — Geography, services, multi-location
- * 4. SELLER READINESS (0-15 pts) — Seller interest score
+ * 3. MARKET POSITION (0-25 pts) — Geography, industry attractiveness, multi-location
+ * 4. SELLER READINESS (0-25 pts) — Seller interest score (high motivation = big boost)
  *
- * KEY PRINCIPLE: When financials are missing, their 35 points are
- * redistributed proportionally to Company Signals and Market Position.
- * This ensures companies with strong LinkedIn/Google presence aren't
- * penalized just because we haven't gotten financial data yet.
+ * KEY PRINCIPLE: Score what you have. Skip what you don't. Show confidence separately.
+ * When financials are missing, their 35 points are redistributed proportionally
+ * to Company Signals and Market Position. A deal with limited info that looks
+ * great on what IS known should score high with lower confidence.
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
@@ -168,25 +168,52 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     marketScore += 3;
   }
 
-  // Services/business type (0-5 pts)
+  // Services/industry attractiveness (0-10 pts) — PE-attractive industries score higher
   const category = (deal.category || '').toLowerCase();
   const serviceMix = (deal.service_mix || '').toLowerCase();
   const businessModel = (deal.business_model || '').toLowerCase();
   const description = (deal.description || deal.executive_summary || '').toLowerCase();
   const allText = `${category} ${serviceMix} ${businessModel} ${description}`;
 
-  const highValueKeywords = [
-    'recurring', 'subscription', 'contract', 'maintenance', 'managed services',
-    'hvac', 'plumbing', 'electrical', 'roofing', 'pest control', 'waste',
-    'healthcare', 'dental', 'veterinary', 'restoration', 'remediation',
-    'fire', 'water damage', 'environmental', 'janitorial', 'landscaping'
+  const peHotIndustries = [
+    'restoration', 'fire restoration', 'water restoration', 'remediation', 'mitigation',
+    'hvac', 'plumbing', 'electrical', 'roofing', 'pest control',
+    'collision repair', 'auto body',
+    'dental', 'veterinary', 'urgent care', 'behavioral health',
+    'managed services', 'msp', 'it services', 'cybersecurity',
+    'waste management', 'environmental services',
+    'home services', 'facility maintenance'
   ];
 
-  if (highValueKeywords.some(kw => allText.includes(kw))) {
-    marketScore += 5;
+  const moderateIndustries = [
+    'landscaping', 'janitorial', 'commercial cleaning',
+    'staffing', 'accounting', 'insurance',
+    'engineering', 'consulting', 'construction',
+    'auto glass', 'fleet', 'mechanical contracting'
+  ];
+
+  const hasPEHot = peHotIndustries.some(kw => allText.includes(kw));
+  const hasModerate = moderateIndustries.some(kw => allText.includes(kw));
+  const hasRecurring = /recurring|subscription|contract|maintenance|managed/.test(allText);
+
+  let industryPts = 0;
+  if (hasPEHot && hasRecurring) {
+    industryPts = 10;
+    notes.push('PE-attractive industry with recurring revenue');
+  } else if (hasPEHot) {
+    industryPts = 8;
+    notes.push('PE-attractive industry');
+  } else if (hasModerate && hasRecurring) {
+    industryPts = 7;
+  } else if (hasModerate) {
+    industryPts = 5;
+  } else if (hasRecurring) {
+    industryPts = 6;
   } else if (category) {
-    marketScore += 3;
+    industryPts = 3;
   }
+
+  marketScore += industryPts;
 
   // Multi-location bonus (0-5 pts)
   const locationCount = deal.location_count || 0;
@@ -194,7 +221,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   else if (locationCount >= 3) marketScore += 4;
   else if (locationCount >= 2) marketScore += 3;
 
-  marketScore = Math.min(20, marketScore);
+  marketScore = Math.min(25, marketScore);
 
   // ===== DYNAMIC WEIGHT REDISTRIBUTION =====
   // When financials are missing, redistribute those 35 points
@@ -203,18 +230,18 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   let adjustedMarket = marketScore;
 
   if (!hasFinancials) {
-    // Scale signals and market up to absorb the financial weight
     const signalsMax = 30;
-    const marketMax = 20;
-    const totalAvailableMax = signalsMax + marketMax; // 50
-    const scaleFactor = (35 + totalAvailableMax) / totalAvailableMax; // 85/50 = 1.7
+    const marketMax = 25;  // Updated cap
+    const totalAvailableMax = signalsMax + marketMax; // 55
+    const scaleFactor = (35 + totalAvailableMax) / totalAvailableMax; // 90/55 ≈ 1.636
 
     adjustedSignals = Math.round(signalsScore * scaleFactor);
     adjustedMarket = Math.round(marketScore * scaleFactor);
 
-    // Cap at scaled maximums
-    adjustedSignals = Math.min(Math.round(signalsMax * scaleFactor), adjustedSignals);
-    adjustedMarket = Math.min(Math.round(marketMax * scaleFactor), adjustedMarket);
+    // Cap at 85% of scaled max — prevents no-financials deals from scoring
+    // as high as equivalent deals WITH financials
+    adjustedSignals = Math.min(Math.round(signalsMax * scaleFactor * 0.85), adjustedSignals);
+    adjustedMarket = Math.min(Math.round(marketMax * scaleFactor * 0.85), adjustedMarket);
 
     if (signalsScore > 0 || marketScore > 0) {
       notes.push('No financials — score weighted to company signals & market position');
@@ -223,15 +250,28 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     }
   }
 
-  // ===== SELLER READINESS (0-15 pts) =====
+  // ===== SELLER READINESS (0-25 pts) =====
+  // Business principle: A highly motivated seller can compensate for weaker attributes
   let sellerScore = 0;
   const hasSeller = deal.seller_interest_score !== null && deal.seller_interest_score !== undefined;
 
   if (hasSeller) {
-    sellerScore = Math.round((deal.seller_interest_score / 100) * 15);
-    if (deal.seller_interest_score >= 70) {
+    // Base: proportional score (0-18 pts)
+    sellerScore = Math.round((deal.seller_interest_score / 100) * 18);
+
+    // High motivation bonus (additional 0-7 pts)
+    if (deal.seller_interest_score >= 90) {
+      sellerScore += 7;
+      notes.push('Very high seller motivation — significant quality boost');
+    } else if (deal.seller_interest_score >= 80) {
+      sellerScore += 5;
       notes.push('High seller motivation');
+    } else if (deal.seller_interest_score >= 70) {
+      sellerScore += 3;
+      notes.push('Good seller motivation');
     }
+
+    sellerScore = Math.min(25, sellerScore);
   }
 
   // ===== CALCULATE TOTAL =====
@@ -241,9 +281,8 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   if (hasSeller) {
     totalScore = baseScore + sellerScore;
   } else {
-    // When no seller data, add a baseline of 8 pts (most sellers are somewhat ready)
-    // and scale proportionally. This prevents harsh penalties for missing seller info.
-    totalScore = Math.min(100, baseScore + 8);
+    // When no seller data, add small baseline (5 pts) — don't assume motivation
+    totalScore = Math.min(100, baseScore + 5);
   }
 
   // Store the size indicator for the dashboard (use financial or employee proxy)
