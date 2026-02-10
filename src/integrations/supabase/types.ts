@@ -3395,6 +3395,45 @@ export type Database = {
           },
         ]
       }
+      enrichment_cost_log: {
+        Row: {
+          created_at: string | null
+          duration_ms: number | null
+          estimated_cost_usd: number | null
+          function_name: string
+          id: string
+          input_tokens: number | null
+          metadata: Json | null
+          model: string
+          output_tokens: number | null
+          provider: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_ms?: number | null
+          estimated_cost_usd?: number | null
+          function_name: string
+          id?: string
+          input_tokens?: number | null
+          metadata?: Json | null
+          model: string
+          output_tokens?: number | null
+          provider: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_ms?: number | null
+          estimated_cost_usd?: number | null
+          function_name?: string
+          id?: string
+          input_tokens?: number | null
+          metadata?: Json | null
+          model?: string
+          output_tokens?: number | null
+          provider?: string
+        }
+        Relationships: []
+      }
       enrichment_queue: {
         Row: {
           attempts: number
@@ -3476,6 +3515,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      enrichment_rate_limits: {
+        Row: {
+          backoff_until: string | null
+          concurrent_requests: number | null
+          last_429_at: string | null
+          provider: string
+          updated_at: string | null
+        }
+        Insert: {
+          backoff_until?: string | null
+          concurrent_requests?: number | null
+          last_429_at?: string | null
+          provider: string
+          updated_at?: string | null
+        }
+        Update: {
+          backoff_until?: string | null
+          concurrent_requests?: number | null
+          last_429_at?: string | null
+          provider?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       fee_agreement_logs: {
         Row: {
@@ -8677,6 +8740,10 @@ export type Database = {
         Args: { user_email: string }
         Returns: string
       }
+      decrement_provider_concurrent: {
+        Args: { p_provider: string }
+        Returns: undefined
+      }
       delete_user_completely: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -8884,6 +8951,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      increment_provider_concurrent: {
+        Args: { p_provider: string }
+        Returns: undefined
+      }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       link_journey_to_user: {
@@ -8963,6 +9034,7 @@ export type Database = {
       reset_all_admin_notifications:
         | { Args: never; Returns: undefined }
         | { Args: { admin_uuid: string }; Returns: undefined }
+      reset_stale_concurrent_counts: { Args: never; Returns: undefined }
       restore_deal: { Args: { deal_id: string }; Returns: boolean }
       restore_profile_data_automated: {
         Args: never
