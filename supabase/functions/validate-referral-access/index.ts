@@ -29,7 +29,7 @@ serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const hash = await bcrypt.hash(password);
+      const hash = bcrypt.hashSync(password);
       return new Response(
         JSON.stringify({ hash }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -69,7 +69,7 @@ serve(async (req) => {
       let valid = false;
       if (!partner.share_password_hash) {
         // No password set yet — accept any non-empty password and hash it
-        const hash = await bcrypt.hash(password);
+        const hash = bcrypt.hashSync(password);
         await supabase
           .from("referral_partners")
           .update({ share_password_hash: hash })
@@ -77,13 +77,13 @@ serve(async (req) => {
         valid = true;
       } else {
         try {
-          valid = await bcrypt.compare(password, partner.share_password_hash);
+          valid = bcrypt.compareSync(password, partner.share_password_hash);
         } catch {
           // If hash is invalid (plain text fallback), do direct comparison
           valid = password === partner.share_password_hash;
           if (valid) {
             // Upgrade to proper hash
-            const hash = await bcrypt.hash(password);
+            const hash = bcrypt.hashSync(password);
             await supabase
               .from("referral_partners")
               .update({ share_password_hash: hash })
@@ -143,7 +143,7 @@ serve(async (req) => {
         valid = true;
       } else {
         try {
-          valid = await bcrypt.compare(password, partner.share_password_hash);
+          valid = bcrypt.compareSync(password, partner.share_password_hash);
         } catch {
           valid = password === partner.share_password_hash;
         }
