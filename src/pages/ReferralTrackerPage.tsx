@@ -49,17 +49,19 @@ const formatCurrency = (value: number | null) => {
 };
 
 const statusBadge = (status: string | undefined, source: "listing" | "submission") => {
+  if (!status) return null;
   if (source === "listing") {
     switch (status) {
       case "active":
         return <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>;
+      case "draft":
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-200">In Review</Badge>;
       case "archived":
         return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Archived</Badge>;
       default:
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">In Review</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{status}</Badge>;
     }
   }
-  // Submissions
   switch (status) {
     case "pending":
       return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>;
@@ -102,10 +104,8 @@ export default function ReferralTrackerPage() {
 
       setPartner(data.partner);
 
-      // Build deals list: approved listings + submissions (pending/rejected)
       const dealRows: DealRow[] = [];
 
-      // Listings (admin-added or approved) — always shown regardless of status
       if (data.listings) {
         for (const l of data.listings) {
           dealRows.push({
@@ -117,15 +117,13 @@ export default function ReferralTrackerPage() {
             full_time_employees: l.full_time_employees,
             location: l.location,
             source: "listing",
-            status: l.status || "draft",
+            status: l.status,
           });
         }
       }
 
-      // Submissions
       if (data.submissions) {
         for (const s of data.submissions) {
-          // Skip approved submissions that have a listing (already shown as listings)
           if (s.status === "approved" && s.listing_id) continue;
 
           dealRows.push({
@@ -246,7 +244,6 @@ export default function ReferralTrackerPage() {
   // Main tracker page
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
-      {/* Header */}
       <header className="border-b border-gray-700 bg-gray-900/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -269,7 +266,6 @@ export default function ReferralTrackerPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-        {/* Your Referrals */}
         <Card className="border-gray-700 bg-gray-800/50">
           <CardHeader>
             <CardTitle className="text-white">Your Referrals</CardTitle>
@@ -329,7 +325,6 @@ export default function ReferralTrackerPage() {
           </CardContent>
         </Card>
 
-        {/* Submit New Referrals */}
         <Card className="border-gray-700 bg-gray-800/50">
           <CardHeader>
             <CardTitle className="text-white">Submit New Referrals</CardTitle>
@@ -338,7 +333,6 @@ export default function ReferralTrackerPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* CSV Upload Section */}
             <div>
               <h3 className="text-sm font-medium text-gray-300 mb-3">
                 Upload Spreadsheet
