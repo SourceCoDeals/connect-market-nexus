@@ -1004,7 +1004,10 @@ Deno.serve(async (req) => {
     // ATOMIC ENRICHMENT LOCK: Prevent concurrent enrichments via single UPDATE + WHERE clause
     // Skip lock when called from queue worker (queue already manages concurrency via status)
     if (!skipLock) {
-      const ENRICHMENT_LOCK_SECONDS = 60;
+      // Use a short lock window — just enough to prevent true concurrent calls.
+      // After successful enrichment the timestamp is updated, so the next call only
+      // needs to wait out the remaining window (not the full duration).
+      const ENRICHMENT_LOCK_SECONDS = 15;
       const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
 
       const { count: lockAcquired } = await supabase
@@ -1015,11 +1018,11 @@ Deno.serve(async (req) => {
         .select('*', { count: 'exact', head: true });
 
       if (!lockAcquired || lockAcquired === 0) {
-        console.log(`[enrich-buyer] Lock acquisition failed for buyer ${buyerId}: enrichment already in progress`);
+        console.log(`[enrich-buyer] Lock acquisition failed for buyer ${buyerId}: enrichment already in progress (lock window: ${ENRICHMENT_LOCK_SECONDS}s)`);
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'Enrichment already in progress for this buyer. Please wait and try again.',
+            error: `Enrichment already in progress for this buyer. Please wait ${ENRICHMENT_LOCK_SECONDS} seconds and try again.`,
             statusCode: 429
           }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
