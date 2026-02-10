@@ -2,11 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 import type {
   GlobalActivityQueueItem,
   GlobalActivityOperationType,
-  GlobalActivityClassification,
-  OPERATION_TYPE_LABELS,
 } from "@/types/remarketing";
 
 const QUERY_KEY = ["global-activity-queue"];
@@ -16,20 +15,19 @@ const QUERY_KEY = ["global-activity-queue"];
 export function useGlobalActivityQueue() {
   const queryClient = useQueryClient();
 
-  // Fetch active + queued + recent completed items
   const { data: allItems = [], ...query } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("global_activity_queue")
-        .select("*, profiles:started_by(full_name, email)")
+        .select("*, profiles:created_by(full_name, email)")
         .in("status", ["queued", "running", "paused", "completed", "failed", "cancelled"])
         .order("queued_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       return (data || []) as unknown as GlobalActivityQueueItem[];
     },
-    refetchInterval: 5000, // Poll every 5s as backup to realtime
+    refetchInterval: 5000,
   });
 
   // Realtime subscription
@@ -50,7 +48,6 @@ export function useGlobalActivityQueue() {
     };
   }, [queryClient]);
 
-  // Derived data
   const runningOp = allItems.find((i) => i.status === "running") || null;
   const queuedOps = allItems
     .filter((i) => i.status === "queued")
@@ -76,11 +73,10 @@ export function useGlobalActivityQueue() {
 export function useGlobalGateCheck() {
   const queryClient = useQueryClient();
 
-  /** Returns the currently running MAJOR operation, or null if clear to proceed. */
   const checkGate = useCallback(async (): Promise<GlobalActivityQueueItem | null> => {
     const { data } = await supabase
       .from("global_activity_queue")
-      .select("*, profiles:started_by(full_name, email)")
+      .select("*, profiles:created_by(full_name, email)")
       .eq("classification", "major")
       .in("status", ["running", "paused"])
       .limit(1);
@@ -90,11 +86,6 @@ export function useGlobalGateCheck() {
     return null;
   }, []);
 
-  /**
-   * Attempt to start a major operation. If another major op is running,
-   * the new one is queued instead and a toast is shown.
-   * Returns the created queue item.
-   */
   const startOrQueueMajorOp = useCallback(
     async (params: {
       operationType: GlobalActivityOperationType;
@@ -106,19 +97,18 @@ export function useGlobalGateCheck() {
       const blocker = await checkGate();
 
       if (blocker) {
-        // Queue instead
         const { data, error } = await supabase
           .from("global_activity_queue")
-          .insert({
+          .insert([{
             operation_type: params.operationType,
-            classification: "major" as const,
-            status: "queued" as const,
+            classification: "major",
+            status: "queued",
             total_items: params.totalItems,
-            context_json: params.contextJson || {},
+            context_json: (params.contextJson || {}) as Json,
             description: params.description || null,
-            started_by: params.userId,
-          })
-          .select("*, profiles:started_by(full_name, email)")
+            created_by: params.userId,
+          }])
+          .select("*, profiles:created_by(full_name, email)")
           .single();
 
         if (error) throw error;
@@ -132,20 +122,19 @@ export function useGlobalGateCheck() {
         return { queued: true, item: data as unknown as GlobalActivityQueueItem };
       }
 
-      // Start immediately
       const { data, error } = await supabase
         .from("global_activity_queue")
-        .insert({
+        .insert([{
           operation_type: params.operationType,
-          classification: "major" as const,
-          status: "running" as const,
+          classification: "major",
+          status: "running",
           total_items: params.totalItems,
-          context_json: params.contextJson || {},
+          context_json: (params.contextJson || {}) as Json,
           description: params.description || null,
-          started_by: params.userId,
+          created_by: params.userId,
           started_at: new Date().toISOString(),
-        })
-        .select("*, profiles:started_by(full_name, email)")
+        }])
+        .select("*, profiles:created_by(full_name, email)")
         .single();
 
       if (error) throw error;
@@ -156,7 +145,6 @@ export function useGlobalGateCheck() {
     [checkGate, queryClient]
   );
 
-  /** Register a minor operation (no blocking, just visibility). */
   const registerMinorOp = useCallback(
     async (params: {
       operationType: GlobalActivityOperationType;
@@ -166,15 +154,15 @@ export function useGlobalGateCheck() {
     }) => {
       const { data, error } = await supabase
         .from("global_activity_queue")
-        .insert({
+        .insert([{
           operation_type: params.operationType,
-          classification: "minor" as const,
-          status: "running" as const,
+          classification: "minor",
+          status: "running",
           total_items: params.totalItems || 1,
-          started_by: params.userId,
+          created_by: params.userId,
           started_at: new Date().toISOString(),
           description: params.description || null,
-        })
+        }])
         .select()
         .single();
 
@@ -193,7 +181,6 @@ export function useGlobalGateCheck() {
 export function useGlobalActivityMutations() {
   const queryClient = useQueryClient();
 
-  /** Update progress (completed_items / failed_items). */
   const updateProgress = useMutation({
     mutationFn: async (params: {
       id: string;
@@ -205,9 +192,7 @@ export function useGlobalActivityMutations() {
       if (params.completedItems !== undefined) updates.completed_items = params.completedItems;
       if (params.failedItems !== undefined) updates.failed_items = params.failedItems;
 
-      // Append to error_log if provided
       if (params.errorEntry) {
-        // Fetch current, append, update
         const { data: current } = await supabase
           .from("global_activity_queue")
           .select("error_log")
@@ -227,7 +212,6 @@ export function useGlobalActivityMutations() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
-  /** Mark an operation as completed. */
   const completeOperation = useMutation({
     mutationFn: async (params: { id: string; finalStatus?: "completed" | "failed" | "cancelled" }) => {
       const { error } = await supabase
@@ -242,12 +226,11 @@ export function useGlobalActivityMutations() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
-  /** Pause a running operation. */
   const pauseOperation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("global_activity_queue")
-        .update({ status: "paused" as const })
+        .update({ status: "paused" })
         .eq("id", id)
         .eq("status", "running");
       if (error) throw error;
@@ -255,12 +238,11 @@ export function useGlobalActivityMutations() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
-  /** Resume a paused operation. */
   const resumeOperation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("global_activity_queue")
-        .update({ status: "running" as const, started_at: new Date().toISOString() })
+        .update({ status: "running", started_at: new Date().toISOString() })
         .eq("id", id)
         .eq("status", "paused");
       if (error) throw error;
@@ -268,12 +250,11 @@ export function useGlobalActivityMutations() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
-  /** Cancel a queued or running operation. */
   const cancelOperation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("global_activity_queue")
-        .update({ status: "cancelled" as const, completed_at: new Date().toISOString() })
+        .update({ status: "cancelled", completed_at: new Date().toISOString() })
         .eq("id", id)
         .in("status", ["queued", "running", "paused"]);
       if (error) throw error;

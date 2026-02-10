@@ -437,11 +437,11 @@ export interface GlobalActivityQueueItem {
   failed_items: number;
   context_json: Record<string, unknown>;
   error_log: GlobalActivityErrorEntry[];
-  started_by: string | null;
+  created_by: string | null;
   started_at: string | null;
   completed_at: string | null;
   queued_at: string;
-  queue_position: number | null;
+  created_at: string;
   description: string | null;
   // Joined from profiles
   profiles?: { full_name: string | null; email: string | null } | null;

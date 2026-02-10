@@ -3763,6 +3763,60 @@ export type Database = {
           },
         ]
       }
+      global_activity_queue: {
+        Row: {
+          classification: string
+          completed_at: string | null
+          completed_items: number
+          context_json: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          error_log: Json | null
+          failed_items: number
+          id: string
+          operation_type: string
+          queued_at: string
+          started_at: string | null
+          status: string
+          total_items: number
+        }
+        Insert: {
+          classification?: string
+          completed_at?: string | null
+          completed_items?: number
+          context_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          error_log?: Json | null
+          failed_items?: number
+          id?: string
+          operation_type: string
+          queued_at?: string
+          started_at?: string | null
+          status?: string
+          total_items?: number
+        }
+        Update: {
+          classification?: string
+          completed_at?: string | null
+          completed_items?: number
+          context_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          error_log?: Json | null
+          failed_items?: number
+          id?: string
+          operation_type?: string
+          queued_at?: string
+          started_at?: string | null
+          status?: string
+          total_items?: number
+        }
+        Relationships: []
+      }
       inbound_leads: {
         Row: {
           admin_notes: string | null
