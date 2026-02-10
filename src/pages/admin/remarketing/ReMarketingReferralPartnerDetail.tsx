@@ -128,7 +128,7 @@ export default function ReMarketingReferralPartnerDetail() {
     enabled: !!partnerId,
   });
 
-  // Fetch enrichment queue status for this partner's deals
+  // Fetch enrichment queue status for this partner's deals (all statuses for progress calc)
   const { data: enrichmentQueue } = useQuery({
     queryKey: ["referral-partners", partnerId, "enrichment-queue"],
     queryFn: async () => {
@@ -137,15 +137,15 @@ export default function ReMarketingReferralPartnerDetail() {
       const { data, error } = await supabase
         .from("enrichment_queue")
         .select("listing_id, status")
-        .in("listing_id", dealIds)
-        .in("status", ["pending", "processing"]);
+        .in("listing_id", dealIds);
       if (error) throw error;
       return data || [];
     },
     enabled: !!deals?.length,
     refetchInterval: (enrichmentQueue) => {
       const data = enrichmentQueue.state?.data;
-      return data && data.length > 0 ? 5000 : false;
+      const hasActive = data?.some((d: any) => d.status === 'pending' || d.status === 'processing');
+      return hasActive ? 5000 : false;
     },
   });
 
@@ -182,9 +182,12 @@ export default function ReMarketingReferralPartnerDetail() {
   // Enrichment queue progress
   const enrichmentProgress = useMemo(() => {
     if (!enrichmentQueue?.length) return null;
+    const active = enrichmentQueue.filter((q: any) => q.status === 'pending' || q.status === 'processing');
+    if (active.length === 0) return null; // all done, hide the bar
     const total = enrichmentQueue.length;
-    const completed = 0; // active items are all in-progress
-    return { total, completed };
+    const completed = enrichmentQueue.filter((q: any) => q.status === 'completed').length;
+    const failed = enrichmentQueue.filter((q: any) => q.status === 'failed').length;
+    return { total, completed, failed };
   }, [enrichmentQueue]);
 
   // Selection helpers
