@@ -302,10 +302,20 @@ export default function ReMarketingReferralPartnerDetail() {
     toast.success(`Queued ${targets.length} deals for enrichment`);
     queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "enrichment-queue"] });
 
-    // Trigger worker
-    supabase.functions
-      .invoke("process-enrichment-queue", { body: { source: "referral_partner_bulk" } })
-      .catch(console.warn);
+    // Trigger worker and handle immediate sync (already-enriched deals)
+    try {
+      const { data: result } = await supabase.functions
+        .invoke("process-enrichment-queue", { body: { source: "referral_partner_bulk" } });
+      
+      // If all items were synced (already enriched), immediately refresh to clear progress bar
+      if (result?.synced > 0 && result?.processed === 0) {
+        toast.success(`All ${result.synced} deals were already enriched`);
+        queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "enrichment-queue"] });
+        queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+      }
+    } catch {
+      // Non-blocking — the cron will pick it up
+    }
   };
 
   // Bulk Score
