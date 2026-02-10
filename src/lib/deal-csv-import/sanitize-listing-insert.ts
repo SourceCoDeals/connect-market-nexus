@@ -30,8 +30,20 @@ export const ALLOWED_LISTING_INSERT_FIELDS = new Set<string>([
 export function sanitizeListingInsert<T extends Record<string, unknown>>(data: T): Partial<T> {
   const out: Partial<T> = {};
 
-  // First pass: copy allowed fields
+  // Remap primary_contact_* → main_contact_* (import fields use primary_, DB uses main_)
+  const contactRemap: Record<string, string> = {
+    primary_contact_name: 'main_contact_name',
+    primary_contact_title: 'main_contact_title',
+    primary_contact_email: 'main_contact_email',
+    primary_contact_phone: 'main_contact_phone',
+  };
+  const remapped: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(data)) {
+    remapped[contactRemap[k] || k] = v;
+  }
+
+  // First pass: copy allowed fields
+  for (const [k, v] of Object.entries(remapped)) {
     if (!ALLOWED_LISTING_INSERT_FIELDS.has(k)) continue;
     if (v === undefined) continue;
     out[k as keyof T] = v as T[keyof T];
