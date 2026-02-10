@@ -926,16 +926,12 @@ export default function ReMarketingReferralPartnerDetail() {
                           )}
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
-                          {(deal.deal_quality_score ?? deal.deal_total_score) != null ? (
-                            <ScoreTierBadge
-                              tier={getTierFromScore((deal.deal_quality_score ?? deal.deal_total_score)!)}
-                              score={(deal.deal_quality_score ?? deal.deal_total_score)!}
-                              showScore
-                              size="sm"
-                            />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
+                          {(() => {
+                            const score = deal.deal_quality_score ?? deal.deal_total_score;
+                            if (score == null) return <span className="text-xs text-muted-foreground">-</span>;
+                            const color = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-500";
+                            return <span className={`text-sm font-semibold ${color}`}>{score}</span>;
+                          })()}
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
                           {deal.main_contact_name ? (
