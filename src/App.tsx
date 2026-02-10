@@ -49,6 +49,7 @@ import ReMarketingDeals from "@/pages/admin/remarketing/ReMarketingDeals";
 import ReMarketingDealDetail from "@/pages/admin/remarketing/ReMarketingDealDetail";
 import ReMarketingDataImport from "@/pages/admin/remarketing/ReMarketingDataImport";
 import ReMarketingBulkImport from "@/pages/admin/remarketing/ReMarketingBulkImport";
+import ReMarketingActivityQueue from "@/pages/admin/remarketing/ReMarketingActivityQueue";
 import ReMarketingReferralPartners from "@/pages/admin/remarketing/ReMarketingReferralPartners";
 import ReMarketingReferralPartnerDetail from "@/pages/admin/remarketing/ReMarketingReferralPartnerDetail";
 
@@ -161,6 +162,7 @@ function App() {
               <Route path="analytics/advanced" element={<ReMarketingAdvancedAnalytics />} />
               <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
               <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
+              <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
               <Route path="import" element={<ReMarketingDataImport />} />
               <Route path="bulk-import" element={<ReMarketingBulkImport />} />
 

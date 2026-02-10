@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
 
 interface CSVRow {
   [key: string]: string;
@@ -117,6 +118,7 @@ function normalizeDomain(url: string): string {
 }
 
 export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, onOpenChange, hideTrigger = false }: BuyerCSVImportProps) => {
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
   const [internalOpen, setInternalOpen] = useState(false);
   
   // Use controlled or uncontrolled mode
@@ -558,6 +560,22 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
   ) => {
     setStep('enriching');
     setEnrichmentProgress({ current: 0, total: buyers.length });
+
+    // Gate check: register as major operation
+    const { data: sessionData } = await supabase.auth.getUser();
+    const { queued } = await startOrQueueMajorOp({
+      operationType: 'buyer_enrichment',
+      totalItems: buyers.length,
+      description: `Enrich ${buyers.length} imported buyers`,
+      userId: sessionData?.user?.id || 'unknown',
+    });
+    if (queued) {
+      // Queued for later — skip inline enrichment
+      setEnrichmentProgress({ current: buyers.length, total: buyers.length });
+      toast.info('Enrichment queued — another operation is running. It will start automatically.');
+      return;
+    }
+
     let enriched = 0;
     let failed = 0;
     let creditsDepleted = false;

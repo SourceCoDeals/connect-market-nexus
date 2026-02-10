@@ -90,6 +90,8 @@ import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDea
 import { DealEnrichmentSummaryDialog } from "@/components/remarketing";
 import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
+import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useAuth } from "@/context/AuthContext";
 import {
   DndContext,
   closestCenter,
@@ -650,6 +652,8 @@ const ReMarketingDeals = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
   const [search, setSearch] = useState("");
   const [universeFilter, setUniverseFilter] = useState<string>("all");
   const [scoreFilter, setScoreFilter] = useState<string>("all");
@@ -765,10 +769,19 @@ const ReMarketingDeals = () => {
   // Queue specific deals for enrichment (used by CSV import)
   const queueDealsForEnrichment = useCallback(async (dealIds: string[]) => {
     if (dealIds.length === 0) return;
-    
+
     const nowIso = new Date().toISOString();
-    
+
     try {
+      // Gate check: register as major operation
+      const { queued } = await startOrQueueMajorOp({
+        operationType: 'deal_enrichment',
+        totalItems: dealIds.length,
+        description: `Enrich ${dealIds.length} imported deals`,
+        userId: user?.id || 'unknown',
+      });
+      if (queued) return; // Queued for later auto-start
+
       // Add deals to enrichment queue (upsert to avoid duplicates)
       const queueEntries = dealIds.map(id => ({
         listing_id: id,
@@ -799,7 +812,7 @@ const ReMarketingDeals = () => {
     } catch (err) {
       console.error('Failed to queue deals:', err);
     }
-  }, [toast]);
+  }, [toast, startOrQueueMajorOp, user?.id]);
   
   // Handle import completion with smart enrichment (only new deals)
   const handleImportCompleteWithIds = useCallback((importedIds: string[]) => {
@@ -1430,7 +1443,7 @@ const ReMarketingDeals = () => {
   // Handle enrich all deals - queues deals for enrichment
   const handleEnrichDeals = async (mode: 'all' | 'unenriched') => {
     setShowEnrichDialog(false);
-    
+
     if (!listings || listings.length === 0) {
       toast({ title: "No deals", description: "No deals available to enrich", variant: "destructive" });
       return;
@@ -1439,18 +1452,31 @@ const ReMarketingDeals = () => {
     setIsEnrichingAll(true);
     try {
       // Filter based on mode
-      const dealsToEnrich = mode === 'all' 
-        ? listings 
+      const dealsToEnrich = mode === 'all'
+        ? listings
         : listings.filter(l => !l.enriched_at);
-      
+
       if (dealsToEnrich.length === 0) {
         toast({ title: "All deals enriched", description: "All deals have already been enriched" });
         setIsEnrichingAll(false);
         return;
       }
-      
+
       const dealIds = dealsToEnrich.map(l => l.id);
-      
+
+      // Gate check: register as major operation (blocks other majors / gets queued)
+      const { queued } = await startOrQueueMajorOp({
+        operationType: 'deal_enrichment',
+        totalItems: dealIds.length,
+        description: `Enrich ${dealIds.length} deals (${mode})`,
+        userId: user?.id || 'unknown',
+      });
+      if (queued) {
+        // Another major op is running — ours was queued and will auto-start later
+        setIsEnrichingAll(false);
+        return;
+      }
+
       // Reset enriched_at for selected deals to force re-enrichment
       const { error: resetError } = await supabase
         .from('listings')

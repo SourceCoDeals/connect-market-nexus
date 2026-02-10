@@ -110,6 +110,8 @@ export async function runListingEnrichmentPipeline(
         if (liRes.json?.linkedin_employee_count != null) updatedFields.push('linkedin_employee_count');
         if (liRes.json?.linkedin_employee_range) updatedFields.push('linkedin_employee_range');
         if (liRes.json?.linkedin_url) updatedFields.push('linkedin_url');
+        if (liRes.json?.matchConfidence) updatedFields.push('linkedin_match_confidence');
+        if (liRes.json?.scraped) updatedFields.push('linkedin_verified_at');
       }
     } else {
       console.error('LinkedIn scrape rejected:', liResult.reason);

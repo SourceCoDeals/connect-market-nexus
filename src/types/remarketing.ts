@@ -401,3 +401,56 @@ export interface ReferralSubmission {
   // Joined relations
   referral_partners?: { id: string; name: string; company: string | null };
 }
+
+// ─── Global Activity Queue ──────────────────────────────────────────
+
+export type GlobalActivityOperationType =
+  | 'deal_enrichment'
+  | 'buyer_enrichment'
+  | 'guide_generation'
+  | 'buyer_scoring'
+  | 'criteria_extraction';
+
+export type GlobalActivityClassification = 'major' | 'minor';
+
+export type GlobalActivityStatus =
+  | 'queued'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export interface GlobalActivityErrorEntry {
+  itemId: string;
+  error: string;
+  timestamp: string;
+}
+
+export interface GlobalActivityQueueItem {
+  id: string;
+  operation_type: GlobalActivityOperationType;
+  classification: GlobalActivityClassification;
+  status: GlobalActivityStatus;
+  total_items: number;
+  completed_items: number;
+  failed_items: number;
+  context_json: Record<string, unknown>;
+  error_log: GlobalActivityErrorEntry[];
+  started_by: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  queued_at: string;
+  queue_position: number | null;
+  description: string | null;
+  // Joined from profiles
+  profiles?: { full_name: string | null; email: string | null } | null;
+}
+
+export const OPERATION_TYPE_LABELS: Record<GlobalActivityOperationType, string> = {
+  deal_enrichment: 'Deal Enrichment',
+  buyer_enrichment: 'Buyer Enrichment',
+  guide_generation: 'Industry Guide Generation',
+  buyer_scoring: 'Buyer-Deal Scoring',
+  criteria_extraction: 'Criteria Extraction',
+};

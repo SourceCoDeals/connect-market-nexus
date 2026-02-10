@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
 
 export interface EnrichmentProgress {
   current: number;
@@ -27,6 +28,7 @@ interface UseBulkEnrichmentOptions {
 export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
   const {
     onComplete,
     maxRetries = 3,
@@ -166,6 +168,20 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     let rateLimited = false;
 
     try {
+      // Gate check: register as major operation
+      const { data: sessionData } = await supabase.auth.getUser();
+      const { queued } = await startOrQueueMajorOp({
+        operationType: 'buyer_enrichment',
+        totalItems: unenrichedBuyers.length,
+        description: `Enrich ${unenrichedBuyers.length} buyers`,
+        userId: sessionData?.user?.id || 'unknown',
+      });
+      if (queued) {
+        setIsEnriching(false);
+        setProgress({ current: 0, total: 0 });
+        return { success: true, enrichedCount: 0, failedCount: 0, partialCount: 0 };
+      }
+
       for (let i = 0; i < unenrichedBuyers.length; i++) {
         const buyer = unenrichedBuyers[i];
         setEnrichingIds(prev => new Set(prev).add(buyer.id));
@@ -254,6 +270,20 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     let failedCount = 0;
 
     try {
+      // Gate check: register as major operation
+      const { data: sessionData } = await supabase.auth.getUser();
+      const { queued } = await startOrQueueMajorOp({
+        operationType: 'deal_enrichment',
+        totalItems: enrichableDeals.length,
+        description: `Enrich ${enrichableDeals.length} deals`,
+        userId: sessionData?.user?.id || 'unknown',
+      });
+      if (queued) {
+        setIsEnriching(false);
+        setProgress({ current: 0, total: 0 });
+        return { success: true, enrichedCount: 0, failedCount: 0, partialCount: 0 };
+      }
+
       for (let i = 0; i < enrichableDeals.length; i++) {
         const deal = enrichableDeals[i];
         setEnrichingIds(prev => new Set(prev).add(deal.id));

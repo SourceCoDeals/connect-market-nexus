@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
 
 export interface QueueProgress {
   pending: number;
@@ -28,6 +29,7 @@ const MAX_POLLING_DURATION_MS = 60 * 60 * 1000; // 60 minutes — 43 buyers × ~
 
 export function useBuyerEnrichmentQueue(universeId?: string) {
   const queryClient = useQueryClient();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingStartTimeRef = useRef<number | null>(null);
@@ -181,6 +183,19 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     }
 
     try {
+      // Gate check: register as major operation
+      const { data: sessionData } = await supabase.auth.getUser();
+      const { queued } = await startOrQueueMajorOp({
+        operationType: 'buyer_enrichment',
+        totalItems: enrichableBuyers.length,
+        description: `Enrich ${enrichableBuyers.length} buyers`,
+        userId: sessionData?.user?.id || 'unknown',
+      });
+      if (queued) {
+        // Another major op is running — ours was queued and will auto-start later
+        return;
+      }
+
       // Clear any existing queue items for this universe first (for "enrich all" scenario)
       await supabase
         .from('buyer_enrichment_queue')

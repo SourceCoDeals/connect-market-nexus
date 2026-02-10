@@ -13,6 +13,7 @@ import {
   Database,
   Trophy,
   Handshake,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +85,11 @@ export function ReMarketingSidebar() {
       label: "Advanced Analytics",
       href: "/admin/remarketing/analytics/advanced",
       icon: <Trophy className="h-5 w-5" />,
+    },
+    {
+      label: "Activity Queue",
+      href: "/admin/remarketing/activity-queue",
+      icon: <Activity className="h-5 w-5" />,
     },
     {
       label: "Data Import",

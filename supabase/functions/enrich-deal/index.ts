@@ -1522,21 +1522,26 @@ For financial data, include confidence levels and source quotes where available.
             city: extracted.address_city || deal.address_city,
             state: extracted.address_state || deal.address_state,
             dealId: dealId, // Let the function update directly too as backup
+            companyWebsite: websiteUrl || deal.website, // Required for website verification
           }),
-          signal: AbortSignal.timeout(90000), // 90 seconds for Firecrawl search + scrape
+          signal: AbortSignal.timeout(180000), // 180 seconds — multi-candidate ranking can scrape up to 3 profiles
         });
 
         if (linkedinResponse.ok) {
           const linkedinData = await linkedinResponse.json();
           if (linkedinData.success && linkedinData.scraped) {
             console.log('LinkedIn data retrieved:', linkedinData);
-            
-            // Add LinkedIn data to extracted fields
+
+            // Consume ALL fields from LinkedIn response to stay in sync with the
+            // direct DB update the LinkedIn scraper already did (prevents race condition)
             if (linkedinData.linkedin_employee_count) {
               extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
             }
             if (linkedinData.linkedin_employee_range) {
               extracted.linkedin_employee_range = linkedinData.linkedin_employee_range;
+            }
+            if (linkedinData.linkedin_url) {
+              extracted.linkedin_url = linkedinData.linkedin_url;
             }
           } else {
             console.log('LinkedIn scrape returned no data:', linkedinData.error || 'No company found');
