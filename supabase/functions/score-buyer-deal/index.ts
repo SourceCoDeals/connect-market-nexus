@@ -269,25 +269,25 @@ function calculateSizeScore(
     // No buyer size criteria either — both sides unknown, neutral
     if (buyerMinRevenue == null && buyerMaxRevenue == null && buyerMinEbitda == null && buyerMaxEbitda == null) {
       return {
-        score: 55,
-        multiplier: 0.8,
-        reasoning: "Deal missing financials, buyer has no size criteria — moderate neutral"
+        score: 60,
+        multiplier: 1.0,
+        reasoning: "Both sides missing financials — neutral, no size penalty"
       };
     }
     // Buyer has wide criteria range (max >= 3x min) — flexible buyer, better chance of fit
     const rangeRatio = (buyerMinRevenue && buyerMaxRevenue) ? buyerMaxRevenue / buyerMinRevenue : 0;
     if (rangeRatio >= 3) {
       return {
-        score: 50,
-        multiplier: 0.75,
-        reasoning: "Deal missing financials — buyer has wide size range, moderate fit assumed"
+        score: 60,
+        multiplier: 1.0,
+        reasoning: "Deal missing financials — buyer has wide size range, neutral"
       };
     }
-    // Buyer has narrow or specific criteria — can't verify, higher risk of mismatch
+    // Buyer has narrow or specific criteria — can't verify, mild uncertainty
     return {
-      score: 35,
-      multiplier: 0.6,
-      reasoning: "Deal missing financials — buyer has specific size criteria, fit uncertain"
+      score: 55,
+      multiplier: 0.9,
+      reasoning: "Deal missing financials — buyer has specific size criteria, fit unverified"
     };
   }
 
@@ -600,11 +600,31 @@ async function calculateGeographyScore(
 
   // No deal state or no buyer states — limited data
   if (!dealState || buyerStates.length === 0) {
-    const limitedScore = Math.max(scoreFloor, 50);
+    let limitedScore = 50;
+    let limitedReasoning = "Limited geography data available";
+
+    // Use buyer signals to differentiate
+    const geoReach = (buyer.customer_geographic_reach || '').toLowerCase();
+    const buyerType = (buyer.buyer_type || '').toLowerCase();
+    const thesis = (buyer.thesis_summary || '').toLowerCase();
+
+    const isNational = /\b(national|nationwide|global|international|united states|all states|coast to coast)\b/.test(geoReach) ||
+      /\b(national|nationwide)\b/.test(thesis);
+
+    if (isNational) {
+      limitedScore = 70;
+      limitedReasoning = "Buyer appears national — geography likely not a constraint";
+    } else if (buyerType === 'pe_firm' || buyerType === 'family_office') {
+      limitedScore = 60;
+      limitedReasoning = "PE/Family Office buyer — likely flexible on geography";
+    }
+
+    limitedScore = Math.max(scoreFloor, limitedScore);
+
     return {
       score: limitedScore,
       modeFactor,
-      reasoning: "Limited geography data available",
+      reasoning: limitedReasoning,
       tier: 'regional'
     };
   }
@@ -760,8 +780,22 @@ async function calculateServiceScore(
         score = 45;
         reasoning = `Adjacent service match: ${adjacencyResult.matches.join(', ')}`;
       } else {
-        score = 22;
-        reasoning = `No service overlap or adjacency detected`;
+        // Differentiate "no data to compare" from "compared and no match"
+        const buyerHasAnyServiceInfo = buyerTargetServices.length > 0 ||
+          buyerServicesOffered.length > 0 ||
+          buyerTargetIndustries.length > 0 ||
+          buyerSpecializedFocus.length > 0;
+
+        if (!buyerHasAnyServiceInfo) {
+          score = 55;
+          reasoning = "Buyer has no service data — neutral, cannot evaluate fit";
+        } else if (dealServices.length === 0 || !dealServices[0]) {
+          score = 55;
+          reasoning = "Deal has no service data — neutral, cannot evaluate fit";
+        } else {
+          score = 30;
+          reasoning = "No service overlap or adjacency detected between known services";
+        }
       }
     }
   }
@@ -788,10 +822,10 @@ async function calculateServiceScore(
 }
 
 function getServiceMultiplier(serviceScore: number): number {
-  if (serviceScore === 0) return 0.0;
-  if (serviceScore <= 20) return 0.15;
-  if (serviceScore <= 40) return 0.4;
-  if (serviceScore <= 60) return 0.7;
+  if (serviceScore === 0) return 0.0;   // Hard disqualification only
+  if (serviceScore <= 20) return 0.4;   // Was 0.15 — too harsh for sparse data
+  if (serviceScore <= 40) return 0.6;   // Was 0.4
+  if (serviceScore <= 60) return 0.8;   // Was 0.7
   if (serviceScore <= 80) return 0.9;
   return 1.0;
 }
@@ -1161,31 +1195,9 @@ function calculateThesisBonusFallback(listing: any, buyer: any): { bonus: number
 }
 
 function calculateDataQualityBonus(buyer: any): { bonus: number; details: string[] } {
-  let bonus = 0;
-  const details: string[] = [];
-
-  if (buyer.thesis_summary && buyer.thesis_summary.length > 50) {
-    bonus += 3;
-    details.push('+3 thesis');
-  }
-  if (buyer.target_services && buyer.target_services.length > 0) {
-    bonus += 2;
-    details.push('+2 target_services');
-  }
-  if (buyer.target_geographies && buyer.target_geographies.length > 0) {
-    bonus += 2;
-    details.push('+2 target_geographies');
-  }
-  if (buyer.target_revenue_min || buyer.target_revenue_max) {
-    bonus += 2;
-    details.push('+2 revenue_range');
-  }
-  if (buyer.key_quotes && buyer.key_quotes.length > 0) {
-    bonus += 1;
-    details.push('+1 key_quotes');
-  }
-
-  return { bonus: Math.min(10, bonus), details };
+  // REMOVED: Data quality bonus was rewarding information richness over match quality.
+  // Data completeness is now tracked via confidence_level and dimensions_scored instead.
+  return { bonus: 0, details: [] };
 }
 
 // ============================================================================
@@ -1427,22 +1439,31 @@ async function scoreSingleBuyer(
   const buyerHasServiceData = (buyer.target_services?.length > 0) ||
     (buyer.services_offered && buyer.services_offered.trim().length > 0);
 
+  // Also check deal-side data availability
+  const dealHasFinancials = listing.revenue != null || listing.ebitda != null;
+  const dealHasLocation = !!(listing.location && listing.location.trim());
+  const dealHasServices = !!(
+    (listing.services && Array.isArray(listing.services) && listing.services.length > 0) ||
+    (listing.categories && Array.isArray(listing.categories) && listing.categories.length > 0) ||
+    (listing.category && listing.category.trim())
+  );
+
   let effectiveSizeWeight = sizeWeight;
   let effectiveServiceWeight = serviceWeight;
   let effectiveGeoWeight = geoWeight;
   let effectiveOwnerWeight = ownerGoalsWeight;
 
-  // Collect weight from insufficient dimensions
+  // Collect weight from insufficient dimensions (either side missing data)
   let pooledWeight = 0;
-  if (!buyerHasSizeData) {
+  if (!buyerHasSizeData || !dealHasFinancials) {
     pooledWeight += effectiveSizeWeight;
     effectiveSizeWeight = 0;
   }
-  if (!buyerHasGeoData) {
+  if (!buyerHasGeoData || !dealHasLocation) {
     pooledWeight += effectiveGeoWeight;
     effectiveGeoWeight = 0;
   }
-  if (!buyerHasServiceData) {
+  if (!buyerHasServiceData || !dealHasServices) {
     pooledWeight += effectiveServiceWeight;
     effectiveServiceWeight = 0;
   }
@@ -1457,7 +1478,11 @@ async function scoreSingleBuyer(
       effectiveServiceWeight = Math.round(effectiveServiceWeight * scale);
       effectiveOwnerWeight = Math.round(effectiveOwnerWeight * scale);
     }
-    console.log(`[Weight Redistribution] Buyer ${buyer.id}: missing [${!buyerHasSizeData ? 'size' : ''}${!buyerHasGeoData ? ' geo' : ''}${!buyerHasServiceData ? ' svc' : ''}]. Effective: size=${effectiveSizeWeight}, geo=${effectiveGeoWeight}, svc=${effectiveServiceWeight}, owner=${effectiveOwnerWeight}`);
+    const missingDims: string[] = [];
+    if (!buyerHasSizeData || !dealHasFinancials) missingDims.push('size');
+    if (!buyerHasGeoData || !dealHasLocation) missingDims.push('geo');
+    if (!buyerHasServiceData || !dealHasServices) missingDims.push('svc');
+    console.log(`[Weight Redistribution] Buyer ${buyer.id}: missing [${missingDims.join(', ')}]. Effective: size=${effectiveSizeWeight}, geo=${effectiveGeoWeight}, svc=${effectiveServiceWeight}, owner=${effectiveOwnerWeight}`);
   }
 
   // === Step f: Weighted composite ===
@@ -1470,8 +1495,11 @@ async function scoreSingleBuyer(
      ownerGoalsResult.score * effectiveOwnerWeight) / effectiveWeightSum
   );
 
-  // === Step g+h: Apply BOTH gates ===
-  let gatedScore = Math.round(weightedBase * sizeResult.multiplier * serviceResult.multiplier);
+  // === Step g+h: Apply gates only for dimensions that were actually scored ===
+  let effectiveSizeMultiplier = (!buyerHasSizeData || !dealHasFinancials) ? 1.0 : sizeResult.multiplier;
+  let effectiveServiceMultiplier = (!buyerHasServiceData || !dealHasServices) ? 1.0 : serviceResult.multiplier;
+
+  let gatedScore = Math.round(weightedBase * effectiveSizeMultiplier * effectiveServiceMultiplier);
   gatedScore = Math.max(0, Math.min(100, gatedScore));
 
   // === Step i: Data quality bonus ===
@@ -1529,10 +1557,19 @@ async function scoreSingleBuyer(
   // === Data completeness + provenance ===
   const { level: dataCompleteness, missingFields, provenanceWarnings } = assessDataCompleteness(buyer);
 
-  // === Confidence level — downgrade if provenance warnings exist ===
+  // === Confidence level based on dimensions actually scored ===
+  const dimensionsScored = [
+    buyerHasSizeData && dealHasFinancials,
+    buyerHasGeoData && dealHasLocation,
+    buyerHasServiceData && dealHasServices,
+    true // owner goals always has signal from buyer type
+  ].filter(Boolean).length;
+
   let confidenceLevel = 'medium';
-  if (dataCompleteness === 'high' && ownerGoalsResult.confidence !== 'low' && provenanceWarnings.length === 0) confidenceLevel = 'high';
-  else if (dataCompleteness === 'low' || provenanceWarnings.length > 0) confidenceLevel = 'low';
+  if (dimensionsScored >= 4 && dataCompleteness === 'high' && provenanceWarnings.length === 0) confidenceLevel = 'high';
+  else if (dimensionsScored >= 3) confidenceLevel = 'medium';
+  else if (dimensionsScored >= 2) confidenceLevel = 'low';
+  else confidenceLevel = 'very_low';
 
   // === Needs review flag (only in ambiguous score zone with low-quality data) ===
   const needsReview = (
