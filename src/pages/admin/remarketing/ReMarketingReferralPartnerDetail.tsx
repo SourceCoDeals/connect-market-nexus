@@ -181,9 +181,9 @@ export default function ReMarketingReferralPartnerDetail() {
   const kpis = useMemo(() => {
     if (!deals) return { total: 0, enriched: 0, scored: 0, avgQuality: 0 };
     const enriched = deals.filter((d) => d.enriched_at).length;
-    const scored = deals.filter((d) => d.deal_quality_score != null).length;
+    const scored = deals.filter((d) => (d.deal_quality_score ?? d.deal_total_score) != null).length;
     const qualityScores = deals
-      .map((d) => d.deal_quality_score)
+      .map((d) => d.deal_quality_score ?? d.deal_total_score)
       .filter((s): s is number => s != null);
     const avgQuality = qualityScores.length
       ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
@@ -926,10 +926,10 @@ export default function ReMarketingReferralPartnerDetail() {
                           )}
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
-                          {deal.deal_quality_score != null ? (
+                          {(deal.deal_quality_score ?? deal.deal_total_score) != null ? (
                             <ScoreTierBadge
-                              tier={getTierFromScore(deal.deal_quality_score)}
-                              score={deal.deal_quality_score}
+                              tier={getTierFromScore((deal.deal_quality_score ?? deal.deal_total_score)!)}
+                              score={(deal.deal_quality_score ?? deal.deal_total_score)!}
                               showScore
                               size="sm"
                             />
