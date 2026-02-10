@@ -5968,6 +5968,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           share_password_hash: string | null
+          share_password_plaintext: string | null
           share_token: string | null
           updated_at: string | null
         }
@@ -5983,6 +5984,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           share_password_hash?: string | null
+          share_password_plaintext?: string | null
           share_token?: string | null
           updated_at?: string | null
         }
@@ -5998,6 +6000,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           share_password_hash?: string | null
+          share_password_plaintext?: string | null
           share_token?: string | null
           updated_at?: string | null
         }

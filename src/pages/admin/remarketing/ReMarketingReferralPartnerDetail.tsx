@@ -235,11 +235,10 @@ export default function ReMarketingReferralPartnerDetail() {
         "validate-referral-access",
         { body: { action: "hash-password", password } }
       );
-
       const hash = hashResult?.hash || password;
       const { error } = await supabase
         .from("referral_partners")
-        .update({ share_password_hash: hash } as never)
+        .update({ share_password_hash: hash, share_password_plaintext: password } as never)
         .eq("id", partnerId!);
       if (error) throw error;
       return password;
@@ -247,7 +246,8 @@ export default function ReMarketingReferralPartnerDetail() {
     onSuccess: (password) => {
       setLastGeneratedPassword(password);
       navigator.clipboard.writeText(password);
-      toast.success(`New password copied to clipboard: ${password}`, { duration: 15000 });
+      queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId] });
+      toast.success(`New password copied to clipboard`, { duration: 10000 });
     },
     onError: (error) => {
       toast.error(`Failed to reset password: ${error.message}`);
@@ -574,9 +574,9 @@ export default function ReMarketingReferralPartnerDetail() {
           </div>
         </div>
 
-        {/* Share Link Section */}
+        {/* Share Link & Password Section */}
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium mb-1">Partner Tracker Link</p>
@@ -584,17 +584,26 @@ export default function ReMarketingReferralPartnerDetail() {
                   {window.location.origin}/referrals/{partner.share_token || "..."}
                 </p>
               </div>
+              <Button variant="outline" size="sm" onClick={handleCopyShareLink}>
+                <Copy className="h-3 w-3 mr-1" />
+                Copy URL
+              </Button>
+            </div>
+            <div className="flex items-center justify-between border-t pt-3">
+              <div>
+                <p className="text-sm font-medium mb-1">Password</p>
+                <p className="text-xs font-mono text-muted-foreground">
+                  {(partner as any)?.share_password_plaintext || lastGeneratedPassword || "Not set — click Reset Password"}
+                </p>
+              </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleCopyShareLink}>
-                  <Copy className="h-3 w-3 mr-1" />
-                  Copy URL
-                </Button>
-                {lastGeneratedPassword && (
+                {((partner as any)?.share_password_plaintext || lastGeneratedPassword) && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      navigator.clipboard.writeText(lastGeneratedPassword);
+                      const pw = (partner as any)?.share_password_plaintext || lastGeneratedPassword;
+                      navigator.clipboard.writeText(pw);
                       toast.success("Password copied to clipboard");
                     }}
                   >
