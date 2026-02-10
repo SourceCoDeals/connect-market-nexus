@@ -114,11 +114,11 @@ export default function ReMarketingReferralPartnerDetail() {
       const { data, error } = await supabase
         .from("listings")
         .select(
-          `id, title, internal_company_name, location, revenue, ebitda, category, website,
+           `id, title, internal_company_name, location, revenue, ebitda, category, website,
            status, created_at, full_time_employees, address_city, address_state,
            enriched_at, deal_total_score, deal_quality_score, 
            linkedin_employee_count, linkedin_employee_range,
-           google_review_count, google_rating`
+           google_review_count, google_rating, is_priority_target`
         )
         .eq("referral_partner_id", partnerId!)
         .order("created_at", { ascending: false });
@@ -789,7 +789,11 @@ export default function ReMarketingReferralPartnerDetail() {
                     return (
                       <TableRow
                         key={deal.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className={`cursor-pointer hover:bg-muted/50 ${
+                          deal.is_priority_target
+                            ? "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+                            : ""
+                        }`}
                         data-state={selectedDealIds.has(deal.id) ? "selected" : undefined}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -919,6 +923,25 @@ export default function ReMarketingReferralPartnerDetail() {
                               <DropdownMenuItem onClick={() => handleEnrichDeal(deal.id)}>
                                 <Zap className="h-3 w-3 mr-2" />
                                 Enrich Deal
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const newStatus = !deal.is_priority_target;
+                                  const { error } = await supabase
+                                    .from("listings")
+                                    .update({ is_priority_target: newStatus })
+                                    .eq("id", deal.id);
+                                  if (error) {
+                                    toast.error(error.message);
+                                  } else {
+                                    toast.success(newStatus ? "Marked as priority" : "Priority removed");
+                                    queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+                                  }
+                                }}
+                                className={deal.is_priority_target ? "text-amber-600" : ""}
+                              >
+                                <Star className={`h-3 w-3 mr-2 ${deal.is_priority_target ? "fill-amber-500" : ""}`} />
+                                {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
