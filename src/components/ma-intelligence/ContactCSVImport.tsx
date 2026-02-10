@@ -73,17 +73,20 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
         setProgress(Math.round((i / rows.length) * 100));
       }
 
-      // Bulk insert
-      const { error: insertError } = await supabase
+      // Bulk upsert - skip duplicates by name within same universe
+      const { data: inserted, error: insertError } = await supabase
         .from("remarketing_buyers")
-        .insert(buyers);
+        .upsert(buyers, { onConflict: 'universe_id,lower(trim(company_name)),lower(trim(COALESCE(pe_firm_name,\'\')))', ignoreDuplicates: true })
+        .select('id');
 
       if (insertError) throw insertError;
 
-      setImportedCount(buyers.length);
+      const actualCount = inserted?.length || 0;
+      const skipped = buyers.length - actualCount;
+      setImportedCount(actualCount);
       toast({
         title: "Import successful",
-        description: `Imported ${buyers.length} buyers`,
+        description: `Imported ${actualCount} buyers${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`,
       });
 
       setTimeout(() => {
