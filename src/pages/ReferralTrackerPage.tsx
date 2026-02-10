@@ -48,8 +48,18 @@ const formatCurrency = (value: number | null) => {
   return `$${value.toLocaleString()}`;
 };
 
-const statusBadge = (status: string | undefined) => {
-  if (!status) return null;
+const statusBadge = (status: string | undefined, source: "listing" | "submission") => {
+  if (source === "listing") {
+    switch (status) {
+      case "active":
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>;
+      case "archived":
+        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Archived</Badge>;
+      default:
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">In Review</Badge>;
+    }
+  }
+  // Submissions
   switch (status) {
     case "pending":
       return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>;
@@ -95,7 +105,7 @@ export default function ReferralTrackerPage() {
       // Build deals list: approved listings + submissions (pending/rejected)
       const dealRows: DealRow[] = [];
 
-      // Listings (admin-added or approved)
+      // Listings (admin-added or approved) — always shown regardless of status
       if (data.listings) {
         for (const l of data.listings) {
           dealRows.push({
@@ -107,6 +117,7 @@ export default function ReferralTrackerPage() {
             full_time_employees: l.full_time_employees,
             location: l.location,
             source: "listing",
+            status: l.status || "draft",
           });
         }
       }
@@ -308,7 +319,7 @@ export default function ReferralTrackerPage() {
                         <TableCell className="text-gray-300 text-sm">
                           {deal.location || "-"}
                         </TableCell>
-                        <TableCell>{statusBadge(deal.status)}</TableCell>
+                        <TableCell>{statusBadge(deal.status, deal.source)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

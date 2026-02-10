@@ -360,3 +360,44 @@ export interface ActivityItem {
   timestamp: string;
   metadata?: Record<string, unknown>;
 }
+
+// Referral Partner types
+export interface ReferralPartner {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  deal_count: number;
+  is_active: boolean;
+  share_token: string;
+  share_password_hash: string | null;
+  last_viewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ReferralSubmissionStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ReferralSubmission {
+  id: string;
+  referral_partner_id: string;
+  company_name: string;
+  website: string | null;
+  industry: string | null;
+  revenue: number | null;
+  ebitda: number | null;
+  location: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  notes: string | null;
+  status: ReferralSubmissionStatus;
+  listing_id: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  created_at: string;
+  // Joined relations
+  referral_partners?: { id: string; name: string; company: string | null };
+}

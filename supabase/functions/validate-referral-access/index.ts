@@ -67,7 +67,15 @@ serve(async (req) => {
 
       // Check password
       let valid = false;
-      if (partner.share_password_hash) {
+      if (!partner.share_password_hash) {
+        // No password set yet — accept any non-empty password and hash it
+        const hash = await bcrypt.hash(password);
+        await supabase
+          .from("referral_partners")
+          .update({ share_password_hash: hash })
+          .eq("id", partner.id);
+        valid = true;
+      } else {
         try {
           valid = await bcrypt.compare(password, partner.share_password_hash);
         } catch {
@@ -130,7 +138,10 @@ serve(async (req) => {
       }
 
       let valid = false;
-      if (partner.share_password_hash) {
+      if (!partner.share_password_hash) {
+        // No password set — accept (password was set during initial validate call)
+        valid = true;
+      } else {
         try {
           valid = await bcrypt.compare(password, partner.share_password_hash);
         } catch {
@@ -145,14 +156,13 @@ serve(async (req) => {
         );
       }
 
-      // Fetch listings for this partner
+      // Fetch ALL listings for this partner (regardless of status — partner always sees their deals)
       const { data: listings } = await supabase
         .from("listings")
         .select(
-          "id, title, internal_company_name, category, revenue, ebitda, full_time_employees, location"
+          "id, title, internal_company_name, category, revenue, ebitda, full_time_employees, location, status"
         )
         .eq("referral_partner_id", partner.id)
-        .eq("status", "active")
         .order("created_at", { ascending: false });
 
       // Fetch submissions for this partner
