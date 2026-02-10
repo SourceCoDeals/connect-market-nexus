@@ -1517,6 +1517,7 @@ For financial data, include confidence levels and source quotes where available.
             city: extracted.address_city || deal.address_city,
             state: extracted.address_state || deal.address_state,
             dealId: dealId, // Let the function update directly too as backup
+            companyWebsite: websiteUrl || deal.website, // Required for website verification
           }),
           signal: AbortSignal.timeout(90000), // 90 seconds for Firecrawl search + scrape
         });
