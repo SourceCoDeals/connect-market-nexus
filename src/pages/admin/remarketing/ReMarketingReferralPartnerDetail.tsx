@@ -80,6 +80,13 @@ const formatCurrency = (value: number | null) => {
   return `$${value.toLocaleString()}`;
 };
 
+const normalizeCompanyName = (name: string) => {
+  return name
+    .replace(/,?\s*\b(LLC|L\.L\.C\.|Ltd\.?|Limited|Inc\.?|Incorporated|Corp\.?|Corporation|Co\.?|Company|LP|L\.P\.|LLP|L\.L\.P\.|P\.?C\.?|PLLC|P\.?A\.?|DBA|d\/b\/a)\b\.?\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 export default function ReMarketingReferralPartnerDetail() {
   const { partnerId } = useParams<{ partnerId: string }>();
   const navigate = useNavigate();
@@ -854,7 +861,7 @@ export default function ReMarketingReferralPartnerDetail() {
                             {isEnriched && (
                               <Sparkles className="h-3 w-3 text-amber-500 flex-shrink-0" />
                             )}
-                            <span>{deal.internal_company_name || deal.title || "Untitled"}</span>
+                            <span>{normalizeCompanyName(deal.internal_company_name || deal.title || "Untitled")}</span>
                           </div>
                           {domain && (
                             <div className="text-xs text-muted-foreground">{domain}</div>
