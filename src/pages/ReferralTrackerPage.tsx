@@ -30,7 +30,7 @@ import {
 import { toast } from "sonner";
 import { ReferralSubmissionForm } from "@/components/remarketing/ReferralSubmissionForm";
 import { ReferralCSVUpload } from "@/components/remarketing/ReferralCSVUpload";
-import sourcecoLogo from "@/assets/sourceco-logo-gold.png";
+const sourcecoLogo = "/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png";
 
 interface PartnerData {
   name: string;
