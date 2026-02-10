@@ -89,9 +89,153 @@ const TOTAL_PHASES = 14;
       );
     }
 
+    // === Fireflies Intelligence Gathering (only on first batch) ===
+    let firefliesIntelligence = generation.generated_content?.fireflies_intelligence || '';
+
+    if (currentBatch === 0) {
+      console.log(`[process-ma-guide-queue] Gathering Fireflies intelligence for "${universe.name}"`);
+
+      try {
+        // Search Fireflies for transcripts related to this industry
+        const searchTerms = [universe.name];
+
+        // Add segment terms from clarification context if available
+        const qaContext = universe.ma_guide_qa_context as Record<string, any> || {};
+        if (qaContext.segments && Array.isArray(qaContext.segments)) {
+          searchTerms.push(...qaContext.segments);
+        }
+        if (qaContext.example_companies) {
+          searchTerms.push(qaContext.example_companies);
+        }
+
+        const allTranscripts: any[] = [];
+
+        for (const term of searchTerms.slice(0, 3)) {
+          try {
+            const searchResponse = await fetch(`${supabaseUrl}/functions/v1/search-fireflies-for-buyer`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseServiceKey,
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({ query: term, limit: 10 }),
+              signal: AbortSignal.timeout(15000),
+            });
+
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              if (searchData.results) {
+                allTranscripts.push(...searchData.results);
+              }
+            }
+          } catch (searchErr) {
+            console.warn(`[process-ma-guide-queue] Fireflies search for "${term}" failed:`, searchErr);
+          }
+        }
+
+        // Also search for buyers already in this universe
+        const { data: universeBuyers } = await supabase
+          .from('remarketing_buyers')
+          .select('pe_firm_name, company_name')
+          .eq('universe_id', generation.universe_id)
+          .limit(10);
+
+        if (universeBuyers && universeBuyers.length > 0) {
+          for (const buyer of universeBuyers.slice(0, 5)) {
+            const buyerName = buyer.pe_firm_name || buyer.company_name;
+            if (!buyerName) continue;
+            try {
+              const searchResponse = await fetch(`${supabaseUrl}/functions/v1/search-fireflies-for-buyer`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': supabaseServiceKey,
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({ query: buyerName, limit: 5 }),
+                signal: AbortSignal.timeout(15000),
+              });
+
+              if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                if (searchData.results) {
+                  allTranscripts.push(...searchData.results);
+                }
+              }
+            } catch (searchErr) {
+              console.warn(`[process-ma-guide-queue] Fireflies search for buyer "${buyerName}" failed:`, searchErr);
+            }
+          }
+        }
+
+        // Deduplicate by transcript ID
+        const seen = new Set<string>();
+        const uniqueTranscripts = allTranscripts.filter(t => {
+          if (!t.id || seen.has(t.id)) return false;
+          seen.add(t.id);
+          return true;
+        });
+
+        console.log(`[process-ma-guide-queue] Found ${uniqueTranscripts.length} unique Fireflies transcripts`);
+
+        // Filter for external meetings only
+        const externalTranscripts = uniqueTranscripts.filter(t => {
+          const title = (t.title || '').toLowerCase();
+          return title.includes('<rem>') ||
+                 title.includes('<ext>') ||
+                 title.includes('intro') ||
+                 title.includes('discovery') ||
+                 title.includes('capital') ||
+                 title.includes('partner') ||
+                 (!title.includes('standup') && !title.includes('stand up') &&
+                  !title.includes('weekly touch base') && !title.includes('internal'));
+        });
+
+        // Build structured intelligence summary from transcript summaries
+        if (externalTranscripts.length > 0) {
+          const summaryParts: string[] = [];
+          summaryParts.push(`FIREFLIES INTELLIGENCE: Found ${externalTranscripts.length} relevant call transcripts.\n`);
+
+          for (const t of externalTranscripts.slice(0, 15)) {
+            const summary = typeof t.summary === 'string' ? t.summary : t.summary?.short_summary || '';
+            const keywords = Array.isArray(t.keywords) ? t.keywords.join(', ') : '';
+            const participants = Array.isArray(t.participants)
+              ? t.participants.map((p: any) => typeof p === 'string' ? p : p.email || p.name).join(', ')
+              : '';
+
+            if (summary) {
+              summaryParts.push(`--- CALL: "${t.title}" (${t.date || 'undated'}) ---`);
+              summaryParts.push(`Participants: ${participants}`);
+              if (keywords) summaryParts.push(`Keywords: ${keywords}`);
+              summaryParts.push(`Summary: ${summary}`);
+              summaryParts.push('');
+            }
+          }
+
+          firefliesIntelligence = summaryParts.join('\n');
+          console.log(`[process-ma-guide-queue] Built ${firefliesIntelligence.length} chars of Fireflies intelligence`);
+        }
+
+        // Store intelligence on the generation record for reuse across batches
+        await supabase
+          .from('ma_guide_generations')
+          .update({
+            generated_content: {
+              ...generation.generated_content,
+              fireflies_intelligence: firefliesIntelligence,
+            }
+          })
+          .eq('id', generation.id);
+
+      } catch (ffError) {
+        console.warn('[process-ma-guide-queue] Fireflies intelligence gathering failed (non-blocking):', ffError);
+      }
+    }
+
     // Call generate-ma-guide for this batch
      console.log(`[process-ma-guide-queue] Calling generate-ma-guide for batch ${currentBatch}`);
-     
+
      const response = await fetch(`${supabaseUrl}/functions/v1/generate-ma-guide`, {
        method: 'POST',
        headers: {
@@ -104,6 +248,7 @@ const TOTAL_PHASES = 14;
          industry_description: universe.description,
          universe_id: generation.universe_id,
          clarification_context: universe.ma_guide_qa_context,
+         fireflies_intelligence: firefliesIntelligence,
          stream: false,
          batch_index: currentBatch,
          previous_content: previousContent

@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface SearchRequest {
   query: string;
+  participantEmails?: string[];
   limit?: number;
 }
 
@@ -23,14 +24,14 @@ interface SearchResult {
 }
 
 /**
- * Search Fireflies transcripts for buyer linking
+ * Search Fireflies transcripts for buyer/deal linking
  *
- * This function:
- * 1. Searches Fireflies by keyword/company name
- * 2. Returns formatted results for display
- * 3. Results can be manually linked to buyers
+ * This function supports two search modes:
+ * 1. Keyword search — searches Fireflies by keyword/company name
+ * 2. Participant email search — finds transcripts where ANY of the provided emails
+ *    appear as an attendee (used for domain-based multi-email search)
  *
- * Used in buyer profile page for finding relevant call history.
+ * Both modes run and results are merged + deduplicated for best coverage.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -43,51 +44,101 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json() as SearchRequest;
-    const { query, limit = 20 } = body;
+    const { query, participantEmails, limit = 20 } = body;
 
-    if (!query || query.trim().length === 0) {
+    if ((!query || query.trim().length === 0) && (!participantEmails || participantEmails.length === 0)) {
       return new Response(
-        JSON.stringify({ error: "Search query is required" }),
+        JSON.stringify({ error: "Search query or participant emails required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Searching Fireflies for: "${query}"`);
+    const allResults: any[] = [];
 
-    // Search Fireflies using their search endpoint
-    // The Fireflies MCP fireflies_search tool supports natural language queries
-    const { data: firefliesResponse, error: mcpError } = await supabase.functions.invoke(
-      'fireflies_search',
-      {
-        body: {
-          query: query,
+    // PATH 1: If participant emails provided, search by email participants
+    if (participantEmails && participantEmails.length > 0) {
+      console.log(`Searching Fireflies for ${participantEmails.length} participant emails`);
+
+      try {
+        const { data: firefliesResponse, error: mcpError } = await supabase.functions.invoke(
+          'fireflies_get_transcripts',
+          {
+            body: {
+              participants: participantEmails,
+              limit: limit,
+            }
+          }
+        );
+
+        if (!mcpError && firefliesResponse) {
+          const transcripts = Array.isArray(firefliesResponse)
+            ? firefliesResponse
+            : firefliesResponse?.transcripts || [];
+
+          for (const t of transcripts) {
+            allResults.push({
+              id: t.id,
+              title: t.title || 'Untitled Call',
+              date: t.dateString || t.date || new Date().toISOString(),
+              duration_minutes: t.duration ? Math.round(t.duration) : null,
+              participants: t.meetingAttendees || t.participants || [],
+              summary: t.summary || '',
+              meeting_url: t.meetingLink || '',
+              keywords: t.summary?.keywords || [],
+            });
+          }
         }
+      } catch (err) {
+        console.warn('Fireflies participant search failed:', err);
       }
-    );
-
-    if (mcpError) {
-      console.error("Fireflies search error:", mcpError);
-      throw new Error(`Failed to search Fireflies: ${mcpError.message}`);
     }
 
-    // Parse results
-    const results = Array.isArray(firefliesResponse)
-      ? firefliesResponse
-      : firefliesResponse?.results || [];
+    // PATH 2: Also do keyword search (always, as a supplement)
+    if (query && query.trim().length > 0) {
+      console.log(`Searching Fireflies for keyword: "${query}"`);
 
-    console.log(`Found ${results.length} results`);
+      try {
+        const { data: firefliesResponse, error: mcpError } = await supabase.functions.invoke(
+          'fireflies_search',
+          {
+            body: {
+              query: query,
+            }
+          }
+        );
 
-    // Format results for display
-    const formattedResults: SearchResult[] = results.slice(0, limit).map((r: any) => ({
-      id: r.id || r.transcript_id,
-      title: r.title || 'Untitled Call',
-      date: r.date || r.created_at || new Date().toISOString(),
-      duration_minutes: r.duration ? Math.round(r.duration / 60) : null,
-      participants: r.participants || [],
-      summary: r.summary || r.ai_summary || '',
-      meeting_url: r.meeting_url || r.url || '',
-      keywords: r.keywords || r.key_topics || [],
-    }));
+        if (!mcpError) {
+          const results = Array.isArray(firefliesResponse)
+            ? firefliesResponse
+            : firefliesResponse?.results || [];
+
+          for (const r of results) {
+            allResults.push({
+              id: r.id || r.transcript_id,
+              title: r.title || 'Untitled Call',
+              date: r.date || r.dateString || r.created_at || new Date().toISOString(),
+              duration_minutes: r.duration ? Math.round(typeof r.duration === 'number' && r.duration > 1000 ? r.duration / 60 : r.duration) : null,
+              participants: r.meetingAttendees || r.participants || [],
+              summary: r.summary || r.ai_summary || '',
+              meeting_url: r.meetingLink || r.meeting_url || r.url || '',
+              keywords: r.summary?.keywords || r.keywords || r.key_topics || [],
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Fireflies keyword search failed:', err);
+      }
+    }
+
+    // Deduplicate by ID
+    const seen = new Set<string>();
+    const uniqueResults = allResults.filter(r => {
+      if (!r.id || seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
+
+    const formattedResults: SearchResult[] = uniqueResults.slice(0, limit);
 
     return new Response(
       JSON.stringify({
@@ -95,6 +146,7 @@ serve(async (req) => {
         results: formattedResults,
         total: formattedResults.length,
         query: query,
+        participantEmailsUsed: participantEmails?.length || 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

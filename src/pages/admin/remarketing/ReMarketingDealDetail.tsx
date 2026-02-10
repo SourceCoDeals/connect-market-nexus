@@ -964,7 +964,16 @@ const ReMarketingDealDetail = () => {
       />
 
       {/* Transcripts Section */}
-      <DealTranscriptSection dealId={dealId!} transcripts={transcripts || []} isLoading={transcriptsLoading} />
+      <DealTranscriptSection
+        dealId={dealId!}
+        transcripts={transcripts || []}
+        isLoading={transcriptsLoading}
+        dealInfo={{
+          company_name: deal.company_name,
+          primary_contact_email: deal.primary_contact_email,
+          main_contact_email: deal.main_contact_email,
+        }}
+      />
 
       {/* General Notes Section */}
       <GeneralNotesSection
