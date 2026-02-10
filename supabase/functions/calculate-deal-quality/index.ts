@@ -60,11 +60,14 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   let linkedinBoost = 0;
 
   if (hasFinancials) {
-    // Revenue scoring (0-22 pts)
+    // Revenue scoring (0-27 pts) — expanded tiers for larger companies
     let revPts = 0;
-    if (revenue >= 10000000) revPts = 22;
-    else if (revenue >= 7000000) revPts = 20;
-    else if (revenue >= 5000000) revPts = 18;
+    if (revenue >= 100000000) revPts = 27;
+    else if (revenue >= 50000000) revPts = 25;
+    else if (revenue >= 25000000) revPts = 23;
+    else if (revenue >= 10000000) revPts = 21;
+    else if (revenue >= 7000000) revPts = 19;
+    else if (revenue >= 5000000) revPts = 17;
     else if (revenue >= 3000000) revPts = 14;
     else if (revenue >= 2000000) revPts = 11;
     else if (revenue >= 1000000) revPts = 8;
@@ -73,14 +76,14 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
     revenueScore = revPts;
 
-    // EBITDA scoring (0-13 pts)
+    // EBITDA scoring (0-8 pts) — lower weight so missing EBITDA is less punitive
     let ebitdaPts = 0;
-    if (ebitda >= 5000000) ebitdaPts = 13;
-    else if (ebitda >= 2000000) ebitdaPts = 11;
-    else if (ebitda >= 1000000) ebitdaPts = 9;
-    else if (ebitda >= 500000) ebitdaPts = 7;
-    else if (ebitda >= 300000) ebitdaPts = 5;
-    else if (ebitda >= 150000) ebitdaPts = 3;
+    if (ebitda >= 5000000) ebitdaPts = 8;
+    else if (ebitda >= 2000000) ebitdaPts = 7;
+    else if (ebitda >= 1000000) ebitdaPts = 6;
+    else if (ebitda >= 500000) ebitdaPts = 5;
+    else if (ebitda >= 300000) ebitdaPts = 4;
+    else if (ebitda >= 150000) ebitdaPts = 2;
 
     ebitdaScore = ebitdaPts;
 
@@ -238,9 +241,9 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   if (hasSeller) {
     totalScore = baseScore + sellerScore;
   } else {
-    // Scale base to 100 so great deals without seller data can still score high
-    const maxBase = hasFinancials ? 85 : 85; // 35+30+20 or redistributed equivalent
-    totalScore = Math.round((baseScore / maxBase) * 100);
+    // When no seller data, add a baseline of 8 pts (most sellers are somewhat ready)
+    // and scale proportionally. This prevents harsh penalties for missing seller info.
+    totalScore = Math.min(100, baseScore + 8);
   }
 
   // Store the size indicator for the dashboard (use financial or employee proxy)
