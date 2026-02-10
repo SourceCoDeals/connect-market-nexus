@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { ReferralSubmissionForm } from "@/components/remarketing/ReferralSubmissionForm";
 import { ReferralCSVUpload } from "@/components/remarketing/ReferralCSVUpload";
+import sourcecoLogo from "@/assets/sourceco-logo-gold.png";
 
 interface PartnerData {
   name: string;
@@ -219,46 +220,44 @@ export default function ReferralTrackerPage() {
   // Login screen
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-gray-700 bg-gray-800/50">
+      <div className="min-h-screen bg-sourceco-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-sourceco-form bg-white shadow-lg">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="h-16 w-16 rounded-full bg-amber-600/20 flex items-center justify-center">
-                <Handshake className="h-8 w-8 text-amber-500" />
-              </div>
+              <img src={sourcecoLogo} alt="SourceCo" className="h-12 w-auto" />
             </div>
-            <CardTitle className="text-2xl text-white">Referral Tracker</CardTitle>
-            <p className="text-gray-400 text-sm mt-1">
+            <CardTitle className="text-2xl text-foreground">Referral Tracker</CardTitle>
+            <p className="text-muted-foreground text-sm mt-1">
               Enter your password to access your referral dashboard
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="tracker-password" className="text-gray-300">
+                <Label htmlFor="tracker-password" className="text-foreground">
                   Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="tracker-password"
                     type="password"
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 bg-gray-700 border-gray-600 text-white placeholder:text-gray-500"
+                    className="pl-10 bg-sourceco-form border-sourceco-form text-foreground placeholder:text-muted-foreground"
                     autoFocus
                   />
                 </div>
               </div>
               {loginError && (
-                <p className="text-sm text-red-400 bg-red-950/50 border border-red-800 rounded-md px-3 py-2">
+                <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
                   {loginError}
                 </p>
               )}
               <Button
                 type="submit"
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                className="w-full bg-sourceco-accent hover:bg-sourceco-accent/90 text-sourceco-accent-foreground"
                 disabled={isAuthenticating || !password.trim()}
               >
                 {isAuthenticating ? (
@@ -277,75 +276,73 @@ export default function ReferralTrackerPage() {
 
   // Main tracker page
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
-      <header className="border-b border-gray-700 bg-gray-900/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-sourceco-background">
+      <header className="border-b border-sourceco-form bg-white/80 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-600/20 flex items-center justify-center">
-              <Handshake className="h-5 w-5 text-amber-500" />
-            </div>
+            <img src={sourcecoLogo} alt="SourceCo" className="h-9 w-auto" />
             <div>
-              <h1 className="text-lg font-semibold text-white">
+              <h1 className="text-lg font-semibold text-foreground">
                 {partner?.name || "Partner"} — Referral Tracker
               </h1>
               {partner?.company && (
-                <p className="text-sm text-gray-400">{partner.company}</p>
+                <p className="text-sm text-muted-foreground">{partner.company}</p>
               )}
             </div>
           </div>
-          <Badge variant="outline" className="border-gray-600 text-gray-300">
+          <Badge variant="outline" className="border-sourceco-accent text-sourceco-accent">
             {deals.length} {deals.length === 1 ? "Referral" : "Referrals"}
           </Badge>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-        <Card className="border-gray-700 bg-gray-800/50">
+      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        <Card className="border-sourceco-form bg-white shadow-sm">
           <CardHeader>
-            <CardTitle className="text-white">Your Referrals</CardTitle>
+            <CardTitle className="text-foreground">Your Referrals</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <Loader2 className="h-6 w-6 animate-spin text-sourceco-accent" />
               </div>
             ) : deals.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-muted-foreground">
                 <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No referrals yet. Submit your first below.</p>
               </div>
             ) : (
-              <div className="border border-gray-700 rounded-lg overflow-auto">
+              <div className="border border-sourceco-form rounded-lg overflow-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-gray-700">
-                      <TableHead className="text-gray-300">Company Name</TableHead>
-                      <TableHead className="text-gray-300">Industry</TableHead>
-                      <TableHead className="text-gray-300">Website</TableHead>
-                      <TableHead className="text-gray-300 text-center">Score</TableHead>
-                      <TableHead className="text-gray-300">Contact</TableHead>
-                      <TableHead className="text-gray-300 text-right">Revenue</TableHead>
-                      <TableHead className="text-gray-300 text-right">EBITDA</TableHead>
-                      <TableHead className="text-gray-300">LinkedIn</TableHead>
-                      <TableHead className="text-gray-300">Location</TableHead>
-                      <TableHead className="text-gray-300">Status</TableHead>
+                    <TableRow className="border-sourceco-form bg-sourceco-form/30">
+                      <TableHead className="text-foreground font-semibold">Company Name</TableHead>
+                      <TableHead className="text-foreground font-semibold">Industry</TableHead>
+                      <TableHead className="text-foreground font-semibold">Website</TableHead>
+                      <TableHead className="text-foreground font-semibold text-center">Score</TableHead>
+                      <TableHead className="text-foreground font-semibold">Contact</TableHead>
+                      <TableHead className="text-foreground font-semibold text-right">Revenue</TableHead>
+                      <TableHead className="text-foreground font-semibold text-right">EBITDA</TableHead>
+                      <TableHead className="text-foreground font-semibold">LinkedIn</TableHead>
+                      <TableHead className="text-foreground font-semibold">Location</TableHead>
+                      <TableHead className="text-foreground font-semibold">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {deals.map((deal) => (
-                      <TableRow key={deal.id} className={`border-gray-700 ${deal.is_priority_target ? "bg-amber-900/20" : ""}`}>
-                        <TableCell className="font-medium text-white">
+                      <TableRow key={deal.id} className={`border-sourceco-form ${deal.is_priority_target ? "bg-amber-50" : ""}`}>
+                        <TableCell className="font-medium text-foreground">
                           {deal.title || "Untitled"}
                         </TableCell>
-                        <TableCell className="text-gray-300 text-sm max-w-[200px] truncate">
+                        <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                           {deal.category || "-"}
                         </TableCell>
                         <TableCell className="text-sm">
                           {deal.website ? (
-                            <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate max-w-[120px] block">
+                            <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer" className="text-sourceco-accent hover:underline truncate max-w-[120px] block">
                               {deal.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
                             </a>
-                          ) : <span className="text-gray-500">-</span>}
+                          ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell className="text-center">
                           {deal.deal_total_score ? (
@@ -357,41 +354,41 @@ export default function ReferralTrackerPage() {
                             }`}>
                               {deal.deal_total_score}
                             </Badge>
-                          ) : <span className="text-gray-500 text-sm">-</span>}
+                          ) : <span className="text-muted-foreground text-sm">-</span>}
                         </TableCell>
                         <TableCell className="text-sm">
                           {deal.main_contact_name ? (
                             <div className="space-y-0.5">
-                              <div className="text-white font-medium text-xs">{deal.main_contact_name}</div>
-                              {deal.main_contact_title && <div className="text-gray-400 text-xs">{deal.main_contact_title}</div>}
+                              <div className="text-foreground font-medium text-xs">{deal.main_contact_name}</div>
+                              {deal.main_contact_title && <div className="text-muted-foreground text-xs">{deal.main_contact_title}</div>}
                               {deal.main_contact_email && (
-                                <a href={`mailto:${deal.main_contact_email}`} className="text-blue-400 hover:underline text-xs block truncate max-w-[150px]">
+                                <a href={`mailto:${deal.main_contact_email}`} className="text-sourceco-accent hover:underline text-xs block truncate max-w-[150px]">
                                   {deal.main_contact_email}
                                 </a>
                               )}
                             </div>
-                          ) : <span className="text-gray-500">-</span>}
+                          ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
-                        <TableCell className="text-gray-300 text-sm text-right">
+                        <TableCell className="text-muted-foreground text-sm text-right">
                           {formatCurrency(deal.revenue)}
                         </TableCell>
-                        <TableCell className="text-gray-300 text-sm text-right">
+                        <TableCell className="text-muted-foreground text-sm text-right">
                           {formatCurrency(deal.ebitda)}
                         </TableCell>
                         <TableCell className="text-sm">
                           {deal.linkedin_employee_count ? (
                             <div className="space-y-0.5">
-                              <div className="flex items-center gap-1 text-white">
-                                <Users className="h-3 w-3 text-blue-400" />
+                              <div className="flex items-center gap-1 text-foreground">
+                                <Users className="h-3 w-3 text-blue-600" />
                                 <span className="font-medium text-xs">{deal.linkedin_employee_count.toLocaleString()}</span>
                               </div>
                               {deal.linkedin_employee_range && (
-                                <div className="text-gray-400 text-xs">{deal.linkedin_employee_range}</div>
+                                <div className="text-muted-foreground text-xs">{deal.linkedin_employee_range}</div>
                               )}
                             </div>
-                          ) : <span className="text-gray-500 text-sm">-</span>}
+                          ) : <span className="text-muted-foreground text-sm">-</span>}
                         </TableCell>
-                        <TableCell className="text-gray-300 text-sm">
+                        <TableCell className="text-muted-foreground text-sm">
                           {deal.location || "-"}
                         </TableCell>
                         <TableCell>{statusBadge(deal.status, deal.source)}</TableCell>
@@ -404,23 +401,23 @@ export default function ReferralTrackerPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-gray-700 bg-gray-800/50">
+        <Card className="border-sourceco-form bg-white shadow-sm">
           <CardHeader>
-            <CardTitle className="text-white">Submit New Referrals</CardTitle>
-            <p className="text-sm text-gray-400">
+            <CardTitle className="text-foreground">Submit New Referrals</CardTitle>
+            <p className="text-sm text-muted-foreground">
               Submit a single company or upload a spreadsheet with multiple companies
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-300 mb-3">
+              <h3 className="text-sm font-medium text-foreground mb-3">
                 Upload Spreadsheet
               </h3>
               <ReferralCSVUpload shareToken={shareToken!} onUploaded={fetchData} />
             </div>
 
-            <Collapsible defaultOpen={false} className="border-t border-gray-700 pt-6">
-              <CollapsibleTrigger className="flex items-center justify-between w-full text-sm font-medium text-gray-300 hover:text-white transition-colors">
+            <Collapsible defaultOpen={false} className="border-t border-sourceco-form pt-6">
+              <CollapsibleTrigger className="flex items-center justify-between w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Or Submit One Company
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
               </CollapsibleTrigger>
