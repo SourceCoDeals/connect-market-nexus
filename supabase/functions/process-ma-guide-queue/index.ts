@@ -206,11 +206,13 @@ const TOTAL_PHASES = 14;
  
      if (activeGen) {
        // Determine if error is recoverable
-       const isRecoverable = 
-         errorMessage.includes('429') ||
-         errorMessage.includes('timeout') ||
-         errorMessage.includes('ECONNRESET') ||
-         errorMessage.includes('529');
+        const isRecoverable = 
+          errorMessage.includes('429') ||
+          errorMessage.includes('502') ||
+          errorMessage.includes('503') ||
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('ECONNRESET') ||
+          errorMessage.includes('529');
  
        if (!isRecoverable) {
          await supabase

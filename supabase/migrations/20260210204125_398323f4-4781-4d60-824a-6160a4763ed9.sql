@@ -1,0 +1,1 @@
+DELETE FROM ma_guide_generations WHERE id = '4290779e-c34c-47c3-85a2-195538e3c7b5';
