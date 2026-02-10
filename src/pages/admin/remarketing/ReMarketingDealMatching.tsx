@@ -207,6 +207,73 @@ const ReMarketingDealMatching = () => {
     enabled: !!listingId
   });
 
+  // Fetch marketplace fee agreements to cross-reference with buyers
+  const { data: feeAgreements } = useQuery({
+    queryKey: ['firm-agreements-signed'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('firm_agreements')
+        .select('id, primary_company_name, normalized_company_name, website_domain, email_domain, fee_agreement_signed, fee_agreement_signed_at')
+        .eq('fee_agreement_signed', true);
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Build a lookup to match remarketing buyers → firm fee agreements
+  const feeAgreementLookup = useMemo(() => {
+    if (!feeAgreements) return new Map<string, { signed: boolean; signedAt: string | null }>();
+    const lookup = new Map<string, { signed: boolean; signedAt: string | null }>();
+
+    // Index by normalized name and domain
+    const byName = new Map<string, typeof feeAgreements[0]>();
+    const byDomain = new Map<string, typeof feeAgreements[0]>();
+    for (const fa of feeAgreements) {
+      if (fa.normalized_company_name) byName.set(fa.normalized_company_name.toLowerCase(), fa);
+      if (fa.website_domain) byDomain.set(fa.website_domain.toLowerCase(), fa);
+      if (fa.email_domain) byDomain.set(fa.email_domain.toLowerCase(), fa);
+    }
+
+    // Match each score's buyer against firm agreements
+    if (allScores) {
+      for (const score of allScores) {
+        const buyer = score.buyer;
+        if (!buyer) continue;
+
+        let match: typeof feeAgreements[0] | undefined;
+
+        // Match by website domain
+        if (buyer.company_website) {
+          const domain = buyer.company_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0].toLowerCase();
+          match = byDomain.get(domain);
+        }
+        // Match by email domain
+        if (!match && (buyer as any).email_domain) {
+          match = byDomain.get((buyer as any).email_domain.toLowerCase());
+        }
+        // Match by company name
+        if (!match && buyer.company_name) {
+          const normalized = buyer.company_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          match = byName.get(normalized);
+          // Also try the raw company name
+          if (!match) match = byName.get(buyer.company_name.toLowerCase());
+        }
+        // Match by PE firm name
+        if (!match && (buyer as any).pe_firm_name) {
+          const peName = (buyer as any).pe_firm_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          match = byName.get(peName);
+        }
+
+        if (match) {
+          lookup.set(score.id, { signed: true, signedAt: match.fee_agreement_signed_at });
+        }
+      }
+    }
+
+    return lookup;
+  }, [feeAgreements, allScores]);
+
   // Fetch outreach records for this listing
   const { data: outreachRecords, refetch: refetchOutreach } = useQuery({
     queryKey: ['remarketing', 'outreach', listingId],
@@ -600,6 +667,18 @@ const ReMarketingDealMatching = () => {
       });
       setPassDialogOpen(false);
       setSelectedBuyerForPass(null);
+    }
+  };
+
+  // Handle toggle interested (approve/revert to pending)
+  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: any) => {
+    if (interested) {
+      // Toggling ON → approve
+      await handleApprove(scoreId, scoreData);
+    } else {
+      // Toggling OFF → revert to pending
+      await updateScoreMutation.mutateAsync({ id: scoreId, status: 'pending', scoreData });
+      toast.success('Reverted to pending');
     }
   };
 
@@ -1195,11 +1274,13 @@ const ReMarketingDealMatching = () => {
                   onSelect={handleSelect}
                   onApprove={handleApprove}
                   onPass={handleOpenPassDialog}
+                  onToggleInterested={handleToggleInterested}
                   onOutreachUpdate={handleOutreachUpdate}
                   onViewed={handleScoreViewed}
                   outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at, notes: outreach.notes } : undefined}
                   isPending={updateScoreMutation.isPending}
                   universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
+                  firmFeeAgreement={feeAgreementLookup.get(score.id)}
                 />
               );
             })}

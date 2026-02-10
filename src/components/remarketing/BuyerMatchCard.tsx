@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
@@ -74,11 +76,13 @@ interface BuyerMatchCardProps {
   onSelect?: (id: string, selected: boolean) => void;
   onApprove: (scoreId: string, scoreData: any) => void;
   onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
+  onToggleInterested?: (scoreId: string, interested: boolean, scoreData: any) => void;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;
   outreach?: OutreachData | null;
   isPending?: boolean;
   universeName?: string; // Show universe badge when viewing "All Universes"
+  firmFeeAgreement?: { signed: boolean; signedAt: string | null };
 }
 
 const getScoreColorClass = (score: number) => {
@@ -262,11 +266,13 @@ export const BuyerMatchCard = ({
   onSelect,
   onApprove,
   onPass,
+  onToggleInterested,
   onOutreachUpdate,
   onViewed,
   outreach,
   isPending = false,
   universeName,
+  firmFeeAgreement,
 }: BuyerMatchCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [outreachDialogOpen, setOutreachDialogOpen] = useState(false);
@@ -430,12 +436,23 @@ export const BuyerMatchCard = ({
                 </Badge>
               )}
               
-              {/* Fee Status Badge - based on actual has_fee_agreement field */}
-              {(buyer as any)?.has_fee_agreement ? (
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs">
-                  <FileText className="h-3 w-3 mr-1" />
-                  Fee Signed
-                </Badge>
+              {/* Fee Status Badge - cross-referenced with marketplace firm_agreements */}
+              {(firmFeeAgreement?.signed || (buyer as any)?.has_fee_agreement) ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs">
+                        <FileText className="h-3 w-3 mr-1" />
+                        Fee Signed
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {firmFeeAgreement?.signedAt
+                        ? `Fee agreement signed ${new Date(firmFeeAgreement.signedAt).toLocaleDateString()}`
+                        : 'Fee agreement on file'}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ) : (
                 <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 text-xs">
                   <FileText className="h-3 w-3 mr-1" />
@@ -538,10 +555,76 @@ export const BuyerMatchCard = ({
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-2 mt-2">
-          {score.status === 'pending' ? (
-            <>
+        {/* Action Buttons - Interested Toggle + Pass */}
+        <div className="flex items-center justify-between mt-2">
+          {/* Left: Interested Toggle */}
+          <div className="flex items-center gap-3">
+            {score.status !== 'passed' ? (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id={`interested-${score.id}`}
+                  checked={score.status === 'approved'}
+                  onCheckedChange={(checked) => {
+                    if (onToggleInterested) {
+                      onToggleInterested(score.id, checked, score);
+                    } else if (checked) {
+                      onApprove(score.id, score);
+                    }
+                  }}
+                  disabled={isPending}
+                  className="data-[state=checked]:bg-emerald-600"
+                />
+                <Label
+                  htmlFor={`interested-${score.id}`}
+                  className={cn(
+                    "text-sm font-medium cursor-pointer",
+                    score.status === 'approved' ? "text-emerald-700" : "text-muted-foreground"
+                  )}
+                >
+                  {score.status === 'approved' ? 'Interested' : 'Not Interested'}
+                </Label>
+              </div>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                <X className="h-3 w-3 mr-1" />
+                Not Interested
+                {score.pass_reason && ` - ${score.pass_category}`}
+              </Badge>
+            )}
+          </div>
+
+          {/* Right: Status badges + actions */}
+          <div className="flex items-center gap-2">
+            {score.status === 'approved' && (
+              <>
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                  <Check className="h-3 w-3 mr-1" />
+                  Approved
+                </Badge>
+                {/* Outreach Status Badge */}
+                {outreachBadge && outreach?.status !== 'pending' && (
+                  <Badge className={cn("border", outreachBadge.className)}>
+                    <outreachBadge.icon className="h-3 w-3 mr-1" />
+                    {outreachBadge.label}
+                  </Badge>
+                )}
+                {/* Track Outreach Button */}
+                {onOutreachUpdate && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setOutreachDialogOpen(true)}
+                  >
+                    <Mail className="h-3 w-3 mr-1" />
+                    {outreach ? 'Update' : 'Track'}
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* Pass button - available for pending/approved, not for already passed */}
+            {score.status !== 'passed' && (
               <Button
                 size="sm"
                 variant="outline"
@@ -550,51 +633,10 @@ export const BuyerMatchCard = ({
                 disabled={isPending}
               >
                 <X className="mr-1 h-3.5 w-3.5" />
-                Not A Fit
+                Pass
               </Button>
-              <Button
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => onApprove(score.id, score)}
-                disabled={isPending}
-              >
-                <Check className="mr-1 h-3.5 w-3.5" />
-                Approve
-              </Button>
-            </>
-          ) : score.status === 'approved' ? (
-            <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                <Check className="h-3 w-3 mr-1" />
-                Approved
-              </Badge>
-              {/* Outreach Status Badge */}
-              {outreachBadge && outreach?.status !== 'pending' && (
-                <Badge className={cn("border", outreachBadge.className)}>
-                  <outreachBadge.icon className="h-3 w-3 mr-1" />
-                  {outreachBadge.label}
-                </Badge>
-              )}
-              {/* Track Outreach Button */}
-              {onOutreachUpdate && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setOutreachDialogOpen(true)}
-                >
-                  <Mail className="h-3 w-3 mr-1" />
-                  {outreach ? 'Update' : 'Track'}
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Badge variant="outline" className="text-muted-foreground">
-              <X className="h-3 w-3 mr-1" />
-              Passed
-              {score.pass_reason && ` - ${score.pass_category}`}
-            </Badge>
-          )}
+            )}
+          </div>
         </div>
       </div>
       

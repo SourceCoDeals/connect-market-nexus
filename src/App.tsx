@@ -61,6 +61,7 @@ import { MAIntelligenceLayout } from "@/components/ma-intelligence";
 import { MADashboard, MATrackers, MATrackerDetail, MAAllBuyers, MABuyerDetail, MAAllDeals, MADealDetail } from "@/pages/admin/ma-intelligence";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { SimpleToastProvider } from "@/components/ui/simple-toast";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorHandler } from "@/lib/error-handler";
@@ -99,6 +100,7 @@ function App() {
                 <AnalyticsProvider>
                   <SimpleToastProvider>
                       <Toaster />
+                      <SonnerToaster />
           <Routes>
             {/* Public entry point - persona selection */}
             <Route path="/welcome" element={<Welcome />} />
