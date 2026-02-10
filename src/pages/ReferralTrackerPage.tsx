@@ -15,10 +15,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Loader2,
   Lock,
   Building2,
   Handshake,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ReferralSubmissionForm } from "@/components/remarketing/ReferralSubmissionForm";
@@ -353,15 +359,18 @@ export default function ReferralTrackerPage() {
               <ReferralCSVUpload shareToken={shareToken!} onUploaded={fetchData} />
             </div>
 
-            <div className="border-t border-gray-700 pt-6">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">
+            <Collapsible defaultOpen={false} className="border-t border-gray-700 pt-6">
+              <CollapsibleTrigger className="flex items-center justify-between w-full text-sm font-medium text-gray-300 hover:text-white transition-colors">
                 Or Submit One Company
-              </h3>
-              <ReferralSubmissionForm
-                shareToken={shareToken!}
-                onSubmitted={fetchData}
-              />
-            </div>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <ReferralSubmissionForm
+                  shareToken={shareToken!}
+                  onSubmitted={fetchData}
+                />
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
       </main>
