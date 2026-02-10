@@ -25,6 +25,7 @@ import {
   Building2,
   Handshake,
   ChevronDown,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ReferralSubmissionForm } from "@/components/remarketing/ReferralSubmissionForm";
@@ -46,6 +47,13 @@ interface DealRow {
   source: "listing" | "submission";
   status?: string;
   is_priority_target?: boolean;
+  website?: string | null;
+  deal_total_score?: number | null;
+  main_contact_name?: string | null;
+  main_contact_title?: string | null;
+  main_contact_email?: string | null;
+  linkedin_employee_count?: number | null;
+  linkedin_employee_range?: string | null;
 }
 
 const formatCurrency = (value: number | null) => {
@@ -127,6 +135,13 @@ export default function ReferralTrackerPage() {
             source: "listing",
             status: l.status,
             is_priority_target: l.is_priority_target,
+            website: l.website,
+            deal_total_score: l.deal_total_score,
+            main_contact_name: l.main_contact_name,
+            main_contact_title: l.main_contact_title,
+            main_contact_email: l.main_contact_email,
+            linkedin_employee_count: l.linkedin_employee_count,
+            linkedin_employee_range: l.linkedin_employee_range,
           });
         }
       }
@@ -306,9 +321,12 @@ export default function ReferralTrackerPage() {
                     <TableRow className="border-gray-700">
                       <TableHead className="text-gray-300">Company Name</TableHead>
                       <TableHead className="text-gray-300">Industry</TableHead>
+                      <TableHead className="text-gray-300">Website</TableHead>
+                      <TableHead className="text-gray-300 text-center">Score</TableHead>
+                      <TableHead className="text-gray-300">Contact</TableHead>
                       <TableHead className="text-gray-300 text-right">Revenue</TableHead>
                       <TableHead className="text-gray-300 text-right">EBITDA</TableHead>
-                      <TableHead className="text-gray-300">Employees</TableHead>
+                      <TableHead className="text-gray-300">LinkedIn</TableHead>
                       <TableHead className="text-gray-300">Location</TableHead>
                       <TableHead className="text-gray-300">Status</TableHead>
                     </TableRow>
@@ -319,8 +337,40 @@ export default function ReferralTrackerPage() {
                         <TableCell className="font-medium text-white">
                           {deal.title || "Untitled"}
                         </TableCell>
-                        <TableCell className="text-gray-300 text-sm">
+                        <TableCell className="text-gray-300 text-sm max-w-[200px] truncate">
                           {deal.category || "-"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {deal.website ? (
+                            <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate max-w-[120px] block">
+                              {deal.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                            </a>
+                          ) : <span className="text-gray-500">-</span>}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {deal.deal_total_score ? (
+                            <Badge className={`text-xs ${
+                              deal.deal_total_score >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                              deal.deal_total_score >= 60 ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              deal.deal_total_score >= 40 ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                              'bg-red-100 text-red-800 border-red-200'
+                            }`}>
+                              {deal.deal_total_score}
+                            </Badge>
+                          ) : <span className="text-gray-500 text-sm">-</span>}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {deal.main_contact_name ? (
+                            <div className="space-y-0.5">
+                              <div className="text-white font-medium text-xs">{deal.main_contact_name}</div>
+                              {deal.main_contact_title && <div className="text-gray-400 text-xs">{deal.main_contact_title}</div>}
+                              {deal.main_contact_email && (
+                                <a href={`mailto:${deal.main_contact_email}`} className="text-blue-400 hover:underline text-xs block truncate max-w-[150px]">
+                                  {deal.main_contact_email}
+                                </a>
+                              )}
+                            </div>
+                          ) : <span className="text-gray-500">-</span>}
                         </TableCell>
                         <TableCell className="text-gray-300 text-sm text-right">
                           {formatCurrency(deal.revenue)}
@@ -328,8 +378,18 @@ export default function ReferralTrackerPage() {
                         <TableCell className="text-gray-300 text-sm text-right">
                           {formatCurrency(deal.ebitda)}
                         </TableCell>
-                        <TableCell className="text-gray-300 text-sm">
-                          {deal.full_time_employees || "-"}
+                        <TableCell className="text-sm">
+                          {deal.linkedin_employee_count ? (
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1 text-white">
+                                <Users className="h-3 w-3 text-blue-400" />
+                                <span className="font-medium text-xs">{deal.linkedin_employee_count.toLocaleString()}</span>
+                              </div>
+                              {deal.linkedin_employee_range && (
+                                <div className="text-gray-400 text-xs">{deal.linkedin_employee_range}</div>
+                              )}
+                            </div>
+                          ) : <span className="text-gray-500 text-sm">-</span>}
                         </TableCell>
                         <TableCell className="text-gray-300 text-sm">
                           {deal.location || "-"}
