@@ -91,6 +91,7 @@ export default function ReMarketingReferralPartnerDetail() {
   const [enrichmentResult, setEnrichmentResult] = useState<SingleDealEnrichmentResult | null>(null);
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "archive" | "delete"; ids: string[] } | null>(null);
+  const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
 
   // Fetch partner
   const { data: partner, isLoading: partnerLoading } = useQuery({
@@ -244,7 +245,9 @@ export default function ReMarketingReferralPartnerDetail() {
       return password;
     },
     onSuccess: (password) => {
-      toast.success(`New password: ${password}`, { duration: 15000 });
+      setLastGeneratedPassword(password);
+      navigator.clipboard.writeText(password);
+      toast.success(`New password copied to clipboard: ${password}`, { duration: 15000 });
     },
     onError: (error) => {
       toast.error(`Failed to reset password: ${error.message}`);
@@ -586,6 +589,19 @@ export default function ReMarketingReferralPartnerDetail() {
                   <Copy className="h-3 w-3 mr-1" />
                   Copy URL
                 </Button>
+                {lastGeneratedPassword && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastGeneratedPassword);
+                      toast.success("Password copied to clipboard");
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy Password
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
