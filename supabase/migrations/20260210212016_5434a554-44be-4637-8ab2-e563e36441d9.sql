@@ -1,0 +1,1 @@
+UPDATE referral_partners SET share_password_hash = NULL, share_password_plaintext = NULL WHERE id = 'de5c941e-1b6a-431c-b083-97f66606f7b6';
