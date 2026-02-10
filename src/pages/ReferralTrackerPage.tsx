@@ -81,6 +81,7 @@ export default function ReferralTrackerPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [partner, setPartner] = useState<PartnerData | null>(null);
   const [deals, setDeals] = useState<DealRow[]>([]);
 
@@ -161,6 +162,7 @@ export default function ReferralTrackerPage() {
     if (!shareToken || !password.trim()) return;
 
     setIsAuthenticating(true);
+    setLoginError(null);
     try {
       const { data, error } = await supabase.functions.invoke(
         "validate-referral-access",
@@ -180,10 +182,14 @@ export default function ReferralTrackerPage() {
         setAuthenticated(true);
         setPartner(data.partner);
       } else {
-        toast.error("Invalid password");
+        const msg = "Invalid password";
+        setLoginError(msg);
+        toast.error(msg);
       }
     } catch (err: any) {
-      toast.error(err.message || "Authentication failed");
+      const msg = err.message || "Authentication failed";
+      setLoginError(msg);
+      toast.error(msg);
     } finally {
       setIsAuthenticating(false);
     }
@@ -224,6 +230,11 @@ export default function ReferralTrackerPage() {
                   />
                 </div>
               </div>
+              {loginError && (
+                <p className="text-sm text-red-400 bg-red-950/50 border border-red-800 rounded-md px-3 py-2">
+                  {loginError}
+                </p>
+              )}
               <Button
                 type="submit"
                 className="w-full bg-amber-600 hover:bg-amber-700 text-white"
