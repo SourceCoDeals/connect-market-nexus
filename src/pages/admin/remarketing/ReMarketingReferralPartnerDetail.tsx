@@ -75,9 +75,12 @@ import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing/Score
 
 const formatCurrency = (value: number | null) => {
   if (!value) return "-";
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
+  // Values >= 100000 are stored as raw integers (e.g., 5000000 = $5M)
+  if (value >= 100000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1000) return `$${(value / 1_000).toFixed(0)}K`;
+  // Small values (< 1000) are likely already in millions (e.g., 20 = $20M from CSV)
+  if (value >= 1) return `$${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}M`;
+  return `$${value}`;
 };
 
 const normalizeCompanyName = (name: string) => {
