@@ -44,11 +44,12 @@ const PLATFORM_OWNED_FIELDS = new Set([
 ]);
 
 // Fields that may ONLY be populated from TRANSCRIPTS — NEVER from any website
-// Deal structure criteria from a PE firm's website represent their NEW PLATFORM criteria,
-// NOT their add-on acquisition criteria for an existing portfolio company.
+// num_platforms and deal_preferences are internal strategy details that can't be
+// reliably distinguished from portfolio-level data on websites.
+// NOTE: Size criteria (target_revenue, target_ebitda, sweet spots) were removed from
+// this set because PE firm websites commonly publish their investment criteria ranges
+// and blocking website extraction left 99.7% of buyers without any size data for scoring.
 const TRANSCRIPT_ONLY_FIELDS = new Set([
-  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
-  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
   'num_platforms', 'deal_preferences',
 ]);
 
