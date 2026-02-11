@@ -18,6 +18,19 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:3000",
 ];
 
+/**
+ * Check if origin matches allowed patterns (including Lovable preview domains).
+ */
+function isOriginAllowed(origin: string): boolean {
+  if (!origin) return false;
+  const allowed = getAllowedOrigins();
+  if (allowed.includes(origin)) return true;
+  // Allow all Lovable preview/development domains
+  if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin)) return true;
+  if (/^https:\/\/[a-z0-9-]+-preview--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true;
+  return false;
+}
+
 function getAllowedOrigins(): string[] {
   const envOrigins = Deno.env.get("CORS_ALLOWED_ORIGINS");
   if (envOrigins) {
@@ -34,7 +47,7 @@ function getAllowedOrigins(): string[] {
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") || "";
   const allowed = getAllowedOrigins();
-  const reflectedOrigin = allowed.includes(origin) ? origin : allowed[0];
+  const reflectedOrigin = isOriginAllowed(origin) ? origin : allowed[0];
 
   return {
     "Access-Control-Allow-Origin": reflectedOrigin,
