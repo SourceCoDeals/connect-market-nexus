@@ -808,6 +808,13 @@ serve(async (req) => {
       );
     }
 
+    // Handle multiple comma-separated URLs — take the first one
+    if (websiteUrl.includes(',')) {
+      const urls = websiteUrl.split(',').map((u: string) => u.trim()).filter(Boolean);
+      websiteUrl = urls[0];
+      console.log(`Multiple URLs detected, using first: "${websiteUrl}" (from ${urls.length} URLs)`);
+    }
+
     // Ensure proper URL format
     if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
       websiteUrl = `https://${websiteUrl}`;

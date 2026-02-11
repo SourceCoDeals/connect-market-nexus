@@ -936,8 +936,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    const platformWebsite = buyer.platform_website || buyer.company_website;
-    const peFirmWebsite = buyer.pe_firm_website;
+    // Handle multiple comma-separated URLs — take the first one
+    let platformWebsite = buyer.platform_website || buyer.company_website;
+    let peFirmWebsite = buyer.pe_firm_website;
+    if (platformWebsite?.includes(',')) {
+      platformWebsite = platformWebsite.split(',').map((u: string) => u.trim()).filter(Boolean)[0] || null;
+      console.log(`Multiple platform URLs detected, using first: "${platformWebsite}"`);
+    }
+    if (peFirmWebsite?.includes(',')) {
+      peFirmWebsite = peFirmWebsite.split(',').map((u: string) => u.trim()).filter(Boolean)[0] || null;
+      console.log(`Multiple PE firm URLs detected, using first: "${peFirmWebsite}"`);
+    }
 
     if (!platformWebsite && !peFirmWebsite) {
       return new Response(
