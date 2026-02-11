@@ -20,7 +20,7 @@ export function useGlobalActivityQueue() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("global_activity_queue")
-        .select("*, profiles:created_by(full_name, email)")
+        .select("*")
         .in("status", ["queued", "running", "paused", "completed", "failed", "cancelled"])
         .order("queued_at", { ascending: false })
         .limit(50);
@@ -76,12 +76,33 @@ export function useGlobalGateCheck() {
   const checkGate = useCallback(async (): Promise<GlobalActivityQueueItem | null> => {
     const { data } = await supabase
       .from("global_activity_queue")
-      .select("*, profiles:created_by(full_name, email)")
+      .select("*")
       .eq("classification", "major")
       .in("status", ["running", "paused"])
       .limit(1);
     if (data && data.length > 0) {
-      return data[0] as unknown as GlobalActivityQueueItem;
+      const item = data[0] as unknown as GlobalActivityQueueItem;
+
+      // Auto-recover stale operations: if running with 0 completed items for 10+ minutes, auto-fail it
+      const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+      if (item.status === 'running' && (item.completed_items || 0) === 0) {
+        const startedAt = item.started_at ? new Date(item.started_at).getTime() : new Date(item.created_at).getTime();
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > STALE_THRESHOLD_MS) {
+          console.warn(`[global-gate] Auto-failing stale operation ${item.id} (${item.operation_type}) — 0 progress after ${Math.round(elapsed / 60000)}min`);
+          await supabase
+            .from("global_activity_queue")
+            .update({
+              status: "failed",
+              completed_at: new Date().toISOString(),
+              error_log: [...(Array.isArray(item.error_log) ? item.error_log : []), `Auto-failed: 0 items completed after ${Math.round(elapsed / 60000)} minutes`] as Json[],
+            })
+            .eq("id", item.id);
+          return null; // No longer blocking
+        }
+      }
+
+      return item;
     }
     return null;
   }, []);
@@ -108,12 +129,12 @@ export function useGlobalGateCheck() {
             description: params.description || null,
             created_by: params.userId,
           }])
-          .select("*, profiles:created_by(full_name, email)")
+          .select("*")
           .single();
 
         if (error) throw error;
 
-        const blockerName = (blocker.profiles as any)?.full_name || "Someone";
+        const blockerName = "Another user";
         toast.info(
           `${blockerName} is running ${blocker.description || blocker.operation_type}. Your operation has been queued and will start automatically.`
         );
@@ -134,7 +155,7 @@ export function useGlobalGateCheck() {
           created_by: params.userId,
           started_at: new Date().toISOString(),
         }])
-        .select("*, profiles:created_by(full_name, email)")
+        .select("*")
         .single();
 
       if (error) throw error;

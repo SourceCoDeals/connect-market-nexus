@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
+import { logAICallCost } from "../_shared/cost-tracker.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,11 +44,12 @@ const PLATFORM_OWNED_FIELDS = new Set([
 ]);
 
 // Fields that may ONLY be populated from TRANSCRIPTS — NEVER from any website
-// Deal structure criteria from a PE firm's website represent their NEW PLATFORM criteria,
-// NOT their add-on acquisition criteria for an existing portfolio company.
+// num_platforms and deal_preferences are internal strategy details that can't be
+// reliably distinguished from portfolio-level data on websites.
+// NOTE: Size criteria (target_revenue, target_ebitda, sweet spots) were removed from
+// this set because PE firm websites commonly publish their investment criteria ranges
+// and blocking website extraction left 99.7% of buyers without any size data for scoring.
 const TRANSCRIPT_ONLY_FIELDS = new Set([
-  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
-  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
   'num_platforms', 'deal_preferences',
 ]);
 
@@ -398,7 +400,10 @@ async function callClaudeAI(
     // Add delay after successful call to avoid hitting RPM limits
     await sleep(CLAUDE_INTER_CALL_DELAY_MS);
     
-    return { data: toolUse.input };
+    // Extract usage for cost tracking
+    const usage = data.usage ? { inputTokens: data.usage.input_tokens || 0, outputTokens: data.usage.output_tokens || 0 } : null;
+    
+    return { data: toolUse.input, usage, toolName: tool.name };
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
       return { data: null, error: { code: 'timeout', message: 'AI request timed out' } };
@@ -1340,6 +1345,12 @@ Deno.serve(async (req) => {
 
     const fieldsUpdated = Object.keys(updateData).length - 2; // Exclude metadata fields
     console.log(`Successfully enriched buyer ${buyerId}: ${fieldsUpdated} fields updated`);
+
+    // Cost tracking: log aggregate AI usage (non-blocking)
+    logAICallCost(supabase, 'enrich-buyer', 'anthropic', AI_CONFIG.model, 
+      { inputTokens: promptsRun * 12000, outputTokens: promptsSuccessful * 800 }, // estimated per prompt
+      undefined, { buyerId, promptsRun, promptsSuccessful }
+    ).catch(() => {});
 
     // Log provenance violations as prominent warnings
     if (provenanceViolations.length > 0) {

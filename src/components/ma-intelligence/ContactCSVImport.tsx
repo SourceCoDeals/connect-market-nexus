@@ -74,37 +74,11 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
         setProgress(Math.round((i / rows.length) * 100));
       }
 
-      // Normalize websites and deduplicate before insert
-      const seenDomains = new Set<string>();
-      const deduplicatedBuyers = [];
-      for (const buyer of buyers) {
-        // Normalize any website fields
-        if (buyer.company_website) {
-          buyer.company_website = normalizeDomain(buyer.company_website) || buyer.company_website;
-        }
-        if (buyer.platform_website) {
-          buyer.platform_website = normalizeDomain(buyer.platform_website) || buyer.platform_website;
-        }
-        if (buyer.pe_firm_website) {
-          buyer.pe_firm_website = normalizeDomain(buyer.pe_firm_website) || buyer.pe_firm_website;
-        }
-
-        // Deduplicate within the batch by company_website
-        const domain = buyer.company_website || buyer.platform_website;
-        if (domain) {
-          const normalized = normalizeDomain(domain);
-          if (normalized && seenDomains.has(normalized)) {
-            continue; // Skip duplicate within batch
-          }
-          if (normalized) seenDomains.add(normalized);
-        }
-        deduplicatedBuyers.push(buyer);
-      }
-
-      // Bulk insert (DB constraint catches any remaining cross-batch dupes)
-      const { error: insertError } = await supabase
+      // Bulk upsert - skip duplicates by name within same universe
+      const { data: inserted, error: insertError } = await supabase
         .from("remarketing_buyers")
-        .insert(deduplicatedBuyers);
+        .upsert(buyers, { onConflict: 'universe_id,lower(trim(company_name)),lower(trim(COALESCE(pe_firm_name,\'\')))', ignoreDuplicates: true })
+        .select('id');
 
       if (insertError) {
         if (insertError.message?.includes('unique') || insertError.message?.includes('duplicate')) {
@@ -113,10 +87,12 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
         throw insertError;
       }
 
-      setImportedCount(buyers.length);
+      const actualCount = inserted?.length || 0;
+      const skipped = buyers.length - actualCount;
+      setImportedCount(actualCount);
       toast({
         title: "Import successful",
-        description: `Imported ${buyers.length} buyers`,
+        description: `Imported ${actualCount} buyers${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`,
       });
 
       setTimeout(() => {

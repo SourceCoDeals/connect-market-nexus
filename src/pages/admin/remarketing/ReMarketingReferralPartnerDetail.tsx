@@ -72,6 +72,8 @@ import { SubmissionReviewQueue } from "@/components/remarketing/SubmissionReview
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { SingleDealEnrichmentDialog, type SingleDealEnrichmentResult } from "@/components/remarketing/SingleDealEnrichmentDialog";
 import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing/ScoreTierBadge";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useAuth } from "@/context/AuthContext";
 
 const formatCurrency = (value: number | null) => {
   if (!value) return "-";
@@ -94,6 +96,9 @@ export default function ReMarketingReferralPartnerDetail() {
   const { partnerId } = useParams<{ partnerId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { completeOperation, updateProgress } = useGlobalActivityMutations();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addDealOpen, setAddDealOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -292,6 +297,21 @@ export default function ReMarketingReferralPartnerDetail() {
       return;
     }
 
+    // Register in global activity queue
+    let activityItem: { id: string } | null = null;
+    try {
+      const result = await startOrQueueMajorOp({
+        operationType: "deal_enrichment",
+        totalItems: targets.length,
+        description: `Enriching ${targets.length} referral deals (${partner?.company || partner?.name || "partner"})`,
+        userId: user?.id || "",
+        contextJson: { partnerId, source: "referral_partner" },
+      });
+      activityItem = result.item;
+    } catch {
+      // Non-blocking — continue even if activity queue fails
+    }
+
     const now = new Date().toISOString();
     const rows = targets.map((d) => ({
       listing_id: d.id,
@@ -306,6 +326,7 @@ export default function ReMarketingReferralPartnerDetail() {
 
     if (error) {
       toast.error("Failed to queue enrichment");
+      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
       return;
     }
 
@@ -322,6 +343,7 @@ export default function ReMarketingReferralPartnerDetail() {
         toast.success(`All ${result.synced} deals were already enriched`);
         queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "enrichment-queue"] });
         queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
       }
     } catch {
       // Non-blocking — the cron will pick it up
@@ -340,6 +362,21 @@ export default function ReMarketingReferralPartnerDetail() {
       return;
     }
 
+    // Register in global activity queue
+    let activityItem: { id: string } | null = null;
+    try {
+      const result = await startOrQueueMajorOp({
+        operationType: "deal_enrichment",
+        totalItems: targets.length,
+        description: `Scoring ${targets.length} referral deals (${partner?.company || partner?.name || "partner"})`,
+        userId: user?.id || "",
+        contextJson: { partnerId, source: "referral_partner_scoring" },
+      });
+      activityItem = result.item;
+    } catch {
+      // Non-blocking
+    }
+
     toast.info(`Scoring ${targets.length} deals...`);
 
     let successCount = 0;
@@ -349,6 +386,9 @@ export default function ReMarketingReferralPartnerDetail() {
           body: { listingId: deal.id },
         });
         successCount++;
+        if (activityItem) {
+          updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
+        }
       } catch {
         // continue
       }
@@ -356,6 +396,9 @@ export default function ReMarketingReferralPartnerDetail() {
 
     toast.success(`Scored ${successCount} of ${targets.length} deals`);
     queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+    if (activityItem) {
+      completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+    }
   };
 
   // Single deal enrichment

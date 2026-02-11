@@ -10,6 +10,8 @@ import { InterruptedSessionBanner, saveSessionState, clearSessionState } from ".
 import { useToast } from "@/hooks/use-toast";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { useRealtimeTrackerBuyers } from "@/hooks/ma-intelligence/useRealtimeTrackerBuyers";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useAuth } from "@/context/AuthContext";
 
 interface TrackerBuyersTabProps {
   trackerId: string;
@@ -33,6 +35,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
   const [filterCoverage, setFilterCoverage] = useState<"all" | "high" | "medium" | "low">("all");
   const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgress | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { completeOperation, updateProgress } = useGlobalActivityMutations();
 
   useEffect(() => {
     if (trackerId && trackerId !== 'new') {
@@ -85,6 +90,21 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       return;
     }
 
+    // Register in global activity queue
+    let activityItem: { id: string } | null = null;
+    try {
+      const result = await startOrQueueMajorOp({
+        operationType: "buyer_enrichment",
+        totalItems: buyerIds.length,
+        description: `Enriching ${buyerIds.length} tracker buyers`,
+        userId: user?.id || "",
+        contextJson: { trackerId, source: "tracker_buyers" },
+      });
+      activityItem = result.item;
+    } catch {
+      // Non-blocking
+    }
+
     const progress: EnrichmentProgress = {
       current: 0,
       total: buyerIds.length,
@@ -108,6 +128,10 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
           progress.completedIds.push(buyerId);
           setEnrichmentProgress({ ...progress });
 
+          if (activityItem) {
+            updateProgress.mutate({ id: activityItem.id, completedItems: progress.current });
+          }
+
           // Save progress to localStorage
           saveSessionState(trackerId, "Bulk Enrichment", progress.current, progress.total);
         } catch (error: any) {
@@ -120,11 +144,18 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       setSelectedBuyers(new Set());
       loadBuyers();
 
+      if (activityItem) {
+        completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+      }
+
       toast({
         title: "Enrichment complete",
         description: `Successfully enriched ${progress.completedIds.length} of ${buyerIds.length} buyers`,
       });
     } catch (error: any) {
+      if (activityItem) {
+        completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+      }
       toast({
         title: "Error during enrichment",
         description: error.message,
