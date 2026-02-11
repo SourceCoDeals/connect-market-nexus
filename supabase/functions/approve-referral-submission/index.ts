@@ -1,19 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -151,15 +148,15 @@ serve(async (req) => {
 
     if (updateError) throw updateError;
 
-    // Update partner deal count
-    const { data: countData } = await supabase
+    // Update partner deal count (use count property, not data.length — head:true returns no rows)
+    const { count: dealCount } = await supabase
       .from("listings")
       .select("id", { count: "exact", head: true })
       .eq("referral_partner_id", submission.referral_partner_id);
 
     await supabase
       .from("referral_partners")
-      .update({ deal_count: countData?.length || 0 })
+      .update({ deal_count: dealCount || 0 })
       .eq("id", submission.referral_partner_id);
 
     // Queue for enrichment if website exists

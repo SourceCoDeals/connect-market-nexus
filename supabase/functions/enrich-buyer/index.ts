@@ -2,10 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 // ============================================================================
 // CONFIGURATION
@@ -954,8 +951,10 @@ function buildUpdateObject(
 // ============================================================================
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -1090,6 +1089,9 @@ Deno.serve(async (req) => {
 
     const scrapeResults = await Promise.all(scrapePromises);
 
+    // Start firecrawlMap discovery in parallel (will be awaited before geography extraction)
+    let locationPagePromise: Promise<string | null> | null = null;
+
     for (const { type, result } of scrapeResults) {
       if (type === 'platform') {
         if (result.success && result.content) {
@@ -1097,19 +1099,25 @@ Deno.serve(async (req) => {
           sources.platform = platformWebsite!;
           console.log(`Scraped platform website: ${platformContent.length} chars`);
 
-          // Try to find and scrape location page
-          const links = await firecrawlMap(platformWebsite!, firecrawlApiKey);
-          const locationPage = links.find(link =>
-            LOCATION_PATTERNS.some(p => link.toLowerCase().includes(p))
-          );
-
-          if (locationPage) {
-            console.log(`Found location page: ${locationPage}`);
-            const locationResult = await scrapeWebsite(locationPage, firecrawlApiKey);
-            if (locationResult.success && locationResult.content) {
-              platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationResult.content;
-            }
-          }
+          // PERF: Start location page discovery immediately (runs in parallel with Claude batch 1)
+          locationPagePromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
+            .then(async (links) => {
+              const locationPage = links.find(link =>
+                LOCATION_PATTERNS.some(p => link.toLowerCase().includes(p))
+              );
+              if (locationPage) {
+                console.log(`Found location page: ${locationPage}`);
+                const locationResult = await scrapeWebsite(locationPage, firecrawlApiKey);
+                if (locationResult.success && locationResult.content) {
+                  return locationResult.content;
+                }
+              }
+              return null;
+            })
+            .catch((err) => {
+              console.warn('Location page discovery failed:', err);
+              return null;
+            });
         } else {
           warnings.push(`Platform website scrape failed: ${result.error}`);
         }
@@ -1142,6 +1150,8 @@ Deno.serve(async (req) => {
     const timestamp = new Date().toISOString();
     let promptsRun = 0;
     let promptsSuccessful = 0;
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
     let billingError: { code: string; message: string } | null = null;
     let provenanceViolations: string[] = [];
 
@@ -1199,6 +1209,11 @@ Deno.serve(async (req) => {
 
             if (acceptedFields.length > 0) {
               promptsSuccessful++;
+              // Accumulate actual token usage from Claude API responses
+              if (result.usage) {
+                totalInputTokens += result.usage.inputTokens || 0;
+                totalOutputTokens += result.usage.outputTokens || 0;
+              }
               evidenceRecords.push({
                 type: 'website',
                 source_type: sourceType,
@@ -1254,8 +1269,15 @@ Deno.serve(async (req) => {
       console.log(`Batch 1 complete: ${promptsSuccessful} successful so far`);
     }
 
-    // Delay between batches to avoid Anthropic RPM limits
-    await sleep(2000);
+    // Await location page discovery (was running in parallel with batch 1)
+    // This replaces the old 2s hard sleep — useful work instead of idle waiting
+    if (locationPagePromise) {
+      const locationContent = await locationPagePromise;
+      if (locationContent) {
+        platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationContent;
+        console.log('Appended location page data to platform content');
+      }
+    }
 
     // BATCH 2: PE firm extraction (1 combined call + size criteria)
     const batch2: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
@@ -1348,7 +1370,11 @@ Deno.serve(async (req) => {
 
     // Cost tracking: log aggregate AI usage (non-blocking)
     logAICallCost(supabase, 'enrich-buyer', 'anthropic', AI_CONFIG.model, 
-      { inputTokens: promptsRun * 12000, outputTokens: promptsSuccessful * 800 }, // estimated per prompt
+      // Use actual token counts from Claude API responses (fall back to estimates only if missing)
+      {
+        inputTokens: totalInputTokens > 0 ? totalInputTokens : promptsRun * 12000,
+        outputTokens: totalOutputTokens > 0 ? totalOutputTokens : promptsSuccessful * 800,
+      },
       undefined, { buyerId, promptsRun, promptsSuccessful }
     ).catch(() => {});
 

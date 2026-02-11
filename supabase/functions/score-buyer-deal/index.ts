@@ -4,10 +4,7 @@ import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, ANTHROPIC_API_U
 import { calculateProximityScore, getProximityTier, normalizeStateCode } from "../_shared/geography-utils.ts";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 // ============================================================================
 // TYPES
@@ -213,8 +210,10 @@ async function fetchWithRetry(
 // ============================================================================
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {

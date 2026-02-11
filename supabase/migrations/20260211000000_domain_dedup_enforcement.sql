@@ -10,19 +10,24 @@ LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE
     WHEN url IS NULL OR trim(url) = '' OR trim(url) = '<UNKNOWN>' THEN NULL
     ELSE
-      split_part(          -- strip port
-        split_part(        -- strip path
-          regexp_replace(
+      -- Strip trailing dot (DNS root), then protocol, www, path, port
+      rtrim(
+        split_part(          -- strip port
+          split_part(        -- strip path
             regexp_replace(
-              lower(trim(url)),
-              '^https?://', ''    -- strip protocol
+              regexp_replace(
+                regexp_replace(
+                  lower(trim(url)),
+                  '^[a-z]+://', ''   -- strip any protocol (http, https, ftp, etc.)
+                ),
+                '^www\.', ''         -- strip www.
+              ),
+              '/', 1
             ),
-            '^www\.', ''          -- strip www.
+            ':', 1
           ),
-          '/', 1
-        ),
-        ':', 1
-      )
+          '.'                        -- strip trailing dot (e.g. "example.com." → "example.com")
+        )
   END
 $$;
 
@@ -101,9 +106,18 @@ BEGIN
   WHERE rn > 1;
 
   IF dup_ids IS NOT NULL AND array_length(dup_ids, 1) > 0 THEN
-    RAISE NOTICE 'Deleting % duplicate listings found by improved normalization', array_length(dup_ids, 1);
+    RAISE NOTICE 'Archiving % duplicate listings found by improved normalization', array_length(dup_ids, 1);
 
-    -- Delete ALL FK references before removing duplicates
+    -- SAFETY: Archive duplicate listings before removal (recoverable if wrong)
+    CREATE TABLE IF NOT EXISTS _archived_dedup_listings (
+      archived_at timestamptz DEFAULT now(),
+      listing_data jsonb NOT NULL
+    );
+
+    INSERT INTO _archived_dedup_listings (listing_data)
+    SELECT to_jsonb(l.*) FROM listings l WHERE l.id = ANY(dup_ids);
+
+    -- Delete FK references then the duplicate listings themselves
     DELETE FROM alert_delivery_logs WHERE listing_id = ANY(dup_ids);
     DELETE FROM buyer_approve_decisions WHERE listing_id = ANY(dup_ids);
     DELETE FROM buyer_learning_history WHERE listing_id = ANY(dup_ids);

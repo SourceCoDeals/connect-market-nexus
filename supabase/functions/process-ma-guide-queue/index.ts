@@ -1,21 +1,19 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
  import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
- 
- const corsHeaders = {
-   'Access-Control-Allow-Origin': '*',
-   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
- };
+ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
  
  // Process one batch per invocation to stay within timeout limits
  const BATCH_SIZE = 1; // Must match generate-ma-guide BATCH_SIZE
 const TOTAL_PHASES = 14;
  
  serve(async (req) => {
+   const corsHeaders = getCorsHeaders(req);
+
    if (req.method === 'OPTIONS') {
-     return new Response(null, { headers: corsHeaders });
+     return corsPreflightResponse(req);
    }
- 
+
    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
    const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -110,7 +108,8 @@ const TOTAL_PHASES = 14;
 
         const allTranscripts: any[] = [];
 
-        for (const term of searchTerms.slice(0, 3)) {
+        // Helper to search Fireflies for a single term
+        const searchFireflies = async (query: string, limit: number): Promise<any[]> => {
           try {
             const searchResponse = await fetch(`${supabaseUrl}/functions/v1/search-fireflies-for-buyer`, {
               method: 'POST',
@@ -119,52 +118,54 @@ const TOTAL_PHASES = 14;
                 'apikey': supabaseServiceKey,
                 'Authorization': `Bearer ${supabaseServiceKey}`,
               },
-              body: JSON.stringify({ query: term, limit: 10 }),
+              body: JSON.stringify({ query, limit }),
               signal: AbortSignal.timeout(15000),
             });
-
             if (searchResponse.ok) {
               const searchData = await searchResponse.json();
-              if (searchData.results) {
-                allTranscripts.push(...searchData.results);
-              }
+              return searchData.results || [];
             }
           } catch (searchErr) {
-            console.warn(`[process-ma-guide-queue] Fireflies search for "${term}" failed:`, searchErr);
+            console.warn(`[process-ma-guide-queue] Fireflies search for "${query}" failed:`, searchErr);
+          }
+          return [];
+        };
+
+        // Fetch buyers in parallel with term searches
+        const [termResults, { data: universeBuyers }] = await Promise.all([
+          // Run all term searches in parallel
+          Promise.allSettled(
+            searchTerms.slice(0, 3).map((term) => searchFireflies(term, 10))
+          ),
+          // Fetch buyers at the same time
+          supabase
+            .from('remarketing_buyers')
+            .select('pe_firm_name, company_name')
+            .eq('universe_id', generation.universe_id)
+            .limit(10),
+        ]);
+
+        // Collect term search results
+        for (const result of termResults) {
+          if (result.status === 'fulfilled' && result.value.length > 0) {
+            allTranscripts.push(...result.value);
           }
         }
 
-        // Also search for buyers already in this universe
-        const { data: universeBuyers } = await supabase
-          .from('remarketing_buyers')
-          .select('pe_firm_name, company_name')
-          .eq('universe_id', generation.universe_id)
-          .limit(10);
-
+        // Run buyer searches in parallel
         if (universeBuyers && universeBuyers.length > 0) {
-          for (const buyer of universeBuyers.slice(0, 5)) {
-            const buyerName = buyer.pe_firm_name || buyer.company_name;
-            if (!buyerName) continue;
-            try {
-              const searchResponse = await fetch(`${supabaseUrl}/functions/v1/search-fireflies-for-buyer`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'apikey': supabaseServiceKey,
-                  'Authorization': `Bearer ${supabaseServiceKey}`,
-                },
-                body: JSON.stringify({ query: buyerName, limit: 5 }),
-                signal: AbortSignal.timeout(15000),
-              });
+          const buyerNames = universeBuyers
+            .slice(0, 5)
+            .map((b) => b.pe_firm_name || b.company_name)
+            .filter(Boolean) as string[];
 
-              if (searchResponse.ok) {
-                const searchData = await searchResponse.json();
-                if (searchData.results) {
-                  allTranscripts.push(...searchData.results);
-                }
-              }
-            } catch (searchErr) {
-              console.warn(`[process-ma-guide-queue] Fireflies search for buyer "${buyerName}" failed:`, searchErr);
+          const buyerResults = await Promise.allSettled(
+            buyerNames.map((name) => searchFireflies(name, 5))
+          );
+
+          for (const result of buyerResults) {
+            if (result.status === 'fulfilled' && result.value.length > 0) {
+              allTranscripts.push(...result.value);
             }
           }
         }

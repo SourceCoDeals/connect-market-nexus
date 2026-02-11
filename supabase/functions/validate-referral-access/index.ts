@@ -1,20 +1,17 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -65,7 +62,7 @@ serve(async (req) => {
         );
       }
 
-      // Check password
+      // Check password — SECURITY: never fall back to plaintext comparison
       let valid = false;
       if (!partner.share_password_hash) {
         // No password set yet — accept any non-empty password and hash it
@@ -78,17 +75,10 @@ serve(async (req) => {
       } else {
         try {
           valid = bcrypt.compareSync(password, partner.share_password_hash);
-        } catch {
-          // If hash is invalid (plain text fallback), do direct comparison
-          valid = password === partner.share_password_hash;
-          if (valid) {
-            // Upgrade to proper hash
-            const hash = bcrypt.hashSync(password);
-            await supabase
-              .from("referral_partners")
-              .update({ share_password_hash: hash })
-              .eq("id", partner.id);
-          }
+        } catch (e) {
+          // Hash is malformed — reject the attempt, do NOT fall back to plaintext
+          console.error("bcrypt.compareSync threw for partner", partner.id, e);
+          valid = false;
         }
       }
 
@@ -137,15 +127,16 @@ serve(async (req) => {
         );
       }
 
+      // SECURITY: never fall back to plaintext comparison
       let valid = false;
       if (!partner.share_password_hash) {
-        // No password set — accept (password was set during initial validate call)
-        valid = true;
+        valid = false; // Must set password via validate action first
       } else {
         try {
           valid = bcrypt.compareSync(password, partner.share_password_hash);
-        } catch {
-          valid = password === partner.share_password_hash;
+        } catch (e) {
+          console.error("bcrypt.compareSync threw for partner", partner.id, e);
+          valid = false;
         }
       }
 
@@ -156,23 +147,25 @@ serve(async (req) => {
         );
       }
 
-      // Fetch ALL listings for this partner (regardless of status — partner always sees their deals)
+      // Fetch listings for this partner (capped to prevent unbounded responses)
       const { data: listings } = await supabase
         .from("listings")
         .select(
           "id, title, internal_company_name, category, revenue, ebitda, full_time_employees, location, status, is_priority_target, website, deal_total_score, main_contact_name, main_contact_title, main_contact_email, linkedin_employee_count, linkedin_employee_range"
         )
         .eq("referral_partner_id", partner.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-      // Fetch submissions for this partner
+      // Fetch submissions for this partner (capped)
       const { data: submissions } = await supabase
         .from("referral_submissions")
         .select(
           "id, company_name, industry, revenue, ebitda, location, status, listing_id, created_at"
         )
         .eq("referral_partner_id", partner.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       // Update last_viewed_at
       await supabase

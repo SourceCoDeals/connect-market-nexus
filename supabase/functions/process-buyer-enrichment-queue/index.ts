@@ -15,18 +15,21 @@ const MAX_FUNCTION_RUNTIME_MS = 140000; // 140s — stop looping before Deno 150
 const INTER_BUYER_DELAY_MS = 1000; // 1s breathing room between buyers
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
+    const invocationStart = Date.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Processing buyer enrichment queue...');
+    console.log('Processing buyer enrichment queue (self-looping)...');
 
     // Auto-recover any stale global operations (prevents deadlocks)
     const recovered = await recoverStaleOperations(supabase);
@@ -34,7 +37,7 @@ Deno.serve(async (req) => {
       console.log(`Recovered ${recovered} stale global operations`);
     }
 
-    // Recovery: reset stale processing items (stuck for 3+ minutes)
+    // Recovery: reset stale processing items (stuck for 5+ minutes)
     const staleCutoffIso = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000).toISOString();
     const { data: staleItems } = await supabase
       .from('buyer_enrichment_queue')
@@ -52,8 +55,8 @@ Deno.serve(async (req) => {
       console.log(`Recovered ${staleItems.length} stale processing items`);
     }
 
-    // GUARD: If anything is currently processing (and not stale), skip this run
-    // This prevents concurrent processor invocations from competing
+    // GUARD: If anything is currently processing (and not stale), skip this run.
+    // Another invocation is already self-looping.
     const { data: activeItems } = await supabase
       .from('buyer_enrichment_queue')
       .select('id')

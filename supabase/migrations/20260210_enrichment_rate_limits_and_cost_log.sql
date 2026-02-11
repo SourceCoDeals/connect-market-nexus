@@ -75,6 +75,9 @@ CREATE INDEX IF NOT EXISTS idx_cost_log_function ON enrichment_cost_log (functio
 ALTER TABLE enrichment_rate_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enrichment_cost_log ENABLE ROW LEVEL SECURITY;
 
--- Allow service role full access
-CREATE POLICY "Service role access" ON enrichment_rate_limits FOR ALL USING (true);
-CREATE POLICY "Service role access" ON enrichment_cost_log FOR ALL USING (true);
+-- SECURITY: Only admins can read/write these tables via client.
+-- Service role bypasses RLS automatically for edge functions.
+CREATE POLICY "Admins manage rate limits" ON enrichment_rate_limits FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true));
+CREATE POLICY "Admins manage cost log" ON enrichment_cost_log FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true));

@@ -23,6 +23,7 @@ import Papa from "papaparse";
 
 interface ReferralCSVUploadProps {
   shareToken: string;
+  password: string;
   onUploaded: () => void;
 }
 
@@ -71,6 +72,7 @@ function parseFinancialValue(str: string): number | null {
 
 export function ReferralCSVUpload({
   shareToken,
+  password,
   onUploaded,
 }: ReferralCSVUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +155,7 @@ export function ReferralCSVUpload({
         {
           body: {
             shareToken,
+            password,
             submissions: parsedRows,
           },
         }
