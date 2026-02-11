@@ -56,7 +56,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   let revenueScore = 0;
   let ebitdaScore = 0;
   let linkedinBoost = 0;
-  let sizeFloor = 0;
+  let financialScore = 0;
 
   // ===== SIZE (0-90 pts) =====
   let sizeScore = 0;
@@ -78,6 +78,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (revenue > 0) revPts = 3;
 
     revenueScore = revPts;
+    if (revenue > 0) notes.push(`Revenue: $${(revenue / 1_000_000).toFixed(1)}M → ${revPts} pts`);
 
     // EBITDA scoring (0-10 pts) — bonus for profitability, not punitive if missing
     let ebitdaPts = 0;
@@ -90,6 +91,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (ebitda >= 150000) ebitdaPts = 2;
 
     ebitdaScore = ebitdaPts;
+    if (ebitda > 0) notes.push(`EBITDA: $${(ebitda / 1_000_000).toFixed(1)}M → ${ebitdaPts} pts`);
 
     financialScore = Math.min(45, revPts + ebitdaPts);
   }
@@ -467,6 +469,7 @@ serve(async (req) => {
             ebitda_score: scores.ebitda_score,
             linkedin_boost: scores.linkedin_boost,
             quality_calculation_version: scores.quality_calculation_version,
+            scoring_notes: scores.scoring_notes || null,
           })
           .eq("id", listing.id);
 
