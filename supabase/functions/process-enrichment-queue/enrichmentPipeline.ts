@@ -68,7 +68,16 @@ export async function runListingEnrichmentPipeline(
   const updatedFields: string[] = [];
 
   // 1) Website scrape + AI extraction (writes enriched_at + structured intelligence)
-  const enrichDeal = await callFn(input, 'enrich-deal', { dealId: input.listingId });
+  // skipExternalEnrichment=true: LinkedIn/Google are called at the pipeline level (step 2)
+  // to avoid nested edge-function timeout chains (queue→enrich-deal→apify would cascade-timeout)
+  const enrichDeal = await callFn(input, 'enrich-deal', { dealId: input.listingId, skipExternalEnrichment: true });
+
+  // 409 = concurrent modification (another process enriched this deal) — treat as success
+  if (enrichDeal.status === 409 && enrichDeal.json?.error_code === 'concurrent_modification') {
+    console.log(`Deal ${input.listingId} was already enriched by another process — treating as success`);
+    return { ok: true, fieldsUpdated: [] };
+  }
+
   if (!enrichDeal.ok || !enrichDeal.json?.success) {
     return {
       ok: false,
@@ -101,14 +110,12 @@ export async function runListingEnrichmentPipeline(
       }),
     ]);
 
-    // Process LinkedIn result
+    // Process LinkedIn result — non-fatal (don't fail pipeline for LinkedIn/Google errors)
     if (liResult.status === 'fulfilled') {
       const liRes = liResult.value;
       if (!liRes.ok) {
-        return { ok: false, error: getErrorMessage('apify-linkedin-scrape', liRes.status, liRes.json) };
-      }
-      // Soft failure for not found is acceptable
-      if (liRes.json?.success !== false) {
+        console.warn(`LinkedIn scrape failed (non-fatal): ${getErrorMessage('apify-linkedin-scrape', liRes.status, liRes.json)}`);
+      } else if (liRes.json?.success !== false) {
         if (liRes.json?.linkedin_employee_count != null) updatedFields.push('linkedin_employee_count');
         if (liRes.json?.linkedin_employee_range) updatedFields.push('linkedin_employee_range');
         if (liRes.json?.linkedin_url) updatedFields.push('linkedin_url');
@@ -116,22 +123,19 @@ export async function runListingEnrichmentPipeline(
         if (liRes.json?.scraped) updatedFields.push('linkedin_verified_at');
       }
     } else {
-      console.error('LinkedIn scrape rejected:', liResult.reason);
-      // Don't fail the whole pipeline for LinkedIn errors
+      console.error('LinkedIn scrape rejected (non-fatal):', liResult.reason);
     }
 
-    // Process Google result
+    // Process Google result — non-fatal
     if (googleResult.status === 'fulfilled') {
       const googleRes = googleResult.value;
       if (!googleRes.ok) {
-        return { ok: false, error: getErrorMessage('apify-google-reviews', googleRes.status, googleRes.json) };
-      }
-      if (googleRes.json?.success === true) {
+        console.warn(`Google reviews failed (non-fatal): ${getErrorMessage('apify-google-reviews', googleRes.status, googleRes.json)}`);
+      } else if (googleRes.json?.success === true) {
         updatedFields.push('google_review_count');
       }
     } else {
-      console.error('Google reviews rejected:', googleResult.reason);
-      // Don't fail the whole pipeline for Google errors
+      console.error('Google reviews rejected (non-fatal):', googleResult.reason);
     }
   }
 

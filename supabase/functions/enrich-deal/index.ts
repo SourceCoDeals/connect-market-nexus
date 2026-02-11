@@ -118,7 +118,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { dealId, forceReExtract = false } = await req.json();
+    const { dealId, forceReExtract = false, skipExternalEnrichment = false } = await req.json();
 
     if (!dealId) {
       return new Response(
@@ -616,39 +616,60 @@ serve(async (req) => {
 
         const batchResults = await Promise.allSettled(
           batch.map(async (transcript) => {
-            const extractResponse = await fetch(
-              `${supabaseUrl}/functions/v1/extract-deal-transcript`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  // Internal call: use service role key for Authorization (valid JWT the gateway accepts)
-                  // + anon key for apikey header (required for project routing)
-                  'Authorization': `Bearer ${supabaseServiceKey}`,
-                  'apikey': supabaseAnonKey,
-                  'x-internal-secret': supabaseServiceKey,
-                },
-                body: JSON.stringify({
-                  transcriptId: transcript.id,
-                  transcriptText: transcript.transcript_text,
-                  applyToDeal: true,
-                  dealInfo: {
-                    company_name: deal.title || deal.internal_company_name,
-                    industry: deal.industry,
-                    location: deal.location || deal.address_city,
-                    revenue: deal.revenue,
-                    ebitda: deal.ebitda,
-                  },
-                }),
-              }
-            );
+            // Retry once on failure with 2s backoff (handles transient API errors)
+            const MAX_RETRIES = 1;
+            let lastError: Error | null = null;
 
-            if (!extractResponse.ok) {
-              const errText = await extractResponse.text();
-              throw new Error(errText.slice(0, 200));
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+              if (attempt > 0) {
+                console.log(`[Transcripts] Retrying transcript ${transcript.id} (attempt ${attempt + 1})`);
+                await new Promise((r) => setTimeout(r, 2000 * attempt)); // 2s backoff
+              }
+
+              try {
+                const extractResponse = await fetch(
+                  `${supabaseUrl}/functions/v1/extract-deal-transcript`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${supabaseServiceKey}`,
+                      'apikey': supabaseAnonKey,
+                      'x-internal-secret': supabaseServiceKey,
+                    },
+                    body: JSON.stringify({
+                      transcriptId: transcript.id,
+                      transcriptText: transcript.transcript_text,
+                      applyToDeal: true,
+                      dealInfo: {
+                        company_name: deal.title || deal.internal_company_name,
+                        industry: deal.industry,
+                        location: deal.location || deal.address_city,
+                        revenue: deal.revenue,
+                        ebitda: deal.ebitda,
+                      },
+                    }),
+                  }
+                );
+
+                if (!extractResponse.ok) {
+                  const errText = await extractResponse.text();
+                  lastError = new Error(errText.slice(0, 200));
+                  // Retry on 5xx/429 errors, fail immediately on 4xx
+                  if (extractResponse.status < 500 && extractResponse.status !== 429) {
+                    throw lastError;
+                  }
+                  continue; // Retry
+                }
+
+                return transcript.id; // Success
+              } catch (err) {
+                lastError = err instanceof Error ? err : new Error(String(err));
+                if (attempt === MAX_RETRIES) throw lastError;
+              }
             }
 
-            return transcript.id;
+            throw lastError || new Error('Transcript extraction failed after retries');
           })
         );
 
@@ -849,7 +870,28 @@ serve(async (req) => {
     console.log('Scraping website with Firecrawl (multi-page)...');
 
     // Build list of pages to scrape - homepage + common important pages
-    const baseUrl = new URL(websiteUrl);
+    let baseUrl: URL;
+    try {
+      baseUrl = new URL(websiteUrl);
+    } catch (urlErr) {
+      console.error(`Invalid URL "${websiteUrl}":`, urlErr);
+      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
+      if (transcriptFieldsApplied > 0) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: malformed URL "${websiteUrl}".`,
+            fieldsUpdated: transcriptFieldNames,
+            transcriptReport,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: `Invalid website URL: "${websiteUrl}". Please fix the URL on this deal.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const pagesToScrape = [
       websiteUrl, // Homepage
     ];
@@ -1360,6 +1402,7 @@ For financial data, include confidence levels and source quotes where available.
 
     // ========================================================================
     // PROCESS FINANCIAL DATA WITH CONFIDENCE TRACKING (per spec)
+    // Schema is now flattened — fields come back as revenue_value, ebitda_amount, etc.
     // ========================================================================
     
     // Handle flattened revenue fields from AI extraction
@@ -1404,12 +1447,27 @@ For financial data, include confidence levels and source quotes where available.
       extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
       if (ebitdaData.source_quote) extracted.ebitda_source_quote = ebitdaData.source_quote;
     }
-    
+    if (ebitdaMarginPct && typeof ebitdaMarginPct === 'number') {
+      extracted.ebitda_margin = ebitdaMarginPct / 100; // Store as decimal
+    }
+    // SPEC: Calculate EBITDA from revenue × margin if amount not provided
+    if (!ebitdaAmount && ebitdaMarginPct && revenueValue) {
+      const calculatedEbitda = revenueValue * (ebitdaMarginPct / 100);
+      extracted.ebitda = calculatedEbitda;
+      extracted.ebitda_is_inferred = true;
+      extracted.ebitda_source_quote = `Calculated: ${revenueValue / 1000000}M revenue × ${ebitdaMarginPct}% margin`;
+      extracted.ebitda_confidence = 'medium';
+      console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()} (${ebitdaMarginPct}% of ${revenueValue / 1000000}M)`);
+    }
+    // Clean up flattened fields that don't map to DB columns
+    delete extracted.ebitda_amount;
+    delete extracted.ebitda_margin_percentage;
+
     // Handle financial follow-up questions
     if (extracted.financial_followup_questions && Array.isArray(extracted.financial_followup_questions)) {
       console.log(`Generated ${extracted.financial_followup_questions.length} financial follow-up questions`);
     }
-    
+
     // Handle financial notes
     if (extracted.financial_notes && typeof extracted.financial_notes === 'string') {
       console.log('Financial notes extracted:', extracted.financial_notes.substring(0, 100));
@@ -1610,13 +1668,15 @@ For financial data, include confidence levels and source quotes where available.
     }
 
     // Try to fetch LinkedIn data if we have a URL or company name
+    // skipExternalEnrichment=true when called from enrichmentPipeline (which calls these separately
+    // at the pipeline level to avoid nested function timeout chains)
     const linkedinUrl = extracted.linkedin_url as string | undefined;
     const companyName = (extracted.internal_company_name || deal.internal_company_name || deal.title) as string | undefined;
-    
-    if (linkedinUrl || companyName) {
+
+    if (!skipExternalEnrichment && (linkedinUrl || companyName)) {
       try {
         console.log(`Attempting LinkedIn enrichment for: ${linkedinUrl || companyName}`);
-        
+
         const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
           method: 'POST',
           headers: {
@@ -1641,8 +1701,6 @@ For financial data, include confidence levels and source quotes where available.
           if (linkedinData.success && linkedinData.scraped) {
             console.log('LinkedIn data retrieved:', linkedinData);
 
-            // Consume ALL fields from LinkedIn response to stay in sync with the
-            // direct DB update the LinkedIn scraper already did (prevents race condition)
             if (linkedinData.linkedin_employee_count) {
               extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
             }
@@ -1662,52 +1720,55 @@ For financial data, include confidence levels and source quotes where available.
         // Non-blocking - LinkedIn enrichment is optional
         console.warn('LinkedIn enrichment failed (non-blocking):', linkedinError);
       }
+    } else if (skipExternalEnrichment) {
+      console.log('[enrich-deal] Skipping LinkedIn/Google (handled by pipeline)');
     }
 
     // Try to fetch Google reviews data
     // Use company name and location for search
-    const googleSearchName = companyName || deal.title;
-    const googleLocation = (extracted.address_city && extracted.address_state)
-      ? `${extracted.address_city}, ${extracted.address_state}`
-      : (deal.address_city && deal.address_state)
-        ? `${deal.address_city}, ${deal.address_state}`
-        : deal.location;
+    if (!skipExternalEnrichment) {
+      const googleSearchName = companyName || deal.title;
+      const googleLocation = (extracted.address_city && extracted.address_state)
+        ? `${extracted.address_city}, ${extracted.address_state}`
+        : (deal.address_city && deal.address_state)
+          ? `${deal.address_city}, ${deal.address_state}`
+          : deal.location;
 
-    if (googleSearchName && !deal.google_review_count) {
-      try {
-        console.log(`Attempting Google reviews enrichment for: ${googleSearchName}`);
+      if (googleSearchName && !deal.google_review_count) {
+        try {
+          console.log(`Attempting Google reviews enrichment for: ${googleSearchName}`);
 
-        const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
-          method: 'POST',
-          headers: {
-            'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'x-internal-secret': supabaseServiceKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            businessName: googleSearchName,
-            city: extracted.address_city || deal.address_city,
-            state: extracted.address_state || deal.address_state,
-            dealId: dealId, // Let the function update directly
-          }),
-          signal: AbortSignal.timeout(95000), // Slightly longer than Google scraper's 90s timeout
-        });
+          const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
+            method: 'POST',
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${supabaseAnonKey}`,
+              'x-internal-secret': supabaseServiceKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              businessName: googleSearchName,
+              city: extracted.address_city || deal.address_city,
+              state: extracted.address_state || deal.address_state,
+              dealId: dealId, // Let the function update directly
+            }),
+            signal: AbortSignal.timeout(95000), // Slightly longer than Google scraper's 90s timeout
+          });
 
-        if (googleResponse.ok) {
-          const googleData = await googleResponse.json();
-          if (googleData.success && googleData.scraped) {
-            console.log('Google reviews data retrieved:', googleData);
-            // Note: apify-google-reviews updates the deal directly when dealId is provided
+          if (googleResponse.ok) {
+            const googleData = await googleResponse.json();
+            if (googleData.success && googleData.scraped) {
+              console.log('Google reviews data retrieved:', googleData);
+            } else {
+              console.log('Google reviews scrape returned no data:', googleData.error || 'No business found');
+            }
           } else {
-            console.log('Google reviews scrape returned no data:', googleData.error || 'No business found');
+            console.warn('Google reviews scrape failed:', googleResponse.status);
           }
-        } else {
-          console.warn('Google reviews scrape failed:', googleResponse.status);
+        } catch (googleError) {
+          // Non-blocking - Google enrichment is optional
+          console.warn('Google reviews enrichment failed (non-blocking):', googleError);
         }
-      } catch (googleError) {
-        // Non-blocking - Google enrichment is optional
-        console.warn('Google reviews enrichment failed (non-blocking):', googleError);
       }
     }
 
@@ -1766,15 +1827,15 @@ For financial data, include confidence levels and source quotes where available.
     // Check for optimistic lock conflict
     if (!updateResult || updateResult.length === 0) {
       console.warn(`Optimistic lock conflict for deal ${dealId} - record was modified by another process`);
-      // Return 200 — another process already enriched this deal successfully
+      // Return 409 Conflict so queue processor can retry or skip properly
       return new Response(
         JSON.stringify({
-          success: true,
-          message: 'Deal was already enriched by another process.',
+          success: false,
+          message: 'Deal was already enriched by another process (concurrent modification).',
           fieldsUpdated: [],
           error_code: 'concurrent_modification',
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

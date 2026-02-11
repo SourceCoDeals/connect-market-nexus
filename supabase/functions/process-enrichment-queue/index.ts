@@ -87,7 +87,34 @@ serve(async (req) => {
         throw fetchError;
       }
 
-      queueItems = pendingItems;
+      // Atomically claim these items to prevent race conditions with concurrent workers.
+      // Mark them as 'processing' immediately; items that were already claimed by another
+      // worker will fail the status='pending' check and be filtered out.
+      if (pendingItems && pendingItems.length > 0) {
+        const claimed: QueueItem[] = [];
+        await Promise.all(pendingItems.map(async (item) => {
+          const { data: updated } = await supabase
+            .from('enrichment_queue')
+            .update({
+              status: 'processing',
+              attempts: item.attempts + 1,
+              started_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id)
+            .eq('status', 'pending') // Only succeeds if still pending (atomic check)
+            .select('id, listing_id, status, attempts, queued_at')
+            .maybeSingle();
+
+          if (updated) {
+            claimed.push(updated as QueueItem);
+          }
+        }));
+        queueItems = claimed;
+        console.log(`Fallback: claimed ${claimed.length} of ${pendingItems.length} items atomically`);
+      } else {
+        queueItems = [];
+      }
     } else if (claimError) {
       console.error('Error claiming queue items:', claimError);
       throw claimError;
@@ -232,21 +259,10 @@ serve(async (req) => {
 
       console.log(`Processing chunk of ${chunk.length} items in parallel...`);
 
-      // Mark all items in chunk as processing (if not already claimed via RPC)
-      if (!claimedItems) {
-        await Promise.all(chunk.map((item: { id: string; attempts: number }) =>
-          supabase
-            .from('enrichment_queue')
-            .update({
-              status: 'processing',
-              attempts: item.attempts + 1,
-              started_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id)
-            .eq('status', 'pending')
-        ));
-      }
+      // Items are already marked as 'processing' by either:
+      // - The RPC claim_enrichment_queue_items call
+      // - The fallback atomic claim loop above
+      // No additional status update needed here.
 
       // Process entire chunk in parallel
       const chunkResults = await Promise.allSettled(
