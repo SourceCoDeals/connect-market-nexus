@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
 import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
 import { GenerationSummaryPanel, type GenerationSummary } from "./GenerationSummaryPanel";
@@ -1239,13 +1240,14 @@ export const AIResearchSection = ({
     setIsExtracting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('extract-buyer-criteria', {
+      const { data, error } = await invokeWithTimeout<any>('extract-buyer-criteria', {
         body: {
           universe_id: universeId,
           guide_content: guideContent,
           source_name: `${universeName || industryName} M&A Guide`,
           industry_name: universeName || industryName
-        }
+        },
+        timeoutMs: 120_000,
       });
 
       if (error) {

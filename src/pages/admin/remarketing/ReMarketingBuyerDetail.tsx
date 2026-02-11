@@ -442,13 +442,14 @@ const ReMarketingBuyerDetail = () => {
       }
 
       // FIX #5: Pass transcriptId so edge function can update buyer_transcripts.processed_at
-      const { data, error } = await supabase.functions.invoke('extract-transcript', {
+      const { data, error } = await invokeWithTimeout<any>('extract-transcript', {
         body: {
           buyerId: id,
           transcriptText: textToExtract,
           source: sourceToUse,
           transcriptId: params.transcriptId // Pass transcript ID for status tracking
-        }
+        },
+        timeoutMs: 120_000,
       });
       if (error) throw error;
       return data;
