@@ -98,6 +98,7 @@ export const DocumentUploadSection = ({
           id: uuidv4(),
           name: file.name,
           url: urlData.publicUrl,
+          path: fileName,
           uploaded_at: new Date().toISOString()
         });
       }
@@ -156,13 +157,18 @@ export const DocumentUploadSection = ({
       const doc = enrichableDocs[i];
 
       try {
+        // Resolve the actual storage path — priority: path field > url extraction > fallback
         let storagePath: string;
-        if (doc.url) {
+        if ((doc as any).path) {
+          storagePath = (doc as any).path;
+        } else if (doc.url) {
           const urlParts = doc.url.split('/universe-documents/');
-          storagePath = urlParts.length > 1 ? urlParts[1] : doc.url;
+          storagePath = urlParts.length > 1 ? decodeURIComponent(urlParts[1]) : doc.url;
         } else {
           storagePath = `${universeId}/${doc.name}`;
         }
+
+        console.log(`[ENRICH] Doc "${doc.name}" → storage path: "${storagePath}"`);
 
         const { data, error } = await supabase.functions.invoke('extract-deal-document', {
           body: {
