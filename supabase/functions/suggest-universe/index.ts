@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ANTHROPIC_API_URL, getAnthropicHeaders } from "../_shared/ai-providers.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,9 +25,9 @@ serve(async (req) => {
   }
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -115,11 +115,11 @@ For each universe that is a potential match, provide:
 Return JSON array: [{ "index": 1, "confidence": 85, "reason": "...", "matching_criteria": ["category", "size"] }]
 Only include universes with confidence >= 50. Sort by confidence descending.`;
 
-    const aiResponse = await fetch(ANTHROPIC_API_URL, {
+    const aiResponse = await fetch(GEMINI_API_URL, {
       method: "POST",
-      headers: getAnthropicHeaders(ANTHROPIC_API_KEY),
+      headers: getGeminiHeaders(GEMINI_API_KEY),
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
+        model: DEFAULT_GEMINI_MODEL,
         max_tokens: 1024,
         messages: [
           {
@@ -136,7 +136,7 @@ Only include universes with confidence >= 50. Sort by confidence descending.`;
     }
 
     const aiResult = await aiResponse.json();
-    const responseText = aiResult.content?.[0]?.text || "";
+    const responseText = aiResult.choices?.[0]?.message?.content || "";
 
     // Parse AI response
     let suggestions: UniverseSuggestion[] = [];

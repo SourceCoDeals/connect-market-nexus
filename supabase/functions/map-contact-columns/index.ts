@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,9 +31,8 @@ serve(async (req) => {
       );
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY) {
-      // Fall back to heuristic matching
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
       const mappings = heuristicMapping(headers);
       return new Response(
         JSON.stringify({ success: true, method: 'heuristic', mappings }),
@@ -64,23 +64,19 @@ Rules:
       ).join('\n')}`;
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
+      headers: getGeminiHeaders(GEMINI_API_KEY),
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: DEFAULT_GEMINI_MODEL,
         max_tokens: 1000,
         messages: [
+          { role: 'system', content: systemPrompt },
           {
             role: 'user',
             content: `Map these CSV headers to contact fields:\n\nHeaders: ${headers.join(', ')}${sampleContext}`
           }
         ],
-        system: systemPrompt,
       }),
     });
 
@@ -93,7 +89,7 @@ Rules:
     }
 
     const result = await response.json();
-    const content = result.content?.[0]?.text || '';
+    const content = result.choices?.[0]?.message?.content || '';
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
