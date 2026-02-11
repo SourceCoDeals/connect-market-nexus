@@ -828,11 +828,11 @@ CORE RULES:
         if (extracted.website) flatExtracted.website = extracted.website;
         if (extracted.location) flatExtracted.location = extracted.location;
         if (extracted.headquarters_address) flatExtracted.headquarters_address = extracted.headquarters_address;
-        if (extracted.ownership_structure) flatExtracted.ownership_structure = extracted.ownership_structure;
+        if ((extracted as any).ownership_structure) flatExtracted.ownership_structure = (extracted as any).ownership_structure;
         if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.services?.length) flatExtracted.services = extracted.services;
         {
-          const n = toFiniteNumber(extracted.part_time_employees);
+          const n = toFiniteNumber((extracted as any).part_time_employees);
           if (n != null) flatExtracted.part_time_employees = n;
         }
 

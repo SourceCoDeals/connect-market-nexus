@@ -842,7 +842,7 @@ async function updateBuyerFromTranscript(
     if (error) {
       console.error("Failed to update buyer with insufficient status:", error);
     } else {
-      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${insufficientUpdate.extraction_sources.length}`);
+      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${(insufficientUpdate.extraction_sources as any[]).length}`);
     }
   }
 }
