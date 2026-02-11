@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
+import { callGeminiWithTool } from "../_shared/ai-providers.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
@@ -9,14 +10,14 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 // ============================================================================
 
 const AI_CONFIG = {
-  model: 'claude-3-5-haiku-20241022',
+  model: 'gemini-2.0-flash',
   max_tokens: 4096,
   temperature: 0, // Deterministic extraction
 };
 
 const MIN_CONTENT_LENGTH = 200;
-const SCRAPE_TIMEOUT_MS = 15000;
-const AI_TIMEOUT_MS = 45000; // Increased from 20s — callClaudeWithTool now auto-retries on 429
+const SCRAPE_TIMEOUT_MS = 10000;
+const AI_TIMEOUT_MS = 30000;
 
 // ============================================================================
 // DATA PROVENANCE: CANONICAL FIELD OWNERSHIP CONTRACT
@@ -247,7 +248,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
         url: formattedUrl,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,
+        waitFor: 1500,
       }),
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
@@ -306,108 +307,38 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 }
 
 // ============================================================================
-// CLAUDE AI EXTRACTION
+// GEMINI AI EXTRACTION (delegates to shared callGeminiWithTool)
 // ============================================================================
 
-// Inter-call delay to avoid Anthropic rate limits (RPM)
-const CLAUDE_INTER_CALL_DELAY_MS = 300; // Reduced — prompts run in parallel so delay is per-promise
-const CLAUDE_MAX_RETRIES = 3;
-const CLAUDE_RETRY_BASE_DELAY_MS = 3000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
+/**
+ * Call Gemini via shared helper. Accepts Claude-format tool schemas and converts internally.
+ * This is a thin wrapper for backward compatibility with existing prompt functions.
+ */
 async function callClaudeAI(
   systemPrompt: string,
   userPrompt: string,
   tool: { name: string; description: string; input_schema: any },
   apiKey: string,
-  retryCount: number = 0
-): Promise<{ data: any | null; error?: { code: string; message: string } }> {
-  try {
-    console.log(`Calling Claude with tool: ${tool.name}${retryCount > 0 ? ` (retry ${retryCount})` : ''}`);
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: AI_CONFIG.model,
-        max_tokens: AI_CONFIG.max_tokens,
-        temperature: AI_CONFIG.temperature,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        tools: [tool],
-        tool_choice: { type: 'tool', name: tool.name },
-      }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
-
-    if (response.status === 402) {
-      return { data: null, error: { code: 'payment_required', message: 'AI credits depleted' } };
-    }
-    
-    if (response.status === 429) {
-      // Retry with exponential backoff for Anthropic rate limits
-      if (retryCount < CLAUDE_MAX_RETRIES) {
-        // Respect Retry-After header if present
-        const retryAfter = response.headers.get('retry-after');
-        const retryDelay = retryAfter
-          ? parseInt(retryAfter, 10) * 1000
-          : CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
-        const jitter = Math.random() * 1000;
-        console.warn(`Claude rate limited, waiting ${Math.round(retryDelay + jitter)}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
-        await sleep(retryDelay + jitter);
-        return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
-      }
-      // After max retries, return the rate limit error
-      return { data: null, error: { code: 'rate_limited', message: 'Rate limit exceeded after retries' } };
-    }
-
-    // Retry on server errors (500, 502, 503, 529 Anthropic overload)
-    if (response.status >= 500 || response.status === 529) {
-      if (retryCount < CLAUDE_MAX_RETRIES) {
-        const retryDelay = CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
-        console.warn(`Claude server error (${response.status}), retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
-        await sleep(retryDelay);
-        return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
-      }
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Claude call failed: ${response.status}`, errorText.substring(0, 500));
-      return { data: null };
-    }
-
-    const data = await response.json();
-    const toolUse = data.content?.find((c: any) => c.type === 'tool_use');
-    
-    if (!toolUse?.input) {
-      console.warn(`No tool_use in Claude response`);
-      return { data: null };
-    }
-
-    console.log(`Claude extracted ${Object.keys(toolUse.input).length} fields via ${tool.name}`);
-    
-    // Add delay after successful call to avoid hitting RPM limits
-    await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-    
-    // Extract usage for cost tracking
-    const usage = data.usage ? { inputTokens: data.usage.input_tokens || 0, outputTokens: data.usage.output_tokens || 0 } : null;
-    
-    return { data: toolUse.input, usage, toolName: tool.name };
-  } catch (error) {
-    if (error instanceof Error && error.name === 'TimeoutError') {
-      return { data: null, error: { code: 'timeout', message: 'AI request timed out' } };
-    }
-    console.error('Claude extraction error:', error);
-    return { data: null };
+): Promise<{ data: any | null; error?: { code: string; message: string }; usage?: any }> {
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiApiKey) {
+    return { data: null, error: { code: 'missing_api_key', message: 'GEMINI_API_KEY not configured' } };
   }
+
+  const result = await callGeminiWithTool(
+    systemPrompt, userPrompt, tool, geminiApiKey,
+    AI_CONFIG.model, AI_TIMEOUT_MS, AI_CONFIG.max_tokens
+  );
+
+  // Map usage format for backward compat
+  if (result.usage) {
+    return {
+      data: result.data,
+      error: result.error,
+      usage: { inputTokens: result.usage.input_tokens, outputTokens: result.usage.output_tokens },
+    };
+  }
+  return result;
 }
 
 // ============================================================================
@@ -969,13 +900,13 @@ Deno.serve(async (req) => {
     }
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!firecrawlApiKey || !anthropicApiKey || !supabaseUrl || !supabaseServiceKey) {
+    if (!firecrawlApiKey || !geminiApiKey || !supabaseUrl || !supabaseServiceKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Server configuration error - missing API keys' }),
+        JSON.stringify({ success: false, error: 'Server configuration error - missing API keys (FIRECRAWL_API_KEY, GEMINI_API_KEY)' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -1029,14 +960,14 @@ Deno.serve(async (req) => {
       const ENRICHMENT_LOCK_SECONDS = 15;
       const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
 
-      const { count: lockAcquired } = await supabase
+      const { data: lockData } = await supabase
         .from('remarketing_buyers')
         .update({ data_last_updated: new Date().toISOString() })
         .eq('id', buyerId)
         .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
-        .select('*', { count: 'exact', head: true });
+        .select('id');
 
-      if (!lockAcquired || lockAcquired === 0) {
+      if (!lockData || lockData.length === 0) {
         console.log(`[enrich-buyer] Lock acquisition failed for buyer ${buyerId}: enrichment already in progress (lock window: ${ENRICHMENT_LOCK_SECONDS}s)`);
         return new Response(
           JSON.stringify({
@@ -1089,7 +1020,8 @@ Deno.serve(async (req) => {
 
     const scrapeResults = await Promise.all(scrapePromises);
 
-    // Start firecrawlMap discovery in parallel (will be awaited before geography extraction)
+    // Start firecrawlMap discovery in parallel — but don't block on it
+    // (location pages rarely add meaningful data vs the latency cost)
     let locationPagePromise: Promise<string | null> | null = null;
 
     for (const { type, result } of scrapeResults) {
@@ -1140,7 +1072,7 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================================
-    // RUN EXTRACTION PROMPTS (2 BATCHES to avoid Anthropic RPM limits)
+    // RUN EXTRACTION PROMPTS (ALL IN PARALLEL via Gemini Flash)
     // ========================================================================
 
     const allExtracted: Record<string, any> = {};
@@ -1229,83 +1161,59 @@ Deno.serve(async (req) => {
       }
     };
 
-    // BATCH 1: Core platform extraction (3 calls max)
-    // Business overview and customer profile ONLY from platform website — PE firm data is different
-    // Geography can fall back to PE firm website
-    const batch1: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
+    // ALL PROMPTS IN SINGLE PARALLEL BATCH (no more sequential batches)
+    const allPromises: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
+    
     if (platformContent) {
-      batch1.push(
-        extractBusinessOverview(platformContent, anthropicApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
-        extractGeography(platformContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
-        extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
+      allPromises.push(
+        extractBusinessOverview(platformContent, geminiApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
+        extractGeography(platformContent, geminiApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
+        extractCustomerProfile(platformContent, geminiApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
+        extractPEIntelligence(platformContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
       );
-  } else if (peContent) {
-    // No platform content — only extract geography from PE site
-    // CRITICAL: PE firm geography → ONLY geographic_footprint and service_regions
-    // PE firm HQ is NOT the platform's HQ. operating_locations are NOT platform locations.
-    console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website (NO HQ, NO operating_locations)');
-    batch1.push(
-      extractGeography(peContent, anthropicApiKey).then(r => {
-        const validated = validateGeography(r);
-        // STRIP PE-firm-specific fields that would contaminate platform data
-        if (validated?.data) {
-          delete validated.data.hq_city;
-          delete validated.data.hq_state;
-          delete validated.data.hq_country;
-          delete validated.data.hq_region;
-          delete validated.data.operating_locations;
-          delete validated.data.service_regions;
-          console.log('Stripped hq_city, hq_state, hq_country, hq_region, operating_locations, service_regions from PE geography extraction');
-        }
-        return { name: 'geography', result: validated, url: peFirmWebsite };
-      }),
-    );
-  }
-
-    if (batch1.length > 0) {
-      promptsRun += batch1.length;
-      const batch1Results = await Promise.allSettled(batch1);
-      processBatchResults(batch1Results);
-      console.log(`Batch 1 complete: ${promptsSuccessful} successful so far`);
-    }
-
-    // Await location page discovery (was running in parallel with batch 1)
-    // This replaces the old 2s hard sleep — useful work instead of idle waiting
-    if (locationPagePromise) {
-      const locationContent = await locationPagePromise;
-      if (locationContent) {
-        platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationContent;
-        console.log('Appended location page data to platform content');
-      }
-    }
-
-    // BATCH 2: PE firm extraction (1 combined call + size criteria)
-    const batch2: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
-    if (platformContent) {
-      batch2.push(
-        extractPEIntelligence(platformContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
+    } else if (peContent) {
+      // No platform content — only extract geography from PE site
+      console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website');
+      allPromises.push(
+        extractGeography(peContent, geminiApiKey).then(r => {
+          const validated = validateGeography(r);
+          if (validated?.data) {
+            delete validated.data.hq_city;
+            delete validated.data.hq_state;
+            delete validated.data.hq_country;
+            delete validated.data.hq_region;
+            delete validated.data.operating_locations;
+            delete validated.data.service_regions;
+          }
+          return { name: 'geography', result: validated, url: peFirmWebsite };
+        }),
       );
     }
+
     if (peContent) {
-      batch2.push(
-        extractPEIntelligence(peContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
-        // NOTE: Size criteria extraction from PE website is DISABLED.
-        // PE firm websites show NEW PLATFORM criteria, not add-on criteria.
-        // Deal structure data can ONLY come from transcripts.
+      allPromises.push(
+        extractPEIntelligence(peContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
+        extractSizeCriteria(peContent, geminiApiKey).then(r => ({ name: 'size_criteria', result: validateSizeCriteria(r), url: peFirmWebsite })),
       );
     }
 
-    if (batch2.length > 0) {
-      promptsRun += batch2.length;
-      const batch2Results = await Promise.allSettled(batch2);
-      processBatchResults(batch2Results);
-      console.log(`Batch 2 complete: ${promptsSuccessful} successful total`);
+    if (allPromises.length > 0) {
+      promptsRun += allPromises.length;
+
+      // Location page discovery runs in background but don't block on it —
+      // AI prompts are already created with current platformContent.
+      // The location data would only help if we re-ran geography, which isn't worth the latency.
+
+      const allResults = await Promise.allSettled(allPromises);
+      processBatchResults(allResults);
+      console.log(`All prompts complete: ${promptsSuccessful}/${promptsRun} successful`);
     }
 
     console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
 
     // Handle billing errors with partial save
-    if (billingError) {
+    if (billingError as { code: string; message: string } | null) {
+      const be = billingError as { code: string; message: string };
       const fieldsExtracted = Object.keys(allExtracted).length;
       if (fieldsExtracted > 0) {
         const partialUpdate = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);
@@ -1313,7 +1221,7 @@ Deno.serve(async (req) => {
       }
 
       // If we got rate limited but still extracted data, return success with warning
-      if (billingError.code === 'rate_limited' && fieldsExtracted > 0) {
+      if (be.code === 'rate_limited' && fieldsExtracted > 0) {
         console.log(`Partial enrichment saved despite rate limit: ${fieldsExtracted} fields for buyer ${buyerId}`);
         return new Response(
           JSON.stringify({
@@ -1337,12 +1245,12 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: billingError.message,
-          error_code: billingError.code,
+          error: be.message,
+          error_code: be.code,
           fieldsUpdated: fieldsExtracted,
-          recoverable: billingError.code === 'rate_limited',
+          recoverable: be.code === 'rate_limited',
         }),
-        { status: billingError.code === 'payment_required' ? 402 : 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: be.code === 'payment_required' ? 402 : 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -1369,8 +1277,7 @@ Deno.serve(async (req) => {
     console.log(`Successfully enriched buyer ${buyerId}: ${fieldsUpdated} fields updated`);
 
     // Cost tracking: log aggregate AI usage (non-blocking)
-    logAICallCost(supabase, 'enrich-buyer', 'anthropic', AI_CONFIG.model, 
-      // Use actual token counts from Claude API responses (fall back to estimates only if missing)
+    logAICallCost(supabase, 'enrich-buyer', 'gemini', AI_CONFIG.model, 
       {
         inputTokens: totalInputTokens > 0 ? totalInputTokens : promptsRun * 12000,
         outputTokens: totalOutputTokens > 0 ? totalOutputTokens : promptsSuccessful * 800,

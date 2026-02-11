@@ -37,7 +37,7 @@ serve(async (req) => {
     } 
     else if (fileName.endsWith('.pdf') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
       const arrayBuffer = await file.arrayBuffer();
-      const base64Content = base64Encode(new Uint8Array(arrayBuffer));
+      const base64Content = base64Encode(new Uint8Array(arrayBuffer) as unknown as ArrayBuffer);
       
       let mimeType = 'application/pdf';
       if (fileName.endsWith('.docx')) {

@@ -391,7 +391,7 @@ serve(async (req) => {
           }
 
           cumulativeUpdates = { ...cumulativeUpdates, ...updates };
-          cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates);
+          cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates as any);
 
           // Keep local deal object in sync so subsequent priority checks see new values
           Object.assign(deal, updates);

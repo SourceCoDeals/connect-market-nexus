@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
-  ANTHROPIC_API_URL,
-  getAnthropicHeaders,
-  DEFAULT_CLAUDE_FAST_MODEL,
-  DEFAULT_CLAUDE_MODEL,
-  callClaudeWithTool
+  DEFAULT_GEMINI_MODEL,
+  callGeminiWithTool
 } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
@@ -80,9 +77,9 @@ serve(async (req) => {
   }
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -157,7 +154,7 @@ serve(async (req) => {
     // Extract based on entity type
     if ((entity_type === 'deal' || entity_type === 'both') && listingIdToUpdate) {
       console.log(`[TranscriptExtraction] Extracting deal insights`);
-      const dealInsights = await extractDealInsights(transcriptTextToProcess, ANTHROPIC_API_KEY);
+      const dealInsights = await extractDealInsights(transcriptTextToProcess, GEMINI_API_KEY);
       insights.deal = dealInsights;
 
       // Update listing with extracted data (source priority: transcript = 100)
@@ -181,7 +178,7 @@ serve(async (req) => {
       
       const buyerInsights = await extractBuyerInsights(
         transcriptTextToProcess,
-        ANTHROPIC_API_KEY,
+        GEMINI_API_KEY,
         buyerContext?.company_name || undefined,
         buyerContext?.pe_firm_name || undefined
       );
@@ -412,12 +409,12 @@ RULES:
     }
   };
 
-  const result = await callClaudeWithTool(
+  const result = await callGeminiWithTool(
     systemPrompt,
     `Extract all deal-relevant information from this transcript. Capture every financial figure, owner detail, and deal-relevant data point.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
-    DEFAULT_CLAUDE_MODEL,
+    DEFAULT_GEMINI_MODEL,
     45000,
     8192
   );
@@ -567,12 +564,12 @@ If the transcript is primarily an evaluation of a target company (not a discussi
     }
   };
 
-  const result = await callClaudeWithTool(
+  const result = await callGeminiWithTool(
     systemPrompt,
     `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If the call is primarily about evaluating a target company for acquisition (not about the buyer's own thesis), set thesis_confidence to "insufficient" and leave operational fields empty.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
-    DEFAULT_CLAUDE_MODEL,
+    DEFAULT_GEMINI_MODEL,
     45000,
     8192
   );
@@ -842,7 +839,7 @@ async function updateBuyerFromTranscript(
     if (error) {
       console.error("Failed to update buyer with insufficient status:", error);
     } else {
-      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${insufficientUpdate.extraction_sources.length}`);
+      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${(insufficientUpdate.extraction_sources as any[]).length}`);
     }
   }
 }

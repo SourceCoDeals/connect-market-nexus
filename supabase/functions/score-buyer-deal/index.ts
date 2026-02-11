@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, ANTHROPIC_API_URL, getAnthropicHeaders, DEFAULT_CLAUDE_FAST_MODEL, callClaudeWithTool } from "../_shared/ai-providers.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { calculateProximityScore, getProximityTier, normalizeStateCode } from "../_shared/geography-utils.ts";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 
@@ -1116,9 +1116,8 @@ async function calculateThesisAlignmentBonus(
   }
 
   try {
-    const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_KEY) {
-      // Fall back to pattern matching if no Anthropic key
+    const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_KEY) {
       return calculateThesisBonusFallback(listing, buyer);
     }
 
@@ -1143,12 +1142,32 @@ async function calculateThesisAlignmentBonus(
 BUYER TARGETS: ${(buyer.target_services || []).join(', ')}
 DEAL: ${listing.title}, Services: ${(listing.services || []).join(', ')}, Location: ${listing.location}, Revenue: ${listing.revenue ? `$${listing.revenue.toLocaleString()}` : 'Unknown'}`;
 
-    const result = await callClaudeWithTool(systemPrompt, userPrompt, tool, ANTHROPIC_KEY, DEFAULT_CLAUDE_FAST_MODEL, 10000, 500);
-    if (result.data) {
-      return {
-        bonus: Math.max(0, Math.min(20, result.data.score || 0)),
-        reasoning: result.data.reasoning || ''
-      };
+    const geminiResp = await fetchWithRetry(GEMINI_API_URL, {
+      method: 'POST',
+      headers: getGeminiHeaders(GEMINI_KEY),
+      body: JSON.stringify({
+        model: DEFAULT_GEMINI_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        tools: [tool],
+        tool_choice: { type: 'function', function: { name: 'score_thesis_alignment' } },
+        temperature: 0.3,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (geminiResp.ok) {
+      const geminiData = await geminiResp.json();
+      const tc = geminiData.choices?.[0]?.message?.tool_calls?.[0];
+      if (tc?.function?.arguments) {
+        const parsed = typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments) : tc.function.arguments;
+        return {
+          bonus: Math.max(0, Math.min(20, parsed.score || 0)),
+          reasoning: parsed.reasoning || ''
+        };
+      }
     }
   } catch (e) {
     console.warn("Thesis alignment AI call failed:", e);

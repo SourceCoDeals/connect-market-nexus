@@ -1,11 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { 
-  ANTHROPIC_API_URL, 
-  getAnthropicHeaders, 
-  DEFAULT_CLAUDE_FAST_MODEL,
-  toAnthropicTool,
-  parseAnthropicToolResponse
-} from "../_shared/ai-providers.ts";
+import { callGeminiWithTool, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,17 +29,16 @@ serve(async (req) => {
       );
     }
 
-    // Build context string from description if provided
     const descriptionContext = industry_description 
       ? `\n\nUser provided description: "${industry_description}"`
       : '';
 
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY is not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured');
     }
 
-const systemPrompt = `You are an M&A industry expert helping clarify the scope of an industry research guide.
+    const systemPrompt = `You are an M&A industry expert helping clarify the scope of an industry research guide.
 
 Given an industry name, generate 3-4 targeted clarifying questions to ensure the guide covers exactly the right segment and scope.
 
@@ -62,7 +55,7 @@ DO NOT ask about regulatory or licensing considerations - keep it general.
 
 Return questions as JSON matching this schema exactly.`;
 
-    const tool = toAnthropicTool({
+    const tool = {
       type: "function",
       function: {
         name: "generate_questions",
@@ -75,28 +68,11 @@ Return questions as JSON matching this schema exactly.`;
               items: {
                 type: "object",
                 properties: {
-                  id: { 
-                    type: "string",
-                    description: "Unique identifier like 'segment', 'examples', 'geography', 'size'" 
-                  },
-                  question: { 
-                    type: "string",
-                    description: "The question text to display"
-                  },
-                  type: { 
-                    type: "string", 
-                    enum: ["select", "multiSelect", "text"],
-                    description: "select for single choice, multiSelect for multiple, text for free-form"
-                  },
-                  options: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "Options for select/multiSelect types"
-                  },
-                  placeholder: {
-                    type: "string",
-                    description: "Placeholder text for text inputs"
-                  }
+                  id: { type: "string", description: "Unique identifier like 'segment', 'examples', 'geography', 'size'" },
+                  question: { type: "string", description: "The question text to display" },
+                  type: { type: "string", enum: ["select", "multiSelect", "text"], description: "select for single choice, multiSelect for multiple, text for free-form" },
+                  options: { type: "array", items: { type: "string" }, description: "Options for select/multiSelect types" },
+                  placeholder: { type: "string", description: "Placeholder text for text inputs" }
                 },
                 required: ["id", "question", "type"]
               }
@@ -105,70 +81,34 @@ Return questions as JSON matching this schema exactly.`;
           required: ["questions"]
         }
       }
-    });
+    };
 
-    const requestBody = JSON.stringify({
-      model: DEFAULT_CLAUDE_FAST_MODEL,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [
-        { role: "user", content: `Generate clarifying questions for the industry: "${industry_name}"${descriptionContext}` }
-      ],
-      tools: [tool],
-      tool_choice: { type: "tool", name: "generate_questions" }
-    });
+    const result = await callGeminiWithTool(
+      systemPrompt,
+      `Generate clarifying questions for the industry: "${industry_name}"${descriptionContext}`,
+      tool,
+      GEMINI_API_KEY,
+      DEFAULT_GEMINI_MODEL,
+      30000,
+      4096
+    );
 
-    // Retry logic for Anthropic API rate limits with longer delays
-    const MAX_RETRIES = 5;
-    let response: Response | null = null;
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      // Add initial delay to avoid burst requests
-      if (attempt > 0) {
-        const baseDelay = Math.pow(2, attempt + 2) * 1000; // 8s, 16s, 32s, 64s
-        const jitter = Math.random() * 2000; // 0-2s jitter
-        const delay = baseDelay + jitter;
-        console.log(`[clarify-industry] Rate limited, waiting ${Math.round(delay)}ms (attempt ${attempt}/${MAX_RETRIES})`);
-        await new Promise(r => setTimeout(r, delay));
-      }
-
-      response = await fetch(ANTHROPIC_API_URL, {
-        method: "POST",
-        headers: getAnthropicHeaders(ANTHROPIC_API_KEY),
-        body: requestBody,
-      });
-
-      if (response.status !== 429 && response.status !== 529) break;
-    }
-
-    if (!response!.ok) {
-      if (response!.status === 429 || response!.status === 529) {
+    if (result.error) {
+      if (result.error.code === 'rate_limited') {
         return new Response(
           JSON.stringify({ error: "AI service busy. Please wait 30 seconds and try again." }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response!.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const text = await response!.text();
-      console.error("AI API error:", response!.status, text);
-      throw new Error(`AI API error: ${response!.status}`);
+      throw new Error(result.error.message);
     }
 
-    const result = await response!.json();
-    const extracted = parseAnthropicToolResponse(result) as { questions?: ClarifyQuestion[] } | null;
-    
-    let questions: ClarifyQuestion[] = extracted?.questions || [];
+    let questions: ClarifyQuestion[] = result.data?.questions || [];
 
-    // Ensure we always have meaningful questions
     if (questions.length === 0) {
       questions = getDefaultQuestions(industry_name);
     }
 
-    // Always include example companies question if not present
     if (!questions.find(q => q.id === 'examples')) {
       questions.push({
         id: 'examples',
@@ -198,12 +138,7 @@ function getDefaultQuestions(industryName: string): ClarifyQuestion[] {
       id: 'segment',
       question: `Which segment of ${industryName} are you targeting?`,
       type: 'multiSelect',
-      options: [
-        'Full-service (all segments)',
-        'Residential focused',
-        'Commercial focused',
-        'Specialty/niche services'
-      ]
+      options: ['Full-service (all segments)', 'Residential focused', 'Commercial focused', 'Specialty/niche services']
     },
     {
       id: 'examples',
@@ -215,15 +150,7 @@ function getDefaultQuestions(industryName: string): ClarifyQuestion[] {
       id: 'geography',
       question: 'What is the primary geographic focus?',
       type: 'multiSelect',
-      options: [
-        'National (all US)',
-        'Regional - Northeast',
-        'Regional - Southeast', 
-        'Regional - Midwest',
-        'Regional - Southwest',
-        'Regional - West Coast',
-        'Specific states only'
-      ]
+      options: ['National (all US)', 'Regional - Northeast', 'Regional - Southeast', 'Regional - Midwest', 'Regional - Southwest', 'Regional - West Coast', 'Specific states only']
     },
     {
       id: 'additional_context',
