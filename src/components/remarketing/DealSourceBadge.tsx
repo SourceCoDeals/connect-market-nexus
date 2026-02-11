@@ -1,0 +1,39 @@
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const SOURCE_CONFIG: Record<string, { label: string; className: string }> = {
+  captarget: {
+    label: "CapTarget",
+    className: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  referral: {
+    label: "Referral",
+    className: "bg-purple-50 text-purple-700 border-purple-200",
+  },
+  marketplace: {
+    label: "Marketplace",
+    className: "bg-green-50 text-green-700 border-green-200",
+  },
+  manual: {
+    label: "Manual",
+    className: "bg-gray-50 text-gray-600 border-gray-200",
+  },
+};
+
+interface DealSourceBadgeProps {
+  source: string | null | undefined;
+  className?: string;
+}
+
+export function DealSourceBadge({ source, className }: DealSourceBadgeProps) {
+  const config = SOURCE_CONFIG[source || "manual"] || SOURCE_CONFIG.manual;
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn("text-[10px] font-semibold px-1.5 py-0", config.className, className)}
+    >
+      {config.label}
+    </Badge>
+  );
+}

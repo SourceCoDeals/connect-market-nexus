@@ -86,7 +86,7 @@ import {
   FolderPlus,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat } from "@/components/remarketing";
+import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat, DealSourceBadge } from "@/components/remarketing";
 import { DealEnrichmentSummaryDialog } from "@/components/remarketing";
 import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
@@ -143,6 +143,8 @@ interface DealListing {
   // Referral partner
   referral_partner_id: string | null;
   referral_partners: { id: string; name: string } | null;
+  // Deal source
+  deal_source: string | null;
 }
 
 // Column width configuration
@@ -406,6 +408,9 @@ const SortableTableRow = ({
                   <p>Enriched on {format(new Date(listing.enriched_at!), 'dd/MM/yyyy')}</p>
                 </TooltipContent>
               </Tooltip>
+            )}
+            {listing.deal_source && listing.deal_source !== 'manual' && (
+              <DealSourceBadge source={listing.deal_source} />
             )}
           </p>
           {domain && (
@@ -756,7 +761,8 @@ const ReMarketingDeals = () => {
           address_city,
           address_state,
           referral_partner_id,
-          referral_partners(id, name)
+          referral_partners(id, name),
+          deal_source
         `)
         .eq('status', 'active')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
