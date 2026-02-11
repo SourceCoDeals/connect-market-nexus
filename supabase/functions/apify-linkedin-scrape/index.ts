@@ -401,14 +401,16 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
 
   try {
     // Start the actor run synchronously (wait for results)
-    const runUrl = `${API_BASE}/acts/${ACTOR_ID}/run-sync-get-dataset-items?token=${apiToken}`;
-    
+    // SECURITY: Use Authorization header instead of query param to avoid token leaking in logs
+    const runUrl = `${API_BASE}/acts/${ACTOR_ID}/run-sync-get-dataset-items`;
+
     console.log(`Starting Apify actor run for: ${linkedinUrl}`);
 
     const response = await fetch(runUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiToken}`,
       },
       body: JSON.stringify({
         urls: [linkedinUrl],  // Apify actor documented field name (array)

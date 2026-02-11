@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 interface ReferralSubmissionFormProps {
   shareToken: string;
+  password: string;
   onSubmitted: () => void;
 }
 
@@ -57,6 +58,7 @@ function parseFinancialValue(str: string): number | null {
 
 export function ReferralSubmissionForm({
   shareToken,
+  password,
   onSubmitted,
 }: ReferralSubmissionFormProps) {
   const [form, setForm] = useState<FormData>(defaultForm);
@@ -77,6 +79,7 @@ export function ReferralSubmissionForm({
         {
           body: {
             shareToken,
+            password,
             submission: {
               company_name: form.company_name.trim(),
               website: form.website.trim() || null,

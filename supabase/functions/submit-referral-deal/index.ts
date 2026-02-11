@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -14,6 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // Rate limit: 50 submissions per partner per hour
 const RATE_LIMIT = 50;
 const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const MAX_BATCH_SIZE = 100; // Maximum submissions per request
 
 async function checkPartnerRateLimit(partnerId: string): Promise<boolean> {
   const windowStart = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
@@ -26,20 +23,22 @@ async function checkPartnerRateLimit(partnerId: string): Promise<boolean> {
 
   if (error) {
     console.error("Rate limit check error:", error);
-    return true; // Fail open
+    return false; // SECURITY: Fail closed — block on DB errors
   }
 
   return (count || 0) < RATE_LIMIT;
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
     const body = await req.json();
-    const { shareToken, submission, submissions } = body;
+    const { shareToken, password, submission, submissions } = body;
 
     if (!shareToken) {
       return new Response(
@@ -48,10 +47,18 @@ serve(async (req) => {
       );
     }
 
+    // SECURITY: Require password re-verification on every submission
+    if (!password) {
+      return new Response(
+        JSON.stringify({ error: "Password required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Validate share token
     const { data: partner, error: partnerError } = await supabase
       .from("referral_partners")
-      .select("id, is_active")
+      .select("id, is_active, share_password_hash")
       .eq("share_token", shareToken)
       .single();
 
@@ -66,6 +73,28 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "This tracker is no longer active" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY: Verify password (no plaintext fallback)
+    if (!partner.share_password_hash) {
+      return new Response(
+        JSON.stringify({ error: "Partner account not yet activated. Please log in first." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let passwordValid = false;
+    try {
+      passwordValid = bcrypt.compareSync(password, partner.share_password_hash);
+    } catch {
+      passwordValid = false;
+    }
+
+    if (!passwordValid) {
+      return new Response(
+        JSON.stringify({ error: "Invalid password" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -88,8 +117,15 @@ serve(async (req) => {
       );
     }
 
-    // Handle single or batch submissions
+    // Handle single or batch submissions (capped to prevent abuse)
     const items = submissions || (submission ? [submission] : []);
+
+    if (items.length > MAX_BATCH_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Maximum ${MAX_BATCH_SIZE} submissions per request` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!items.length) {
       return new Response(

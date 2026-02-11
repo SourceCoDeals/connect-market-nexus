@@ -413,7 +413,7 @@ export default function ReferralTrackerPage() {
               <h3 className="text-sm font-medium text-foreground mb-3">
                 Upload Spreadsheet
               </h3>
-              <ReferralCSVUpload shareToken={shareToken!} onUploaded={fetchData} />
+              <ReferralCSVUpload shareToken={shareToken!} password={password} onUploaded={fetchData} />
             </div>
 
             <Collapsible defaultOpen={false} className="border-t border-sourceco-form pt-6">
@@ -424,6 +424,7 @@ export default function ReferralTrackerPage() {
               <CollapsibleContent className="mt-3">
                 <ReferralSubmissionForm
                   shareToken={shareToken!}
+                  password={password}
                   onSubmitted={fetchData}
                 />
               </CollapsibleContent>

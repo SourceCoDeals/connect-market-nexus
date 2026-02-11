@@ -195,9 +195,10 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
   console.log(`[global-activity-queue] Auto-started queued operation: ${nextOp.operation_type} (${nextOp.id})`);
 
   // Try to invoke the appropriate processor edge function to kick it off immediately
+  // SECURITY: Use service role key for internal function-to-function calls
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (supabaseUrl && supabaseAnonKey) {
+  const supabaseInternalKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY');
+  if (supabaseUrl && supabaseInternalKey) {
     const processorMap: Record<string, string> = {
       deal_enrichment: 'process-enrichment-queue',
       buyer_enrichment: 'process-buyer-enrichment-queue',
@@ -210,7 +211,7 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
         await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${supabaseInternalKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ fromGlobalQueue: true, globalQueueId: nextOp.id, ...nextOp.context_json }),

@@ -2,10 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 // ============================================================================
 // CONFIGURATION
@@ -954,8 +951,10 @@ function buildUpdateObject(
 // ============================================================================
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -1142,6 +1141,8 @@ Deno.serve(async (req) => {
     const timestamp = new Date().toISOString();
     let promptsRun = 0;
     let promptsSuccessful = 0;
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
     let billingError: { code: string; message: string } | null = null;
     let provenanceViolations: string[] = [];
 
@@ -1199,6 +1200,11 @@ Deno.serve(async (req) => {
 
             if (acceptedFields.length > 0) {
               promptsSuccessful++;
+              // Accumulate actual token usage from Claude API responses
+              if (result.usage) {
+                totalInputTokens += result.usage.inputTokens || 0;
+                totalOutputTokens += result.usage.outputTokens || 0;
+              }
               evidenceRecords.push({
                 type: 'website',
                 source_type: sourceType,
@@ -1348,7 +1354,11 @@ Deno.serve(async (req) => {
 
     // Cost tracking: log aggregate AI usage (non-blocking)
     logAICallCost(supabase, 'enrich-buyer', 'anthropic', AI_CONFIG.model, 
-      { inputTokens: promptsRun * 12000, outputTokens: promptsSuccessful * 800 }, // estimated per prompt
+      // Use actual token counts from Claude API responses (fall back to estimates only if missing)
+      {
+        inputTokens: totalInputTokens > 0 ? totalInputTokens : promptsRun * 12000,
+        outputTokens: totalOutputTokens > 0 ? totalOutputTokens : promptsSuccessful * 800,
+      },
       undefined, { buyerId, promptsRun, promptsSuccessful }
     ).catch(() => {});
 
