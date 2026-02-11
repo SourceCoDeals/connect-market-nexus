@@ -151,6 +151,7 @@ export const AddDealDialog = ({
       const updateData: Record<string, any> = { is_internal_deal: true };
       if (referralPartnerId) {
         updateData.referral_partner_id = referralPartnerId;
+        updateData.status = 'pending_referral_review';
       }
       const { error } = await supabase
         .from('listings')
@@ -298,7 +299,7 @@ export const AddDealDialog = ({
         ebitda: formData.ebitda ? parseFloat(formData.ebitda.replace(/[^0-9.]/g, '')) : null,
         description: formData.description || null,
         category: "Other",
-        status: "active",
+        status: referralPartnerId ? "pending_referral_review" : "active",
         is_internal_deal: true,
         main_contact_name: formData.mainContactName || null,
         main_contact_email: formData.mainContactEmail || null,
