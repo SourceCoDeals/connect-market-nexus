@@ -548,7 +548,7 @@ IMPORTANT: Populate as MANY fields as possible with MAXIMUM DETAIL. Use the extr
             ebitda: {
               type: 'object',
               properties: {
-                amount: { type: 'number', description: 'EBITDA as raw integer. If SDE stated, use that number but flag in financial_notes. Prefer adjusted over unadjusted.' },
+                amount: { type: 'number', description: 'EBITDA as raw integer. If SDE stated, use that number but flag in financial_notes. If only "net income" or "profit" or "bottom line" is mentioned, use that as EBITDA and flag in financial_notes. Prefer adjusted over unadjusted.' },
                 margin_percentage: { type: 'number', description: 'EBITDA margin as percentage NUMBER: 18 means 18%. NOT 0.18. Calculate from revenue if both known.' },
                 confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
                 is_inferred: { type: 'boolean', description: 'True if calculated from revenue × margin or other indirect method' },
