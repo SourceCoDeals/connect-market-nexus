@@ -255,7 +255,9 @@ Deno.serve(async (req) => {
 
     if (remaining && remaining > 0) {
       console.log(`${remaining} buyers still pending, triggering next batch...`);
-      // Fire-and-forget next invocation
+      // Fire-and-forget next invocation — NO timeout signal.
+      // The previous 5s AbortSignal killed the chain on cold starts.
+      // We don't await this, so there's no risk of blocking the current response.
       fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
         method: 'POST',
         headers: {
@@ -264,8 +266,9 @@ Deno.serve(async (req) => {
           'Authorization': `Bearer ${supabaseServiceKey}`,
         },
         body: JSON.stringify({ continuation: true }),
-        signal: AbortSignal.timeout(5000),
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('Self-continuation trigger failed:', err);
+      });
     }
 
     return new Response(
