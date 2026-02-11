@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
+import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
@@ -9,14 +10,14 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 // ============================================================================
 
 const AI_CONFIG = {
-  model: 'claude-3-5-haiku-20241022',
+  model: 'gemini-2.0-flash',
   max_tokens: 4096,
   temperature: 0, // Deterministic extraction
 };
 
 const MIN_CONTENT_LENGTH = 200;
 const SCRAPE_TIMEOUT_MS = 15000;
-const AI_TIMEOUT_MS = 45000; // Increased from 20s — callClaudeWithTool now auto-retries on 429
+const AI_TIMEOUT_MS = 45000;
 
 // ============================================================================
 // DATA PROVENANCE: CANONICAL FIELD OWNERSHIP CONTRACT
@@ -306,18 +307,20 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 }
 
 // ============================================================================
-// CLAUDE AI EXTRACTION
+// GEMINI AI EXTRACTION (via OpenAI-compatible endpoint)
 // ============================================================================
 
-// Inter-call delay to avoid Anthropic rate limits (RPM)
-const CLAUDE_INTER_CALL_DELAY_MS = 300; // Reduced — prompts run in parallel so delay is per-promise
-const CLAUDE_MAX_RETRIES = 3;
-const CLAUDE_RETRY_BASE_DELAY_MS = 3000;
+const GEMINI_MAX_RETRIES = 3;
+const GEMINI_RETRY_BASE_DELAY_MS = 2000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Call Gemini via OpenAI-compatible endpoint with tool calling.
+ * Accepts Claude-format tool schemas ({name, description, input_schema}) and converts internally.
+ */
 async function callClaudeAI(
   systemPrompt: string,
   userPrompt: string,
@@ -325,54 +328,58 @@ async function callClaudeAI(
   apiKey: string,
   retryCount: number = 0
 ): Promise<{ data: any | null; error?: { code: string; message: string } }> {
-  try {
-    console.log(`Calling Claude with tool: ${tool.name}${retryCount > 0 ? ` (retry ${retryCount})` : ''}`);
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiApiKey) {
+    return { data: null, error: { code: 'missing_api_key', message: 'GEMINI_API_KEY not configured' } };
+  }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+  try {
+    console.log(`Calling Gemini Flash with tool: ${tool.name}${retryCount > 0 ? ` (retry ${retryCount})` : ''}`);
+
+    // Convert Claude tool format to OpenAI tool format
+    const openAITool = {
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.input_schema,
       },
+    };
+
+    const response = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: getGeminiHeaders(geminiApiKey),
       body: JSON.stringify({
         model: AI_CONFIG.model,
-        max_tokens: AI_CONFIG.max_tokens,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        tools: [openAITool],
+        tool_choice: { type: 'function', function: { name: tool.name } },
         temperature: AI_CONFIG.temperature,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        tools: [tool],
-        tool_choice: { type: 'tool', name: tool.name },
       }),
       signal: AbortSignal.timeout(AI_TIMEOUT_MS),
     });
 
-    if (response.status === 402) {
-      return { data: null, error: { code: 'payment_required', message: 'AI credits depleted' } };
-    }
-    
     if (response.status === 429) {
-      // Retry with exponential backoff for Anthropic rate limits
-      if (retryCount < CLAUDE_MAX_RETRIES) {
-        // Respect Retry-After header if present
+      if (retryCount < GEMINI_MAX_RETRIES) {
         const retryAfter = response.headers.get('retry-after');
         const retryDelay = retryAfter
           ? parseInt(retryAfter, 10) * 1000
-          : CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
+          : GEMINI_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
         const jitter = Math.random() * 1000;
-        console.warn(`Claude rate limited, waiting ${Math.round(retryDelay + jitter)}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
+        console.warn(`Gemini rate limited, waiting ${Math.round(retryDelay + jitter)}ms (attempt ${retryCount + 1}/${GEMINI_MAX_RETRIES})`);
         await sleep(retryDelay + jitter);
         return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
       }
-      // After max retries, return the rate limit error
       return { data: null, error: { code: 'rate_limited', message: 'Rate limit exceeded after retries' } };
     }
 
-    // Retry on server errors (500, 502, 503, 529 Anthropic overload)
-    if (response.status >= 500 || response.status === 529) {
-      if (retryCount < CLAUDE_MAX_RETRIES) {
-        const retryDelay = CLAUDE_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
-        console.warn(`Claude server error (${response.status}), retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${CLAUDE_MAX_RETRIES})`);
+    if (response.status >= 500) {
+      if (retryCount < GEMINI_MAX_RETRIES) {
+        const retryDelay = GEMINI_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
+        console.warn(`Gemini server error (${response.status}), retrying in ${retryDelay}ms`);
         await sleep(retryDelay);
         return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
       }
@@ -380,33 +387,36 @@ async function callClaudeAI(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Claude call failed: ${response.status}`, errorText.substring(0, 500));
+      console.error(`Gemini call failed: ${response.status}`, errorText.substring(0, 500));
       return { data: null };
     }
 
     const data = await response.json();
-    const toolUse = data.content?.find((c: any) => c.type === 'tool_use');
-    
-    if (!toolUse?.input) {
-      console.warn(`No tool_use in Claude response`);
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+
+    if (!toolCall?.function?.arguments) {
+      console.warn(`No tool_call in Gemini response`);
       return { data: null };
     }
 
-    console.log(`Claude extracted ${Object.keys(toolUse.input).length} fields via ${tool.name}`);
-    
-    // Add delay after successful call to avoid hitting RPM limits
-    await sleep(CLAUDE_INTER_CALL_DELAY_MS);
-    
-    // Extract usage for cost tracking
-    const usage = data.usage ? { inputTokens: data.usage.input_tokens || 0, outputTokens: data.usage.output_tokens || 0 } : null;
-    
-    return { data: toolUse.input, usage, toolName: tool.name } as { data: any; usage?: any; toolName?: string; error?: { code: string; message: string } };
+    const parsed = typeof toolCall.function.arguments === 'string'
+      ? JSON.parse(toolCall.function.arguments)
+      : toolCall.function.arguments;
+
+    console.log(`Gemini extracted ${Object.keys(parsed).length} fields via ${tool.name}`);
+
+    const usage = data.usage ? {
+      inputTokens: data.usage.prompt_tokens || 0,
+      outputTokens: data.usage.completion_tokens || 0,
+    } : null;
+
+    return { data: parsed, usage, toolName: tool.name } as any;
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
-      return { data: null, error: { code: 'timeout', message: 'AI request timed out' } } as { data: any; usage?: any; toolName?: string; error?: { code: string; message: string } };
+      return { data: null, error: { code: 'timeout', message: 'AI request timed out' } } as any;
     }
-    console.error('Claude extraction error:', error);
-    return { data: null } as { data: any; usage?: any; toolName?: string; error?: { code: string; message: string } };
+    console.error('Gemini extraction error:', error);
+    return { data: null } as any;
   }
 }
 

@@ -1,14 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Claude API configuration
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+// Gemini API configuration
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+const DEFAULT_MODEL = 'gemini-2.0-flash';
 const EXTRACTION_TIMEOUT_MS = 120000;
 const MAX_RETRIES = 3;
 
@@ -231,21 +232,29 @@ ${guideContent.slice(0, 50000)}`;
 
   const startTime = Date.now();
 
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY not configured');
+  }
+
+  // Convert tools to OpenAI format for Gemini
+  const openAITools = tools.map(t => ({
+    type: 'function' as const,
+    function: { name: t.name, description: t.description, parameters: t.input_schema },
+  }));
+
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: getGeminiHeaders(GEMINI_API_KEY),
       body: JSON.stringify({
-        model: DEFAULT_CLAUDE_MODEL,
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        tools: tools,
-        tool_choice: { type: 'tool', name: 'extract_buyer_criteria' }
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        tools: openAITools,
+        tool_choice: { type: 'function', function: { name: 'extract_buyer_criteria' } },
+        temperature: 0,
       }),
       signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
     });
@@ -261,21 +270,25 @@ ${guideContent.slice(0, 50000)}`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Claude API error: ${response.status} - ${errorText.substring(0, 300)}`);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 300)}`);
     }
 
     const result = await response.json();
     const duration = Date.now() - startTime;
 
     console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
-    console.log(`[USAGE] Input: ${result.usage?.input_tokens}, Output: ${result.usage?.output_tokens}`);
+    console.log(`[USAGE] Input: ${result.usage?.prompt_tokens}, Output: ${result.usage?.completion_tokens}`);
 
-    const toolUse = result.content.find((c: any) => c.type === 'tool_use');
-    if (!toolUse) {
-      throw new Error('No tool use found in Claude response');
+    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) {
+      throw new Error('No tool call found in Gemini response');
     }
 
-    return toolUse.input;
+    const parsed = typeof toolCall.function.arguments === 'string'
+      ? JSON.parse(toolCall.function.arguments)
+      : toolCall.function.arguments;
+
+    return parsed;
 
   } catch (error: any) {
     if (error.name === 'TimeoutError' && retryCount < MAX_RETRIES) {

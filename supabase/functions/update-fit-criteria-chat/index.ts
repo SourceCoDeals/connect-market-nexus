@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "npm:@anthropic-ai/sdk@0.30.1";
-
-const anthropic = new Anthropic({
-  apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
-});
+import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,9 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!geminiApiKey) {
+      throw new Error("GEMINI_API_KEY not configured");
+    }
 
     const { tracker_id, user_message, current_criteria } = await req.json();
 
@@ -46,28 +43,36 @@ When suggesting updates, provide:
 
 Be concise and actionable.`;
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      system: system_prompt,
-      messages: [
-        {
-          role: "user",
-          content: user_message,
-        },
-      ],
+    const response = await fetch(GEMINI_API_URL, {
+      method: "POST",
+      headers: getGeminiHeaders(geminiApiKey),
+      body: JSON.stringify({
+        model: "gemini-2.0-flash",
+        messages: [
+          { role: "system", content: system_prompt },
+          { role: "user", content: user_message },
+        ],
+        temperature: 0.7,
+      }),
     });
 
-    const assistant_message = response.content[0].type === "text"
-      ? response.content[0].text
-      : "";
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 300)}`);
+    }
+
+    const data = await response.json();
+    const assistant_message = data.choices?.[0]?.message?.content || "";
 
     console.log("[update-fit-criteria-chat] Generated response");
 
     return new Response(
       JSON.stringify({
         response: assistant_message,
-        usage: response.usage,
+        usage: data.usage ? {
+          input_tokens: data.usage.prompt_tokens || 0,
+          output_tokens: data.usage.completion_tokens || 0,
+        } : undefined,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
