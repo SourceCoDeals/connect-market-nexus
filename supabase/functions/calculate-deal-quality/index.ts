@@ -98,16 +98,32 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
     financialScore = Math.min(55, revPts + ebitdaPts);
 
-    // Size floor: big deals get a guaranteed minimum total score
-    if (ebitda >= 5000000) {
-      sizeFloor = 88;
-      notes.push('$5M+ EBITDA — elite deal size');
-    } else if (ebitda >= 3000000) {
-      sizeFloor = 82;
-      notes.push('$3M+ EBITDA — premium deal size');
+    // Size floor: big deals get a guaranteed minimum total score.
+    // Revenue is the primary driver. EBITDA can push higher if available.
+    if (revenue >= 50000000) {
+      sizeFloor = 90;
+      notes.push('$50M+ revenue — elite deal size');
     } else if (revenue >= 25000000) {
-      sizeFloor = 80;
+      sizeFloor = 85;
       notes.push('$25M+ revenue — premium deal size');
+    } else if (revenue >= 10000000) {
+      sizeFloor = 80;
+      notes.push('$10M+ revenue — strong deal size');
+    } else if (revenue >= 7000000) {
+      sizeFloor = 75;
+      notes.push('$7M+ revenue — solid deal size');
+    } else if (revenue >= 5000000) {
+      sizeFloor = 70;
+      notes.push('$5M+ revenue — good deal size');
+    }
+
+    // EBITDA can push the floor higher (e.g. high-margin $8M rev company with $3M EBITDA)
+    if (ebitda >= 5000000 && sizeFloor < 90) {
+      sizeFloor = 90;
+      notes.push('$5M+ EBITDA — elite profitability');
+    } else if (ebitda >= 3000000 && sizeFloor < 85) {
+      sizeFloor = 85;
+      notes.push('$3M+ EBITDA — premium profitability');
     }
   }
 
