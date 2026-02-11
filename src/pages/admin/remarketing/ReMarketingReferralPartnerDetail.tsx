@@ -60,6 +60,8 @@ import {
   Archive,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
+  ArrowUpDown,
   Users,
   Star,
 } from "lucide-react";
@@ -92,6 +94,9 @@ const normalizeCompanyName = (name: string) => {
     .trim();
 };
 
+type SortField = "name" | "website" | "industry" | "location" | "revenue" | "ebitda" | "status" | "quality" | "employees" | "range" | "rating" | "reviews" | "added";
+type SortDir = "asc" | "desc";
+
 export default function ReMarketingReferralPartnerDetail() {
   const { partnerId } = useParams<{ partnerId: string }>();
   const navigate = useNavigate();
@@ -107,6 +112,17 @@ export default function ReMarketingReferralPartnerDetail() {
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "archive" | "delete"; ids: string[] } | null>(null);
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>("added");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  };
 
   // Fetch partner
   const { data: partner, isLoading: partnerLoading } = useQuery({
@@ -195,6 +211,36 @@ export default function ReMarketingReferralPartnerDetail() {
       : 0;
     return { total: deals.length, enriched, scored, avgQuality };
   }, [deals]);
+
+  // Sorted deals
+  const sortedDeals = useMemo(() => {
+    if (!deals) return [];
+    return [...deals].sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      const getValue = (deal: typeof a) => {
+        switch (sortField) {
+          case "name": return normalizeCompanyName(deal.internal_company_name || deal.title || "").toLowerCase();
+          case "website": return (deal.website || "").toLowerCase();
+          case "industry": return (deal.category || "").toLowerCase();
+          case "location": return (deal.address_city && deal.address_state ? `${deal.address_city}, ${deal.address_state}` : deal.location || "").toLowerCase();
+          case "revenue": return deal.revenue ?? -Infinity;
+          case "ebitda": return deal.ebitda ?? -Infinity;
+          case "status": return (deal.status || "").toLowerCase();
+          case "quality": return deal.deal_quality_score ?? deal.deal_total_score ?? -Infinity;
+          case "employees": return deal.linkedin_employee_count ?? -Infinity;
+          case "range": return (deal.linkedin_employee_range || "").toLowerCase();
+          case "rating": return deal.google_rating ?? -Infinity;
+          case "reviews": return deal.google_review_count ?? -Infinity;
+          case "added": return new Date(deal.created_at).getTime();
+          default: return 0;
+        }
+      };
+      const va = getValue(a);
+      const vb = getValue(b);
+      if (typeof va === "string" && typeof vb === "string") return va.localeCompare(vb) * dir;
+      return ((va as number) - (vb as number)) * dir;
+    });
+  }, [deals, sortField, sortDir]);
 
   // Enrichment queue progress
   const enrichmentProgress = useMemo(() => {
@@ -338,12 +384,18 @@ export default function ReMarketingReferralPartnerDetail() {
       const { data: result } = await supabase.functions
         .invoke("process-enrichment-queue", { body: { source: "referral_partner_bulk" } });
       
-      // If all items were synced (already enriched), immediately refresh to clear progress bar
-      if (result?.synced > 0 && result?.processed === 0) {
-        toast.success(`All ${result.synced} deals were already enriched`);
+      // If items were synced (already enriched) or processed, update progress
+      if (result?.synced > 0 || result?.processed > 0) {
+        const totalDone = (result?.synced || 0) + (result?.processed || 0);
+        if (activityItem) {
+          updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+        }
+        if (result?.processed === 0) {
+          toast.success(`All ${result.synced} deals were already enriched`);
+          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+        }
         queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "enrichment-queue"] });
         queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
-        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
       }
     } catch {
       // Non-blocking — the cron will pick it up
@@ -860,25 +912,44 @@ export default function ReMarketingReferralPartnerDetail() {
                         aria-label="Select all"
                       />
                     </TableHead>
-                    <TableHead>Deal Name</TableHead>
-                    <TableHead>Website</TableHead>
-                    <TableHead>Industry</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">EBITDA</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Quality</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Employees</TableHead>
-                    <TableHead>Range</TableHead>
-                    <TableHead>Rating</TableHead>
-                    <TableHead>Reviews</TableHead>
-                    <TableHead>Added</TableHead>
+                    {([
+                      ["name", "Deal Name", ""],
+                      ["website", "Website", ""],
+                      ["industry", "Industry", ""],
+                      ["location", "Location", ""],
+                      ["revenue", "Revenue", "text-right"],
+                      ["ebitda", "EBITDA", "text-right"],
+                      ["status", "Status", ""],
+                      ["quality", "Quality", ""],
+                      ["contact", "Contact", ""],
+                      ["employees", "Employees", ""],
+                      ["range", "Range", ""],
+                      ["rating", "Rating", ""],
+                      ["reviews", "Reviews", ""],
+                      ["added", "Added", ""],
+                    ] as [SortField | "contact", string, string][]).map(([field, label, cls]) => (
+                      <TableHead
+                        key={field}
+                        className={`${cls} ${field !== "contact" ? "cursor-pointer select-none hover:bg-muted/50" : ""}`}
+                        onClick={field !== "contact" ? () => toggleSort(field as SortField) : undefined}
+                      >
+                        <div className={`flex items-center gap-1 ${cls}`}>
+                          {label}
+                          {field !== "contact" && (
+                            sortField === field
+                              ? sortDir === "asc"
+                                ? <ChevronUp className="h-3 w-3" />
+                                : <ChevronDown className="h-3 w-3" />
+                              : <ArrowUpDown className="h-3 w-3 opacity-30" />
+                          )}
+                        </div>
+                      </TableHead>
+                    ))}
                     <TableHead className="w-[40px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {deals.map((deal) => {
+                  {sortedDeals.map((deal) => {
                     const domain = getDomain(deal.website);
                     const isEnriched = !!deal.enriched_at;
 
