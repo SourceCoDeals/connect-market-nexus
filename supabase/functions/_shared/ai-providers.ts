@@ -61,7 +61,7 @@ export function getGeminiHeaders(apiKey: string): Record<string, string> {
 export function getAnthropicHeaders(apiKey: string): Record<string, string> {
   return {
     "x-api-key": apiKey,
-    "anthropic-version": "2025-03-05",
+    "anthropic-version": "2023-06-01",
     "Content-Type": "application/json",
   };
 }

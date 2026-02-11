@@ -162,7 +162,7 @@ serve(async (req) => {
     // Fetch ALL transcripts for this deal (we need the full picture for reporting)
     const { data: allTranscripts, error: transcriptsError } = await supabase
       .from('deal_transcripts')
-      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id')
+      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id, transcript_url')
       .eq('listing_id', dealId)
       .order('created_at', { ascending: false });
 
@@ -520,6 +520,35 @@ serve(async (req) => {
     console.log(`[Transcripts] Total: ${allTranscripts?.length || 0}, Need extraction: ${needsExtraction.length}, Already extracted: ${(allTranscripts?.length || 0) - needsExtraction.length}, forceReExtract: ${forceReExtract}`);
 
     if (needsExtraction.length > 0) {
+      // Detect Fireflies URLs in link-type transcripts and convert them
+      const firefliesLinkPattern = /fireflies\.ai\/view\/[^:]+::([a-zA-Z0-9]+)/;
+      for (const t of needsExtraction) {
+        if (t.source === 'link' && !t.fireflies_transcript_id) {
+          // Check transcript_text or transcript_url for a Fireflies link
+          const textToCheck = (t.transcript_text || '') + ' ' + ((t as any).transcript_url || '');
+          const match = textToCheck.match(firefliesLinkPattern);
+          if (match) {
+            const ffId = match[1];
+            console.log(`[Transcripts] Detected Fireflies URL in link transcript ${t.id}, extracted ID: ${ffId}`);
+            // Update DB record to proper Fireflies source
+            const { error: convertErr } = await supabase
+              .from('deal_transcripts')
+              .update({
+                source: 'fireflies',
+                fireflies_transcript_id: ffId,
+              })
+              .eq('id', t.id);
+            if (!convertErr) {
+              t.source = 'fireflies';
+              t.fireflies_transcript_id = ffId;
+              t.transcript_text = ''; // Clear the URL-only text so it gets fetched
+            } else {
+              console.warn(`[Transcripts] Failed to convert link transcript ${t.id}:`, convertErr);
+            }
+          }
+        }
+      }
+
       // Fetch Fireflies content for transcripts that have empty text
       const firefliesEmpty = needsExtraction.filter(
         (t) => t.source === 'fireflies' && t.fireflies_transcript_id && (!t.transcript_text || t.transcript_text.trim().length < 100)
