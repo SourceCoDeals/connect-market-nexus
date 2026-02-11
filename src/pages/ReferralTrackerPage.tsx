@@ -313,33 +313,33 @@ export default function ReferralTrackerPage() {
               </div>
             ) : (
               <div className="border border-sourceco-form rounded-lg overflow-auto">
-                <Table>
+                <Table className="table-fixed w-full" style={{ minWidth: '1100px' }}>
                   <TableHeader>
                     <TableRow className="border-sourceco-form bg-sourceco-form/30">
-                      <TableHead className="text-foreground font-semibold">Company Name</TableHead>
-                      <TableHead className="text-foreground font-semibold">Industry</TableHead>
-                      <TableHead className="text-foreground font-semibold">Website</TableHead>
-                      <TableHead className="text-foreground font-semibold text-center">Score</TableHead>
-                      <TableHead className="text-foreground font-semibold">Contact</TableHead>
-                      <TableHead className="text-foreground font-semibold text-right">Revenue</TableHead>
-                      <TableHead className="text-foreground font-semibold text-right">EBITDA</TableHead>
-                      <TableHead className="text-foreground font-semibold">LinkedIn</TableHead>
-                      <TableHead className="text-foreground font-semibold">Location</TableHead>
-                      <TableHead className="text-foreground font-semibold">Status</TableHead>
+                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 180 }}>Company Name</TableHead>
+                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 180 }}>Industry</TableHead>
+                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 140 }}>Website</TableHead>
+                      <TableHead className="text-foreground font-semibold text-center overflow-hidden resize-x" style={{ width: 70 }}>Score</TableHead>
+                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 160 }}>Contact</TableHead>
+                      <TableHead className="text-foreground font-semibold text-right overflow-hidden resize-x" style={{ width: 100 }}>Revenue</TableHead>
+                      <TableHead className="text-foreground font-semibold text-right overflow-hidden resize-x" style={{ width: 100 }}>EBITDA</TableHead>
+                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 120 }}>LinkedIn</TableHead>
+                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 110 }}>Location</TableHead>
+                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 80 }}>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {deals.map((deal) => (
                       <TableRow key={deal.id} className={`border-sourceco-form ${deal.is_priority_target ? "bg-amber-50" : ""}`}>
-                        <TableCell className="font-medium text-foreground">
+                        <TableCell className="font-medium text-foreground truncate">
                           {deal.title || "Untitled"}
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                        <TableCell className="text-muted-foreground text-sm truncate">
                           {deal.category || "-"}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell className="text-sm truncate">
                           {deal.website ? (
-                            <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer" className="text-sourceco-accent hover:underline truncate max-w-[120px] block">
+                            <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer" className="text-sourceco-accent hover:underline truncate block">
                               {deal.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
                             </a>
                           ) : <span className="text-muted-foreground">-</span>}
@@ -356,39 +356,39 @@ export default function ReferralTrackerPage() {
                             </Badge>
                           ) : <span className="text-muted-foreground text-sm">-</span>}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell className="text-sm truncate">
                           {deal.main_contact_name ? (
-                            <div className="space-y-0.5">
-                              <div className="text-foreground font-medium text-xs">{deal.main_contact_name}</div>
-                              {deal.main_contact_title && <div className="text-muted-foreground text-xs">{deal.main_contact_title}</div>}
+                            <div className="space-y-0.5 overflow-hidden">
+                              <div className="text-foreground font-medium text-xs truncate">{deal.main_contact_name}</div>
+                              {deal.main_contact_title && <div className="text-muted-foreground text-xs truncate">{deal.main_contact_title}</div>}
                               {deal.main_contact_email && (
-                                <a href={`mailto:${deal.main_contact_email}`} className="text-sourceco-accent hover:underline text-xs block truncate max-w-[150px]">
+                                <a href={`mailto:${deal.main_contact_email}`} className="text-sourceco-accent hover:underline text-xs block truncate">
                                   {deal.main_contact_email}
                                 </a>
                               )}
                             </div>
                           ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm text-right">
+                        <TableCell className="text-muted-foreground text-sm text-right truncate">
                           {formatCurrency(deal.revenue)}
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm text-right">
+                        <TableCell className="text-muted-foreground text-sm text-right truncate">
                           {formatCurrency(deal.ebitda)}
                         </TableCell>
                         <TableCell className="text-sm">
                           {deal.linkedin_employee_count ? (
-                            <div className="space-y-0.5">
+                            <div className="space-y-0.5 overflow-hidden">
                               <div className="flex items-center gap-1 text-foreground">
-                                <Users className="h-3 w-3 text-blue-600" />
+                                <Users className="h-3 w-3 text-blue-600 shrink-0" />
                                 <span className="font-medium text-xs">{deal.linkedin_employee_count.toLocaleString()}</span>
                               </div>
                               {deal.linkedin_employee_range && (
-                                <div className="text-muted-foreground text-xs">{deal.linkedin_employee_range}</div>
+                                <div className="text-muted-foreground text-xs truncate">{deal.linkedin_employee_range}</div>
                               )}
                             </div>
                           ) : <span className="text-muted-foreground text-sm">-</span>}
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
+                        <TableCell className="text-muted-foreground text-sm truncate">
                           {deal.location || "-"}
                         </TableCell>
                         <TableCell>{statusBadge(deal.status, deal.source)}</TableCell>
