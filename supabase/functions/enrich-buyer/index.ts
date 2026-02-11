@@ -1150,7 +1150,7 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================================
-    // RUN EXTRACTION PROMPTS (2 BATCHES to avoid Anthropic RPM limits)
+    // RUN EXTRACTION PROMPTS (ALL IN PARALLEL via Gemini Flash)
     // ========================================================================
 
     const allExtracted: Record<string, any> = {};
