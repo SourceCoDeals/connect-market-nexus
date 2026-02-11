@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 interface ContactCSVImportProps {
   trackerId: string;
@@ -79,7 +80,12 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
         .upsert(buyers, { onConflict: 'universe_id,lower(trim(company_name)),lower(trim(COALESCE(pe_firm_name,\'\')))', ignoreDuplicates: true })
         .select('id');
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.message?.includes('unique') || insertError.message?.includes('duplicate')) {
+          throw new Error("Some buyers already exist in this universe (matched by website domain). Remove duplicates and try again.");
+        }
+        throw insertError;
+      }
 
       const actualCount = inserted?.length || 0;
       const skipped = buyers.length - actualCount;

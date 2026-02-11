@@ -178,10 +178,12 @@ async function generatePhaseContent(
   industryName: string,
   existingContent: string,
   apiKey: string,
-  clarificationContext?: any
+  clarificationContext?: any,
+  _retryCount = 0,
+  firefliesIntelligence?: string
 ): Promise<string> {
   // Delegate to the new timeout-protected version
-  return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext);
+  return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, 0, firefliesIntelligence);
 }
 
 // Extract criteria from generated content using AI
@@ -670,19 +672,21 @@ async function generatePhaseWithTimeout(
   existingContent: string,
   apiKey: string,
   clarificationContext?: any,
-  retryCount = 0
+  retryCount = 0,
+  firefliesIntelligence?: string
 ): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PHASE_TIMEOUT_MS);
-  
+
   try {
     const result = await generatePhaseContentWithModel(
-      phase, 
-      industryName, 
-      existingContent, 
-      apiKey, 
+      phase,
+      industryName,
+      existingContent,
+      apiKey,
       clarificationContext,
-      getModelForPhase(phase.id)
+      getModelForPhase(phase.id),
+      firefliesIntelligence
     );
     clearTimeout(timeoutId);
     return result;
@@ -701,7 +705,7 @@ async function generatePhaseWithTimeout(
       // Wait 3 seconds before retry to allow backend recovery
       await new Promise(resolve => setTimeout(resolve, 3000));
       console.log(`Retrying phase ${phase.id} after backoff...`);
-      return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1);
+      return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1, firefliesIntelligence);
     }
 
     if (err.name === 'AbortError' || err.message?.includes('timeout')) {
@@ -718,9 +722,19 @@ async function generatePhaseContentWithModel(
   existingContent: string,
   apiKey: string,
   clarificationContext: any,
-  model: string
+  model: string,
+  firefliesIntelligence?: string
 ): Promise<string> {
   const contextStr = buildClarificationContext(clarificationContext);
+
+  // Build Fireflies context for relevant phases
+  let firefliesContext = '';
+  if (firefliesIntelligence && firefliesIntelligence.length > 100) {
+    const firefliesPhases = ['1d', '1e', '2a', '2c', '3b', '4a'];
+    if (firefliesPhases.includes(phase.id)) {
+      firefliesContext = `\n\nINTERNAL INTELLIGENCE FROM OUR CALL TRANSCRIPTS:\nThe following summaries are from actual calls our team has had with buyers and sellers in or adjacent to this industry. Use this information to ground your analysis in real buyer preferences, deal structures, and market intelligence. Reference specific insights where relevant, but present them naturally (e.g., "Active acquirers in this space include..." rather than "According to our call transcripts...").\n\n${firefliesIntelligence}\n\nIMPORTANT: Prioritize insights from these real conversations over general training data when there is a conflict. These represent actual buyer preferences and market conditions our team has observed.`;
+    }
+  }
 
   const systemPrompt = `You are an expert M&A advisor creating comprehensive industry research guides.
 Generate detailed, actionable content for the specified phase of an M&A guide.
@@ -735,7 +749,7 @@ FORMATTING REQUIREMENTS (CRITICAL):
 
 Include specific numbers, ranges, and concrete examples wherever possible.
 Target 2,000-3,000 words per phase.
-Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}`;
+Do NOT use placeholders like [X] or TBD - use realistic example values.${contextStr}${firefliesContext}`;
 
   // CRITICAL FIX: Build context from previous phases
   let contextPrefix = '';
@@ -759,18 +773,35 @@ NOW GENERATE THE FOLLOWING SECTION:
   const basePrompt = phasePrompts[phase.id] || `Generate content for ${phase.name}: ${phase.focus}`;
   const userPrompt = contextPrefix + basePrompt;
 
+  // Determine if this phase should use web search
+  const webSearchPhases = ['1a', '1c', '1d', '5a'];
+  const useWebSearch = webSearchPhases.includes(phase.id);
+
   try {
+    // Build the request body
+    const requestBody: any = {
+      model,
+      max_tokens: CRITICAL_PHASES.includes(phase.id) ? 8000 : 6000,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: userPrompt }
+      ]
+    };
+
+    // Add web search tool for market data phases
+    if (useWebSearch) {
+      requestBody.tools = [
+        {
+          type: "web_search_20250305",
+          name: "web_search"
+        }
+      ];
+    }
+
     const response = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: getAnthropicHeaders(apiKey),
-      body: JSON.stringify({
-        model,
-        max_tokens: CRITICAL_PHASES.includes(phase.id) ? 8000 : 6000, // Increased for longer content
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: userPrompt }
-        ]
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -800,9 +831,21 @@ NOW GENERATE THE FOLLOWING SECTION:
     }
 
     const result = await response.json();
-    // Anthropic returns text in content[0].text
-    const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
-    return textBlock?.text || '';
+    // Handle response with potential web search results
+    // The response may have multiple content blocks: text, tool_use (web_search), etc.
+    // Extract all text blocks
+    let responseText = '';
+    if (result.content && Array.isArray(result.content)) {
+      responseText = result.content
+        .filter((block: any) => block.type === 'text')
+        .map((block: any) => block.text)
+        .join('\n\n');
+    }
+    if (!responseText) {
+      const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
+      responseText = textBlock?.text || '';
+    }
+    return responseText;
   } catch (error) {
     // Handle network errors and other exceptions
     if (error instanceof TypeError && error.message.includes('fetch')) {
@@ -835,7 +878,9 @@ Generate comprehensive content for "${industryName}" covering:
 4. Key industry associations and trade groups
 5. Regulatory environment overview
 
-Include at least 2 data tables.`,
+Include at least 2 data tables.
+
+Search the web for current market size data, NAICS codes, and industry classification for "${industryName}". Use actual published statistics rather than estimates. Cite your sources.`,
 
     '1b': `## PHASE 1B: TERMINOLOGY & BUSINESS MODELS
 
@@ -858,7 +903,9 @@ For "${industryName}", detail:
 5. CapEx patterns and equipment needs
 6. Labor economics and wage trends
 
-Include a benchmark P&L table.`,
+Include a benchmark P&L table.
+
+Search the web for current P&L benchmarks, profit margin data, and unit economics for "${industryName}" businesses. Use industry reports and published benchmarks. Cite your sources.`,
 
     '1d': `## PHASE 1D: ECOSYSTEM & COMPETITIVE LANDSCAPE
 
@@ -870,7 +917,9 @@ For "${industryName}", cover:
 5. Consolidation trends and drivers
 6. Market concentration analysis
 
-Include a table of recent transactions if applicable.`,
+Include a table of recent transactions if applicable.
+
+Search the web for recent M&A transactions, active acquirers, and consolidation activity in "${industryName}". Look for actual deal announcements, PE firm activity, and transaction multiples. Cite your sources.`,
 
     '1e': `## PHASE 1E: TARGET BUYER PROFILES & BUY BOXES (CRITICAL)
 
@@ -1069,40 +1118,22 @@ Provide a validation summary.`,
 
     '5a': `## PHASE 5A: REFERENCES & SOURCES
 
-Compile a comprehensive references section for this "${industryName}" M&A guide. This provides credibility and allows readers to verify information.
+Compile a references section based on ACTUAL sources used or found during this guide's generation. Search the web to verify and supplement with current, real sources for "${industryName}".
 
-### INDUSTRY DATA SOURCES
-List specific sources for market data cited in this guide:
-- Market research firms (IBISWorld, Statista, etc.)
-- Industry associations and their publications
-- Government sources (BLS, Census Bureau, SBA)
-- Trade publications specific to "${industryName}"
+For each source, include:
+- Full name/title of the source
+- URL where it can be accessed (if web-based)
+- Date or year of publication
+- Brief description of what data it provides
 
-### TRANSACTION DATA REFERENCES
-Sources for M&A activity and valuations:
-- M&A databases (PitchBook, CapIQ, GF Data)
-- Deal announcement sources
-- Valuation multiple benchmarks
-- Industry transaction reports
+Categories:
+1. Market data and industry statistics
+2. M&A transaction databases and deal activity
+3. Industry associations and trade publications
+4. Regulatory and compliance sources
+5. Professional resources
 
-### REGULATORY & COMPLIANCE SOURCES
-- Federal agency guidelines relevant to "${industryName}"
-- State licensing requirements
-- Industry-specific compliance standards
-- Environmental/safety regulations
-
-### PROFESSIONAL RESOURCES
-- Certification bodies and requirements
-- Industry training programs
-- Professional associations
-- Key industry conferences
-
-### RECOMMENDED READING
-- Books on "${industryName}" M&A
-- Industry thought leaders
-- Relevant white papers and case studies
-
-Format as a structured bibliography with brief descriptions of each source's relevance.`
+IMPORTANT: Only include sources that actually exist and can be verified. Do NOT fabricate citations. If you cannot find a real source for a data point, note that the estimate is based on industry analysis rather than a specific publication.`
   };
 }
 
@@ -1115,12 +1146,13 @@ serve(async (req) => {
   const FUNCTION_START = Date.now(); // Track when the function started
 
   try {
-    const { 
+    const {
       industry_name,
       industry_description,
-      universe_id, 
-      existing_content, 
+      universe_id,
+      existing_content,
       clarification_context,
+      fireflies_intelligence,
       stream = true,
       batch_index = 0, // Which batch to generate (0, 1, 2)
       previous_content = '' // Content from previous batches
@@ -1160,7 +1192,7 @@ serve(async (req) => {
     if (!stream) {
       let fullContent = previous_content;
       for (const phase of batchPhases) {
-        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext);
+        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence);
         fullContent += phaseContent + '\n\n';
       }
       
@@ -1273,8 +1305,8 @@ serve(async (req) => {
 
             // Generate both phases in parallel
             const [content0, content1] = await Promise.all([
-              generatePhaseContent(batchPhases[0], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext),
-              generatePhaseContent(batchPhases[1], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext)
+              generatePhaseContent(batchPhases[0], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence),
+              generatePhaseContent(batchPhases[1], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence)
             ]);
 
             // Stream content from both phases
@@ -1347,8 +1379,8 @@ serve(async (req) => {
                 remaining_time_ms: getRemainingTime()
               });
 
-              // Generate phase content with clarification context
-              const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext);
+              // Generate phase content with clarification context + Fireflies intelligence
+              const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence);
               fullContent += phaseContent + '\n\n';
 
               // Send content chunks

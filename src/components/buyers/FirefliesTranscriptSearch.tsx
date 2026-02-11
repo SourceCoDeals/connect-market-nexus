@@ -19,6 +19,9 @@ import {
 interface FirefliesTranscriptSearchProps {
   buyerId: string;
   companyName: string;
+  peFirmName?: string | null;
+  platformWebsite?: string | null;
+  contacts?: { email: string }[];
   onTranscriptLinked?: () => void;
 }
 
@@ -56,6 +59,9 @@ interface SearchResult {
 export const FirefliesTranscriptSearch = ({
   buyerId,
   companyName,
+  peFirmName,
+  platformWebsite,
+  contacts,
   onTranscriptLinked,
 }: FirefliesTranscriptSearchProps) => {
   const [query, setQuery] = useState(companyName);
@@ -76,12 +82,18 @@ export const FirefliesTranscriptSearch = ({
     const toastId = toast.loading(`Searching Fireflies for "${trimmedQuery}"...`);
 
     try {
+      // Build participant email list from contacts for domain-based search
+      const participantEmails = contacts
+        ?.map(c => c.email)
+        .filter(Boolean) || [];
+
       const { data, error } = await supabase.functions.invoke(
         'search-fireflies-for-buyer',
         {
           body: {
             query: trimmedQuery,
-            limit: 20
+            participantEmails: participantEmails.length > 0 ? participantEmails : undefined,
+            limit: 30
           }
         }
       );

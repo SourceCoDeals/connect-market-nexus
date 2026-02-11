@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 interface AddBuyerToUniverseDialogProps {
   open: boolean;
@@ -33,21 +34,49 @@ export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuy
 
     setIsSubmitting(true);
     try {
+      // Normalize websites for dedup
+      const normalizedCompanyWebsite = normalizeDomain(companyWebsite.trim()) || companyWebsite.trim() || null;
+      const normalizedPeFirmWebsite = normalizeDomain(peFirmWebsite.trim()) || peFirmWebsite.trim() || null;
+
+      // Check for duplicate buyer by domain in this universe
+      if (normalizedCompanyWebsite) {
+        const { data: existingBuyers } = await supabase
+          .from("remarketing_buyers")
+          .select("id, company_name, company_website")
+          .eq("universe_id", universeId)
+          .eq("archived", false)
+          .not("company_website", "is", null);
+
+        const duplicate = existingBuyers?.find(b =>
+          normalizeDomain(b.company_website) === normalizedCompanyWebsite
+        );
+        if (duplicate) {
+          toast.error(`A buyer with this website already exists: "${duplicate.company_name}"`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { data: newBuyer, error } = await supabase
         .from("remarketing_buyers")
         .insert({
           universe_id: universeId,
           company_name: companyName.trim() || peFirmName.trim(),
-          company_website: companyWebsite.trim() || null,
+          company_website: normalizedCompanyWebsite,
           pe_firm_name: peFirmName.trim() || null,
-          pe_firm_website: peFirmWebsite.trim() || null,
+          pe_firm_website: normalizedPeFirmWebsite,
           business_summary: notes.trim() || null,
           buyer_type: peFirmName.trim() ? "pe_firm" : "platform",
         })
         .select("id")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
+          throw new Error("A buyer with this website already exists in this universe.");
+        }
+        throw error;
+      }
 
       // Verify buyer is readable
       const { data: verified } = await supabase

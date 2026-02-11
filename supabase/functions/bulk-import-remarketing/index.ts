@@ -328,11 +328,11 @@ serve(async (req) => {
       for (const row of (data.buyers || [])) {
         try {
           const mappedUniverseId = universeIdMap[row.tracker_id] || null;
-          
+
           const buyerData = {
             universe_id: mappedUniverseId,
             company_name: row.platform_company_name || row.company_name || 'Unknown',
-            company_website: row.platform_website || null,
+            company_website: normalizeDomainUrl(row.platform_website) || null,
             buyer_type: row.pe_firm_name ? 'platform' : 'strategic',
             thesis_summary: row.thesis_summary || null,
             thesis_confidence: mapConfidence(row.thesis_confidence),
@@ -355,7 +355,7 @@ serve(async (req) => {
             hq_state: row.hq_state || null,
             hq_country: row.hq_country || 'United States',
             hq_region: row.hq_region || null,
-            pe_firm_website: row.pe_firm_website || null,
+            pe_firm_website: normalizeDomainUrl(row.pe_firm_website) || null,
             buyer_linkedin: row.buyer_linkedin || null,
             pe_firm_linkedin: row.pe_firm_linkedin || null,
             business_summary: row.business_summary || null,
@@ -675,6 +675,18 @@ serve(async (req) => {
     });
   }
 });
+
+// Domain normalization for dedup
+function normalizeDomainUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  let domain = url.trim().toLowerCase();
+  domain = domain.replace(/^https?:\/\//, '');
+  domain = domain.replace(/^www\./, '');
+  domain = domain.split('/')[0];
+  domain = domain.split(':')[0];
+  if (!domain || !domain.includes('.')) return url.trim() || null; // fallback to original if not a valid domain
+  return domain;
+}
 
 // Helper functions
 function parseJson(value: any): any {

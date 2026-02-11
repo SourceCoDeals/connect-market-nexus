@@ -53,6 +53,7 @@ import {
   Quote,
   AlertTriangle,
   Zap,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card as ProgressCard, CardContent as ProgressCardContent } from "@/components/ui/card";
@@ -88,6 +89,9 @@ interface DealTranscriptSectionProps {
     location?: string;
     revenue?: number;
     ebitda?: number;
+    primary_contact_email?: string;
+    primary_contact_name?: string;
+    main_contact_email?: string;
   };
 }
 
@@ -215,6 +219,15 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [isMultiFileMode, setIsMultiFileMode] = useState(false);
   const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
 
+  // Fireflies search state
+  const [addMode, setAddMode] = useState<'manual' | 'fireflies'>('manual');
+  const [firefliesEmail, setFirefliesEmail] = useState(dealInfo?.main_contact_email || dealInfo?.primary_contact_email || '');
+  const [firefliesSearching, setFirefliesSearching] = useState(false);
+  const [firefliesResults, setFirefliesResults] = useState<any[]>([]);
+  const [selectedFirefliesIds, setSelectedFirefliesIds] = useState<Set<string>>(new Set());
+  const [firefliesImporting, setFirefliesImporting] = useState(false);
+  const [firefliesSearchInfo, setFirefliesSearchInfo] = useState<string>('');
+
   const resetForm = () => {
     setNewTranscript("");
     setTranscriptTitle("");
@@ -222,6 +235,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     setCallDate("");
     setSelectedFiles([]);
     setIsMultiFileMode(false);
+    setAddMode('manual');
+    setFirefliesResults([]);
+    setSelectedFirefliesIds(new Set());
+    setFirefliesImporting(false);
   };
 
   // Handle multiple file uploads
@@ -940,6 +957,208 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     );
   };
 
+  // === Fireflies Search Handler ===
+  const handleFirefliesSearch = async () => {
+    if (!firefliesEmail.trim()) return;
+
+    setFirefliesSearching(true);
+    setFirefliesResults([]);
+    setSelectedFirefliesIds(new Set());
+    setFirefliesSearchInfo('');
+
+    try {
+      const input = firefliesEmail.trim();
+
+      // Extract domain from email (or use as-is if already a domain)
+      const domain = input.includes('@')
+        ? input.split('@')[1].toLowerCase()
+        : input.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].toLowerCase();
+
+      // Skip common email providers — these aren't company domains
+      const genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com'];
+      const isCompanyDomain = domain && !genericDomains.includes(domain);
+
+      const allResults: any[] = [];
+
+      if (isCompanyDomain) {
+        // STEP 1: Find all known contacts at this domain
+        setFirefliesSearchInfo(`Finding all contacts at @${domain}...`);
+
+        const { data: domainContacts } = await supabase
+          .from('remarketing_buyer_contacts')
+          .select('email, name')
+          .ilike('email', `%@${domain}`);
+
+        const emailSet = new Set<string>();
+        if (input.includes('@')) emailSet.add(input.toLowerCase());
+        if (domainContacts) {
+          domainContacts.forEach((c: any) => {
+            if (c.email) emailSet.add(c.email.toLowerCase());
+          });
+        }
+
+        const allEmails = Array.from(emailSet);
+
+        if (allEmails.length > 0) {
+          setFirefliesSearchInfo(`Searching Fireflies for ${allEmails.length} contact${allEmails.length !== 1 ? 's' : ''} at @${domain}...`);
+
+          const { data: participantData, error: participantError } = await supabase.functions.invoke(
+            'search-fireflies-for-buyer',
+            {
+              body: {
+                query: domain,
+                participantEmails: allEmails,
+                limit: 50
+              }
+            }
+          );
+
+          if (!participantError && participantData?.results) {
+            allResults.push(...participantData.results);
+          }
+        }
+
+        // STEP 3: Also do keyword search for the company name
+        const companyKeyword = domain.replace(/\.com|\.net|\.org|\.io/g, '').replace(/[.-]/g, ' ');
+        if (companyKeyword.length >= 3) {
+          setFirefliesSearchInfo(prev => prev + ` Also searching for "${companyKeyword}"...`);
+
+          const { data: keywordData, error: keywordError } = await supabase.functions.invoke(
+            'search-fireflies-for-buyer',
+            { body: { query: companyKeyword, limit: 20 } }
+          );
+
+          if (!keywordError && keywordData?.results) {
+            allResults.push(...keywordData.results);
+          }
+        }
+      } else {
+        // Generic email — just search by the specific email
+        setFirefliesSearchInfo(`Searching for ${input}...`);
+
+        const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+          body: {
+            query: input,
+            participantEmails: input.includes('@') ? [input] : undefined,
+            limit: 50
+          }
+        });
+
+        if (!error && data?.results) {
+          allResults.push(...data.results);
+        }
+      }
+
+      // Deduplicate by transcript ID
+      const seen = new Set<string>();
+      const uniqueResults = allResults.filter((r: any) => {
+        if (!r.id || seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
+
+      // Filter out transcripts already linked to this deal
+      const existingIds = new Set(
+        transcripts
+          .filter((t: any) => t.fireflies_transcript_id)
+          .map((t: any) => t.fireflies_transcript_id)
+      );
+
+      const newResults = uniqueResults.filter((r: any) => !existingIds.has(r.id));
+
+      // Sort by date, most recent first
+      newResults.sort((a: any, b: any) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        return dateB - dateA;
+      });
+
+      setFirefliesResults(newResults);
+
+      if (newResults.length === 0 && uniqueResults.length > 0) {
+        toast.info('All found transcripts are already linked to this deal');
+      } else if (newResults.length === 0) {
+        toast.info(`No Fireflies transcripts found for ${isCompanyDomain ? `@${domain}` : input}`);
+      } else {
+        setFirefliesSearchInfo(`Found ${newResults.length} transcript${newResults.length !== 1 ? 's' : ''}${isCompanyDomain ? ` with @${domain} contacts` : ''}`);
+      }
+    } catch (err) {
+      console.error('Fireflies search error:', err);
+      toast.error('Failed to search Fireflies');
+      setFirefliesSearchInfo('');
+    } finally {
+      setFirefliesSearching(false);
+    }
+  };
+
+  // === Fireflies Import Handler ===
+  const handleFirefliesImport = async () => {
+    if (selectedFirefliesIds.size === 0) return;
+
+    setFirefliesImporting(true);
+    const toastId = toast.loading(`Importing ${selectedFirefliesIds.size} transcripts...`);
+
+    try {
+      let imported = 0;
+      let failed = 0;
+
+      for (const ffId of selectedFirefliesIds) {
+        const result = firefliesResults.find((r: any) => r.id === ffId);
+        if (!result) continue;
+
+        try {
+          const { error: insertError } = await supabase
+            .from('deal_transcripts')
+            .insert({
+              listing_id: dealId,
+              fireflies_transcript_id: result.id,
+              fireflies_meeting_id: result.id,
+              transcript_url: result.meeting_url || null,
+              title: result.title || `Call - ${new Date(result.date).toLocaleDateString()}`,
+              call_date: result.date || null,
+              participants: result.participants || [],
+              meeting_attendees: Array.isArray(result.participants)
+                ? result.participants.map((p: any) => typeof p === 'string' ? p : p.email).filter(Boolean)
+                : [],
+              duration_minutes: result.duration_minutes || null,
+              source: 'fireflies',
+              auto_linked: false,
+              transcript_text: '',
+            });
+
+          if (insertError) {
+            console.error(`Failed to import ${result.id}:`, insertError);
+            failed++;
+          } else {
+            imported++;
+          }
+        } catch (err) {
+          console.error(`Error importing transcript ${ffId}:`, err);
+          failed++;
+        }
+      }
+
+      if (imported > 0) {
+        toast.success(`Imported ${imported} transcript${imported !== 1 ? 's' : ''}`, { id: toastId });
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+      }
+      if (failed > 0) {
+        toast.warning(`${failed} transcript${failed !== 1 ? 's' : ''} failed to import`);
+      }
+
+      setIsAddDialogOpen(false);
+      resetForm();
+      setFirefliesResults([]);
+      setSelectedFirefliesIds(new Set());
+
+    } catch (err) {
+      console.error('Fireflies import error:', err);
+      toast.error('Failed to import transcripts', { id: toastId });
+    } finally {
+      setFirefliesImporting(false);
+    }
+  };
+
   // Render the Add Transcript Dialog content
   const renderDialogContent = () => (
     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -949,6 +1168,124 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           Add a transcript from a call. AI will extract key information about the deal.
         </DialogDescription>
       </DialogHeader>
+
+      {/* Tab switcher */}
+      <div className="flex gap-2 border-b pb-2">
+        <Button
+          variant={addMode === 'manual' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setAddMode('manual')}
+        >
+          Manual Entry
+        </Button>
+        <Button
+          variant={addMode === 'fireflies' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setAddMode('fireflies')}
+        >
+          <Search className="h-4 w-4 mr-2" />
+          Pull from Fireflies
+        </Button>
+      </div>
+
+      {addMode === 'fireflies' ? (
+        <div className="space-y-4 py-4">
+          {/* Email/domain input */}
+          <div className="space-y-2">
+            <Label>Contact Email or Company Domain</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="email@company.com or company.com"
+                value={firefliesEmail}
+                onChange={(e) => setFirefliesEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !firefliesSearching && handleFirefliesSearch()}
+              />
+              <Button
+                onClick={handleFirefliesSearch}
+                disabled={!firefliesEmail.trim() || firefliesSearching}
+              >
+                {firefliesSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Search'
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Enter an email to find all Fireflies calls with anyone at that company's domain.
+              For example, entering <code>tyler@saltcreekcap.com</code> will find calls with ALL contacts at <code>@saltcreekcap.com</code>.
+            </p>
+            {firefliesSearchInfo && (
+              <p className="text-xs text-primary">{firefliesSearchInfo}</p>
+            )}
+          </div>
+
+          {/* Results list */}
+          {firefliesResults.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>{firefliesResults.length} transcripts found</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (selectedFirefliesIds.size === firefliesResults.length) {
+                      setSelectedFirefliesIds(new Set());
+                    } else {
+                      setSelectedFirefliesIds(new Set(firefliesResults.map((r: any) => r.id)));
+                    }
+                  }}
+                >
+                  {selectedFirefliesIds.size === firefliesResults.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              </div>
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {firefliesResults.map((result: any) => (
+                  <Card
+                    key={result.id}
+                    className={`p-3 cursor-pointer transition-colors ${
+                      selectedFirefliesIds.has(result.id) ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
+                    }`}
+                    onClick={() => {
+                      setSelectedFirefliesIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(result.id)) next.delete(result.id);
+                        else next.add(result.id);
+                        return next;
+                      });
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedFirefliesIds.has(result.id)}
+                        readOnly
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{result.title}</p>
+                        <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                          {result.date && (
+                            <span>{new Date(result.date).toLocaleDateString()}</span>
+                          )}
+                          {result.duration_minutes && (
+                            <span>{result.duration_minutes} min</span>
+                          )}
+                        </div>
+                        {result.summary && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {typeof result.summary === 'string' ? result.summary : result.summary.short_summary}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="space-y-4 py-4">
         <div className="space-y-2">
           <Label htmlFor="title">Title</Label>
@@ -1076,6 +1413,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           </div>
         )}
       </div>
+      )}
       <DialogFooter>
         <Button variant="outline" onClick={() => {
           setIsAddDialogOpen(false);
@@ -1083,19 +1421,35 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         }}>
           Cancel
         </Button>
-        <Button 
-          onClick={() => addMutation.mutate()}
-          disabled={(isMultiFileMode ? selectedFiles.length === 0 : !newTranscript.trim()) || addMutation.isPending}
-        >
-          {addMutation.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              {processingProgress.total > 1 
-                ? `Processing ${processingProgress.current}/${processingProgress.total}...` 
-                : 'Adding...'}
-            </>
-          ) : selectedFiles.length > 1 ? `Add ${selectedFiles.length} Transcripts` : "Add Transcript"}
-        </Button>
+        {addMode === 'fireflies' ? (
+          <Button
+            onClick={handleFirefliesImport}
+            disabled={selectedFirefliesIds.size === 0 || firefliesImporting}
+          >
+            {firefliesImporting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Importing...
+              </>
+            ) : (
+              `Import ${selectedFirefliesIds.size} Transcript${selectedFirefliesIds.size !== 1 ? 's' : ''}`
+            )}
+          </Button>
+        ) : (
+          <Button
+            onClick={() => addMutation.mutate()}
+            disabled={(isMultiFileMode ? selectedFiles.length === 0 : !newTranscript.trim()) || addMutation.isPending}
+          >
+            {addMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {processingProgress.total > 1
+                  ? `Processing ${processingProgress.current}/${processingProgress.total}...`
+                  : 'Adding...'}
+              </>
+            ) : selectedFiles.length > 1 ? `Add ${selectedFiles.length} Transcripts` : "Add Transcript"}
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );

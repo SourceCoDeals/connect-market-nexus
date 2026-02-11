@@ -59,6 +59,7 @@ import {
 import { toast } from "sonner";
 import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'pe_firm', label: 'PE Firm' },
@@ -178,18 +179,50 @@ const ReMarketingBuyers = () => {
   // Create buyer mutation
   const createMutation = useMutation({
     mutationFn: async () => {
+      // Normalize website for dedup
+      const normalizedWebsite = normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
+      const universeId = newBuyer.universe_id || null;
+
+      // Check for duplicate buyer by domain
+      if (normalizedWebsite) {
+        const query = supabase
+          .from('remarketing_buyers')
+          .select('id, company_name, company_website')
+          .eq('archived', false)
+          .not('company_website', 'is', null);
+
+        if (universeId) {
+          query.eq('universe_id', universeId);
+        } else {
+          query.is('universe_id', null);
+        }
+
+        const { data: existingBuyers } = await query;
+        const duplicate = existingBuyers?.find(b =>
+          normalizeDomain(b.company_website) === normalizedWebsite
+        );
+        if (duplicate) {
+          throw new Error(`A buyer with this website already exists: "${duplicate.company_name}"`);
+        }
+      }
+
       const { error } = await supabase
         .from('remarketing_buyers')
         .insert({
           company_name: newBuyer.company_name,
-          company_website: newBuyer.company_website || null,
+          company_website: normalizedWebsite,
           buyer_type: newBuyer.buyer_type || null,
-          universe_id: newBuyer.universe_id || null,
+          universe_id: universeId,
           thesis_summary: newBuyer.thesis_summary || null,
           notes: newBuyer.notes || null,
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
+          throw new Error("A buyer with this website already exists.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });
