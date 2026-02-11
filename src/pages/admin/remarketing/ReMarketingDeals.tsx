@@ -722,6 +722,8 @@ const ReMarketingDeals = () => {
   // Fetch all listings (deals)
   const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = useQuery({
     queryKey: ['remarketing', 'deals'],
+    refetchOnMount: 'always',
+    staleTime: 30_000, // 30s — ensures fresh data on navigation
     queryFn: async () => {
       const { data, error } = await supabase
         .from('listings')
