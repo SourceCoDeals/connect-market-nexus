@@ -372,7 +372,11 @@ const TOTAL_PHASES = 14;
           errorMessage.includes('503') ||
           errorMessage.includes('timeout') ||
           errorMessage.includes('ECONNRESET') ||
-          errorMessage.includes('529');
+          errorMessage.includes('529') ||
+          errorMessage.includes('Rate limit') ||
+          errorMessage.includes('rate_limited') ||
+          errorMessage.includes('RESOURCE_EXHAUSTED') ||
+          errorMessage.includes('temporarily unavailable');
  
        if (!isRecoverable) {
          await supabase

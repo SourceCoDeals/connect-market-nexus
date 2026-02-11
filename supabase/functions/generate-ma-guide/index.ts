@@ -660,9 +660,9 @@ async function generatePhaseWithTimeout(
       || err.message?.includes('5');
 
     if (isTransient && retryCount < MAX_RETRIES) {
-      console.error(`Phase ${phase.id} failed with transient error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${err.message}`);
-      // Wait 3 seconds before retry to allow backend recovery
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const backoffMs = Math.min(3000 * Math.pow(2, retryCount), 30000); // 3s, 6s, 12s, 24s...
+      console.error(`Phase ${phase.id} failed with transient error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${err.message}. Waiting ${backoffMs}ms`);
+      await new Promise(resolve => setTimeout(resolve, backoffMs));
       console.log(`Retrying phase ${phase.id} after backoff...`);
       return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1, firefliesIntelligence);
     }
@@ -1128,8 +1128,27 @@ serve(async (req) => {
     if (!stream) {
       let fullContent = previous_content;
       for (const phase of batchPhases) {
-        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, enrichedContext, 0, fireflies_intelligence);
-        fullContent += phaseContent + '\n\n';
+        try {
+          const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, enrichedContext, 0, fireflies_intelligence);
+          fullContent += phaseContent + '\n\n';
+        } catch (phaseError: unknown) {
+          const pe = phaseError as any;
+          // Propagate rate limit as 429 so queue processor knows it's recoverable
+          if (pe?.code === 'rate_limited' || pe?.message?.includes('Rate limit') || pe?.message?.includes('429')) {
+            return new Response(
+              JSON.stringify({ error: pe.message || 'Rate limited', recoverable: true }),
+              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          // Propagate service errors as 503
+          if (pe?.code === 'service_unavailable' || pe?.recoverable) {
+            return new Response(
+              JSON.stringify({ error: pe.message || 'Service unavailable', recoverable: true }),
+              { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          throw phaseError;
+        }
       }
       
       // Only validate and extract on last batch
