@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { normalizeStates, mergeStates } from "../_shared/geography.ts";
+import { normalizeState, normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
@@ -1484,11 +1484,11 @@ For financial data, include confidence levels and source quotes where available.
     ]);
     const CA_PROVINCE_CODES = new Set(['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']);
 
-    // Validate address_state
+    // Normalize address_state to 2-letter code (handles full names like "Florida" -> "FL")
     if (extracted.address_state) {
-      const stateStr = String(extracted.address_state).trim().toUpperCase();
-      if (stateStr.length === 2 && (US_STATE_CODES.has(stateStr) || CA_PROVINCE_CODES.has(stateStr))) {
-        extracted.address_state = stateStr;
+      const normalized = normalizeState(String(extracted.address_state));
+      if (normalized && (US_STATE_CODES.has(normalized) || CA_PROVINCE_CODES.has(normalized))) {
+        extracted.address_state = normalized;
       } else {
         console.log(`Rejecting invalid address_state: "${extracted.address_state}"`);
         delete extracted.address_state;

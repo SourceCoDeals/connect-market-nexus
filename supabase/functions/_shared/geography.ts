@@ -20,6 +20,15 @@ const STATE_MAPPINGS: Record<string, string> = {
   'vermont': 'VT', 'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV',
   'wisconsin': 'WI', 'wyoming': 'WY', 'district of columbia': 'DC',
   
+  // Canadian provinces (full names to codes)
+  'alberta': 'AB', 'british columbia': 'BC', 'manitoba': 'MB', 'new brunswick': 'NB',
+  'newfoundland and labrador': 'NL', 'newfoundland': 'NL', 'nova scotia': 'NS',
+  'northwest territories': 'NT', 'nunavut': 'NU', 'ontario': 'ON',
+  'prince edward island': 'PE', 'quebec': 'QC', 'saskatchewan': 'SK', 'yukon': 'YT',
+  
+  // Canadian province codes (passthrough)
+  'ab': 'AB', 'bc': 'BC', 'mb': 'MB', 'nb': 'NB', 'nl': 'NL', 'ns': 'NS',
+  'nt': 'NT', 'nu': 'NU', 'on': 'ON', 'pe': 'PE', 'qc': 'QC', 'sk': 'SK', 'yt': 'YT',
   // Already-valid codes (passthrough)
   'al': 'AL', 'ak': 'AK', 'az': 'AZ', 'ar': 'AR', 'ca': 'CA', 'co': 'CO',
   'ct': 'CT', 'de': 'DE', 'fl': 'FL', 'ga': 'GA', 'hi': 'HI', 'id': 'ID',
