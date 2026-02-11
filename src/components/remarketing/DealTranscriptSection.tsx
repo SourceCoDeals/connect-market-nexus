@@ -437,13 +437,17 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         return { count: successCount, failed: totalFiles - successCount - skippedCount, skipped: skippedCount };
       }
       
-      // Single transcript mode (pasted text or link)
+      // Single transcript mode (pasted text, link, or title-only)
       const safeSingleText = (newTranscript || '').trim().length > 0
         ? newTranscript
-        : (transcriptUrl ? `[Transcript link added: ${transcriptUrl}]` : '');
+        : (transcriptUrl
+          ? `[Transcript link: ${transcriptUrl}]`
+          : (transcriptTitle
+            ? `[Transcript: ${transcriptTitle}]`
+            : ''));
 
       if (!safeSingleText) {
-        throw new Error('Transcript content cannot be empty');
+        throw new Error('Please provide a title, URL, or transcript content');
       }
 
       const { error } = await supabase
@@ -1438,7 +1442,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         ) : (
           <Button
             onClick={() => addMutation.mutate()}
-            disabled={(isMultiFileMode ? selectedFiles.length === 0 : !newTranscript.trim()) || addMutation.isPending}
+            disabled={(isMultiFileMode ? selectedFiles.length === 0 : (!newTranscript.trim() && !transcriptUrl.trim() && !transcriptTitle.trim())) || addMutation.isPending}
           >
             {addMutation.isPending ? (
               <>
