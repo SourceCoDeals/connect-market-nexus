@@ -7,25 +7,74 @@ const corsHeaders = {
 };
 
 interface FetchRequest {
-  transcriptId: string; // deal_transcripts.id
-}
-
-interface FirefliesSentence {
-  text: string;
-  speaker_name?: string;
-  start_time?: number;
+  transcriptId: string; // deal_transcripts.id (our DB record ID)
 }
 
 /**
- * Fetch full transcript content from Fireflies on-demand
+ * Call the Fireflies GraphQL API directly.
+ * Requires FIREFLIES_API_KEY set as a Supabase secret.
+ */
+async function firefliesGraphQL(query: string, variables?: Record<string, unknown>) {
+  const apiKey = Deno.env.get("FIREFLIES_API_KEY");
+  if (!apiKey) {
+    throw new Error(
+      "FIREFLIES_API_KEY is not configured. Add it as a Supabase secret: " +
+      "supabase secrets set FIREFLIES_API_KEY=your_key"
+    );
+  }
+
+  const response = await fetch("https://api.fireflies.ai/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Fireflies API error (${response.status}): ${text}`);
+  }
+
+  const result = await response.json();
+  if (result.errors) {
+    throw new Error(
+      `Fireflies GraphQL error: ${result.errors[0]?.message || JSON.stringify(result.errors)}`
+    );
+  }
+
+  return result.data;
+}
+
+const GET_TRANSCRIPT_QUERY = `
+  query GetTranscript($transcriptId: String!) {
+    transcript(id: $transcriptId) {
+      id
+      title
+      sentences {
+        text
+        speaker_name
+        start_time
+        end_time
+      }
+      summary {
+        short_summary
+      }
+    }
+  }
+`;
+
+/**
+ * Fetch full transcript content from Fireflies on-demand.
  *
- * This function:
  * 1. Checks if content is already cached in database
- * 2. If not, fetches from Fireflies API
- * 3. Caches the content for future use
- * 4. Returns the transcript text
+ * 2. If not, fetches sentences from Fireflies GraphQL API
+ * 3. Builds speaker-labeled transcript text
+ * 4. Caches the content for future use
+ * 5. Returns the transcript text
  *
- * Called by enrichment system when transcript content is needed.
+ * Called by the enrichment system when transcript content is needed.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -83,43 +132,33 @@ serve(async (req) => {
       );
     }
 
-    // Fetch from Fireflies API
+    // Fetch full transcript from Fireflies API
     console.log(`Fetching content from Fireflies for transcript ${dealTranscript.fireflies_transcript_id}`);
 
-    const { data: firefliesData, error: firefliesError } = await supabase.functions.invoke(
-      'fireflies_fetch',
-      {
-        body: {
-          id: dealTranscript.fireflies_transcript_id
-        }
-      }
-    );
+    const data = await firefliesGraphQL(GET_TRANSCRIPT_QUERY, {
+      transcriptId: dealTranscript.fireflies_transcript_id,
+    });
 
-    if (firefliesError) {
-      console.error("Fireflies fetch error:", firefliesError);
-      throw new Error(`Failed to fetch from Fireflies: ${firefliesError.message}`);
+    const transcript = data.transcript;
+    if (!transcript) {
+      throw new Error("Transcript not found in Fireflies");
     }
 
-    if (!firefliesData) {
-      throw new Error("No data returned from Fireflies");
-    }
-
-    // Extract transcript text from response
-    // Fireflies returns either transcript_text directly or sentences array
+    // Build transcript text from sentences with speaker labels
     let transcriptText = '';
 
-    if (firefliesData.transcript_text && typeof firefliesData.transcript_text === 'string') {
-      transcriptText = firefliesData.transcript_text;
-    } else if (firefliesData.sentences && Array.isArray(firefliesData.sentences)) {
-      // Build transcript from sentences with speaker labels
-      transcriptText = firefliesData.sentences
-        .map((s: FirefliesSentence) => {
+    if (transcript.sentences && Array.isArray(transcript.sentences) && transcript.sentences.length > 0) {
+      transcriptText = transcript.sentences
+        .map((s: any) => {
           const speaker = s.speaker_name || 'Unknown';
           return `${speaker}: ${s.text}`;
         })
         .join('\n');
-    } else if (firefliesData.content && typeof firefliesData.content === 'string') {
-      transcriptText = firefliesData.content;
+    }
+
+    // Fallback: use summary if no sentences available
+    if (!transcriptText && transcript.summary?.short_summary) {
+      transcriptText = `[Summary only]\n${transcript.summary.short_summary}`;
     }
 
     if (!transcriptText || transcriptText.length < 50) {

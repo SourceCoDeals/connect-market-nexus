@@ -24,14 +24,74 @@ interface SearchResult {
 }
 
 /**
- * Search Fireflies transcripts for buyer/deal linking
+ * Call the Fireflies GraphQL API directly.
+ * Requires FIREFLIES_API_KEY set as a Supabase secret.
+ */
+async function firefliesGraphQL(query: string, variables?: Record<string, unknown>) {
+  const apiKey = Deno.env.get("FIREFLIES_API_KEY");
+  if (!apiKey) {
+    throw new Error(
+      "FIREFLIES_API_KEY is not configured. Add it as a Supabase secret: " +
+      "supabase secrets set FIREFLIES_API_KEY=your_key"
+    );
+  }
+
+  const response = await fetch("https://api.fireflies.ai/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Fireflies API error (${response.status}): ${text}`);
+  }
+
+  const result = await response.json();
+  if (result.errors) {
+    throw new Error(
+      `Fireflies GraphQL error: ${result.errors[0]?.message || JSON.stringify(result.errors)}`
+    );
+  }
+
+  return result.data;
+}
+
+const LIST_TRANSCRIPTS_QUERY = `
+  query ListTranscripts($limit: Int, $skip: Int) {
+    transcripts(limit: $limit, skip: $skip) {
+      id
+      title
+      date
+      duration
+      organizer_email
+      participants
+      meeting_attendees {
+        displayName
+        email
+        name
+      }
+      transcript_url
+      summary {
+        short_summary
+        keywords
+        action_items
+      }
+    }
+  }
+`;
+
+/**
+ * Search Fireflies transcripts for buyer/deal linking.
  *
- * This function supports two search modes:
- * 1. Keyword search — searches Fireflies by keyword/company name
- * 2. Participant email search — finds transcripts where ANY of the provided emails
- *    appear as an attendee (used for domain-based multi-email search)
+ * Supports two search modes (both run, results merged + deduplicated):
+ * 1. Keyword search — matches title, summary, keywords
+ * 2. Participant email search — finds transcripts with matching attendees
  *
- * Both modes run and results are merged + deduplicated for best coverage.
+ * Calls the Fireflies GraphQL API directly (requires FIREFLIES_API_KEY).
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -43,7 +103,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // SECURITY: Verify the caller has a valid auth token (admin or service role)
+    // Verify the caller has a valid auth token (admin or service role)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -52,7 +112,6 @@ serve(async (req) => {
       );
     }
 
-    // If it's not the service role key, verify the user is an admin
     const token = authHeader.replace("Bearer ", "");
     if (token !== supabaseKey) {
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -87,92 +146,88 @@ serve(async (req) => {
       );
     }
 
-    const allResults: any[] = [];
+    // Fetch transcripts from Fireflies API (paginate for coverage)
+    const allFireflies: any[] = [];
+    let skip = 0;
+    const batchSize = 50;
+    const maxPages = 6; // Scan up to 300 transcripts
 
-    // PATH 1: If participant emails provided, search by email participants
-    if (participantEmails && participantEmails.length > 0) {
-      console.log(`Searching Fireflies for ${participantEmails.length} participant emails`);
-
-      try {
-        const { data: firefliesResponse, error: mcpError } = await supabase.functions.invoke(
-          'fireflies_get_transcripts',
-          {
-            body: {
-              participants: participantEmails,
-              limit: limit,
-            }
-          }
-        );
-
-        if (!mcpError && firefliesResponse) {
-          const transcripts = Array.isArray(firefliesResponse)
-            ? firefliesResponse
-            : firefliesResponse?.transcripts || [];
-
-          for (const t of transcripts) {
-            allResults.push({
-              id: t.id,
-              title: t.title || 'Untitled Call',
-              date: t.dateString || t.date || new Date().toISOString(),
-              duration_minutes: t.duration ? Math.round(t.duration) : null,
-              participants: t.meetingAttendees || t.participants || [],
-              summary: t.summary || '',
-              meeting_url: t.meetingLink || '',
-              keywords: t.summary?.keywords || [],
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('Fireflies participant search failed:', err);
-      }
+    for (let page = 0; page < maxPages; page++) {
+      const data = await firefliesGraphQL(LIST_TRANSCRIPTS_QUERY, {
+        limit: batchSize,
+        skip,
+      });
+      const batch = data.transcripts || [];
+      allFireflies.push(...batch);
+      if (batch.length < batchSize) break;
+      skip += batchSize;
     }
 
-    // PATH 2: Also do keyword search (always, as a supplement)
-    if (query && query.trim().length > 0) {
-      console.log(`Searching Fireflies for keyword: "${query}"`);
+    console.log(`Fetched ${allFireflies.length} transcripts from Fireflies`);
 
-      try {
-        const { data: firefliesResponse, error: mcpError } = await supabase.functions.invoke(
-          'fireflies_search',
-          {
-            body: {
-              query: query,
-            }
-          }
-        );
+    // Build filter sets
+    const emailSet = new Set(
+      (participantEmails || []).map((e: string) => e.toLowerCase())
+    );
+    const queryLower = (query || '').toLowerCase().trim();
 
-        if (!mcpError) {
-          const results = Array.isArray(firefliesResponse)
-            ? firefliesResponse
-            : firefliesResponse?.results || [];
-
-          for (const r of results) {
-            allResults.push({
-              id: r.id || r.transcript_id,
-              title: r.title || 'Untitled Call',
-              date: r.date || r.dateString || r.created_at || new Date().toISOString(),
-              duration_minutes: r.duration ? Math.round(typeof r.duration === 'number' && r.duration > 1000 ? r.duration / 60 : r.duration) : null,
-              participants: r.meetingAttendees || r.participants || [],
-              summary: r.summary || r.ai_summary || '',
-              meeting_url: r.meetingLink || r.meeting_url || r.url || '',
-              keywords: r.summary?.keywords || r.keywords || r.key_topics || [],
-            });
-          }
+    // Filter: match by participant email OR keyword
+    const matchingResults = allFireflies.filter((t: any) => {
+      // Check participant emails
+      if (emailSet.size > 0) {
+        const attendees = t.meeting_attendees || [];
+        if (attendees.some((a: any) => a.email && emailSet.has(a.email.toLowerCase()))) {
+          return true;
         }
-      } catch (err) {
-        console.warn('Fireflies keyword search failed:', err);
       }
-    }
 
-    // Deduplicate by ID
-    const seen = new Set<string>();
-    const uniqueResults = allResults.filter(r => {
-      if (!r.id || seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
+      // Check keyword in title, summary, and keywords
+      if (queryLower) {
+        const title = (t.title || '').toLowerCase();
+        const summary = (t.summary?.short_summary || '').toLowerCase();
+        const keywords = (t.summary?.keywords || []).join(' ').toLowerCase();
+        const participants = (t.participants || []).join(' ').toLowerCase();
+        if (
+          title.includes(queryLower) ||
+          summary.includes(queryLower) ||
+          keywords.includes(queryLower) ||
+          participants.includes(queryLower)
+        ) {
+          return true;
+        }
+      }
+
+      return false;
     });
 
-    const formattedResults: SearchResult[] = uniqueResults.slice(0, limit);
+    console.log(`${matchingResults.length} transcripts matched search criteria`);
+
+    // Format results
+    const formattedResults: SearchResult[] = matchingResults
+      .slice(0, limit)
+      .map((t: any) => {
+        // Convert date
+        let dateStr = new Date().toISOString();
+        if (t.date) {
+          const dateNum = typeof t.date === 'number'
+            ? t.date
+            : parseInt(t.date, 10);
+          if (!isNaN(dateNum)) {
+            dateStr = new Date(dateNum).toISOString();
+          }
+        }
+
+        return {
+          id: t.id,
+          title: t.title || 'Untitled Call',
+          date: dateStr,
+          duration_minutes: t.duration ? Math.round(t.duration) : null,
+          participants: t.meeting_attendees || [],
+          summary: t.summary?.short_summary || '',
+          meeting_url: t.transcript_url || '',
+          keywords: t.summary?.keywords || [],
+        };
+      });
 
     return new Response(
       JSON.stringify({
