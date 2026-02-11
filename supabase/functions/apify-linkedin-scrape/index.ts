@@ -255,7 +255,7 @@ serve(async (req) => {
       }
 
       // Location verification for search results
-      if ((city || state) && companyData.headquarters) {
+      if ((city || state) && companyData.headquarters && typeof companyData.headquarters === 'string') {
         const locationMatch = verifyLocation(companyData.headquarters, city, state);
         if (!locationMatch.match && locationMatch.confidence === 'high') {
           console.warn(`LOCATION MISMATCH: HQ "${companyData.headquarters}" vs expected "${city}, ${state}". Rejecting.`);
@@ -288,7 +288,7 @@ serve(async (req) => {
     // Calculate match confidence and signals
     const websiteMatch = !!(companyWebsite && companyData.website && doWebsitesMatch(companyWebsite, companyData.website));
     let locationMatchResult = null;
-    if ((city || state) && companyData.headquarters) {
+    if ((city || state) && companyData.headquarters && typeof companyData.headquarters === 'string') {
       locationMatchResult = verifyLocation(companyData.headquarters, city, state);
     }
 
@@ -797,12 +797,17 @@ function doWebsitesMatch(website1: string, website2: string): boolean {
  * Returns match status and confidence level
  */
 function verifyLocation(
-  linkedinHeadquarters: string,
+  linkedinHeadquarters: string | undefined | null,
   expectedCity?: string,
   expectedState?: string
 ): { match: boolean; confidence: 'high' | 'medium' | 'low'; reason: string } {
   if (!expectedCity && !expectedState) {
     return { match: true, confidence: 'low', reason: 'No expected location provided' };
+  }
+
+  // Guard against non-string values (Apify sometimes returns objects or undefined)
+  if (!linkedinHeadquarters || typeof linkedinHeadquarters !== 'string') {
+    return { match: false, confidence: 'low', reason: 'No headquarters data available from LinkedIn' };
   }
 
   const hqLower = linkedinHeadquarters.toLowerCase().trim();

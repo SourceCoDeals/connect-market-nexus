@@ -809,7 +809,10 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      return ssrfErrorResponse(urlValidation.reason || 'Invalid URL');
+      return new Response(
+        JSON.stringify({ success: false, error: `Invalid URL: ${websiteUrl} (${urlValidation.reason || 'blocked by security policy'})` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     websiteUrl = urlValidation.normalizedUrl || websiteUrl;
 
@@ -1218,31 +1221,47 @@ For financial data, include confidence levels and source quotes where available.
                         type: 'string',
                         description: 'LinkedIn company page URL if found on the website'
                       },
-                      // Financial with confidence tracking per spec
-                      revenue: {
-                        type: 'object',
-                        properties: {
-                          value: { type: 'number', description: 'Annual revenue in dollars (e.g., 5000000 for $5M)' },
-                          confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence level' },
-                          is_inferred: { type: 'boolean', description: 'True if calculated from other data' },
-                          source_quote: { type: 'string', description: 'Exact text where revenue was mentioned' },
-                          inference_method: { type: 'string', description: 'How value was inferred if applicable' }
-                        }
+                      // Financial fields — FLATTENED to avoid Gemini "too much branching" error
+                      revenue_value: {
+                        type: 'number',
+                        description: 'Annual revenue in dollars (e.g., 5000000 for $5M)'
                       },
-                      ebitda: {
-                        type: 'object',
-                        properties: {
-                          amount: { type: 'number', description: 'EBITDA in dollars' },
-                          margin_percentage: { type: 'number', description: 'EBITDA margin as percentage (e.g., 18 for 18%)' },
-                          confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Confidence level' },
-                          is_inferred: { type: 'boolean', description: 'True if calculated from margin and revenue' },
-                          source_quote: { type: 'string', description: 'Exact text supporting the EBITDA figure' }
-                        }
+                      revenue_confidence: {
+                        type: 'string',
+                        description: 'Confidence level for revenue: high, medium, or low'
+                      },
+                      revenue_is_inferred: {
+                        type: 'boolean',
+                        description: 'True if revenue was calculated/inferred from other data'
+                      },
+                      revenue_source_quote: {
+                        type: 'string',
+                        description: 'Exact text where revenue was mentioned'
+                      },
+                      ebitda_amount: {
+                        type: 'number',
+                        description: 'EBITDA in dollars'
+                      },
+                      ebitda_margin_percentage: {
+                        type: 'number',
+                        description: 'EBITDA margin as percentage (e.g., 18 for 18%)'
+                      },
+                      ebitda_confidence: {
+                        type: 'string',
+                        description: 'Confidence level for EBITDA: high, medium, or low'
+                      },
+                      ebitda_is_inferred: {
+                        type: 'boolean',
+                        description: 'True if EBITDA was calculated from margin and revenue'
+                      },
+                      ebitda_source_quote: {
+                        type: 'string',
+                        description: 'Exact text supporting the EBITDA figure'
                       },
                       financial_followup_questions: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Questions to clarify financials if data is unclear (e.g., "What is the exact EBITDA margin?")'
+                        description: 'Questions to clarify financials if data is unclear'
                       },
                       financial_notes: {
                         type: 'string',
@@ -1343,50 +1362,51 @@ For financial data, include confidence levels and source quotes where available.
     // PROCESS FINANCIAL DATA WITH CONFIDENCE TRACKING (per spec)
     // ========================================================================
     
-    // Handle structured revenue extraction
-    const revenueData = extracted.revenue as { value?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | undefined;
-    if (revenueData?.value) {
-      extracted.revenue = revenueData.value; // Flatten to number for db column
+    // Handle flattened revenue fields from AI extraction
+    if (extracted.revenue_value) {
+      extracted.revenue = extracted.revenue_value;
+      delete extracted.revenue_value;
+      if (!extracted.revenue_confidence) extracted.revenue_confidence = 'medium';
+    }
+    // Legacy: handle nested revenue object from older schema
+    const revenueData = extracted.revenue as { value?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | number | undefined;
+    if (revenueData && typeof revenueData === 'object' && revenueData.value) {
+      extracted.revenue = revenueData.value;
       extracted.revenue_confidence = revenueData.confidence || 'medium';
       extracted.revenue_is_inferred = revenueData.is_inferred || false;
-      if (revenueData.source_quote) {
-        extracted.revenue_source_quote = revenueData.source_quote;
-      }
+      if (revenueData.source_quote) extracted.revenue_source_quote = revenueData.source_quote;
     }
     
-    // Handle structured EBITDA extraction
-    const ebitdaData = extracted.ebitda as { amount?: number; margin_percentage?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | undefined;
-    if (ebitdaData) {
-      // Store EBITDA amount if provided
-      if (ebitdaData.amount) {
-        extracted.ebitda = ebitdaData.amount;
-      }
-      
-      // Store margin as decimal
-      if (ebitdaData.margin_percentage) {
-        extracted.ebitda_margin = ebitdaData.margin_percentage / 100;
-      }
-      
-      // SPEC: Calculate EBITDA from revenue × margin if amount not provided
-      if (!ebitdaData.amount && ebitdaData.margin_percentage && revenueData?.value) {
-        const calculatedEbitda = revenueData.value * (ebitdaData.margin_percentage / 100);
-        extracted.ebitda = calculatedEbitda;
-        extracted.ebitda_is_inferred = true;
-        extracted.ebitda_source_quote = `Calculated: ${revenueData.value / 1000000}M revenue × ${ebitdaData.margin_percentage}% margin`;
-        extracted.ebitda_confidence = 'medium'; // Inferred is medium confidence
-        console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()} (${ebitdaData.margin_percentage}% of ${revenueData.value / 1000000}M)`);
-      } else if (ebitdaData.amount) {
-        extracted.ebitda_confidence = ebitdaData.confidence || 'medium';
-        extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
-        if (ebitdaData.source_quote) {
-          extracted.ebitda_source_quote = ebitdaData.source_quote;
-        }
-      }
+    // Handle flattened EBITDA fields
+    if (extracted.ebitda_amount) {
+      extracted.ebitda = extracted.ebitda_amount;
+      delete extracted.ebitda_amount;
+    }
+    if (extracted.ebitda_margin_percentage) {
+      extracted.ebitda_margin = (extracted.ebitda_margin_percentage as number) / 100;
+      delete extracted.ebitda_margin_percentage;
+    }
+    // SPEC: Calculate EBITDA from revenue × margin if amount not provided
+    if (!extracted.ebitda && extracted.ebitda_margin && extracted.revenue && typeof extracted.revenue === 'number') {
+      const calculatedEbitda = extracted.revenue * (extracted.ebitda_margin as number);
+      extracted.ebitda = calculatedEbitda;
+      extracted.ebitda_is_inferred = true;
+      extracted.ebitda_source_quote = `Calculated: ${(extracted.revenue as number) / 1000000}M revenue × ${((extracted.ebitda_margin as number) * 100).toFixed(1)}% margin`;
+      if (!extracted.ebitda_confidence) extracted.ebitda_confidence = 'medium';
+      console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()}`);
+    }
+    // Legacy: handle nested ebitda object from older schema
+    const ebitdaData = extracted.ebitda as { amount?: number; margin_percentage?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | number | undefined;
+    if (ebitdaData && typeof ebitdaData === 'object') {
+      if (ebitdaData.amount) extracted.ebitda = ebitdaData.amount;
+      if (ebitdaData.margin_percentage) extracted.ebitda_margin = ebitdaData.margin_percentage / 100;
+      if (ebitdaData.confidence) extracted.ebitda_confidence = ebitdaData.confidence;
+      extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
+      if (ebitdaData.source_quote) extracted.ebitda_source_quote = ebitdaData.source_quote;
     }
     
     // Handle financial follow-up questions
     if (extracted.financial_followup_questions && Array.isArray(extracted.financial_followup_questions)) {
-      // Keep as array for db column
       console.log(`Generated ${extracted.financial_followup_questions.length} financial follow-up questions`);
     }
     
