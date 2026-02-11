@@ -81,7 +81,28 @@ export function useGlobalGateCheck() {
       .in("status", ["running", "paused"])
       .limit(1);
     if (data && data.length > 0) {
-      return data[0] as unknown as GlobalActivityQueueItem;
+      const item = data[0] as unknown as GlobalActivityQueueItem;
+
+      // Auto-recover stale operations: if running with 0 completed items for 10+ minutes, auto-fail it
+      const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+      if (item.status === 'running' && (item.completed_items || 0) === 0) {
+        const startedAt = item.started_at ? new Date(item.started_at).getTime() : new Date(item.created_at).getTime();
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > STALE_THRESHOLD_MS) {
+          console.warn(`[global-gate] Auto-failing stale operation ${item.id} (${item.operation_type}) — 0 progress after ${Math.round(elapsed / 60000)}min`);
+          await supabase
+            .from("global_activity_queue")
+            .update({
+              status: "failed",
+              completed_at: new Date().toISOString(),
+              error_log: [...(Array.isArray(item.error_log) ? item.error_log : []), `Auto-failed: 0 items completed after ${Math.round(elapsed / 60000)} minutes`] as Json[],
+            })
+            .eq("id", item.id);
+          return null; // No longer blocking
+        }
+      }
+
+      return item;
     }
     return null;
   }, []);

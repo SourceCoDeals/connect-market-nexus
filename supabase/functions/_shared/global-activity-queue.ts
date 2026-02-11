@@ -63,6 +63,49 @@ export async function updateGlobalQueueProgress(
 }
 
 /**
+ * Auto-recover stale "running" operations with 0 progress after 10 minutes.
+ * Prevents platform-wide deadlocks when queue items fail to insert.
+ */
+export async function recoverStaleOperations(
+  supabase: SupabaseClient,
+): Promise<number> {
+  try {
+    const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+    const cutoff = new Date(Date.now() - STALE_THRESHOLD_MS).toISOString();
+
+    const { data: stale } = await supabase
+      .from('global_activity_queue')
+      .select('id, operation_type, started_at, created_at, error_log')
+      .eq('status', 'running')
+      .eq('completed_items', 0)
+      .lt('started_at', cutoff);
+
+    if (!stale || stale.length === 0) return 0;
+
+    for (const item of stale) {
+      const log = Array.isArray(item.error_log) ? item.error_log : [];
+      log.push(`Auto-failed by server: 0 items completed, stale since ${item.started_at}`);
+      await supabase
+        .from('global_activity_queue')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error_log: log,
+        })
+        .eq('id', item.id);
+      console.log(`[global-activity-queue] Auto-failed stale operation: ${item.operation_type} (${item.id})`);
+    }
+
+    // After clearing stale ops, drain any queued work
+    await drainNextQueuedOperation(supabase);
+    return stale.length;
+  } catch (err) {
+    console.warn('[global-activity-queue] Failed to recover stale operations:', err);
+    return 0;
+  }
+}
+
+/**
  * Mark the running operation for this type as completed.
  * Then check if there's a queued operation to auto-start next.
  */
@@ -72,6 +115,9 @@ export async function completeGlobalQueueOperation(
   finalStatus: 'completed' | 'failed' = 'completed'
 ): Promise<void> {
   try {
+    // Also recover any stale operations from other types
+    await recoverStaleOperations(supabase);
+
     // Complete the current operation
     const { data: completed } = await supabase
       .from('global_activity_queue')

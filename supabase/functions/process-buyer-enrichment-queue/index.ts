@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
+import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused, recoverStaleOperations } from "../_shared/global-activity-queue.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +28,12 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log('Processing buyer enrichment queue...');
+
+    // Auto-recover any stale global operations (prevents deadlocks)
+    const recovered = await recoverStaleOperations(supabase);
+    if (recovered > 0) {
+      console.log(`Recovered ${recovered} stale global operations`);
+    }
 
     // Recovery: reset stale processing items (stuck for 3+ minutes)
     const staleCutoffIso = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000).toISOString();
