@@ -1,0 +1,1 @@
+ALTER TABLE public.criteria_extraction_sources ADD COLUMN source_url text;

@@ -2081,6 +2081,7 @@ export type Database = {
           source_metadata: Json | null
           source_name: string | null
           source_type: string
+          source_url: string | null
           universe_id: string
           updated_at: string | null
         }
@@ -2096,6 +2097,7 @@ export type Database = {
           source_metadata?: Json | null
           source_name?: string | null
           source_type?: string
+          source_url?: string | null
           universe_id: string
           updated_at?: string | null
         }
@@ -2111,6 +2113,7 @@ export type Database = {
           source_metadata?: Json | null
           source_name?: string | null
           source_type?: string
+          source_url?: string | null
           universe_id?: string
           updated_at?: string | null
         }
