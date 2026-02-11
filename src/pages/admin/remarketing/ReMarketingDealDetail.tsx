@@ -853,14 +853,17 @@ const ReMarketingDealDetail = () => {
 
       {/* Primary Contact */}
       <PrimaryContactCard
-        name={deal.primary_contact_name}
-        email={deal.primary_contact_email}
-        phone={deal.primary_contact_phone}
+        name={deal.primary_contact_name || deal.main_contact_name}
+        email={deal.primary_contact_email || deal.main_contact_email}
+        phone={deal.primary_contact_phone || deal.main_contact_phone}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
             primary_contact_name: data.name,
             primary_contact_email: data.email,
             primary_contact_phone: data.phone,
+            main_contact_name: data.name,
+            main_contact_email: data.email,
+            main_contact_phone: data.phone,
           });
         }}
       />
