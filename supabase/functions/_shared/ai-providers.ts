@@ -347,6 +347,102 @@ export async function callClaudeWithTool(
 }
 
 /**
+ * Call Gemini API with tool use (function calling) via OpenAI-compatible endpoint.
+ * Drop-in replacement for callClaudeWithTool — same interface, different provider.
+ * Accepts OpenAI-style tool format natively.
+ */
+export async function callGeminiWithTool(
+  systemPrompt: string,
+  userPrompt: string,
+  tool: any,
+  apiKey: string,
+  model: string = DEFAULT_GEMINI_MODEL,
+  timeoutMs: number = 45000,
+  maxTokens: number = 8192
+): Promise<{ data: any | null; error?: { code: string; message: string }; usage?: { input_tokens: number; output_tokens: number } }> {
+  try {
+    // Normalize tool format — accept both OpenAI and Claude formats
+    let openAITool: any;
+    if (tool.type === 'function' && tool.function) {
+      openAITool = tool;
+    } else if (tool.name && tool.input_schema) {
+      // Claude format → OpenAI format
+      openAITool = { type: 'function', function: { name: tool.name, description: tool.description || '', parameters: tool.input_schema } };
+    } else {
+      openAITool = tool;
+    }
+
+    const toolName = openAITool.function?.name || openAITool.name || 'unknown';
+    const startTime = Date.now();
+
+    const response = await fetchWithAutoRetry(
+      GEMINI_API_URL,
+      {
+        method: "POST",
+        headers: getGeminiHeaders(apiKey),
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          tools: [openAITool],
+          tool_choice: { type: "function", function: { name: toolName } },
+          temperature: 0,
+          max_tokens: maxTokens,
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      },
+      { maxRetries: 3, baseDelayMs: 2000, callerName: `Gemini/${model}` }
+    );
+
+    const durationMs = Date.now() - startTime;
+
+    if (response.status === 402) {
+      return { data: null, error: { code: "payment_required", message: "AI credits depleted" } };
+    }
+    if (response.status === 429) {
+      return { data: null, error: { code: "rate_limited", message: "Rate limit exceeded after retries" } };
+    }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Gemini API call failed: ${response.status}`, errorText.substring(0, 500));
+      return { data: null, error: { code: `http_${response.status}`, message: `Gemini API returned ${response.status}: ${errorText.substring(0, 200)}` } };
+    }
+
+    const responseData = await response.json();
+    const usage = responseData.usage ? {
+      input_tokens: responseData.usage.prompt_tokens || 0,
+      output_tokens: responseData.usage.completion_tokens || 0,
+    } : undefined;
+
+    if (usage) {
+      console.log(`[Gemini/${model}] ${usage.input_tokens}in/${usage.output_tokens}out tokens, ${durationMs}ms`);
+    }
+
+    const toolCall = responseData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) {
+      console.warn("No tool_call in Gemini response");
+      return { data: null, error: { code: "no_tool_use", message: "Gemini did not return tool use" }, usage };
+    }
+
+    const parsed = typeof toolCall.function.arguments === 'string'
+      ? JSON.parse(toolCall.function.arguments)
+      : toolCall.function.arguments;
+
+    return { data: parsed, usage };
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      console.error(`Gemini API timeout after ${timeoutMs}ms`);
+      return { data: null, error: { code: "timeout", message: `Gemini API timeout after ${timeoutMs}ms` } };
+    }
+    console.error("Gemini API error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return { data: null, error: { code: "unknown_error", message: `Gemini API error: ${message}` } };
+  }
+}
+
+/**
  * Call Gemini API with automatic retry on rate limits.
  * Uses OpenAI-compatible endpoint. Waits and retries on 429.
  */

@@ -1,14 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { callGeminiWithTool, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Claude API configuration
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 
 interface DocumentExtractionRequest {
   universe_id: string;
@@ -90,200 +87,192 @@ Industry: ${industryName}
 DOCUMENT CONTENT:
 ${documentText.slice(0, 50000)}`;
 
-  const tools = [{
-    name: "extract_document_criteria",
-    description: "Extract buyer fit criteria and deal information from uploaded document",
-    input_schema: {
-      type: "object",
-      properties: {
-        document_metadata: {
-          type: "object",
-          properties: {
-            document_type: {
-              type: "string",
-              enum: ["CIM", "broker_teaser", "deal_memo", "research_note", "one_pager", "financial_statement", "other"],
-              description: "Type of document being analyzed"
+  const tool = {
+    type: "function",
+    function: {
+      name: "extract_document_criteria",
+      description: "Extract buyer fit criteria and deal information from uploaded document",
+      parameters: {
+        type: "object",
+        properties: {
+          document_metadata: {
+            type: "object",
+            properties: {
+              document_type: {
+                type: "string",
+                enum: ["CIM", "broker_teaser", "deal_memo", "research_note", "one_pager", "financial_statement", "other"],
+                description: "Type of document being analyzed"
+              },
+              company_name: { type: "string", description: "Company name if identifiable" },
+              date: { type: "string", description: "Document date if present" },
+              author: { type: "string", description: "Document author/firm if identified" },
+              page_count_estimate: { type: "number", description: "Estimated page count" }
             },
-            company_name: { type: "string", description: "Company name if identifiable" },
-            date: { type: "string", description: "Document date if present" },
-            author: { type: "string", description: "Document author/firm if identified" },
-            page_count_estimate: { type: "number", description: "Estimated page count" }
+            required: ["document_type"]
           },
-          required: ["document_type"]
-        },
-        financial_data: {
-          type: "object",
-          properties: {
-            revenue: {
-              type: "object",
-              properties: {
-                value: { type: "number", description: "Revenue in raw dollars" },
-                period: { type: "string", description: "Time period (FY2024, TTM, etc.)" },
-                is_projected: { type: "boolean", description: "Whether this is projected vs historical" },
-                confidence: { type: "number", description: "Confidence 0-100" }
-              }
-            },
-            ebitda: {
-              type: "object",
-              properties: {
-                value: { type: "number", description: "EBITDA in raw dollars" },
-                margin: { type: "number", description: "EBITDA margin as decimal (0.18 for 18%)" },
-                period: { type: "string" },
-                is_projected: { type: "boolean" },
-                confidence: { type: "number" }
-              }
-            },
-            revenue_history: {
-              type: "array",
-              items: {
+          financial_data: {
+            type: "object",
+            properties: {
+              revenue: {
                 type: "object",
                 properties: {
-                  year: { type: "number" },
-                  value: { type: "number", description: "Revenue in raw dollars" }
-                },
-                required: ["year", "value"]
+                  value: { type: "number", description: "Revenue in raw dollars" },
+                  period: { type: "string", description: "Time period (FY2024, TTM, etc.)" },
+                  is_projected: { type: "boolean", description: "Whether this is projected vs historical" },
+                  confidence: { type: "number", description: "Confidence 0-100" }
+                }
               },
-              description: "Historical revenue figures if multiple years provided"
-            },
-            ebitda_history: {
-              type: "array",
-              items: {
+              ebitda: {
                 type: "object",
                 properties: {
-                  year: { type: "number" },
-                  value: { type: "number", description: "EBITDA in raw dollars" }
-                },
-                required: ["year", "value"]
-              },
-              description: "Historical EBITDA figures if multiple years provided"
-            },
-            other_financials: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  metric: { type: "string", description: "E.g., gross margin, SG&A, capex, working capital, debt" },
-                  value: { type: "string", description: "Value (number or description)" },
+                  value: { type: "number", description: "EBITDA in raw dollars" },
+                  margin: { type: "number", description: "EBITDA margin as decimal (0.18 for 18%)" },
                   period: { type: "string" },
+                  is_projected: { type: "boolean" },
                   confidence: { type: "number" }
-                },
-                required: ["metric", "value"]
+                }
               },
-              description: "Any other financial figures: gross margin, capex, working capital, debt, customer counts, etc."
-            }
-          }
-        },
-        buyer_criteria: {
-          type: "object",
-          description: "Only populate if the document contains buyer-side information",
-          properties: {
-            size_criteria: {
-              type: "object",
-              properties: {
-                revenue_min: { type: "number" },
-                revenue_max: { type: "number" },
-                ebitda_min: { type: "number" },
-                ebitda_max: { type: "number" },
-                confidence: { type: "number" }
-              }
-            },
-            service_criteria: {
-              type: "object",
-              properties: {
-                target_services: { type: "array", items: { type: "string" } },
-                service_exclusions: { type: "array", items: { type: "string" } },
-                confidence: { type: "number" }
-              }
-            },
-            geography_criteria: {
-              type: "object",
-              properties: {
-                target_regions: { type: "array", items: { type: "string" } },
-                target_states: { type: "array", items: { type: "string" }, description: "2-letter state codes" },
-                geographic_exclusions: { type: "array", items: { type: "string" } },
-                confidence: { type: "number" }
-              }
-            },
-            deal_preferences: {
-              type: "object",
-              properties: {
-                deal_types: { type: "array", items: { type: "string" } },
-                structure_preferences: { type: "array", items: { type: "string" } },
-                valuation_parameters: { type: "string" },
-                deal_breakers: { type: "array", items: { type: "string" } },
-                confidence: { type: "number" }
+              revenue_history: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    year: { type: "number" },
+                    value: { type: "number", description: "Revenue in raw dollars" }
+                  },
+                  required: ["year", "value"]
+                }
+              },
+              ebitda_history: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    year: { type: "number" },
+                    value: { type: "number", description: "EBITDA in raw dollars" }
+                  },
+                  required: ["year", "value"]
+                }
+              },
+              other_financials: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    metric: { type: "string" },
+                    value: { type: "string" },
+                    period: { type: "string" },
+                    confidence: { type: "number" }
+                  },
+                  required: ["metric", "value"]
+                }
               }
             }
+          },
+          buyer_criteria: {
+            type: "object",
+            description: "Only populate if the document contains buyer-side information",
+            properties: {
+              size_criteria: {
+                type: "object",
+                properties: {
+                  revenue_min: { type: "number" },
+                  revenue_max: { type: "number" },
+                  ebitda_min: { type: "number" },
+                  ebitda_max: { type: "number" },
+                  confidence: { type: "number" }
+                }
+              },
+              service_criteria: {
+                type: "object",
+                properties: {
+                  target_services: { type: "array", items: { type: "string" } },
+                  service_exclusions: { type: "array", items: { type: "string" } },
+                  confidence: { type: "number" }
+                }
+              },
+              geography_criteria: {
+                type: "object",
+                properties: {
+                  target_regions: { type: "array", items: { type: "string" } },
+                  target_states: { type: "array", items: { type: "string" } },
+                  geographic_exclusions: { type: "array", items: { type: "string" } },
+                  confidence: { type: "number" }
+                }
+              },
+              deal_preferences: {
+                type: "object",
+                properties: {
+                  deal_types: { type: "array", items: { type: "string" } },
+                  structure_preferences: { type: "array", items: { type: "string" } },
+                  valuation_parameters: { type: "string" },
+                  deal_breakers: { type: "array", items: { type: "string" } },
+                  confidence: { type: "number" }
+                }
+              }
+            }
+          },
+          deal_information: {
+            type: "object",
+            description: "Only populate if document describes a specific deal/company for sale",
+            properties: {
+              company_overview: { type: "string" },
+              industry: { type: "string" },
+              location: { type: "string" },
+              services: { type: "array", items: { type: "string" } },
+              employees: { type: "number" },
+              founded: { type: "number" },
+              ownership: { type: "string" },
+              competitive_position: { type: "string" },
+              growth_story: { type: "string" },
+              key_risks: { type: "array", items: { type: "string" } },
+              asking_price: { type: "number" },
+              implied_multiple: { type: "string" }
+            }
+          },
+          extraction_gaps: {
+            type: "array",
+            items: { type: "string" },
+            description: "What information is NOT in this document that would be valuable."
+          },
+          overall_confidence: {
+            type: "number",
+            description: "Overall extraction confidence 0-100"
           }
         },
-        deal_information: {
-          type: "object",
-          description: "Only populate if document describes a specific deal/company for sale",
-          properties: {
-            company_overview: { type: "string", description: "Brief overview of the company" },
-            industry: { type: "string", description: "Most specific industry label" },
-            location: { type: "string", description: "City, ST format" },
-            services: { type: "array", items: { type: "string" }, description: "All services/products" },
-            employees: { type: "number", description: "Employee count" },
-            founded: { type: "number", description: "4-digit founding year" },
-            ownership: { type: "string", description: "Ownership structure" },
-            competitive_position: { type: "string", description: "Market position and competitive advantages" },
-            growth_story: { type: "string", description: "Growth trajectory and future potential" },
-            key_risks: { type: "array", items: { type: "string" }, description: "Identified risks" },
-            asking_price: { type: "number", description: "Asking price in raw dollars" },
-            implied_multiple: { type: "string", description: "E.g., '5.2x EBITDA'" }
-          }
-        },
-        extraction_gaps: {
-          type: "array",
-          items: { type: "string" },
-          description: "What information is NOT in this document that would be valuable. E.g., 'No EBITDA data provided', 'Customer concentration not addressed', 'No management team details'."
-        },
-        overall_confidence: {
-          type: "number",
-          description: "Overall extraction confidence 0-100"
-        }
-      },
-      required: ["document_metadata", "extraction_gaps", "overall_confidence"]
+        required: ["document_metadata", "extraction_gaps", "overall_confidence"]
+      }
     }
-  }];
+  };
+
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiApiKey) {
+    throw new Error('GEMINI_API_KEY not configured');
+  }
 
   const startTime = Date.now();
+  const result = await callGeminiWithTool(
+    systemPrompt,
+    userPrompt,
+    tool,
+    geminiApiKey,
+    DEFAULT_GEMINI_MODEL,
+    60000,
+    8192
+  );
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: DEFAULT_CLAUDE_MODEL,
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      tools: tools,
-      tool_choice: { type: 'tool', name: 'extract_document_criteria' }
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Claude API error: ${response.status} - ${error}`);
-  }
-
-  const result = await response.json();
   const duration = Date.now() - startTime;
-
   console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
-  console.log(`[USAGE] Input: ${result.usage?.input_tokens}, Output: ${result.usage?.output_tokens}`);
 
-  const toolUse = result.content.find((c: any) => c.type === 'tool_use');
-  if (!toolUse) {
-    throw new Error('No tool use found in Claude response');
+  if (result.usage) {
+    console.log(`[USAGE] Input: ${result.usage.input_tokens}, Output: ${result.usage.output_tokens}`);
   }
 
-  return toolUse.input;
+  if (!result.data) {
+    throw new Error(result.error?.message || 'No data extracted from document');
+  }
+
+  return result.data;
 }
 
 serve(async (req) => {
@@ -310,7 +299,6 @@ serve(async (req) => {
 
     console.log(`[REQUEST] Universe: ${universe_id}, Document: ${document_name}`);
 
-    // Create extraction source record
     const { data: sourceRecord, error: sourceError } = await supabase
       .from('criteria_extraction_sources')
       .insert({
@@ -318,10 +306,7 @@ serve(async (req) => {
         source_type: 'uploaded_document',
         source_name: document_name,
         source_url: document_url,
-        source_metadata: {
-          industry_name,
-          document_url
-        },
+        source_metadata: { industry_name, document_url },
         extraction_status: 'processing',
         extraction_started_at: new Date().toISOString()
       })
@@ -338,7 +323,6 @@ serve(async (req) => {
       const documentText = await extractDocumentText(document_url);
       const extractionResult = await extractCriteriaFromDocument(documentText, document_name, industry_name);
 
-      // Build confidence scores
       const confidenceScores: any = {
         overall: extractionResult.overall_confidence,
         document_type: extractionResult.document_metadata?.document_type,
@@ -356,7 +340,6 @@ serve(async (req) => {
         confidenceScores.financial = extractionResult.financial_data.revenue.confidence;
       }
 
-      // Update source record with extraction results
       const { error: updateError } = await supabase
         .from('criteria_extraction_sources')
         .update({
@@ -372,7 +355,6 @@ serve(async (req) => {
       }
 
       console.log(`[SUCCESS] Extraction completed: type=${extractionResult.document_metadata?.document_type}, confidence=${extractionResult.overall_confidence}%`);
-      console.log(`[GAPS] ${extractionResult.extraction_gaps?.length || 0} extraction gaps identified`);
 
       return new Response(
         JSON.stringify({
@@ -381,10 +363,7 @@ serve(async (req) => {
           extraction: extractionResult,
           message: 'Document criteria extracted successfully'
         }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
 
     } catch (extractionError) {
@@ -403,14 +382,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('[ERROR]', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
+      JSON.stringify({ success: false, error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
