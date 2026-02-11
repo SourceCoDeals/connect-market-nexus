@@ -95,9 +95,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   }
 
   // ===== COMPANY SIGNALS (0-30 pts, BUT reduced when financials known) =====
-  const employeeCount = deal.linkedin_employee_count || 0;
-  const reviewCount = deal.google_review_count || 0;
-  const googleRating = deal.google_rating || 0;
   let signalsScore = 0;
 
   // LinkedIn employees — only a major factor when we DON'T have revenue
