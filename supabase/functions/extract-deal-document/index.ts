@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { callGeminiWithTool, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { callGeminiWithTool, callGeminiWithRetry, DEFAULT_GEMINI_MODEL, GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,41 +14,77 @@ interface DocumentExtractionRequest {
   industry_name?: string;
 }
 
+interface DocumentContent {
+  text?: string;
+  base64?: string;
+  mimeType?: string;
+}
+
 /**
- * Extract text content from uploaded documents (PDF, text, etc.)
+ * Extract content from uploaded documents (PDF, DOCX, text, etc.)
+ * Returns either text for text files, or base64 + mimeType for binary docs.
  */
-async function extractDocumentText(documentUrl: string): Promise<string> {
-  console.log('[DOCUMENT_FETCH] Downloading document from storage');
+async function extractDocumentContent(documentUrl: string): Promise<DocumentContent> {
+  console.log(`[DOCUMENT_FETCH] Downloading from storage: "${documentUrl}"`);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
 
-  const { data, error } = await supabase.storage
-    .from('documents')
-    .download(documentUrl);
+  // Decode in case the path was URL-encoded
+  const storagePath = decodeURIComponent(documentUrl);
+  console.log(`[DOCUMENT_FETCH] Resolved path: "${storagePath}"`);
 
-  if (error) {
-    throw new Error(`Failed to download document: ${error.message}`);
+  const { data, error } = await supabase.storage
+    .from('universe-documents')
+    .download(storagePath);
+
+  if (error || !data) {
+    console.error('[DOCUMENT_FETCH] Storage error:', JSON.stringify(error));
+    throw new Error(`Failed to download document: ${error?.message || 'No data returned from storage'}`);
   }
 
   const buffer = await data.arrayBuffer();
-  const text = new TextDecoder().decode(buffer);
+  const ext = storagePath.split('.').pop()?.toLowerCase() || '';
+  console.log(`[DOCUMENT_FETCH] Downloaded ${buffer.byteLength} bytes, ext="${ext}"`);
 
-  console.log(`[DOCUMENT_LOADED] ${text.length} characters`);
-  return text;
+  // For binary document formats, return as base64 for Gemini native processing
+  const binaryFormats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'];
+  if (binaryFormats.includes(ext)) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+
+    const mimeTypes: Record<string, string> = {
+      pdf: 'application/pdf',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      doc: 'application/msword',
+      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      ppt: 'application/vnd.ms-powerpoint',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      xls: 'application/vnd.ms-excel',
+    };
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+    console.log(`[DOCUMENT_LOADED] Binary: ${ext}, ${buffer.byteLength} bytes`);
+    return { base64, mimeType };
+  }
+
+  // For text-based files, decode as UTF-8
+  const text = new TextDecoder().decode(buffer);
+  console.log(`[DOCUMENT_LOADED] Text: ${text.length} characters`);
+  return { text };
 }
 
 /**
  * Extract buyer criteria and deal information from uploaded documents
  * SOURCE PRIORITY: 60 (Document — lower than Transcript at 100)
- *
- * Handles CIMs, broker packages, deal memos, research notes, one-pagers,
- * and other shorter documents.
  */
 async function extractCriteriaFromDocument(
-  documentText: string,
+  content: DocumentContent,
   documentName: string,
   industryName: string
 ): Promise<any> {
@@ -82,10 +118,7 @@ RULES:
 First, identify the DOCUMENT TYPE (one of: CIM, broker_teaser, deal_memo, research_note, one_pager, financial_statement, other) and adjust your extraction approach accordingly.
 
 Document Name: "${documentName}"
-Industry: ${industryName}
-
-DOCUMENT CONTENT:
-${documentText.slice(0, 50000)}`;
+Industry: ${industryName}`;
 
   const tool = {
     type: "function",
@@ -251,9 +284,78 @@ ${documentText.slice(0, 50000)}`;
   }
 
   const startTime = Date.now();
+
+  // For binary documents, use Gemini's native multimodal with inline_data
+  if (content.base64 && content.mimeType) {
+    console.log(`[EXTRACTION] Using Gemini multimodal for binary document (${content.mimeType})`);
+
+    // Normalize tool format
+    const toolName = tool.function.name;
+    const fullPrompt = `${userPrompt}\n\nPlease analyze the attached document thoroughly.`;
+
+    const response = await callGeminiWithRetry(
+      GEMINI_API_URL,
+      getGeminiHeaders(geminiApiKey),
+      {
+        model: DEFAULT_GEMINI_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              {
+                type: "file",
+                file: {
+                  filename: documentName,
+                  file_data: `data:${content.mimeType};base64,${content.base64}`,
+                },
+              },
+              { type: "text", text: fullPrompt },
+            ],
+          },
+        ],
+        tools: [tool],
+        tool_choice: { type: "function", function: { name: toolName } },
+        temperature: 0,
+        max_tokens: 8192,
+      },
+      120000, // 2 min for large docs
+      'Gemini/doc-extract'
+    );
+
+    const duration = Date.now() - startTime;
+    console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`Gemini multimodal error: ${response.status}`, errText.substring(0, 500));
+      throw new Error(`AI extraction failed: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    if (responseData.usage) {
+      console.log(`[USAGE] Input: ${responseData.usage.prompt_tokens}, Output: ${responseData.usage.completion_tokens}`);
+    }
+
+    const toolCalls = responseData.choices?.[0]?.message?.tool_calls;
+    if (!toolCalls?.length) {
+      throw new Error('No tool calls in AI response for binary document');
+    }
+
+    try {
+      return JSON.parse(toolCalls[0].function.arguments);
+    } catch (e) {
+      throw new Error(`Failed to parse extraction result: ${e.message}`);
+    }
+  }
+
+  // For text documents, use the standard text-based extraction
+  const textContent = content.text || '';
+  const fullUserPrompt = `${userPrompt}\n\nDOCUMENT CONTENT:\n${textContent.slice(0, 50000)}`;
+
   const result = await callGeminiWithTool(
     systemPrompt,
-    userPrompt,
+    fullUserPrompt,
     tool,
     geminiApiKey,
     DEFAULT_GEMINI_MODEL,
@@ -320,8 +422,8 @@ serve(async (req) => {
     console.log(`[SOURCE_CREATED] ID: ${sourceRecord.id}`);
 
     try {
-      const documentText = await extractDocumentText(document_url);
-      const extractionResult = await extractCriteriaFromDocument(documentText, document_name, industry_name);
+      const content = await extractDocumentContent(document_url);
+      const extractionResult = await extractCriteriaFromDocument(content, document_name, industry_name);
 
       const confidenceScores: any = {
         overall: extractionResult.overall_confidence,
