@@ -190,7 +190,42 @@ serve(async (req) => {
     // Load Google service account credentials
     const saKeyRaw = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!saKeyRaw) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY not configured");
-    const saKey = JSON.parse(saKeyRaw);
+    
+    // Resilient JSON parsing — handle common copy-paste issues
+    let saKey: any;
+    const cleanJson = (raw: string) => {
+      return raw
+        .trim()
+        // Remove BOM and zero-width characters
+        .replace(/^\uFEFF/, '')
+        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+        // Fix smart/curly quotes
+        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+        // Fix non-breaking spaces
+        .replace(/\u00A0/g, ' ')
+        // Normalize line endings and collapse whitespace between JSON tokens
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
+    };
+    
+    const cleaned = cleanJson(saKeyRaw);
+    try {
+      saKey = JSON.parse(cleaned);
+    } catch (e) {
+      console.error(`Parse error: ${(e as Error).message}`);
+      // Log char codes around failure point
+      const pos = parseInt(String((e as Error).message).match(/position (\d+)/)?.[1] || '0');
+      if (pos > 0) {
+        const around = cleaned.substring(Math.max(0, pos - 5), pos + 10);
+        const codes = [...around].map(c => `${c}(${c.charCodeAt(0)})`).join(' ');
+        console.error(`Chars around position ${pos}: ${codes}`);
+      }
+      throw new Error(`GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON: ${(e as Error).message}`);
+    }
+    if (!saKey.client_email || !saKey.private_key) {
+      throw new Error(`Service account key missing required fields. Keys found: ${Object.keys(saKey).join(', ')}`);
+    }
 
     const sheetId = Deno.env.get("CAPTARGET_SHEET_ID");
     if (!sheetId) throw new Error("CAPTARGET_SHEET_ID not configured");
