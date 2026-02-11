@@ -24,8 +24,8 @@ export interface EnrichmentSummary {
 }
 
 const POLL_INTERVAL_MS = 5000;
-const PROCESS_INTERVAL_MS = 45000; // 45s — each buyer takes 30-60s, only one processed per invocation
-const MAX_POLLING_DURATION_MS = 60 * 60 * 1000; // 60 minutes — 43 buyers × ~1min each
+const PROCESS_INTERVAL_MS = 30000; // 30s — backup trigger; processor self-chains for continuous processing
+const MAX_POLLING_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours — 190 buyers at ~20s each
 
 export function useBuyerEnrichmentQueue(universeId?: string) {
   const queryClient = useQueryClient();

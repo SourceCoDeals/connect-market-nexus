@@ -1089,6 +1089,9 @@ Deno.serve(async (req) => {
 
     const scrapeResults = await Promise.all(scrapePromises);
 
+    // Start firecrawlMap discovery in parallel (will be awaited before geography extraction)
+    let locationPagePromise: Promise<string | null> | null = null;
+
     for (const { type, result } of scrapeResults) {
       if (type === 'platform') {
         if (result.success && result.content) {
@@ -1096,19 +1099,25 @@ Deno.serve(async (req) => {
           sources.platform = platformWebsite!;
           console.log(`Scraped platform website: ${platformContent.length} chars`);
 
-          // Try to find and scrape location page
-          const links = await firecrawlMap(platformWebsite!, firecrawlApiKey);
-          const locationPage = links.find(link =>
-            LOCATION_PATTERNS.some(p => link.toLowerCase().includes(p))
-          );
-
-          if (locationPage) {
-            console.log(`Found location page: ${locationPage}`);
-            const locationResult = await scrapeWebsite(locationPage, firecrawlApiKey);
-            if (locationResult.success && locationResult.content) {
-              platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationResult.content;
-            }
-          }
+          // PERF: Start location page discovery immediately (runs in parallel with Claude batch 1)
+          locationPagePromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
+            .then(async (links) => {
+              const locationPage = links.find(link =>
+                LOCATION_PATTERNS.some(p => link.toLowerCase().includes(p))
+              );
+              if (locationPage) {
+                console.log(`Found location page: ${locationPage}`);
+                const locationResult = await scrapeWebsite(locationPage, firecrawlApiKey);
+                if (locationResult.success && locationResult.content) {
+                  return locationResult.content;
+                }
+              }
+              return null;
+            })
+            .catch((err) => {
+              console.warn('Location page discovery failed:', err);
+              return null;
+            });
         } else {
           warnings.push(`Platform website scrape failed: ${result.error}`);
         }
@@ -1260,8 +1269,15 @@ Deno.serve(async (req) => {
       console.log(`Batch 1 complete: ${promptsSuccessful} successful so far`);
     }
 
-    // Delay between batches to avoid Anthropic RPM limits
-    await sleep(2000);
+    // Await location page discovery (was running in parallel with batch 1)
+    // This replaces the old 2s hard sleep — useful work instead of idle waiting
+    if (locationPagePromise) {
+      const locationContent = await locationPagePromise;
+      if (locationContent) {
+        platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationContent;
+        console.log('Appended location page data to platform content');
+      }
+    }
 
     // BATCH 2: PE firm extraction (1 combined call + size criteria)
     const batch2: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
