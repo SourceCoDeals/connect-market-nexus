@@ -21,32 +21,25 @@ interface DealQualityScores {
  * Calculate deal quality score based on deal attributes.
  * This is the overall quality of the deal, NOT how well it fits a specific buyer.
  *
- * SCORING METHODOLOGY V2 (0-100):
+ * SCORING METHODOLOGY V4 (0-100):
  *
- * 1. FINANCIAL SIZE (0-35 pts) — Revenue & EBITDA when available
- * 2. COMPANY SIGNALS (0-30 pts) — LinkedIn employees, Google reviews/rating
- * 3. MARKET POSITION (0-25 pts) — Geography, industry attractiveness, multi-location
- * 4. SELLER READINESS (0-25 pts) — Seller interest score (high motivation = big boost)
+ * SIZE (0-90 pts) — Always 90% of the score. Measured with the best available data:
+ *   - With financials: Revenue (0-75) + EBITDA (0-15)
+ *   - Without financials: LinkedIn employees (0-60) + Google reviews (0-15) + rating (0-15)
  *
- * KEY PRINCIPLE: Score what you have. Skip what you don't. Show confidence separately.
- * When financials are missing, their 35 points are redistributed proportionally
- * to Company Signals and Market Position. A deal with limited info that looks
- * great on what IS known should score high with lower confidence.
+ * MARKET (0-10 pts) — Always 10% of the score. Light bonus for geography/recurring revenue.
+ *
+ * Size floors guarantee minimum scores for large deals by revenue or EBITDA.
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
 
   // ===== NORMALIZE FINANCIALS =====
-  // Some deals store revenue/ebitda as millions (e.g., 20 = $20M) while
-  // others store as raw integers (e.g., 50000000 = $50M). Normalize to raw integers.
   const normalizeFinancial = (val: number): number => {
     if (val <= 0) return 0;
-    // Values under 1000 are assumed to be in millions (e.g., 20 → 20,000,000)
-    if (val < 1000) return Math.round(val * 1_000_000);
-    // Values 1000-99999 are assumed to be in thousands (e.g., 5000 → 5,000,000)
-    if (val < 100000) return Math.round(val * 1_000);
-    // Values >= 100000 are already raw integers
-    return val;
+    if (val < 1000) return Math.round(val * 1_000_000);   // millions: 20 → $20M
+    if (val < 100000) return Math.round(val * 1_000);      // thousands: 5000 → $5M
+    return val;                                              // raw: 50000000 → $50M
   };
 
   // ===== FINANCIAL SIZE (0-45 pts) =====
@@ -55,11 +48,18 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const revenue = normalizeFinancial(deal.revenue || 0);
   const ebitda = normalizeFinancial(deal.ebitda || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
-  let financialScore = 0;
+
+  const employeeCount = deal.linkedin_employee_count || 0;
+  const reviewCount = deal.google_review_count || 0;
+  const googleRating = deal.google_rating || 0;
 
   let revenueScore = 0;
   let ebitdaScore = 0;
   let linkedinBoost = 0;
+  let sizeFloor = 0;
+
+  // ===== SIZE (0-90 pts) =====
+  let sizeScore = 0;
 
   if (hasFinancials) {
     // Revenue scoring (0-35 pts) — this is the dominant signal
@@ -310,7 +310,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   return {
     deal_total_score: Math.min(100, Math.max(0, totalScore)),
-    deal_size_score: Math.min(70, Math.max(0, sizeIndicator)),
+    deal_size_score: Math.min(90, Math.max(0, sizeScore)),
     revenue_score: hasFinancials ? revenueScore : undefined,
     ebitda_score: hasFinancials ? ebitdaScore : undefined,
     linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
