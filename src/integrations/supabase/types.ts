@@ -4549,6 +4549,7 @@ export type Database = {
           captarget_outreach_channel: string | null
           captarget_row_hash: string | null
           captarget_source_url: string | null
+          captarget_status: string | null
           categories: string[] | null
           category: string | null
           competitive_position: string | null
@@ -4738,6 +4739,7 @@ export type Database = {
           captarget_outreach_channel?: string | null
           captarget_row_hash?: string | null
           captarget_source_url?: string | null
+          captarget_status?: string | null
           categories?: string[] | null
           category?: string | null
           competitive_position?: string | null
@@ -4927,6 +4929,7 @@ export type Database = {
           captarget_outreach_channel?: string | null
           captarget_row_hash?: string | null
           captarget_source_url?: string | null
+          captarget_status?: string | null
           categories?: string[] | null
           category?: string | null
           competitive_position?: string | null
