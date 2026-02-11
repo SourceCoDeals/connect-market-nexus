@@ -127,13 +127,13 @@ serve(async (req) => {
       );
     }
 
-    // FIX #5: Pre-flight check for ANTHROPIC_API_KEY (used by extract-deal-transcript)
-    if (!anthropicApiKey) {
-      console.error('[enrich-deal] ANTHROPIC_API_KEY is not set — transcript extraction will fail');
+    // Pre-flight check for GEMINI_API_KEY (used by extract-deal-transcript)
+    if (!geminiApiKey) {
+      console.error('[enrich-deal] GEMINI_API_KEY is not set — transcript extraction will fail');
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'ANTHROPIC_API_KEY is not configured. Please add it to Supabase Edge Function secrets.',
+          error: 'GEMINI_API_KEY is not configured. Please add it to Supabase Edge Function secrets.',
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
