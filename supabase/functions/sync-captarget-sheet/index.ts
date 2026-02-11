@@ -124,7 +124,7 @@ function normalizeOutreachChannel(raw: string | undefined): string {
   if (!raw) return "Unknown";
   const trimmed = raw.trim().toUpperCase();
   if (trimmed === "C" || trimmed === "COLD CALL") return "Cold Call";
-  if (trimmed === "Y" || trimmed === "COLD EMAIL") return "Cold Email";
+  if (trimmed === "Y" || trimmed === "YES" || trimmed === "COLD EMAIL") return "Cold Email";
   if (trimmed === "N" || trimmed === "NOT INTERESTED") return "Not Interested";
   return "Unknown";
 }
@@ -249,7 +249,7 @@ serve(async (req) => {
             captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
             captarget_interest_type: normalizeInterestType(row[COL.type]),
             website: (row[COL.url] || "").trim() || null,
-            primary_contact_phone: (row[COL.phone] || "").trim() || null,
+            main_contact_phone: (row[COL.phone] || "").trim() || null,
             captarget_source_url: (row[COL.source_url] || "").trim() || null,
             deal_source: "captarget",
             status: "captarget_review",

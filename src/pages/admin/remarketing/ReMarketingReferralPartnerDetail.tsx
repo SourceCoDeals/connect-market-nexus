@@ -71,6 +71,7 @@ import { AddPartnerDialog } from "@/components/remarketing/AddPartnerDialog";
 import { AddDealDialog } from "@/components/remarketing/AddDealDialog";
 import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
 import { SubmissionReviewQueue } from "@/components/remarketing/SubmissionReviewQueue";
+import { DealSourceBadge } from "@/components/remarketing/DealSourceBadge";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { SingleDealEnrichmentDialog, type SingleDealEnrichmentResult } from "@/components/remarketing/SingleDealEnrichmentDialog";
 import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing/ScoreTierBadge";
@@ -148,10 +149,10 @@ export default function ReMarketingReferralPartnerDetail() {
         .select(
            `id, title, internal_company_name, location, revenue, ebitda, category, website,
            status, created_at, full_time_employees, address_city, address_state,
-           enriched_at, deal_total_score, deal_quality_score, 
+           enriched_at, deal_total_score, deal_quality_score,
            linkedin_employee_count, linkedin_employee_range,
            google_review_count, google_rating, is_priority_target,
-           main_contact_name, main_contact_title, main_contact_email`
+           main_contact_name, main_contact_title, main_contact_email, deal_source`
         )
         .eq("referral_partner_id", partnerId!)
         .order("created_at", { ascending: false });
@@ -991,6 +992,7 @@ export default function ReMarketingReferralPartnerDetail() {
                               <Sparkles className="h-3 w-3 text-amber-500 flex-shrink-0" />
                             )}
                             <span>{normalizeCompanyName(deal.internal_company_name || deal.title || "Untitled")}</span>
+                            <DealSourceBadge source={deal.deal_source} />
                           </div>
                           {domain && (
                             <div className="text-xs text-muted-foreground">{domain}</div>

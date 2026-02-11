@@ -409,9 +409,7 @@ const SortableTableRow = ({
                 </TooltipContent>
               </Tooltip>
             )}
-            {listing.deal_source && listing.deal_source !== 'manual' && (
-              <DealSourceBadge source={listing.deal_source} />
-            )}
+            <DealSourceBadge source={listing.deal_source} />
           </p>
           {domain && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
