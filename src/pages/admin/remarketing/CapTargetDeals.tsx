@@ -83,6 +83,8 @@ export default function CapTargetDeals() {
   const [interestFilter, setInterestFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
@@ -192,6 +194,14 @@ export default function CapTargetDeals() {
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals)
         return false;
 
+      // Date range filter
+      if (dateFrom && deal.captarget_contact_date) {
+        if (deal.captarget_contact_date < dateFrom) return false;
+      }
+      if (dateTo && deal.captarget_contact_date) {
+        if (deal.captarget_contact_date > dateTo + "T23:59:59") return false;
+      }
+
       return true;
     });
 
@@ -245,6 +255,8 @@ export default function CapTargetDeals() {
     interestFilter,
     channelFilter,
     pushedFilter,
+    dateFrom,
+    dateTo,
     sortColumn,
     sortDirection,
   ]);
@@ -288,8 +300,19 @@ export default function CapTargetDeals() {
 
       let successCount = 0;
       let failCount = 0;
+      let skippedCount = 0;
 
-      for (const id of dealIds) {
+      // Filter out already-pushed deals
+      const unpushedIds = dealIds.filter((id) => {
+        const deal = deals?.find((d) => d.id === id);
+        if (deal?.pushed_to_all_deals) {
+          skippedCount++;
+          return false;
+        }
+        return true;
+      });
+
+      for (const id of unpushedIds) {
         const { error } = await supabase
           .from("listings")
           .update({
@@ -310,9 +333,17 @@ export default function CapTargetDeals() {
       setIsPushing(false);
       setSelectedIds(new Set());
 
+      const parts = [];
+      if (successCount > 0)
+        parts.push(`${successCount} deal${successCount !== 1 ? "s" : ""} pushed`);
+      if (skippedCount > 0)
+        parts.push(`${skippedCount} already pushed`);
+      if (failCount > 0)
+        parts.push(`${failCount} failed`);
+
       toast({
         title: "Push to All Deals",
-        description: `${successCount} deal${successCount !== 1 ? "s" : ""} pushed to All Deals${failCount > 0 ? `. ${failCount} failed.` : "."}`,
+        description: parts.join(". ") + ".",
       });
 
       queryClient.invalidateQueries({
@@ -320,7 +351,7 @@ export default function CapTargetDeals() {
       });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
     },
-    [toast, queryClient]
+    [toast, queryClient, deals]
   );
 
   // Enrich selected deals
@@ -507,6 +538,26 @@ export default function CapTargetDeals() {
                 <SelectItem value="not_pushed">Not Pushed</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Date range filter */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-[140px] h-9"
+                placeholder="From"
+              />
+              <span className="text-muted-foreground text-xs">to</span>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-[140px] h-9"
+                placeholder="To"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
