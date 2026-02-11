@@ -195,149 +195,166 @@ serve(async (req) => {
     const sheetId = Deno.env.get("CAPTARGET_SHEET_ID");
     if (!sheetId) throw new Error("CAPTARGET_SHEET_ID not configured");
 
-    const tabName = Deno.env.get("CAPTARGET_TAB_NAME") || "Sheet1";
+    // Pull from both tabs — configurable via env, defaults to Active/Inactive
+    const activeTab = Deno.env.get("CAPTARGET_ACTIVE_TAB") || "Active";
+    const inactiveTab = Deno.env.get("CAPTARGET_INACTIVE_TAB") || "Inactive";
+    const tabs = [
+      { name: activeTab, captarget_status: "active" },
+      { name: inactiveTab, captarget_status: "inactive" },
+    ];
 
     // Authenticate and fetch sheet data
     const accessToken = await getAccessToken(saKey);
-    const allRows = await fetchSheetRows(accessToken, sheetId, tabName);
 
-    if (allRows.length < 2) {
-      throw new Error("Sheet has no data rows (only header or empty)");
-    }
-
-    // Skip header row (row 0) and skip 'Last Updated' metadata row if present
-    const dataRows = allRows.slice(1).filter((row) => {
-      const firstCell = (row[0] || "").trim().toLowerCase();
-      return firstCell !== "last updated" && firstCell !== "";
-    });
-
-    rowsRead = dataRows.length;
-    console.log(`Read ${rowsRead} data rows from sheet`);
-
-    // Process in batches
-    for (let i = 0; i < dataRows.length; i += BATCH_SIZE) {
-      const batch = dataRows.slice(i, i + BATCH_SIZE);
-      const batchRecords: any[] = [];
-      const batchHashes: string[] = [];
-
-      for (const row of batch) {
-        try {
-          const clientName = (row[COL.client_folder_name] || "").trim();
-          const companyName = (row[COL.company_name] || "").trim();
-          const dateRaw = (row[COL.date] || "").trim();
-          const firstName = (row[COL.first_name] || "").trim();
-          const lastName = (row[COL.last_name] || "").trim();
-
-          // Generate composite hash for dedup
-          const hashInput = `${clientName}|${companyName}|${dateRaw}`;
-          const rowHash = await computeHash(hashInput);
-
-          const contactDate = parseDate(dateRaw);
-          const contactName = [firstName, lastName].filter(Boolean).join(" ");
-
-          const record: Record<string, any> = {
-            captarget_row_hash: rowHash,
-            captarget_client_name: clientName || null,
-            title: companyName || null,
-            internal_company_name: companyName || null,
-            captarget_contact_date: contactDate,
-            captarget_call_notes: (row[COL.details] || "").trim() || null,
-            description: (row[COL.details] || "").trim() || null,
-            main_contact_email: (row[COL.email] || "").trim() || null,
-            main_contact_name: contactName || null,
-            main_contact_title: (row[COL.title] || "").trim() || null,
-            captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
-            captarget_interest_type: normalizeInterestType(row[COL.type]),
-            website: (row[COL.url] || "").trim() || null,
-            main_contact_phone: (row[COL.phone] || "").trim() || null,
-            captarget_source_url: (row[COL.source_url] || "").trim() || null,
-            deal_source: "captarget",
-            status: "captarget_review",
-            pushed_to_all_deals: false,
-          };
-
-          batchRecords.push(record);
-          batchHashes.push(rowHash);
-        } catch (rowErr: any) {
-          rowsSkipped++;
-          syncErrors.push({
-            row: i + batch.indexOf(row) + 2, // 1-indexed + header
-            error: rowErr.message,
-            data: row.slice(0, 5), // first 5 cols for debugging
-          });
-        }
-      }
-
-      if (batchRecords.length === 0) continue;
-
-      // Check which hashes already exist
-      const { data: existing, error: lookupErr } = await supabase
-        .from("listings")
-        .select("id, captarget_row_hash")
-        .in("captarget_row_hash", batchHashes);
-
-      if (lookupErr) {
-        console.error("Hash lookup error:", lookupErr);
-        rowsSkipped += batchRecords.length;
-        syncErrors.push({ batch: i, error: lookupErr.message });
+    for (const tab of tabs) {
+      let tabRows: string[][];
+      try {
+        tabRows = await fetchSheetRows(accessToken, sheetId, tab.name);
+      } catch (tabErr: any) {
+        console.error(`Failed to fetch tab "${tab.name}":`, tabErr.message);
+        syncErrors.push({ tab: tab.name, error: tabErr.message });
         continue;
       }
 
-      const existingMap = new Map(
-        (existing || []).map((r: any) => [r.captarget_row_hash, r.id])
-      );
-
-      const toInsert: any[] = [];
-      const toUpdate: { id: string; record: any }[] = [];
-
-      for (const record of batchRecords) {
-        const existingId = existingMap.get(record.captarget_row_hash);
-        if (existingId) {
-          // Update existing — don't overwrite status or pushed flags
-          const { status, pushed_to_all_deals, deal_source, ...updateFields } =
-            record;
-          toUpdate.push({ id: existingId, record: updateFields });
-        } else {
-          toInsert.push(record);
-        }
+      if (tabRows.length < 2) {
+        console.log(`Tab "${tab.name}" has no data rows, skipping`);
+        continue;
       }
 
-      // Batch insert new records
-      if (toInsert.length > 0) {
-        const { error: insertErr } = await supabase
+      // Skip header row (row 0) and skip 'Last Updated' metadata row if present
+      const dataRows = tabRows.slice(1).filter((row) => {
+        const firstCell = (row[0] || "").trim().toLowerCase();
+        return firstCell !== "last updated" && firstCell !== "";
+      });
+
+      rowsRead += dataRows.length;
+      console.log(`Read ${dataRows.length} data rows from tab "${tab.name}"`);
+
+      // Process in batches
+      for (let i = 0; i < dataRows.length; i += BATCH_SIZE) {
+        const batch = dataRows.slice(i, i + BATCH_SIZE);
+        const batchRecords: any[] = [];
+        const batchHashes: string[] = [];
+
+        for (const row of batch) {
+          try {
+            const clientName = (row[COL.client_folder_name] || "").trim();
+            const companyName = (row[COL.company_name] || "").trim();
+            const dateRaw = (row[COL.date] || "").trim();
+            const firstName = (row[COL.first_name] || "").trim();
+            const lastName = (row[COL.last_name] || "").trim();
+
+            // Generate composite hash for dedup
+            const hashInput = `${clientName}|${companyName}|${dateRaw}`;
+            const rowHash = await computeHash(hashInput);
+
+            const contactDate = parseDate(dateRaw);
+            const contactName = [firstName, lastName].filter(Boolean).join(" ");
+
+            const record: Record<string, any> = {
+              captarget_row_hash: rowHash,
+              captarget_client_name: clientName || null,
+              title: companyName || null,
+              internal_company_name: companyName || null,
+              captarget_contact_date: contactDate,
+              captarget_call_notes: (row[COL.details] || "").trim() || null,
+              description: (row[COL.details] || "").trim() || null,
+              main_contact_email: (row[COL.email] || "").trim() || null,
+              main_contact_name: contactName || null,
+              main_contact_title: (row[COL.title] || "").trim() || null,
+              captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
+              captarget_interest_type: normalizeInterestType(row[COL.type]),
+              website: (row[COL.url] || "").trim() || null,
+              main_contact_phone: (row[COL.phone] || "").trim() || null,
+              captarget_source_url: (row[COL.source_url] || "").trim() || null,
+              captarget_status: tab.captarget_status,
+              deal_source: "captarget",
+              status: "captarget_review",
+              pushed_to_all_deals: false,
+            };
+
+            batchRecords.push(record);
+            batchHashes.push(rowHash);
+          } catch (rowErr: any) {
+            rowsSkipped++;
+            syncErrors.push({
+              tab: tab.name,
+              row: i + batch.indexOf(row) + 2,
+              error: rowErr.message,
+              data: row.slice(0, 5),
+            });
+          }
+        }
+
+        if (batchRecords.length === 0) continue;
+
+        // Check which hashes already exist
+        const { data: existing, error: lookupErr } = await supabase
           .from("listings")
-          .insert(toInsert);
+          .select("id, captarget_row_hash")
+          .in("captarget_row_hash", batchHashes);
 
-        if (insertErr) {
-          console.error("Insert error:", insertErr);
-          rowsSkipped += toInsert.length;
-          syncErrors.push({ batch: i, op: "insert", error: insertErr.message });
-        } else {
-          rowsInserted += toInsert.length;
+        if (lookupErr) {
+          console.error("Hash lookup error:", lookupErr);
+          rowsSkipped += batchRecords.length;
+          syncErrors.push({ batch: i, error: lookupErr.message });
+          continue;
+        }
+
+        const existingMap = new Map(
+          (existing || []).map((r: any) => [r.captarget_row_hash, r.id])
+        );
+
+        const toInsert: any[] = [];
+        const toUpdate: { id: string; record: any }[] = [];
+
+        for (const record of batchRecords) {
+          const existingId = existingMap.get(record.captarget_row_hash);
+          if (existingId) {
+            const { status, pushed_to_all_deals, deal_source, ...updateFields } = record;
+            toUpdate.push({ id: existingId, record: updateFields });
+          } else {
+            toInsert.push(record);
+          }
+        }
+
+        if (toInsert.length > 0) {
+          const { error: insertErr } = await supabase
+            .from("listings")
+            .insert(toInsert);
+
+          if (insertErr) {
+            console.error("Insert error:", insertErr);
+            rowsSkipped += toInsert.length;
+            syncErrors.push({ batch: i, op: "insert", error: insertErr.message });
+          } else {
+            rowsInserted += toInsert.length;
+          }
+        }
+
+        for (const { id, record } of toUpdate) {
+          const { error: updateErr } = await supabase
+            .from("listings")
+            .update(record)
+            .eq("id", id);
+
+          if (updateErr) {
+            rowsSkipped++;
+            syncErrors.push({ id, op: "update", error: updateErr.message });
+          } else {
+            rowsUpdated++;
+          }
+        }
+
+        // Check if we're approaching Edge Function timeout (50s)
+        if (Date.now() - startTime > 45000) {
+          console.warn("Approaching timeout, committing partial sync");
+          syncStatus = "partial";
+          break;
         }
       }
 
-      // Update existing records one by one (to preserve individual row integrity)
-      for (const { id, record } of toUpdate) {
-        const { error: updateErr } = await supabase
-          .from("listings")
-          .update(record)
-          .eq("id", id);
-
-        if (updateErr) {
-          rowsSkipped++;
-          syncErrors.push({ id, op: "update", error: updateErr.message });
-        } else {
-          rowsUpdated++;
-        }
-      }
-
-      // Check if we're approaching Edge Function timeout (50s)
-      if (Date.now() - startTime > 45000) {
-        console.warn("Approaching timeout, committing partial sync");
-        syncStatus = "partial";
-        break;
-      }
+      if (syncStatus === "partial") break;
     }
   } catch (err: any) {
     console.error("Sync failed:", err.message);
