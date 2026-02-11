@@ -128,3 +128,6 @@ export { AddPartnerDialog } from './AddPartnerDialog';
 export { SubmissionReviewQueue } from './SubmissionReviewQueue';
 export { ReferralSubmissionForm } from './ReferralSubmissionForm';
 export { ReferralCSVUpload } from './ReferralCSVUpload';
+
+// Deal Source Components
+export { DealSourceBadge } from './DealSourceBadge';
