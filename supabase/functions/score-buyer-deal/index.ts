@@ -1084,8 +1084,8 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
 
   // Bonus/penalty from buyer-specific data
   if (thesis) {
-    const goalKeywords = ownerGoals.split(/\s+/).filter(w => w.length > 3);
-    const thesisAligns = goalKeywords.some(gw => thesis.includes(gw));
+    const goalKeywords = ownerGoals.split(/\s+/).filter((w: string) => w.length > 3);
+    const thesisAligns = goalKeywords.some((gw: string) => thesis.includes(gw));
     if (thesisAligns) score = Math.min(100, score + 8);
   }
 
