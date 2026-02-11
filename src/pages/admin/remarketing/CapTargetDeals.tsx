@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,9 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import {
   Search,
   Building2,
@@ -31,14 +38,15 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowRight,
-  Phone,
-  Mail,
   Calendar,
   Loader2,
+  BarChart3,
+  ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
-import { DealSourceBadge } from "@/components/remarketing/DealSourceBadge";
 import { cn } from "@/lib/utils";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useAuth } from "@/context/AuthContext";
 
 interface CapTargetDeal {
   id: string;
@@ -60,6 +68,7 @@ interface CapTargetDeal {
   status: string | null;
   created_at: string;
   enriched_at: string | null;
+  deal_quality_score: number | null;
 }
 
 type SortColumn =
@@ -69,13 +78,17 @@ type SortColumn =
   | "interest_type"
   | "outreach_channel"
   | "contact_date"
-  | "pushed";
+  | "pushed"
+  | "score";
 type SortDirection = "asc" | "desc";
 
 export default function CapTargetDeals() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { completeOperation, updateProgress } = useGlobalActivityMutations();
 
   // Filters
   const [search, setSearch] = useState("");
@@ -96,6 +109,7 @@ export default function CapTargetDeals() {
   // Push in progress
   const [isPushing, setIsPushing] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isScoring, setIsScoring] = useState(false);
 
   // Fetch CapTarget deals
   const {
@@ -129,7 +143,8 @@ export default function CapTargetDeals() {
           deal_source,
           status,
           created_at,
-          enriched_at
+          enriched_at,
+          deal_quality_score
         `
         )
         .eq("deal_source", "captarget")
@@ -159,7 +174,6 @@ export default function CapTargetDeals() {
     if (!deals) return [];
 
     let filtered = deals.filter((deal) => {
-      // Search filter
       if (search) {
         const q = search.toLowerCase();
         const matchesSearch =
@@ -170,45 +184,22 @@ export default function CapTargetDeals() {
           (deal.main_contact_email || "").toLowerCase().includes(q);
         if (!matchesSearch) return false;
       }
-
-      // Client filter
-      if (clientFilter !== "all" && deal.captarget_client_name !== clientFilter)
-        return false;
-
-      // Interest type filter
-      if (
-        interestFilter !== "all" &&
-        deal.captarget_interest_type !== interestFilter
-      )
-        return false;
-
-      // Channel filter
-      if (
-        channelFilter !== "all" &&
-        deal.captarget_outreach_channel !== channelFilter
-      )
-        return false;
-
-      // Pushed filter
+      if (clientFilter !== "all" && deal.captarget_client_name !== clientFilter) return false;
+      if (interestFilter !== "all" && deal.captarget_interest_type !== interestFilter) return false;
+      if (channelFilter !== "all" && deal.captarget_outreach_channel !== channelFilter) return false;
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
-      if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals)
-        return false;
-
-      // Date range filter
+      if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
       if (dateFrom && deal.captarget_contact_date) {
         if (deal.captarget_contact_date < dateFrom) return false;
       }
       if (dateTo && deal.captarget_contact_date) {
         if (deal.captarget_contact_date > dateTo + "T23:59:59") return false;
       }
-
       return true;
     });
 
-    // Sort
     filtered.sort((a, b) => {
       let valA: any, valB: any;
-
       switch (sortColumn) {
         case "company_name":
           valA = (a.internal_company_name || a.title || "").toLowerCase();
@@ -238,28 +229,20 @@ export default function CapTargetDeals() {
           valA = a.pushed_to_all_deals ? 1 : 0;
           valB = b.pushed_to_all_deals ? 1 : 0;
           break;
+        case "score":
+          valA = a.deal_quality_score ?? -1;
+          valB = b.deal_quality_score ?? -1;
+          break;
         default:
           return 0;
       }
-
       if (valA < valB) return sortDirection === "asc" ? -1 : 1;
       if (valA > valB) return sortDirection === "asc" ? 1 : -1;
       return 0;
     });
 
     return filtered;
-  }, [
-    deals,
-    search,
-    clientFilter,
-    interestFilter,
-    channelFilter,
-    pushedFilter,
-    dateFrom,
-    dateTo,
-    sortColumn,
-    sortDirection,
-  ]);
+  }, [deals, search, clientFilter, interestFilter, channelFilter, pushedFilter, dateFrom, dateTo, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -271,9 +254,7 @@ export default function CapTargetDeals() {
   };
 
   // Selection helpers
-  const allSelected =
-    filteredDeals.length > 0 &&
-    filteredDeals.every((d) => selectedIds.has(d.id));
+  const allSelected = filteredDeals.length > 0 && filteredDeals.every((d) => selectedIds.has(d.id));
 
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -292,69 +273,168 @@ export default function CapTargetDeals() {
     });
   };
 
-  // Push to All Deals
+  // Push to All Deals (approve)
   const handlePushToAllDeals = useCallback(
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
       setIsPushing(true);
 
-      let successCount = 0;
-      let failCount = 0;
-      let skippedCount = 0;
-
-      // Filter out already-pushed deals
-      const unpushedIds = dealIds.filter((id) => {
-        const deal = deals?.find((d) => d.id === id);
-        if (deal?.pushed_to_all_deals) {
-          skippedCount++;
-          return false;
-        }
-        return true;
-      });
-
-      for (const id of unpushedIds) {
-        const { error } = await supabase
-          .from("listings")
-          .update({
-            status: "active",
-            pushed_to_all_deals: true,
-            pushed_to_all_deals_at: new Date().toISOString(),
-          })
-          .eq("id", id);
-
-        if (error) {
-          failCount++;
-          console.error(`Failed to push deal ${id}:`, error);
-        } else {
-          successCount++;
-        }
-      }
+      const { error } = await supabase
+        .from("listings")
+        .update({
+          status: "active",
+          pushed_to_all_deals: true,
+          pushed_to_all_deals_at: new Date().toISOString(),
+        } as never)
+        .in("id", dealIds);
 
       setIsPushing(false);
       setSelectedIds(new Set());
 
-      const parts = [];
-      if (successCount > 0)
-        parts.push(`${successCount} deal${successCount !== 1 ? "s" : ""} pushed`);
-      if (skippedCount > 0)
-        parts.push(`${skippedCount} already pushed`);
-      if (failCount > 0)
-        parts.push(`${failCount} failed`);
+      if (error) {
+        toast({ title: "Error", description: "Failed to approve deals" });
+      } else {
+        toast({
+          title: "Approved",
+          description: `${dealIds.length} deal${dealIds.length !== 1 ? "s" : ""} pushed to All Deals.`,
+        });
+      }
 
-      toast({
-        title: "Push to All Deals",
-        description: parts.join(". ") + ".",
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["remarketing", "captarget-deals"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
     },
-    [toast, queryClient, deals]
+    [toast, queryClient]
   );
 
-  // Enrich selected deals
+  // Bulk Enrich
+  const handleBulkEnrich = useCallback(
+    async (mode: "unenriched" | "all") => {
+      if (!deals?.length) return;
+      const targets = mode === "unenriched"
+        ? deals.filter((d) => !d.enriched_at)
+        : deals;
+
+      if (!targets.length) {
+        sonnerToast.info("No deals to enrich");
+        return;
+      }
+
+      setIsEnriching(true);
+
+      // Register in global activity queue
+      let activityItem: { id: string } | null = null;
+      try {
+        const result = await startOrQueueMajorOp({
+          operationType: "deal_enrichment",
+          totalItems: targets.length,
+          description: `Enriching ${targets.length} CapTarget deals`,
+          userId: user?.id || "",
+          contextJson: { source: "captarget" },
+        });
+        activityItem = result.item;
+      } catch {
+        // Non-blocking
+      }
+
+      const now = new Date().toISOString();
+      const rows = targets.map((d) => ({
+        listing_id: d.id,
+        status: "pending",
+        attempts: 0,
+        queued_at: now,
+      }));
+
+      const { error } = await supabase
+        .from("enrichment_queue")
+        .upsert(rows, { onConflict: "listing_id" });
+
+      if (error) {
+        sonnerToast.error("Failed to queue enrichment");
+        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+        setIsEnriching(false);
+        return;
+      }
+
+      sonnerToast.success(`Queued ${targets.length} deals for enrichment`);
+
+      // Trigger worker
+      try {
+        const { data: result } = await supabase.functions
+          .invoke("process-enrichment-queue", { body: { source: "captarget_bulk" } });
+
+        if (result?.synced > 0 || result?.processed > 0) {
+          const totalDone = (result?.synced || 0) + (result?.processed || 0);
+          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+          if (result?.processed === 0) {
+            sonnerToast.success(`All ${result.synced} deals were already enriched`);
+            if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+
+      setIsEnriching(false);
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+    },
+    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+  );
+
+  // Bulk Score
+  const handleBulkScore = useCallback(
+    async (mode: "unscored" | "all") => {
+      if (!deals?.length) return;
+      const targets = mode === "unscored"
+        ? deals.filter((d) => d.deal_quality_score == null)
+        : deals;
+
+      if (!targets.length) {
+        sonnerToast.info("No deals to score");
+        return;
+      }
+
+      setIsScoring(true);
+
+      // Register in global activity queue
+      let activityItem: { id: string } | null = null;
+      try {
+        const result = await startOrQueueMajorOp({
+          operationType: "deal_enrichment",
+          totalItems: targets.length,
+          description: `Scoring ${targets.length} CapTarget deals`,
+          userId: user?.id || "",
+          contextJson: { source: "captarget_scoring" },
+        });
+        activityItem = result.item;
+      } catch {
+        // Non-blocking
+      }
+
+      sonnerToast.info(`Scoring ${targets.length} deals...`);
+
+      let successCount = 0;
+      for (const deal of targets) {
+        try {
+          await supabase.functions.invoke("calculate-deal-quality", {
+            body: { listingId: deal.id },
+          });
+          successCount++;
+          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
+        } catch {
+          // continue
+        }
+      }
+
+      sonnerToast.success(`Scored ${successCount} of ${targets.length} deals`);
+      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+
+      setIsScoring(false);
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+    },
+    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+  );
+
+  // Enrich selected deals (existing)
   const handleEnrichSelected = useCallback(
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
@@ -380,11 +460,8 @@ export default function CapTargetDeals() {
         description: `${queued} deal${queued !== 1 ? "s" : ""} queued for enrichment.`,
       });
 
-      // Refresh after a delay for enrichment to complete
       setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: ["remarketing", "captarget-deals"],
-        });
+        queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
       }, 5000);
     },
     [toast, queryClient]
@@ -392,36 +469,28 @@ export default function CapTargetDeals() {
 
   const interestTypeLabel = (type: string | null) => {
     switch (type) {
-      case "interest":
-        return "Interest";
-      case "no_interest":
-        return "No Interest";
-      case "keep_in_mind":
-        return "Keep in Mind";
-      default:
-        return "Unknown";
+      case "interest": return "Interest";
+      case "no_interest": return "No Interest";
+      case "keep_in_mind": return "Keep in Mind";
+      default: return "Unknown";
     }
   };
 
   const interestTypeBadgeClass = (type: string | null) => {
     switch (type) {
-      case "interest":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "no_interest":
-        return "bg-red-50 text-red-700 border-red-200";
-      case "keep_in_mind":
-        return "bg-amber-50 text-amber-700 border-amber-200";
-      default:
-        return "bg-gray-50 text-gray-600 border-gray-200";
+      case "interest": return "bg-green-50 text-green-700 border-green-200";
+      case "no_interest": return "bg-red-50 text-red-700 border-red-200";
+      case "keep_in_mind": return "bg-amber-50 text-amber-700 border-amber-200";
+      default: return "bg-gray-50 text-gray-600 border-gray-200";
     }
   };
 
   // Summary stats
   const totalDeals = deals?.length || 0;
-  const unpushedCount =
-    deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
-  const interestCount =
-    deals?.filter((d) => d.captarget_interest_type === "interest").length || 0;
+  const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
+  const interestCount = deals?.filter((d) => d.captarget_interest_type === "interest").length || 0;
+  const enrichedCount = deals?.filter((d) => d.enriched_at).length || 0;
+  const scoredCount = deals?.filter((d) => d.deal_quality_score != null).length || 0;
 
   const SortHeader = ({
     column,
@@ -463,9 +532,58 @@ export default function CapTargetDeals() {
             CapTarget Deals
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {totalDeals} total deals &middot; {unpushedCount} un-pushed &middot;{" "}
-            {interestCount} showing interest
+            {totalDeals} total &middot; {unpushedCount} un-pushed &middot;{" "}
+            {interestCount} interest &middot; {enrichedCount} enriched &middot; {scoredCount} scored
           </p>
+        </div>
+
+        {/* Global bulk actions */}
+        <div className="flex items-center gap-2">
+          {/* Bulk Enrich dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={isEnriching}>
+                {isEnriching ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-1" />
+                )}
+                Enrich
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleBulkEnrich("unenriched")}>
+                Enrich Unenriched
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBulkEnrich("all")}>
+                Re-enrich All
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Bulk Score dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={isScoring}>
+                {isScoring ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <BarChart3 className="h-4 w-4 mr-1" />
+                )}
+                Score
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleBulkScore("unscored")}>
+                Score Unscored
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBulkScore("all")}>
+                Recalculate All
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -562,7 +680,7 @@ export default function CapTargetDeals() {
         </CardContent>
       </Card>
 
-      {/* Bulk Actions */}
+      {/* Bulk Actions (selection-based) */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
           <span className="text-sm font-medium">
@@ -577,9 +695,9 @@ export default function CapTargetDeals() {
             {isPushing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <ArrowRight className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" />
             )}
-            Push to All Deals
+            Approve to All Deals
           </Button>
           <Button
             size="sm"
@@ -634,10 +752,13 @@ export default function CapTargetDeals() {
                     <SortHeader column="outreach_channel">Channel</SortHeader>
                   </TableHead>
                   <TableHead>
+                    <SortHeader column="score">Score</SortHeader>
+                  </TableHead>
+                  <TableHead>
                     <SortHeader column="contact_date">Date</SortHeader>
                   </TableHead>
                   <TableHead>
-                    <SortHeader column="pushed">Pushed</SortHeader>
+                    <SortHeader column="pushed">Status</SortHeader>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -645,13 +766,13 @@ export default function CapTargetDeals() {
                 {filteredDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
                       <p className="font-medium">No CapTarget deals found</p>
                       <p className="text-sm mt-1">
-                        Deals will appear here after the nightly sync runs.
+                        Deals will appear here after the sync runs.
                       </p>
                     </TableCell>
                   </TableRow>
@@ -711,9 +832,7 @@ export default function CapTargetDeals() {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={interestTypeBadgeClass(
-                            deal.captarget_interest_type
-                          )}
+                          className={interestTypeBadgeClass(deal.captarget_interest_type)}
                         >
                           {interestTypeLabel(deal.captarget_interest_type)}
                         </Badge>
@@ -724,29 +843,42 @@ export default function CapTargetDeals() {
                         </span>
                       </TableCell>
                       <TableCell>
+                        {deal.deal_quality_score != null ? (
+                          <Badge variant="outline" className={cn(
+                            "tabular-nums",
+                            deal.deal_quality_score >= 80 ? "bg-green-50 text-green-700 border-green-200" :
+                            deal.deal_quality_score >= 60 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                            "bg-gray-50 text-gray-600 border-gray-200"
+                          )}>
+                            {deal.deal_quality_score}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <span className="text-sm text-muted-foreground">
                           {deal.captarget_contact_date
-                            ? format(
-                                new Date(deal.captarget_contact_date),
-                                "MMM d, yyyy"
-                              )
+                            ? format(new Date(deal.captarget_contact_date), "MMM d, yyyy")
                             : "—"}
                         </span>
                       </TableCell>
                       <TableCell>
-                        {deal.pushed_to_all_deals ? (
-                          <Badge
-                            variant="outline"
-                            className="bg-green-50 text-green-700 border-green-200 gap-1"
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                            Pushed
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            —
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {deal.pushed_to_all_deals ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Pushed
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                          {deal.enriched_at && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                              Enriched
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
