@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
-import { callClaudeWithTool, DEFAULT_CLAUDE_MODEL } from "../_shared/ai-providers.ts";
+import { callGeminiWithTool, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -154,9 +154,9 @@ serve(async (req) => {
     console.log(`Extracting intelligence from transcript ${transcriptId}, text length: ${transcriptText.length}`);
 
     // Use AI to extract intelligence
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!anthropicApiKey) {
-      throw new Error('ANTHROPIC_API_KEY not configured');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     const extractionPrompt = `You are a senior M&A analyst conducting due diligence on a potential acquisition target. You are reviewing a call transcript or meeting notes between our team and a business owner, broker, or company representative.
@@ -656,19 +656,19 @@ CORE RULES:
 
 10. IGNORE THE INTERVIEWER: Extract data from the business owner/seller's statements only. Do not extract questions or comments from the SourceCo interviewer as data points (exception: if the interviewer states facts about the business that the owner confirms).`;
 
-    // Call Claude API with 90s timeout for long transcripts, 8192 max tokens for detailed extraction
-    const { data: extracted, error: aiError } = await callClaudeWithTool(
+    // Call Gemini API with 90s timeout for long transcripts, 8192 max tokens for detailed extraction
+    const { data: extracted, error: aiError } = await callGeminiWithTool(
       systemPrompt,
       extractionPrompt,
       tool,
-      anthropicApiKey,
-      DEFAULT_CLAUDE_MODEL,
+      geminiApiKey,
+      DEFAULT_GEMINI_MODEL,
       90000,
       8192
     ) as { data: ExtractionResult | null; error?: { code: string; message: string } };
 
     if (aiError) {
-      console.error('Claude API error:', aiError);
+      console.error('Gemini API error:', aiError);
       throw new Error(`AI extraction failed: ${aiError.message}`);
     }
 
