@@ -384,12 +384,12 @@ serve(async (req) => {
         }
       );
 
-    } catch (extractionError) {
+    } catch (extractionError: any) {
       await supabase
         .from('criteria_extraction_sources')
         .update({
           extraction_status: 'failed',
-          extraction_error: extractionError.message,
+          extraction_error: (extractionError as Error)?.message ?? String(extractionError),
           extraction_completed_at: new Date().toISOString()
         })
         .eq('id', sourceRecord.id);
@@ -397,12 +397,12 @@ serve(async (req) => {
       throw extractionError;
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[ERROR]', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: (error as Error)?.message ?? String(error)
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

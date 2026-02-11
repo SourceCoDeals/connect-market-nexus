@@ -400,13 +400,13 @@ async function callClaudeAI(
     // Extract usage for cost tracking
     const usage = data.usage ? { inputTokens: data.usage.input_tokens || 0, outputTokens: data.usage.output_tokens || 0 } : null;
     
-    return { data: toolUse.input, usage, toolName: tool.name };
+    return { data: toolUse.input, usage, toolName: tool.name } as { data: any; usage?: any; toolName?: string; error?: { code: string; message: string } };
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
-      return { data: null, error: { code: 'timeout', message: 'AI request timed out' } };
+      return { data: null, error: { code: 'timeout', message: 'AI request timed out' } } as { data: any; usage?: any; toolName?: string; error?: { code: string; message: string } };
     }
     console.error('Claude extraction error:', error);
-    return { data: null };
+    return { data: null } as { data: any; usage?: any; toolName?: string; error?: { code: string; message: string } };
   }
 }
 
@@ -1029,14 +1029,14 @@ Deno.serve(async (req) => {
       const ENRICHMENT_LOCK_SECONDS = 15;
       const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
 
-      const { count: lockAcquired } = await supabase
+      const { data: lockData } = await supabase
         .from('remarketing_buyers')
         .update({ data_last_updated: new Date().toISOString() })
         .eq('id', buyerId)
         .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
-        .select('*', { count: 'exact', head: true });
+        .select('id');
 
-      if (!lockAcquired || lockAcquired === 0) {
+      if (!lockData || lockData.length === 0) {
         console.log(`[enrich-buyer] Lock acquisition failed for buyer ${buyerId}: enrichment already in progress (lock window: ${ENRICHMENT_LOCK_SECONDS}s)`);
         return new Response(
           JSON.stringify({
@@ -1305,7 +1305,8 @@ Deno.serve(async (req) => {
     console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
 
     // Handle billing errors with partial save
-    if (billingError) {
+    if (billingError as { code: string; message: string } | null) {
+      const be = billingError as { code: string; message: string };
       const fieldsExtracted = Object.keys(allExtracted).length;
       if (fieldsExtracted > 0) {
         const partialUpdate = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);
@@ -1313,7 +1314,7 @@ Deno.serve(async (req) => {
       }
 
       // If we got rate limited but still extracted data, return success with warning
-      if (billingError.code === 'rate_limited' && fieldsExtracted > 0) {
+      if (be.code === 'rate_limited' && fieldsExtracted > 0) {
         console.log(`Partial enrichment saved despite rate limit: ${fieldsExtracted} fields for buyer ${buyerId}`);
         return new Response(
           JSON.stringify({
@@ -1337,12 +1338,12 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: billingError.message,
-          error_code: billingError.code,
+          error: be.message,
+          error_code: be.code,
           fieldsUpdated: fieldsExtracted,
-          recoverable: billingError.code === 'rate_limited',
+          recoverable: be.code === 'rate_limited',
         }),
-        { status: billingError.code === 'payment_required' ? 402 : 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: be.code === 'payment_required' ? 402 : 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
