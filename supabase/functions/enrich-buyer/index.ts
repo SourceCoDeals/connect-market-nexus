@@ -1210,8 +1210,8 @@ Deno.serve(async (req) => {
     console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
 
     // Handle billing errors with partial save
-    if (billingError as { code: string; message: string } | null) {
-      const be = billingError as { code: string; message: string };
+    if (billingError) {
+      const be = billingError as unknown as { code: string; message: string };
       const fieldsExtracted = Object.keys(allExtracted).length;
       if (fieldsExtracted > 0) {
         const partialUpdate = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);
