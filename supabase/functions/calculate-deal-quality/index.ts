@@ -23,17 +23,14 @@ interface DealQualityScores {
  *
  * SCORING METHODOLOGY V3 (0-100):
  *
- * 1. FINANCIAL SIZE (0-55 pts) — Revenue & EBITDA. This is BY FAR the most important
- *    factor. A deal's quality is primarily driven by its size.
+ * 1. FINANCIAL SIZE (0-55 pts) — Revenue & EBITDA. BY FAR the most important factor.
  * 2. COMPANY SIGNALS (0-10 pts with financials, 0-30 without) — LinkedIn is a size
  *    proxy so it only counts when financials are unknown. Google reviews/rating always count.
  * 3. MARKET POSITION (0-10 pts) — Light geographic & recurring-revenue bonus, not a penalty.
- * 4. SELLER READINESS (0-25 pts) — Only scored when seller_interest_score > 0.
- *    Score of 0 means we haven't talked to the owner — skip, don't penalize.
  *
- * KEY PRINCIPLE: Score what you have. Skip what you don't.
- * Revenue/size dominates. When financials are missing, their points are redistributed
- * to Company Signals (where LinkedIn acts as a size proxy) and Market Position.
+ * Size floors guarantee minimum scores for large deals (e.g. $10M+ rev = 80 floor).
+ * When financials are missing, their points are redistributed to Company Signals
+ * (where LinkedIn acts as a size proxy) and Market Position.
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
@@ -254,48 +251,9 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     }
   }
 
-  // ===== SELLER READINESS (0-25 pts) =====
-  // Business principle: A highly motivated seller can compensate for weaker attributes.
-  // If seller_interest_score is 0 or absent, we haven't talked to the owner yet —
-  // don't penalize the deal for unknown readiness.
-  let sellerScore = 0;
-  const hasSeller = deal.seller_interest_score != null && deal.seller_interest_score > 0;
-
-  if (hasSeller) {
-    // Base: proportional score (0-18 pts)
-    sellerScore = Math.round((deal.seller_interest_score / 100) * 18);
-
-    // High motivation bonus (additional 0-7 pts)
-    if (deal.seller_interest_score >= 90) {
-      sellerScore += 7;
-      notes.push('Very high seller motivation — significant quality boost');
-    } else if (deal.seller_interest_score >= 80) {
-      sellerScore += 5;
-      notes.push('High seller motivation');
-    } else if (deal.seller_interest_score >= 70) {
-      sellerScore += 3;
-      notes.push('Good seller motivation');
-    }
-
-    sellerScore = Math.min(25, sellerScore);
-  }
-
   // ===== CALCULATE TOTAL =====
-  let totalScore: number;
-  const baseScore = (hasFinancials ? financialScore : 0) + adjustedSignals + adjustedMarket;
-
-  if (hasSeller) {
-    totalScore = baseScore + sellerScore;
-  } else {
-    // When no seller data, add small baseline (5 pts) — don't assume motivation
-    totalScore = Math.min(100, baseScore + 5);
-  }
-
-  // Apply size floor: large deals get a guaranteed minimum score
-  // "anything above $3M of EBITDA should at least be an 80-85"
-  if (sizeFloor > 0 && totalScore < sizeFloor) {
-    totalScore = sizeFloor;
-  }
+  const rawScore = (hasFinancials ? financialScore : 0) + adjustedSignals + adjustedMarket;
+  const totalScore = sizeFloor > 0 ? Math.max(rawScore, sizeFloor) : rawScore;
 
   // Store the size indicator for the dashboard (use financial or employee proxy)
   const sizeIndicator = hasFinancials
