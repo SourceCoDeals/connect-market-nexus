@@ -170,6 +170,18 @@ export const DocumentUploadSection = ({
 
         console.log(`[ENRICH] Doc "${doc.name}" → storage path: "${storagePath}"`);
 
+        // Pre-check: verify the file actually exists in storage before calling the edge function
+        const { data: headData, error: headError } = await supabase.storage
+          .from('universe-documents')
+          .download(storagePath);
+
+        if (headError || !headData) {
+          console.warn(`[ENRICH] File not found in storage: "${storagePath}" — skipping. Error:`, headError);
+          toast.error(`"${doc.name}" not found in storage — please re-upload this file`);
+          failures++;
+          continue;
+        }
+
         const { data, error } = await supabase.functions.invoke('extract-deal-document', {
           body: {
             universe_id: universeId,

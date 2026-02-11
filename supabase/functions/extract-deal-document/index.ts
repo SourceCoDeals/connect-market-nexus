@@ -41,8 +41,10 @@ async function extractDocumentContent(documentUrl: string): Promise<DocumentCont
     .download(storagePath);
 
   if (error || !data) {
-    console.error('[DOCUMENT_FETCH] Storage error:', JSON.stringify(error));
-    throw new Error(`Failed to download document: ${error?.message || 'No data returned from storage'}`);
+    const errName = (error as any)?.name || 'Unknown';
+    const errMsg = error?.message || (error as any)?.statusCode || JSON.stringify(error);
+    console.error(`[DOCUMENT_FETCH] Storage error (${errName}):`, JSON.stringify(error));
+    throw new Error(`Failed to download document from path "${storagePath}": ${errName} - ${errMsg}. The file may not exist in storage — please re-upload.`);
   }
 
   const buffer = await data.arrayBuffer();
