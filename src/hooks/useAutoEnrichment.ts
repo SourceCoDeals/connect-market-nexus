@@ -1,7 +1,7 @@
  import { useEffect, useRef, useState } from 'react';
- import { supabase } from '@/integrations/supabase/client';
  import { useQueryClient } from '@tanstack/react-query';
  import { toast } from 'sonner';
+ import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
  
  /**
   * Auto-Enrichment Hook per Deal Page System Spec
@@ -129,8 +129,9 @@
      console.log(`[AutoEnrich] Triggering for deal ${dealId}: ${reason}`);
      
      try {
-       const { data, error } = await supabase.functions.invoke('enrich-deal', {
-         body: { dealId }
+       const { data, error } = await invokeWithTimeout('enrich-deal', {
+         body: { dealId },
+         timeoutMs: 120_000, // 2 min — enrichment is heavy
        });
  
        if (error) throw error;
@@ -146,21 +147,29 @@
          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
        } else {
          console.warn('[AutoEnrich] Failed:', data?.error);
-         // Surface rate limit and payment errors so user knows what happened
          if (data?.error_code === 'rate_limited' || data?.error?.includes?.('429')) {
            toast.info('Auto-enrichment delayed — API is busy. Will retry on next visit.', { duration: 4000 });
          } else if (data?.error_code === 'payment_required') {
            toast.warning('Auto-enrichment skipped — AI credits depleted.', { duration: 6000 });
+         } else {
+           toast.error('Auto-enrichment failed for this deal.', {
+             description: data?.error || 'Unknown error',
+             duration: 5000,
+           });
          }
        }
      } catch (error: any) {
        console.error('[AutoEnrich] Error:', error);
-       // Surface rate limit and payment errors; stay silent on transient failures
        const msg = error?.message || '';
        if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
          toast.info('Auto-enrichment delayed — API is busy.', { duration: 4000 });
        } else if (msg.includes('402') || msg.toLowerCase().includes('credit')) {
          toast.warning('Auto-enrichment skipped — AI credits depleted.', { duration: 6000 });
+       } else {
+         toast.error('Auto-enrichment error.', {
+           description: msg || 'Please try enriching manually.',
+           duration: 5000,
+         });
        }
      } finally {
        setIsAutoEnriching(false);

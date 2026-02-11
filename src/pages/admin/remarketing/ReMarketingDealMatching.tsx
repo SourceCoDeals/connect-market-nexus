@@ -520,7 +520,9 @@ const ReMarketingDealMatching = () => {
               status: 'pending',
               created_by: user?.id,
             }, { onConflict: 'score_id' });
-          } catch { /* ignore */ }
+          } catch (err) {
+            console.error('Failed to create outreach record for score', id, err);
+          }
           
           // Fire-and-forget: discover contacts
           if (scoreData.buyer_id) {

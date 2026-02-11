@@ -40,6 +40,15 @@ const RATE_LIMITS = {
   api_general: { limit: 60, window_minutes: 60 },
 };
 
+// Security-sensitive actions that must FAIL-CLOSED on DB errors
+// (block request if we can't verify the rate limit)
+const SECURITY_SENSITIVE_ACTIONS = new Set([
+  'login_attempt',
+  'signup_attempt',
+  'password_reset',
+  'otp_request',
+]);
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -101,7 +110,18 @@ async function checkRateLimit(
     
     if (error) {
       console.error('Error querying rate limit data:', error);
-      // Fail open - allow the request if we can't check the rate limit
+      // Security-sensitive actions FAIL-CLOSED: block if we can't verify
+      // Other actions fail-open to avoid blocking legitimate users on DB hiccups
+      if (SECURITY_SENSITIVE_ACTIONS.has(action)) {
+        console.warn(`[rate-limiter] FAIL-CLOSED for security action "${action}" — DB unavailable`);
+        return {
+          allowed: false,
+          remaining: 0,
+          reset_time: resetTime,
+          current_count: limit,
+          limit
+        };
+      }
       return {
         allowed: true,
         remaining: limit - 1,
@@ -140,7 +160,17 @@ async function checkRateLimit(
     };
   } catch (error) {
     console.error('Rate limit check failed:', error);
-    // Fail open - allow the request
+    // Security-sensitive actions FAIL-CLOSED on exception
+    if (SECURITY_SENSITIVE_ACTIONS.has(action)) {
+      console.warn(`[rate-limiter] FAIL-CLOSED for security action "${action}" — exception`);
+      return {
+        allowed: false,
+        remaining: 0,
+        reset_time: resetTime,
+        current_count: limit,
+        limit
+      };
+    }
     return {
       allowed: true,
       remaining: limit - 1,

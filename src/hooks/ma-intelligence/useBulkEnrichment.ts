@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 
 export interface EnrichmentProgress {
   current: number;
@@ -68,8 +69,9 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     buyerId: string
   ): Promise<{ success: boolean; partial?: boolean; reason?: string; rateLimited?: boolean }> => {
     try {
-      const { data, error } = await supabase.functions.invoke('enrich-buyer', {
+      const { data, error } = await invokeWithTimeout('enrich-buyer', {
         body: { buyerId },
+        timeoutMs: 180_000, // 3 min — buyer enrichment makes 4-5 AI calls
       });
 
       if (error) {
@@ -103,8 +105,15 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
   const enrichDeal = useCallback(async (
     dealId: string,
     deal: { transcript_link?: string; additional_info?: string; company_website?: string }
-  ): Promise<{ success: boolean; reason?: string }> => {
+  ): Promise<{ success: boolean; reason?: string; rateLimited?: boolean }> => {
     let enriched = false;
+
+    const isRateLimitOrPaymentError = (err: Error | null): boolean => {
+      if (!err) return false;
+      const msg = err.message.toLowerCase();
+      return msg.includes('429') || msg.includes('rate limit') ||
+             msg.includes('402') || msg.includes('payment') || msg.includes('credit');
+    };
 
     try {
       // FIX: Check for transcripts in deal_transcripts table, not transcript_link field
@@ -115,32 +124,47 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
         .eq('listing_id', dealId);
 
       if (!fetchError && transcripts && transcripts.length > 0) {
-        // Process each transcript
         for (const transcript of transcripts) {
-          const { error } = await supabase.functions.invoke('extract-deal-transcript', {
+          const { error } = await invokeWithTimeout('extract-deal-transcript', {
             body: { transcriptId: transcript.id },
+            timeoutMs: 120_000,
           });
+          if (error && isRateLimitOrPaymentError(error)) {
+            return { success: false, reason: error.message, rateLimited: true };
+          }
           if (!error) enriched = true;
         }
       }
 
       if (deal.additional_info) {
-        const { error } = await supabase.functions.invoke('analyze-deal-notes', {
+        const { error } = await invokeWithTimeout('analyze-deal-notes', {
           body: { dealId, notes: deal.additional_info, applyToRecord: true },
+          timeoutMs: 90_000,
         });
+        if (error && isRateLimitOrPaymentError(error)) {
+          return { success: false, reason: error.message, rateLimited: true };
+        }
         if (!error) enriched = true;
       }
 
       if (deal.company_website) {
-        const { error } = await supabase.functions.invoke('enrich-deal', {
+        const { error } = await invokeWithTimeout('enrich-deal', {
           body: { dealId, onlyFillEmpty: true },
+          timeoutMs: 120_000,
         });
+        if (error && isRateLimitOrPaymentError(error)) {
+          return { success: false, reason: error.message, rateLimited: true };
+        }
         if (!error) enriched = true;
       }
 
       return { success: enriched, reason: enriched ? undefined : 'No data sources available' };
     } catch (err) {
-      return { success: false, reason: err instanceof Error ? err.message : 'Unknown error' };
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      if (isRateLimitOrPaymentError(err instanceof Error ? err : new Error(msg))) {
+        return { success: false, reason: msg, rateLimited: true };
+      }
+      return { success: false, reason: msg };
     }
   }, []);
 
@@ -268,6 +292,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
 
     let enrichedCount = 0;
     let failedCount = 0;
+    let rateLimited = false;
 
     try {
       // Gate check: register as major operation
@@ -294,6 +319,15 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
         if (result.success) {
           enrichedCount++;
         } else {
+          if (result.rateLimited) {
+            rateLimited = true;
+            toast({
+              title: 'Rate limit reached',
+              description: `Enriched ${enrichedCount} deals. Please wait a minute before continuing.`,
+              variant: 'destructive',
+            });
+            break;
+          }
           failedCount++;
         }
 
@@ -303,18 +337,20 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
           return next;
         });
 
-        if (i < enrichableDeals.length - 1) {
+        if (i < enrichableDeals.length - 1 && !rateLimited) {
           await new Promise(resolve => setTimeout(resolve, betweenItemDelayMs));
         }
       }
 
-      const result = { success: true, enrichedCount, failedCount, partialCount: 0 };
+      const result = { success: !rateLimited, enrichedCount, failedCount, partialCount: 0, rateLimited };
       onComplete?.(result);
 
-      toast({
-        title: 'Deal enrichment complete',
-        description: `Successfully enriched ${enrichedCount} of ${enrichableDeals.length} deals${failedCount > 0 ? `. ${failedCount} failed.` : '.'}`,
-      });
+      if (!rateLimited) {
+        toast({
+          title: 'Deal enrichment complete',
+          description: `Successfully enriched ${enrichedCount} of ${enrichableDeals.length} deals${failedCount > 0 ? `. ${failedCount} failed.` : '.'}`,
+        });
+      }
 
       return result;
     } finally {
