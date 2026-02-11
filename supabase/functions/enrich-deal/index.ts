@@ -1709,14 +1709,15 @@ For financial data, include confidence levels and source quotes where available.
     // Check for optimistic lock conflict
     if (!updateResult || updateResult.length === 0) {
       console.warn(`Optimistic lock conflict for deal ${dealId} - record was modified by another process`);
+      // Return 200 — another process already enriched this deal successfully
       return new Response(
         JSON.stringify({
-          success: false,
-          error: 'Record was modified by another process. Please refresh and try again.',
+          success: true,
+          message: 'Deal was already enriched by another process.',
+          fieldsUpdated: [],
           error_code: 'concurrent_modification',
-          recoverable: true
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

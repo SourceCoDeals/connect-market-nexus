@@ -571,7 +571,7 @@ const SortableTableRow = ({
 
       {/* Added date */}
       <TableCell className="text-muted-foreground text-sm" style={{ width: columnWidths.added, minWidth: 60 }}>
-        {format(new Date(listing.created_at), 'dd/MM/yyyy')}
+        {format(new Date(listing.created_at), 'MM/dd/yyyy')}
       </TableCell>
 
       {/* Actions */}
@@ -722,6 +722,8 @@ const ReMarketingDeals = () => {
   // Fetch all listings (deals)
   const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = useQuery({
     queryKey: ['remarketing', 'deals'],
+    refetchOnMount: 'always',
+    staleTime: 30_000, // 30s — ensures fresh data on navigation
     queryFn: async () => {
       const { data, error } = await supabase
         .from('listings')

@@ -232,7 +232,7 @@ export function DealImportDialog({
           // Build final listing object
           const listingData = sanitizeListingInsert({
             ...parsedData,
-            status: 'active',
+            status: referralPartnerId ? 'pending_referral_review' : 'active',
             location: computedLocation,
             is_internal_deal: true, // Mark as internal/research deal - not for marketplace
           });
@@ -296,7 +296,8 @@ export function DealImportDialog({
       setStep("complete");
       
       if (results.imported > 0) {
-        toast.success(`Successfully imported ${results.imported} deals`);
+        const pendingMsg = referralPartnerId ? ' (pending review)' : '';
+        toast.success(`Successfully imported ${results.imported} deals${pendingMsg}`);
         onImportComplete();
         // Call the new callback with imported IDs if provided
         if (onImportCompleteWithIds && results.importedIds.length > 0) {

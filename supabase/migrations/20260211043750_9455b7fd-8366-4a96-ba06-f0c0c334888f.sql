@@ -1,0 +1,1 @@
+UPDATE listings SET status = 'pending_referral_review' WHERE referral_partner_id = 'de5c941e-1b6a-431c-b083-97f66606f7b6' AND status = 'active' AND id != '29bc259c-420a-4d6f-ab1a-cc8b00a1c40e';

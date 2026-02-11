@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,29 +16,14 @@ interface DealQualityScores {
   scoring_notes?: string;
 }
 
-/**
- * Calculate deal quality score based on deal attributes.
- * This is the overall quality of the deal, NOT how well it fits a specific buyer.
- *
- * SCORING METHODOLOGY V4 (0-100):
- *
- * SIZE (0-90 pts) — Always 90% of the score. Measured with the best available data:
- *   - With financials: Revenue (0-75) + EBITDA (0-15)
- *   - Without financials: LinkedIn employees (0-60) + Google reviews (0-15) + rating (0-15)
- *
- * MARKET (0-10 pts) — Always 10% of the score. Light bonus for geography/recurring revenue.
- *
- * Size floors guarantee minimum scores for large deals by revenue or EBITDA.
- */
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
 
-  // ===== NORMALIZE FINANCIALS =====
   const normalizeFinancial = (val: number): number => {
     if (val <= 0) return 0;
-    if (val < 1000) return Math.round(val * 1_000_000);   // millions: 20 → $20M
-    if (val < 100000) return Math.round(val * 1_000);      // thousands: 5000 → $5M
-    return val;                                              // raw: 50000000 → $50M
+    if (val < 1000) return Math.round(val * 1_000_000);
+    if (val < 100000) return Math.round(val * 1_000);
+    return val;
   };
 
   const revenue = normalizeFinancial(deal.revenue || 0);
@@ -54,12 +38,9 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   let ebitdaScore = 0;
   let linkedinBoost = 0;
   let sizeFloor = 0;
-
-  // ===== SIZE (0-90 pts) =====
   let sizeScore = 0;
 
   if (hasFinancials) {
-    // --- Revenue (0-75 pts) ---
     if (revenue >= 100000000)     revenueScore = 75;
     else if (revenue >= 50000000) revenueScore = 70;
     else if (revenue >= 25000000) revenueScore = 64;
@@ -72,7 +53,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (revenue >= 500000)   revenueScore = 10;
     else if (revenue > 0)         revenueScore = 5;
 
-    // --- EBITDA (0-15 pts) ---
     if (ebitda >= 5000000)        ebitdaScore = 15;
     else if (ebitda >= 3000000)   ebitdaScore = 13;
     else if (ebitda >= 2000000)   ebitdaScore = 11;
@@ -83,7 +63,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
     sizeScore = Math.min(90, revenueScore + ebitdaScore);
 
-    // --- Size floors (revenue-driven, EBITDA can push higher) ---
     if (revenue >= 50000000)      { sizeFloor = 90; notes.push('$50M+ revenue'); }
     else if (revenue >= 25000000) { sizeFloor = 85; notes.push('$25M+ revenue'); }
     else if (revenue >= 10000000) { sizeFloor = 80; notes.push('$10M+ revenue'); }
@@ -94,9 +73,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (ebitda >= 3000000 && sizeFloor < 85) { sizeFloor = 85; notes.push('$3M+ EBITDA'); }
 
   } else {
-    // --- No financials: use proxy signals to estimate size (0-90 pts) ---
-
-    // LinkedIn employees (0-60 pts) — strongest size proxy
     let empPts = 0;
     if (employeeCount >= 200)     empPts = 60;
     else if (employeeCount >= 100) empPts = 54;
@@ -113,7 +89,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
       notes.push(`LinkedIn: ${employeeCount} employees (size proxy)`);
     }
 
-    // Google review count (0-15 pts) — volume proxy
     let revPts = 0;
     if (reviewCount >= 200)       revPts = 15;
     else if (reviewCount >= 100)  revPts = 12;
@@ -121,7 +96,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (reviewCount >= 20)   revPts = 6;
     else if (reviewCount > 0)     revPts = 3;
 
-    // Google rating (0-15 pts) — quality proxy
     let ratPts = 0;
     if (googleRating >= 4.5)      ratPts = 15;
     else if (googleRating >= 4.0) ratPts = 12;
@@ -129,21 +103,19 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (googleRating >= 3.0) ratPts = 3;
 
     if (reviewCount > 0) {
-      notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating (size proxy)`);
+      notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating`);
     }
 
     sizeScore = Math.min(90, empPts + revPts + ratPts);
 
     if (sizeScore === 0) {
-      notes.push('No financials or proxy data — limited scoring data');
+      notes.push('No financials or proxy data');
     } else {
-      notes.push('No financials — using proxy signals for size');
+      notes.push('No financials — using proxy signals');
     }
   }
 
-  // ===== MARKET (0-10 pts) =====
   let marketScore = 0;
-
   const city = (deal.address_city || '').toLowerCase();
   const state = (deal.address_state || '').toUpperCase();
   const location = (deal.location || '').toLowerCase();
@@ -188,7 +160,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   marketScore = Math.min(10, marketScore);
 
-  // ===== TOTAL =====
   const rawScore = sizeScore + marketScore;
   const totalScore = sizeFloor > 0 ? Math.max(rawScore, sizeFloor) : rawScore;
 
@@ -219,20 +190,16 @@ serve(async (req) => {
     let listingsToScore: any[] = [];
     let enrichmentQueued = 0;
 
-    // Helper function to queue deals for enrichment
     const queueDealsForEnrichment = async (dealIds: string[], reason: string) => {
       console.log(`Queueing ${dealIds.length} deals for enrichment (${reason})`);
       let queuedCount = 0;
-
       for (const dealId of dealIds) {
-        // Check if already in queue (pending or processing)
         const { data: existing } = await supabase
           .from("enrichment_queue")
           .select("id")
           .eq("listing_id", dealId)
           .in("status", ["pending", "processing"])
           .maybeSingle();
-
         if (!existing) {
           const { error: queueError } = await supabase
             .from("enrichment_queue")
@@ -242,76 +209,34 @@ serve(async (req) => {
               attempts: 0,
               queued_at: new Date().toISOString(),
             }, { onConflict: 'listing_id' });
-
-          if (!queueError) {
-            queuedCount++;
-          }
+          if (!queueError) queuedCount++;
         }
       }
-
-      if (queuedCount > 0) {
-        console.log(`Queued ${queuedCount} deals for enrichment`);
-      }
+      if (queuedCount > 0) console.log(`Queued ${queuedCount} deals for enrichment`);
       return queuedCount;
     };
 
     if (listingId) {
-      // Score single listing
       const { data: listing, error: listingError } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("id", listingId)
-        .single();
-
-      if (listingError || !listing) {
-        throw new Error("Listing not found");
-      }
-
+        .from("listings").select("*").eq("id", listingId).single();
+      if (listingError || !listing) throw new Error("Listing not found");
       listingsToScore = [listing];
     } else if (forceRecalculate) {
-      // Force recalculate ALL active listings (even if already scored)
       const { data: listings, error: listingsError } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("status", "active")
-        .is("deleted_at", null)
-        .limit(100);
-
-      if (listingsError) {
-        throw new Error("Failed to fetch listings");
-      }
-
+        .from("listings").select("*").eq("status", "active").is("deleted_at", null).limit(100);
+      if (listingsError) throw new Error("Failed to fetch listings");
       listingsToScore = listings || [];
       console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
-
-      // Only queue enrichment when explicitly requested via triggerEnrichment flag
       if (triggerEnrichment && listingsToScore.length > 0) {
         const dealIds = listingsToScore.map(l => l.id);
-
         console.log(`Resetting enriched_at for ${dealIds.length} deals to force re-enrichment`);
-        const { error: resetError } = await supabase
-          .from("listings")
-          .update({ enriched_at: null })
-          .in("id", dealIds);
-
-        if (resetError) {
-          console.error("Failed to reset enriched_at:", resetError);
-        }
-
+        await supabase.from("listings").update({ enriched_at: null }).in("id", dealIds);
         enrichmentQueued = await queueDealsForEnrichment(dealIds, 'force recalculate all');
       }
     } else if (calculateAll) {
-      // Score all listings that don't have a score yet
       const { data: listings, error: listingsError } = await supabase
-        .from("listings")
-        .select("*")
-        .is("deal_total_score", null)
-        .limit(50);
-
-      if (listingsError) {
-        throw new Error("Failed to fetch listings");
-      }
-
+        .from("listings").select("*").is("deal_total_score", null).limit(50);
+      if (listingsError) throw new Error("Failed to fetch listings");
       listingsToScore = listings || [];
     } else {
       return new Response(
@@ -322,27 +247,19 @@ serve(async (req) => {
 
     if (listingsToScore.length === 0) {
       return new Response(
-        JSON.stringify({
-          success: true,
-          message: "No listings to score",
-          scored: 0
-        }),
+        JSON.stringify({ success: true, message: "No listings to score", scored: 0 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     console.log(`Scoring ${listingsToScore.length} listings...`);
-
     let scored = 0;
     let errors = 0;
     const results: any[] = [];
 
     for (const listing of listingsToScore) {
       try {
-        // Calculate scores based on deal data
         const scores = calculateScoresFromData(listing);
-
-        // Update the listing with all scoring fields
         const { error: updateError } = await supabase
           .from("listings")
           .update({
@@ -355,39 +272,22 @@ serve(async (req) => {
             scoring_notes: scores.scoring_notes,
           })
           .eq("id", listing.id);
-
-        if (updateError) {
-          console.error(`Failed to update listing ${listing.id}:`, updateError);
-          errors++;
-        } else {
-          scored++;
-          results.push({
-            id: listing.id,
-            title: listing.title,
-            scores,
-          });
-        }
-      } catch (e) {
-        console.error(`Error scoring listing ${listing.id}:`, e);
-        errors++;
-      }
+        if (updateError) { console.error(`Failed to update listing ${listing.id}:`, updateError); errors++; }
+        else { scored++; results.push({ id: listing.id, title: listing.title, scores }); }
+      } catch (e) { console.error(`Error scoring listing ${listing.id}:`, e); errors++; }
     }
 
     console.log(`Scored ${scored} listings, ${errors} errors, ${enrichmentQueued} queued for enrichment`);
-
     return new Response(
       JSON.stringify({
         success: true,
         message: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}`,
-        scored,
-        errors,
-        enrichmentQueued,
-        results: results.slice(0, 10), // Return first 10 for reference
+        scored, errors, enrichmentQueued,
+        results: results.slice(0, 10),
         remaining: listingsToScore.length > 50 ? "More deals available, run again" : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
     console.error("Calculate deal quality error:", error);
     return new Response(

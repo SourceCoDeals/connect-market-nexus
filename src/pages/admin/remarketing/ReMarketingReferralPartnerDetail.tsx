@@ -810,10 +810,47 @@ export default function ReMarketingReferralPartnerDetail() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">
-                Referred Deals ({deals?.length || 0})
-              </CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-lg">
+                  Referred Deals ({deals?.length || 0})
+                </CardTitle>
+                {(() => {
+                  const pendingCount = deals?.filter(d => d.status === 'pending_referral_review').length || 0;
+                  if (pendingCount === 0) return null;
+                  return (
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                      {pendingCount} pending review
+                    </Badge>
+                  );
+                })()}
+              </div>
               <div className="flex items-center gap-2">
+                {/* Approve All Pending */}
+                {deals?.some(d => d.status === 'pending_referral_review') && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={async () => {
+                      const pendingIds = deals?.filter(d => d.status === 'pending_referral_review').map(d => d.id) || [];
+                      if (!pendingIds.length) return;
+                      const { error } = await supabase
+                        .from("listings")
+                        .update({ status: "active" } as never)
+                        .in("id", pendingIds);
+                      if (error) {
+                        toast.error("Failed to approve deals");
+                        return;
+                      }
+                      toast.success(`${pendingIds.length} deals approved to All Deals`);
+                      queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+                      queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                    Approve All Pending
+                  </Button>
+                )}
+
                 {/* Bulk Enrich */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -1031,6 +1068,8 @@ export default function ReMarketingReferralPartnerDetail() {
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
                           {deal.status === "active" ? (
                             <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+                          ) : deal.status === "pending_referral_review" ? (
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-200">Pending Review</Badge>
                           ) : deal.status === "draft" ? (
                             <Badge className="bg-amber-100 text-amber-800 border-amber-200">Draft</Badge>
                           ) : deal.status === "archived" ? (
