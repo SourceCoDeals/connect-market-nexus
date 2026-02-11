@@ -33,6 +33,8 @@ import {
   XCircle,
   Loader2,
   Clock,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -168,6 +170,42 @@ export default function ReMarketingReferralPartners() {
     },
     onError: (error) => {
       toast.error(`Failed to update: ${error.message}`);
+    },
+  });
+
+  // Archive partner
+  const archiveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("referral_partners")
+        .update({ is_active: false, notes: '[ARCHIVED]' } as never)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["referral-partners"] });
+      toast.success("Partner archived");
+    },
+    onError: (error) => {
+      toast.error(`Failed to archive: ${error.message}`);
+    },
+  });
+
+  // Delete partner
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("referral_partners")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["referral-partners"] });
+      toast.success("Partner deleted");
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete: ${error.message}`);
     },
   });
 
@@ -344,6 +382,27 @@ export default function ReMarketingReferralPartners() {
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   {partner.is_active ? "Deactivate" : "Activate"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (confirm(`Archive "${partner.name}"? This will deactivate them.`)) {
+                                      archiveMutation.mutate(partner.id);
+                                    }
+                                  }}
+                                >
+                                  <Archive className="h-4 w-4 mr-2" />
+                                  Archive
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    if (confirm(`Permanently delete "${partner.name}"? This cannot be undone.`)) {
+                                      deleteMutation.mutate(partner.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
