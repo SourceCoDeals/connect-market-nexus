@@ -309,6 +309,10 @@ export function AddTranscriptDialog({
           throw new Error('Please provide a transcript link, paste content, or upload files');
         }
 
+        // Detect Fireflies URLs so the enrichment pipeline can fetch content automatically
+        const isFirefliesUrl = formData.transcript_link &&
+          /app\.fireflies\.ai\/view\//i.test(formData.transcript_link);
+
         // Insert into deal_transcripts
         const safeText = (formData.transcript_text || '').trim().length > 0
           ? formData.transcript_text
@@ -329,7 +333,7 @@ export function AddTranscriptDialog({
               .insert({
                 listing_id: dealId,
                 title: formData.title.trim(),
-                source: 'call',
+                source: isFirefliesUrl ? 'fireflies' : 'call',
                 transcript_url: formData.transcript_link || null,
                 call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
                 transcript_text: safeText,
