@@ -8,7 +8,7 @@ const PROCESSING_TIMEOUT_MS = 180000; // 3 minutes per buyer
 const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit
 const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items
 const MAX_FUNCTION_RUNTIME_MS = 140000; // 140s — stop looping before Deno 150s timeout
-const INTER_BUYER_DELAY_MS = 1000; // 1s breathing room between buyers
+const INTER_BUYER_DELAY_MS = 200; // 200ms breathing room between buyers
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);

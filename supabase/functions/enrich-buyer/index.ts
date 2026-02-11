@@ -979,13 +979,13 @@ Deno.serve(async (req) => {
     }
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!firecrawlApiKey || !anthropicApiKey || !supabaseUrl || !supabaseServiceKey) {
+    if (!firecrawlApiKey || !geminiApiKey || !supabaseUrl || !supabaseServiceKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Server configuration error - missing API keys' }),
+        JSON.stringify({ success: false, error: 'Server configuration error - missing API keys (FIRECRAWL_API_KEY, GEMINI_API_KEY)' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -1239,77 +1239,56 @@ Deno.serve(async (req) => {
       }
     };
 
-    // BATCH 1: Core platform extraction (3 calls max)
-    // Business overview and customer profile ONLY from platform website — PE firm data is different
-    // Geography can fall back to PE firm website
-    const batch1: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
+    // ALL PROMPTS IN SINGLE PARALLEL BATCH (no more sequential batches)
+    const allPromises: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
+    
     if (platformContent) {
-      batch1.push(
-        extractBusinessOverview(platformContent, anthropicApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
-        extractGeography(platformContent, anthropicApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
-        extractCustomerProfile(platformContent, anthropicApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
+      allPromises.push(
+        extractBusinessOverview(platformContent, geminiApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
+        extractGeography(platformContent, geminiApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
+        extractCustomerProfile(platformContent, geminiApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
+        extractPEIntelligence(platformContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
       );
-  } else if (peContent) {
-    // No platform content — only extract geography from PE site
-    // CRITICAL: PE firm geography → ONLY geographic_footprint and service_regions
-    // PE firm HQ is NOT the platform's HQ. operating_locations are NOT platform locations.
-    console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website (NO HQ, NO operating_locations)');
-    batch1.push(
-      extractGeography(peContent, anthropicApiKey).then(r => {
-        const validated = validateGeography(r);
-        // STRIP PE-firm-specific fields that would contaminate platform data
-        if (validated?.data) {
-          delete validated.data.hq_city;
-          delete validated.data.hq_state;
-          delete validated.data.hq_country;
-          delete validated.data.hq_region;
-          delete validated.data.operating_locations;
-          delete validated.data.service_regions;
-          console.log('Stripped hq_city, hq_state, hq_country, hq_region, operating_locations, service_regions from PE geography extraction');
-        }
-        return { name: 'geography', result: validated, url: peFirmWebsite };
-      }),
-    );
-  }
-
-    if (batch1.length > 0) {
-      promptsRun += batch1.length;
-      const batch1Results = await Promise.allSettled(batch1);
-      processBatchResults(batch1Results);
-      console.log(`Batch 1 complete: ${promptsSuccessful} successful so far`);
-    }
-
-    // Await location page discovery (was running in parallel with batch 1)
-    // This replaces the old 2s hard sleep — useful work instead of idle waiting
-    if (locationPagePromise) {
-      const locationContent = await locationPagePromise;
-      if (locationContent) {
-        platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationContent;
-        console.log('Appended location page data to platform content');
-      }
-    }
-
-    // BATCH 2: PE firm extraction (1 combined call + size criteria)
-    const batch2: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
-    if (platformContent) {
-      batch2.push(
-        extractPEIntelligence(platformContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
+    } else if (peContent) {
+      // No platform content — only extract geography from PE site
+      console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website');
+      allPromises.push(
+        extractGeography(peContent, geminiApiKey).then(r => {
+          const validated = validateGeography(r);
+          if (validated?.data) {
+            delete validated.data.hq_city;
+            delete validated.data.hq_state;
+            delete validated.data.hq_country;
+            delete validated.data.hq_region;
+            delete validated.data.operating_locations;
+            delete validated.data.service_regions;
+          }
+          return { name: 'geography', result: validated, url: peFirmWebsite };
+        }),
       );
     }
+
     if (peContent) {
-      batch2.push(
-        extractPEIntelligence(peContent, anthropicApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
-        // NOTE: Size criteria extraction from PE website is DISABLED.
-        // PE firm websites show NEW PLATFORM criteria, not add-on criteria.
-        // Deal structure data can ONLY come from transcripts.
+      allPromises.push(
+        extractPEIntelligence(peContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
       );
     }
 
-    if (batch2.length > 0) {
-      promptsRun += batch2.length;
-      const batch2Results = await Promise.allSettled(batch2);
-      processBatchResults(batch2Results);
-      console.log(`Batch 2 complete: ${promptsSuccessful} successful total`);
+    if (allPromises.length > 0) {
+      promptsRun += allPromises.length;
+
+      // Await location page discovery (was running in parallel with scraping)
+      if (locationPagePromise) {
+        const locationContent = await locationPagePromise;
+        if (locationContent) {
+          platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationContent;
+          console.log('Appended location page data to platform content');
+        }
+      }
+
+      const allResults = await Promise.allSettled(allPromises);
+      processBatchResults(allResults);
+      console.log(`All prompts complete: ${promptsSuccessful}/${promptsRun} successful`);
     }
 
     console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
@@ -1380,8 +1359,7 @@ Deno.serve(async (req) => {
     console.log(`Successfully enriched buyer ${buyerId}: ${fieldsUpdated} fields updated`);
 
     // Cost tracking: log aggregate AI usage (non-blocking)
-    logAICallCost(supabase, 'enrich-buyer', 'anthropic', AI_CONFIG.model, 
-      // Use actual token counts from Claude API responses (fall back to estimates only if missing)
+    logAICallCost(supabase, 'enrich-buyer', 'gemini', AI_CONFIG.model, 
       {
         inputTokens: totalInputTokens > 0 ? totalInputTokens : promptsRun * 12000,
         outputTokens: totalOutputTokens > 0 ? totalOutputTokens : promptsSuccessful * 800,
