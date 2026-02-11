@@ -825,31 +825,6 @@ export default function ReMarketingReferralPartnerDetail() {
                 })()}
               </div>
               <div className="flex items-center gap-2">
-                {/* Approve All Pending */}
-                {deals?.some(d => d.status === 'pending_referral_review') && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={async () => {
-                      const pendingIds = deals?.filter(d => d.status === 'pending_referral_review').map(d => d.id) || [];
-                      if (!pendingIds.length) return;
-                      const { error } = await supabase
-                        .from("listings")
-                        .update({ status: "active" } as never)
-                        .in("id", pendingIds);
-                      if (error) {
-                        toast.error("Failed to approve deals");
-                        return;
-                      }
-                      toast.success(`${pendingIds.length} deals approved to All Deals`);
-                      queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
-                      queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
-                    }}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-1" />
-                    Approve All Pending
-                  </Button>
-                )}
 
                 {/* Bulk Enrich */}
                 <DropdownMenu>
