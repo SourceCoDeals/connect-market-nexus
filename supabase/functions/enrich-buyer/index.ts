@@ -493,10 +493,13 @@ async function extractGeography(content: string, apiKey: string): Promise<any> {
 
 const PROMPT_3B_PE_INTELLIGENCE = {
   name: 'extract_pe_intelligence',
-  description: 'Extract acquisition history, PE activity, and portfolio from website content',
+  description: 'Extract PE firm identity, acquisition history, activity, and portfolio from website content',
   input_schema: {
     type: 'object',
     properties: {
+      // PE Firm Identity
+      pe_firm_name: { type: 'string', description: 'Official name of the PE / investment firm as stated on the website' },
+      buyer_type: { type: 'string', enum: ['pe_firm', 'platform', 'strategic', 'family_office', 'other'], description: "Classify this buyer: 'pe_firm' (private equity fund), 'platform' (PE-backed operating platform doing add-ons), 'strategic' (corporate acquirer), 'family_office', or 'other'" },
       // Acquisition History
       recent_acquisitions: {
         type: 'array',
@@ -524,10 +527,18 @@ const PROMPT_3B_PE_INTELLIGENCE = {
 
 const PROMPT_3B_SYSTEM = `You are an M&A research analyst extracting PE firm intelligence from website content.
 
-Extract THREE categories of information:
-1. ACQUISITION HISTORY: Recent deals, total count, frequency
-2. INVESTMENT FOCUS: Target industries, services, and activity level
-3. PORTFOLIO: Current and past portfolio company names
+Extract FOUR categories of information:
+1. FIRM IDENTITY: The PE firm's official name and buyer classification
+2. ACQUISITION HISTORY: Recent deals, total count, frequency
+3. INVESTMENT FOCUS: Target industries, services, and activity level
+4. PORTFOLIO: Current and past portfolio company names
+
+For buyer_type classification:
+- "pe_firm": Traditional private equity fund (e.g., "XYZ Capital Partners")
+- "platform": PE-backed operating company actively doing add-on acquisitions
+- "strategic": Corporate/strategic acquirer (non-PE)
+- "family_office": Family office investor
+- "other": None of the above
 
 CRITICAL: Do NOT extract investment thesis, strategic priorities, or thesis confidence.
 These fields MUST come from direct conversations with the platform company, not websites.
@@ -537,7 +548,7 @@ Do NOT infer or guess any information.`;
 
 async function extractPEIntelligence(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 3b: Combined PE Intelligence (Acquisitions + Activity + Portfolio)');
-  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract acquisition history, investment focus areas, and portfolio companies. Do NOT extract thesis, strategic priorities, or thesis confidence.`;
+  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the PE firm name, classify the buyer type, and extract acquisition history, investment focus areas, and portfolio companies. Do NOT extract thesis, strategic priorities, or thesis confidence.`;
   return await callGeminiAI(PROMPT_3B_SYSTEM, userPrompt, PROMPT_3B_PE_INTELLIGENCE, apiKey);
 }
 
