@@ -14,7 +14,8 @@ import {
   File,
   FileSpreadsheet,
   FileImage,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
@@ -25,6 +26,7 @@ interface DocumentUploadSectionProps {
   onDocumentsChange: (documents: DocumentReference[]) => void;
   onReanalyze?: () => void;
   isReanalyzing?: boolean;
+  industryName?: string;
 }
 
 const getFileIcon = (fileName: string) => {
@@ -51,9 +53,12 @@ export const DocumentUploadSection = ({
   documents,
   onDocumentsChange,
   onReanalyze,
-  isReanalyzing = false
+  isReanalyzing = false,
+  industryName = 'Unknown Industry'
 }: DocumentUploadSectionProps) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,6 +117,64 @@ export const DocumentUploadSection = ({
     toast.success('Document removed');
   };
 
+  const handleEnrichFromDocuments = async () => {
+    // Filter to non-guide documents that have URLs
+    const enrichableDocs = documents.filter(d => (d as any).type !== 'ma_guide' && d.url);
+    if (enrichableDocs.length === 0) {
+      toast.error('No documents to enrich from');
+      return;
+    }
+
+    setIsEnriching(true);
+    setEnrichProgress({ current: 0, total: enrichableDocs.length });
+    let successes = 0;
+    let failures = 0;
+
+    for (let i = 0; i < enrichableDocs.length; i++) {
+      const doc = enrichableDocs[i];
+      setEnrichProgress({ current: i + 1, total: enrichableDocs.length });
+
+      try {
+        // Extract the storage path from the public URL
+        const urlParts = doc.url.split('/universe-documents/');
+        const storagePath = urlParts.length > 1 ? urlParts[1] : doc.url;
+
+        const { data, error } = await supabase.functions.invoke('extract-deal-document', {
+          body: {
+            universe_id: universeId,
+            document_url: storagePath,
+            document_name: doc.name,
+            industry_name: industryName,
+          }
+        });
+
+        if (error) throw error;
+        if (data?.success) {
+          successes++;
+        } else {
+          failures++;
+          console.error(`Extraction failed for ${doc.name}:`, data?.error);
+        }
+      } catch (err) {
+        failures++;
+        console.error(`Error enriching ${doc.name}:`, err);
+      }
+
+      // Small delay between documents to avoid rate limits
+      if (i < enrichableDocs.length - 1) {
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+
+    setIsEnriching(false);
+    if (successes > 0) {
+      toast.success(`Enriched from ${successes} document${successes !== 1 ? 's' : ''}`);
+    }
+    if (failures > 0) {
+      toast.error(`${failures} document${failures !== 1 ? 's' : ''} failed to process`);
+    }
+  };
+
   const truncateName = (name: string, maxLength: number = 30) => {
     if (name.length <= maxLength) return name;
     const ext = name.split('.').pop();
@@ -160,6 +223,26 @@ export const DocumentUploadSection = ({
                   <RotateCcw className="h-4 w-4 mr-1" />
                 )}
                 Re-analyze
+              </Button>
+            )}
+            {documents.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnrichFromDocuments}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    {enrichProgress.current}/{enrichProgress.total}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Enrich from Documents
+                  </>
+                )}
               </Button>
             )}
           </div>

@@ -1118,6 +1118,7 @@ const ReMarketingUniverseDetail = () => {
                         universeId={id}
                         documents={documents}
                         onDocumentsChange={setDocuments}
+                        industryName={formData.name}
                       />
                     </CardContent>
                   </CollapsibleContent>
