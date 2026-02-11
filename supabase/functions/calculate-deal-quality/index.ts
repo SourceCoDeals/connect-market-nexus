@@ -470,6 +470,7 @@ serve(async (req) => {
             ebitda_score: scores.ebitda_score,
             linkedin_boost: scores.linkedin_boost,
             quality_calculation_version: scores.quality_calculation_version,
+            scoring_notes: scores.scoring_notes,
           })
           .eq("id", listing.id);
 
