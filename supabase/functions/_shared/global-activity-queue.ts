@@ -58,7 +58,8 @@ export async function updateGlobalQueueProgress(
     }
   } catch (err) {
     // Non-blocking — don't let global queue tracking break the actual processing
-    console.warn('[global-activity-queue] Failed to update progress:', err);
+    // But log at error level so it's visible in monitoring
+    console.error('[global-activity-queue] ERROR: Failed to update progress:', err);
   }
 }
 
@@ -73,18 +74,19 @@ export async function recoverStaleOperations(
     const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
     const cutoff = new Date(Date.now() - STALE_THRESHOLD_MS).toISOString();
 
+    // Recover ALL stale running operations — not just those with 0 progress.
+    // An operation stuck for 10+ minutes is stale regardless of partial progress.
     const { data: stale } = await supabase
       .from('global_activity_queue')
-      .select('id, operation_type, started_at, created_at, error_log')
+      .select('id, operation_type, started_at, created_at, completed_items, total_items, error_log')
       .eq('status', 'running')
-      .eq('completed_items', 0)
       .lt('started_at', cutoff);
 
     if (!stale || stale.length === 0) return 0;
 
     for (const item of stale) {
       const log = Array.isArray(item.error_log) ? item.error_log : [];
-      log.push(`Auto-failed by server: 0 items completed, stale since ${item.started_at}`);
+      log.push(`Auto-failed by server: ${item.completed_items || 0}/${item.total_items || '?'} items completed, stale since ${item.started_at}`);
       await supabase
         .from('global_activity_queue')
         .update({

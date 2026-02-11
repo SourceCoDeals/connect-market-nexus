@@ -276,9 +276,10 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
   const enrichAllDeals = useCallback(async (
     deals: Array<{ id: string; deal_name: string; transcript_link?: string; additional_info?: string; company_website?: string }>
   ): Promise<BulkEnrichmentResult> => {
-    const enrichableDeals = deals.filter(d => d.transcript_link || d.additional_info || d.company_website);
-
-    if (enrichableDeals.length === 0) {
+    // All deals are enrichable — enrichDeal() checks the deal_transcripts table
+    // for transcripts (not just the transcript_link field) and also tries website scraping.
+    // Only skip deals with zero data sources (no website, no notes, AND no transcripts in DB).
+    if (deals.length === 0) {
       toast({
         title: 'No deals to enrich',
         description: 'Add transcripts, notes, or websites to deals first',
@@ -286,6 +287,8 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
       });
       return { success: false, enrichedCount: 0, failedCount: 0, partialCount: 0 };
     }
+
+    const enrichableDeals = deals;
 
     setIsEnriching(true);
     setProgress({ current: 0, total: enrichableDeals.length, startedAt: Date.now() });
