@@ -231,8 +231,8 @@ serve(async (req) => {
     if (!sheetId) throw new Error("CAPTARGET_SHEET_ID not configured");
 
     // Pull from both tabs — configurable via env, defaults to Active/Inactive
-    const activeTab = Deno.env.get("CAPTARGET_ACTIVE_TAB") || "Active";
-    const inactiveTab = Deno.env.get("CAPTARGET_INACTIVE_TAB") || "Inactive";
+    const activeTab = Deno.env.get("CAPTARGET_ACTIVE_TAB_NAME") || "Active Summary";
+    const inactiveTab = Deno.env.get("CAPTARGET_INACTIVE_TAB_NAME") || "Inactive Summary";
     const tabs = [
       { name: activeTab, captarget_status: "active" },
       { name: inactiveTab, captarget_status: "inactive" },
@@ -306,6 +306,7 @@ serve(async (req) => {
               deal_source: "captarget",
               status: "captarget_review",
               pushed_to_all_deals: false,
+              is_internal_deal: true,
             };
 
             batchRecords.push(record);
