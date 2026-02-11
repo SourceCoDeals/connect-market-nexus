@@ -196,11 +196,29 @@ export const DocumentUploadSection = ({
           successes++;
         } else {
           failures++;
-          console.error(`Extraction failed for ${doc.name}:`, data?.error);
+          const errMsg = data?.error || 'Unknown extraction error';
+          console.error(`Extraction failed for ${doc.name}:`, errMsg);
+          if (queueId) {
+            try {
+              updateProgress.mutate({
+                id: queueId,
+                errorEntry: { itemId: doc.name, error: errMsg },
+              });
+            } catch {}
+          }
         }
-      } catch (err) {
+      } catch (err: any) {
         failures++;
-        console.error(`Error enriching ${doc.name}:`, err);
+        const errMsg = err?.message || 'Unknown error';
+        console.error(`Error enriching ${doc.name}:`, errMsg);
+        if (queueId) {
+          try {
+            updateProgress.mutate({
+              id: queueId,
+              errorEntry: { itemId: doc.name, error: errMsg },
+            });
+          } catch {}
+        }
       }
 
       setEnrichProgress({ current: i + 1, total: enrichableDocs.length, successes, failures });

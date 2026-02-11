@@ -1,0 +1,1 @@
+UPDATE buyer_enrichment_queue SET status = 'pending', attempts = 0, last_error = NULL WHERE status = 'failed';
