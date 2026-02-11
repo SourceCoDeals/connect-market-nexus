@@ -60,26 +60,51 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
   return result.data;
 }
 
-const LIST_TRANSCRIPTS_QUERY = `
+/**
+ * GraphQL queries that use the Fireflies native filtering:
+ * - keyword: searches title + spoken words server-side
+ * - participants: filters by attendee email server-side
+ */
+const TRANSCRIPT_FIELDS = `
+  id
+  title
+  date
+  duration
+  organizer_email
+  participants
+  meeting_attendees {
+    displayName
+    email
+    name
+  }
+  transcript_url
+  summary {
+    short_summary
+    keywords
+    action_items
+  }
+`;
+
+const KEYWORD_SEARCH_QUERY = `
+  query SearchByKeyword($keyword: String!, $limit: Int, $skip: Int) {
+    transcripts(keyword: $keyword, limit: $limit, skip: $skip) {
+      ${TRANSCRIPT_FIELDS}
+    }
+  }
+`;
+
+const PARTICIPANT_SEARCH_QUERY = `
+  query SearchByParticipant($participants: [String!], $limit: Int, $skip: Int) {
+    transcripts(participants: $participants, limit: $limit, skip: $skip) {
+      ${TRANSCRIPT_FIELDS}
+    }
+  }
+`;
+
+const ALL_TRANSCRIPTS_QUERY = `
   query ListTranscripts($limit: Int, $skip: Int) {
     transcripts(limit: $limit, skip: $skip) {
-      id
-      title
-      date
-      duration
-      organizer_email
-      participants
-      meeting_attendees {
-        displayName
-        email
-        name
-      }
-      transcript_url
-      summary {
-        short_summary
-        keywords
-        action_items
-      }
+      ${TRANSCRIPT_FIELDS}
     }
   }
 `;
@@ -87,11 +112,11 @@ const LIST_TRANSCRIPTS_QUERY = `
 /**
  * Search Fireflies transcripts for buyer/deal linking.
  *
- * Supports two search modes (both run, results merged + deduplicated):
- * 1. Keyword search — matches title, summary, keywords
- * 2. Participant email search — finds transcripts with matching attendees
+ * Uses the Fireflies API native filtering:
+ * 1. keyword param — server-side search of title + spoken words
+ * 2. participants param — server-side filter by attendee email
  *
- * Calls the Fireflies GraphQL API directly (requires FIREFLIES_API_KEY).
+ * Both searches run in parallel, results are merged and deduplicated.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -146,61 +171,85 @@ serve(async (req) => {
       );
     }
 
-    // Fetch transcripts from Fireflies API (paginate for coverage)
-    const allFireflies: any[] = [];
-    let skip = 0;
-    const batchSize = 50;
-    const maxPages = 6; // Scan up to 300 transcripts
+    const trimmedQuery = (query || '').trim();
+    const validEmails = (participantEmails || []).filter(Boolean);
 
-    for (let page = 0; page < maxPages; page++) {
-      const data = await firefliesGraphQL(LIST_TRANSCRIPTS_QUERY, {
-        limit: batchSize,
-        skip,
-      });
-      const batch = data.transcripts || [];
-      allFireflies.push(...batch);
-      if (batch.length < batchSize) break;
-      skip += batchSize;
+    // Run keyword search and participant search in parallel using native Fireflies API filtering
+    const searches: Promise<any[]>[] = [];
+
+    if (trimmedQuery) {
+      searches.push(
+        (async () => {
+          const results: any[] = [];
+          let skip = 0;
+          const batchSize = 50;
+          const maxPages = 4;
+          for (let page = 0; page < maxPages; page++) {
+            const data = await firefliesGraphQL(KEYWORD_SEARCH_QUERY, {
+              keyword: trimmedQuery,
+              limit: batchSize,
+              skip,
+            });
+            const batch = data.transcripts || [];
+            results.push(...batch);
+            if (batch.length < batchSize) break;
+            skip += batchSize;
+          }
+          console.log(`Keyword search "${trimmedQuery}" returned ${results.length} results`);
+          return results;
+        })()
+      );
     }
 
-    console.log(`Fetched ${allFireflies.length} transcripts from Fireflies`);
+    if (validEmails.length > 0) {
+      searches.push(
+        (async () => {
+          const results: any[] = [];
+          let skip = 0;
+          const batchSize = 50;
+          const maxPages = 4;
+          for (let page = 0; page < maxPages; page++) {
+            const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
+              participants: validEmails,
+              limit: batchSize,
+              skip,
+            });
+            const batch = data.transcripts || [];
+            results.push(...batch);
+            if (batch.length < batchSize) break;
+            skip += batchSize;
+          }
+          console.log(`Participant search [${validEmails.join(', ')}] returned ${results.length} results`);
+          return results;
+        })()
+      );
+    }
 
-    // Build filter sets
-    const emailSet = new Set(
-      (participantEmails || []).map((e: string) => e.toLowerCase())
-    );
-    const queryLower = (query || '').toLowerCase().trim();
+    // If no keyword and no emails (shouldn't happen due to validation above), fetch recent
+    if (searches.length === 0) {
+      searches.push(
+        (async () => {
+          const data = await firefliesGraphQL(ALL_TRANSCRIPTS_QUERY, { limit: 50, skip: 0 });
+          return data.transcripts || [];
+        })()
+      );
+    }
 
-    // Filter: match by participant email OR keyword
-    const matchingResults = allFireflies.filter((t: any) => {
-      // Check participant emails
-      if (emailSet.size > 0) {
-        const attendees = t.meeting_attendees || [];
-        if (attendees.some((a: any) => a.email && emailSet.has(a.email.toLowerCase()))) {
-          return true;
+    const searchResults = await Promise.all(searches);
+
+    // Merge and deduplicate by transcript ID
+    const seen = new Set<string>();
+    const matchingResults: any[] = [];
+    for (const resultSet of searchResults) {
+      for (const t of resultSet) {
+        if (t.id && !seen.has(t.id)) {
+          seen.add(t.id);
+          matchingResults.push(t);
         }
       }
+    }
 
-      // Check keyword in title, summary, and keywords
-      if (queryLower) {
-        const title = (t.title || '').toLowerCase();
-        const summary = (t.summary?.short_summary || '').toLowerCase();
-        const keywords = (t.summary?.keywords || []).join(' ').toLowerCase();
-        const participants = (t.participants || []).join(' ').toLowerCase();
-        if (
-          title.includes(queryLower) ||
-          summary.includes(queryLower) ||
-          keywords.includes(queryLower) ||
-          participants.includes(queryLower)
-        ) {
-          return true;
-        }
-      }
-
-      return false;
-    });
-
-    console.log(`${matchingResults.length} transcripts matched search criteria`);
+    console.log(`${matchingResults.length} unique transcripts after merging`);
 
     // Format results
     const formattedResults: SearchResult[] = matchingResults
