@@ -49,7 +49,9 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     return val;
   };
 
-  // ===== FINANCIAL SIZE (0-35 pts) =====
+  // ===== FINANCIAL SIZE (0-45 pts) =====
+  // Revenue is the primary size signal — if we know it, LinkedIn headcount
+  // becomes a minor tiebreaker rather than a major scoring dimension.
   const revenue = normalizeFinancial(deal.revenue || 0);
   const ebitda = normalizeFinancial(deal.ebitda || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
@@ -60,57 +62,71 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   let linkedinBoost = 0;
 
   if (hasFinancials) {
-    // Revenue scoring (0-27 pts) — expanded tiers for larger companies
+    // Revenue scoring (0-35 pts) — this is the dominant signal
     let revPts = 0;
-    if (revenue >= 100000000) revPts = 27;
-    else if (revenue >= 50000000) revPts = 25;
-    else if (revenue >= 25000000) revPts = 23;
-    else if (revenue >= 10000000) revPts = 21;
-    else if (revenue >= 7000000) revPts = 19;
-    else if (revenue >= 5000000) revPts = 17;
-    else if (revenue >= 3000000) revPts = 14;
-    else if (revenue >= 2000000) revPts = 11;
-    else if (revenue >= 1000000) revPts = 8;
-    else if (revenue >= 500000) revPts = 4;
-    else if (revenue > 0) revPts = 2;
+    if (revenue >= 100000000) revPts = 35;
+    else if (revenue >= 75000000) revPts = 33;
+    else if (revenue >= 50000000) revPts = 31;
+    else if (revenue >= 25000000) revPts = 28;
+    else if (revenue >= 10000000) revPts = 25;
+    else if (revenue >= 7000000) revPts = 22;
+    else if (revenue >= 5000000) revPts = 19;
+    else if (revenue >= 3000000) revPts = 15;
+    else if (revenue >= 2000000) revPts = 12;
+    else if (revenue >= 1000000) revPts = 9;
+    else if (revenue >= 500000) revPts = 5;
+    else if (revenue > 0) revPts = 3;
 
     revenueScore = revPts;
 
-    // EBITDA scoring (0-8 pts) — lower weight so missing EBITDA is less punitive
+    // EBITDA scoring (0-10 pts) — bonus for profitability, not punitive if missing
     let ebitdaPts = 0;
-    if (ebitda >= 5000000) ebitdaPts = 8;
-    else if (ebitda >= 2000000) ebitdaPts = 7;
-    else if (ebitda >= 1000000) ebitdaPts = 6;
+    if (ebitda >= 10000000) ebitdaPts = 10;
+    else if (ebitda >= 5000000) ebitdaPts = 9;
+    else if (ebitda >= 2000000) ebitdaPts = 8;
+    else if (ebitda >= 1000000) ebitdaPts = 7;
     else if (ebitda >= 500000) ebitdaPts = 5;
     else if (ebitda >= 300000) ebitdaPts = 4;
     else if (ebitda >= 150000) ebitdaPts = 2;
 
     ebitdaScore = ebitdaPts;
 
-    financialScore = Math.min(35, revPts + ebitdaPts);
+    financialScore = Math.min(45, revPts + ebitdaPts);
   }
 
-  // ===== COMPANY SIGNALS (0-30 pts) =====
+  // ===== COMPANY SIGNALS (0-30 pts, BUT reduced when financials known) =====
   const employeeCount = deal.linkedin_employee_count || 0;
   const reviewCount = deal.google_review_count || 0;
   const googleRating = deal.google_rating || 0;
   let signalsScore = 0;
 
-  // LinkedIn employees (0-20 pts) — calibrated for SMBs
-  if (employeeCount >= 200) signalsScore += 20;
-  else if (employeeCount >= 100) signalsScore += 18;
-  else if (employeeCount >= 50) signalsScore += 16;
-  else if (employeeCount >= 25) signalsScore += 14;
-  else if (employeeCount >= 15) signalsScore += 12;
-  else if (employeeCount >= 10) signalsScore += 10;
-  else if (employeeCount >= 5) signalsScore += 7;
-  else if (employeeCount >= 3) signalsScore += 4;
-  else if (employeeCount > 0) signalsScore += 2;
+  // LinkedIn employees — only a major factor when we DON'T have revenue
+  let linkedinPts = 0;
+  if (employeeCount >= 200) linkedinPts = 20;
+  else if (employeeCount >= 100) linkedinPts = 18;
+  else if (employeeCount >= 50) linkedinPts = 16;
+  else if (employeeCount >= 25) linkedinPts = 14;
+  else if (employeeCount >= 15) linkedinPts = 12;
+  else if (employeeCount >= 10) linkedinPts = 10;
+  else if (employeeCount >= 5) linkedinPts = 7;
+  else if (employeeCount >= 3) linkedinPts = 4;
+  else if (employeeCount > 0) linkedinPts = 2;
 
-  if (employeeCount > 0) {
-    linkedinBoost = signalsScore; // Track LinkedIn contribution
-    notes.push(`LinkedIn: ${employeeCount} employees`);
+  if (hasFinancials) {
+    // When we know revenue, LinkedIn is just a small tiebreaker (max 5 pts)
+    signalsScore += Math.min(5, Math.round(linkedinPts * 0.25));
+    if (employeeCount > 0) {
+      notes.push(`LinkedIn: ${employeeCount} employees (tiebreaker — revenue known)`);
+    }
+  } else {
+    // When we DON'T know revenue, LinkedIn is the primary size proxy
+    signalsScore += linkedinPts;
+    if (employeeCount > 0) {
+      notes.push(`LinkedIn: ${employeeCount} employees (primary size proxy)`);
+    }
   }
+
+  linkedinBoost = signalsScore;
 
   // Google review count (0-5 pts) — customer volume indicator
   if (reviewCount >= 200) signalsScore += 5;
@@ -124,7 +140,6 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   else if (googleRating >= 4.0) signalsScore += 4;
   else if (googleRating >= 3.5) signalsScore += 3;
   else if (googleRating >= 3.0) signalsScore += 1;
-  // Below 3.0 = 0 pts
 
   if (reviewCount > 0) {
     notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating`);
@@ -132,10 +147,12 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   signalsScore = Math.min(30, signalsScore);
 
-  // ===== MARKET POSITION (0-20 pts) =====
+  // ===== MARKET POSITION (0-15 pts) =====
+  // Geography and industry provide context, but should NOT heavily penalize.
+  // Having any location info is good; specific metros are a bonus.
   let marketScore = 0;
 
-  // Geography (0-10 pts)
+  // Geography (0-8 pts) — bonus for good markets, not a penalty for others
   const city = (deal.address_city || '').toLowerCase();
   const state = (deal.address_state || '').toUpperCase();
   const location = (deal.location || '').toLowerCase();
@@ -155,20 +172,18 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     'arlington', 'bakersfield', 'wichita', 'boise', 'salt lake', 'madison',
     'green bay', 'des moines', 'knoxville', 'chattanooga', 'birmingham'
   ];
-  const highValueStates = ['TX', 'FL', 'CA', 'AZ', 'NC', 'GA', 'TN', 'CO', 'WA'];
 
   if (majorMetros.some(metro => locationText.includes(metro))) {
-    marketScore += 10;
+    marketScore += 8;
     notes.push('Major metro area');
   } else if (secondaryCities.some(c => locationText.includes(c))) {
-    marketScore += 7;
-  } else if (highValueStates.includes(state)) {
-    marketScore += 5;
+    marketScore += 6;
   } else if (city || state) {
-    marketScore += 3;
+    // Any known location gets baseline credit — no penalty for smaller markets
+    marketScore += 4;
   }
 
-  // Services/industry attractiveness (0-10 pts) — PE-attractive industries score higher
+  // Services/industry (0-7 pts) — light bonus, not a gate
   const category = (deal.category || '').toLowerCase();
   const serviceMix = (deal.service_mix || '').toLowerCase();
   const businessModel = (deal.business_model || '').toLowerCase();
@@ -198,50 +213,50 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   let industryPts = 0;
   if (hasPEHot && hasRecurring) {
-    industryPts = 10;
+    industryPts = 7;
     notes.push('PE-attractive industry with recurring revenue');
   } else if (hasPEHot) {
-    industryPts = 8;
+    industryPts = 5;
     notes.push('PE-attractive industry');
   } else if (hasModerate && hasRecurring) {
-    industryPts = 7;
-  } else if (hasModerate) {
     industryPts = 5;
-  } else if (hasRecurring) {
-    industryPts = 6;
-  } else if (category) {
+  } else if (hasModerate) {
     industryPts = 3;
+  } else if (hasRecurring) {
+    industryPts = 4;
+  } else if (category) {
+    // Any categorized deal gets baseline credit
+    industryPts = 2;
   }
 
   marketScore += industryPts;
 
-  // Multi-location bonus (0-5 pts)
+  // Multi-location bonus (0-3 pts)
   const locationCount = deal.location_count || 0;
-  if (locationCount >= 5) marketScore += 5;
-  else if (locationCount >= 3) marketScore += 4;
-  else if (locationCount >= 2) marketScore += 3;
+  if (locationCount >= 5) marketScore += 3;
+  else if (locationCount >= 3) marketScore += 2;
+  else if (locationCount >= 2) marketScore += 1;
 
-  marketScore = Math.min(25, marketScore);
+  marketScore = Math.min(15, marketScore);
 
   // ===== DYNAMIC WEIGHT REDISTRIBUTION =====
-  // When financials are missing, redistribute those 35 points
-  // proportionally to Company Signals (60%) and Market Position (40%)
+  // When financials are missing, redistribute those 45 points
+  // proportionally to Company Signals (70%) and Market Position (30%)
   let adjustedSignals = signalsScore;
   let adjustedMarket = marketScore;
 
   if (!hasFinancials) {
     const signalsMax = 30;
-    const marketMax = 25;  // Updated cap
-    const totalAvailableMax = signalsMax + marketMax; // 55
-    const scaleFactor = (35 + totalAvailableMax) / totalAvailableMax; // 90/55 ≈ 1.636
+    const marketMax = 15;
+    const totalAvailableMax = signalsMax + marketMax; // 45
+    const scaleFactor = (45 + totalAvailableMax) / totalAvailableMax; // 90/45 = 2.0
 
     adjustedSignals = Math.round(signalsScore * scaleFactor);
     adjustedMarket = Math.round(marketScore * scaleFactor);
 
-    // Cap at 85% of scaled max — prevents no-financials deals from scoring
-    // as high as equivalent deals WITH financials
-    adjustedSignals = Math.min(Math.round(signalsMax * scaleFactor * 0.85), adjustedSignals);
-    adjustedMarket = Math.min(Math.round(marketMax * scaleFactor * 0.85), adjustedMarket);
+    // Cap at 80% of scaled max
+    adjustedSignals = Math.min(Math.round(signalsMax * scaleFactor * 0.80), adjustedSignals);
+    adjustedMarket = Math.min(Math.round(marketMax * scaleFactor * 0.80), adjustedMarket);
 
     if (signalsScore > 0 || marketScore > 0) {
       notes.push('No financials — score weighted to company signals & market position');
@@ -250,45 +265,48 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     }
   }
 
-  // ===== SELLER READINESS (0-25 pts) =====
-  // Business principle: A highly motivated seller can compensate for weaker attributes
+  // ===== SELLER READINESS (0-10 pts) — ONLY counted when we have seller data =====
+  // If we haven't talked to the owner, we simply don't know — no penalty.
   let sellerScore = 0;
-  const hasSeller = deal.seller_interest_score !== null && deal.seller_interest_score !== undefined;
+  const hasSeller = deal.seller_interest_score !== null && deal.seller_interest_score !== undefined
+    && deal.seller_interest_score > 0;
 
   if (hasSeller) {
-    // Base: proportional score (0-18 pts)
-    sellerScore = Math.round((deal.seller_interest_score / 100) * 18);
+    // Proportional score (0-7 pts)
+    sellerScore = Math.round((deal.seller_interest_score / 100) * 7);
 
-    // High motivation bonus (additional 0-7 pts)
+    // High motivation bonus (additional 0-3 pts)
     if (deal.seller_interest_score >= 90) {
-      sellerScore += 7;
-      notes.push('Very high seller motivation — significant quality boost');
+      sellerScore += 3;
+      notes.push('Very high seller motivation — quality boost');
     } else if (deal.seller_interest_score >= 80) {
-      sellerScore += 5;
+      sellerScore += 2;
       notes.push('High seller motivation');
     } else if (deal.seller_interest_score >= 70) {
-      sellerScore += 3;
+      sellerScore += 1;
       notes.push('Good seller motivation');
     }
 
-    sellerScore = Math.min(25, sellerScore);
+    sellerScore = Math.min(10, sellerScore);
   }
 
   // ===== CALCULATE TOTAL =====
-  let totalScore: number;
+  // Max possible: 45 (financial) + 30 (signals) + 15 (market) + 10 (seller) = 100
+  // But when seller is unknown, max is 90 — we scale to 100 so scores are comparable.
   const baseScore = (hasFinancials ? financialScore : 0) + adjustedSignals + adjustedMarket;
 
+  let totalScore: number;
   if (hasSeller) {
     totalScore = baseScore + sellerScore;
   } else {
-    // When no seller data, add small baseline (5 pts) — don't assume motivation
-    totalScore = Math.min(100, baseScore + 5);
+    // Scale the 90-point base to 100 so deals aren't penalized for unknown seller info
+    totalScore = Math.round((baseScore / 90) * 100);
   }
 
-  // Store the size indicator for the dashboard (use financial or employee proxy)
+  // Store the size indicator for the dashboard
   const sizeIndicator = hasFinancials
     ? financialScore
-    : Math.round(signalsScore * (35 / 30)); // Scale signals to size range for display
+    : Math.round(signalsScore * (45 / 30));
 
   return {
     deal_total_score: Math.min(100, Math.max(0, totalScore)),
@@ -296,7 +314,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     revenue_score: hasFinancials ? revenueScore : undefined,
     ebitda_score: hasFinancials ? ebitdaScore : undefined,
     linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
-    quality_calculation_version: 'v2',
+    quality_calculation_version: 'v3',
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
