@@ -1,16 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.30.1";
+import { GEMINI_API_BASE } from "../_shared/ai-providers.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
-
-const anthropic = new Anthropic({
-  apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
-});
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -21,6 +20,11 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!geminiApiKey) {
+      throw new Error("GEMINI_API_KEY not configured");
+    }
 
     const { document_url, document_type, tracker_id } = await req.json();
 
@@ -44,9 +48,8 @@ serve(async (req) => {
     }
 
     const docBuffer = await docResponse.arrayBuffer();
-    const base64Doc = btoa(String.fromCharCode(...new Uint8Array(docBuffer)));
+    const base64Doc = base64Encode(new Uint8Array(docBuffer) as unknown as ArrayBuffer);
 
-    // Analyze with Claude Sonnet 4 (supports PDF)
     const system_prompt = `You are a document analysis assistant specialized in analyzing M&A documents.
 
 Your task is to extract key information from documents such as:
@@ -66,36 +69,44 @@ Extract and structure:
 
 Return a JSON object with the extracted information.`;
 
-    // Note: The Anthropic SDK 0.30.1 doesn't support the 'document' content type directly.
-    // We use type assertion to bypass the type check since the API does support it.
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: system_prompt,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: base64Doc,
+    const userPrompt = "Please analyze this document and extract all relevant M&A intelligence information. Return the extracted data as a structured JSON object.";
+
+    // Use Gemini native endpoint for PDF processing
+    const geminiUrl = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`;
+
+    const response = await fetch(geminiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                inline_data: {
+                  mime_type: "application/pdf",
+                  data: base64Doc,
+                },
               },
-            } as unknown as { type: "text"; text: string },
-            {
-              type: "text",
-              text: "Please analyze this document and extract all relevant M&A intelligence information. Return the extracted data as a structured JSON object.",
-            },
-          ],
+              {
+                text: `${system_prompt}\n\n${userPrompt}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: 8192,
+          temperature: 0,
         },
-      ],
+      }),
     });
 
-    const assistant_message = response.content[0].type === "text"
-      ? response.content[0].text
-      : "";
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 300)}`);
+    }
+
+    const aiData = await response.json();
+    const assistant_message = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     // Parse JSON from response
     let extracted_data = {};
@@ -115,7 +126,10 @@ Return a JSON object with the extracted information.`;
       JSON.stringify({
         extracted_data,
         raw_response: assistant_message,
-        usage: response.usage,
+        usage: aiData.usageMetadata ? {
+          input_tokens: aiData.usageMetadata.promptTokenCount || 0,
+          output_tokens: aiData.usageMetadata.candidatesTokenCount || 0,
+        } : undefined,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
