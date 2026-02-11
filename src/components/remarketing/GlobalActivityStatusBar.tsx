@@ -4,7 +4,7 @@ import { Activity, Pause, Play, X, ChevronDown, ChevronUp, AlertCircle, CheckCir
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useGlobalActivityQueue,
   useGlobalActivityMutations,
@@ -142,54 +142,56 @@ export function GlobalActivityStatusBar() {
   if (isLoading || !hasActivity) return null;
 
   return (
-    <div className="border-b border-border bg-card/80 backdrop-blur-sm">
-      {/* Main bar */}
-      <div className="flex items-center gap-2 px-4 py-2">
-        <Activity className="h-4 w-4 text-blue-400 shrink-0" />
+    <TooltipProvider>
+      <div className="border-b border-border bg-card/80 backdrop-blur-sm">
+        {/* Main bar */}
+        <div className="flex items-center gap-2 px-4 py-2">
+          <Activity className="h-4 w-4 text-blue-400 shrink-0" />
 
-        {activeOp ? (
-          <div className="flex-1 min-w-0">
-            <OperationRow item={activeOp} showControls />
+          {activeOp ? (
+            <div className="flex-1 min-w-0">
+              <OperationRow item={activeOp} showControls />
+            </div>
+          ) : queuedOps.length > 0 ? (
+            <span className="text-sm text-muted-foreground">
+              {queuedOps.length} operation{queuedOps.length > 1 ? "s" : ""} queued
+            </span>
+          ) : null}
+
+          {/* Queue badge + expand toggle */}
+          <div className="flex items-center gap-1 shrink-0">
+            {queuedOps.length > 0 && activeOp && (
+              <Badge variant="secondary" className="text-[10px] h-5">
+                +{queuedOps.length} queued
+              </Badge>
+            )}
+            <Link to="/admin/remarketing/activity-queue">
+              <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
+                View All
+              </Button>
+            </Link>
+            {queuedOps.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </Button>
+            )}
           </div>
-        ) : queuedOps.length > 0 ? (
-          <span className="text-sm text-muted-foreground">
-            {queuedOps.length} operation{queuedOps.length > 1 ? "s" : ""} queued
-          </span>
-        ) : null}
-
-        {/* Queue badge + expand toggle */}
-        <div className="flex items-center gap-1 shrink-0">
-          {queuedOps.length > 0 && activeOp && (
-            <Badge variant="secondary" className="text-[10px] h-5">
-              +{queuedOps.length} queued
-            </Badge>
-          )}
-          <Link to="/admin/remarketing/activity-queue">
-            <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
-              View All
-            </Button>
-          </Link>
-          {queuedOps.length > 0 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </Button>
-          )}
         </div>
+
+        {/* Expanded queue list */}
+        {expanded && queuedOps.length > 0 && (
+          <div className="border-t border-border/50 px-4 py-2 space-y-2">
+            {queuedOps.map((op) => (
+              <OperationRow key={op.id} item={op} showControls />
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Expanded queue list */}
-      {expanded && queuedOps.length > 0 && (
-        <div className="border-t border-border/50 px-4 py-2 space-y-2">
-          {queuedOps.map((op) => (
-            <OperationRow key={op.id} item={op} showControls />
-          ))}
-        </div>
-      )}
-    </div>
+    </TooltipProvider>
   );
 }
