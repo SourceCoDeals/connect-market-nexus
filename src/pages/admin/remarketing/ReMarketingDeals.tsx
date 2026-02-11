@@ -571,7 +571,7 @@ const SortableTableRow = ({
 
       {/* Added date */}
       <TableCell className="text-muted-foreground text-sm" style={{ width: columnWidths.added, minWidth: 60 }}>
-        {format(new Date(listing.created_at), 'dd/MM/yyyy')}
+        {format(new Date(listing.created_at), 'MM/dd/yyyy')}
       </TableCell>
 
       {/* Actions */}
