@@ -10,24 +10,22 @@ LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE
     WHEN url IS NULL OR trim(url) = '' OR trim(url) = '<UNKNOWN>' THEN NULL
     ELSE
-      -- Strip trailing dot (DNS root), then protocol, www, path, port
       rtrim(
-        split_part(          -- strip port
-          split_part(        -- strip path
+        split_part(
+          split_part(
             regexp_replace(
               regexp_replace(
-                regexp_replace(
-                  lower(trim(url)),
-                  '^[a-z]+://', ''   -- strip any protocol (http, https, ftp, etc.)
-                ),
-                '^www\.', ''         -- strip www.
+                lower(trim(url)),
+                '^[a-z]+://', ''
               ),
-              '/', 1
+              '^www\.', ''
             ),
-            ':', 1
+            '/', 1
           ),
-          '.'                        -- strip trailing dot (e.g. "example.com." → "example.com")
-        )
+          ':', 1
+        ),
+        '.'
+      )
   END
 $$;
 
