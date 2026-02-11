@@ -198,6 +198,7 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
   // SECURITY: Use service role key for internal function-to-function calls
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseInternalKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
   if (supabaseUrl && supabaseInternalKey) {
     const processorMap: Record<string, string> = {
       deal_enrichment: 'process-enrichment-queue',
@@ -208,14 +209,16 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
     const functionName = processorMap[nextOp.operation_type];
     if (functionName) {
       try {
+        // No AbortSignal — fire-and-forget. Previous 5s timeout killed chains on cold starts.
+        // 'apikey' header is REQUIRED by Supabase gateway for project routing.
         await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${supabaseInternalKey}`,
+            'apikey': supabaseAnonKey || supabaseInternalKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ fromGlobalQueue: true, globalQueueId: nextOp.id, ...nextOp.context_json }),
-          signal: AbortSignal.timeout(5000), // Fire-and-forget, don't wait
         }).catch(() => {}); // Swallow — processor will be invoked by cron anyway
       } catch {
         // Non-blocking
