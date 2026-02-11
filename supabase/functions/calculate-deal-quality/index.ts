@@ -21,15 +21,12 @@ interface DealQualityScores {
  * Calculate deal quality score based on deal attributes.
  * This is the overall quality of the deal, NOT how well it fits a specific buyer.
  *
- * SCORING METHODOLOGY V4 (0-100):
+ * SCORING METHODOLOGY V5 (0-100):
  *
- * SIZE (0-90 pts) — Always 90% of the score. Measured with the best available data:
- *   - With financials: Revenue (0-75) + EBITDA (0-15)
- *   - Without financials: LinkedIn employees (0-60) + Google reviews (0-15) + rating (0-15)
+ * With financials: Revenue (0-65) + EBITDA (0-15) + Signals tiebreaker (0-5) + Market (0-15)
+ * Without financials: Signals scaled up + Market scaled up
  *
- * MARKET (0-10 pts) — Always 10% of the score. Light bonus for geography/recurring revenue.
- *
- * Size floors guarantee minimum scores for large deals by revenue or EBITDA.
+ * Revenue is THE dominant signal. A $70M+ company should score 80+.
  */
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
@@ -42,7 +39,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     return val;                                              // raw: 50000000 → $50M
   };
 
-  // ===== FINANCIAL SIZE (0-45 pts) =====
+  // ===== FINANCIAL SIZE (0-80 pts) =====
   // Revenue is the primary size signal — if we know it, LinkedIn headcount
   // becomes a minor tiebreaker rather than a major scoring dimension.
   const revenue = normalizeFinancial(deal.revenue || 0);
@@ -62,38 +59,40 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   let sizeScore = 0;
 
   if (hasFinancials) {
-    // Revenue scoring (0-35 pts) — this is the dominant signal
+    // Revenue scoring (0-65 pts) — THE dominant signal for deal quality
     let revPts = 0;
-    if (revenue >= 100000000) revPts = 35;
-    else if (revenue >= 75000000) revPts = 33;
-    else if (revenue >= 50000000) revPts = 31;
-    else if (revenue >= 25000000) revPts = 28;
-    else if (revenue >= 10000000) revPts = 25;
-    else if (revenue >= 7000000) revPts = 22;
-    else if (revenue >= 5000000) revPts = 19;
-    else if (revenue >= 3000000) revPts = 15;
-    else if (revenue >= 2000000) revPts = 12;
-    else if (revenue >= 1000000) revPts = 9;
-    else if (revenue >= 500000) revPts = 5;
-    else if (revenue > 0) revPts = 3;
+    if (revenue >= 100000000) revPts = 65;
+    else if (revenue >= 75000000) revPts = 62;
+    else if (revenue >= 50000000) revPts = 58;
+    else if (revenue >= 25000000) revPts = 52;
+    else if (revenue >= 15000000) revPts = 46;
+    else if (revenue >= 10000000) revPts = 40;
+    else if (revenue >= 7000000) revPts = 34;
+    else if (revenue >= 5000000) revPts = 28;
+    else if (revenue >= 3000000) revPts = 22;
+    else if (revenue >= 2000000) revPts = 17;
+    else if (revenue >= 1000000) revPts = 12;
+    else if (revenue >= 500000) revPts = 7;
+    else if (revenue > 0) revPts = 4;
 
     revenueScore = revPts;
     if (revenue > 0) notes.push(`Revenue: $${(revenue / 1_000_000).toFixed(1)}M → ${revPts} pts`);
 
-    // EBITDA scoring (0-10 pts) — bonus for profitability, not punitive if missing
+    // EBITDA scoring (0-15 pts) — profitability bonus
     let ebitdaPts = 0;
-    if (ebitda >= 10000000) ebitdaPts = 10;
-    else if (ebitda >= 5000000) ebitdaPts = 9;
-    else if (ebitda >= 2000000) ebitdaPts = 8;
+    if (ebitda >= 10000000) ebitdaPts = 15;
+    else if (ebitda >= 5000000) ebitdaPts = 13;
+    else if (ebitda >= 3000000) ebitdaPts = 11;
+    else if (ebitda >= 2000000) ebitdaPts = 9;
     else if (ebitda >= 1000000) ebitdaPts = 7;
     else if (ebitda >= 500000) ebitdaPts = 5;
-    else if (ebitda >= 300000) ebitdaPts = 4;
+    else if (ebitda >= 300000) ebitdaPts = 3;
     else if (ebitda >= 150000) ebitdaPts = 2;
 
     ebitdaScore = ebitdaPts;
     if (ebitda > 0) notes.push(`EBITDA: $${(ebitda / 1_000_000).toFixed(1)}M → ${ebitdaPts} pts`);
 
-    financialScore = Math.min(45, revPts + ebitdaPts);
+    financialScore = Math.min(80, revPts + ebitdaPts);
   }
 
   // ===== COMPANY SIGNALS (0-30 pts, BUT reduced when financials known) =====
@@ -239,7 +238,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   marketScore = Math.min(15, marketScore);
 
   // ===== DYNAMIC WEIGHT REDISTRIBUTION =====
-  // When financials are missing, redistribute those 45 points
+  // When financials are missing, redistribute those 80 points
   // proportionally to Company Signals (70%) and Market Position (30%)
   let adjustedSignals = signalsScore;
   let adjustedMarket = marketScore;
@@ -248,7 +247,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     const signalsMax = 30;
     const marketMax = 15;
     const totalAvailableMax = signalsMax + marketMax; // 45
-    const scaleFactor = (45 + totalAvailableMax) / totalAvailableMax; // 90/45 = 2.0
+    const scaleFactor = (80 + totalAvailableMax) / totalAvailableMax; // 125/45 ≈ 2.78
 
     adjustedSignals = Math.round(signalsScore * scaleFactor);
     adjustedMarket = Math.round(marketScore * scaleFactor);
@@ -290,30 +289,25 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   }
 
   // ===== CALCULATE TOTAL =====
-  // Max possible: 45 (financial) + 30 (signals) + 15 (market) + 10 (seller) = 100
-  // But when seller is unknown, max is 90 — we scale to 100 so scores are comparable.
+  // Max possible: 80 (financial) + 5 (signals tiebreaker) + 15 (market) = 100
+  // Without seller data, scale proportionally.
   const baseScore = (hasFinancials ? financialScore : 0) + adjustedSignals + adjustedMarket;
 
   let totalScore: number;
   if (hasSeller) {
-    totalScore = baseScore + sellerScore;
+    // With seller info, score out of 110 scaled to 100
+    totalScore = Math.round(((baseScore + sellerScore) / 110) * 100);
   } else {
-    // Scale the 90-point base to 100 so deals aren't penalized for unknown seller info
-    totalScore = Math.round((baseScore / 90) * 100);
+    totalScore = baseScore;
   }
-
-  // Store the size indicator for the dashboard
-  const sizeIndicator = hasFinancials
-    ? financialScore
-    : Math.round(signalsScore * (45 / 30));
 
   return {
     deal_total_score: Math.min(100, Math.max(0, totalScore)),
-    deal_size_score: Math.min(90, Math.max(0, sizeScore)),
+    deal_size_score: Math.min(100, Math.max(0, hasFinancials ? financialScore : adjustedSignals)),
     revenue_score: hasFinancials ? revenueScore : undefined,
     ebitda_score: hasFinancials ? ebitdaScore : undefined,
     linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
-    quality_calculation_version: 'v3',
+    quality_calculation_version: 'v5',
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
