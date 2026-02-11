@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
-import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
+import { callGeminiWithTool } from "../_shared/ai-providers.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
@@ -16,8 +16,8 @@ const AI_CONFIG = {
 };
 
 const MIN_CONTENT_LENGTH = 200;
-const SCRAPE_TIMEOUT_MS = 15000;
-const AI_TIMEOUT_MS = 45000;
+const SCRAPE_TIMEOUT_MS = 10000;
+const AI_TIMEOUT_MS = 30000;
 
 // ============================================================================
 // DATA PROVENANCE: CANONICAL FIELD OWNERSHIP CONTRACT
@@ -248,7 +248,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
         url: formattedUrl,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,
+        waitFor: 1500,
       }),
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
@@ -307,117 +307,38 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 }
 
 // ============================================================================
-// GEMINI AI EXTRACTION (via OpenAI-compatible endpoint)
+// GEMINI AI EXTRACTION (delegates to shared callGeminiWithTool)
 // ============================================================================
 
-const GEMINI_MAX_RETRIES = 3;
-const GEMINI_RETRY_BASE_DELAY_MS = 2000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 /**
- * Call Gemini via OpenAI-compatible endpoint with tool calling.
- * Accepts Claude-format tool schemas ({name, description, input_schema}) and converts internally.
+ * Call Gemini via shared helper. Accepts Claude-format tool schemas and converts internally.
+ * This is a thin wrapper for backward compatibility with existing prompt functions.
  */
 async function callClaudeAI(
   systemPrompt: string,
   userPrompt: string,
   tool: { name: string; description: string; input_schema: any },
   apiKey: string,
-  retryCount: number = 0
-): Promise<{ data: any | null; error?: { code: string; message: string } }> {
+): Promise<{ data: any | null; error?: { code: string; message: string }; usage?: any }> {
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {
     return { data: null, error: { code: 'missing_api_key', message: 'GEMINI_API_KEY not configured' } };
   }
 
-  try {
-    console.log(`Calling Gemini Flash with tool: ${tool.name}${retryCount > 0 ? ` (retry ${retryCount})` : ''}`);
+  const result = await callGeminiWithTool(
+    systemPrompt, userPrompt, tool, geminiApiKey,
+    AI_CONFIG.model, AI_TIMEOUT_MS, AI_CONFIG.max_tokens
+  );
 
-    // Convert Claude tool format to OpenAI tool format
-    const openAITool = {
-      type: 'function' as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.input_schema,
-      },
+  // Map usage format for backward compat
+  if (result.usage) {
+    return {
+      data: result.data,
+      error: result.error,
+      usage: { inputTokens: result.usage.input_tokens, outputTokens: result.usage.output_tokens },
     };
-
-    const response = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(geminiApiKey),
-      body: JSON.stringify({
-        model: AI_CONFIG.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        tools: [openAITool],
-        tool_choice: { type: 'function', function: { name: tool.name } },
-        temperature: AI_CONFIG.temperature,
-      }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
-
-    if (response.status === 429) {
-      if (retryCount < GEMINI_MAX_RETRIES) {
-        const retryAfter = response.headers.get('retry-after');
-        const retryDelay = retryAfter
-          ? parseInt(retryAfter, 10) * 1000
-          : GEMINI_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
-        const jitter = Math.random() * 1000;
-        console.warn(`Gemini rate limited, waiting ${Math.round(retryDelay + jitter)}ms (attempt ${retryCount + 1}/${GEMINI_MAX_RETRIES})`);
-        await sleep(retryDelay + jitter);
-        return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
-      }
-      return { data: null, error: { code: 'rate_limited', message: 'Rate limit exceeded after retries' } };
-    }
-
-    if (response.status >= 500) {
-      if (retryCount < GEMINI_MAX_RETRIES) {
-        const retryDelay = GEMINI_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
-        console.warn(`Gemini server error (${response.status}), retrying in ${retryDelay}ms`);
-        await sleep(retryDelay);
-        return callClaudeAI(systemPrompt, userPrompt, tool, apiKey, retryCount + 1);
-      }
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Gemini call failed: ${response.status}`, errorText.substring(0, 500));
-      return { data: null };
-    }
-
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-
-    if (!toolCall?.function?.arguments) {
-      console.warn(`No tool_call in Gemini response`);
-      return { data: null };
-    }
-
-    const parsed = typeof toolCall.function.arguments === 'string'
-      ? JSON.parse(toolCall.function.arguments)
-      : toolCall.function.arguments;
-
-    console.log(`Gemini extracted ${Object.keys(parsed).length} fields via ${tool.name}`);
-
-    const usage = data.usage ? {
-      inputTokens: data.usage.prompt_tokens || 0,
-      outputTokens: data.usage.completion_tokens || 0,
-    } : null;
-
-    return { data: parsed, usage, toolName: tool.name } as any;
-  } catch (error) {
-    if (error instanceof Error && error.name === 'TimeoutError') {
-      return { data: null, error: { code: 'timeout', message: 'AI request timed out' } } as any;
-    }
-    console.error('Gemini extraction error:', error);
-    return { data: null } as any;
   }
+  return result;
 }
 
 // ============================================================================
@@ -1099,7 +1020,8 @@ Deno.serve(async (req) => {
 
     const scrapeResults = await Promise.all(scrapePromises);
 
-    // Start firecrawlMap discovery in parallel (will be awaited before geography extraction)
+    // Start firecrawlMap discovery in parallel — but don't block on it
+    // (location pages rarely add meaningful data vs the latency cost)
     let locationPagePromise: Promise<string | null> | null = null;
 
     for (const { type, result } of scrapeResults) {
@@ -1271,20 +1193,16 @@ Deno.serve(async (req) => {
     if (peContent) {
       allPromises.push(
         extractPEIntelligence(peContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
+        extractSizeCriteria(peContent, geminiApiKey).then(r => ({ name: 'size_criteria', result: validateSizeCriteria(r), url: peFirmWebsite })),
       );
     }
 
     if (allPromises.length > 0) {
       promptsRun += allPromises.length;
 
-      // Await location page discovery (was running in parallel with scraping)
-      if (locationPagePromise) {
-        const locationContent = await locationPagePromise;
-        if (locationContent) {
-          platformContent += '\n\n--- LOCATION DATA ---\n\n' + locationContent;
-          console.log('Appended location page data to platform content');
-        }
-      }
+      // Location page discovery runs in background but don't block on it —
+      // AI prompts are already created with current platformContent.
+      // The location data would only help if we re-ran geography, which isn't worth the latency.
 
       const allResults = await Promise.allSettled(allPromises);
       processBatchResults(allResults);
