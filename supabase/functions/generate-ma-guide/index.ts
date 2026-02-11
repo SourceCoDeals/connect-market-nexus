@@ -1,11 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { 
-  ANTHROPIC_API_URL, 
-  getAnthropicHeaders, 
-  DEFAULT_CLAUDE_MODEL, 
-  DEFAULT_CLAUDE_FAST_MODEL,
-  toAnthropicTool,
-  parseAnthropicToolResponse
+  GEMINI_API_URL, 
+  getGeminiHeaders, 
+  DEFAULT_GEMINI_MODEL,
+  callGeminiWithTool
 } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
@@ -210,8 +208,8 @@ async function extractCriteria(content: string, apiKey: string): Promise<Extract
     return criteria;
   }
 
-  // Fallback to AI extraction with tool calling (Anthropic format)
-  const tool = toAnthropicTool({
+  // Fallback to AI extraction with tool calling (Gemini)
+  const tool = {
     type: "function",
     function: {
       name: "extract_criteria",
@@ -266,37 +264,18 @@ async function extractCriteria(content: string, apiKey: string): Promise<Extract
         required: ["size_criteria", "geography_criteria", "service_criteria", "buyer_types_criteria"]
       }
     }
-  });
+  };
 
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: getAnthropicHeaders(apiKey),
-      body: JSON.stringify({
-        model: DEFAULT_CLAUDE_FAST_MODEL,
-        max_tokens: 4096,
-        system: "Extract structured buyer universe criteria from the provided M&A guide content.",
-        messages: [
-          {
-            role: "user",
-            content: `Extract criteria from this M&A guide:\n\n${content.slice(-15000)}`
-          }
-        ],
-        tools: [tool],
-        tool_choice: { type: "tool", name: "extract_criteria" }
-      }),
-    });
+    const { data: extracted, error: aiError } = await callGeminiWithTool(
+      "Extract structured buyer universe criteria from the provided M&A guide content.",
+      `Extract criteria from this M&A guide:\n\n${content.slice(-15000)}`,
+      tool,
+      apiKey,
+    );
 
-    if (!response.ok) {
-      console.error("Criteria extraction failed");
-      return getDefaultCriteria();
-    }
-
-    const result = await response.json();
-    const extracted = parseAnthropicToolResponse(result);
-    if (extracted) {
+    if (!aiError && extracted) {
       criteria = extracted as ExtractedCriteria;
-      // Also try to extract buyer profiles
       criteria.target_buyer_types = await extractBuyerProfilesWithAI(content, apiKey);
       return criteria;
     }
@@ -373,14 +352,13 @@ function parseBuyerProfilesBlock(block: string): BuyerProfile[] {
   return profiles.sort((a, b) => a.rank - b.rank);
 }
 
-// Extract buyer profiles using AI (Anthropic)
+// Extract buyer profiles using AI (Gemini)
 async function extractBuyerProfilesWithAI(content: string, apiKey: string): Promise<BuyerProfile[]> {
-  // Look for buyer profile content in the guide
   const relevantContent = content.match(/PHASE 1E[\s\S]*?(?=##\s*PHASE|$)/i)?.[0] || 
                           content.match(/BUYER TYPE[\s\S]*?(?=##\s*PHASE|$)/i)?.[0] ||
                           content.slice(-20000);
   
-  const tool = toAnthropicTool({
+  const tool = {
     type: "function",
     function: {
       name: "extract_buyer_profiles",
@@ -401,7 +379,7 @@ async function extractBuyerProfilesWithAI(content: string, apiKey: string): Prom
                 locations_max: { type: "number" },
                 revenue_per_location: { type: "number", description: "Revenue per location in dollars" },
                 deal_requirements: { type: "string", description: "Key deal requirements" },
-                enabled: { type: "boolean", default: true }
+                enabled: { type: "boolean" }
               },
               required: ["id", "rank", "name", "description"]
             },
@@ -411,35 +389,20 @@ async function extractBuyerProfilesWithAI(content: string, apiKey: string): Prom
         required: ["buyer_profiles"]
       }
     }
-  });
+  };
 
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: getAnthropicHeaders(apiKey),
-      body: JSON.stringify({
-        model: DEFAULT_CLAUDE_FAST_MODEL,
-        max_tokens: 4096,
-        system: "Extract industry-specific buyer profiles from the M&A guide content. These are the types of BUYERS active in the industry.",
-        messages: [
-          {
-            role: "user",
-            content: `Extract buyer profiles from this M&A guide section:\n\n${relevantContent}`
-          }
-        ],
-        tools: [tool],
-        tool_choice: { type: "tool", name: "extract_buyer_profiles" }
-      }),
-    });
+    const { data: extracted, error: aiError } = await callGeminiWithTool(
+      "Extract industry-specific buyer profiles from the M&A guide content. These are the types of BUYERS active in the industry.",
+      `Extract buyer profiles from this M&A guide section:\n\n${relevantContent}`,
+      tool,
+      apiKey,
+    );
 
-    if (!response.ok) {
-      console.error("Buyer profiles extraction failed");
-      return getDefaultBuyerProfiles();
+    if (!aiError && extracted) {
+      return (extracted as { buyer_profiles?: BuyerProfile[] }).buyer_profiles || getDefaultBuyerProfiles();
     }
-
-    const result = await response.json();
-    const extracted = parseAnthropicToolResponse(result) as { buyer_profiles?: BuyerProfile[] } | null;
-    return extracted?.buyer_profiles || getDefaultBuyerProfiles();
+    return getDefaultBuyerProfiles();
   } catch (error) {
     console.error("Error extracting buyer profiles:", error instanceof Error ? error.message : String(error));
     return getDefaultBuyerProfiles();
@@ -583,7 +546,7 @@ function getDefaultCriteria(): ExtractedCriteria {
   };
 }
 
-// Generate gap-fill content for missing elements (Anthropic)
+// Generate gap-fill content for missing elements (Gemini)
 async function generateGapFill(
   missingElements: string[],
   industryName: string,
@@ -600,14 +563,14 @@ Focus especially on:
 Be comprehensive and specific.`;
 
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
+    const response = await fetch(GEMINI_API_URL, {
       method: "POST",
-      headers: getAnthropicHeaders(apiKey),
+      headers: getGeminiHeaders(apiKey),
       body: JSON.stringify({
-        model: DEFAULT_CLAUDE_FAST_MODEL,
+        model: DEFAULT_GEMINI_MODEL,
         max_tokens: 4000,
-        system: "You are an M&A advisor filling gaps in an industry guide. Be specific and detailed.",
         messages: [
+          { role: "system", content: "You are an M&A advisor filling gaps in an industry guide. Be specific and detailed." },
           { role: "user", content: prompt }
         ]
       }),
@@ -618,12 +581,9 @@ Be comprehensive and specific.`;
     }
 
     const result = await response.json();
-    // Anthropic returns text in content[0].text
-    const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
-    return textBlock?.text || '';
+    return result.choices?.[0]?.message?.content || '';
   } catch (error) {
     console.error("Error in gap fill generation:", error instanceof Error ? error.message : String(error));
-    // Return empty string on error so the generation can continue
     return '';
   }
 }
@@ -647,10 +607,9 @@ const INTER_PHASE_DELAY_MS = 1000; // 1 second between API calls (reduced for ef
 const FUNCTION_TIMEOUT_MS = 120000; // 120 seconds - exit earlier to avoid hard cutoff
 const MIN_TIME_FOR_PHASE_MS = 50000; // Need at least 50s to safely complete a phase
 
-// Model selection: Use Sonnet for critical phases, Haiku for standard
+// Model selection: Use same model for all phases (Gemini Flash)
 const CRITICAL_PHASES = ['1e', '3b', '4a', '5a']; // Buyer profiles, Fit criteria, Structured output, References
-const getModelForPhase = (phaseId: string) => 
-  CRITICAL_PHASES.includes(phaseId) ? DEFAULT_CLAUDE_MODEL : DEFAULT_CLAUDE_FAST_MODEL;
+const getModelForPhase = (_phaseId: string) => DEFAULT_GEMINI_MODEL;
 
 // Define which phases can run in parallel (don't depend on each other's output)
 const PARALLEL_PHASE_GROUPS = [
@@ -778,29 +737,19 @@ NOW GENERATE THE FOLLOWING SECTION:
   const useWebSearch = webSearchPhases.includes(phase.id);
 
   try {
-    // Build the request body
+    // Build the request body for Gemini (OpenAI-compatible format)
     const requestBody: any = {
       model,
       max_tokens: CRITICAL_PHASES.includes(phase.id) ? 8000 : 6000,
-      system: systemPrompt,
       messages: [
+        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ]
     };
 
-    // Add web search tool for market data phases
-    if (useWebSearch) {
-      requestBody.tools = [
-        {
-          type: "web_search_20250305",
-          name: "web_search"
-        }
-      ];
-    }
-
-    const response = await fetch(ANTHROPIC_API_URL, {
+    const response = await fetch(GEMINI_API_URL, {
       method: "POST",
-      headers: getAnthropicHeaders(apiKey),
+      headers: getGeminiHeaders(apiKey),
       body: JSON.stringify(requestBody),
     });
 
@@ -814,37 +763,24 @@ NOW GENERATE THE FOLLOWING SECTION:
         (err as any).recoverable = true;
         throw err;
       }
-      if (response.status === 529) {
-        // Anthropic-specific overload error
-        const err = new Error(`AI service overloaded. Please try again later.`);
-        (err as any).code = 'service_overloaded';
-        (err as any).recoverable = true;
-        throw err;
-      }
       if (response.status === 402) {
         const err = new Error(`AI credits depleted. Please add credits to continue.`);
         (err as any).code = 'payment_required';
         (err as any).recoverable = false;
         throw err;
       }
+      if (response.status >= 500) {
+        const err = new Error(`AI service temporarily unavailable for phase ${phase.id}`);
+        (err as any).code = 'service_unavailable';
+        (err as any).recoverable = true;
+        throw err;
+      }
       throw new Error(`Failed to generate phase ${phase.id}`);
     }
 
     const result = await response.json();
-    // Handle response with potential web search results
-    // The response may have multiple content blocks: text, tool_use (web_search), etc.
-    // Extract all text blocks
-    let responseText = '';
-    if (result.content && Array.isArray(result.content)) {
-      responseText = result.content
-        .filter((block: any) => block.type === 'text')
-        .map((block: any) => block.text)
-        .join('\n\n');
-    }
-    if (!responseText) {
-      const textBlock = result.content?.find((c: { type: string }) => c.type === 'text');
-      responseText = textBlock?.text || '';
-    }
+    // Gemini OpenAI-compatible format: choices[0].message.content
+    const responseText = result.choices?.[0]?.message?.content || '';
     return responseText;
   } catch (error) {
     // Handle network errors and other exceptions
@@ -1171,10 +1107,10 @@ serve(async (req) => {
       );
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    console.log(`ANTHROPIC_API_KEY configured: ${!!ANTHROPIC_API_KEY}, length: ${ANTHROPIC_API_KEY?.length || 0}`);
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    console.log(`GEMINI_API_KEY configured: ${!!GEMINI_API_KEY}, length: ${GEMINI_API_KEY?.length || 0}`);
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     // Calculate which phases to generate for this batch
@@ -1192,14 +1128,14 @@ serve(async (req) => {
     if (!stream) {
       let fullContent = previous_content;
       for (const phase of batchPhases) {
-        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence);
+        const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, enrichedContext, 0, fireflies_intelligence);
         fullContent += phaseContent + '\n\n';
       }
       
       // Only validate and extract on last batch
       if (isLastBatch) {
         const quality = validateQuality(fullContent);
-        const criteria = await extractCriteria(fullContent, ANTHROPIC_API_KEY);
+        const criteria = await extractCriteria(fullContent, GEMINI_API_KEY);
         
         return new Response(
           JSON.stringify({ 
@@ -1305,8 +1241,8 @@ serve(async (req) => {
 
             // Generate both phases in parallel
             const [content0, content1] = await Promise.all([
-              generatePhaseContent(batchPhases[0], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence),
-              generatePhaseContent(batchPhases[1], industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence)
+              generatePhaseContent(batchPhases[0], industry_name, fullContent, GEMINI_API_KEY, enrichedContext, 0, fireflies_intelligence),
+              generatePhaseContent(batchPhases[1], industry_name, fullContent, GEMINI_API_KEY, enrichedContext, 0, fireflies_intelligence)
             ]);
 
             // Stream content from both phases
@@ -1380,7 +1316,7 @@ serve(async (req) => {
               });
 
               // Generate phase content with clarification context + Fireflies intelligence
-              const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, ANTHROPIC_API_KEY, enrichedContext, 0, fireflies_intelligence);
+              const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, enrichedContext, 0, fireflies_intelligence);
               fullContent += phaseContent + '\n\n';
 
               // Send content chunks
@@ -1425,7 +1361,7 @@ serve(async (req) => {
             if (!quality.passed && quality.missingElements.length > 0) {
               send({ type: 'gap_fill_start', missingElements: quality.missingElements });
               
-              const gapContent = await generateGapFill(quality.missingElements, industry_name, ANTHROPIC_API_KEY);
+              const gapContent = await generateGapFill(quality.missingElements, industry_name, GEMINI_API_KEY);
               fullContent += '\n\n## GAP FILL CONTENT\n\n' + gapContent;
               
               // Stream gap fill content
@@ -1444,7 +1380,7 @@ serve(async (req) => {
 
             // Extract criteria
             send({ type: 'criteria_extraction_start' });
-            const criteria = await extractCriteria(fullContent, ANTHROPIC_API_KEY);
+            const criteria = await extractCriteria(fullContent, GEMINI_API_KEY);
             send({ type: 'criteria', criteria });
 
             // Complete
