@@ -1255,37 +1255,37 @@ export type Database = {
       }
       captarget_sync_log: {
         Row: {
+          duration_ms: number | null
+          errors: Json | null
           id: string
-          synced_at: string
-          rows_read: number
-          rows_inserted: number
-          rows_updated: number
-          rows_skipped: number
-          errors: Json
-          duration_ms: number
-          status: string
+          rows_inserted: number | null
+          rows_read: number | null
+          rows_skipped: number | null
+          rows_updated: number | null
+          status: string | null
+          synced_at: string | null
         }
         Insert: {
+          duration_ms?: number | null
+          errors?: Json | null
           id?: string
-          synced_at?: string
-          rows_read?: number
-          rows_inserted?: number
-          rows_updated?: number
-          rows_skipped?: number
-          errors?: Json
-          duration_ms?: number
-          status?: string
+          rows_inserted?: number | null
+          rows_read?: number | null
+          rows_skipped?: number | null
+          rows_updated?: number | null
+          status?: string | null
+          synced_at?: string | null
         }
         Update: {
+          duration_ms?: number | null
+          errors?: Json | null
           id?: string
-          synced_at?: string
-          rows_read?: number
-          rows_inserted?: number
-          rows_updated?: number
-          rows_skipped?: number
-          errors?: Json
-          duration_ms?: number
-          status?: string
+          rows_inserted?: number | null
+          rows_read?: number | null
+          rows_skipped?: number | null
+          rows_updated?: number | null
+          status?: string | null
+          synced_at?: string | null
         }
         Relationships: []
       }
@@ -8075,7 +8075,6 @@ export type Database = {
           address_city?: string | null
           address_state?: string | null
           deal_size_score?: number | null
-          deal_source?: string | null
           deal_total_score?: number | null
           ebitda?: number | null
           ebitda_score?: number | null
@@ -8096,7 +8095,6 @@ export type Database = {
           address_city?: string | null
           address_state?: string | null
           deal_size_score?: number | null
-          deal_source?: string | null
           deal_total_score?: number | null
           ebitda?: number | null
           ebitda_score?: number | null
@@ -8198,7 +8196,6 @@ export type Database = {
           deal_motivation_score: number | null
           deal_quality_score: number | null
           deal_size_score: number | null
-          deal_source: string | null
           deal_total_score: number | null
           deleted_at: string | null
           description: string | null
@@ -8352,13 +8349,6 @@ export type Database = {
           ai_description?: string | null
           business_model?: string | null
           calculated_rank?: number | null
-          captarget_call_notes?: string | null
-          captarget_client_name?: string | null
-          captarget_contact_date?: string | null
-          captarget_interest_type?: string | null
-          captarget_outreach_channel?: string | null
-          captarget_row_hash?: string | null
-          captarget_source_url?: string | null
           categories?: string[] | null
           category?: string | null
           competitive_position?: string | null
@@ -8375,7 +8365,6 @@ export type Database = {
           deal_motivation_score?: number | null
           deal_quality_score?: number | null
           deal_size_score?: number | null
-          deal_source?: string | null
           deal_total_score?: number | null
           deleted_at?: string | null
           description?: string | null
@@ -8529,13 +8518,6 @@ export type Database = {
           ai_description?: string | null
           business_model?: string | null
           calculated_rank?: number | null
-          captarget_call_notes?: string | null
-          captarget_client_name?: string | null
-          captarget_contact_date?: string | null
-          captarget_interest_type?: string | null
-          captarget_outreach_channel?: string | null
-          captarget_row_hash?: string | null
-          captarget_source_url?: string | null
           categories?: string[] | null
           category?: string | null
           competitive_position?: string | null
@@ -8552,7 +8534,6 @@ export type Database = {
           deal_motivation_score?: number | null
           deal_quality_score?: number | null
           deal_size_score?: number | null
-          deal_source?: string | null
           deal_total_score?: number | null
           deleted_at?: string | null
           description?: string | null
