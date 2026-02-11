@@ -162,7 +162,7 @@ serve(async (req) => {
     // Fetch ALL transcripts for this deal (we need the full picture for reporting)
     const { data: allTranscripts, error: transcriptsError } = await supabase
       .from('deal_transcripts')
-      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal')
+      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id')
       .eq('listing_id', dealId)
       .order('created_at', { ascending: false });
 
@@ -520,6 +520,30 @@ serve(async (req) => {
     console.log(`[Transcripts] Total: ${allTranscripts?.length || 0}, Need extraction: ${needsExtraction.length}, Already extracted: ${(allTranscripts?.length || 0) - needsExtraction.length}, forceReExtract: ${forceReExtract}`);
 
     if (needsExtraction.length > 0) {
+      // Fetch Fireflies content for transcripts that have empty text
+      const firefliesEmpty = needsExtraction.filter(
+        (t) => t.source === 'fireflies' && t.fireflies_transcript_id && (!t.transcript_text || t.transcript_text.trim().length < 100)
+      );
+      if (firefliesEmpty.length > 0) {
+        console.log(`[Transcripts] Fetching Fireflies content for ${firefliesEmpty.length} transcript(s)...`);
+        for (const t of firefliesEmpty) {
+          try {
+            const { data: fetchResult, error: fetchErr } = await supabase.functions.invoke(
+              'fetch-fireflies-content',
+              { body: { transcriptId: t.id } }
+            );
+            if (!fetchErr && fetchResult?.content) {
+              t.transcript_text = fetchResult.content;
+              console.log(`[Transcripts] Fetched ${fetchResult.content.length} chars for Fireflies transcript ${t.id}`);
+            } else {
+              console.warn(`[Transcripts] Failed to fetch Fireflies content for ${t.id}:`, fetchErr?.message || 'no content');
+            }
+          } catch (err) {
+            console.warn(`[Transcripts] Error fetching Fireflies content for ${t.id}:`, err);
+          }
+        }
+      }
+
       // Filter valid transcripts (must have >= 100 chars of text)
       const validTranscripts = needsExtraction.filter((t) =>
         t.transcript_text && t.transcript_text.trim().length >= 100
