@@ -1447,18 +1447,7 @@ For financial data, include confidence levels and source quotes where available.
       extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
       if (ebitdaData.source_quote) extracted.ebitda_source_quote = ebitdaData.source_quote;
     }
-    if (ebitdaMarginPct && typeof ebitdaMarginPct === 'number') {
-      extracted.ebitda_margin = ebitdaMarginPct / 100; // Store as decimal
-    }
-    // SPEC: Calculate EBITDA from revenue × margin if amount not provided
-    if (!ebitdaAmount && ebitdaMarginPct && revenueValue) {
-      const calculatedEbitda = revenueValue * (ebitdaMarginPct / 100);
-      extracted.ebitda = calculatedEbitda;
-      extracted.ebitda_is_inferred = true;
-      extracted.ebitda_source_quote = `Calculated: ${revenueValue / 1000000}M revenue × ${ebitdaMarginPct}% margin`;
-      extracted.ebitda_confidence = 'medium';
-      console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()} (${ebitdaMarginPct}% of ${revenueValue / 1000000}M)`);
-    }
+    // (EBITDA margin calculation already handled above)
     // Clean up flattened fields that don't map to DB columns
     delete extracted.ebitda_amount;
     delete extracted.ebitda_margin_percentage;
