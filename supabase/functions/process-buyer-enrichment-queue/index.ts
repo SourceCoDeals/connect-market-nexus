@@ -6,14 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration — conservative to avoid Claude rate limits
-// Each buyer makes 4-5 Claude API calls, so we process ONE at a time.
-// Timeout is generous to accommodate automatic retry-on-429 in callClaudeWithTool.
-const BATCH_SIZE = 1;
+// Configuration
 const MAX_ATTEMPTS = 3;
-const PROCESSING_TIMEOUT_MS = 180000; // 3 minutes per buyer (increased from 2min to allow retries on 429)
-const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit (reduced — callClaudeWithTool now handles retries)
-const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items (increased from 3min to match longer timeout)
+const PROCESSING_TIMEOUT_MS = 180000; // 3 minutes per buyer
+const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit
+const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items
+const MAX_FUNCTION_RUNTIME_MS = 140000; // 140s — stop looping before Deno 150s timeout
+const INTER_BUYER_DELAY_MS = 1000; // 1s breathing room between buyers
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -97,162 +96,183 @@ Deno.serve(async (req) => {
       console.log(`Marked ${exhaustedItems.length} exhausted items as failed`);
     }
 
-    // Fetch ONE pending item
-    const { data: queueItems, error: fetchError } = await supabase
+    // LOOP: Process buyers continuously until queue is empty or time runs out
+    const functionStartTime = Date.now();
+    let totalProcessed = 0;
+    let totalSucceeded = 0;
+    let totalFailed = 0;
+    let totalRateLimited = 0;
+
+    while (true) {
+      // Time guard: stop before Deno's execution limit
+      if (Date.now() - functionStartTime > MAX_FUNCTION_RUNTIME_MS) {
+        console.log(`Time limit reached after ${totalProcessed} buyers, will continue on next invocation`);
+        break;
+      }
+
+      // Check if operation was paused by user
+      if (await isOperationPaused(supabase, 'buyer_enrichment')) {
+        console.log('Buyer enrichment paused by user — stopping');
+        break;
+      }
+
+      // Fetch next pending item
+      const { data: queueItems, error: fetchError } = await supabase
+        .from('buyer_enrichment_queue')
+        .select('id, buyer_id, universe_id, status, attempts, queued_at')
+        .eq('status', 'pending')
+        .lt('attempts', MAX_ATTEMPTS)
+        .order('queued_at', { ascending: true })
+        .limit(1);
+
+      if (fetchError) {
+        console.error('Error fetching queue items:', fetchError);
+        break;
+      }
+
+      if (!queueItems || queueItems.length === 0) {
+        console.log(`No more pending items. Processed ${totalProcessed} buyers this run.`);
+        await completeGlobalQueueOperation(supabase, 'buyer_enrichment');
+        break;
+      }
+
+      const item = queueItems[0];
+      console.log(`Processing buyer ${item.buyer_id} (attempt ${item.attempts + 1}) [#${totalProcessed + 1} this run]`);
+
+      // Mark as processing
+      await supabase
+        .from('buyer_enrichment_queue')
+        .update({
+          status: 'processing',
+          attempts: item.attempts + 1,
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', item.id)
+        .eq('status', 'pending');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), PROCESSING_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({ buyerId: item.buyer_id, skipLock: true }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        const data = await response.json().catch(() => ({}));
+
+        if (response.status === 429 || data.error_code === 'rate_limited') {
+          const resetAt = data.resetTime || new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
+          await supabase
+            .from('buyer_enrichment_queue')
+            .update({
+              status: 'rate_limited',
+              rate_limit_reset_at: resetAt,
+              last_error: 'Rate limited - will retry after reset',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+          console.log(`Rate limited at buyer ${item.buyer_id}, stopping loop`);
+          totalRateLimited++;
+          totalProcessed++;
+          break; // Stop processing on rate limit
+        }
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        const wasPartial = data.extractionDetails?.rateLimited === true;
+        if (wasPartial && item.attempts < MAX_ATTEMPTS - 1) {
+          await supabase
+            .from('buyer_enrichment_queue')
+            .update({
+              status: 'pending',
+              started_at: null,
+              last_error: `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts completed`,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+        } else {
+          await supabase
+            .from('buyer_enrichment_queue')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              last_error: wasPartial ? `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts` : null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+        }
+        
+        await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
+        totalSucceeded++;
+
+      } catch (error) {
+        clearTimeout(timeoutId);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const currentAttempts = item.attempts + 1;
+        const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+
+        await supabase
+          .from('buyer_enrichment_queue')
+          .update({
+            status: newStatus,
+            last_error: errorMsg,
+            started_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', item.id);
+
+        console.error(`Failed to enrich buyer ${item.buyer_id}:`, errorMsg);
+        await updateGlobalQueueProgress(supabase, 'buyer_enrichment', {
+          failedDelta: 1,
+          errorEntry: { itemId: item.buyer_id, error: errorMsg },
+        });
+        totalFailed++;
+      }
+
+      totalProcessed++;
+
+      // Brief delay between buyers to avoid overwhelming APIs
+      if (Date.now() - functionStartTime < MAX_FUNCTION_RUNTIME_MS) {
+        await new Promise(r => setTimeout(r, INTER_BUYER_DELAY_MS));
+      }
+    }
+
+    // If we processed some but queue isn't empty, trigger another invocation
+    const { count: remaining } = await supabase
       .from('buyer_enrichment_queue')
-      .select('id, buyer_id, universe_id, status, attempts, queued_at')
-      .eq('status', 'pending')
-      .lt('attempts', MAX_ATTEMPTS)
-      .order('queued_at', { ascending: true })
-      .limit(BATCH_SIZE);
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['pending']);
 
-    if (fetchError) {
-      console.error('Error fetching queue items:', fetchError);
-      throw fetchError;
-    }
-
-    if (!queueItems || queueItems.length === 0) {
-      console.log('No pending buyer enrichment items in queue');
-      // All done — complete the global queue operation
-      await completeGlobalQueueOperation(supabase, 'buyer_enrichment');
-      return new Response(
-        JSON.stringify({ success: true, message: 'No pending items', processed: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check if operation was paused by user
-    if (await isOperationPaused(supabase, 'buyer_enrichment')) {
-      console.log('Buyer enrichment paused by user — stopping');
-      return new Response(
-        JSON.stringify({ success: true, message: 'Paused by user', processed: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const item = queueItems[0];
-    console.log(`Processing buyer ${item.buyer_id} (attempt ${item.attempts + 1})`);
-
-    // Mark as processing
-    await supabase
-      .from('buyer_enrichment_queue')
-      .update({
-        status: 'processing',
-        attempts: item.attempts + 1,
-        started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', item.id)
-      .eq('status', 'pending');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), PROCESSING_TIMEOUT_MS);
-
-    try {
-      // CRITICAL: Use anon key for 'apikey' header (gateway routing)
-      // and service role key for 'Authorization' (permissions)
-      const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
+    if (remaining && remaining > 0) {
+      console.log(`${remaining} buyers still pending, triggering next batch...`);
+      // Fire-and-forget next invocation
+      fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': supabaseAnonKey,
           'Authorization': `Bearer ${supabaseServiceKey}`,
         },
-        body: JSON.stringify({ buyerId: item.buyer_id, skipLock: true }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const data = await response.json().catch(() => ({}));
-
-      if (response.status === 429 || data.error_code === 'rate_limited') {
-        const resetAt = data.resetTime || new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
-        
-        await supabase
-          .from('buyer_enrichment_queue')
-          .update({
-            status: 'rate_limited',
-            rate_limit_reset_at: resetAt,
-            last_error: 'Rate limited - will retry after reset',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', item.id);
-
-        console.log(`Buyer ${item.buyer_id} rate limited, will retry after ${resetAt}`);
-        return new Response(
-          JSON.stringify({ success: true, processed: 1, rateLimited: 1 }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || `HTTP ${response.status}`);
-      }
-
-      // Check for partial enrichment (rate limited mid-execution but saved partial data)
-      const wasPartial = data.extractionDetails?.rateLimited === true;
-      
-      if (wasPartial && item.attempts < MAX_ATTEMPTS - 1) {
-        await supabase
-          .from('buyer_enrichment_queue')
-          .update({
-            status: 'pending',
-            started_at: null,
-            last_error: `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts completed`,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', item.id);
-
-        console.log(`Buyer ${item.buyer_id} partially enriched (${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts), re-queued`);
-      } else {
-        await supabase
-          .from('buyer_enrichment_queue')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            last_error: wasPartial ? `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts` : null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', item.id);
-
-        console.log(`Successfully enriched buyer ${item.buyer_id}: ${data.fieldsUpdated} fields`);
-      }
-      await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
-
-      return new Response(
-        JSON.stringify({ success: true, processed: 1, succeeded: 1 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
-    } catch (error) {
-      clearTimeout(timeoutId);
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      const currentAttempts = item.attempts + 1;
-      const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
-
-      await supabase
-        .from('buyer_enrichment_queue')
-        .update({
-          status: newStatus,
-          last_error: errorMsg,
-          started_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', item.id);
-
-      console.error(`Failed to enrich buyer ${item.buyer_id}:`, errorMsg);
-      await updateGlobalQueueProgress(supabase, 'buyer_enrichment', {
-        failedDelta: 1,
-        errorEntry: { itemId: item.buyer_id, error: errorMsg },
-      });
-
-      return new Response(
-        JSON.stringify({ success: true, processed: 1, failed: 1, error: errorMsg }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        body: JSON.stringify({ continuation: true }),
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => {});
     }
 
+    return new Response(
+      JSON.stringify({ success: true, processed: totalProcessed, succeeded: totalSucceeded, failed: totalFailed, rateLimited: totalRateLimited, remaining: remaining || 0 }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('Error in process-buyer-enrichment-queue:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
