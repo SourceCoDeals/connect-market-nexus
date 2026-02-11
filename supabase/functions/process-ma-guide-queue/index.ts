@@ -334,6 +334,7 @@ const TOTAL_PHASES = 14;
             'Authorization': `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({ triggered_by: generation.id, batch: newPhasesCompleted }),
+          signal: AbortSignal.timeout(30_000),
         }).catch(err => {
           // Non-blocking - cron will pick it up as backup
           console.log('[process-ma-guide-queue] Self-chain trigger failed, cron will handle:', err.message);
@@ -365,20 +366,17 @@ const TOTAL_PHASES = 14;
        .single();
  
      if (activeGen) {
-       // Determine if error is recoverable
-        const isRecoverable = 
-          errorMessage.includes('429') ||
-          errorMessage.includes('502') ||
-          errorMessage.includes('503') ||
-          errorMessage.includes('timeout') ||
-          errorMessage.includes('ECONNRESET') ||
-          errorMessage.includes('529') ||
-          errorMessage.includes('Rate limit') ||
-          errorMessage.includes('rate_limited') ||
-          errorMessage.includes('RESOURCE_EXHAUSTED') ||
-          errorMessage.includes('temporarily unavailable');
- 
-       if (!isRecoverable) {
+       // Default to recoverable — only permanently fail on known-terminal errors.
+        // This is safer: unknown errors get retried by cron instead of killing the generation.
+        const isTerminal =
+          errorMessage.includes('400') ||
+          errorMessage.includes('401') ||
+          errorMessage.includes('403') ||
+          errorMessage.includes('payment_required') ||
+          errorMessage.includes('invalid') ||
+          errorMessage.includes('Missing required');
+
+       if (isTerminal) {
          await supabase
            .from('ma_guide_generations')
            .update({

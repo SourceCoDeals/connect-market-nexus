@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -593,8 +594,9 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       // Process batch in parallel
       const results = await Promise.allSettled(
         batch.map(async (buyer) => {
-          const { data, error } = await supabase.functions.invoke('enrich-buyer', {
-            body: { buyerId: buyer.id }
+          const { data, error } = await invokeWithTimeout<any>('enrich-buyer', {
+            body: { buyerId: buyer.id },
+            timeoutMs: 180_000,
           });
           
           if (error) throw error;

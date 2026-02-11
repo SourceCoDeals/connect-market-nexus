@@ -16,6 +16,7 @@ import {
   DocumentReference 
 } from "@/types/remarketing";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 
 interface BuyerFitCriteriaAccordionProps {
@@ -88,13 +89,14 @@ export const BuyerFitCriteriaAccordion = ({
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('extract-buyer-criteria', {
+      const { data, error } = await invokeWithTimeout<any>('extract-buyer-criteria', {
         body: {
           universe_id: universeId,
           guide_content: guideContent,
           source_name: `${universeName || 'Universe'} M&A Guide`,
           industry_name: universeName || 'Unknown Industry'
-        }
+        },
+        timeoutMs: 120_000,
       });
 
       if (error) {

@@ -3,6 +3,7 @@ import { useAutoEnrichment } from "@/hooks/useAutoEnrichment";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -985,8 +986,9 @@ const ReMarketingDealDetail = () => {
         onAnalyze={async (notes) => {
           setIsAnalyzingNotes(true);
           try {
-            const { data, error } = await supabase.functions.invoke('analyze-deal-notes', {
-              body: { dealId, notesText: notes }
+            const { data, error } = await invokeWithTimeout<any>('analyze-deal-notes', {
+              body: { dealId, notesText: notes },
+              timeoutMs: 120_000,
             });
             
             if (error) throw error;

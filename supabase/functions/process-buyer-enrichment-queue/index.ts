@@ -138,6 +138,35 @@ Deno.serve(async (req) => {
       const item = queueItems[0];
       console.log(`Processing buyer ${item.buyer_id} (attempt ${item.attempts + 1}) [#${totalProcessed + 1} this run]`);
 
+      // Freshness check: skip re-enrichment if buyer data was updated within the stale window.
+      // This prevents wasted API calls when stale recovery resets a buyer that already succeeded.
+      const { data: buyerData } = await supabase
+        .from('remarketing_buyers')
+        .select('data_last_updated')
+        .eq('id', item.buyer_id)
+        .single();
+
+      if (buyerData?.data_last_updated) {
+        const lastUpdatedMs = new Date(buyerData.data_last_updated).getTime();
+        const freshnessWindowMs = STALE_PROCESSING_MINUTES * 60 * 1000;
+        if (Date.now() - lastUpdatedMs < freshnessWindowMs) {
+          console.log(`Skipping buyer ${item.buyer_id} — data_last_updated is recent (${buyerData.data_last_updated}), marking completed`);
+          await supabase
+            .from('buyer_enrichment_queue')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              last_error: 'Skipped: buyer data already fresh',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+          totalProcessed++;
+          totalSucceeded++;
+          await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
+          continue;
+        }
+      }
+
       // Mark as processing
       await supabase
         .from('buyer_enrichment_queue')
@@ -255,8 +284,7 @@ Deno.serve(async (req) => {
 
     if (remaining && remaining > 0) {
       console.log(`${remaining} buyers still pending, triggering next batch...`);
-      // Fire-and-forget next invocation — NO timeout signal.
-      // The previous 5s AbortSignal killed the chain on cold starts.
+      // Fire-and-forget next invocation with a 30s timeout.
       // We don't await this, so there's no risk of blocking the current response.
       fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
         method: 'POST',
@@ -266,6 +294,7 @@ Deno.serve(async (req) => {
           'Authorization': `Bearer ${supabaseServiceKey}`,
         },
         body: JSON.stringify({ continuation: true }),
+        signal: AbortSignal.timeout(30_000),
       }).catch((err) => {
         console.warn('Self-continuation trigger failed:', err);
       });

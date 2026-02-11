@@ -5,6 +5,7 @@ import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscri
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -284,8 +285,9 @@ const ReMarketingBuyerDetail = () => {
   // Mutations
   const enrichMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('enrich-buyer', {
-        body: { buyerId: id }
+      const { data, error } = await invokeWithTimeout<any>('enrich-buyer', {
+        body: { buyerId: id },
+        timeoutMs: 180_000,
       });
       if (error) throw error;
       return data;
@@ -440,13 +442,14 @@ const ReMarketingBuyerDetail = () => {
       }
 
       // FIX #5: Pass transcriptId so edge function can update buyer_transcripts.processed_at
-      const { data, error } = await supabase.functions.invoke('extract-transcript', {
+      const { data, error } = await invokeWithTimeout<any>('extract-transcript', {
         body: {
           buyerId: id,
           transcriptText: textToExtract,
           source: sourceToUse,
           transcriptId: params.transcriptId // Pass transcript ID for status tracking
-        }
+        },
+        timeoutMs: 120_000,
       });
       if (error) throw error;
       return data;

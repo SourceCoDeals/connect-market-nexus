@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,10 +96,11 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
       // This prevents marking transcripts as "processed" when extraction actually fails
 
       // Call edge function to extract data (use extract-deal-transcript for deal_transcripts table)
-      const { error: functionError } = await supabase.functions.invoke(
+      const { error: functionError } = await invokeWithTimeout(
         "extract-deal-transcript",
         {
           body: { transcriptId },
+          timeoutMs: 120_000,
         }
       );
 

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -186,8 +187,9 @@ export function useBuyerEnrichment(universeId?: string) {
             throw abortError;
           }
           
-          const { data, error } = await supabase.functions.invoke('enrich-buyer', {
-            body: { buyerId: buyer.id }
+          const { data, error } = await invokeWithTimeout<any>('enrich-buyer', {
+            body: { buyerId: buyer.id },
+            timeoutMs: 180_000,
           });
           
           if (error) {

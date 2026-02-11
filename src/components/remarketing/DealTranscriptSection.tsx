@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -533,13 +534,14 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const handleExtract = async (transcript: DealTranscript) => {
     setProcessingId(transcript.id);
     try {
-      const { data, error } = await supabase.functions.invoke('extract-deal-transcript', {
-        body: { 
-          transcriptId: transcript.id, 
+      const { data, error } = await invokeWithTimeout<any>('extract-deal-transcript', {
+        body: {
+          transcriptId: transcript.id,
           transcriptText: transcript.transcript_text,
           dealInfo,
           applyToDeal: true // Automatically apply to listing per spec
-        }
+        },
+        timeoutMs: 120_000,
       });
 
       if (error) throw error;

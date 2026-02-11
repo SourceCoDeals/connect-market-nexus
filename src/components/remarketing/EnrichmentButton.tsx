@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -36,13 +36,14 @@ export const EnrichmentButton = ({
 
   const enrichMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('enrich-buyer', {
-        body: { buyerId }
+      const { data, error } = await invokeWithTimeout<any>('enrich-buyer', {
+        body: { buyerId },
+        timeoutMs: 180_000,
       });
 
       if (error) throw error;
       if (!data.success) throw new Error(data.error || 'Enrichment failed');
-      
+
       return data;
     },
     onSuccess: (data) => {
