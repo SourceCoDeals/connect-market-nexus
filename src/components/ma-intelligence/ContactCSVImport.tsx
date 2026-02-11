@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 interface ContactCSVImportProps {
   trackerId: string;
@@ -73,12 +74,44 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
         setProgress(Math.round((i / rows.length) * 100));
       }
 
-      // Bulk insert
+      // Normalize websites and deduplicate before insert
+      const seenDomains = new Set<string>();
+      const deduplicatedBuyers = [];
+      for (const buyer of buyers) {
+        // Normalize any website fields
+        if (buyer.company_website) {
+          buyer.company_website = normalizeDomain(buyer.company_website) || buyer.company_website;
+        }
+        if (buyer.platform_website) {
+          buyer.platform_website = normalizeDomain(buyer.platform_website) || buyer.platform_website;
+        }
+        if (buyer.pe_firm_website) {
+          buyer.pe_firm_website = normalizeDomain(buyer.pe_firm_website) || buyer.pe_firm_website;
+        }
+
+        // Deduplicate within the batch by company_website
+        const domain = buyer.company_website || buyer.platform_website;
+        if (domain) {
+          const normalized = normalizeDomain(domain);
+          if (normalized && seenDomains.has(normalized)) {
+            continue; // Skip duplicate within batch
+          }
+          if (normalized) seenDomains.add(normalized);
+        }
+        deduplicatedBuyers.push(buyer);
+      }
+
+      // Bulk insert (DB constraint catches any remaining cross-batch dupes)
       const { error: insertError } = await supabase
         .from("remarketing_buyers")
-        .insert(buyers);
+        .insert(deduplicatedBuyers);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.message?.includes('unique') || insertError.message?.includes('duplicate')) {
+          throw new Error("Some buyers already exist in this universe (matched by website domain). Remove duplicates and try again.");
+        }
+        throw insertError;
+      }
 
       setImportedCount(buyers.length);
       toast({

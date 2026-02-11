@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 // Import from unified import engine
 import {
@@ -247,6 +248,14 @@ export function DealImportDialog({
           }
           if (typeof listingData.description !== 'string') {
             (listingData as any).description = '';
+          }
+
+          // Normalize website for dedup (ensures DB unique constraint catches variants)
+          if ((listingData as any).website) {
+            const normalized = normalizeDomain((listingData as any).website as string);
+            if (normalized) {
+              (listingData as any).website = normalized;
+            }
           }
 
           // Log what we're importing for debugging

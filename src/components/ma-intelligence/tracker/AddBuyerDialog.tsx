@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload } from "lucide-react";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 import { ContactCSVImport } from "../ContactCSVImport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -39,20 +40,60 @@ export function AddBuyerDialog({ open, onOpenChange, trackerId, onBuyerAdded }: 
 
     setIsSubmitting(true);
     try {
+      // Normalize websites for dedup
+      const normalizedCompanyWebsite = normalizeDomain(peFirmWebsite.trim()) || peFirmWebsite.trim() || null;
+      const normalizedPlatformWebsite = normalizeDomain(platformWebsite.trim()) || platformWebsite.trim() || null;
+      const effectiveWebsite = normalizedPlatformWebsite || normalizedCompanyWebsite;
+      const universeId = trackerId !== 'new' ? trackerId : null;
+
+      // Check for duplicate buyer by domain in this universe
+      if (effectiveWebsite) {
+        const query = supabase
+          .from("remarketing_buyers")
+          .select("id, company_name, company_website")
+          .eq("archived", false)
+          .not("company_website", "is", null);
+
+        if (universeId) {
+          query.eq("universe_id", universeId);
+        } else {
+          query.is("universe_id", null);
+        }
+
+        const { data: existingBuyers } = await query;
+        const duplicate = existingBuyers?.find(b =>
+          normalizeDomain(b.company_website) === effectiveWebsite
+        );
+        if (duplicate) {
+          toast({
+            title: "Duplicate buyer",
+            description: `A buyer with this website already exists: "${duplicate.company_name}"`,
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from("remarketing_buyers")
         .insert({
-          universe_id: trackerId !== 'new' ? trackerId : null,
+          universe_id: universeId,
           company_name: peFirmName.trim(),
-          company_website: peFirmWebsite.trim() || null,
+          company_website: normalizedCompanyWebsite,
           pe_firm_name: peFirmName.trim(),
-          pe_firm_website: peFirmWebsite.trim() || null,
+          pe_firm_website: normalizeDomain(peFirmWebsite.trim()) || peFirmWebsite.trim() || null,
           platform_company_name: platformName.trim() || null,
-          platform_website: platformWebsite.trim() || null,
+          platform_website: normalizedPlatformWebsite,
           business_summary: notes.trim() || null,
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
+          throw new Error("A buyer with this website already exists in this universe.");
+        }
+        throw error;
+      }
 
       toast({ title: "Buyer added successfully" });
       onBuyerAdded();

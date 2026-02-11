@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check, Users, ChevronDown, ChevronUp, ExternalLink, Globe, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 interface AddDealDialogProps {
   open: boolean;
@@ -266,6 +267,29 @@ export const AddDealDialog = ({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Check for duplicate deal by website domain
+      const websiteUrl = formData.website?.trim();
+      if (websiteUrl) {
+        const normalizedInput = normalizeDomain(websiteUrl);
+        if (normalizedInput) {
+          const { data: existingListings } = await supabase
+            .from("listings")
+            .select("id, title, internal_company_name, website")
+            .not("website", "is", null);
+
+          const duplicate = existingListings?.find(
+            (l) => l.website && normalizeDomain(l.website) === normalizedInput
+          );
+
+          if (duplicate) {
+            const dupName = duplicate.internal_company_name || duplicate.title || 'Unknown';
+            throw new Error(
+              `A deal with this website already exists: "${dupName}". Use "From Marketplace" tab to add it instead.`
+            );
+          }
+        }
+      }
+
       const insertData: Record<string, any> = {
         title: formData.title,
         website: formData.website || null,
@@ -293,7 +317,12 @@ export const AddDealDialog = ({
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
+          throw new Error("A deal with this website already exists.");
+        }
+        throw error;
+      }
       return { listing, userId: user?.id };
     },
     onSuccess: ({ listing, userId }) => {

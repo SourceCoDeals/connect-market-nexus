@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 // Import from unified import engine
 import {
@@ -314,6 +315,14 @@ export const DealCSVImport = ({
             const state = typeof listingData.address_state === 'string' ? listingData.address_state : '';
             const computedLocation = city && state ? `${city}, ${state}` : state || city || 'Unknown';
             listingData.location = computedLocation;
+          }
+
+          // Normalize website for dedup
+          if (listingData.website) {
+            const normalized = normalizeDomain(listingData.website as string);
+            if (normalized) {
+              listingData.website = normalized;
+            }
           }
 
           const sanitized = sanitizeListingInsert(listingData);
