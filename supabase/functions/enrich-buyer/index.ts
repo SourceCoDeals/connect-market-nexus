@@ -969,24 +969,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ATOMIC ENRICHMENT LOCK: Prevent concurrent enrichments via single UPDATE + WHERE clause
+    // ENRICHMENT LOCK: Prevent concurrent enrichments
     // Skip lock when called from queue worker (queue already manages concurrency via status)
     if (!skipLock) {
-      // Use a short lock window — just enough to prevent true concurrent calls.
-      // After successful enrichment the timestamp is updated, so the next call only
-      // needs to wait out the remaining window (not the full duration).
       const ENRICHMENT_LOCK_SECONDS = 15;
       const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
 
-      const { data: lockData } = await supabase
+      // Two-step lock: SELECT to check eligibility, then UPDATE to claim
+      // (The previous .or() + .update() + .select() pattern silently returned empty due to PostgREST filter parsing issues with ISO timestamps)
+      const { data: lockCheck } = await supabase
         .from('remarketing_buyers')
-        .update({ data_last_updated: new Date().toISOString() })
+        .select('id, data_last_updated')
         .eq('id', buyerId)
-        .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
-        .select('id');
+        .single();
 
-      if (!lockData || lockData.length === 0) {
-        console.log(`[enrich-buyer] Lock acquisition failed for buyer ${buyerId}: enrichment already in progress (lock window: ${ENRICHMENT_LOCK_SECONDS}s)`);
+      const isLocked = lockCheck?.data_last_updated && lockCheck.data_last_updated > lockCutoff;
+
+      if (isLocked) {
+        console.log(`[enrich-buyer] Lock active for buyer ${buyerId}: data_last_updated=${lockCheck.data_last_updated}, cutoff=${lockCutoff}`);
         return new Response(
           JSON.stringify({
             success: false,
@@ -996,6 +996,12 @@ Deno.serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      // Claim the lock
+      await supabase
+        .from('remarketing_buyers')
+        .update({ data_last_updated: new Date().toISOString() })
+        .eq('id', buyerId);
     } else {
       // Queue-based call: just update timestamp without lock check
       await supabase
