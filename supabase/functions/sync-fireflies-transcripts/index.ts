@@ -49,9 +49,13 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
   return result.data;
 }
 
-const LIST_TRANSCRIPTS_QUERY = `
-  query ListTranscripts($limit: Int, $skip: Int) {
-    transcripts(limit: $limit, skip: $skip) {
+/**
+ * Use the Fireflies native `participants` filter to find transcripts
+ * for a specific email — no client-side filtering needed.
+ */
+const PARTICIPANT_SEARCH_QUERY = `
+  query SearchByParticipant($participants: [String!], $limit: Int, $skip: Int) {
+    transcripts(participants: $participants, limit: $limit, skip: $skip) {
       id
       title
       date
@@ -75,10 +79,9 @@ const LIST_TRANSCRIPTS_QUERY = `
 /**
  * Sync Fireflies transcripts for a deal by contact email.
  *
- * 1. Paginates through Fireflies transcripts via their GraphQL API
- * 2. Filters for transcripts where the contact email is an attendee
- * 3. Links matching transcripts to the deal (stores ID only, not content)
- * 4. Skips duplicates
+ * 1. Queries Fireflies API with native participants filter for the contact email
+ * 2. Links matching transcripts to the deal (stores ID only, not content)
+ * 3. Skips duplicates
  *
  * Transcript content is fetched on-demand by fetch-fireflies-content.
  */
@@ -104,32 +107,21 @@ serve(async (req) => {
 
     console.log(`Syncing Fireflies transcripts for ${contactEmail} on deal ${listingId}`);
 
-    // Paginate through Fireflies transcripts, filtering by participant email
-    const emailLower = contactEmail.toLowerCase();
+    // Use native Fireflies participants filter — no client-side filtering needed
     const matchingTranscripts: any[] = [];
     let skip = 0;
     const batchSize = 50;
-    const maxPages = 10; // Safety limit: scan up to 500 transcripts
+    const maxPages = 10;
 
     for (let page = 0; page < maxPages; page++) {
-      const data = await firefliesGraphQL(LIST_TRANSCRIPTS_QUERY, {
+      const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
+        participants: [contactEmail],
         limit: batchSize,
         skip,
       });
       const batch = data.transcripts || [];
+      matchingTranscripts.push(...batch);
 
-      for (const t of batch) {
-        // Check meeting_attendees for email match
-        const attendees = t.meeting_attendees || [];
-        const hasParticipant = attendees.some(
-          (a: any) => a.email?.toLowerCase() === emailLower
-        );
-        if (hasParticipant) {
-          matchingTranscripts.push(t);
-        }
-      }
-
-      // Stop if we've found enough or no more results
       if (batch.length < batchSize || matchingTranscripts.length >= limit) break;
       skip += batchSize;
     }

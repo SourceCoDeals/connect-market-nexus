@@ -446,12 +446,16 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         ? newTranscript
         : `[Transcript link: ${transcriptUrl}]`;
 
+      // Detect Fireflies URLs so enrichment pipeline can fetch content automatically
+      const isFirefliesUrl = transcriptUrl &&
+        /app\.fireflies\.ai\/view\//i.test(transcriptUrl);
+
       const { error } = await supabase
         .from('deal_transcripts')
         .insert({
           listing_id: dealId,
           transcript_text: safeSingleText,
-          source: transcriptUrl || 'manual',
+          source: isFirefliesUrl ? 'fireflies' : (transcriptUrl || 'manual'),
           title: transcriptTitle || null,
           transcript_url: transcriptUrl || null,
           call_date: callDate ? new Date(callDate).toISOString() : null,

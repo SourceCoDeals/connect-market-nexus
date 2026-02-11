@@ -550,8 +550,16 @@ serve(async (req) => {
       }
 
       // Fetch Fireflies content for transcripts that have empty text
+      // Check both source='fireflies' AND any transcript with a Fireflies URL (user may have pasted a URL manually)
       const firefliesEmpty = needsExtraction.filter(
-        (t) => t.source === 'fireflies' && t.fireflies_transcript_id && (!t.transcript_text || t.transcript_text.trim().length < 100)
+        (t) => {
+          if (t.transcript_text && t.transcript_text.trim().length >= 100) return false;
+          // Source is explicitly Fireflies with an ID
+          if (t.source === 'fireflies' && t.fireflies_transcript_id) return true;
+          // Source is Fireflies but no ID yet (URL-only — fetch-fireflies-content will resolve it)
+          if (t.source === 'fireflies') return true;
+          return false;
+        }
       );
       if (firefliesEmpty.length > 0) {
         console.log(`[Transcripts] Fetching Fireflies content for ${firefliesEmpty.length} transcript(s)...`);
