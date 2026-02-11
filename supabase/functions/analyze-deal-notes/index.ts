@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, extractStatesFromText, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { callGeminiWithRetry, GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -196,7 +196,7 @@ serve(async (req) => {
     }
 
     // Use provided notes or deal's internal_notes/owner_notes
-    const notes = notesText || deal.internal_notes || deal.owner_notes || '';
+    const notes = notesText || deal.general_notes || deal.internal_notes || deal.owner_notes || '';
     
     if (!notes || notes.length < 20) {
       return new Response(
@@ -215,11 +215,13 @@ serve(async (req) => {
     console.log('Geography from notes:', geographyFromNotes);
 
     // Step 2: AI extraction for complex fields
+    // Try direct Gemini first, fall back to Lovable AI Gateway
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     
     let aiExtracted: Record<string, unknown> = {};
     
-    if (geminiApiKey) {
+    if (geminiApiKey || lovableApiKey) {
       const systemPrompt = `You are an elite M&A analyst extracting EVERY piece of deal intelligence from internal notes, call summaries, and broker memos.
 
 RULES:
@@ -239,80 +241,134 @@ ${notes.substring(0, 15000)}
 
 Use the tool to return structured data.`;
 
-      try {
-        const aiResponse = await fetch(GEMINI_API_URL, {
-          method: 'POST',
-          headers: getGeminiHeaders(geminiApiKey),
-          body: JSON.stringify({
-            model: DEFAULT_GEMINI_MODEL,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            tools: [{
-              type: 'function',
-              function: {
-                name: 'extract_notes_intelligence',
-                description: 'Extract comprehensive deal intelligence from internal notes',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    owner_goals: { type: 'string', description: 'Owner goals and motivations for selling. Empty string if not mentioned.' },
-                    ownership_structure: { type: 'string', description: 'Ownership structure (sole owner, partnership, family-owned). Empty string if not mentioned.' },
-                    transition_preferences: { type: 'string', description: 'Transition timeline, preferences, management continuity plans. Empty string if not mentioned.' },
-                    seller_motivation: { type: 'string', description: 'Why the seller wants to sell, urgency level. Empty string if not mentioned.' },
-                    special_requirements: { type: 'string', description: 'Deal breakers, must-haves, valuation expectations. Empty string if not mentioned.' },
-                    timeline_notes: { type: 'string', description: 'Timeline and urgency notes. Empty string if not mentioned.' },
-                    description: { type: 'string', description: 'Business description — what the company does, model, market position (2-4 sentences). Empty string if not mentioned.' },
-                    services: { type: 'array', items: { type: 'string' }, description: 'List of specific services offered. Empty array if not mentioned.' },
-                    service_mix: { type: 'string', description: 'Service mix and revenue model in detail (2-4 sentences). Empty string if not mentioned.' },
-                    industry: { type: 'string', description: 'Industry vertical (e.g., "Automotive Repair"). Empty string if not mentioned.' },
-                    customer_types: { type: 'string', description: 'Customer types and segments served. Empty string if not mentioned.' },
-                    competitive_position: { type: 'string', description: 'Competitive advantages, differentiators. Empty string if not mentioned.' },
-                    geographic_states: { type: 'array', items: { type: 'string' }, description: 'US states where business operates (2-letter codes). Empty array if not mentioned.' },
-                    location: { type: 'string', description: 'Primary location/HQ (city, state format). Empty string if not mentioned.' },
-                    number_of_locations: { type: 'number', description: 'Total physical locations. 0 if not mentioned.' },
-                    financial_notes: { type: 'string', description: 'Detailed financial notes — revenue breakdown by segment/location, EBITDA status, margins, growth rates, addbacks, caveats. Empty string if not mentioned.' },
-                    growth_trajectory: { type: 'string', description: 'Revenue/business growth trend. Empty string if not mentioned.' },
-                    revenue_trend: { type: 'string', description: 'Revenue trend: "growing", "stable", or "declining". Empty string if not mentioned.' },
-                    management_depth: { type: 'string', description: 'Management team details, key personnel. Empty string if not mentioned.' },
-                    has_management_team: { type: 'boolean', description: 'Whether management team exists beyond owner.' },
-                    key_risks: { type: 'array', items: { type: 'string' }, description: 'Risk factors, concerns, red flags. Empty array if not mentioned.' },
-                    key_quotes: { type: 'array', items: { type: 'string' }, description: 'VERBATIM notable quotes from the notes. Empty array if none.' },
-                    growth_drivers: { type: 'array', items: { type: 'string' }, description: 'Growth opportunities and expansion potential. Empty array if not mentioned.' },
-                    real_estate_info: { type: 'string', description: 'Real estate details — owned vs leased. Empty string if not mentioned.' },
-                    technology_systems: { type: 'string', description: 'Technology/software/systems used. Empty string if not mentioned.' },
-                  },
-                  required: [
-                    'owner_goals', 'ownership_structure', 'transition_preferences', 'special_requirements',
-                    'description', 'services', 'industry', 'customer_types', 'competitive_position',
-                    'geographic_states', 'location', 'number_of_locations',
-                    'financial_notes', 'growth_trajectory', 'management_depth', 'has_management_team',
-                    'key_risks', 'key_quotes', 'growth_drivers'
-                  ]
-                }
-              }
-            }],
-            tool_choice: { type: 'function', function: { name: 'extract_notes_intelligence' } }
-          }),
-        });
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-          if (toolCall?.function?.arguments) {
-            aiExtracted = JSON.parse(toolCall.function.arguments);
-            console.log('AI extracted fields:', Object.keys(aiExtracted).filter(k => {
-              const v = aiExtracted[k];
-              return v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
-            }));
+      const toolDef = {
+        type: 'function',
+        function: {
+          name: 'extract_notes_intelligence',
+          description: 'Extract comprehensive deal intelligence from internal notes',
+          parameters: {
+            type: 'object',
+            properties: {
+              owner_goals: { type: 'string', description: 'Owner goals and motivations for selling. Empty string if not mentioned.' },
+              ownership_structure: { type: 'string', description: 'Ownership structure (sole owner, partnership, family-owned). Empty string if not mentioned.' },
+              transition_preferences: { type: 'string', description: 'Transition timeline, preferences, management continuity plans. Empty string if not mentioned.' },
+              seller_motivation: { type: 'string', description: 'Why the seller wants to sell, urgency level. Empty string if not mentioned.' },
+              special_requirements: { type: 'string', description: 'Deal breakers, must-haves, valuation expectations. Empty string if not mentioned.' },
+              timeline_notes: { type: 'string', description: 'Timeline and urgency notes. Empty string if not mentioned.' },
+              description: { type: 'string', description: 'Business description — what the company does, model, market position (2-4 sentences). Empty string if not mentioned.' },
+              services: { type: 'array', items: { type: 'string' }, description: 'List of specific services offered. Empty array if not mentioned.' },
+              service_mix: { type: 'string', description: 'Service mix and revenue model in detail (2-4 sentences). Empty string if not mentioned.' },
+              industry: { type: 'string', description: 'Industry vertical (e.g., "Automotive Repair"). Empty string if not mentioned.' },
+              customer_types: { type: 'string', description: 'Customer types and segments served. Empty string if not mentioned.' },
+              competitive_position: { type: 'string', description: 'Competitive advantages, differentiators. Empty string if not mentioned.' },
+              geographic_states: { type: 'array', items: { type: 'string' }, description: 'US states where business operates (2-letter codes). Empty array if not mentioned.' },
+              location: { type: 'string', description: 'Primary location/HQ (city, state format). Empty string if not mentioned.' },
+              number_of_locations: { type: 'number', description: 'Total physical locations. 0 if not mentioned.' },
+              financial_notes: { type: 'string', description: 'Detailed financial notes — revenue breakdown by segment/location, EBITDA status, margins, growth rates, addbacks, caveats. Empty string if not mentioned.' },
+              growth_trajectory: { type: 'string', description: 'Revenue/business growth trend. Empty string if not mentioned.' },
+              revenue_trend: { type: 'string', description: 'Revenue trend: "growing", "stable", or "declining". Empty string if not mentioned.' },
+              management_depth: { type: 'string', description: 'Management team details, key personnel. Empty string if not mentioned.' },
+              has_management_team: { type: 'boolean', description: 'Whether management team exists beyond owner.' },
+              key_risks: { type: 'array', items: { type: 'string' }, description: 'Risk factors, concerns, red flags. Empty array if not mentioned.' },
+              key_quotes: { type: 'array', items: { type: 'string' }, description: 'VERBATIM notable quotes from the notes. Empty array if none.' },
+              growth_drivers: { type: 'array', items: { type: 'string' }, description: 'Growth opportunities and expansion potential. Empty array if not mentioned.' },
+              real_estate_info: { type: 'string', description: 'Real estate details — owned vs leased. Empty string if not mentioned.' },
+              technology_systems: { type: 'string', description: 'Technology/software/systems used. Empty string if not mentioned.' },
+            },
+            required: [
+              'owner_goals', 'ownership_structure', 'transition_preferences', 'special_requirements',
+              'description', 'services', 'industry', 'customer_types', 'competitive_position',
+              'geographic_states', 'location', 'number_of_locations',
+              'financial_notes', 'growth_trajectory', 'management_depth', 'has_management_team',
+              'key_risks', 'key_quotes', 'growth_drivers'
+            ]
           }
-        } else {
-          const errText = await aiResponse.text();
-          console.error('AI extraction failed:', aiResponse.status, errText.slice(0, 500));
         }
-      } catch (e) {
-        console.error('AI extraction error:', e);
+      };
+
+      const requestBody = {
+        model: DEFAULT_GEMINI_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        tools: [toolDef],
+        tool_choice: { type: 'function', function: { name: 'extract_notes_intelligence' } }
+      };
+
+      const parseToolResponse = (aiData: any): Record<string, unknown> | null => {
+        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          return JSON.parse(typeof toolCall.function.arguments === 'string' ? toolCall.function.arguments : JSON.stringify(toolCall.function.arguments));
+        }
+        return null;
+      };
+
+      let aiSuccess = false;
+
+      // Attempt 1: Direct Gemini API
+      if (geminiApiKey && !aiSuccess) {
+        try {
+          const aiResponse = await callGeminiWithRetry(
+            GEMINI_API_URL,
+            getGeminiHeaders(geminiApiKey),
+            requestBody,
+            90000,
+            'Gemini/notes-extract'
+          );
+
+          if (aiResponse.ok) {
+            const parsed = parseToolResponse(await aiResponse.json());
+            if (parsed) {
+              aiExtracted = parsed;
+              aiSuccess = true;
+              console.log('[AI] Direct Gemini succeeded');
+            }
+          } else {
+            const errText = await aiResponse.text();
+            console.warn('[AI] Direct Gemini failed:', aiResponse.status, errText.slice(0, 200));
+          }
+        } catch (e) {
+          console.warn('[AI] Direct Gemini error:', e instanceof Error ? e.message : e);
+        }
+      }
+
+      // Attempt 2: Lovable AI Gateway fallback
+      if (!aiSuccess && lovableApiKey) {
+        try {
+          console.log('[AI] Falling back to Lovable AI Gateway...');
+          const gatewayBody = { ...requestBody, model: 'google/gemini-2.5-flash' };
+          const aiResponse = await callGeminiWithRetry(
+            'https://ai.gateway.lovable.dev/v1/chat/completions',
+            { Authorization: `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
+            gatewayBody,
+            90000,
+            'LovableAI/notes-extract'
+          );
+
+          if (aiResponse.ok) {
+            const parsed = parseToolResponse(await aiResponse.json());
+            if (parsed) {
+              aiExtracted = parsed;
+              aiSuccess = true;
+              console.log('[AI] Lovable AI Gateway succeeded');
+            }
+          } else {
+            const errText = await aiResponse.text();
+            console.error('[AI] Lovable AI Gateway failed:', aiResponse.status, errText.slice(0, 200));
+          }
+        } catch (e) {
+          console.error('[AI] Lovable AI Gateway error:', e instanceof Error ? e.message : e);
+        }
+      }
+
+      if (!aiSuccess) {
+        console.warn('[AI] All AI providers failed — using regex-only extraction');
+      } else {
+        console.log('AI extracted fields:', Object.keys(aiExtracted).filter(k => {
+          const v = aiExtracted[k];
+          return v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
+        }));
       }
     }
 
