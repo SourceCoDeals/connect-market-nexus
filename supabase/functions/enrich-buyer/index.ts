@@ -311,14 +311,13 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 // ============================================================================
 
 /**
- * Call Gemini via shared helper. Accepts Claude-format tool schemas and converts internally.
- * This is a thin wrapper for backward compatibility with existing prompt functions.
+ * Call Gemini via shared helper for extraction prompts.
  */
-async function callClaudeAI(
+async function callGeminiAI(
   systemPrompt: string,
   userPrompt: string,
   tool: { name: string; description: string; input_schema: any },
-  apiKey: string,
+  _apiKey: string,
 ): Promise<{ data: any | null; error?: { code: string; message: string }; usage?: any }> {
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {
@@ -330,7 +329,6 @@ async function callClaudeAI(
     AI_CONFIG.model, AI_TIMEOUT_MS, AI_CONFIG.max_tokens
   );
 
-  // Map usage format for backward compat
   if (result.usage) {
     return {
       data: result.data,
@@ -381,7 +379,7 @@ IMPORTANT for revenue_model: Describe how money flows in 1-3 sentences. Include 
 async function extractBusinessOverview(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 1: Business Overview & Services');
   const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the business overview information from this company website.`;
-  return await callClaudeAI(PROMPT_1_SYSTEM, userPrompt, PROMPT_1_BUSINESS, apiKey);
+  return await callGeminiAI(PROMPT_1_SYSTEM, userPrompt, PROMPT_1_BUSINESS, apiKey);
 }
 
 // ============================================================================
@@ -415,7 +413,7 @@ Do NOT infer, guess, or hallucinate any information.`;
 async function extractCustomerProfile(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 2: Customer Profile');
   const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the customer profile information from this company website.`;
-  return await callClaudeAI(PROMPT_2_SYSTEM, userPrompt, PROMPT_2_CUSTOMER, apiKey);
+  return await callGeminiAI(PROMPT_2_SYSTEM, userPrompt, PROMPT_2_CUSTOMER, apiKey);
 }
 
 // ============================================================================
@@ -486,7 +484,7 @@ Return 2-letter state codes (e.g., MN not Minnesota).`;
 async function extractGeography(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 3a: Geographic Footprint');
   const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract geographic coverage information. Include states from addresses, service area descriptions, location pages, contact info, and any explicitly named states or cities where the company operates or serves customers. For each city found, add it to operating_locations as "City, ST" format. Always use 2-letter state codes.`;
-  return await callClaudeAI(PROMPT_3A_SYSTEM, userPrompt, PROMPT_3A_GEOGRAPHY, apiKey);
+  return await callGeminiAI(PROMPT_3A_SYSTEM, userPrompt, PROMPT_3A_GEOGRAPHY, apiKey);
 }
 
 // ============================================================================
@@ -540,7 +538,7 @@ Do NOT infer or guess any information.`;
 async function extractPEIntelligence(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 3b: Combined PE Intelligence (Acquisitions + Activity + Portfolio)');
   const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract acquisition history, investment focus areas, and portfolio companies. Do NOT extract thesis, strategic priorities, or thesis confidence.`;
-  return await callClaudeAI(PROMPT_3B_SYSTEM, userPrompt, PROMPT_3B_PE_INTELLIGENCE, apiKey);
+  return await callGeminiAI(PROMPT_3B_SYSTEM, userPrompt, PROMPT_3B_PE_INTELLIGENCE, apiKey);
 }
 
 // ============================================================================
@@ -576,7 +574,7 @@ If no dollar amounts are explicitly stated, return null for all fields.`;
 async function extractSizeCriteria(content: string, apiKey: string): Promise<any> {
   console.log('Running Prompt 6: Size Criteria');
   const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the size/financial criteria. Only extract DOLLAR amounts, not multiples.`;
-  return await callClaudeAI(PROMPT_6_SYSTEM, userPrompt, PROMPT_6_SIZE, apiKey);
+  return await callGeminiAI(PROMPT_6_SYSTEM, userPrompt, PROMPT_6_SIZE, apiKey);
 }
 
 // ============================================================================
@@ -1212,8 +1210,8 @@ Deno.serve(async (req) => {
     console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
 
     // Handle billing errors with partial save
-    if (billingError as { code: string; message: string } | null) {
-      const be = billingError as { code: string; message: string };
+    if (billingError) {
+      const be = billingError as unknown as { code: string; message: string };
       const fieldsExtracted = Object.keys(allExtracted).length;
       if (fieldsExtracted > 0) {
         const partialUpdate = buildUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);

@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { DocumentReference } from "@/types/remarketing";
 import { 
   FileText, 
@@ -14,7 +16,8 @@ import {
   File,
   FileSpreadsheet,
   FileImage,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
@@ -25,6 +28,7 @@ interface DocumentUploadSectionProps {
   onDocumentsChange: (documents: DocumentReference[]) => void;
   onReanalyze?: () => void;
   isReanalyzing?: boolean;
+  industryName?: string;
 }
 
 const getFileIcon = (fileName: string) => {
@@ -51,10 +55,16 @@ export const DocumentUploadSection = ({
   documents,
   onDocumentsChange,
   onReanalyze,
-  isReanalyzing = false
+  isReanalyzing = false,
+  industryName = 'Unknown Industry'
 }: DocumentUploadSectionProps) => {
+  const { registerMinorOp } = useGlobalGateCheck();
+  const { updateProgress, completeOperation } = useGlobalActivityMutations();
   const [isUploading, setIsUploading] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0, successes: 0, failures: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeQueueId, setActiveQueueId] = useState<string | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -112,6 +122,107 @@ export const DocumentUploadSection = ({
     toast.success('Document removed');
   };
 
+  const handleEnrichFromDocuments = async () => {
+    const enrichableDocs = documents.filter(d => (d as any).type !== 'ma_guide');
+    if (enrichableDocs.length === 0) {
+      toast.error('No documents to enrich from');
+      return;
+    }
+
+    setIsEnriching(true);
+    setEnrichProgress({ current: 0, total: enrichableDocs.length, successes: 0, failures: 0 });
+    let successes = 0;
+    let failures = 0;
+
+    // Register in global activity queue
+    let queueId: string | null = null;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const item = await registerMinorOp({
+          operationType: 'deal_enrichment',
+          totalItems: enrichableDocs.length,
+          description: `Document enrichment (${enrichableDocs.length} docs)`,
+          userId: user.id,
+        });
+        queueId = item.id;
+        setActiveQueueId(item.id);
+      }
+    } catch (e) {
+      console.warn('Failed to register in activity queue:', e);
+    }
+
+    for (let i = 0; i < enrichableDocs.length; i++) {
+      const doc = enrichableDocs[i];
+
+      try {
+        let storagePath: string;
+        if (doc.url) {
+          const urlParts = doc.url.split('/universe-documents/');
+          storagePath = urlParts.length > 1 ? urlParts[1] : doc.url;
+        } else {
+          storagePath = `${universeId}/${doc.name}`;
+        }
+
+        const { data, error } = await supabase.functions.invoke('extract-deal-document', {
+          body: {
+            universe_id: universeId,
+            document_url: storagePath,
+            document_name: doc.name,
+            industry_name: industryName,
+          }
+        });
+
+        if (error) throw error;
+        if (data?.success) {
+          successes++;
+        } else {
+          failures++;
+          console.error(`Extraction failed for ${doc.name}:`, data?.error);
+        }
+      } catch (err) {
+        failures++;
+        console.error(`Error enriching ${doc.name}:`, err);
+      }
+
+      setEnrichProgress({ current: i + 1, total: enrichableDocs.length, successes, failures });
+
+      // Update activity queue progress
+      if (queueId) {
+        try {
+          updateProgress.mutate({
+            id: queueId,
+            completedItems: successes + failures,
+            failedItems: failures,
+          });
+        } catch {}
+      }
+
+      if (i < enrichableDocs.length - 1) {
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+
+    // Complete activity queue item
+    if (queueId) {
+      try {
+        completeOperation.mutate({
+          id: queueId,
+          finalStatus: failures === enrichableDocs.length ? 'failed' : 'completed',
+        });
+      } catch {}
+    }
+
+    setIsEnriching(false);
+    setActiveQueueId(null);
+    if (successes > 0) {
+      toast.success(`Enriched from ${successes} document${successes !== 1 ? 's' : ''}`);
+    }
+    if (failures > 0) {
+      toast.error(`${failures} document${failures !== 1 ? 's' : ''} failed to process`);
+    }
+  };
+
   const truncateName = (name: string, maxLength: number = 30) => {
     if (name.length <= maxLength) return name;
     const ext = name.split('.').pop();
@@ -162,6 +273,26 @@ export const DocumentUploadSection = ({
                 Re-analyze
               </Button>
             )}
+            {documents.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnrichFromDocuments}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    {enrichProgress.current}/{enrichProgress.total}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Enrich from Documents
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
         <CardDescription>
@@ -180,7 +311,29 @@ export const DocumentUploadSection = ({
           className="hidden"
         />
 
-        {/* Document Chips */}
+        {/* Enrichment Progress Bar */}
+        {isEnriching && (
+          <div className="mb-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                <span className="font-medium">Enriching from documents...</span>
+              </div>
+              <span className="text-muted-foreground">
+                {enrichProgress.current} of {enrichProgress.total}
+              </span>
+            </div>
+            <Progress value={enrichProgress.total > 0 ? (enrichProgress.current / enrichProgress.total) * 100 : 0} className="h-2" />
+            {(enrichProgress.successes > 0 || enrichProgress.failures > 0) && (
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                {enrichProgress.successes > 0 && <span className="text-emerald-600">{enrichProgress.successes} successful</span>}
+                {enrichProgress.failures > 0 && <span className="text-destructive">{enrichProgress.failures} failed</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+
         {documents.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {documents.map((doc) => (

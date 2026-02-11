@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,10 +21,10 @@ serve(async (req) => {
       );
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY) {
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY is not configured' }),
+        JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -58,29 +59,25 @@ Return JSON only:
   "valuationDrivers": ["Driver 1", "Driver 2"]
 }`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
+      headers: getGeminiHeaders(GEMINI_API_KEY),
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: DEFAULT_GEMINI_MODEL,
         max_tokens: 4000,
         messages: [
+          { role: 'system', content: systemPrompt },
           {
             role: 'user',
             content: `Generate comprehensive M&A research questions for the ${industryName} industry.${context ? `\n\nAdditional context: ${context}` : ''}`
           }
         ],
-        system: systemPrompt,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Anthropic API error:', response.status, errorText);
+      console.error('Gemini API error:', response.status, errorText);
       return new Response(
         JSON.stringify({ error: `AI API error: ${response.status}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -88,7 +85,7 @@ Return JSON only:
     }
 
     const result = await response.json();
-    const content = result.content?.[0]?.text || '';
+    const content = result.choices?.[0]?.message?.content || '';
 
     // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);

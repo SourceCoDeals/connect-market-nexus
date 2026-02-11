@@ -127,13 +127,13 @@ serve(async (req) => {
       );
     }
 
-    // FIX #5: Pre-flight check for ANTHROPIC_API_KEY (used by extract-deal-transcript)
-    if (!anthropicApiKey) {
-      console.error('[enrich-deal] ANTHROPIC_API_KEY is not set — transcript extraction will fail');
+    // Pre-flight check for GEMINI_API_KEY (used by extract-deal-transcript)
+    if (!geminiApiKey) {
+      console.error('[enrich-deal] GEMINI_API_KEY is not set — transcript extraction will fail');
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'ANTHROPIC_API_KEY is not configured. Please add it to Supabase Edge Function secrets.',
+          error: 'GEMINI_API_KEY is not configured. Please add it to Supabase Edge Function secrets.',
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -162,7 +162,7 @@ serve(async (req) => {
     // Fetch ALL transcripts for this deal (we need the full picture for reporting)
     const { data: allTranscripts, error: transcriptsError } = await supabase
       .from('deal_transcripts')
-      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id')
+      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id, transcript_url')
       .eq('listing_id', dealId)
       .order('created_at', { ascending: false });
 
@@ -520,6 +520,35 @@ serve(async (req) => {
     console.log(`[Transcripts] Total: ${allTranscripts?.length || 0}, Need extraction: ${needsExtraction.length}, Already extracted: ${(allTranscripts?.length || 0) - needsExtraction.length}, forceReExtract: ${forceReExtract}`);
 
     if (needsExtraction.length > 0) {
+      // Detect Fireflies URLs in link-type transcripts and convert them
+      const firefliesLinkPattern = /fireflies\.ai\/view\/[^:]+::([a-zA-Z0-9]+)/;
+      for (const t of needsExtraction) {
+        if (t.source === 'link' && !t.fireflies_transcript_id) {
+          // Check transcript_text or transcript_url for a Fireflies link
+          const textToCheck = (t.transcript_text || '') + ' ' + ((t as any).transcript_url || '');
+          const match = textToCheck.match(firefliesLinkPattern);
+          if (match) {
+            const ffId = match[1];
+            console.log(`[Transcripts] Detected Fireflies URL in link transcript ${t.id}, extracted ID: ${ffId}`);
+            // Update DB record to proper Fireflies source
+            const { error: convertErr } = await supabase
+              .from('deal_transcripts')
+              .update({
+                source: 'fireflies',
+                fireflies_transcript_id: ffId,
+              })
+              .eq('id', t.id);
+            if (!convertErr) {
+              t.source = 'fireflies';
+              t.fireflies_transcript_id = ffId;
+              t.transcript_text = ''; // Clear the URL-only text so it gets fetched
+            } else {
+              console.warn(`[Transcripts] Failed to convert link transcript ${t.id}:`, convertErr);
+            }
+          }
+        }
+      }
+
       // Fetch Fireflies content for transcripts that have empty text
       // Check both source='fireflies' AND any transcript with a Fireflies URL (user may have pasted a URL manually)
       const firefliesEmpty = needsExtraction.filter(
@@ -801,7 +830,10 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      return ssrfErrorResponse(urlValidation.reason || 'Invalid URL');
+      return new Response(
+        JSON.stringify({ success: false, error: `Invalid URL: ${websiteUrl} (${urlValidation.reason || 'blocked by security policy'})` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     websiteUrl = urlValidation.normalizedUrl || websiteUrl;
 
@@ -1231,34 +1263,34 @@ For financial data, include confidence levels and source quotes where available.
                         type: 'string',
                         description: 'LinkedIn company page URL if found on the website'
                       },
-                      // Financial — flattened to avoid Gemini "too much branching" schema error
+                      // Financial fields — FLATTENED to avoid Gemini "too much branching" error
                       revenue_value: {
                         type: 'number',
-                        description: 'Annual revenue in dollars as raw integer (e.g., 5000000 for $5M). Null if not found.'
+                        description: 'Annual revenue in dollars (e.g., 5000000 for $5M)'
                       },
                       revenue_confidence: {
                         type: 'string',
-                        description: 'Confidence level for revenue: "high" (explicit statement), "medium" (approximate/hedged), or "low" (inferred from indirect data)'
+                        description: 'Confidence level for revenue: high, medium, or low'
                       },
                       revenue_is_inferred: {
                         type: 'boolean',
-                        description: 'True if revenue was calculated from other data (e.g., employee count × benchmark)'
+                        description: 'True if revenue was calculated/inferred from other data'
                       },
                       revenue_source_quote: {
                         type: 'string',
-                        description: 'Exact text from website where revenue was mentioned'
+                        description: 'Exact text where revenue was mentioned'
                       },
                       ebitda_amount: {
                         type: 'number',
-                        description: 'EBITDA in dollars as raw integer'
+                        description: 'EBITDA in dollars'
                       },
                       ebitda_margin_percentage: {
                         type: 'number',
-                        description: 'EBITDA margin as percentage number (e.g., 18 for 18%). NOT decimal.'
+                        description: 'EBITDA margin as percentage (e.g., 18 for 18%)'
                       },
                       ebitda_confidence: {
                         type: 'string',
-                        description: 'Confidence level for EBITDA: "high", "medium", or "low"'
+                        description: 'Confidence level for EBITDA: high, medium, or low'
                       },
                       ebitda_is_inferred: {
                         type: 'boolean',
@@ -1266,12 +1298,12 @@ For financial data, include confidence levels and source quotes where available.
                       },
                       ebitda_source_quote: {
                         type: 'string',
-                        description: 'Exact text from website supporting the EBITDA figure'
+                        description: 'Exact text supporting the EBITDA figure'
                       },
                       financial_followup_questions: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Questions to clarify financials if data is unclear (e.g., "What is the exact EBITDA margin?")'
+                        description: 'Questions to clarify financials if data is unclear'
                       },
                       financial_notes: {
                         type: 'string',
@@ -1372,24 +1404,48 @@ For financial data, include confidence levels and source quotes where available.
     // PROCESS FINANCIAL DATA WITH CONFIDENCE TRACKING (per spec)
     // Schema is now flattened — fields come back as revenue_value, ebitda_amount, etc.
     // ========================================================================
-
-    // Handle flattened revenue fields
-    const revenueValue = extracted.revenue_value as number | undefined;
-    if (revenueValue && typeof revenueValue === 'number') {
-      extracted.revenue = revenueValue;
+    
+    // Handle flattened revenue fields from AI extraction
+    if (extracted.revenue_value) {
+      extracted.revenue = extracted.revenue_value;
+      delete extracted.revenue_value;
       if (!extracted.revenue_confidence) extracted.revenue_confidence = 'medium';
-      extracted.revenue_is_inferred = extracted.revenue_is_inferred || false;
     }
-    // Clean up flattened fields that don't map to DB columns
-    delete extracted.revenue_value;
-
+    // Legacy: handle nested revenue object from older schema
+    const revenueData = extracted.revenue as { value?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | number | undefined;
+    if (revenueData && typeof revenueData === 'object' && revenueData.value) {
+      extracted.revenue = revenueData.value;
+      extracted.revenue_confidence = revenueData.confidence || 'medium';
+      extracted.revenue_is_inferred = revenueData.is_inferred || false;
+      if (revenueData.source_quote) extracted.revenue_source_quote = revenueData.source_quote;
+    }
+    
     // Handle flattened EBITDA fields
-    const ebitdaAmount = extracted.ebitda_amount as number | undefined;
-    const ebitdaMarginPct = extracted.ebitda_margin_percentage as number | undefined;
-    if (ebitdaAmount && typeof ebitdaAmount === 'number') {
-      extracted.ebitda = ebitdaAmount;
+    if (extracted.ebitda_amount) {
+      extracted.ebitda = extracted.ebitda_amount;
+      delete extracted.ebitda_amount;
+    }
+    if (extracted.ebitda_margin_percentage) {
+      extracted.ebitda_margin = (extracted.ebitda_margin_percentage as number) / 100;
+      delete extracted.ebitda_margin_percentage;
+    }
+    // SPEC: Calculate EBITDA from revenue × margin if amount not provided
+    if (!extracted.ebitda && extracted.ebitda_margin && extracted.revenue && typeof extracted.revenue === 'number') {
+      const calculatedEbitda = extracted.revenue * (extracted.ebitda_margin as number);
+      extracted.ebitda = calculatedEbitda;
+      extracted.ebitda_is_inferred = true;
+      extracted.ebitda_source_quote = `Calculated: ${(extracted.revenue as number) / 1000000}M revenue × ${((extracted.ebitda_margin as number) * 100).toFixed(1)}% margin`;
       if (!extracted.ebitda_confidence) extracted.ebitda_confidence = 'medium';
-      extracted.ebitda_is_inferred = extracted.ebitda_is_inferred || false;
+      console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()}`);
+    }
+    // Legacy: handle nested ebitda object from older schema
+    const ebitdaData = extracted.ebitda as { amount?: number; margin_percentage?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | number | undefined;
+    if (ebitdaData && typeof ebitdaData === 'object') {
+      if (ebitdaData.amount) extracted.ebitda = ebitdaData.amount;
+      if (ebitdaData.margin_percentage) extracted.ebitda_margin = ebitdaData.margin_percentage / 100;
+      if (ebitdaData.confidence) extracted.ebitda_confidence = ebitdaData.confidence;
+      extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
+      if (ebitdaData.source_quote) extracted.ebitda_source_quote = ebitdaData.source_quote;
     }
     if (ebitdaMarginPct && typeof ebitdaMarginPct === 'number') {
       extracted.ebitda_margin = ebitdaMarginPct / 100; // Store as decimal

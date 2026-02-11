@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
-import { callClaudeWithTool, DEFAULT_CLAUDE_MODEL } from "../_shared/ai-providers.ts";
+import { DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -154,9 +154,9 @@ serve(async (req) => {
     console.log(`Extracting intelligence from transcript ${transcriptId}, text length: ${transcriptText.length}`);
 
     // Use AI to extract intelligence
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!anthropicApiKey) {
-      throw new Error('ANTHROPIC_API_KEY not configured');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     const extractionPrompt = `You are a senior M&A analyst conducting due diligence on a potential acquisition target. You are reviewing a call transcript or meeting notes between our team and a business owner, broker, or company representative.
@@ -524,152 +524,100 @@ Priority order:
 
 IMPORTANT: Populate as MANY fields as possible with MAXIMUM DETAIL. Use the extract_deal_info tool to return structured data.`;
 
-    // Tool schema — descriptions reinforce the prompt rules with format specs
-    const tool = {
-      type: 'function',
-      function: {
-        name: 'extract_deal_info',
-        description: 'Extract comprehensive deal intelligence from a transcript or meeting notes. Populate as many fields as possible with maximum detail. Every field should have rich, specific content — not generic summaries.',
-        parameters: {
-          type: 'object',
-          properties: {
-            // === FINANCIAL (structured) ===
-            revenue: {
-              type: 'object',
-              properties: {
-                value: { type: 'number', description: 'Annual revenue as raw integer (8000000 not "$8M"). Annualize monthly ("$600K/mo"→7200000). Use midpoint for ranges.' },
-                confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'high=explicit stated, medium=range/hedged/approximate, low=inferred from indirect data' },
-                is_inferred: { type: 'boolean', description: 'True if calculated from other data (e.g., employee count × industry benchmark, or EBITDA ÷ margin)' },
-                source_quote: { type: 'string', description: 'EXACT verbatim quote where revenue was mentioned. Copy-paste, do not paraphrase.' },
-                inference_method: { type: 'string', description: 'Explain calculation if inferred. E.g., "500 jobs/yr × $15K avg = $7.5M". Null if not inferred.' }
-              },
-              required: ['confidence']
-            },
-            ebitda: {
-              type: 'object',
-              properties: {
-                amount: { type: 'number', description: 'EBITDA as raw integer. If SDE stated, use that number but flag in financial_notes. Prefer adjusted over unadjusted.' },
-                margin_percentage: { type: 'number', description: 'EBITDA margin as percentage NUMBER: 18 means 18%. NOT 0.18. Calculate from revenue if both known.' },
-                confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-                is_inferred: { type: 'boolean', description: 'True if calculated from revenue × margin or other indirect method' },
-                source_quote: { type: 'string', description: 'EXACT verbatim quote. "We keep about 20 cents on every dollar" → margin_percentage=20.' }
-              },
-              required: ['confidence']
-            },
-            financial_notes: { type: 'string', description: 'DETAILED paragraph: seasonality patterns, YoY trends, owner compensation (ALWAYS capture), add-backs, debt/SBA loans, capex needs, tax structure (S-corp/C-corp/LLC), working capital, one-time items, pending changes. If SDE reported instead of EBITDA, explain here.' },
-            financial_followup_questions: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Only questions for ACTUAL gaps. Empty array if financials are clear and comprehensive.'
-            },
-
-            // === EXECUTIVE SUMMARY ===
-            executive_summary: { type: 'string', description: '3-5 sentences for PE investor. MUST include: what company does, size (revenue + employees), strengths, geography, growth trajectory, acquisition attractiveness. Third person. Specific numbers. No risks or owner goals here. Lead with most compelling fact. See example in prompt.' },
-
-            // === SERVICES & BUSINESS MODEL ===
-            services: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'EVERY service as separate items. Include sub-services individually. Lowercase. Mark planned with "(planned)". E.g., ["fire restoration", "water restoration", "mold remediation", "roofing", "content pack-out", "board-up services", "commercial HVAC (planned)"]'
-            },
-            service_mix: { type: 'string', description: 'DETAILED paragraph: services with revenue %, how they interrelate (cross-sell), residential/commercial split, recurring/project split, in-house vs subcontracted, recently added/planned. If no % given, state that explicitly.' },
-            business_model: { type: 'string', description: 'DETAILED paragraph: revenue model (recurring/project/subscription), how they get paid (insurance/direct/government), pricing structure (per sq ft/Xactimate/bid), res/com differences, avg job size, sales cycle, contract types (MSAs/preferred vendor), repeat business %.' },
-
-            // === LOCATION & GEOGRAPHY ===
-            location: { type: 'string', description: 'Primary HQ in "City, ST" format. Use suburb not metro ("Sellersburg, IN" not "Louisville area").' },
-            headquarters_address: { type: 'string', description: 'Full street address ONLY if explicitly mentioned. Otherwise "City, ST". Do NOT guess.' },
-            geographic_states: {
-              type: 'array',
-              items: { type: 'string' },
-              description: '2-letter codes for ALL states: operations, customers, licenses, expansion plans. Map city mentions to states. Always include home state. E.g., ["IN", "KY", "OH", "TN"]'
-            },
-            number_of_locations: { type: 'number', description: 'ALL physical locations (offices+shops+warehouses+satellites). Home office=1. "Two shops and warehouse"=3. NOT job sites.' },
-
-            // === OWNER & TRANSACTION ===
-            owner_goals: { type: 'string', description: 'DETAILED paragraph: primary motivation (retirement/burnout/growth/health), desired deal type (full sale/recap/partnership), financial expectations (price/multiples), beyond-money goals (legacy/employees/brand). Include owner\'s EXACT WORDS. Do NOT editorialize.' },
-            ownership_structure: { type: 'string', description: 'Entity type, # of owners with %, family involvement, silent partners, employee equity, trust/estate. If not discussed: "Ownership structure not discussed on this call."' },
-            transition_preferences: { type: 'string', description: 'DETAILED: stay duration, desired role (FT/PT/advisory), willing vs not willing, key relationships held (transition risk), training plan, #2 in place?, non-compete. If not discussed: "Transition preferences not discussed on this call."' },
-            special_requirements: { type: 'string', description: 'Deal-breakers and must-haves: employee retention, earnout, no competitors, local buyer, minimum multiple, partner approval, tax timing. Null if none mentioned.' },
-            timeline_notes: { type: 'string', description: 'Close date target, urgency factors (health/lease/employee), constraints (seasonality), previous sale attempts, broker timelines. Null if not discussed.' },
-
-            // === CUSTOMERS ===
-            customer_types: { type: 'string', description: 'DETAILED paragraph: segments with % breakdown, description of each segment, how they behave differently, growing/shrinking segments, planned new segments. If no %: note "breakdown not provided" and describe qualitatively.' },
-            end_market_description: { type: 'string', description: 'Ultimate end customers: who they are, profile, how they find company, what triggers need, decision process. May differ from who pays (e.g., insurance pays but homeowner is end market).' },
-            customer_concentration: { type: 'string', description: 'DETAILED text: largest customer %, top 5/10 concentration, key account dependencies, insurance/government dependencies, contractual vs at-will. If not discussed: "Customer concentration not discussed. Recommend follow-up."' },
-            customer_geography: { type: 'string', description: 'Service radius, coverage map, national accounts, urban/rural mix, geographic expansion plans for customer reach.' },
-
-            // === STRATEGIC ===
-            competitive_position: { type: 'string', description: 'DETAILED paragraph: market position (leader/niche/premium), reputation + years, certifications (IICRC/ISO/licenses), unique capabilities, customer relationship depth, barriers to entry, named competitors and comparison.' },
-            growth_trajectory: { type: 'string', description: 'DETAILED paragraph in TWO parts: (1) Historical — revenue over time with numbers, employee growth, new services/locations, inflection points. (2) Future — owner\'s view with specific targets, growth levers, what\'s holding them back, acquisition opportunities. Use SPECIFIC NUMBERS.' },
-            key_risks: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'EVERY risk, SPECIFIC not generic. Tag inferred: "(inferred)". Check: key person, customer concentration, workforce, regulatory, seasonal, technology debt, lease/RE, insurance dependency, equipment age, litigation, environmental, supplier, succession gap. Format: "Key person risk — owner personally manages all insurance adjuster relationships"'
-            },
-            technology_systems: { type: 'string', description: 'ALL tools organized by category: Accounting (QuickBooks etc), CRM (Salesforce/none), Estimating (Xactimate), Scheduling (ServiceTitan), Fleet (GPS), Communication, Industry-specific, Marketing. Note ABSENCE of systems too.' },
-            real_estate_info: { type: 'string', description: 'Each location: owned/leased, sq footage, lease terms (rent/expiry/renewal/related-party), property value if owned, zoning, RE plans ("sell separately"/"buyer assumes lease"), equipment stored. Null if not discussed.' },
-
-            // === COMPANY BASICS ===
-            industry: { type: 'string', description: 'MOST SPECIFIC category: "Fire & Water Restoration" not "Restoration". "Commercial HVAC Services" not "HVAC". If multi-industry, lead with largest.' },
-            founded_year: { type: 'number', description: 'Year. "20 years in business" + current year 2026 → 2006. "Dad started in the 80s" → estimate (1985).' },
-            full_time_employees: { type: 'number', description: 'ALL FT staff summed: field crews + office + techs + mgmt + sales + admin + owner if FT. "12 field + 3 office" = 15 + owner = 16. Midpoint for ranges.' },
-            part_time_employees: { type: 'number', description: 'Seasonal/PT only. "10 extra in summer"=10. Null if not mentioned.' },
-            website: { type: 'string', description: 'Full URL: "https://www.example.com". Do NOT guess from company name. Null if not mentioned.' },
-
-            // === CONTACT ===
-            primary_contact_name: { type: 'string', description: 'Full name of main contact person from the call (owner, broker, CEO, partner).' },
-            primary_contact_email: { type: 'string', description: 'Email if mentioned at any point (often beginning/end of call). Null if not.' },
-            primary_contact_phone: { type: 'string', description: 'Phone if mentioned. Null if not.' },
-
-            // === KEY QUOTES (8-10 VERBATIM) ===
-            key_quotes: {
-              type: 'array',
-              items: { type: 'string' },
-              description: '8-10 EXACT verbatim quotes (NOT paraphrased). Priority: financial specifics > growth > owner motivation > competitive advantages > risk revelations > customer insights > operational details > deal preferences. Only from the seller/owner, not the interviewer. Include enough context for standalone reading.'
-            }
-          }
-        }
-      }
-    };
-
     const systemPrompt = `You are a senior M&A analyst at an investment bank conducting due diligence on lower-middle-market acquisition targets (typically $500K–$10M EBITDA businesses). Your job is to extract EVERY piece of structured data from this call transcript.
 
 CORE RULES:
 
-1. EXHAUSTIVE EXTRACTION: Read the ENTIRE transcript from start to finish. Owners reveal critical information throughout the conversation — not just when directly asked. A question about employees might prompt a revenue disclosure. A question about customers might reveal geographic information. Do NOT stop scanning after the first mention of a topic.
+1. EXHAUSTIVE EXTRACTION: Read the ENTIRE transcript from start to finish.
+2. ACCURACY OVER COMPLETENESS: It is better to return null than to return wrong data.
+3. NUMBERS AS RAW INTEGERS: All dollar amounts must be stored as raw numbers. "$7.5M" = 7500000.
+4. PERCENTAGES AS INTEGERS: margin_percentage=18 means 18%. NOT 0.18.
+5. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."
+6. VERBATIM QUOTES: source_quote and key_quotes must be EXACT words from the transcript.
+7. CONFLICT RESOLUTION: Use the MOST SPECIFIC and MOST RECENT statement.
+8. FLAG INCONSISTENCIES in financial_notes or follow-up questions.
+9. DO NOT OVER-EXTRACT jokes or hypotheticals.
+10. IGNORE THE INTERVIEWER: Extract data from the business owner/seller only.
 
-2. ACCURACY OVER COMPLETENESS: It is better to return null than to return wrong data. Wrong data in the deal page causes bad buyer matches and wastes everyone's time. If information was not stated or cannot be reasonably calculated, use null. Never fabricate, guess, or fill in data that was not mentioned.
+Return a JSON object with these fields (use null for unknown, empty array [] when no items):
 
-3. NUMBERS AS RAW INTEGERS: All dollar amounts must be stored as raw numbers with no formatting. "$7.5M" = 7500000. "about two million" = 2000000. "six hundred thousand" = 600000. Never return "$7.5M" or "7,500,000" or "$7.5 million."
+{
+  "revenue": { "value": number|null, "confidence": "high"|"medium"|"low", "is_inferred": boolean, "source_quote": string|null, "inference_method": string|null },
+  "ebitda": { "amount": number|null, "margin_percentage": number|null, "confidence": "high"|"medium"|"low", "is_inferred": boolean, "source_quote": string|null },
+  "financial_notes": string|null,
+  "financial_followup_questions": string[],
+  "executive_summary": string|null,
+  "services": string[],
+  "service_mix": string|null,
+  "business_model": string|null,
+  "location": string|null,
+  "headquarters_address": string|null,
+  "geographic_states": string[],
+  "number_of_locations": number|null,
+  "owner_goals": string|null,
+  "ownership_structure": string|null,
+  "transition_preferences": string|null,
+  "special_requirements": string|null,
+  "timeline_notes": string|null,
+  "customer_types": string|null,
+  "end_market_description": string|null,
+  "customer_concentration": string|null,
+  "customer_geography": string|null,
+  "competitive_position": string|null,
+  "growth_trajectory": string|null,
+  "key_risks": string[],
+  "technology_systems": string|null,
+  "real_estate_info": string|null,
+  "industry": string|null,
+  "founded_year": number|null,
+  "full_time_employees": number|null,
+  "part_time_employees": number|null,
+  "website": string|null,
+  "primary_contact_name": string|null,
+  "primary_contact_email": string|null,
+  "primary_contact_phone": string|null,
+  "key_quotes": string[]
+}
 
-4. PERCENTAGES AS INTEGERS: margin_percentage=18 means 18%. Do NOT use 0.18. The application layer converts to decimal.
+Return ONLY the JSON object. No markdown fences, no explanation.`;
 
-5. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana." "KY" not "Kentucky."
+    // Call Gemini directly (plain JSON mode) to avoid schema branching limits
+    const { callGeminiWithRetry, getGeminiHeaders, GEMINI_API_URL } = await import("../_shared/ai-providers.ts");
 
-6. VERBATIM QUOTES: When a field calls for source_quote or key_quotes, copy-paste the EXACT words from the transcript. Do not paraphrase, clean up grammar, or summarize.
-
-7. CONFLICT RESOLUTION: When the speaker gives contradictory information, use the MOST SPECIFIC and MOST RECENT statement. If the owner says "$7M" early on and "$7.2M" later with more precision, use 7200000.
-
-8. FLAG INCONSISTENCIES: If data points contradict each other (e.g., "45 employees" but only describes 3 crews of 3 people), note the discrepancy in financial_notes or follow_up_questions. Do not silently pick one.
-
-9. DO NOT OVER-EXTRACT: If the owner makes an obvious joke, hypothetical, or aspirational statement ("if we had a million dollars…"), do not extract that as a financial figure. Only extract data that reflects the actual current or historical state of the business, or explicitly stated future plans.
-
-10. IGNORE THE INTERVIEWER: Extract data from the business owner/seller's statements only. Do not extract questions or comments from the SourceCo interviewer as data points (exception: if the interviewer states facts about the business that the owner confirms).`;
-
-    // Call Claude API with 90s timeout for long transcripts, 8192 max tokens for detailed extraction
-    const { data: extracted, error: aiError } = await callClaudeWithTool(
-      systemPrompt,
-      extractionPrompt,
-      tool,
-      anthropicApiKey,
-      DEFAULT_CLAUDE_MODEL,
+    const geminiResponse = await callGeminiWithRetry(
+      GEMINI_API_URL,
+      getGeminiHeaders(geminiApiKey),
+      {
+        model: DEFAULT_GEMINI_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: extractionPrompt },
+        ],
+        temperature: 0,
+        max_tokens: 8192,
+        response_format: { type: 'json_object' },
+      },
       90000,
-      8192
-    ) as { data: ExtractionResult | null; error?: { code: string; message: string } };
+      'extract-deal-transcript'
+    );
 
-    if (aiError) {
-      console.error('Claude API error:', aiError);
-      throw new Error(`AI extraction failed: ${aiError.message}`);
+    if (!geminiResponse.ok) {
+      const errText = await geminiResponse.text();
+      console.error('Gemini API error:', geminiResponse.status, errText.substring(0, 500));
+      throw new Error(`AI extraction failed: Gemini API returned ${geminiResponse.status}: ${errText.substring(0, 200)}`);
+    }
+
+    const geminiResult = await geminiResponse.json();
+    const rawContent = geminiResult.choices?.[0]?.message?.content || '';
+
+    let extracted: ExtractionResult | null = null;
+    try {
+      // Strip markdown fences if present
+      const cleaned = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      extracted = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.error('Failed to parse Gemini JSON response:', rawContent.substring(0, 500));
+      throw new Error('AI extraction failed: Could not parse JSON response');
     }
 
     if (!extracted) {
