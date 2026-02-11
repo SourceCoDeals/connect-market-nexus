@@ -24,8 +24,9 @@ interface DealQualityScores {
  * SCORING METHODOLOGY V3 (0-100):
  *
  * 1. FINANCIAL SIZE (0-55 pts) — Revenue & EBITDA. BY FAR the most important factor.
- * 2. COMPANY SIGNALS (0-10 pts with financials, 0-30 without) — LinkedIn is a size
- *    proxy so it only counts when financials are unknown. Google reviews/rating always count.
+ * 2. COMPANY SIGNALS (0-30 pts, ONLY when no financials) — LinkedIn employees,
+ *    Google reviews, and rating are all size/volume approximations. Skipped entirely
+ *    when we have real revenue or EBITDA.
  * 3. MARKET POSITION (0-10 pts) — Light geographic & recurring-revenue bonus, not a penalty.
  *
  * Size floors guarantee minimum scores for large deals (e.g. $10M+ rev = 80 floor).
@@ -124,15 +125,16 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     }
   }
 
-  // ===== COMPANY SIGNALS (0-30 pts without financials, 0-10 with financials) =====
+  // ===== COMPANY SIGNALS (0-30 pts) — SIZE PROXIES ONLY =====
+  // All signals (LinkedIn, Google reviews, rating) approximate size/volume.
+  // When we have real revenue or EBITDA, these are redundant — skip entirely.
   const employeeCount = deal.linkedin_employee_count || 0;
   const reviewCount = deal.google_review_count || 0;
   const googleRating = deal.google_rating || 0;
   let signalsScore = 0;
 
-  // LinkedIn employees (0-20 pts) — SIZE PROXY ONLY
-  // If we already know revenue, employee count is redundant as a size indicator
   if (!hasFinancials) {
+    // LinkedIn employees (0-20 pts)
     if (employeeCount >= 200) signalsScore += 20;
     else if (employeeCount >= 100) signalsScore += 18;
     else if (employeeCount >= 50) signalsScore += 16;
@@ -145,31 +147,28 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
     if (employeeCount > 0) {
       linkedinBoost = signalsScore;
-      notes.push(`LinkedIn: ${employeeCount} employees (used as size proxy — no financials)`);
+      notes.push(`LinkedIn: ${employeeCount} employees (size proxy)`);
     }
-  } else if (employeeCount > 0) {
-    notes.push(`LinkedIn: ${employeeCount} employees (skipped — revenue already known)`);
+
+    // Google review count (0-5 pts)
+    if (reviewCount >= 200) signalsScore += 5;
+    else if (reviewCount >= 100) signalsScore += 4;
+    else if (reviewCount >= 50) signalsScore += 3;
+    else if (reviewCount >= 20) signalsScore += 2;
+    else if (reviewCount > 0) signalsScore += 1;
+
+    // Google rating (0-5 pts)
+    if (googleRating >= 4.5) signalsScore += 5;
+    else if (googleRating >= 4.0) signalsScore += 4;
+    else if (googleRating >= 3.5) signalsScore += 3;
+    else if (googleRating >= 3.0) signalsScore += 1;
+
+    if (reviewCount > 0) {
+      notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating (size proxy)`);
+    }
+
+    signalsScore = Math.min(30, signalsScore);
   }
-
-  // Google review count (0-5 pts) — customer volume indicator
-  if (reviewCount >= 200) signalsScore += 5;
-  else if (reviewCount >= 100) signalsScore += 4;
-  else if (reviewCount >= 50) signalsScore += 3;
-  else if (reviewCount >= 20) signalsScore += 2;
-  else if (reviewCount > 0) signalsScore += 1;
-
-  // Google rating (0-5 pts)
-  if (googleRating >= 4.5) signalsScore += 5;
-  else if (googleRating >= 4.0) signalsScore += 4;
-  else if (googleRating >= 3.5) signalsScore += 3;
-  else if (googleRating >= 3.0) signalsScore += 1;
-  // Below 3.0 = 0 pts
-
-  if (reviewCount > 0) {
-    notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating`);
-  }
-
-  signalsScore = Math.min(hasFinancials ? 10 : 30, signalsScore);
 
   // ===== MARKET POSITION (0-10 pts) =====
   // Light bonus for strong markets — not a penalty for weaker ones.
