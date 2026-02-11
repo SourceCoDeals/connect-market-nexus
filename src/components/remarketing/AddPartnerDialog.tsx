@@ -16,12 +16,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type PartnerType = "person" | "business";
 
 interface PartnerFormData {
+  partner_type: PartnerType;
   name: string;
   company: string;
   email: string;
   phone: string;
+  linkedin: string;
+  website: string;
+  contact_name: string;
   notes: string;
   is_active: boolean;
 }
@@ -41,10 +54,14 @@ interface AddPartnerDialogProps {
 }
 
 const defaultForm: PartnerFormData = {
+  partner_type: "person",
   name: "",
   company: "",
   email: "",
   phone: "",
+  linkedin: "",
+  website: "",
+  contact_name: "",
   notes: "",
   is_active: true,
 };
@@ -68,10 +85,14 @@ export function AddPartnerDialog({
   useEffect(() => {
     if (editingPartner) {
       setForm({
+        partner_type: (editingPartner as any).partner_type || "person",
         name: editingPartner.name,
         company: editingPartner.company || "",
         email: editingPartner.email || "",
         phone: editingPartner.phone || "",
+        linkedin: (editingPartner as any).linkedin || "",
+        website: (editingPartner as any).website || "",
+        contact_name: (editingPartner as any).contact_name || "",
         notes: editingPartner.notes || "",
         is_active: editingPartner.is_active ?? true,
       });
@@ -162,8 +183,12 @@ export function AddPartnerDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error("Partner name is required");
+    if (form.partner_type === "person" && !form.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+    if (form.partner_type === "business" && !form.company.trim()) {
+      toast.error("Company name is required");
       return;
     }
     if (isEditing) {
@@ -189,48 +214,97 @@ export function AddPartnerDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="partner-name">Partner Name *</Label>
-            <Input
-              id="partner-name"
-              placeholder="Individual person name"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              required
-            />
+            <Label>Partner Type *</Label>
+            <Select
+              value={form.partner_type}
+              onValueChange={(val: PartnerType) => setForm((p) => ({ ...p, partner_type: val }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="person">Person</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="partner-company">Firm / Company</Label>
-            <Input
-              id="partner-company"
-              placeholder="May be an individual with no firm"
-              value={form.company}
-              onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="partner-email">Email</Label>
-              <Input
-                id="partner-email"
-                type="email"
-                placeholder="email@example.com"
-                value={form.email}
-                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="partner-phone">Phone</Label>
-              <Input
-                id="partner-phone"
-                type="tel"
-                placeholder="(555) 123-4567"
-                value={form.phone}
-                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-              />
-            </div>
-          </div>
+          {form.partner_type === "person" ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="partner-name">Name *</Label>
+                <Input
+                  id="partner-name"
+                  placeholder="Full name"
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="partner-linkedin">LinkedIn URL</Label>
+                <Input
+                  id="partner-linkedin"
+                  type="url"
+                  placeholder="https://linkedin.com/in/..."
+                  value={form.linkedin}
+                  onChange={(e) => setForm((p) => ({ ...p, linkedin: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="partner-email">Email</Label>
+                <Input
+                  id="partner-email"
+                  type="email"
+                  placeholder="email@example.com"
+                  value={form.email}
+                  onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="partner-company">Company Name *</Label>
+                <Input
+                  id="partner-company"
+                  placeholder="Company name"
+                  value={form.company}
+                  onChange={(e) => setForm((p) => ({ ...p, company: e.target.value, name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="partner-website">Company Website</Label>
+                <Input
+                  id="partner-website"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={form.website}
+                  onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="partner-contact">Point of Contact Name</Label>
+                <Input
+                  id="partner-contact"
+                  placeholder="Contact person"
+                  value={form.contact_name}
+                  onChange={(e) => setForm((p) => ({ ...p, contact_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="partner-email-biz">Email</Label>
+                <Input
+                  id="partner-email-biz"
+                  type="email"
+                  placeholder="email@example.com"
+                  value={form.email}
+                  onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="partner-notes">Notes</Label>
