@@ -118,8 +118,8 @@ export const DocumentUploadSection = ({
   };
 
   const handleEnrichFromDocuments = async () => {
-    // Filter to non-guide documents that have URLs
-    const enrichableDocs = documents.filter(d => (d as any).type !== 'ma_guide' && d.url);
+    // Filter to non-guide documents (url may be missing on legacy docs)
+    const enrichableDocs = documents.filter(d => (d as any).type !== 'ma_guide');
     if (enrichableDocs.length === 0) {
       toast.error('No documents to enrich from');
       return;
@@ -135,9 +135,15 @@ export const DocumentUploadSection = ({
       setEnrichProgress({ current: i + 1, total: enrichableDocs.length });
 
       try {
-        // Extract the storage path from the public URL
-        const urlParts = doc.url.split('/universe-documents/');
-        const storagePath = urlParts.length > 1 ? urlParts[1] : doc.url;
+        // Extract the storage path from the public URL, or reconstruct if url is missing
+        let storagePath: string;
+        if (doc.url) {
+          const urlParts = doc.url.split('/universe-documents/');
+          storagePath = urlParts.length > 1 ? urlParts[1] : doc.url;
+        } else {
+          // Legacy doc without url — try to find it in storage by listing universe folder
+          storagePath = `${universeId}/${doc.name}`;
+        }
 
         const { data, error } = await supabase.functions.invoke('extract-deal-document', {
           body: {
