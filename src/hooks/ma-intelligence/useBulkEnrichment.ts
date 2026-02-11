@@ -69,7 +69,7 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     buyerId: string
   ): Promise<{ success: boolean; partial?: boolean; reason?: string; rateLimited?: boolean }> => {
     try {
-      const { data, error } = await invokeWithTimeout('enrich-buyer', {
+      const { data, error } = await invokeWithTimeout<{ success?: boolean; error_code?: string; code?: string; error?: string; warning?: string }>('enrich-buyer', {
         body: { buyerId },
         timeoutMs: 180_000, // 3 min — buyer enrichment makes 4-5 AI calls
       });

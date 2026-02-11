@@ -129,7 +129,7 @@
      console.log(`[AutoEnrich] Triggering for deal ${dealId}: ${reason}`);
      
      try {
-       const { data, error } = await invokeWithTimeout('enrich-deal', {
+       const { data, error } = await invokeWithTimeout<{ success?: boolean; fieldsUpdated?: string[]; error_code?: string; error?: string }>('enrich-deal', {
          body: { dealId },
          timeoutMs: 120_000, // 2 min — enrichment is heavy
        });
