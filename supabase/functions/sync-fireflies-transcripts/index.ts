@@ -12,32 +12,75 @@ interface SyncRequest {
   limit?: number;
 }
 
-interface FirefliesParticipant {
-  name?: string;
-  email: string;
+/**
+ * Call the Fireflies GraphQL API directly.
+ * Requires FIREFLIES_API_KEY set as a Supabase secret.
+ */
+async function firefliesGraphQL(query: string, variables?: Record<string, unknown>) {
+  const apiKey = Deno.env.get("FIREFLIES_API_KEY");
+  if (!apiKey) {
+    throw new Error(
+      "FIREFLIES_API_KEY is not configured. Add it as a Supabase secret: " +
+      "supabase secrets set FIREFLIES_API_KEY=your_key"
+    );
+  }
+
+  const response = await fetch("https://api.fireflies.ai/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Fireflies API error (${response.status}): ${text}`);
+  }
+
+  const result = await response.json();
+  if (result.errors) {
+    throw new Error(
+      `Fireflies GraphQL error: ${result.errors[0]?.message || JSON.stringify(result.errors)}`
+    );
+  }
+
+  return result.data;
 }
 
-interface FirefliesTranscript {
-  id: string;
-  title?: string;
-  date?: string;
-  duration?: number; // seconds
-  meeting_url?: string;
-  participants?: FirefliesParticipant[];
-  summary?: string;
-  sentences?: any[];
-}
+const LIST_TRANSCRIPTS_QUERY = `
+  query ListTranscripts($limit: Int, $skip: Int) {
+    transcripts(limit: $limit, skip: $skip) {
+      id
+      title
+      date
+      duration
+      organizer_email
+      participants
+      meeting_attendees {
+        displayName
+        email
+        name
+      }
+      transcript_url
+      summary {
+        short_summary
+        keywords
+      }
+    }
+  }
+`;
 
 /**
- * Sync Fireflies transcripts for a deal by contact email
+ * Sync Fireflies transcripts for a deal by contact email.
  *
- * This function:
- * 1. Queries Fireflies API for all transcripts with the contact as participant
- * 2. Links transcripts to the deal (stores ID only, not content)
- * 3. Marks as auto_linked for tracking
+ * 1. Paginates through Fireflies transcripts via their GraphQL API
+ * 2. Filters for transcripts where the contact email is an attendee
+ * 3. Links matching transcripts to the deal (stores ID only, not content)
  * 4. Skips duplicates
  *
- * The actual transcript content is fetched on-demand by the enrichment system.
+ * Transcript content is fetched on-demand by fetch-fireflies-content.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -61,29 +104,39 @@ serve(async (req) => {
 
     console.log(`Syncing Fireflies transcripts for ${contactEmail} on deal ${listingId}`);
 
-    // Query Fireflies API for transcripts with this participant
-    // Using Fireflies MCP tools (already connected in your system)
-    const { data: firefliesResponse, error: mcpError } = await supabase.functions.invoke(
-      'fireflies_get_transcripts',
-      {
-        body: {
-          participants: [contactEmail],
-          limit: limit,
+    // Paginate through Fireflies transcripts, filtering by participant email
+    const emailLower = contactEmail.toLowerCase();
+    const matchingTranscripts: any[] = [];
+    let skip = 0;
+    const batchSize = 50;
+    const maxPages = 10; // Safety limit: scan up to 500 transcripts
+
+    for (let page = 0; page < maxPages; page++) {
+      const data = await firefliesGraphQL(LIST_TRANSCRIPTS_QUERY, {
+        limit: batchSize,
+        skip,
+      });
+      const batch = data.transcripts || [];
+
+      for (const t of batch) {
+        // Check meeting_attendees for email match
+        const attendees = t.meeting_attendees || [];
+        const hasParticipant = attendees.some(
+          (a: any) => a.email?.toLowerCase() === emailLower
+        );
+        if (hasParticipant) {
+          matchingTranscripts.push(t);
         }
       }
-    );
 
-    if (mcpError) {
-      console.error("Fireflies MCP error:", mcpError);
-      throw new Error(`Failed to query Fireflies: ${mcpError.message}`);
+      // Stop if we've found enough or no more results
+      if (batch.length < batchSize || matchingTranscripts.length >= limit) break;
+      skip += batchSize;
     }
 
-    // Parse response - Fireflies MCP returns array of transcripts
-    const transcripts: FirefliesTranscript[] = Array.isArray(firefliesResponse)
-      ? firefliesResponse
-      : firefliesResponse?.transcripts || [];
+    console.log(`Found ${matchingTranscripts.length} Fireflies transcripts for ${contactEmail}`);
 
-    if (transcripts.length === 0) {
+    if (matchingTranscripts.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
@@ -96,16 +149,12 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${transcripts.length} Fireflies transcripts`);
-
     let linked = 0;
     let skipped = 0;
     const errors: string[] = [];
 
-    // Link each transcript to the deal
-    for (const transcript of transcripts) {
+    for (const transcript of matchingTranscripts) {
       if (!transcript.id) {
-        console.warn("Skipping transcript without ID:", transcript);
         skipped++;
         continue;
       }
@@ -125,27 +174,38 @@ serve(async (req) => {
           continue;
         }
 
-        // Extract participant emails for easy filtering
-        const attendeeEmails = transcript.participants?.map(p => p.email).filter(Boolean) || [];
+        // Extract participant emails
+        const attendeeEmails = (transcript.meeting_attendees || [])
+          .map((a: any) => a.email)
+          .filter(Boolean);
 
-        // Create deal_transcript record
-        // NOTE: transcript_text is empty - will be fetched on-demand by enrichment
+        // Convert Fireflies date (Unix ms) to ISO string
+        let callDate: string | null = null;
+        if (transcript.date) {
+          const dateNum = typeof transcript.date === 'number'
+            ? transcript.date
+            : parseInt(transcript.date, 10);
+          if (!isNaN(dateNum)) {
+            callDate = new Date(dateNum).toISOString();
+          }
+        }
+
         const { error: insertError } = await supabase
           .from('deal_transcripts')
           .insert({
             listing_id: listingId,
             fireflies_transcript_id: transcript.id,
-            fireflies_meeting_id: transcript.id, // Often same as transcript ID
-            transcript_url: transcript.meeting_url || null,
+            fireflies_meeting_id: transcript.id,
+            transcript_url: transcript.transcript_url || null,
             title: transcript.title || `Call with ${contactEmail}`,
-            call_date: transcript.date || null,
-            participants: transcript.participants || [],
+            call_date: callDate,
+            participants: transcript.meeting_attendees || [],
             meeting_attendees: attendeeEmails,
-            duration_minutes: transcript.duration ? Math.round(transcript.duration / 60) : null,
+            duration_minutes: transcript.duration ? Math.round(transcript.duration) : null,
             source: 'fireflies',
             auto_linked: true,
-            transcript_text: '', // Empty - fetched on-demand
-            created_by: null, // Auto-linked, not by specific user
+            transcript_text: '', // Fetched on-demand via fetch-fireflies-content
+            created_by: null,
           });
 
         if (insertError) {
@@ -153,7 +213,7 @@ serve(async (req) => {
           errors.push(`${transcript.id}: ${insertError.message}`);
           skipped++;
         } else {
-          console.log(`Successfully linked transcript ${transcript.id}`);
+          console.log(`Linked transcript ${transcript.id}: ${transcript.title}`);
           linked++;
         }
       } catch (err) {
@@ -168,7 +228,7 @@ serve(async (req) => {
       message: `Linked ${linked} transcript${linked !== 1 ? 's' : ''}, skipped ${skipped}`,
       linked,
       skipped,
-      total: transcripts.length,
+      total: matchingTranscripts.length,
       errors: errors.length > 0 ? errors : undefined,
     };
 
