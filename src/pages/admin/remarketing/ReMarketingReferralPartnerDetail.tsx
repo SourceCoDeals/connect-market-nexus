@@ -487,7 +487,11 @@ export default function ReMarketingReferralPartnerDetail() {
 
     const { error } = await supabase
       .from("listings")
-      .update({ status: "active" } as never)
+      .update({
+        status: "active",
+        pushed_to_all_deals: true,
+        pushed_to_all_deals_at: new Date().toISOString(),
+      } as never)
       .in("id", ids);
 
     if (error) {
