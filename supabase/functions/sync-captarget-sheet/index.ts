@@ -292,20 +292,24 @@ serve(async (req) => {
         const batchRecords: any[] = [];
         const batchHashes: string[] = [];
 
-        for (const row of batch) {
+        // Pre-parse all rows and compute hashes in parallel
+        const parsed = batch.map((row, idx) => {
+          const clientName = (row[COL.client_folder_name] || "").trim();
+          const companyName = (row[COL.company_name] || "").trim();
+          const dateRaw = (row[COL.date] || "").trim();
+          const email = (row[COL.email] || "").trim();
+          const firstName = (row[COL.first_name] || "").trim();
+          const lastName = (row[COL.last_name] || "").trim();
+          const hashInput = `${tabName}|${clientName}|${companyName}|${dateRaw}|${email}|${firstName}|${lastName}`;
+          return { row, idx, clientName, companyName, dateRaw, email, firstName, lastName, hashInput };
+        });
+
+        const hashes = await Promise.all(parsed.map((p) => computeHash(p.hashInput)));
+
+        for (let j = 0; j < parsed.length; j++) {
           try {
-            const clientName = (row[COL.client_folder_name] || "").trim();
-            const companyName = (row[COL.company_name] || "").trim();
-            const dateRaw = (row[COL.date] || "").trim();
-            const email = (row[COL.email] || "").trim();
-            const firstName = (row[COL.first_name] || "").trim();
-            const lastName = (row[COL.last_name] || "").trim();
-
-            // Generate composite hash for dedup — includes tab, email, and name
-            // to avoid collisions between different contacts at the same company
-            const hashInput = `${tabName}|${clientName}|${companyName}|${dateRaw}|${email}|${firstName}|${lastName}`;
-            const rowHash = await computeHash(hashInput);
-
+            const { row, idx, clientName, companyName, dateRaw, email, firstName, lastName } = parsed[j];
+            const rowHash = hashes[j];
             const contactDate = parseDate(dateRaw);
             const contactName = [firstName, lastName].filter(Boolean).join(" ");
 
@@ -337,9 +341,9 @@ serve(async (req) => {
             rowsSkipped++;
             syncErrors.push({
               tab: tabName,
-              row: i + batch.indexOf(row) + 2, // 1-indexed + header
+              row: i + parsed[j].idx + 2, // 1-indexed + header
               error: rowErr.message,
-              data: row.slice(0, 5), // first 5 cols for debugging
+              data: parsed[j].row.slice(0, 5),
             });
           }
         }
@@ -393,20 +397,22 @@ serve(async (req) => {
           }
         }
 
-        // Batch update existing records (group into single update per batch where possible)
+        // Batch update existing records via upsert on primary key
         if (toUpdate.length > 0) {
-          for (const { id, record } of toUpdate) {
-            const { error: updateErr } = await supabase
-              .from("listings")
-              .update(record)
-              .eq("id", id);
+          const updateRecords = toUpdate.map(({ id, record }) => ({
+            id,
+            ...record,
+          }));
+          const { error: updateErr } = await supabase
+            .from("listings")
+            .upsert(updateRecords, { onConflict: "id" });
 
-            if (updateErr) {
-              rowsSkipped++;
-              syncErrors.push({ tab: tabName, id, op: "update", error: updateErr.message });
-            } else {
-              rowsUpdated++;
-            }
+          if (updateErr) {
+            console.error("Batch update error:", updateErr);
+            rowsSkipped += toUpdate.length;
+            syncErrors.push({ tab: tabName, batch: i, op: "update", error: updateErr.message });
+          } else {
+            rowsUpdated += toUpdate.length;
           }
         }
 
