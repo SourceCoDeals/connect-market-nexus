@@ -515,7 +515,9 @@ serve(async (req) => {
       rows_inserted: rowsInserted,
       rows_updated: rowsUpdated,
       rows_skipped: rowsSkipped,
-      errors: syncErrors.length > 0 ? syncErrors : null,
+      errors: syncErrors.length > 0
+        ? syncErrors.slice(0, 100).concat(syncErrors.length > 100 ? [{ truncated: syncErrors.length - 100 }] : [])
+        : null,
       duration_ms: durationMs,
       status: syncStatus,
     });
