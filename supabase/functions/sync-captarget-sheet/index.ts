@@ -6,7 +6,7 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 250;
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
@@ -70,6 +70,26 @@ async function getAccessToken(serviceAccountKey: any): Promise<string> {
   return tokenData.access_token;
 }
 
+// ── Fetch all tab names from spreadsheet metadata ───────────────────
+
+async function fetchTabNames(
+  accessToken: string,
+  sheetId: string
+): Promise<string[]> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Sheets metadata error: ${resp.status} – ${errText}`);
+  }
+
+  const data = await resp.json();
+  return (data.sheets || []).map((s: any) => s.properties.title as string);
+}
+
 async function fetchSheetRows(
   accessToken: string,
   sheetId: string,
@@ -82,7 +102,7 @@ async function fetchSheetRows(
 
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`Sheets API error: ${resp.status} – ${errText}`);
+    throw new Error(`Sheets API error for tab "${tabName}": ${resp.status} – ${errText}`);
   }
 
   const data = await resp.json();
@@ -169,6 +189,16 @@ const COL = {
   phone: 14,
 };
 
+// Check if a row has any meaningful data beyond just the first cell
+function rowHasData(row: string[]): boolean {
+  // A row is valid if it has data in at least one of: company_name, email, first_name, last_name
+  const companyName = (row[COL.company_name] || "").trim();
+  const email = (row[COL.email] || "").trim();
+  const firstName = (row[COL.first_name] || "").trim();
+  const lastName = (row[COL.last_name] || "").trim();
+  return !!(companyName || email || firstName || lastName);
+}
+
 // ── Main handler ────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -185,6 +215,7 @@ serve(async (req) => {
   let rowsUpdated = 0;
   let rowsSkipped = 0;
   let syncStatus = "success";
+  const tabsProcessed: string[] = [];
 
   try {
     // Load Google service account credentials
@@ -195,148 +226,197 @@ serve(async (req) => {
     const sheetId = Deno.env.get("CAPTARGET_SHEET_ID");
     if (!sheetId) throw new Error("CAPTARGET_SHEET_ID not configured");
 
-    const tabName = Deno.env.get("CAPTARGET_TAB_NAME") || "Sheet1";
-
-    // Authenticate and fetch sheet data
+    // Authenticate
     const accessToken = await getAccessToken(saKey);
-    const allRows = await fetchSheetRows(accessToken, sheetId, tabName);
 
-    if (allRows.length < 2) {
-      throw new Error("Sheet has no data rows (only header or empty)");
+    // Determine which tabs to sync:
+    //   - CAPTARGET_TAB_NAMES (comma-separated) syncs specific tabs
+    //   - If not set, auto-discover ALL tabs in the spreadsheet
+    const tabNamesEnv = Deno.env.get("CAPTARGET_TAB_NAMES") || Deno.env.get("CAPTARGET_TAB_NAME");
+    let tabNames: string[];
+
+    if (tabNamesEnv) {
+      tabNames = tabNamesEnv.split(",").map((t) => t.trim()).filter(Boolean);
+    } else {
+      // Auto-discover all tabs
+      tabNames = await fetchTabNames(accessToken, sheetId);
     }
 
-    // Skip header row (row 0) and skip 'Last Updated' metadata row if present
-    const dataRows = allRows.slice(1).filter((row) => {
-      const firstCell = (row[0] || "").trim().toLowerCase();
-      return firstCell !== "last updated" && firstCell !== "";
-    });
+    if (tabNames.length === 0) {
+      throw new Error("No tabs found in spreadsheet");
+    }
 
-    rowsRead = dataRows.length;
-    console.log(`Read ${rowsRead} data rows from sheet`);
+    console.log(`Will sync ${tabNames.length} tab(s): ${tabNames.join(", ")}`);
 
-    // Process in batches
-    for (let i = 0; i < dataRows.length; i += BATCH_SIZE) {
-      const batch = dataRows.slice(i, i + BATCH_SIZE);
-      const batchRecords: any[] = [];
-      const batchHashes: string[] = [];
+    let timedOut = false;
 
-      for (const row of batch) {
-        try {
-          const clientName = (row[COL.client_folder_name] || "").trim();
-          const companyName = (row[COL.company_name] || "").trim();
-          const dateRaw = (row[COL.date] || "").trim();
-          const firstName = (row[COL.first_name] || "").trim();
-          const lastName = (row[COL.last_name] || "").trim();
+    // Process each tab
+    for (const tabName of tabNames) {
+      if (timedOut) break;
 
-          // Generate composite hash for dedup
-          const hashInput = `${clientName}|${companyName}|${dateRaw}`;
-          const rowHash = await computeHash(hashInput);
-
-          const contactDate = parseDate(dateRaw);
-          const contactName = [firstName, lastName].filter(Boolean).join(" ");
-
-          const record: Record<string, any> = {
-            captarget_row_hash: rowHash,
-            captarget_client_name: clientName || null,
-            title: companyName || null,
-            internal_company_name: companyName || null,
-            captarget_contact_date: contactDate,
-            captarget_call_notes: (row[COL.details] || "").trim() || null,
-            description: (row[COL.details] || "").trim() || null,
-            main_contact_email: (row[COL.email] || "").trim() || null,
-            main_contact_name: contactName || null,
-            main_contact_title: (row[COL.title] || "").trim() || null,
-            captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
-            captarget_interest_type: normalizeInterestType(row[COL.type]),
-            website: (row[COL.url] || "").trim() || null,
-            main_contact_phone: (row[COL.phone] || "").trim() || null,
-            captarget_source_url: (row[COL.source_url] || "").trim() || null,
-            deal_source: "captarget",
-            status: "captarget_review",
-            pushed_to_all_deals: false,
-          };
-
-          batchRecords.push(record);
-          batchHashes.push(rowHash);
-        } catch (rowErr: any) {
-          rowsSkipped++;
-          syncErrors.push({
-            row: i + batch.indexOf(row) + 2, // 1-indexed + header
-            error: rowErr.message,
-            data: row.slice(0, 5), // first 5 cols for debugging
-          });
-        }
-      }
-
-      if (batchRecords.length === 0) continue;
-
-      // Check which hashes already exist
-      const { data: existing, error: lookupErr } = await supabase
-        .from("listings")
-        .select("id, captarget_row_hash")
-        .in("captarget_row_hash", batchHashes);
-
-      if (lookupErr) {
-        console.error("Hash lookup error:", lookupErr);
-        rowsSkipped += batchRecords.length;
-        syncErrors.push({ batch: i, error: lookupErr.message });
+      console.log(`Fetching tab: "${tabName}"`);
+      let allRows: string[][];
+      try {
+        allRows = await fetchSheetRows(accessToken, sheetId, tabName);
+      } catch (tabErr: any) {
+        console.error(`Failed to fetch tab "${tabName}":`, tabErr.message);
+        syncErrors.push({ tab: tabName, fatal: false, error: tabErr.message });
         continue;
       }
 
-      const existingMap = new Map(
-        (existing || []).map((r: any) => [r.captarget_row_hash, r.id])
-      );
-
-      const toInsert: any[] = [];
-      const toUpdate: { id: string; record: any }[] = [];
-
-      for (const record of batchRecords) {
-        const existingId = existingMap.get(record.captarget_row_hash);
-        if (existingId) {
-          // Update existing — don't overwrite status or pushed flags
-          const { status, pushed_to_all_deals, deal_source, ...updateFields } =
-            record;
-          toUpdate.push({ id: existingId, record: updateFields });
-        } else {
-          toInsert.push(record);
-        }
+      if (allRows.length < 2) {
+        console.log(`Tab "${tabName}" has no data rows, skipping`);
+        continue;
       }
 
-      // Batch insert new records
-      if (toInsert.length > 0) {
-        const { error: insertErr } = await supabase
+      tabsProcessed.push(tabName);
+
+      // Skip header row (row 0) and skip metadata rows like 'Last Updated'
+      // IMPORTANT: Do NOT skip rows just because column 0 is empty —
+      // many valid deals have data in other columns but no client_folder_name
+      const dataRows = allRows.slice(1).filter((row) => {
+        const firstCell = (row[0] || "").trim().toLowerCase();
+        // Skip known metadata rows
+        if (firstCell === "last updated") return false;
+        // Keep any row that has meaningful deal data
+        return rowHasData(row);
+      });
+
+      const tabRowsRead = dataRows.length;
+      rowsRead += tabRowsRead;
+      console.log(`Tab "${tabName}": ${tabRowsRead} data rows (of ${allRows.length - 1} total)`);
+
+      // Process in batches
+      for (let i = 0; i < dataRows.length; i += BATCH_SIZE) {
+        const batch = dataRows.slice(i, i + BATCH_SIZE);
+        const batchRecords: any[] = [];
+        const batchHashes: string[] = [];
+
+        for (const row of batch) {
+          try {
+            const clientName = (row[COL.client_folder_name] || "").trim();
+            const companyName = (row[COL.company_name] || "").trim();
+            const dateRaw = (row[COL.date] || "").trim();
+            const email = (row[COL.email] || "").trim();
+            const firstName = (row[COL.first_name] || "").trim();
+            const lastName = (row[COL.last_name] || "").trim();
+
+            // Generate composite hash for dedup — includes tab, email, and name
+            // to avoid collisions between different contacts at the same company
+            const hashInput = `${tabName}|${clientName}|${companyName}|${dateRaw}|${email}|${firstName}|${lastName}`;
+            const rowHash = await computeHash(hashInput);
+
+            const contactDate = parseDate(dateRaw);
+            const contactName = [firstName, lastName].filter(Boolean).join(" ");
+
+            const record: Record<string, any> = {
+              captarget_row_hash: rowHash,
+              captarget_client_name: clientName || null,
+              captarget_sheet_tab: tabName,
+              title: companyName || null,
+              internal_company_name: companyName || null,
+              captarget_contact_date: contactDate,
+              captarget_call_notes: (row[COL.details] || "").trim() || null,
+              description: (row[COL.details] || "").trim() || null,
+              main_contact_email: email || null,
+              main_contact_name: contactName || null,
+              main_contact_title: (row[COL.title] || "").trim() || null,
+              captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
+              captarget_interest_type: normalizeInterestType(row[COL.type]),
+              website: (row[COL.url] || "").trim() || null,
+              main_contact_phone: (row[COL.phone] || "").trim() || null,
+              captarget_source_url: (row[COL.source_url] || "").trim() || null,
+              deal_source: "captarget",
+              status: "captarget_review",
+              pushed_to_all_deals: false,
+            };
+
+            batchRecords.push(record);
+            batchHashes.push(rowHash);
+          } catch (rowErr: any) {
+            rowsSkipped++;
+            syncErrors.push({
+              tab: tabName,
+              row: i + batch.indexOf(row) + 2, // 1-indexed + header
+              error: rowErr.message,
+              data: row.slice(0, 5), // first 5 cols for debugging
+            });
+          }
+        }
+
+        if (batchRecords.length === 0) continue;
+
+        // Check which hashes already exist
+        const { data: existing, error: lookupErr } = await supabase
           .from("listings")
-          .insert(toInsert);
+          .select("id, captarget_row_hash")
+          .in("captarget_row_hash", batchHashes);
 
-        if (insertErr) {
-          console.error("Insert error:", insertErr);
-          rowsSkipped += toInsert.length;
-          syncErrors.push({ batch: i, op: "insert", error: insertErr.message });
-        } else {
-          rowsInserted += toInsert.length;
+        if (lookupErr) {
+          console.error("Hash lookup error:", lookupErr);
+          rowsSkipped += batchRecords.length;
+          syncErrors.push({ tab: tabName, batch: i, error: lookupErr.message });
+          continue;
         }
-      }
 
-      // Update existing records one by one (to preserve individual row integrity)
-      for (const { id, record } of toUpdate) {
-        const { error: updateErr } = await supabase
-          .from("listings")
-          .update(record)
-          .eq("id", id);
+        const existingMap = new Map(
+          (existing || []).map((r: any) => [r.captarget_row_hash, r.id])
+        );
 
-        if (updateErr) {
-          rowsSkipped++;
-          syncErrors.push({ id, op: "update", error: updateErr.message });
-        } else {
-          rowsUpdated++;
+        const toInsert: any[] = [];
+        const toUpdate: { id: string; record: any }[] = [];
+
+        for (const record of batchRecords) {
+          const existingId = existingMap.get(record.captarget_row_hash);
+          if (existingId) {
+            // Update existing — don't overwrite status or pushed flags
+            const { status, pushed_to_all_deals, deal_source, ...updateFields } =
+              record;
+            toUpdate.push({ id: existingId, record: updateFields });
+          } else {
+            toInsert.push(record);
+          }
         }
-      }
 
-      // Check if we're approaching Edge Function timeout (50s)
-      if (Date.now() - startTime > 45000) {
-        console.warn("Approaching timeout, committing partial sync");
-        syncStatus = "partial";
-        break;
+        // Batch insert new records
+        if (toInsert.length > 0) {
+          const { error: insertErr } = await supabase
+            .from("listings")
+            .insert(toInsert);
+
+          if (insertErr) {
+            console.error("Insert error:", insertErr);
+            rowsSkipped += toInsert.length;
+            syncErrors.push({ tab: tabName, batch: i, op: "insert", error: insertErr.message });
+          } else {
+            rowsInserted += toInsert.length;
+          }
+        }
+
+        // Batch update existing records (group into single update per batch where possible)
+        if (toUpdate.length > 0) {
+          for (const { id, record } of toUpdate) {
+            const { error: updateErr } = await supabase
+              .from("listings")
+              .update(record)
+              .eq("id", id);
+
+            if (updateErr) {
+              rowsSkipped++;
+              syncErrors.push({ tab: tabName, id, op: "update", error: updateErr.message });
+            } else {
+              rowsUpdated++;
+            }
+          }
+        }
+
+        // Check if we're approaching Edge Function timeout (50s)
+        if (Date.now() - startTime > 45000) {
+          console.warn(`Approaching timeout during tab "${tabName}", committing partial sync`);
+          syncStatus = "partial";
+          timedOut = true;
+          break;
+        }
       }
     }
   } catch (err: any) {
@@ -365,6 +445,7 @@ serve(async (req) => {
   const result = {
     success: syncStatus !== "failed",
     status: syncStatus,
+    tabs_synced: tabsProcessed,
     rows_read: rowsRead,
     rows_inserted: rowsInserted,
     rows_updated: rowsUpdated,
