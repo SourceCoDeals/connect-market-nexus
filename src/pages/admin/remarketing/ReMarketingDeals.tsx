@@ -99,7 +99,7 @@ import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
 import {
   DndContext,
-  closestCenter,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -2085,7 +2085,7 @@ const ReMarketingDeals = () => {
           <TooltipProvider>
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCenter}
+              collisionDetection={closestCorners}
               onDragEnd={handleDragEnd}
             >
               <Table style={{ tableLayout: 'fixed', width: '100%' }}>
