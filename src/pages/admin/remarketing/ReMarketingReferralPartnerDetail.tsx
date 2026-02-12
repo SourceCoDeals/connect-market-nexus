@@ -480,22 +480,42 @@ export default function ReMarketingReferralPartnerDetail() {
     }
   };
 
-  // Bulk approve (set status to active)
+  // Bulk approve (set status to active) — rank at bottom of All Deals
   const handleBulkApprove = async () => {
     const ids = Array.from(selectedDealIds);
     if (!ids.length) return;
 
-    const { error } = await supabase
+    // Get current max rank so new deals go to the bottom
+    const { data: maxRankRow } = await supabase
       .from("listings")
-      .update({
-        status: "active",
-        pushed_to_all_deals: true,
-        pushed_to_all_deals_at: new Date().toISOString(),
-      } as never)
-      .in("id", ids);
+      .select("manual_rank_override")
+      .eq("status", "active")
+      .not("manual_rank_override", "is", null)
+      .order("manual_rank_override", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (error) {
-      toast.error("Failed to approve deals");
+    let nextRank = (maxRankRow?.manual_rank_override as number | null) ?? 0;
+
+    // Update each deal with an incrementing rank at the bottom
+    const updates = ids.map((id) => {
+      nextRank += 1;
+      return supabase
+        .from("listings")
+        .update({
+          status: "active",
+          pushed_to_all_deals: true,
+          pushed_to_all_deals_at: new Date().toISOString(),
+          manual_rank_override: nextRank,
+        } as never)
+        .eq("id", id);
+    });
+
+    const results = await Promise.all(updates);
+    const failed = results.filter((r) => r.error);
+
+    if (failed.length) {
+      toast.error("Failed to approve some deals");
       return;
     }
 
