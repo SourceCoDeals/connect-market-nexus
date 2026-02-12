@@ -4548,6 +4548,7 @@ export type Database = {
           captarget_interest_type: string | null
           captarget_outreach_channel: string | null
           captarget_row_hash: string | null
+          captarget_sheet_tab: string | null
           captarget_source_url: string | null
           captarget_status: string | null
           categories: string[] | null
@@ -4738,6 +4739,7 @@ export type Database = {
           captarget_interest_type?: string | null
           captarget_outreach_channel?: string | null
           captarget_row_hash?: string | null
+          captarget_sheet_tab?: string | null
           captarget_source_url?: string | null
           captarget_status?: string | null
           categories?: string[] | null
@@ -4928,6 +4930,7 @@ export type Database = {
           captarget_interest_type?: string | null
           captarget_outreach_channel?: string | null
           captarget_row_hash?: string | null
+          captarget_sheet_tab?: string | null
           captarget_source_url?: string | null
           captarget_status?: string | null
           categories?: string[] | null
