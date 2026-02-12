@@ -224,11 +224,6 @@ async function rowToRecord(row: string[], captargetStatus: string, tabName: stri
     status: "pending",
     pushed_to_all_deals: false,
     is_internal_deal: true,
-    // Required NOT NULL fields with defaults
-    revenue: 0,
-    ebitda: 0,
-    location: "Unknown",
-    category: "Other",
   };
 }
 
@@ -250,6 +245,8 @@ serve(async (req) => {
   let rowsInserted = 0;
   let rowsUpdated = 0;
   let rowsSkipped = 0;
+  let filteredByMeta = 0;
+  let filteredByData = 0;
   let syncStatus = "success";
   const tabsProcessed: string[] = [];
 
@@ -320,7 +317,7 @@ serve(async (req) => {
       if (rowsThisTab <= 0) continue;
 
       rowsRead += rowsThisTab;
-      console.log(`Tab "${tab.name}": ${allRows.length} total → ${dataRows.length} data rows (filtered: ${filteredByMeta} meta/empty-col0, ${filteredByData} no-data). Processing ${rowsThisTab} from offset ${rowOffset}.`);
+      console.log(`Tab "${tab.name}": ${tabRows.length} total → ${dataRows.length} data rows (filtered: ${filteredByMeta} meta/empty-col0, ${filteredByData} no-data). Processing ${rowsThisTab} from offset ${rowOffset}.`);
 
       for (let i = rowOffset; i < dataRows.length; i += BATCH_SIZE) {
         // Timeout check BEFORE processing the next batch
@@ -389,8 +386,8 @@ serve(async (req) => {
         for (const record of batchRecords) {
           const existingId = existingMap.get(record.captarget_row_hash);
           if (existingId) {
-            // For updates, strip fields that shouldn't be overwritten (including dummy defaults)
-            const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, revenue, ebitda, location, category, ...updateFields } = record;
+            // For updates, strip fields that shouldn't be overwritten
+            const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, ...updateFields } = record;
             toUpdate.push({ id: existingId, ...updateFields });
           } else {
             toInsert.push(record);
@@ -418,7 +415,7 @@ serve(async (req) => {
                 // On duplicate key (website or hash), find existing row and update instead
                 if (errMsg && errMsg.includes("duplicate key")) {
                   const record = chunk[idx];
-                  const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash, revenue: _r, ebitda: _e, location: _l, category: _c, ...fallbackFields } = record;
+                  const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash, ...fallbackFields } = record;
                   let existingId: string | null = null;
                   if (captarget_row_hash) {
                     const { data: byHash } = await supabase
