@@ -252,6 +252,56 @@ const ResizableHeader = ({
   );
 };
 
+// Inline editable rank cell
+const EditableRankCell = ({ value, onSave }: { value: number; onSave: (v: number) => void }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = parseInt(draft, 10);
+    if (!isNaN(parsed) && parsed > 0 && parsed !== value) {
+      onSave(parsed);
+    } else {
+      setDraft(String(value));
+    }
+  };
+
+  if (!editing) {
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+        className="font-medium text-muted-foreground w-7 text-center hover:bg-muted hover:text-foreground rounded px-1 py-0.5 cursor-text transition-colors"
+        title="Click to edit position"
+      >
+        {value}
+      </button>
+    );
+  }
+
+  return (
+    <Input
+      ref={inputRef}
+      type="number"
+      min={1}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') { setDraft(String(value)); setEditing(false); }
+      }}
+      onClick={(e) => e.stopPropagation()}
+      className="w-12 h-6 text-center text-sm p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      autoFocus
+    />
+  );
+};
+
 // Sortable table row component
 const SortableTableRow = ({
   listing,
@@ -269,6 +319,7 @@ const SortableTableRow = ({
   onArchive,
   onDelete,
   onTogglePriority,
+  onUpdateRank,
 }: {
   listing: DealListing;
   index: number;
@@ -285,6 +336,7 @@ const SortableTableRow = ({
   onArchive: (dealId: string, dealName: string) => void;
   onDelete: (dealId: string, dealName: string) => void;
   onTogglePriority: (dealId: string, currentStatus: boolean) => void;
+  onUpdateRank: (dealId: string, newRank: number) => void;
 }) => {
   const {
     attributes,
@@ -379,7 +431,7 @@ const SortableTableRow = ({
       </TableCell>
 
       {/* Drag Handle + Rank */}
-      <TableCell style={{ width: columnWidths.rank, minWidth: 50 }}>
+      <TableCell style={{ width: columnWidths.rank, minWidth: 50 }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-1">
           <button
             {...attributes}
@@ -389,9 +441,10 @@ const SortableTableRow = ({
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
-          <span className="font-medium text-muted-foreground w-5 text-center">
-            {listing.manual_rank_override || index + 1}
-          </span>
+          <EditableRankCell
+            value={listing.manual_rank_override || index + 1}
+            onSave={(newRank) => onUpdateRank(listing.id, newRank)}
+          />
         </div>
       </TableCell>
 
@@ -2106,6 +2159,18 @@ const ReMarketingDeals = () => {
                           onArchive={handleArchiveDeal}
                           onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
+                          onUpdateRank={async (dealId, newRank) => {
+                            try {
+                              await supabase
+                                .from('listings')
+                                .update({ manual_rank_override: newRank })
+                                .eq('id', dealId);
+                              queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
+                              toast({ title: 'Position updated', description: `Deal moved to position ${newRank}` });
+                            } catch (err: any) {
+                              toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                            }
+                          }}
                         />
                       ))}
                     </SortableContext>
