@@ -113,16 +113,26 @@ export default function ReMarketingReferralPartnerDetail() {
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "archive" | "delete"; ids: string[] } | null>(null);
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<SortField>("added");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const saved = sessionStorage.getItem(`referral-sort-${partnerId}`);
+    return saved ? (JSON.parse(saved).field as SortField) : "added";
+  });
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    const saved = sessionStorage.getItem(`referral-sort-${partnerId}`);
+    return saved ? (JSON.parse(saved).dir as SortDir) : "desc";
+  });
 
   const toggleSort = (field: SortField) => {
+    let newDir: SortDir;
     if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      newDir = sortDir === "asc" ? "desc" : "asc";
+      setSortDir(newDir);
     } else {
+      newDir = "asc";
       setSortField(field);
-      setSortDir("asc");
+      setSortDir(newDir);
     }
+    sessionStorage.setItem(`referral-sort-${partnerId}`, JSON.stringify({ field, dir: newDir }));
   };
 
   // Fetch partner
@@ -970,9 +980,11 @@ export default function ReMarketingReferralPartnerDetail() {
                       <TableRow
                         key={deal.id}
                         className={`cursor-pointer hover:bg-muted/50 ${
-                          deal.is_priority_target
-                            ? "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
-                            : ""
+                          deal.status === 'active'
+                            ? "bg-green-50 hover:bg-green-100/80 dark:bg-green-950/20 dark:hover:bg-green-950/40"
+                            : deal.is_priority_target
+                              ? "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+                              : ""
                         }`}
                         data-state={selectedDealIds.has(deal.id) ? "selected" : undefined}
                       >
