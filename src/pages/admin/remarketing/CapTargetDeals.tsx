@@ -77,6 +77,7 @@ interface CapTargetDeal {
   google_rating: number | null;
   google_review_count: number | null;
   captarget_status: string | null;
+  is_priority_target: boolean | null;
 }
 
 type SortColumn =
@@ -158,7 +159,8 @@ export default function CapTargetDeals() {
           linkedin_employee_range,
           google_rating,
           google_review_count,
-          captarget_status
+          captarget_status,
+          is_priority_target
         `
         )
         .eq("deal_source", "captarget")
@@ -516,7 +518,7 @@ export default function CapTargetDeals() {
   // KPI Stats (based on date-filtered deals)
   const kpiStats = useMemo(() => {
     const totalDeals = dateFilteredDeals.length;
-    const priorityDeals = dateFilteredDeals.filter((d) => d.captarget_interest_type === "interest").length;
+    const priorityDeals = dateFilteredDeals.filter((d) => d.is_priority_target === true).length;
     let totalScore = 0;
     let scoredDeals = 0;
     dateFilteredDeals.forEach((d) => {
