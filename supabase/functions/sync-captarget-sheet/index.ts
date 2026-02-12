@@ -287,10 +287,15 @@ serve(async (req) => {
         continue;
       }
 
-      // Skip header row (row 0) and skip 'Last Updated' metadata row if present
+      // Log header row for debugging column shifts
+      const headerRow = tabRows[0];
+      console.log(`Tab "${tab.name}" headers (${headerRow.length} cols): ${headerRow.slice(0, 15).join(' | ')}`);
+
+      // Skip header row (row 0), metadata rows, and rows without meaningful data
       const dataRows = tabRows.slice(1).filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
-        return firstCell !== "last updated" && firstCell !== "";
+        if (firstCell === "last updated" || firstCell === "") return false;
+        return rowHasData(row);
       });
 
       rowsRead += dataRows.length;
@@ -324,10 +329,13 @@ serve(async (req) => {
             const contactDate = parseDate(dateRaw);
             const contactName = [firstName, lastName].filter(Boolean).join(" ");
 
+            // title is NOT NULL in listings — use fallback chain
+            const title = companyName || clientName || contactName || "Unnamed Deal";
+
             const record: Record<string, any> = {
               captarget_row_hash: rowHash,
               captarget_client_name: clientName || null,
-              title: companyName || null,
+              title,
               internal_company_name: companyName || null,
               captarget_contact_date: contactDate,
               captarget_call_notes: (row[COL.details] || "").trim() || null,
@@ -351,12 +359,14 @@ serve(async (req) => {
             batchHashes.push(rowHash);
           } catch (rowErr: any) {
             rowsSkipped++;
-            syncErrors.push({
-              tab: tab.name,
-              row: i + j + 2,
-              error: rowErr.message,
-              data: row.slice(0, 5),
-            });
+            if (syncErrors.length < 20) {
+              syncErrors.push({
+                tab: tab.name,
+                row: i + j + 2,
+                error: rowErr.message,
+                data: row.slice(0, 5),
+              });
+            }
           }
         }
 
@@ -398,9 +408,23 @@ serve(async (req) => {
             .insert(toInsert);
 
           if (insertErr) {
-            console.error("Insert error:", insertErr);
-            rowsSkipped += toInsert.length;
-            syncErrors.push({ batch: i, op: "insert", error: insertErr.message });
+            // Batch insert failed — fall back to individual inserts
+            // so one bad row doesn't kill the entire batch
+            console.warn(`Batch insert failed (${toInsert.length} rows): ${insertErr.message}. Retrying individually...`);
+            for (const singleRecord of toInsert) {
+              const { error: singleErr } = await supabase
+                .from("listings")
+                .insert(singleRecord);
+
+              if (singleErr) {
+                rowsSkipped++;
+                if (syncErrors.length < 20) {
+                  syncErrors.push({ batch: i, op: "insert", title: singleRecord.title, error: singleErr.message });
+                }
+              } else {
+                rowsInserted++;
+              }
+            }
           } else {
             rowsInserted += toInsert.length;
           }
@@ -422,7 +446,9 @@ serve(async (req) => {
           for (const { id, error: updateErr } of results) {
             if (updateErr) {
               rowsSkipped++;
-              syncErrors.push({ id, op: "update", error: updateErr.message });
+              if (syncErrors.length < 20) {
+                syncErrors.push({ id, op: "update", error: updateErr.message });
+              }
             } else {
               rowsUpdated++;
             }

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused, recoverStaleOperations } from "../_shared/global-activity-queue.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { checkProviderAvailability, reportRateLimit, waitForProviderSlot } from "../_shared/rate-limiter.ts";
 
 // Configuration
 const MAX_ATTEMPTS = 3;
@@ -167,6 +168,19 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Check rate limiter before dispatching — wait if Gemini is in cooldown
+      const availability = await checkProviderAvailability(supabase, 'gemini');
+      if (!availability.ok) {
+        const waitMs = availability.retryAfterMs || RATE_LIMIT_BACKOFF_MS;
+        if (waitMs > 30000) {
+          console.log(`Gemini rate limited for ${Math.round(waitMs / 1000)}s — stopping queue processing`);
+          totalRateLimited++;
+          break;
+        }
+        console.log(`Gemini rate limited — waiting ${Math.round(waitMs / 1000)}s before processing buyer`);
+        await new Promise(r => setTimeout(r, waitMs));
+      }
+
       // Mark as processing
       await supabase
         .from('buyer_enrichment_queue')
@@ -199,6 +213,8 @@ Deno.serve(async (req) => {
 
         if (response.status === 429 || data.error_code === 'rate_limited') {
           const resetAt = data.resetTime || new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
+          // Report to shared rate limiter so other functions/invocations know
+          await reportRateLimit(supabase, 'gemini', RATE_LIMIT_BACKOFF_MS / 1000);
           await supabase
             .from('buyer_enrichment_queue')
             .update({
@@ -282,10 +298,11 @@ Deno.serve(async (req) => {
       .select('id', { count: 'exact', head: true })
       .in('status', ['pending']);
 
-    if (remaining && remaining > 0) {
+    if (remaining && remaining > 0 && totalRateLimited === 0) {
       console.log(`${remaining} buyers still pending, triggering next batch...`);
       // Fire-and-forget next invocation with a 30s timeout.
       // We don't await this, so there's no risk of blocking the current response.
+      // NOTE: Skip continuation if rate limited — items will resume when rate_limit_reset_at passes.
       fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
         method: 'POST',
         headers: {

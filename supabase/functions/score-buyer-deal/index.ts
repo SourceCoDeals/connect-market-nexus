@@ -799,18 +799,39 @@ async function calculateServiceScore(
     }
   }
 
-  // STEP 4: Primary focus bonus
-  const trackerPrimaryFocus = tracker?.service_criteria?.required_services?.[0]?.toLowerCase();
-  if (trackerPrimaryFocus && dealPrimaryService.includes(trackerPrimaryFocus)) {
+  // STEP 4: Primary focus bonus — check service_criteria.primary_focus array first, fall back to required_services[0]
+  const primaryFocusList: string[] = (tracker?.service_criteria?.primary_focus || [])
+    .map((s: string) => s?.toLowerCase())
+    .filter(Boolean);
+  const fallbackPrimaryFocus = tracker?.service_criteria?.required_services?.[0]?.toLowerCase();
+  const allPrimaryFocus = primaryFocusList.length > 0 ? primaryFocusList : (fallbackPrimaryFocus ? [fallbackPrimaryFocus] : []);
+
+  const hasPrimaryFocusMatch = allPrimaryFocus.some((pf: string) =>
+    dealPrimaryService.includes(pf) || pf.includes(dealPrimaryService)
+  );
+
+  if (hasPrimaryFocusMatch) {
     score = Math.min(100, score + 10);
     reasoning += ". +10pt primary focus match";
-  } else if (buyerTargetServices.length > 0 && dealPrimaryService) {
-    const matchesBuyerTarget = buyerTargetServices.some((bs: string) =>
-      dealPrimaryService.includes(bs) || bs.includes(dealPrimaryService)
+  } else {
+    // Check preferred_services for a smaller bonus
+    const preferredServices: string[] = (tracker?.service_criteria?.preferred_services || [])
+      .map((s: string) => s?.toLowerCase())
+      .filter(Boolean);
+    const hasPreferredMatch = preferredServices.some((ps: string) =>
+      dealPrimaryService.includes(ps) || ps.includes(dealPrimaryService)
     );
-    if (matchesBuyerTarget) {
-      score = Math.min(100, score + 5);
-      reasoning += ". +5pt buyer target match";
+    if (hasPreferredMatch) {
+      score = Math.min(100, score + 3);
+      reasoning += ". +3pt preferred service match";
+    } else if (buyerTargetServices.length > 0 && dealPrimaryService) {
+      const matchesBuyerTarget = buyerTargetServices.some((bs: string) =>
+        dealPrimaryService.includes(bs) || bs.includes(dealPrimaryService)
+      );
+      if (matchesBuyerTarget) {
+        score = Math.min(100, score + 5);
+        reasoning += ". +5pt buyer target match";
+      }
     }
   }
 

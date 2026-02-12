@@ -139,12 +139,18 @@ export async function incrementConcurrent(
                              updated_at = now()`,
         params: [provider],
       }).catch(() => {
-        // exec_sql may not exist — last resort: plain upsert (known race, but best effort)
-        return supabase.from('enrichment_rate_limits').upsert({
-          provider,
-          concurrent_requests: 1,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'provider' });
+        // exec_sql may not exist — last resort: read-then-increment (matches decrementConcurrent pattern)
+        return supabase.from('enrichment_rate_limits')
+          .select('concurrent_requests')
+          .eq('provider', provider)
+          .maybeSingle()
+          .then(({ data }) =>
+            supabase.from('enrichment_rate_limits').upsert({
+              provider,
+              concurrent_requests: (data?.concurrent_requests || 0) + 1,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'provider' })
+          );
       });
     } catch (err) {
       console.warn(`[rate-limiter] Failed to increment concurrent for ${provider}:`, err);

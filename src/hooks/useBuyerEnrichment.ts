@@ -43,9 +43,9 @@ export interface EnrichmentSummary {
   resetTime?: string;
 }
 
-// Gemini processing config
-const BATCH_SIZE = 3;
-const BATCH_DELAY_MS = 1500;
+// Gemini processing config — serialize to avoid client-side rate limit storms
+const BATCH_SIZE = 1;
+const BATCH_DELAY_MS = 500;
 
 // Shared abort signal for immediate fail-fast across parallel requests
 interface AbortState {

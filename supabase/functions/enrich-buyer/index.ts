@@ -1,7 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
-import { callGeminiWithTool } from "../_shared/ai-providers.ts";
+import { callGeminiWithTool, type RateLimitConfig } from "../_shared/ai-providers.ts";
+import { withConcurrencyTracking, reportRateLimit } from "../_shared/rate-limiter.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
@@ -232,7 +233,7 @@ function getRegionFromState(stateCode: string): string | null {
 // ============================================================================
 
 async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
-  try {
+  const doScrape = async () => {
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
@@ -253,18 +254,30 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
 
+    if (response.status === 429 && _rateLimitConfig?.supabase) {
+      await reportRateLimit(_rateLimitConfig.supabase, 'firecrawl');
+    }
+
     if (!response.ok) {
       return { success: false, error: `HTTP ${response.status}` };
     }
 
     const data = await response.json();
     const content = data.data?.markdown || data.markdown || '';
-    
+
     if (!content || content.length < MIN_CONTENT_LENGTH) {
       return { success: false, error: `Insufficient content (${content.length} chars)` };
     }
 
     return { success: true, content };
+  };
+
+  try {
+    // Wrap with Firecrawl concurrency tracking when rate limiter is configured
+    if (_rateLimitConfig?.supabase) {
+      return await withConcurrencyTracking(_rateLimitConfig.supabase, 'firecrawl', doScrape);
+    }
+    return await doScrape();
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
       return { success: false, error: `Timed out after ${SCRAPE_TIMEOUT_MS / 1000}s` };
@@ -274,7 +287,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
 }
 
 async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<string[]> {
-  try {
+  const doMap = async () => {
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
@@ -294,12 +307,23 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
 
+    if (response.status === 429 && _rateLimitConfig?.supabase) {
+      await reportRateLimit(_rateLimitConfig.supabase, 'firecrawl');
+    }
+
     const data = await response.json();
     if (!response.ok || !data.success) {
       return [];
     }
 
     return data.links || [];
+  };
+
+  try {
+    if (_rateLimitConfig?.supabase) {
+      return await withConcurrencyTracking(_rateLimitConfig.supabase, 'firecrawl', doMap);
+    }
+    return await doMap();
   } catch (error) {
     console.error('Firecrawl map error:', error);
     return [];
@@ -313,6 +337,9 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
 /**
  * Call Gemini via shared helper for extraction prompts.
  */
+// Module-level rate limit config — set once per invocation from the main handler's supabase client
+let _rateLimitConfig: RateLimitConfig | undefined;
+
 async function callGeminiAI(
   systemPrompt: string,
   userPrompt: string,
@@ -326,7 +353,8 @@ async function callGeminiAI(
 
   const result = await callGeminiWithTool(
     systemPrompt, userPrompt, tool, geminiApiKey,
-    AI_CONFIG.model, AI_TIMEOUT_MS, AI_CONFIG.max_tokens
+    AI_CONFIG.model, AI_TIMEOUT_MS, AI_CONFIG.max_tokens,
+    _rateLimitConfig
   );
 
   if (result.usage) {
@@ -921,6 +949,7 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    _rateLimitConfig = { supabase };
 
     // Fetch buyer
     const { data: buyer, error: buyerError } = await supabase
@@ -1185,21 +1214,23 @@ Deno.serve(async (req) => {
       }
     };
 
-    // ALL PROMPTS IN SINGLE PARALLEL BATCH (no more sequential batches)
-    const allPromises: Promise<{ name: string; result: any; url: string | null | undefined }>[] = [];
-    
+    // Build extraction tasks as thunks so we can control concurrency
+    const AI_CONCURRENCY = 3; // Max parallel Gemini calls per buyer
+    type ExtractionResult = { name: string; result: any; url: string | null | undefined };
+    const allTasks: (() => Promise<ExtractionResult>)[] = [];
+
     if (platformContent) {
-      allPromises.push(
-        extractBusinessOverview(platformContent, geminiApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
-        extractGeography(platformContent, geminiApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
-        extractCustomerProfile(platformContent, geminiApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
-        extractPEIntelligence(platformContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
+      allTasks.push(
+        () => extractBusinessOverview(platformContent, geminiApiKey).then(r => ({ name: 'business', result: r, url: platformWebsite })),
+        () => extractGeography(platformContent, geminiApiKey).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
+        () => extractCustomerProfile(platformContent, geminiApiKey).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
+        () => extractPEIntelligence(platformContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
       );
     } else if (peContent) {
       // No platform content — only extract geography from PE site
       console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website');
-      allPromises.push(
-        extractGeography(peContent, geminiApiKey).then(r => {
+      allTasks.push(
+        () => extractGeography(peContent, geminiApiKey).then(r => {
           const validated = validateGeography(r);
           if (validated?.data) {
             delete validated.data.hq_city;
@@ -1215,20 +1246,24 @@ Deno.serve(async (req) => {
     }
 
     if (peContent) {
-      allPromises.push(
-        extractPEIntelligence(peContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
-        extractSizeCriteria(peContent, geminiApiKey).then(r => ({ name: 'size_criteria', result: validateSizeCriteria(r), url: peFirmWebsite })),
+      allTasks.push(
+        () => extractPEIntelligence(peContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
+        () => extractSizeCriteria(peContent, geminiApiKey).then(r => ({ name: 'size_criteria', result: validateSizeCriteria(r), url: peFirmWebsite })),
       );
     }
 
-    if (allPromises.length > 0) {
-      promptsRun += allPromises.length;
+    if (allTasks.length > 0) {
+      promptsRun += allTasks.length;
 
-      // Location page discovery runs in background but don't block on it —
-      // AI prompts are already created with current platformContent.
-      // The location data would only help if we re-ran geography, which isn't worth the latency.
+      // Execute in batches of AI_CONCURRENCY to prevent rate limit storms
+      const allResults: PromiseSettledResult<ExtractionResult>[] = [];
+      for (let b = 0; b < allTasks.length; b += AI_CONCURRENCY) {
+        const batch = allTasks.slice(b, b + AI_CONCURRENCY);
+        console.log(`Running AI batch ${Math.floor(b / AI_CONCURRENCY) + 1}/${Math.ceil(allTasks.length / AI_CONCURRENCY)} (${batch.length} prompts)`);
+        const batchResults = await Promise.allSettled(batch.map(fn => fn()));
+        allResults.push(...batchResults);
+      }
 
-      const allResults = await Promise.allSettled(allPromises);
       processBatchResults(allResults);
       console.log(`All prompts complete: ${promptsSuccessful}/${promptsRun} successful`);
     }
