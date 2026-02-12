@@ -64,6 +64,21 @@ import { deleteUniverseWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
 type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
 type SortOrder = 'asc' | 'desc';
 
+/** Extract a short description from the guide's markdown content */
+function extractGuideDescription(guideContent: string | null | undefined): string | null {
+  if (!guideContent) return null;
+  // Skip markdown headers and find the first substantial paragraph
+  const lines = guideContent.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Skip headers, empty lines, table rows, and short lines
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('|') || trimmed.startsWith('-') || trimmed.length < 40) continue;
+    // Found a paragraph - truncate to ~200 chars
+    return trimmed.length > 200 ? trimmed.slice(0, 197) + '...' : trimmed;
+  }
+  return null;
+}
+
 const ReMarketingUniverses = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -515,15 +530,18 @@ const ReMarketingUniverses = () => {
                           </div>
                           <div className="min-w-0 max-w-[400px]">
                             <p className="font-medium text-foreground">{universe.name}</p>
-                            {universe.description ? (
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {universe.description}
-                              </p>
-                            ) : (
-                              <p className="text-sm text-muted-foreground/50 italic">
-                                No description
-                              </p>
-                            )}
+                            {(() => {
+                              const desc = universe.description || extractGuideDescription(universe.ma_guide_content);
+                              return desc ? (
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {desc}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-muted-foreground/50 italic">
+                                  No description
+                                </p>
+                              );
+                            })()}
                           </div>
                         </div>
                       </TableCell>
