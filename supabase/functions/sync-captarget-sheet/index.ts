@@ -300,10 +300,33 @@ serve(async (req) => {
         continue;
       }
 
-      const headerRow = tabRows[0];
-      console.log(`Tab "${tab.name}" headers (${headerRow.length} cols): ${headerRow.slice(0, 15).join(' | ')}`);
+      // Find the actual header row by scanning for a row with multiple populated columns
+      // The sheet may have metadata rows (e.g., "Last Updated: ...") before the real header
+      let headerRowIndex = 0;
+      const knownHeaders = ["company name", "email", "first name", "last name", "date", "details", "response", "type", "url", "phone", "title"];
+      for (let r = 0; r < Math.min(tabRows.length, 10); r++) {
+        const row = tabRows[r];
+        if (row.length < 5) continue; // metadata rows usually have 1-2 cells
+        const normalizedCells = row.map(c => (c || "").trim().toLowerCase());
+        const matchCount = knownHeaders.filter(h => normalizedCells.some(cell => cell.includes(h))).length;
+        if (matchCount >= 3) {
+          headerRowIndex = r;
+          console.log(`Tab "${tab.name}": found header at row ${r} (matched ${matchCount} known headers)`);
+          break;
+        }
+        // Fallback: if a row has 5+ non-empty cells and isn't just a "Last Updated" row, treat it as header
+        const nonEmpty = normalizedCells.filter(c => c.length > 0).length;
+        if (nonEmpty >= 5 && !normalizedCells[0].startsWith("last updated")) {
+          headerRowIndex = r;
+          console.log(`Tab "${tab.name}": using row ${r} as header (${nonEmpty} non-empty cells)`);
+          break;
+        }
+      }
 
-      const allRows = tabRows.slice(1);
+      const headerRow = tabRows[headerRowIndex];
+      console.log(`Tab "${tab.name}" headers (row ${headerRowIndex}, ${headerRow.length} cols): ${headerRow.slice(0, 15).join(' | ')}`);
+
+      const allRows = tabRows.slice(headerRowIndex + 1);
       let filteredByMeta = 0;
       let filteredByData = 0;
       const dataRows = allRows.filter((row) => {
