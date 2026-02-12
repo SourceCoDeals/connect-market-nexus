@@ -72,6 +72,10 @@ interface CapTargetDeal {
   created_at: string;
   enriched_at: string | null;
   deal_quality_score: number | null;
+  linkedin_employee_count: number | null;
+  linkedin_employee_range: string | null;
+  google_rating: number | null;
+  google_review_count: number | null;
 }
 
 type SortColumn =
@@ -148,7 +152,11 @@ export default function CapTargetDeals() {
           status,
           created_at,
           enriched_at,
-          deal_quality_score
+          deal_quality_score,
+          linkedin_employee_count,
+          linkedin_employee_range,
+          google_rating,
+          google_review_count
         `
         )
         .eq("deal_source", "captarget")
@@ -845,6 +853,7 @@ export default function CapTargetDeals() {
                   <TableHead>
                     <SortHeader column="company_name">Company</SortHeader>
                   </TableHead>
+                  <TableHead className="max-w-[200px]">Description</TableHead>
                   <TableHead>
                     <SortHeader column="client_name">Client</SortHeader>
                   </TableHead>
@@ -857,6 +866,8 @@ export default function CapTargetDeals() {
                   <TableHead>
                     <SortHeader column="outreach_channel">Channel</SortHeader>
                   </TableHead>
+                  <TableHead>LI Employees</TableHead>
+                  <TableHead>Google</TableHead>
                   <TableHead>
                     <SortHeader column="score">Score</SortHeader>
                   </TableHead>
@@ -872,7 +883,7 @@ export default function CapTargetDeals() {
                 {filteredDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
+                      colSpan={12}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -918,6 +929,11 @@ export default function CapTargetDeals() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell className="max-w-[200px]">
+                        <span className="text-xs text-muted-foreground line-clamp-2">
+                          {deal.description || "—"}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[160px] block">
                           {deal.captarget_client_name || "—"}
@@ -947,6 +963,30 @@ export default function CapTargetDeals() {
                         <span className="text-sm">
                           {deal.captarget_outreach_channel || "—"}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {deal.linkedin_employee_count != null ? (
+                            <span className="text-sm tabular-nums">{deal.linkedin_employee_count.toLocaleString()}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                          {deal.linkedin_employee_range && (
+                            <span className="text-xs text-muted-foreground">{deal.linkedin_employee_range}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {deal.google_rating != null ? (
+                            <span className="text-sm tabular-nums">⭐ {deal.google_rating}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                          {deal.google_review_count != null && (
+                            <span className="text-xs text-muted-foreground">{deal.google_review_count} reviews</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {deal.deal_quality_score != null ? (
