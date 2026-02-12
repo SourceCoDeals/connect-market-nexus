@@ -1,9 +1,17 @@
 /**
  * AI Provider Configuration
- * 
+ *
  * Centralized module for direct API calls to Gemini.
  * All AI operations standardized on Gemini 2.0 Flash.
  */
+
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { waitForProviderSlot, withConcurrencyTracking, reportRateLimit } from "./rate-limiter.ts";
+
+/** Optional rate limit coordination config. When provided, AI calls coordinate with the shared rate limiter. */
+export interface RateLimitConfig {
+  supabase: SupabaseClient;
+}
 
 // API Endpoints
 export const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
@@ -172,7 +180,8 @@ export async function callGeminiWithTool(
   apiKey: string,
   model: string = DEFAULT_GEMINI_MODEL,
   timeoutMs: number = 45000,
-  maxTokens: number = 8192
+  maxTokens: number = 8192,
+  rateLimitConfig?: RateLimitConfig
 ): Promise<{ data: any | null; error?: { code: string; message: string }; usage?: { input_tokens: number; output_tokens: number } }> {
   try {
     // Normalize tool format — accept both OpenAI and legacy formats
@@ -186,64 +195,82 @@ export async function callGeminiWithTool(
     }
 
     const toolName = openAITool.function?.name || openAITool.name || 'unknown';
+
+    // Wait for rate limiter slot if configured
+    if (rateLimitConfig?.supabase) {
+      await waitForProviderSlot(rateLimitConfig.supabase, 'gemini');
+    }
+
     const startTime = Date.now();
 
-    const response = await fetchWithAutoRetry(
-      GEMINI_API_URL,
-      {
-        method: "POST",
-        headers: getGeminiHeaders(apiKey),
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          tools: [openAITool],
-          tool_choice: { type: "function", function: { name: toolName } },
-          temperature: 0,
-          max_tokens: maxTokens,
-        }),
-        signal: AbortSignal.timeout(timeoutMs),
-      },
-      { maxRetries: 3, baseDelayMs: 2000, callerName: `Gemini/${model}` }
-    );
+    const doFetch = async () => {
+      const response = await fetchWithAutoRetry(
+        GEMINI_API_URL,
+        {
+          method: "POST",
+          headers: getGeminiHeaders(apiKey),
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            tools: [openAITool],
+            tool_choice: { type: "function", function: { name: toolName } },
+            temperature: 0,
+            max_tokens: maxTokens,
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        },
+        { maxRetries: 3, baseDelayMs: 2000, callerName: `Gemini/${model}` }
+      );
 
-    const durationMs = Date.now() - startTime;
+      const durationMs = Date.now() - startTime;
 
-    if (response.status === 402) {
-      return { data: null, error: { code: "payment_required", message: "AI credits depleted" } };
+      if (response.status === 402) {
+        return { data: null, error: { code: "payment_required", message: "AI credits depleted" } };
+      }
+      if (response.status === 429) {
+        // Report rate limit to shared coordinator
+        if (rateLimitConfig?.supabase) {
+          await reportRateLimit(rateLimitConfig.supabase, 'gemini');
+        }
+        return { data: null, error: { code: "rate_limited", message: "Rate limit exceeded after retries" } };
+      }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Gemini API call failed: ${response.status}`, errorText.substring(0, 500));
+        return { data: null, error: { code: `http_${response.status}`, message: `Gemini API returned ${response.status}: ${errorText.substring(0, 200)}` } };
+      }
+
+      const responseData = await response.json();
+      const usage = responseData.usage ? {
+        input_tokens: responseData.usage.prompt_tokens || 0,
+        output_tokens: responseData.usage.completion_tokens || 0,
+      } : undefined;
+
+      if (usage) {
+        console.log(`[Gemini/${model}] ${usage.input_tokens}in/${usage.output_tokens}out tokens, ${durationMs}ms`);
+      }
+
+      const toolCall = responseData.choices?.[0]?.message?.tool_calls?.[0];
+      if (!toolCall?.function?.arguments) {
+        console.warn("No tool_call in Gemini response");
+        return { data: null, error: { code: "no_tool_use", message: "Gemini did not return tool use" }, usage };
+      }
+
+      const parsed = typeof toolCall.function.arguments === 'string'
+        ? JSON.parse(toolCall.function.arguments)
+        : toolCall.function.arguments;
+
+      return { data: parsed, usage };
+    };
+
+    // Wrap with concurrency tracking if rate limiter is configured
+    if (rateLimitConfig?.supabase) {
+      return await withConcurrencyTracking(rateLimitConfig.supabase, 'gemini', doFetch);
     }
-    if (response.status === 429) {
-      return { data: null, error: { code: "rate_limited", message: "Rate limit exceeded after retries" } };
-    }
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Gemini API call failed: ${response.status}`, errorText.substring(0, 500));
-      return { data: null, error: { code: `http_${response.status}`, message: `Gemini API returned ${response.status}: ${errorText.substring(0, 200)}` } };
-    }
-
-    const responseData = await response.json();
-    const usage = responseData.usage ? {
-      input_tokens: responseData.usage.prompt_tokens || 0,
-      output_tokens: responseData.usage.completion_tokens || 0,
-    } : undefined;
-
-    if (usage) {
-      console.log(`[Gemini/${model}] ${usage.input_tokens}in/${usage.output_tokens}out tokens, ${durationMs}ms`);
-    }
-
-    const toolCall = responseData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      console.warn("No tool_call in Gemini response");
-      return { data: null, error: { code: "no_tool_use", message: "Gemini did not return tool use" }, usage };
-    }
-
-    const parsed = typeof toolCall.function.arguments === 'string'
-      ? JSON.parse(toolCall.function.arguments)
-      : toolCall.function.arguments;
-
-    return { data: parsed, usage };
+    return await doFetch();
   } catch (error) {
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
       console.error(`Gemini API timeout after ${timeoutMs}ms`);

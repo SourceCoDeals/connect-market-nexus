@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
+import { normalizeState, normalizeConfidenceScore } from "../_shared/criteria-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -428,6 +429,20 @@ serve(async (req) => {
 async function applyToUniverse(supabase: any, universeId: string, buyers: any[]) {
   if (!buyers || buyers.length === 0) return;
 
+  // Source priority enforcement: check if transcript-sourced criteria already exist
+  // Transcript priority = 100, Guide priority = 60 — guide data should NOT overwrite transcript data
+  const { data: existingSources } = await supabase
+    .from('criteria_extraction_sources')
+    .select('source_type, extraction_status, extracted_data')
+    .eq('universe_id', universeId)
+    .eq('extraction_status', 'completed')
+    .in('source_type', ['transcript', 'buyer_transcript']);
+
+  const hasTranscriptData = existingSources && existingSources.length > 0;
+  if (hasTranscriptData) {
+    console.log(`[SOURCE_PRIORITY] Universe ${universeId} has ${existingSources.length} transcript source(s) — guide data will only fill empty fields`);
+  }
+
   // Aggregate criteria across all extracted buyers
   const allServices = new Set<string>();
   const allRegions = new Set<string>();
@@ -442,27 +457,39 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
       buyer.geography_criteria.target_regions.forEach((r: string) => allRegions.add(r));
     }
     if (buyer.geography_criteria?.target_states) {
-      buyer.geography_criteria.target_states.forEach((s: string) => allStates.add(s));
+      buyer.geography_criteria.target_states.forEach((s: string) => {
+        const normalized = normalizeState(s);
+        if (normalized) allStates.add(normalized);
+      });
     }
     if (buyer.geography_criteria?.geographic_exclusions) {
       buyer.geography_criteria.geographic_exclusions.forEach((e: string) => allExclusions.add(e));
     }
   }
 
-  // Build size criteria from all buyers
-  const revenueMinVals = buyers.map(b => b.size_criteria?.revenue_min).filter(Boolean);
-  const revenueMaxVals = buyers.map(b => b.size_criteria?.revenue_max).filter(Boolean);
-  const ebitdaMinVals = buyers.map(b => b.size_criteria?.ebitda_min).filter(Boolean);
-  const ebitdaMaxVals = buyers.map(b => b.size_criteria?.ebitda_max).filter(Boolean);
+  // Build size criteria from all buyers using percentile-based aggregation
+  // Prevents outlier buyers from creating meaninglessly wide ranges
+  const revenueMinVals = buyers.map(b => b.size_criteria?.revenue_min).filter(Boolean).sort((a: number, b: number) => a - b);
+  const revenueMaxVals = buyers.map(b => b.size_criteria?.revenue_max).filter(Boolean).sort((a: number, b: number) => a - b);
+  const ebitdaMinVals = buyers.map(b => b.size_criteria?.ebitda_min).filter(Boolean).sort((a: number, b: number) => a - b);
+  const ebitdaMaxVals = buyers.map(b => b.size_criteria?.ebitda_max).filter(Boolean).sort((a: number, b: number) => a - b);
+
+  // Percentile helper: 25th for mins (conservative lower bound), 75th for maxes (conservative upper bound)
+  const percentile = (arr: number[], p: number) => {
+    if (arr.length === 0) return undefined;
+    if (arr.length === 1) return arr[0];
+    const idx = Math.max(0, Math.ceil(arr.length * p) - 1);
+    return arr[idx];
+  };
 
   const universeUpdate: any = {};
 
   if (revenueMinVals.length > 0 || revenueMaxVals.length > 0) {
     universeUpdate.size_criteria = {
-      min_revenue: revenueMinVals.length > 0 ? Math.min(...revenueMinVals) : undefined,
-      max_revenue: revenueMaxVals.length > 0 ? Math.max(...revenueMaxVals) : undefined,
-      min_ebitda: ebitdaMinVals.length > 0 ? Math.min(...ebitdaMinVals) : undefined,
-      max_ebitda: ebitdaMaxVals.length > 0 ? Math.max(...ebitdaMaxVals) : undefined,
+      min_revenue: percentile(revenueMinVals, 0.25),
+      max_revenue: percentile(revenueMaxVals, 0.75),
+      min_ebitda: percentile(ebitdaMinVals, 0.25),
+      max_ebitda: percentile(ebitdaMaxVals, 0.75),
     };
     Object.keys(universeUpdate.size_criteria).forEach(key => {
       if (universeUpdate.size_criteria[key] === undefined) delete universeUpdate.size_criteria[key];
@@ -520,6 +547,35 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
   }
 
   if (Object.keys(universeUpdate).length > 0) {
+    // Source priority: if transcript data exists, only fill empty/null fields
+    if (hasTranscriptData) {
+      const { data: currentUniverse } = await supabase
+        .from('remarketing_buyer_universes')
+        .select('size_criteria, geography_criteria, service_criteria, buyer_types_criteria')
+        .eq('id', universeId)
+        .single();
+
+      if (currentUniverse) {
+        const fieldsSkipped: string[] = [];
+        for (const key of Object.keys(universeUpdate)) {
+          if (key === 'target_buyer_types') continue; // Always merge buyer types
+          const existing = currentUniverse[key];
+          if (existing && typeof existing === 'object' && Object.keys(existing).length > 0) {
+            fieldsSkipped.push(key);
+            delete universeUpdate[key];
+          }
+        }
+        if (fieldsSkipped.length > 0) {
+          console.log(`[SOURCE_PRIORITY] Skipped overwriting ${fieldsSkipped.join(', ')} — transcript data takes precedence`);
+        }
+      }
+    }
+
+    if (Object.keys(universeUpdate).length === 0) {
+      console.log('[SOURCE_PRIORITY] No fields to update after priority filtering');
+      return;
+    }
+
     const { error } = await supabase
       .from('remarketing_buyer_universes')
       .update(universeUpdate)

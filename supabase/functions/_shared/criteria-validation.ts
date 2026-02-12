@@ -123,6 +123,18 @@ export function validateConfidenceScore(score: number | undefined): boolean {
   return typeof score === 'number' && score >= 0 && score <= 100;
 }
 
+/**
+ * Normalize confidence score to 0-100 range.
+ * Handles both 0-1 fractional scale (from some AI models) and 0-100 integer scale.
+ */
+export function normalizeConfidenceScore(score: number | undefined | null): number {
+  if (score === undefined || score === null || typeof score !== 'number' || isNaN(score)) return 0;
+  // If in 0-1 fractional range, convert to 0-100
+  if (score > 0 && score <= 1) return Math.round(score * 100);
+  // Clamp to 0-100
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
 // ==============================================
 // STATE/REGION NORMALIZATION
 // ==============================================

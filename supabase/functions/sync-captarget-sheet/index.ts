@@ -293,7 +293,8 @@ serve(async (req) => {
       // Skip header row; filter out metadata rows
       const dataRows = tabRows.slice(1).filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
-        return firstCell !== "last updated" && firstCell !== "";
+        if (firstCell === "last updated" || firstCell === "") return false;
+        return rowHasData(row);
       });
 
       const rowOffset = tabIdx === startTab ? startRow : 0;

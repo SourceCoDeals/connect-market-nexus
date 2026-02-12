@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { normalizeState } from "../_shared/criteria-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,7 +96,7 @@ CRITICAL REQUIREMENTS:
 1. Extract PRIMARY_FOCUS - the core service lines the buyer universe targets. This is REQUIRED.
 2. Separate EBITDA dollar values from EBITDA multiples (e.g., "5x EBITDA" is a multiple, "$5M EBITDA" is a dollar value)
 3. Convert all currency to raw numbers (e.g., "$5M" = 5000000, "$500K" = 500000)
-4. Use full state names (e.g., "Texas" not "TX")
+4. Use 2-letter state codes (e.g., "TX" not "Texas", "FL" not "Florida")
 5. Do NOT include placeholder values like [X], TBD, or $XM`;
 
     const requestBody = JSON.stringify({
@@ -134,10 +135,10 @@ CRITICAL REQUIREMENTS:
                   type: "object",
                   description: "Geographic targeting",
                   properties: {
-                    target_states: { 
-                      type: "array", 
+                    target_states: {
+                      type: "array",
                       items: { type: "string" },
-                      description: "Full state names to target"
+                      description: "2-letter state codes (e.g., TX, FL, CA)"
                     },
                     target_regions: { 
                       type: "array", 
@@ -286,6 +287,23 @@ CRITICAL REQUIREMENTS:
     parsed = cleanPlaceholders(parsed);
     parsed = fixMisplacedMultiples(parsed);
     
+    // Normalize state codes (AI may still return full names despite prompt instructions)
+    if (parsed.geography_criteria?.target_states) {
+      parsed.geography_criteria.target_states = parsed.geography_criteria.target_states
+        .map((s: string) => normalizeState(s))
+        .filter(Boolean);
+    }
+    if (parsed.geography_criteria?.exclude_states) {
+      parsed.geography_criteria.exclude_states = parsed.geography_criteria.exclude_states
+        .map((s: string) => normalizeState(s))
+        .filter(Boolean);
+    }
+
+    // Normalize confidence from 0-1 to 0-100 if AI returned fractional
+    if (parsed.confidence !== undefined && parsed.confidence > 0 && parsed.confidence <= 1) {
+      parsed.confidence = Math.round(parsed.confidence * 100);
+    }
+
     // Ensure primary_focus exists
     if (!parsed.service_criteria?.primary_focus || parsed.service_criteria.primary_focus.length === 0) {
       // Try to infer from required_services
@@ -349,14 +367,14 @@ function parseLocally(text: string) {
     result.size_criteria.ebitda_max = parseFloat(ebitdaMatch[2]) * 1000000;
   }
 
-  // Parse regions
+  // Parse regions (2-letter state codes)
   const regionMap: Record<string, string[]> = {
-    'southeast': ['Florida', 'Georgia', 'Alabama', 'South Carolina', 'North Carolina', 'Tennessee', 'Mississippi', 'Louisiana'],
-    'northeast': ['New York', 'New Jersey', 'Pennsylvania', 'Massachusetts', 'Connecticut', 'Maine', 'New Hampshire', 'Vermont', 'Rhode Island'],
-    'midwest': ['Illinois', 'Ohio', 'Michigan', 'Indiana', 'Wisconsin', 'Minnesota', 'Iowa', 'Missouri'],
-    'southwest': ['Texas', 'Arizona', 'New Mexico', 'Oklahoma'],
-    'west coast': ['California', 'Oregon', 'Washington'],
-    'mountain': ['Colorado', 'Utah', 'Nevada', 'Idaho', 'Montana', 'Wyoming']
+    'southeast': ['FL', 'GA', 'AL', 'SC', 'NC', 'TN', 'MS', 'LA'],
+    'northeast': ['NY', 'NJ', 'PA', 'MA', 'CT', 'ME', 'NH', 'VT', 'RI'],
+    'midwest': ['IL', 'OH', 'MI', 'IN', 'WI', 'MN', 'IA', 'MO'],
+    'southwest': ['TX', 'AZ', 'NM', 'OK'],
+    'west coast': ['CA', 'OR', 'WA'],
+    'mountain': ['CO', 'UT', 'NV', 'ID', 'MT', 'WY']
   };
 
   for (const [region, states] of Object.entries(regionMap)) {
