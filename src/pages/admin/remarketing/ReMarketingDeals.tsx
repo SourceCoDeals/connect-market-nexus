@@ -275,10 +275,15 @@ const EditableRankCell = ({ value, onSave }: { value: number; onSave: (v: number
     return (
       <button
         onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-        className="font-medium text-muted-foreground w-7 text-center hover:bg-muted hover:text-foreground rounded px-1 py-0.5 cursor-text transition-colors"
+        className="group/rank relative font-semibold tabular-nums text-muted-foreground min-w-[28px] h-7 inline-flex items-center justify-center rounded-md border border-transparent hover:border-border hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all duration-150"
         title="Click to edit position"
       >
         {value}
+        <span className="absolute -top-1 -right-1 opacity-0 group-hover/rank:opacity-100 transition-opacity">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className="text-muted-foreground">
+            <path d="M8.5 1.5l2 2-7 7H1.5V8.5l7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
       </button>
     );
   }
@@ -292,11 +297,11 @@ const EditableRankCell = ({ value, onSave }: { value: number; onSave: (v: number
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') commit();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
         if (e.key === 'Escape') { setDraft(String(value)); setEditing(false); }
       }}
       onClick={(e) => e.stopPropagation()}
-      className="w-12 h-6 text-center text-sm p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      className="w-14 h-7 text-center text-sm font-semibold tabular-nums px-1 border-primary ring-1 ring-primary/30 rounded-md [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       autoFocus
     />
   );
