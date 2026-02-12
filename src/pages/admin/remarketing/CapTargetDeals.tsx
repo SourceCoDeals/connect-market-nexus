@@ -76,6 +76,7 @@ interface CapTargetDeal {
   linkedin_employee_range: string | null;
   google_rating: number | null;
   google_review_count: number | null;
+  captarget_status: string | null;
 }
 
 type SortColumn =
@@ -156,7 +157,8 @@ export default function CapTargetDeals() {
           linkedin_employee_count,
           linkedin_employee_range,
           google_rating,
-          google_review_count
+          google_review_count,
+          captarget_status
         `
         )
         .eq("deal_source", "captarget")
@@ -869,6 +871,7 @@ export default function CapTargetDeals() {
                   <TableHead>LI Employees</TableHead>
                   <TableHead>Reviews</TableHead>
                   <TableHead>Rating</TableHead>
+                  <TableHead>Source Tab</TableHead>
                   <TableHead>
                     <SortHeader column="score">Score</SortHeader>
                   </TableHead>
@@ -1000,6 +1003,20 @@ export default function CapTargetDeals() {
                             "bg-gray-50 text-gray-600 border-gray-200"
                           )}>
                             {deal.deal_quality_score}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {deal.captarget_status ? (
+                          <Badge variant="outline" className={cn(
+                            "text-xs capitalize",
+                            deal.captarget_status === "active"
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-slate-50 text-slate-600 border-slate-200"
+                          )}>
+                            {deal.captarget_status}
                           </Badge>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
