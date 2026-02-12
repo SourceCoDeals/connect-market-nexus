@@ -26,7 +26,7 @@ async function extractDocumentText(documentUrl: string): Promise<string> {
   );
 
   const { data, error } = await supabase.storage
-    .from('documents')
+    .from('universe-documents')
     .download(documentUrl);
 
   if (error) {

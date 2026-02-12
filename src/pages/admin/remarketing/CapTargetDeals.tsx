@@ -51,7 +51,8 @@ interface CapTargetDeal {
   main_contact_name: string | null;
   main_contact_email: string | null;
   main_contact_title: string | null;
-  primary_contact_phone: string | null;
+  main_contact_phone: string | null;
+  captarget_sheet_tab: string | null;
   website: string | null;
   description: string | null;
   pushed_to_all_deals: boolean | null;
@@ -121,7 +122,8 @@ export default function CapTargetDeals() {
           main_contact_name,
           main_contact_email,
           main_contact_title,
-          primary_contact_phone,
+          main_contact_phone,
+          captarget_sheet_tab,
           website,
           description,
           pushed_to_all_deals,

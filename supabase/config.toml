@@ -195,3 +195,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.find-buyer-contacts]
 verify_jwt = true
+[functions.sync-captarget-sheet]
+verify_jwt = false
+[functions.extract-deal-document]
+verify_jwt = false
