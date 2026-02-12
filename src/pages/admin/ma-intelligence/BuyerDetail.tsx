@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,8 +100,9 @@ export default function BuyerDetail() {
     if (!buyer) return;
 
     try {
-      await supabase.functions.invoke("enrich-buyer", {
+      await invokeWithTimeout("enrich-buyer", {
         body: { buyer_id: buyer.id },
+        timeoutMs: 90_000,
       });
 
       toast({

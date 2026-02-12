@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { TrackerDealsToolbar } from "./TrackerDealsToolbar";
@@ -99,8 +100,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       let successCount = 0;
       for (const dealId of dealIds) {
         try {
-          await supabase.functions.invoke("enrich-deal", {
+          await invokeWithTimeout("enrich-deal", {
             body: { dealId },
+            timeoutMs: 90_000,
           });
           successCount++;
           if (activityItem) {
@@ -177,8 +179,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         const dealId = dealIds[i];
 
         try {
-          await supabase.functions.invoke("score-deal", {
+          await invokeWithTimeout("score-deal", {
             body: { dealId },
+            timeoutMs: 90_000,
           });
 
           progress.current = i + 1;
@@ -232,8 +235,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
   const handleScoreSingle = async (dealId: string) => {
     try {
-      await supabase.functions.invoke("score-deal", {
+      await invokeWithTimeout("score-deal", {
         body: { dealId },
+        timeoutMs: 90_000,
       });
 
       toast({
@@ -253,8 +257,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
   const handleEnrichSingle = async (dealId: string) => {
     try {
-      await supabase.functions.invoke("enrich-deal", {
+      await invokeWithTimeout("enrich-deal", {
         body: { dealId },
+        timeoutMs: 90_000,
       });
 
       toast({
