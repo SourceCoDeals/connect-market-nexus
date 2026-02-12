@@ -867,7 +867,8 @@ export default function CapTargetDeals() {
                     <SortHeader column="outreach_channel">Channel</SortHeader>
                   </TableHead>
                   <TableHead>LI Employees</TableHead>
-                  <TableHead>Google</TableHead>
+                  <TableHead>Reviews</TableHead>
+                  <TableHead>Rating</TableHead>
                   <TableHead>
                     <SortHeader column="score">Score</SortHeader>
                   </TableHead>
@@ -977,16 +978,18 @@ export default function CapTargetDeals() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
-                          {deal.google_rating != null ? (
-                            <span className="text-sm tabular-nums">⭐ {deal.google_rating}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                          {deal.google_review_count != null && (
-                            <span className="text-xs text-muted-foreground">{deal.google_review_count} reviews</span>
-                          )}
-                        </div>
+                        {deal.google_review_count != null ? (
+                          <span className="text-sm tabular-nums">{deal.google_review_count.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {deal.google_rating != null ? (
+                          <span className="text-sm tabular-nums">⭐ {deal.google_rating}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {deal.deal_quality_score != null ? (
