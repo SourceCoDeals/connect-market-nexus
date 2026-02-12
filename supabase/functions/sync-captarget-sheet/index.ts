@@ -6,10 +6,10 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BATCH_SIZE = 200;
-const HASH_LOOKUP_CHUNK = 50; // PostgREST URL limit prevents large .in() queries
-// Edge functions get ~150s wall clock; we use 120s to leave margin
-const TIMEOUT_MS = 120_000;
+const BATCH_SIZE = 100;
+const HASH_LOOKUP_CHUNK = 50;
+// Edge functions CPU time limit is ~50s; paginate well before that
+const TIMEOUT_MS = 25_000;
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
@@ -146,14 +146,16 @@ const COL = {
   phone: 14,
 };
 
-// ── Row data check (position-independent) ───────────────────────────
-// Returns true if any cell beyond col 0 has content.
-// Avoids false negatives when the sheet's column order doesn't match COL mapping.
+/**
+ * Check if a row has meaningful data (not just empty cells)
+ */
 function rowHasData(row: string[]): boolean {
-  for (let c = 1; c < row.length; c++) {
-    if ((row[c] || "").trim()) return true;
-  }
-  return false;
+  // A row has data if at least one of: company_name, client_folder_name, email, or first_name is non-empty
+  const companyName = (row[COL.company_name] || "").trim();
+  const clientName = (row[COL.client_folder_name] || "").trim();
+  const email = (row[COL.email] || "").trim();
+  const firstName = (row[COL.first_name] || "").trim();
+  return !!(companyName || clientName || email || firstName);
 }
 
 // ── Parse service account key with resilient JSON handling ──────────
@@ -202,7 +204,6 @@ async function rowToRecord(row: string[], captargetStatus: string): Promise<Reco
   return {
     captarget_row_hash: rowHash,
     captarget_client_name: clientName || null,
-    // title is NOT NULL in listings — use fallback chain to avoid constraint violations
     title: companyName || clientName || contactName || "Unnamed Deal",
     internal_company_name: companyName || null,
     captarget_contact_date: parseDate(dateRaw),
@@ -301,15 +302,11 @@ serve(async (req) => {
         continue;
       }
 
-      // Log header row for debugging column shifts
-      const headerRow = tabRows[0];
-      console.log(`Tab "${tab.name}" headers (${headerRow.length} cols): ${headerRow.slice(0, 15).join(' | ')}`);
+      // Log header row for debugging
+      console.log(`Header row for "${tab.name}":`, JSON.stringify(tabRows[0]?.slice(0, 15)));
 
-      // Skip header row; filter out metadata rows and truly empty rows
-      const allRows = tabRows.slice(1);
-      let filteredByMeta = 0;
-      let filteredByData = 0;
-      const dataRows = allRows.filter((row) => {
+      // Skip header row; filter out metadata rows
+      const dataRows = tabRows.slice(1).filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
         if (firstCell === "last updated" || firstCell === "") { filteredByMeta++; return false; }
         if (!rowHasData(row)) { filteredByData++; return false; }
@@ -398,52 +395,36 @@ serve(async (req) => {
           }
         }
 
-        // Insert new rows individually to avoid one constraint violation killing the batch
+        // Batch insert using upsert to handle duplicates gracefully
         if (toInsert.length > 0) {
-          const INSERT_CHUNK = 50;
-          for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {
-            const chunk = toInsert.slice(ic, ic + INSERT_CHUNK);
-            const insertResults = await Promise.allSettled(
-              chunk.map((record: any) =>
-                supabase.from("listings").insert(record)
-              )
-            );
-            for (const ir of insertResults) {
-              if (ir.status === "fulfilled" && !ir.value.error) {
+          const { data: inserted, error: insertErr } = await supabase
+            .from("listings")
+            .upsert(toInsert, { onConflict: "captarget_row_hash", ignoreDuplicates: true });
+          
+          if (insertErr) {
+            console.error("Batch insert error:", insertErr.message);
+            // Fallback: try individually
+            for (const record of toInsert) {
+              const { error: singleErr } = await supabase.from("listings").insert(record);
+              if (!singleErr) {
                 rowsInserted++;
               } else {
                 rowsSkipped++;
-                const errMsg = ir.status === "rejected"
-                  ? ir.reason?.message
-                  : ir.value?.error?.message;
-                if (errMsg && !errMsg.includes("duplicate key")) {
-                  syncErrors.push({ op: "insert", error: errMsg });
-                }
               }
             }
+          } else {
+            rowsInserted += toInsert.length;
           }
         }
 
-        // Batch update using upsert by id (much faster than individual updates)
+        // Batch updates
         if (toUpdate.length > 0) {
-          // Process updates in sub-batches to avoid payload limits
-          const UPDATE_CHUNK = 100;
-          for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
-            const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
-            // Use parallel individual updates but throttled
-            const updateResults = await Promise.allSettled(
-              chunk.map(({ id, ...fields }: any) =>
-                supabase.from("listings").update(fields).eq("id", id)
-              )
-            );
-            for (const ur of updateResults) {
-              if (ur.status === "fulfilled" && !ur.value.error) {
-                rowsUpdated++;
-              } else {
-                rowsSkipped++;
-                const errMsg = ur.status === "rejected" ? ur.reason?.message : ur.value?.error?.message;
-                syncErrors.push({ op: "update", error: errMsg });
-              }
+          for (const { id, ...fields } of toUpdate) {
+            const { error: upErr } = await supabase.from("listings").update(fields).eq("id", id);
+            if (!upErr) {
+              rowsUpdated++;
+            } else {
+              rowsSkipped++;
             }
           }
         }
