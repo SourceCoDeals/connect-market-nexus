@@ -2191,30 +2191,38 @@ const ReMarketingDeals = () => {
                               const movedIndex = currentList.findIndex(l => l.id === dealId);
                               if (movedIndex === -1) return;
 
+                              // Clamp target
+                              const targetPos = Math.max(1, Math.min(newRank, currentList.length));
+
                               // Remove the deal from its current spot
                               const [movedDeal] = currentList.splice(movedIndex, 1);
 
                               // Insert at the target position (1-indexed → 0-indexed)
-                              const insertAt = Math.max(0, Math.min(newRank - 1, currentList.length));
-                              currentList.splice(insertAt, 0, movedDeal);
+                              currentList.splice(targetPos - 1, 0, movedDeal);
 
                               // Re-number all deals sequentially
-                              const updates = currentList.map((l, idx) => ({
-                                id: l.id,
-                                rank: idx + 1,
+                              const reordered = currentList.map((l, idx) => ({
+                                ...l,
+                                manual_rank_override: idx + 1,
                               }));
 
-                              // Batch update all ranks
-                              for (const u of updates) {
-                                await supabase
+                              // Optimistic UI update immediately
+                              setLocalOrder(reordered);
+
+                              // Batch update all ranks to DB
+                              const updatePromises = reordered.map((u) =>
+                                supabase
                                   .from('listings')
-                                  .update({ manual_rank_override: u.rank })
-                                  .eq('id', u.id);
-                              }
+                                  .update({ manual_rank_override: u.manual_rank_override })
+                                  .eq('id', u.id)
+                              );
+                              await Promise.all(updatePromises);
 
                               await queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
-                              toast({ title: 'Position updated', description: `Deal moved to position ${newRank}` });
+                              toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
                             } catch (err: any) {
+                              // Revert on error
+                              await queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
                               toast({ title: 'Error', description: err.message, variant: 'destructive' });
                             }
                           }}
