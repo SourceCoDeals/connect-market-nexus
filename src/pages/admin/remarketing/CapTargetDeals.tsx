@@ -51,6 +51,14 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface CapTargetDeal {
   id: string;
@@ -127,6 +135,9 @@ export default function CapTargetDeals() {
   const [isEnriching, setIsEnriching] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ inserted: 0, updated: 0, skipped: 0, page: 0 });
+  const [syncSummaryOpen, setSyncSummaryOpen] = useState(false);
+  const [syncSummary, setSyncSummary] = useState<{ inserted: number; updated: number; skipped: number; status: "success" | "error"; message?: string } | null>(null);
 
   // Fetch CapTarget deals
   const {
@@ -617,13 +628,16 @@ export default function CapTargetDeals() {
             disabled={isSyncing}
             onClick={async () => {
               setIsSyncing(true);
+              setSyncProgress({ inserted: 0, updated: 0, skipped: 0, page: 0 });
               let totalInserted = 0;
               let totalUpdated = 0;
               let totalSkipped = 0;
+              let pageNum = 0;
               let page = { startTab: 0, startRow: 0 };
               try {
                 let hasMore = true;
                 while (hasMore) {
+                  pageNum++;
                   const { data, error } = await supabase.functions.invoke('sync-captarget-sheet', {
                     body: page
                   });
@@ -631,20 +645,18 @@ export default function CapTargetDeals() {
                   totalInserted += data?.rows_inserted ?? 0;
                   totalUpdated += data?.rows_updated ?? 0;
                   totalSkipped += data?.rows_skipped ?? 0;
+                  setSyncProgress({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, page: pageNum });
                   hasMore = data?.hasMore === true;
                   if (hasMore) {
                     page = { startTab: data.nextTab, startRow: data.nextRow };
-                    sonnerToast.info('Sync in progress...', {
-                      description: `So far: +${totalInserted} inserted, ~${totalUpdated} updated. Continuing...`
-                    });
                   }
                 }
-                sonnerToast.success('Sync complete', {
-                  description: `Inserted: ${totalInserted}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}`
-                });
+                setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, status: "success" });
+                setSyncSummaryOpen(true);
                 refetch();
               } catch (e: any) {
-                sonnerToast.error('Sync failed', { description: e.message });
+                setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, status: "error", message: e.message });
+                setSyncSummaryOpen(true);
               } finally {
                 setIsSyncing(false);
               }
@@ -657,6 +669,57 @@ export default function CapTargetDeals() {
             )}
             Sync Sheet
           </Button>
+
+          {/* Sync progress bar */}
+          {isSyncing && (
+            <div className="flex items-center gap-3 min-w-[200px]">
+              <div className="flex-1">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Page {syncProgress.page}...</span>
+                  <span>+{syncProgress.inserted} new, ~{syncProgress.updated} updated</span>
+                </div>
+                <Progress value={undefined} className="h-1.5 animate-pulse" />
+              </div>
+            </div>
+          )}
+
+          {/* Sync summary dialog */}
+          <Dialog open={syncSummaryOpen} onOpenChange={setSyncSummaryOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {syncSummary?.status === "success" ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  ) : (
+                    <RefreshCw className="h-5 w-5 text-destructive" />
+                  )}
+                  {syncSummary?.status === "success" ? "Sync Complete" : "Sync Failed"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-2xl font-bold text-emerald-600">{syncSummary?.inserted ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">Inserted</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-2xl font-bold text-blue-600">{syncSummary?.updated ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">Updated</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-2xl font-bold text-muted-foreground">{syncSummary?.skipped ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">Skipped</p>
+                  </div>
+                </div>
+                {syncSummary?.status === "error" && syncSummary.message && (
+                  <p className="text-sm text-destructive bg-destructive/10 rounded-md p-2">{syncSummary.message}</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setSyncSummaryOpen(false)}>Close</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" disabled={isEnriching}>
