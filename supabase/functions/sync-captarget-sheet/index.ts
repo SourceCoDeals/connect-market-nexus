@@ -417,6 +417,7 @@ serve(async (req) => {
                   const record = chunk[idx];
                   const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash, ...fallbackFields } = record;
                   let existingId: string | null = null;
+                  let foundByHash = false;
                   if (captarget_row_hash) {
                     const { data: byHash } = await supabase
                       .from("listings")
@@ -424,7 +425,7 @@ serve(async (req) => {
                       .eq("captarget_row_hash", captarget_row_hash)
                       .limit(1)
                       .maybeSingle();
-                    if (byHash) existingId = byHash.id;
+                    if (byHash) { existingId = byHash.id; foundByHash = true; }
                   }
                   if (!existingId && record.website) {
                     const { data: byWeb } = await supabase
@@ -436,9 +437,13 @@ serve(async (req) => {
                     if (byWeb) existingId = byWeb.id;
                   }
                   if (existingId) {
+                    // Only write hash if we matched by hash; don't overwrite a different record's hash
+                    const updateData = foundByHash
+                      ? { ...fallbackFields, captarget_row_hash }
+                      : fallbackFields;
                     const { error: upErr } = await supabase
                       .from("listings")
-                      .update({ ...fallbackFields, captarget_row_hash })
+                      .update(updateData)
                       .eq("id", existingId);
                     if (!upErr) {
                       rowsUpdated++;
@@ -448,6 +453,7 @@ serve(async (req) => {
                     }
                   } else {
                     rowsSkipped++;
+                    syncErrors.push({ op: "insert-duplicate-no-match", hash: captarget_row_hash, website: record.website });
                   }
                 } else {
                   rowsSkipped++;
@@ -503,7 +509,9 @@ serve(async (req) => {
       rows_inserted: rowsInserted,
       rows_updated: rowsUpdated,
       rows_skipped: rowsSkipped,
-      errors: syncErrors.length > 0 ? syncErrors : null,
+      errors: syncErrors.length > 0
+        ? syncErrors.slice(0, 100).concat(syncErrors.length > 100 ? [{ truncated: syncErrors.length - 100 }] : [])
+        : null,
       duration_ms: durationMs,
       status: syncStatus,
     });

@@ -1141,6 +1141,13 @@ export default function CapTargetDeals() {
                         )}
                       </TableCell>
                       <TableCell>
+                        {deal.captarget_sheet_tab ? (
+                          <span className="text-sm">{deal.captarget_sheet_tab}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {deal.deal_quality_score != null ? (
                           <Badge variant="outline" className={cn(
                             "tabular-nums",
