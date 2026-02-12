@@ -6,7 +6,8 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 200;
+const HASH_LOOKUP_CHUNK = 50; // PostgREST URL limit prevents large .in() queries
 // Edge functions get ~150s wall clock; we use 120s to leave margin
 const TIMEOUT_MS = 120_000;
 
@@ -209,6 +210,11 @@ async function rowToRecord(row: string[], captargetStatus: string): Promise<Reco
     status: "captarget_review",
     pushed_to_all_deals: false,
     is_internal_deal: true,
+    // Required NOT NULL fields with defaults
+    revenue: 0,
+    ebitda: 0,
+    location: "Unknown",
+    category: "Other",
   };
 }
 
@@ -335,22 +341,28 @@ serve(async (req) => {
 
         if (batchRecords.length === 0) continue;
 
-        // Look up existing hashes
-        const { data: existing, error: lookupErr } = await supabase
-          .from("listings")
-          .select("id, captarget_row_hash")
-          .in("captarget_row_hash", batchHashes);
+        // Look up existing hashes in small chunks to avoid PostgREST URL limit
+        const existingMap = new Map<string, string>();
+        let lookupFailed = false;
+        for (let h = 0; h < batchHashes.length; h += HASH_LOOKUP_CHUNK) {
+          const hashChunk = batchHashes.slice(h, h + HASH_LOOKUP_CHUNK);
+          const { data: existing, error: lookupErr } = await supabase
+            .from("listings")
+            .select("id, captarget_row_hash")
+            .in("captarget_row_hash", hashChunk);
 
-        if (lookupErr) {
-          console.error("Hash lookup error:", lookupErr);
-          rowsSkipped += batchRecords.length;
-          syncErrors.push({ batch: i, error: lookupErr.message });
-          continue;
+          if (lookupErr) {
+            console.error("Hash lookup error:", lookupErr);
+            rowsSkipped += batchRecords.length;
+            syncErrors.push({ batch: i, error: lookupErr.message });
+            lookupFailed = true;
+            break;
+          }
+          for (const r of existing || []) {
+            existingMap.set(r.captarget_row_hash, r.id);
+          }
         }
-
-        const existingMap = new Map(
-          (existing || []).map((r: any) => [r.captarget_row_hash, r.id])
-        );
+        if (lookupFailed) continue;
 
         const toInsert: any[] = [];
         const toUpdate: any[] = [];
@@ -366,18 +378,29 @@ serve(async (req) => {
           }
         }
 
-        // Batch insert
+        // Insert new rows individually to avoid one constraint violation killing the batch
         if (toInsert.length > 0) {
-          const { error: insertErr } = await supabase
-            .from("listings")
-            .insert(toInsert);
-
-          if (insertErr) {
-            console.error("Insert error:", insertErr);
-            rowsSkipped += toInsert.length;
-            syncErrors.push({ batch: i, op: "insert", error: insertErr.message });
-          } else {
-            rowsInserted += toInsert.length;
+          const INSERT_CHUNK = 50;
+          for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {
+            const chunk = toInsert.slice(ic, ic + INSERT_CHUNK);
+            const insertResults = await Promise.allSettled(
+              chunk.map((record: any) =>
+                supabase.from("listings").insert(record)
+              )
+            );
+            for (const ir of insertResults) {
+              if (ir.status === "fulfilled" && !ir.value.error) {
+                rowsInserted++;
+              } else {
+                rowsSkipped++;
+                const errMsg = ir.status === "rejected"
+                  ? ir.reason?.message
+                  : ir.value?.error?.message;
+                if (errMsg && !errMsg.includes("duplicate key")) {
+                  syncErrors.push({ op: "insert", error: errMsg });
+                }
+              }
+            }
           }
         }
 
