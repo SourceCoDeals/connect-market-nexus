@@ -1254,57 +1254,63 @@ const ReMarketingDeals = () => {
     setLocalOrder(sortedListings);
   }, [sortedListings]);
 
+  // Shared helper: reorder deals, optimistically update UI, persist only changed ranks
+  const persistRankChanges = useCallback(async (reordered: DealListing[], description: string) => {
+    // Compute new ranks and find which actually changed
+    const updatedListings = reordered.map((listing, idx) => ({
+      ...listing,
+      manual_rank_override: idx + 1,
+    }));
+
+    // Only persist deals whose rank actually changed
+    const changedDeals = updatedListings.filter((deal, idx) => {
+      const original = localOrder.find(d => d.id === deal.id);
+      return !original || original.manual_rank_override !== idx + 1;
+    });
+
+    // Optimistic update
+    setLocalOrder(updatedListings);
+    sortedListingsRef.current = updatedListings;
+
+    try {
+      // Parallel DB updates — only changed deals
+      if (changedDeals.length > 0) {
+        await Promise.all(
+          changedDeals.map((deal) =>
+            supabase
+              .from('listings')
+              .update({ manual_rank_override: deal.manual_rank_override })
+              .eq('id', deal.id)
+          )
+        );
+      }
+
+      // Invalidate AFTER all writes complete to avoid stale refetch race
+      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      toast({ title: "Position updated", description });
+    } catch (error) {
+      console.error('Failed to update rank:', error);
+      // Revert on error — refetch fresh data
+      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      toast({ title: "Failed to update rank", variant: "destructive" });
+    }
+  }, [localOrder, queryClient, toast]);
+
   // Handle drag end - update ranks with proper sequential numbering
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over || active.id === over.id) return;
 
-    const currentListings = sortedListingsRef.current;
+    const currentListings = [...localOrder];
     const oldIndex = currentListings.findIndex((l) => l.id === active.id);
     const newIndex = currentListings.findIndex((l) => l.id === over.id);
 
     if (oldIndex === -1 || newIndex === -1) return;
 
     const reordered = arrayMove(currentListings, oldIndex, newIndex);
-    
-    const updatedListings = reordered.map((listing, idx) => ({
-      ...listing,
-      manual_rank_override: idx + 1,
-    }));
-
-    setLocalOrder(updatedListings);
-    sortedListingsRef.current = updatedListings;
-
-    const updates = updatedListings.map((listing) => ({
-      id: listing.id,
-      manual_rank_override: listing.manual_rank_override,
-    }));
-
-    try {
-      for (const update of updates) {
-        await supabase
-          .from('listings')
-          .update({ manual_rank_override: update.manual_rank_override })
-          .eq('id', update.id);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      
-      toast({ 
-        title: "Rank updated", 
-        description: `Deal moved to position ${newIndex + 1}` 
-      });
-    } catch (error) {
-      console.error('Failed to update rank:', error);
-      setLocalOrder(currentListings);
-      sortedListingsRef.current = currentListings;
-      toast({ 
-        title: "Failed to update rank", 
-        variant: "destructive" 
-      });
-    }
-  }, [queryClient, toast]);
+    await persistRankChanges(reordered, `Deal moved to position ${newIndex + 1}`);
+  }, [localOrder, persistRankChanges]);
 
   // Multi-select handlers
   const handleToggleSelect = useCallback((dealId: string) => {
@@ -2185,46 +2191,15 @@ const ReMarketingDeals = () => {
                           onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
                           onUpdateRank={async (dealId, newRank) => {
-                            try {
-                              // Insert-at-position reorder: move deal to newRank, shift others down
-                              const currentList = [...localOrder];
-                              const movedIndex = currentList.findIndex(l => l.id === dealId);
-                              if (movedIndex === -1) return;
+                            const currentList = [...localOrder];
+                            const movedIndex = currentList.findIndex(l => l.id === dealId);
+                            if (movedIndex === -1) return;
 
-                              // Clamp target
-                              const targetPos = Math.max(1, Math.min(newRank, currentList.length));
+                            const targetPos = Math.max(1, Math.min(newRank, currentList.length));
+                            const [movedDeal] = currentList.splice(movedIndex, 1);
+                            currentList.splice(targetPos - 1, 0, movedDeal);
 
-                              // Remove the deal from its current spot
-                              const [movedDeal] = currentList.splice(movedIndex, 1);
-
-                              // Insert at the target position (1-indexed → 0-indexed)
-                              currentList.splice(targetPos - 1, 0, movedDeal);
-
-                              // Re-number all deals sequentially
-                              const reordered = currentList.map((l, idx) => ({
-                                ...l,
-                                manual_rank_override: idx + 1,
-                              }));
-
-                              // Optimistic UI update immediately
-                              setLocalOrder(reordered);
-
-                              // Batch update all ranks to DB
-                              const updatePromises = reordered.map((u) =>
-                                supabase
-                                  .from('listings')
-                                  .update({ manual_rank_override: u.manual_rank_override })
-                                  .eq('id', u.id)
-                              );
-                              await Promise.all(updatePromises);
-
-                              await queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
-                              toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
-                            } catch (err: any) {
-                              // Revert on error
-                              await queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
-                              toast({ title: 'Error', description: err.message, variant: 'destructive' });
-                            }
+                            await persistRankChanges(currentList, `Deal moved to position ${targetPos}`);
                           }}
                         />
                       ))}
