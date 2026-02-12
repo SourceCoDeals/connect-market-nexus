@@ -88,7 +88,11 @@ type SortColumn =
   | "outreach_channel"
   | "contact_date"
   | "pushed"
-  | "score";
+  | "score"
+  | "linkedin_employee_count"
+  | "linkedin_employee_range"
+  | "google_review_count"
+  | "google_rating";
 type SortDirection = "asc" | "desc";
 
 export default function CapTargetDeals() {
@@ -248,6 +252,22 @@ export default function CapTargetDeals() {
         case "score":
           valA = a.deal_quality_score ?? -1;
           valB = b.deal_quality_score ?? -1;
+          break;
+        case "linkedin_employee_count":
+          valA = a.linkedin_employee_count ?? -1;
+          valB = b.linkedin_employee_count ?? -1;
+          break;
+        case "linkedin_employee_range":
+          valA = (a.linkedin_employee_range || "").toLowerCase();
+          valB = (b.linkedin_employee_range || "").toLowerCase();
+          break;
+        case "google_review_count":
+          valA = a.google_review_count ?? -1;
+          valB = b.google_review_count ?? -1;
+          break;
+        case "google_rating":
+          valA = a.google_rating ?? -1;
+          valB = b.google_rating ?? -1;
           break;
         default:
           return 0;
@@ -870,9 +890,18 @@ export default function CapTargetDeals() {
                   <TableHead>
                     <SortHeader column="outreach_channel">Channel</SortHeader>
                   </TableHead>
-                  <TableHead>LI Employees</TableHead>
-                  <TableHead>Reviews</TableHead>
-                  <TableHead>Rating</TableHead>
+                  <TableHead>
+                    <SortHeader column="linkedin_employee_count">LI Count</SortHeader>
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader column="linkedin_employee_range">LI Range</SortHeader>
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader column="google_review_count">Reviews</SortHeader>
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader column="google_rating">Rating</SortHeader>
+                  </TableHead>
                   <TableHead>Source Tab</TableHead>
                   <TableHead>
                     <SortHeader column="score">Score</SortHeader>
@@ -889,7 +918,7 @@ export default function CapTargetDeals() {
                 {filteredDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={12}
+                      colSpan={15}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -971,16 +1000,18 @@ export default function CapTargetDeals() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
-                          {deal.linkedin_employee_count != null ? (
-                            <span className="text-sm tabular-nums">{deal.linkedin_employee_count.toLocaleString()}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                          {deal.linkedin_employee_range && (
-                            <span className="text-xs text-muted-foreground">{deal.linkedin_employee_range}</span>
-                          )}
-                        </div>
+                        {deal.linkedin_employee_count != null ? (
+                          <span className="text-sm tabular-nums">{deal.linkedin_employee_count.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {deal.linkedin_employee_range ? (
+                          <span className="text-sm">{deal.linkedin_employee_range}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {deal.google_review_count != null ? (
