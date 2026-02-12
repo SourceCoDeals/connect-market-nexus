@@ -346,8 +346,8 @@ Industry: ${industryName}`;
 
     try {
       return JSON.parse(toolCalls[0].function.arguments);
-    } catch (e) {
-      throw new Error(`Failed to parse extraction result: ${e.message}`);
+    } catch (e: unknown) {
+      throw new Error(`Failed to parse extraction result: ${(e as Error).message}`);
     }
   }
 
@@ -470,12 +470,12 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
 
-    } catch (extractionError) {
+    } catch (extractionError: unknown) {
       await supabase
         .from('criteria_extraction_sources')
         .update({
           extraction_status: 'failed',
-          extraction_error: extractionError.message,
+          extraction_error: (extractionError as Error).message,
           extraction_completed_at: new Date().toISOString()
         })
         .eq('id', sourceRecord.id);
@@ -483,10 +483,10 @@ serve(async (req) => {
       throw extractionError;
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[ERROR]', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: (error as Error).message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

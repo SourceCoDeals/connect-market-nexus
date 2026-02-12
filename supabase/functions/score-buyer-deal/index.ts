@@ -233,7 +233,7 @@ serve(async (req) => {
     const isBulk = body.bulk === true;
 
     if (isBulk) {
-      return await handleBulkScore(supabase, body as BulkScoreRequest, GEMINI_API_KEY, corsHeaders);
+      return await handleBulkScore(supabase, body as BulkScoreRequest, GEMINI_API_KEY, corsHeaders, _edgeTimeout);
     } else {
       return await handleSingleScore(supabase, body as ScoreRequest, GEMINI_API_KEY, corsHeaders);
     }
@@ -1792,7 +1792,8 @@ async function handleBulkScore(
   supabase: any,
   request: BulkScoreRequest,
   apiKey: string,
-  corsHeaders: Record<string, string>
+  corsHeaders: Record<string, string>,
+  edgeTimeout?: ReturnType<typeof createEdgeTimeoutSignal>
 ) {
   const { listingId, universeId, buyerIds, customInstructions, geographyMode, options } = request;
   const rescoreExisting = options?.rescoreExisting ?? false;
@@ -1929,7 +1930,7 @@ async function handleBulkScore(
       break;
     }
     // Check edge function timeout
-    if (_edgeTimeout.isTimedOut()) {
+    if (edgeTimeout?.isTimedOut()) {
       console.warn(`Edge timeout reached at buyer batch ${i}/${buyersToScore.length} — returning partial results`);
       errors.push('Edge function timeout — partial results returned');
       break;
