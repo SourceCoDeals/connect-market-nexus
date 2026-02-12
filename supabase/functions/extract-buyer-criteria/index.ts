@@ -535,7 +535,7 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
       ? parseInt(String(buyer.size_criteria.location_range).split('-')[0]) || undefined
       : undefined,
     locations_max: buyer.size_criteria?.location_range
-      ? parseInt(String(buyer.size_criteria.location_range).split('-').pop()) || undefined
+      ? parseInt(String(buyer.size_criteria.location_range).split('-').pop() ?? '') || undefined
       : undefined,
     revenue_per_location: undefined,
     deal_requirements: buyer.buyer_profile?.typical_structure || undefined,
