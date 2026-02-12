@@ -6,10 +6,11 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BATCH_SIZE = 100;
-const HASH_LOOKUP_CHUNK = 50;
+const BATCH_SIZE = 200;
+const HASH_LOOKUP_CHUNK = 100;
 // Edge functions CPU time limit is ~50s; paginate well before that
 const TIMEOUT_MS = 45_000;
+const INSERT_CHUNK = 25; // Insert in small batches to avoid cascading failures
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
@@ -259,6 +260,34 @@ serve(async (req) => {
     return corsPreflightResponse(req);
   }
 
+  // Pre-fetch the max deal_identifier number to generate our own, bypassing the broken sequence
+  let nextDealIdNum = 1001;
+  try {
+    const { data: maxRow } = await supabase
+      .from("listings")
+      .select("deal_identifier")
+      .not("deal_identifier", "is", null)
+      .order("deal_identifier", { ascending: false })
+      .limit(200);
+    if (maxRow && maxRow.length > 0) {
+      let maxNum = 0;
+      for (const r of maxRow) {
+        const parts = (r.deal_identifier as string).split("-");
+        const num = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+      nextDealIdNum = maxNum + 1;
+    }
+  } catch (e) {
+    console.warn("Could not determine max deal_identifier, starting at 1001:", e);
+  }
+  const currentYear = new Date().getFullYear();
+  function getNextDealId(): string {
+    const id = `SCO-${currentYear}-${String(nextDealIdNum).padStart(3, "0")}`;
+    nextDealIdNum++;
+    return id;
+  }
+
   const startTime = Date.now();
   const syncErrors: any[] = [];
   let rowsRead = 0;
@@ -437,6 +466,8 @@ serve(async (req) => {
             const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, ...updateFields } = record;
             toUpdate.push({ id: existingId, ...updateFields });
           } else {
+            // Pre-set deal_identifier to bypass the broken sequence trigger
+            record.deal_identifier = getNextDealId();
             toInsert.push(record);
           }
         }
@@ -478,25 +509,37 @@ serve(async (req) => {
             }
           }
 
-          // Use individual inserts to avoid batch failures cascading
-          for (const record of toInsert) {
-            const { error: insertErr } = await supabase
+          // Insert in small batches instead of one-by-one for performance
+          for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {
+            const insertChunk = toInsert.slice(ic, ic + INSERT_CHUNK);
+            const { data: inserted, error: insertErr } = await supabase
               .from("listings")
-              .insert(record);
+              .insert(insertChunk)
+              .select("id");
             if (!insertErr) {
-              rowsInserted++;
+              rowsInserted += insertChunk.length;
             } else {
-              rowsSkipped++;
-              if (syncErrors.length < 20) {
-                syncErrors.push({ op: "insert", error: insertErr.message, hash: record.captarget_row_hash?.slice(0, 8) });
+              // Batch failed — fall back to individual inserts for this chunk
+              for (const record of insertChunk) {
+                const { error: singleErr } = await supabase
+                  .from("listings")
+                  .insert(record);
+                if (!singleErr) {
+                  rowsInserted++;
+                } else {
+                  rowsSkipped++;
+                  if (syncErrors.length < 50) {
+                    syncErrors.push({ op: "insert", error: singleErr.message, hash: record.captarget_row_hash?.slice(0, 8) });
+                  }
+                }
               }
             }
           }
         }
 
-        // Batch updates
+        // Batch updates — run in parallel for speed
         if (toUpdate.length > 0) {
-          const UPDATE_CHUNK = 100;
+          const UPDATE_CHUNK = 50;
           for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
             const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
             const updateResults = await Promise.allSettled(
@@ -510,7 +553,9 @@ serve(async (req) => {
               } else {
                 rowsSkipped++;
                 const errMsg = ur.status === "rejected" ? ur.reason?.message : ur.value?.error?.message;
-                syncErrors.push({ op: "update", error: errMsg });
+                if (syncErrors.length < 50) {
+                  syncErrors.push({ op: "update", error: errMsg });
+                }
               }
             }
           }
