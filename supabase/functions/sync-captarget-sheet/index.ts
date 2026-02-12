@@ -150,12 +150,10 @@ const COL = {
  * Check if a row has meaningful data (not just empty cells)
  */
 function rowHasData(row: string[]): boolean {
-  // A row has data if at least one of: company_name, client_folder_name, email, or first_name is non-empty
-  const companyName = (row[COL.company_name] || "").trim();
-  const clientName = (row[COL.client_folder_name] || "").trim();
-  const email = (row[COL.email] || "").trim();
-  const firstName = (row[COL.first_name] || "").trim();
-  return !!(companyName || clientName || email || firstName);
+  for (let c = 1; c < row.length; c++) {
+    if ((row[c] || "").trim()) return true;
+  }
+  return false;
 }
 
 // ── Parse service account key with resilient JSON handling ──────────
@@ -302,15 +300,19 @@ serve(async (req) => {
         continue;
       }
 
-      // Log header row for debugging
-      console.log(`Header row for "${tab.name}":`, JSON.stringify(tabRows[0]?.slice(0, 15)));
+      const headerRow = tabRows[0];
+      console.log(`Tab "${tab.name}" headers (${headerRow.length} cols): ${headerRow.slice(0, 15).join(' | ')}`);
 
-      // Skip header row; filter out metadata rows
-      const dataRows = tabRows.slice(1).filter((row) => {
+      const allRows = tabRows.slice(1);
+      let filteredByMeta = 0;
+      let filteredByData = 0;
+      const dataRows = allRows.filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
-        if (firstCell === "last updated" || firstCell === "") return false;
-        return rowHasData(row);
+        if (firstCell === "last updated" || firstCell === "") { filteredByMeta++; return false; }
+        if (!rowHasData(row)) { filteredByData++; return false; }
+        return true;
       });
+      console.log(`Tab "${tab.name}": ${allRows.length} total, ${filteredByMeta} meta-filtered, ${filteredByData} empty-filtered, ${dataRows.length} usable`);
 
       const rowOffset = tabIdx === startTab ? startRow : 0;
       const rowsThisTab = dataRows.length - rowOffset;
