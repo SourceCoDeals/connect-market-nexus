@@ -1300,13 +1300,23 @@ const ReMarketingDeals = () => {
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!over || active.id === over.id) return;
+    console.log('[DnD] dragEnd fired', { activeId: active.id, overId: over?.id });
+    
+    if (!over || active.id === over.id) {
+      console.log('[DnD] no-op: same item or no target');
+      return;
+    }
 
     const currentListings = [...localOrder];
     const oldIndex = currentListings.findIndex((l) => l.id === active.id);
     const newIndex = currentListings.findIndex((l) => l.id === over.id);
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    console.log('[DnD] indices', { oldIndex, newIndex, listLength: currentListings.length });
+
+    if (oldIndex === -1 || newIndex === -1) {
+      console.log('[DnD] item not found in localOrder');
+      return;
+    }
 
     const reordered = arrayMove(currentListings, oldIndex, newIndex);
     await persistRankChanges(reordered, `Deal moved to position ${newIndex + 1}`);
