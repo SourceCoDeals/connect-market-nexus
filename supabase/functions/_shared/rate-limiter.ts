@@ -131,27 +131,26 @@ export async function incrementConcurrent(
   } catch {
     // Fallback: use raw SQL to atomically increment (avoids SELECT-then-UPSERT race)
     try {
-      await supabase.rpc('exec_sql', {
+      const rpcResult = await supabase.rpc('exec_sql', {
         query: `INSERT INTO enrichment_rate_limits (provider, concurrent_requests, updated_at)
                 VALUES ($1, 1, now())
                 ON CONFLICT (provider)
                 DO UPDATE SET concurrent_requests = enrichment_rate_limits.concurrent_requests + 1,
                              updated_at = now()`,
         params: [provider],
-      }).catch(() => {
-        // exec_sql may not exist — last resort: read-then-increment (matches decrementConcurrent pattern)
-        return supabase.from('enrichment_rate_limits')
+      });
+      if (rpcResult.error) {
+        // exec_sql may not exist — last resort: read-then-increment
+        const { data } = await supabase.from('enrichment_rate_limits')
           .select('concurrent_requests')
           .eq('provider', provider)
-          .maybeSingle()
-          .then(({ data }) =>
-            supabase.from('enrichment_rate_limits').upsert({
-              provider,
-              concurrent_requests: (data?.concurrent_requests || 0) + 1,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'provider' })
-          );
-      });
+          .maybeSingle();
+        await supabase.from('enrichment_rate_limits').upsert({
+          provider,
+          concurrent_requests: (data?.concurrent_requests || 0) + 1,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'provider' });
+      }
     } catch (err) {
       console.warn(`[rate-limiter] Failed to increment concurrent for ${provider}:`, err);
     }
@@ -171,26 +170,25 @@ export async function decrementConcurrent(
   } catch {
     // Fallback: use raw SQL to atomically decrement
     try {
-      await supabase.rpc('exec_sql', {
+      const rpcResult = await supabase.rpc('exec_sql', {
         query: `UPDATE enrichment_rate_limits
                 SET concurrent_requests = GREATEST(0, concurrent_requests - 1),
                     updated_at = now()
                 WHERE provider = $1`,
         params: [provider],
-      }).catch(() => {
+      });
+      if (rpcResult.error) {
         // exec_sql may not exist — last resort: read-then-upsert
-        return supabase.from('enrichment_rate_limits')
+        const { data } = await supabase.from('enrichment_rate_limits')
           .select('concurrent_requests')
           .eq('provider', provider)
-          .maybeSingle()
-          .then(({ data }) =>
-            supabase.from('enrichment_rate_limits').upsert({
-              provider,
-              concurrent_requests: Math.max(0, (data?.concurrent_requests || 1) - 1),
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'provider' })
-          );
-      });
+          .maybeSingle();
+        await supabase.from('enrichment_rate_limits').upsert({
+          provider,
+          concurrent_requests: Math.max(0, (data?.concurrent_requests || 1) - 1),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'provider' });
+      }
     } catch (err) {
       console.warn(`[rate-limiter] Failed to decrement concurrent for ${provider}:`, err);
     }
