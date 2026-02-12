@@ -146,6 +146,16 @@ const COL = {
   phone: 14,
 };
 
+// ── Row data check (position-independent) ───────────────────────────
+// Returns true if any cell beyond col 0 has content.
+// Avoids false negatives when the sheet's column order doesn't match COL mapping.
+function rowHasData(row: string[]): boolean {
+  for (let c = 1; c < row.length; c++) {
+    if ((row[c] || "").trim()) return true;
+  }
+  return false;
+}
+
 // ── Parse service account key with resilient JSON handling ──────────
 
 function parseServiceAccountKey(raw: string): any {
@@ -192,7 +202,8 @@ async function rowToRecord(row: string[], captargetStatus: string): Promise<Reco
   return {
     captarget_row_hash: rowHash,
     captarget_client_name: clientName || null,
-    title: companyName || null,
+    // title is NOT NULL in listings — use fallback chain to avoid constraint violations
+    title: companyName || clientName || contactName || "Unnamed Deal",
     internal_company_name: companyName || null,
     captarget_contact_date: parseDate(dateRaw),
     captarget_call_notes: (row[COL.details] || "").trim() || null,
@@ -290,11 +301,19 @@ serve(async (req) => {
         continue;
       }
 
-      // Skip header row; filter out metadata rows
-      const dataRows = tabRows.slice(1).filter((row) => {
+      // Log header row for debugging column shifts
+      const headerRow = tabRows[0];
+      console.log(`Tab "${tab.name}" headers (${headerRow.length} cols): ${headerRow.slice(0, 15).join(' | ')}`);
+
+      // Skip header row; filter out metadata rows and truly empty rows
+      const allRows = tabRows.slice(1);
+      let filteredByMeta = 0;
+      let filteredByData = 0;
+      const dataRows = allRows.filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
-        if (firstCell === "last updated" || firstCell === "") return false;
-        return rowHasData(row);
+        if (firstCell === "last updated" || firstCell === "") { filteredByMeta++; return false; }
+        if (!rowHasData(row)) { filteredByData++; return false; }
+        return true;
       });
 
       const rowOffset = tabIdx === startTab ? startRow : 0;
@@ -302,7 +321,7 @@ serve(async (req) => {
       if (rowsThisTab <= 0) continue;
 
       rowsRead += rowsThisTab;
-      console.log(`Processing ${rowsThisTab} rows from tab "${tab.name}" (offset ${rowOffset})`);
+      console.log(`Tab "${tab.name}": ${allRows.length} total → ${dataRows.length} data rows (filtered: ${filteredByMeta} meta/empty-col0, ${filteredByData} no-data). Processing ${rowsThisTab} from offset ${rowOffset}.`);
 
       for (let i = rowOffset; i < dataRows.length; i += BATCH_SIZE) {
         // Timeout check BEFORE processing the next batch
