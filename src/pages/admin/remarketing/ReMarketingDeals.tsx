@@ -132,6 +132,7 @@ interface DealListing {
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
   google_review_count: number | null;
+  google_rating: number | null;
   is_priority_target: boolean | null;
   deal_quality_score: number | null;
   deal_total_score: number | null;
@@ -508,10 +509,14 @@ const SortableTableRow = ({
 
       {/* Google Reviews */}
       <TableCell className="text-right" style={{ width: columnWidths.googleReviews, minWidth: 50 }}>
-        {listing.google_review_count ? (
+        {listing.google_review_count || listing.google_rating ? (
           <div className="text-sm flex items-center justify-end gap-1">
-            <span>{listing.google_review_count.toLocaleString()}</span>
-            <span className="text-xs text-amber-500 font-medium">★</span>
+            {listing.google_rating != null && (
+              <span className="text-xs text-amber-500 font-medium">⭐ {listing.google_rating}</span>
+            )}
+            {listing.google_review_count != null && (
+              <span className="text-muted-foreground text-xs">({listing.google_review_count.toLocaleString()})</span>
+            )}
           </div>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -751,6 +756,7 @@ const ReMarketingDeals = () => {
           linkedin_employee_count,
           linkedin_employee_range,
           google_review_count,
+          google_rating,
           is_priority_target,
           deal_quality_score,
           deal_total_score,
