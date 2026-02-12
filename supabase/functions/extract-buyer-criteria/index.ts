@@ -493,6 +493,32 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
     };
   }
 
+  // Build target_buyer_types array from extracted buyer profiles
+  // This populates the TargetBuyerTypesPanel in the UI
+  const targetBuyerTypes = buyers.map((buyer: any, index: number) => ({
+    id: buyer.buyer_identity?.name
+      ? buyer.buyer_identity.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+      : `buyer_${index + 1}`,
+    rank: index + 1,
+    name: buyer.buyer_identity?.name || `Buyer ${index + 1}`,
+    description: buyer.buyer_profile?.strategic_rationale
+      || buyer.buyer_profile?.geographic_focus
+      || `${buyer.buyer_identity?.type || 'Unknown'} buyer targeting ${buyer.service_criteria?.target_services?.slice(0, 3).join(', ') || 'various services'}`,
+    locations_min: buyer.size_criteria?.location_range
+      ? parseInt(String(buyer.size_criteria.location_range).split('-')[0]) || undefined
+      : undefined,
+    locations_max: buyer.size_criteria?.location_range
+      ? parseInt(String(buyer.size_criteria.location_range).split('-').pop()) || undefined
+      : undefined,
+    revenue_per_location: undefined,
+    deal_requirements: buyer.buyer_profile?.typical_structure || undefined,
+    enabled: true,
+  })).filter((t: any) => t.name);
+
+  if (targetBuyerTypes.length > 0) {
+    universeUpdate.target_buyer_types = targetBuyerTypes;
+  }
+
   if (Object.keys(universeUpdate).length > 0) {
     const { error } = await supabase
       .from('remarketing_buyer_universes')
@@ -502,7 +528,7 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
     if (error) {
       console.error('[UNIVERSE_UPDATE_ERROR]', error);
     } else {
-      console.log(`[UNIVERSE_UPDATED] Applied ${Object.keys(universeUpdate).length} criteria sections from ${buyers.length} buyers`);
+      console.log(`[UNIVERSE_UPDATED] Applied ${Object.keys(universeUpdate).length} criteria sections (${targetBuyerTypes.length} buyer types) from ${buyers.length} buyers`);
     }
   }
 }
