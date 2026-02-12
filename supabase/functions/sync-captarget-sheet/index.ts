@@ -93,6 +93,23 @@ async function fetchSheetRows(
 
 // ── Normalisation helpers ───────────────────────────────────────────
 
+/**
+ * Matches the DB's normalize_domain() SQL function exactly:
+ * strips protocol, www., trailing dots, port, and path.
+ */
+function normalizeDomain(url: string | undefined | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "<UNKNOWN>") return null;
+  let d = trimmed.toLowerCase();
+  d = d.replace(/^[a-z]+:\/\//, "");  // strip protocol
+  d = d.replace(/^www\./, "");          // strip www.
+  d = d.split("/")[0];                  // strip path
+  d = d.split(":")[0];                  // strip port
+  d = d.replace(/\.+$/, "");           // strip trailing dots
+  return d || null;
+}
+
 function normalizeInterestType(raw: string | undefined): string {
   if (!raw) return "unknown";
   const lower = raw.trim().toLowerCase();
@@ -215,7 +232,7 @@ async function rowToRecord(row: string[], captargetStatus: string, tabName: stri
     main_contact_title: (row[COL.title] || "").trim() || null,
     captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
     captarget_interest_type: normalizeInterestType(row[COL.type]),
-    website: (row[COL.url] || "").trim() || null,
+    website: normalizeDomain(row[COL.url]) || (row[COL.url] || "").trim() || null,
     main_contact_phone: (row[COL.phone] || "").trim() || null,
     captarget_source_url: (row[COL.source_url] || "").trim() || null,
     captarget_status: captargetStatus,
@@ -441,15 +458,30 @@ serve(async (req) => {
                 if (!singleErr) {
                   rowsInserted++;
                 } else if (singleErr.message?.includes("duplicate key")) {
-                  // Find existing and update instead
-                  const { data: byHash } = await supabase
-                    .from("listings")
-                    .select("id")
-                    .eq("captarget_row_hash", record.captarget_row_hash)
-                    .maybeSingle();
-                  const existingId = byHash?.id;
+                  // Find existing by hash first, then by website variants
+                  let existingId: string | null = null;
+                  if (record.captarget_row_hash) {
+                    const { data: byHash } = await supabase
+                      .from("listings")
+                      .select("id")
+                      .eq("captarget_row_hash", record.captarget_row_hash)
+                      .maybeSingle();
+                    if (byHash) existingId = byHash.id;
+                  }
+                  if (!existingId && record.website) {
+                    // Try exact match + common URL variants (handles pre-normalization data)
+                    const domain = record.website;
+                    const { data: byWeb } = await supabase
+                      .from("listings")
+                      .select("id")
+                      .or(`website.eq.${domain},website.eq.https://${domain},website.eq.http://${domain},website.eq.https://www.${domain},website.eq.http://www.${domain},website.eq.www.${domain}`)
+                      .limit(1)
+                      .maybeSingle();
+                    if (byWeb) existingId = byWeb.id;
+                  }
                   if (existingId) {
                     const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash: _h, ...fallbackFields } = record;
+                    // Always write hash so future syncs can match by hash directly
                     const { error: upErr } = await supabase
                       .from("listings")
                       .update({ ...fallbackFields, captarget_row_hash: record.captarget_row_hash })
@@ -458,7 +490,7 @@ serve(async (req) => {
                     else { rowsSkipped++; syncErrors.push({ op: "fallback-update", error: upErr.message }); }
                   } else {
                     rowsSkipped++;
-                    syncErrors.push({ op: "insert-dup-no-match", hash: record.captarget_row_hash });
+                    syncErrors.push({ op: "insert-dup-no-match", hash: record.captarget_row_hash, website: record.website });
                   }
                 } else {
                   rowsSkipped++;
