@@ -666,7 +666,7 @@ export const AIResearchSection = ({
 
     } catch (error) {
       console.error('Clarification error:', error);
-      toast.error(`Failed to get clarifying questions: ${(error as Error).message}. Please check your Anthropic API key.`);
+      toast.error(`Failed to get clarifying questions: ${(error as Error).message}. Please check your Gemini API key.`);
       // Stay in idle state so the user can retry - don't silently skip to generation
        setClarifyingStatus({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: (error as Error).message });
       setState('idle');

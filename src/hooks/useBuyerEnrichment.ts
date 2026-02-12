@@ -43,9 +43,9 @@ export interface EnrichmentSummary {
   resetTime?: string;
 }
 
-// Claude has much higher rate limits than Gemini - can process more buyers in parallel
-const BATCH_SIZE = 3; // Increased from 2 now that we use Claude (only 2 AI calls per buyer instead of 6)
-const BATCH_DELAY_MS = 1500; // Reduced delay since Claude has ~100 RPM vs Gemini's 15 RPM
+// Gemini processing config
+const BATCH_SIZE = 3;
+const BATCH_DELAY_MS = 1500;
 
 // Shared abort signal for immediate fail-fast across parallel requests
 interface AbortState {
@@ -80,7 +80,7 @@ export function useBuyerEnrichment(universeId?: string) {
     } else if (status === 429) {
       message = `Rate limit exceeded. Too many requests. Try again later.`;
     } else if (status === 402) {
-      message = `API credits depleted. Please add credits to your Anthropic account.`;
+      message = `API credits depleted. Please add credits to your Gemini account.`;
     } else if (status === 500) {
       message = `Server error: ${json?.error || 'Internal server error'}. Check the edge function logs.`;
     } else if (status && !json?.error) {
