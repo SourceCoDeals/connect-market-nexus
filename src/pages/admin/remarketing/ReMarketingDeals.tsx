@@ -2186,11 +2186,32 @@ const ReMarketingDeals = () => {
                           onTogglePriority={handleTogglePriority}
                           onUpdateRank={async (dealId, newRank) => {
                             try {
-                              const { error } = await supabase
-                                .from('listings')
-                                .update({ manual_rank_override: newRank })
-                                .eq('id', dealId);
-                              if (error) throw error;
+                              // Insert-at-position reorder: move deal to newRank, shift others down
+                              const currentList = [...localOrder];
+                              const movedIndex = currentList.findIndex(l => l.id === dealId);
+                              if (movedIndex === -1) return;
+
+                              // Remove the deal from its current spot
+                              const [movedDeal] = currentList.splice(movedIndex, 1);
+
+                              // Insert at the target position (1-indexed → 0-indexed)
+                              const insertAt = Math.max(0, Math.min(newRank - 1, currentList.length));
+                              currentList.splice(insertAt, 0, movedDeal);
+
+                              // Re-number all deals sequentially
+                              const updates = currentList.map((l, idx) => ({
+                                id: l.id,
+                                rank: idx + 1,
+                              }));
+
+                              // Batch update all ranks
+                              for (const u of updates) {
+                                await supabase
+                                  .from('listings')
+                                  .update({ manual_rank_override: u.rank })
+                                  .eq('id', u.id);
+                              }
+
                               await queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
                               toast({ title: 'Position updated', description: `Deal moved to position ${newRank}` });
                             } catch (err: any) {
