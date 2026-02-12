@@ -1471,6 +1471,12 @@ For financial data, include confidence levels and source quotes where available.
       }
     }
 
+    // Protect manually-set internal_company_name from being overwritten by AI
+    if (deal.internal_company_name && extracted.internal_company_name) {
+      console.log(`[Enrichment] Preserving existing internal_company_name "${deal.internal_company_name}" (AI suggested: "${extracted.internal_company_name}")`);
+      delete extracted.internal_company_name;
+    }
+
     // Normalize geographic_states using shared module
     if (extracted.geographic_states) {
       extracted.geographic_states = normalizeStates(extracted.geographic_states as string[]);
