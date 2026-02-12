@@ -221,70 +221,80 @@ serve(async (req) => {
     // Load Google service account credentials
     const saKeyRaw = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!saKeyRaw) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY not configured");
-    const saKey = JSON.parse(saKeyRaw);
+    
+    // Resilient JSON parsing — handle common copy-paste issues
+    let saKey: any;
+    const cleanJson = (raw: string) => {
+      return raw
+        .trim()
+        // Remove BOM and zero-width characters
+        .replace(/^\uFEFF/, '')
+        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+        // Fix smart/curly quotes
+        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+        // Fix non-breaking spaces
+        .replace(/\u00A0/g, ' ')
+        // Normalize line endings and collapse whitespace between JSON tokens
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
+    };
+    
+    const cleaned = cleanJson(saKeyRaw);
+    try {
+      saKey = JSON.parse(cleaned);
+    } catch (e) {
+      console.error(`Parse error: ${(e as Error).message}`);
+      // Log char codes around failure point
+      const pos = parseInt(String((e as Error).message).match(/position (\d+)/)?.[1] || '0');
+      if (pos > 0) {
+        const around = cleaned.substring(Math.max(0, pos - 5), pos + 10);
+        const codes = [...around].map(c => `${c}(${c.charCodeAt(0)})`).join(' ');
+        console.error(`Chars around position ${pos}: ${codes}`);
+      }
+      throw new Error(`GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON: ${(e as Error).message}`);
+    }
+    if (!saKey.client_email || !saKey.private_key) {
+      throw new Error(`Service account key missing required fields. Keys found: ${Object.keys(saKey).join(', ')}`);
+    }
 
     const sheetId = Deno.env.get("CAPTARGET_SHEET_ID");
     if (!sheetId) throw new Error("CAPTARGET_SHEET_ID not configured");
 
-    // Authenticate
+    // Pull from both tabs — configurable via env, defaults to Active/Inactive
+    const activeTab = Deno.env.get("CAPTARGET_ACTIVE_TAB_NAME") || "Active Summary";
+    const inactiveTab = Deno.env.get("CAPTARGET_INACTIVE_TAB_NAME") || "Inactive Summary";
+    const tabs = [
+      { name: activeTab, captarget_status: "active" },
+      { name: inactiveTab, captarget_status: "inactive" },
+    ];
+
+    // Authenticate and fetch sheet data
     const accessToken = await getAccessToken(saKey);
 
-    // Determine which tabs to sync:
-    //   - CAPTARGET_TAB_NAMES (comma-separated) syncs specific tabs
-    //   - If not set, auto-discover ALL tabs in the spreadsheet
-    const tabNamesEnv = Deno.env.get("CAPTARGET_TAB_NAMES") || Deno.env.get("CAPTARGET_TAB_NAME");
-    let tabNames: string[];
-
-    if (tabNamesEnv) {
-      tabNames = tabNamesEnv.split(",").map((t) => t.trim()).filter(Boolean);
-    } else {
-      // Auto-discover all tabs
-      tabNames = await fetchTabNames(accessToken, sheetId);
-    }
-
-    if (tabNames.length === 0) {
-      throw new Error("No tabs found in spreadsheet");
-    }
-
-    console.log(`Will sync ${tabNames.length} tab(s): ${tabNames.join(", ")}`);
-
-    let timedOut = false;
-
-    // Process each tab
-    for (const tabName of tabNames) {
-      if (timedOut) break;
-
-      console.log(`Fetching tab: "${tabName}"`);
-      let allRows: string[][];
+    for (const tab of tabs) {
+      let tabRows: string[][];
       try {
-        allRows = await fetchSheetRows(accessToken, sheetId, tabName);
+        tabRows = await fetchSheetRows(accessToken, sheetId, tab.name);
       } catch (tabErr: any) {
-        console.error(`Failed to fetch tab "${tabName}":`, tabErr.message);
-        syncErrors.push({ tab: tabName, fatal: false, error: tabErr.message });
+        console.error(`Failed to fetch tab "${tab.name}":`, tabErr.message);
+        syncErrors.push({ tab: tab.name, error: tabErr.message });
         continue;
       }
 
-      if (allRows.length < 2) {
-        console.log(`Tab "${tabName}" has no data rows, skipping`);
+      if (tabRows.length < 2) {
+        console.log(`Tab "${tab.name}" has no data rows, skipping`);
         continue;
       }
 
-      tabsProcessed.push(tabName);
-
-      // Skip header row (row 0) and skip metadata rows like 'Last Updated'
-      // IMPORTANT: Do NOT skip rows just because column 0 is empty —
-      // many valid deals have data in other columns but no client_folder_name
-      const dataRows = allRows.slice(1).filter((row) => {
+      // Skip header row (row 0) and skip 'Last Updated' metadata row if present
+      const dataRows = tabRows.slice(1).filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
-        // Skip known metadata rows
-        if (firstCell === "last updated") return false;
-        // Keep any row that has meaningful deal data
-        return rowHasData(row);
+        return firstCell !== "last updated" && firstCell !== "";
       });
 
-      const tabRowsRead = dataRows.length;
-      rowsRead += tabRowsRead;
-      console.log(`Tab "${tabName}": ${tabRowsRead} data rows (of ${allRows.length - 1} total)`);
+      rowsRead += dataRows.length;
+      console.log(`Read ${dataRows.length} data rows from tab "${tab.name}"`);
 
       // Process in batches
       for (let i = 0; i < dataRows.length; i += BATCH_SIZE) {
@@ -292,37 +302,30 @@ serve(async (req) => {
         const batchRecords: any[] = [];
         const batchHashes: string[] = [];
 
-        // Pre-parse all rows and compute hashes in parallel
-        const parsed = batch.map((row, idx) => {
-          const clientName = (row[COL.client_folder_name] || "").trim();
-          const companyName = (row[COL.company_name] || "").trim();
-          const dateRaw = (row[COL.date] || "").trim();
-          const email = (row[COL.email] || "").trim();
-          const firstName = (row[COL.first_name] || "").trim();
-          const lastName = (row[COL.last_name] || "").trim();
-          const hashInput = `${tabName}|${clientName}|${companyName}|${dateRaw}|${email}|${firstName}|${lastName}`;
-          return { row, idx, clientName, companyName, dateRaw, email, firstName, lastName, hashInput };
-        });
-
-        const hashes = await Promise.all(parsed.map((p) => computeHash(p.hashInput)));
-
-        for (let j = 0; j < parsed.length; j++) {
+        for (const row of batch) {
           try {
-            const { row, idx, clientName, companyName, dateRaw, email, firstName, lastName } = parsed[j];
-            const rowHash = hashes[j];
+            const clientName = (row[COL.client_folder_name] || "").trim();
+            const companyName = (row[COL.company_name] || "").trim();
+            const dateRaw = (row[COL.date] || "").trim();
+            const firstName = (row[COL.first_name] || "").trim();
+            const lastName = (row[COL.last_name] || "").trim();
+
+            // Generate composite hash for dedup
+            const hashInput = `${clientName}|${companyName}|${dateRaw}`;
+            const rowHash = await computeHash(hashInput);
+
             const contactDate = parseDate(dateRaw);
             const contactName = [firstName, lastName].filter(Boolean).join(" ");
 
             const record: Record<string, any> = {
               captarget_row_hash: rowHash,
               captarget_client_name: clientName || null,
-              captarget_sheet_tab: tabName,
               title: companyName || null,
               internal_company_name: companyName || null,
               captarget_contact_date: contactDate,
               captarget_call_notes: (row[COL.details] || "").trim() || null,
               description: (row[COL.details] || "").trim() || null,
-              main_contact_email: email || null,
+              main_contact_email: (row[COL.email] || "").trim() || null,
               main_contact_name: contactName || null,
               main_contact_title: (row[COL.title] || "").trim() || null,
               captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
@@ -330,9 +333,11 @@ serve(async (req) => {
               website: (row[COL.url] || "").trim() || null,
               main_contact_phone: (row[COL.phone] || "").trim() || null,
               captarget_source_url: (row[COL.source_url] || "").trim() || null,
+              captarget_status: tab.captarget_status,
               deal_source: "captarget",
               status: "captarget_review",
               pushed_to_all_deals: false,
+              is_internal_deal: true,
             };
 
             batchRecords.push(record);
@@ -340,10 +345,10 @@ serve(async (req) => {
           } catch (rowErr: any) {
             rowsSkipped++;
             syncErrors.push({
-              tab: tabName,
-              row: i + parsed[j].idx + 2, // 1-indexed + header
+              tab: tab.name,
+              row: i + batch.indexOf(row) + 2,
               error: rowErr.message,
-              data: parsed[j].row.slice(0, 5),
+              data: row.slice(0, 5),
             });
           }
         }
@@ -359,7 +364,7 @@ serve(async (req) => {
         if (lookupErr) {
           console.error("Hash lookup error:", lookupErr);
           rowsSkipped += batchRecords.length;
-          syncErrors.push({ tab: tabName, batch: i, error: lookupErr.message });
+          syncErrors.push({ batch: i, error: lookupErr.message });
           continue;
         }
 
@@ -373,16 +378,13 @@ serve(async (req) => {
         for (const record of batchRecords) {
           const existingId = existingMap.get(record.captarget_row_hash);
           if (existingId) {
-            // Update existing — don't overwrite status or pushed flags
-            const { status, pushed_to_all_deals, deal_source, ...updateFields } =
-              record;
+            const { status, pushed_to_all_deals, deal_source, ...updateFields } = record;
             toUpdate.push({ id: existingId, record: updateFields });
           } else {
             toInsert.push(record);
           }
         }
 
-        // Batch insert new records
         if (toInsert.length > 0) {
           const { error: insertErr } = await supabase
             .from("listings")
@@ -391,39 +393,34 @@ serve(async (req) => {
           if (insertErr) {
             console.error("Insert error:", insertErr);
             rowsSkipped += toInsert.length;
-            syncErrors.push({ tab: tabName, batch: i, op: "insert", error: insertErr.message });
+            syncErrors.push({ batch: i, op: "insert", error: insertErr.message });
           } else {
             rowsInserted += toInsert.length;
           }
         }
 
-        // Batch update existing records via upsert on primary key
-        if (toUpdate.length > 0) {
-          const updateRecords = toUpdate.map(({ id, record }) => ({
-            id,
-            ...record,
-          }));
+        for (const { id, record } of toUpdate) {
           const { error: updateErr } = await supabase
             .from("listings")
-            .upsert(updateRecords, { onConflict: "id" });
+            .update(record)
+            .eq("id", id);
 
           if (updateErr) {
-            console.error("Batch update error:", updateErr);
-            rowsSkipped += toUpdate.length;
-            syncErrors.push({ tab: tabName, batch: i, op: "update", error: updateErr.message });
+            rowsSkipped++;
+            syncErrors.push({ id, op: "update", error: updateErr.message });
           } else {
-            rowsUpdated += toUpdate.length;
+            rowsUpdated++;
           }
         }
 
         // Check if we're approaching Edge Function timeout (50s)
         if (Date.now() - startTime > 45000) {
-          console.warn(`Approaching timeout during tab "${tabName}", committing partial sync`);
+          console.warn("Approaching timeout, committing partial sync");
           syncStatus = "partial";
-          timedOut = true;
           break;
         }
-      }
+
+      if (syncStatus === "partial") break;
     }
   } catch (err: any) {
     console.error("Sync failed:", err.message);

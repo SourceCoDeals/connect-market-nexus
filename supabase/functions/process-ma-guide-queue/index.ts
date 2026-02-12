@@ -367,14 +367,19 @@ const TOTAL_PHASES = 14;
  
      if (activeGen) {
        // Default to recoverable — only permanently fail on known-terminal errors.
-        // This is safer: unknown errors get retried by cron instead of killing the generation.
-        const isTerminal =
-          errorMessage.includes('400') ||
+        // Rate limits (429, 500 with "rate limit") are recoverable and should be retried by cron.
+        const isRateLimit =
+          errorMessage.toLowerCase().includes('rate limit') ||
+          errorMessage.includes('429') ||
+          errorMessage.includes('RESOURCE_EXHAUSTED') ||
+          errorMessage.includes('502') ||
+          errorMessage.includes('503');
+
+        const isTerminal = !isRateLimit && (
           errorMessage.includes('401') ||
           errorMessage.includes('403') ||
           errorMessage.includes('payment_required') ||
-          errorMessage.includes('invalid') ||
-          errorMessage.includes('Missing required');
+          errorMessage.includes('Missing required'));
 
        if (isTerminal) {
          await supabase
@@ -390,6 +395,19 @@ const TOTAL_PHASES = 14;
            .eq('id', activeGen.id);
 
          await completeGlobalQueueOperation(supabase, 'guide_generation', 'failed');
+       } else if (isRateLimit) {
+         // Rate-limited: store error info but keep as "processing" so cron retries
+         console.log(`[process-ma-guide-queue] Rate limit detected, leaving as processing for retry: ${errorMessage}`);
+         await supabase
+           .from('ma_guide_generations')
+           .update({
+             error: JSON.stringify({
+               message: errorMessage,
+               is_recoverable: true,
+               timestamp: new Date().toISOString()
+             })
+           })
+           .eq('id', activeGen.id);
        }
        // If recoverable, leave as processing for next cron run
      }

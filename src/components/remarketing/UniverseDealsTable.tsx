@@ -124,7 +124,7 @@ const getScoreTier = (score: number) => {
   return 'F';
 };
 
-type SortField = 'name' | 'description' | 'serviceArea' | 'approved' | 'interested' | 'passed' | 'added' | 'liEmployees' | 'googleReviews' | 'revenue' | 'ebitda' | 'quality' | 'sellerInterest' | 'score';
+type SortField = 'name' | 'description' | 'serviceArea' | 'approved' | 'interested' | 'passed' | 'added' | 'liCount' | 'liRange' | 'googleReviews' | 'googleRating' | 'revenue' | 'ebitda' | 'quality' | 'sellerInterest' | 'score';
 type SortDir = 'asc' | 'desc';
 
 const DEFAULT_WIDTHS: Record<string, number> = {
@@ -136,8 +136,10 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   interested: 60,
   passed: 60,
   added: 90,
-  liEmployees: 85,
-  googleReviews: 110,
+  liCount: 75,
+  liRange: 75,
+  googleReviews: 75,
+  googleRating: 70,
   revenue: 85,
   ebitda: 85,
   quality: 70,
@@ -253,8 +255,10 @@ export const UniverseDealsTable = ({
         case 'interested': valA = engA.interested; valB = engB.interested; break;
         case 'passed': valA = engA.passed; valB = engB.passed; break;
         case 'added': valA = new Date(a.added_at).getTime(); valB = new Date(b.added_at).getTime(); break;
-        case 'liEmployees': valA = a.listing.linkedin_employee_count || 0; valB = b.listing.linkedin_employee_count || 0; break;
+        case 'liCount': valA = a.listing.linkedin_employee_count || 0; valB = b.listing.linkedin_employee_count || 0; break;
+        case 'liRange': valA = (a.listing.linkedin_employee_range || ''); valB = (b.listing.linkedin_employee_range || ''); break;
         case 'googleReviews': valA = a.listing.google_review_count || 0; valB = b.listing.google_review_count || 0; break;
+        case 'googleRating': valA = a.listing.google_rating || 0; valB = b.listing.google_rating || 0; break;
         case 'revenue': valA = a.listing.revenue || 0; valB = b.listing.revenue || 0; break;
         case 'ebitda': valA = a.listing.ebitda || 0; valB = b.listing.ebitda || 0; break;
         case 'quality': valA = a.listing.deal_total_score ?? -1; valB = b.listing.deal_total_score ?? -1; break;
@@ -485,13 +489,21 @@ export const UniverseDealsTable = ({
                 <span className="flex items-center">Added <SortIcon field="added" /></span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('added', e)} />
               </TableHead>
-              <TableHead style={{ width: w('liEmployees') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('liEmployees')}>
-                <span className="flex items-center justify-center">LI Emp <SortIcon field="liEmployees" /></span>
-                <ResizeHandle onMouseDown={(e) => handleResizeStart('liEmployees', e)} />
+              <TableHead style={{ width: w('liCount') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('liCount')}>
+                <span className="flex items-center justify-end">LI Count <SortIcon field="liCount" /></span>
+                <ResizeHandle onMouseDown={(e) => handleResizeStart('liCount', e)} />
               </TableHead>
-              <TableHead style={{ width: w('googleReviews') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('googleReviews')}>
-                <span className="flex items-center justify-center">Google <SortIcon field="googleReviews" /></span>
+              <TableHead style={{ width: w('liRange') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('liRange')}>
+                <span className="flex items-center justify-end">LI Range <SortIcon field="liRange" /></span>
+                <ResizeHandle onMouseDown={(e) => handleResizeStart('liRange', e)} />
+              </TableHead>
+              <TableHead style={{ width: w('googleReviews') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('googleReviews')}>
+                <span className="flex items-center justify-end">Reviews <SortIcon field="googleReviews" /></span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('googleReviews', e)} />
+              </TableHead>
+              <TableHead style={{ width: w('googleRating') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('googleRating')}>
+                <span className="flex items-center justify-end">Rating <SortIcon field="googleRating" /></span>
+                <ResizeHandle onMouseDown={(e) => handleResizeStart('googleRating', e)} />
               </TableHead>
               <TableHead style={{ width: w('revenue') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('revenue')}>
                 <span className="flex items-center justify-end">Revenue <SortIcon field="revenue" /></span>
@@ -519,7 +531,7 @@ export const UniverseDealsTable = ({
           <TableBody>
             {sortedDeals.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={16} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={18} className="text-center py-12 text-muted-foreground">
                   <Target className="h-8 w-8 mx-auto mb-3 opacity-50" />
                   <p className="font-medium">{hasActiveFilters ? 'No deals match your filters' : 'No deals in this universe'}</p>
                   <p className="text-sm">{hasActiveFilters ? 'Try adjusting your filters' : 'Add deals to start matching with buyers'}</p>
@@ -622,29 +634,27 @@ export const UniverseDealsTable = ({
                       </span>
                     </TableCell>
 
-                    <TableCell style={{ width: w('liEmployees') }} className="text-center">
-                      {deal.listing.linkedin_employee_count ? (
-                        <Badge variant="secondary" className="text-xs font-medium">
-                          <span className="text-blue-600 mr-1">LI</span>
-                          {deal.listing.linkedin_employee_count.toLocaleString()}
-                        </Badge>
-                      ) : deal.listing.linkedin_employee_range ? (
-                        <Badge variant="secondary" className="text-xs">
-                          <span className="text-blue-600 mr-1">LI</span>
-                          {deal.listing.linkedin_employee_range}
-                        </Badge>
+                    <TableCell style={{ width: w('liCount') }} className="text-right">
+                      {deal.listing.linkedin_employee_count != null ? (
+                        <span className="text-sm tabular-nums">{deal.listing.linkedin_employee_count.toLocaleString()}</span>
                       ) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
 
-                    <TableCell style={{ width: w('googleReviews') }} className="text-center">
-                      {deal.listing.google_rating ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                          <span className="text-sm font-medium">{deal.listing.google_rating}</span>
-                          {deal.listing.google_review_count != null && (
-                            <span className="text-xs text-muted-foreground">({deal.listing.google_review_count})</span>
-                          )}
-                        </div>
+                    <TableCell style={{ width: w('liRange') }} className="text-right">
+                      {deal.listing.linkedin_employee_range ? (
+                        <span className="text-sm">{deal.listing.linkedin_employee_range}</span>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+
+                    <TableCell style={{ width: w('googleReviews') }} className="text-right">
+                      {deal.listing.google_review_count != null ? (
+                        <span className="text-sm tabular-nums">{deal.listing.google_review_count.toLocaleString()}</span>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+
+                    <TableCell style={{ width: w('googleRating') }} className="text-right">
+                      {deal.listing.google_rating != null ? (
+                        <span className="text-sm tabular-nums">⭐ {deal.listing.google_rating}</span>
                       ) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
 

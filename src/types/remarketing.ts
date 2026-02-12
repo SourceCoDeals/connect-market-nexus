@@ -176,6 +176,7 @@ export interface DocumentReference {
   id: string;
   name: string;
   url?: string;
+  path?: string;
   uploaded_at: string;
   type?: string;
   auto_generated?: boolean;

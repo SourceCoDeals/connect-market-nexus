@@ -1,61 +1,80 @@
 
 
-# Fix: Signup Broken Due to Missing `role` Column in `profiles` Table
+# Connect Google Sheet Sync (CapTarget)
 
-## Root Cause (Confirmed)
+The edge function code (`sync-captarget-sheet`) and database table (`captarget_sync_log`) already exist. We just need to wire up the final pieces to make it work.
 
-The `handle_new_user` database trigger function tries to INSERT into a **`role`** column on the `profiles` table (line 241 of the trigger), but **that column does not exist** in the table schema.
+## What's Already Done
+- Edge function code at `supabase/functions/sync-captarget-sheet/index.ts` -- fully written
+- `captarget_sync_log` table exists in the database
+- All required `listings` columns (`captarget_row_hash`, `captarget_client_name`, etc.) are in place
+- CapTarget Deals page exists at `/admin/remarketing/captarget-deals`
 
-The relevant line in the trigger:
-```sql
-INSERT INTO public.profiles (
-  ...
-  role,        -- LINE 241: THIS COLUMN DOES NOT EXIST
-  ...
-) VALUES (
-  ...
-  'buyer',     -- Hardcoded value for role
-  ...
-)
-```
+## What Needs to Happen
 
-The `profiles` table has `buyer_type` and `buyer_role` columns, but no plain `role` column. This causes a fatal error that aborts the entire signup transaction, preventing both the profile creation AND the auth user record from being saved.
+### Step 1: Register the Edge Function
+Add the `sync-captarget-sheet` entry to `supabase/config.toml` with `verify_jwt = false` (so it can be called by a cron or external trigger without auth).
 
-Our two previous fixes (adding `success` and `details` columns to `trigger_logs`) were necessary but did not resolve this deeper issue -- the trigger hits the `role` error first, then its EXCEPTION handler tries to log to `trigger_logs`, which previously also failed. Now that `trigger_logs` is fixed, the error handler works, but it still raises the original error via `RAISE`, so signup still fails.
+### Step 2: Add Required Secrets
+Two secrets need to be configured in Supabase:
 
-## The Fix
+1. **GOOGLE_SERVICE_ACCOUNT_KEY** -- A Google Cloud service account JSON key with Sheets API read access. You'll need to:
+   - Create a service account in Google Cloud Console
+   - Enable the Google Sheets API
+   - Share the target Google Sheet with the service account email
+   - Download the JSON key file and paste its contents as the secret value
 
-A single database migration that does two things:
+2. **CAPTARGET_SHEET_ID** -- The ID from the Google Sheet URL (the long string between `/d/` and `/edit` in the sheet URL)
 
-1. **Add the missing `role` column** to the `profiles` table:
-   ```sql
-   ALTER TABLE public.profiles 
-     ADD COLUMN IF NOT EXISTS role text DEFAULT 'buyer';
-   ```
+3. Optionally: **CAPTARGET_TAB_NAME** -- defaults to "Sheet1" if not set
 
-2. **Backfill existing rows** so they all have a sensible default:
-   ```sql
-   UPDATE public.profiles 
-     SET role = 'buyer' 
-     WHERE role IS NULL;
-   ```
+### Step 3: Deploy and Test
+Deploy the edge function and run a test sync to confirm data flows from the sheet into the `listings` table with `deal_source = 'captarget'` and `status = 'captarget_review'`.
 
-## Why This Is the Right Fix
+### Step 4: Near-Real-Time Trigger (Optional Enhancement)
+For automatic syncing, one of these approaches:
+- **Supabase Cron** (simplest): Call the function every 5-10 minutes via `pg_cron`
+- **Google Apps Script trigger**: Add an `onEdit` script to the Sheet that calls the edge function URL whenever a row changes
 
-The alternative would be to rewrite the trigger function to remove the `role` reference, but:
-- The trigger is massive (~420 lines) and is the core of the signup flow
-- `role` is referenced in other parts of the codebase (`NonMarketplaceUsersTable.tsx`, the `User` type, etc.)
-- Adding the column is non-destructive and aligns with what the trigger and frontend both expect
-
-## Steps
-
-1. Run a SQL migration to add the `role` column to `profiles` with a default of `'buyer'`
-2. Backfill existing rows
-3. Publish to push the migration to the Live database
-4. Test signup end-to-end
+---
 
 ## Technical Details
 
-- **Files changed**: One new SQL migration file only. No frontend code changes needed.
-- **Risk**: Very low -- this is adding a column with a default value, which is a non-blocking operation in PostgreSQL.
-- **Downstream impact**: The `User` type in the frontend already expects a `role` field, so this will also fix any places where `user.role` was returning `undefined`.
+### Config.toml Addition
+```toml
+[functions.sync-captarget-sheet]
+verify_jwt = false
+```
+
+### Data Flow
+```text
+Google Sheet (new/edited rows)
+       |
+       v
+sync-captarget-sheet edge function
+       |
+       +-- Authenticates via service account JWT
+       +-- Fetches all rows from the sheet
+       +-- Deduplicates using SHA-256 hash of (client_name | company_name | date)
+       +-- Inserts new rows / updates existing rows in `listings` table
+       +-- Logs results to `captarget_sync_log`
+       |
+       v
+CapTarget Deals page (/admin/remarketing/captarget-deals)
+```
+
+### Sheet Column Mapping (already coded)
+| Sheet Column | Database Field |
+|---|---|
+| client_folder_name | captarget_client_name |
+| Company Name | title, internal_company_name |
+| Date | captarget_contact_date |
+| Details | captarget_call_notes, description |
+| Email | main_contact_email |
+| First Name + Last Name | main_contact_name |
+| Response | captarget_outreach_channel |
+| Title | main_contact_title |
+| Type | captarget_interest_type |
+| URL | website |
+| Phone | primary_contact_phone |
+

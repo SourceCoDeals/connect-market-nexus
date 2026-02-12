@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { normalizeStates, mergeStates } from "../_shared/geography.ts";
+import { normalizeState, normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
@@ -808,6 +808,13 @@ serve(async (req) => {
       );
     }
 
+    // Handle multiple comma-separated URLs — take the first one
+    if (websiteUrl.includes(',')) {
+      const urls = websiteUrl.split(',').map((u: string) => u.trim()).filter(Boolean);
+      websiteUrl = urls[0];
+      console.log(`Multiple URLs detected, using first: "${websiteUrl}" (from ${urls.length} URLs)`);
+    }
+
     // Ensure proper URL format
     if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
       websiteUrl = `https://${websiteUrl}`;
@@ -1447,18 +1454,7 @@ For financial data, include confidence levels and source quotes where available.
       extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
       if (ebitdaData.source_quote) extracted.ebitda_source_quote = ebitdaData.source_quote;
     }
-    if (ebitdaMarginPct && typeof ebitdaMarginPct === 'number') {
-      extracted.ebitda_margin = ebitdaMarginPct / 100; // Store as decimal
-    }
-    // SPEC: Calculate EBITDA from revenue × margin if amount not provided
-    if (!ebitdaAmount && ebitdaMarginPct && revenueValue) {
-      const calculatedEbitda = revenueValue * (ebitdaMarginPct / 100);
-      extracted.ebitda = calculatedEbitda;
-      extracted.ebitda_is_inferred = true;
-      extracted.ebitda_source_quote = `Calculated: ${revenueValue / 1000000}M revenue × ${ebitdaMarginPct}% margin`;
-      extracted.ebitda_confidence = 'medium';
-      console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()} (${ebitdaMarginPct}% of ${revenueValue / 1000000}M)`);
-    }
+    // (EBITDA margin calculation already handled above)
     // Clean up flattened fields that don't map to DB columns
     delete extracted.ebitda_amount;
     delete extracted.ebitda_margin_percentage;
@@ -1495,11 +1491,11 @@ For financial data, include confidence levels and source quotes where available.
     ]);
     const CA_PROVINCE_CODES = new Set(['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']);
 
-    // Validate address_state
+    // Normalize address_state to 2-letter code (handles full names like "Florida" -> "FL")
     if (extracted.address_state) {
-      const stateStr = String(extracted.address_state).trim().toUpperCase();
-      if (stateStr.length === 2 && (US_STATE_CODES.has(stateStr) || CA_PROVINCE_CODES.has(stateStr))) {
-        extracted.address_state = stateStr;
+      const normalized = normalizeState(String(extracted.address_state));
+      if (normalized && (US_STATE_CODES.has(normalized) || CA_PROVINCE_CODES.has(normalized))) {
+        extracted.address_state = normalized;
       } else {
         console.log(`Rejecting invalid address_state: "${extracted.address_state}"`);
         delete extracted.address_state;

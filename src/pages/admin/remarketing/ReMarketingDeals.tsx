@@ -132,6 +132,7 @@ interface DealListing {
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
   google_review_count: number | null;
+  google_rating: number | null;
   is_priority_target: boolean | null;
   deal_quality_score: number | null;
   deal_total_score: number | null;
@@ -161,6 +162,7 @@ interface ColumnWidths {
   linkedinCount: number;
   linkedinRange: number;
   googleReviews: number;
+  googleRating: number;
   quality: number;
   sellerInterest: number;
   engagement: number;
@@ -181,6 +183,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   linkedinCount: 70,
   linkedinRange: 80,
   googleReviews: 70,
+  googleRating: 60,
   quality: 80,
   sellerInterest: 90,
   engagement: 130,
@@ -508,11 +511,17 @@ const SortableTableRow = ({
 
       {/* Google Reviews */}
       <TableCell className="text-right" style={{ width: columnWidths.googleReviews, minWidth: 50 }}>
-        {listing.google_review_count ? (
-          <div className="text-sm flex items-center justify-end gap-1">
-            <span>{listing.google_review_count.toLocaleString()}</span>
-            <span className="text-xs text-amber-500 font-medium">★</span>
-          </div>
+        {listing.google_review_count != null ? (
+          <span className="text-sm tabular-nums">{listing.google_review_count.toLocaleString()}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
+      {/* Google Rating */}
+      <TableCell className="text-right" style={{ width: columnWidths.googleRating, minWidth: 50 }}>
+        {listing.google_rating != null ? (
+          <span className="text-sm tabular-nums">⭐ {listing.google_rating}</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
@@ -751,6 +760,7 @@ const ReMarketingDeals = () => {
           linkedin_employee_count,
           linkedin_employee_range,
           google_review_count,
+          google_rating,
           is_priority_target,
           deal_quality_score,
           deal_total_score,
@@ -1125,6 +1135,10 @@ const ReMarketingDeals = () => {
         case "googleReviews":
           aVal = a.google_review_count || 0;
           bVal = b.google_review_count || 0;
+          break;
+        case "googleRating":
+          aVal = a.google_rating || 0;
+          bVal = b.google_rating || 0;
           break;
         case "score":
           aVal = a.deal_total_score ?? 0;
@@ -2024,6 +2038,9 @@ const ReMarketingDeals = () => {
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.googleReviews} onResize={(w) => handleColumnResize('googleReviews', w)} minWidth={50} className="text-right">
                       <SortableHeader column="googleReviews" label="Reviews" className="ml-auto" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.googleRating} onResize={(w) => handleColumnResize('googleRating', w)} minWidth={50} className="text-right">
+                      <SortableHeader column="googleRating" label="Rating" className="ml-auto" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.quality} onResize={(w) => handleColumnResize('quality', w)} minWidth={50} className="text-center">
                       <SortableHeader column="score" label="Quality" className="mx-auto" />

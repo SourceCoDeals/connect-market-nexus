@@ -69,91 +69,96 @@ export function useAlignmentScoring(universeId: string | undefined) {
         creditsDepleted: false,
       });
 
-      const BATCH_SIZE = 3;
-      const DELAY_BETWEEN_BATCHES = 2000;
+      const MAX_RETRIES = 3;
+      const BASE_DELAY = 4000; // 4s between requests
       let successful = 0;
       let failed = 0;
 
       try {
-        for (let i = 0; i < unscoredBuyers.length; i += BATCH_SIZE) {
+        for (let i = 0; i < unscoredBuyers.length; i++) {
           if (cancelRef.current) {
             toast.info("Alignment scoring cancelled");
             break;
           }
 
-          const batch = unscoredBuyers.slice(i, i + BATCH_SIZE);
+          const buyer = unscoredBuyers[i];
+          let scored = false;
 
-          // Process batch in parallel
-          const batchResults = await Promise.allSettled(
-            batch.map((buyer) =>
-              supabase.functions.invoke("score-industry-alignment", {
-                body: {
-                  buyerId: buyer.id,
-                  universeId,
-                },
-              })
-            )
-          );
+          for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            if (cancelRef.current) break;
 
-          // Process results
-          for (const result of batchResults) {
-            if (result.status === "fulfilled") {
-              const response = result.value;
-              
-              // Check for M&A guide missing error
-              if (response.data?.error_code === "ma_guide_missing") {
-                toast.error(
-                  "M&A Guide required. Please create an industry guide before scoring.",
-                  { duration: 10000 }
-                );
-                cancelRef.current = true;
-                break;
-              }
+            // On retry, wait with exponential backoff
+            if (attempt > 0) {
+              const backoff = BASE_DELAY * Math.pow(2, attempt); // 8s, 16s
+              console.log(`Retry ${attempt} for ${buyer.company_name}, waiting ${backoff}ms`);
+              await new Promise((resolve) => setTimeout(resolve, backoff));
+            }
 
-              // Check for credit errors
-              if (response.data?.error_code === "payment_required") {
-                setProgress((prev) => ({ ...prev, creditsDepleted: true }));
-                toast.error(
-                  "AI credits depleted. Please add credits to continue scoring.",
-                  { duration: 10000 }
-                );
-                cancelRef.current = true;
-                break;
-              }
+            const response = await supabase.functions.invoke("score-industry-alignment", {
+              body: { buyerId: buyer.id, universeId },
+            });
 
-              if (response.data?.error_code === "rate_limited") {
-                failed++;
-                console.warn("Rate limited, will continue with delay");
-              } else if (response.data?.success) {
-                successful++;
-              } else if (response.error) {
-                failed++;
-                console.error("Scoring error:", response.error);
-              } else {
-                successful++;
-              }
-            } else {
+            // Check for M&A guide missing error
+            if (response.data?.error_code === "ma_guide_missing") {
+              toast.error(
+                "M&A Guide required. Please create an industry guide before scoring.",
+                { duration: 10000 }
+              );
+              cancelRef.current = true;
+              break;
+            }
+
+            // Check for credit errors
+            if (response.data?.error_code === "payment_required") {
+              setProgress((prev) => ({ ...prev, creditsDepleted: true }));
+              toast.error(
+                "AI credits depleted. Please add credits to continue scoring.",
+                { duration: 10000 }
+              );
+              cancelRef.current = true;
+              break;
+            }
+
+            if (response.data?.error_code === "rate_limited") {
+              console.warn(`Rate limited on ${buyer.company_name}, attempt ${attempt + 1}`);
+              // Will retry after backoff
+              continue;
+            }
+
+            if (response.data?.success || (!response.error && !response.data?.error_code)) {
+              successful++;
+              scored = true;
+              break;
+            }
+
+            if (response.error) {
+              console.error("Scoring error:", response.error);
               failed++;
-              console.error("Batch scoring error:", result.reason);
+              scored = true; // Don't retry non-rate-limit errors
+              break;
             }
           }
 
-          // Check if we need to stop due to credits
+          if (!scored && !cancelRef.current) {
+            failed++;
+            console.warn(`Failed after ${MAX_RETRIES} retries: ${buyer.company_name}`);
+          }
+
+          // Check if we need to stop
           if (cancelRef.current) break;
 
           // Update progress
-          const current = Math.min(i + BATCH_SIZE, unscoredBuyers.length);
           setProgress({
-            current,
+            current: i + 1,
             total: unscoredBuyers.length,
             successful,
             failed,
             creditsDepleted: false,
           });
 
-          // Wait between batches
-          if (i + BATCH_SIZE < unscoredBuyers.length && !cancelRef.current) {
-            await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+          // Delay before next buyer
+          if (i + 1 < unscoredBuyers.length && !cancelRef.current) {
+            await new Promise((resolve) => setTimeout(resolve, BASE_DELAY));
           }
         }
 
