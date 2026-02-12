@@ -6,7 +6,7 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 250;
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
@@ -70,6 +70,26 @@ async function getAccessToken(serviceAccountKey: any): Promise<string> {
   return tokenData.access_token;
 }
 
+// ── Fetch all tab names from spreadsheet metadata ───────────────────
+
+async function fetchTabNames(
+  accessToken: string,
+  sheetId: string
+): Promise<string[]> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Sheets metadata error: ${resp.status} – ${errText}`);
+  }
+
+  const data = await resp.json();
+  return (data.sheets || []).map((s: any) => s.properties.title as string);
+}
+
 async function fetchSheetRows(
   accessToken: string,
   sheetId: string,
@@ -82,7 +102,7 @@ async function fetchSheetRows(
 
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`Sheets API error: ${resp.status} – ${errText}`);
+    throw new Error(`Sheets API error for tab "${tabName}": ${resp.status} – ${errText}`);
   }
 
   const data = await resp.json();
@@ -169,6 +189,16 @@ const COL = {
   phone: 14,
 };
 
+// Check if a row has any meaningful data beyond just the first cell
+function rowHasData(row: string[]): boolean {
+  // A row is valid if it has data in at least one of: company_name, email, first_name, last_name
+  const companyName = (row[COL.company_name] || "").trim();
+  const email = (row[COL.email] || "").trim();
+  const firstName = (row[COL.first_name] || "").trim();
+  const lastName = (row[COL.last_name] || "").trim();
+  return !!(companyName || email || firstName || lastName);
+}
+
 // ── Main handler ────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -185,6 +215,7 @@ serve(async (req) => {
   let rowsUpdated = 0;
   let rowsSkipped = 0;
   let syncStatus = "success";
+  const tabsProcessed: string[] = [];
 
   try {
     // Load Google service account credentials
@@ -388,7 +419,6 @@ serve(async (req) => {
           syncStatus = "partial";
           break;
         }
-      }
 
       if (syncStatus === "partial") break;
     }
@@ -418,6 +448,7 @@ serve(async (req) => {
   const result = {
     success: syncStatus !== "failed",
     status: syncStatus,
+    tabs_synced: tabsProcessed,
     rows_read: rowsRead,
     rows_inserted: rowsInserted,
     rows_updated: rowsUpdated,
