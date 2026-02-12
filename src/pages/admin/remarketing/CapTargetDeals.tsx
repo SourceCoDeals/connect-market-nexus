@@ -617,13 +617,30 @@ export default function CapTargetDeals() {
             disabled={isSyncing}
             onClick={async () => {
               setIsSyncing(true);
+              let totalInserted = 0;
+              let totalUpdated = 0;
+              let totalSkipped = 0;
+              let page = { startTab: 0, startRow: 0 };
               try {
-                const { data, error } = await supabase.functions.invoke('sync-captarget-sheet', {
-                  body: {}
-                });
-                if (error) throw error;
+                let hasMore = true;
+                while (hasMore) {
+                  const { data, error } = await supabase.functions.invoke('sync-captarget-sheet', {
+                    body: page
+                  });
+                  if (error) throw error;
+                  totalInserted += data?.rows_inserted ?? 0;
+                  totalUpdated += data?.rows_updated ?? 0;
+                  totalSkipped += data?.rows_skipped ?? 0;
+                  hasMore = data?.hasMore === true;
+                  if (hasMore) {
+                    page = { startTab: data.nextTab, startRow: data.nextRow };
+                    sonnerToast.info('Sync in progress...', {
+                      description: `So far: +${totalInserted} inserted, ~${totalUpdated} updated. Continuing...`
+                    });
+                  }
+                }
                 sonnerToast.success('Sync complete', {
-                  description: `Inserted: ${data?.rows_inserted ?? 0}, Updated: ${data?.rows_updated ?? 0}, Skipped: ${data?.rows_skipped ?? 0}`
+                  description: `Inserted: ${totalInserted}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}`
                 });
                 refetch();
               } catch (e: any) {
