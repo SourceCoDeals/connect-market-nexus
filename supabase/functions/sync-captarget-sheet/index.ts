@@ -302,17 +302,24 @@ serve(async (req) => {
         const batchRecords: any[] = [];
         const batchHashes: string[] = [];
 
-        for (const row of batch) {
+        // Parallelize hash computation — all rows in the batch at once
+        const hashPromises = batch.map((row) => {
+          const clientName = (row[COL.client_folder_name] || "").trim();
+          const companyName = (row[COL.company_name] || "").trim();
+          const dateRaw = (row[COL.date] || "").trim();
+          return computeHash(`${clientName}|${companyName}|${dateRaw}`);
+        });
+        const hashes = await Promise.all(hashPromises);
+
+        for (let j = 0; j < batch.length; j++) {
+          const row = batch[j];
           try {
             const clientName = (row[COL.client_folder_name] || "").trim();
             const companyName = (row[COL.company_name] || "").trim();
             const dateRaw = (row[COL.date] || "").trim();
             const firstName = (row[COL.first_name] || "").trim();
             const lastName = (row[COL.last_name] || "").trim();
-
-            // Generate composite hash for dedup
-            const hashInput = `${clientName}|${companyName}|${dateRaw}`;
-            const rowHash = await computeHash(hashInput);
+            const rowHash = hashes[j];
 
             const contactDate = parseDate(dateRaw);
             const contactName = [firstName, lastName].filter(Boolean).join(" ");
@@ -346,7 +353,7 @@ serve(async (req) => {
             rowsSkipped++;
             syncErrors.push({
               tab: tab.name,
-              row: i + batch.indexOf(row) + 2,
+              row: i + j + 2,
               error: rowErr.message,
               data: row.slice(0, 5),
             });
@@ -399,17 +406,26 @@ serve(async (req) => {
           }
         }
 
-        for (const { id, record } of toUpdate) {
-          const { error: updateErr } = await supabase
-            .from("listings")
-            .update(record)
-            .eq("id", id);
-
-          if (updateErr) {
-            rowsSkipped++;
-            syncErrors.push({ id, op: "update", error: updateErr.message });
-          } else {
-            rowsUpdated++;
+        // Batch updates in parallel chunks of 50 to avoid sequential bottleneck
+        const UPDATE_CHUNK = 50;
+        for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
+          const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
+          const results = await Promise.all(
+            chunk.map(({ id, record }) =>
+              supabase
+                .from("listings")
+                .update(record)
+                .eq("id", id)
+                .then(({ error }) => ({ id, error }))
+            )
+          );
+          for (const { id, error: updateErr } of results) {
+            if (updateErr) {
+              rowsSkipped++;
+              syncErrors.push({ id, op: "update", error: updateErr.message });
+            } else {
+              rowsUpdated++;
+            }
           }
         }
 
@@ -419,7 +435,9 @@ serve(async (req) => {
           syncStatus = "partial";
           break;
         }
+      }
 
+      tabsProcessed.push(tab.name);
       if (syncStatus === "partial") break;
     }
   } catch (err: any) {
