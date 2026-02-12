@@ -475,9 +475,8 @@ serve(async (req) => {
                       .from("listings")
                       .select("id")
                       .or(`website.eq.${domain},website.eq.https://${domain},website.eq.http://${domain},website.eq.https://www.${domain},website.eq.http://www.${domain},website.eq.www.${domain}`)
-                      .limit(1)
-                      .maybeSingle();
-                    if (byWeb) existingId = byWeb.id;
+                      .limit(1);
+                    if (byWeb && byWeb.length === 1) existingId = byWeb[0].id;
                   }
                   if (existingId) {
                     const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash: _h, ...fallbackFields } = record;
@@ -489,8 +488,18 @@ serve(async (req) => {
                     if (!upErr) rowsUpdated++;
                     else { rowsSkipped++; syncErrors.push({ op: "fallback-update", error: upErr.message }); }
                   } else {
-                    rowsSkipped++;
-                    syncErrors.push({ op: "insert-dup-no-match", hash: record.captarget_row_hash, website: record.website });
+                    // Duplicate is likely on website unique index — retry insert without website
+                    // so multiple contacts at the same company each get their own listing row
+                    const { website: _w, ...recordWithoutWebsite } = record;
+                    const { error: retryErr } = await supabase
+                      .from("listings")
+                      .insert(recordWithoutWebsite);
+                    if (!retryErr) {
+                      rowsInserted++;
+                    } else {
+                      rowsSkipped++;
+                      syncErrors.push({ op: "insert-dup-no-match", hash: record.captarget_row_hash, website: record.website });
+                    }
                   }
                 } else {
                   rowsSkipped++;
