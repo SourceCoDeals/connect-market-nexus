@@ -146,6 +146,18 @@ const COL = {
   phone: 14,
 };
 
+/**
+ * Check if a row has meaningful data (not just empty cells)
+ */
+function rowHasData(row: string[]): boolean {
+  // A row has data if at least one of: company_name, client_folder_name, email, or first_name is non-empty
+  const companyName = (row[COL.company_name] || "").trim();
+  const clientName = (row[COL.client_folder_name] || "").trim();
+  const email = (row[COL.email] || "").trim();
+  const firstName = (row[COL.first_name] || "").trim();
+  return !!(companyName || clientName || email || firstName);
+}
+
 // ── Parse service account key with resilient JSON handling ──────────
 
 function parseServiceAccountKey(raw: string): any {
@@ -192,7 +204,7 @@ async function rowToRecord(row: string[], captargetStatus: string): Promise<Reco
   return {
     captarget_row_hash: rowHash,
     captarget_client_name: clientName || null,
-    title: companyName || null,
+    title: companyName || clientName || contactName || "Unnamed Deal",
     internal_company_name: companyName || null,
     captarget_contact_date: parseDate(dateRaw),
     captarget_call_notes: (row[COL.details] || "").trim() || null,
@@ -289,6 +301,9 @@ serve(async (req) => {
         console.log(`Tab "${tab.name}" has no data rows, skipping`);
         continue;
       }
+
+      // Log header row for debugging
+      console.log(`Header row for "${tab.name}":`, JSON.stringify(tabRows[0]?.slice(0, 15)));
 
       // Skip header row; filter out metadata rows
       const dataRows = tabRows.slice(1).filter((row) => {
