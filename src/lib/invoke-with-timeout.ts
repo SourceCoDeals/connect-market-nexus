@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-const DEFAULT_TIMEOUT_MS = 60_000; // 60 seconds
+const DEFAULT_TIMEOUT_MS = 90_000; // 90 seconds — longer than Supabase 60s edge limit
 
 interface InvokeOptions {
   body?: Record<string, unknown>;

@@ -1,7 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +136,7 @@ export default function CapTargetDeals() {
   const [isEnriching, setIsEnriching] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const syncAbortRef = useRef<AbortController | null>(null);
   const [syncProgress, setSyncProgress] = useState({ inserted: 0, updated: 0, skipped: 0, page: 0 });
   const [syncSummaryOpen, setSyncSummaryOpen] = useState(false);
   const [syncSummary, setSyncSummary] = useState<{ inserted: number; updated: number; skipped: number; status: "success" | "error"; message?: string } | null>(null);
@@ -494,8 +496,9 @@ export default function CapTargetDeals() {
       let queued = 0;
       for (const id of dealIds) {
         try {
-          await supabase.functions.invoke("enrich-deal", {
+          await invokeWithTimeout("enrich-deal", {
             body: { dealId: id },
+            timeoutMs: 90_000,
           });
           queued++;
         } catch (err) {
@@ -627,6 +630,8 @@ export default function CapTargetDeals() {
             size="sm"
             disabled={isSyncing}
             onClick={async () => {
+              const abortCtrl = new AbortController();
+              syncAbortRef.current = abortCtrl;
               setIsSyncing(true);
               setSyncProgress({ inserted: 0, updated: 0, skipped: 0, page: 0 });
               let totalInserted = 0;
@@ -637,6 +642,12 @@ export default function CapTargetDeals() {
               try {
                 let hasMore = true;
                 while (hasMore) {
+                  if (abortCtrl.signal.aborted) {
+                    setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, status: "success", message: "Sync cancelled by user" });
+                    setSyncSummaryOpen(true);
+                    refetch();
+                    return;
+                  }
                   pageNum++;
                   const { data, error } = await supabase.functions.invoke('sync-captarget-sheet', {
                     body: page
@@ -659,6 +670,7 @@ export default function CapTargetDeals() {
                 setSyncSummaryOpen(true);
               } finally {
                 setIsSyncing(false);
+                syncAbortRef.current = null;
               }
             }}
           >
@@ -680,6 +692,14 @@ export default function CapTargetDeals() {
                 </div>
                 <Progress value={undefined} className="h-1.5 animate-pulse" />
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                onClick={() => syncAbortRef.current?.abort()}
+              >
+                Cancel
+              </Button>
             </div>
           )}
 

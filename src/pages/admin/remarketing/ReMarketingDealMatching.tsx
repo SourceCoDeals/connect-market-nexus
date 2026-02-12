@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -555,15 +556,16 @@ const ReMarketingDealMatching = () => {
     setScoringProgress(10);
 
     try {
-      const { data, error } = await supabase.functions.invoke('score-buyer-deal', {
+      const { data, error } = await invokeWithTimeout<any>('score-buyer-deal', {
         body: {
           bulk: true,
           listingId,
           universeId: selectedUniverse,
           customInstructions: instructions || customInstructions || undefined,
           geographyMode: geographyMode !== 'critical' ? geographyMode : undefined,
-          options: { rescoreExisting: !!instructions } // Force rescore when using custom instructions
-        }
+          options: { rescoreExisting: !!instructions }
+        },
+        timeoutMs: 120_000,
       });
 
       if (error) {

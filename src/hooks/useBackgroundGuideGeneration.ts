@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
 import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
 
@@ -97,8 +98,9 @@ export function useBackgroundGuideGeneration({
       }
 
       // Call the background generation endpoint using supabase functions invoke
-      const { data, error } = await supabase.functions.invoke('generate-ma-guide-background', {
-        body: { universe_id: universeId }
+      const { data, error } = await invokeWithTimeout<{ generation_id: string }>('generate-ma-guide-background', {
+        body: { universe_id: universeId },
+        timeoutMs: 120_000,
       });
 
       if (error) {

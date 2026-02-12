@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createEdgeTimeoutSignal } from "../_shared/edge-timeout.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { calculateProximityScore, getProximityTier, normalizeStateCode } from "../_shared/geography-utils.ts";
@@ -210,6 +211,8 @@ async function fetchWithRetry(
 // ============================================================================
 
 serve(async (req) => {
+  const _edgeStartTime = Date.now();
+  const _edgeTimeout = createEdgeTimeoutSignal(_edgeStartTime);
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -230,7 +233,7 @@ serve(async (req) => {
     const isBulk = body.bulk === true;
 
     if (isBulk) {
-      return await handleBulkScore(supabase, body as BulkScoreRequest, GEMINI_API_KEY, corsHeaders);
+      return await handleBulkScore(supabase, body as BulkScoreRequest, GEMINI_API_KEY, corsHeaders, _edgeTimeout);
     } else {
       return await handleSingleScore(supabase, body as ScoreRequest, GEMINI_API_KEY, corsHeaders);
     }
@@ -1789,7 +1792,8 @@ async function handleBulkScore(
   supabase: any,
   request: BulkScoreRequest,
   apiKey: string,
-  corsHeaders: Record<string, string>
+  corsHeaders: Record<string, string>,
+  edgeTimeout?: ReturnType<typeof createEdgeTimeoutSignal>
 ) {
   const { listingId, universeId, buyerIds, customInstructions, geographyMode, options } = request;
   const rescoreExisting = options?.rescoreExisting ?? false;
@@ -1923,6 +1927,12 @@ async function handleBulkScore(
     // Check if operation was paused by user
     if (await isOperationPaused(supabase, 'buyer_scoring')) {
       console.log('Scoring paused by user — stopping processing');
+      break;
+    }
+    // Check edge function timeout
+    if (edgeTimeout?.isTimedOut()) {
+      console.warn(`Edge timeout reached at buyer batch ${i}/${buyersToScore.length} — returning partial results`);
+      errors.push('Edge function timeout — partial results returned');
       break;
     }
 
