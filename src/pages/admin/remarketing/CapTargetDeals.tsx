@@ -45,6 +45,7 @@ import {
   Star,
   Target,
   Calculator,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -124,6 +125,7 @@ export default function CapTargetDeals() {
   const [isPushing, setIsPushing] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Fetch CapTarget deals
   const {
@@ -606,7 +608,36 @@ export default function CapTargetDeals() {
 
         {/* Global bulk actions */}
         <div className="flex items-center gap-2">
-          {/* Bulk Enrich dropdown */}
+          {/* Sync from Sheet */}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isSyncing}
+            onClick={async () => {
+              setIsSyncing(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('sync-captarget-sheet', {
+                  body: {}
+                });
+                if (error) throw error;
+                sonnerToast.success('Sync complete', {
+                  description: `Inserted: ${data?.rows_inserted ?? 0}, Updated: ${data?.rows_updated ?? 0}, Skipped: ${data?.rows_skipped ?? 0}`
+                });
+                refetch();
+              } catch (e: any) {
+                sonnerToast.error('Sync failed', { description: e.message });
+              } finally {
+                setIsSyncing(false);
+              }
+            }}
+          >
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-1" />
+            )}
+            Sync Sheet
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" disabled={isEnriching}>
