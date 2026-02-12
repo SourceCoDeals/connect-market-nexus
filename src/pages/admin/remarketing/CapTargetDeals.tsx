@@ -42,6 +42,9 @@ import {
   Loader2,
   BarChart3,
   ChevronDown,
+  Star,
+  Target,
+  Calculator,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -98,6 +101,7 @@ export default function CapTargetDeals() {
   const [pushedFilter, setPushedFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
@@ -485,6 +489,37 @@ export default function CapTargetDeals() {
     }
   };
 
+  // Date-filtered deals for KPI stats
+  const dateFilteredDeals = useMemo(() => {
+    if (!deals || dateFilter === "all") return deals || [];
+    const now = new Date();
+    let cutoff: Date;
+    switch (dateFilter) {
+      case "7d": cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+      case "30d": cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+      case "90d": cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+      default: return deals;
+    }
+    return deals.filter((d) => new Date(d.created_at) >= cutoff);
+  }, [deals, dateFilter]);
+
+  // KPI Stats (based on date-filtered deals)
+  const kpiStats = useMemo(() => {
+    const totalDeals = dateFilteredDeals.length;
+    const priorityDeals = dateFilteredDeals.filter((d) => d.captarget_interest_type === "interest").length;
+    let totalScore = 0;
+    let scoredDeals = 0;
+    dateFilteredDeals.forEach((d) => {
+      if (d.deal_quality_score != null) {
+        totalScore += d.deal_quality_score;
+        scoredDeals++;
+      }
+    });
+    const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
+    const needsScoring = dateFilteredDeals.filter((d) => d.deal_quality_score == null).length;
+    return { totalDeals, priorityDeals, avgScore, needsScoring };
+  }, [dateFilteredDeals]);
+
   // Summary stats
   const totalDeals = deals?.length || 0;
   const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
@@ -584,7 +619,78 @@ export default function CapTargetDeals() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="90d">Last 90 Days</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+      </div>
+
+      {/* KPI Stats Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Building2 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Deals</p>
+                <p className="text-2xl font-bold">{kpiStats.totalDeals}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Star className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Priority Deals</p>
+                <p className="text-2xl font-bold text-amber-600">{kpiStats.priorityDeals}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Target className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Avg Quality Score</p>
+                <p className="text-2xl font-bold">{kpiStats.avgScore}<span className="text-base font-normal text-muted-foreground">/100</span></p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Calculator className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Needs Scoring</p>
+                <p className="text-2xl font-bold text-orange-600">{kpiStats.needsScoring}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
