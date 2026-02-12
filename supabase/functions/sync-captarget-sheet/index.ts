@@ -205,17 +205,20 @@ function parseServiceAccountKey(raw: string): any {
 
 // ── Build a record from a sheet row ─────────────────────────────────
 
-async function rowToRecord(row: string[], captargetStatus: string, tabName: string, rowIndex: number): Promise<Record<string, any>> {
+async function rowToRecord(row: string[], captargetStatus: string, tabName: string): Promise<Record<string, any>> {
   const clientName = (row[COL.client_folder_name] || "").trim();
   const companyName = (row[COL.company_name] || "").trim();
   const dateRaw = (row[COL.date] || "").trim();
   const firstName = (row[COL.first_name] || "").trim();
   const lastName = (row[COL.last_name] || "").trim();
   const email = (row[COL.email] || "").trim();
+  const details = (row[COL.details] || "").trim();
 
-  // Include tab name and row index as tiebreaker to guarantee uniqueness
-  // when multiple rows share the same contact info (e.g., same company called twice same day)
-  const hashInput = `${tabName}|${clientName}|${companyName}|${dateRaw}|${email}|${firstName}|${lastName}|row${rowIndex}`;
+  // Hash based on DATA only — never include row position or tab name.
+  // Row index changes when any row is added/removed (breaks ALL subsequent hashes).
+  // Tab name changes when a company moves Active→Inactive (creates duplicate).
+  // Details (call notes) added as tiebreaker for same-company-same-day-same-person.
+  const hashInput = `${clientName}|${companyName}|${dateRaw}|${email}|${firstName}|${lastName}|${details}`;
   const rowHash = await computeHash(hashInput);
   const contactName = [firstName, lastName].filter(Boolean).join(" ");
 
@@ -349,7 +352,8 @@ serve(async (req) => {
       let filteredByData = 0;
       const dataRows = allRows.filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
-        if (firstCell === "last updated" || firstCell === "") { filteredByMeta++; return false; }
+        // Only skip known metadata rows — don't skip blank col0 (valid rows may lack a client folder name)
+        if (firstCell === "last updated") { filteredByMeta++; return false; }
         if (!rowHasData(row)) { filteredByData++; return false; }
         return true;
       });
@@ -377,7 +381,7 @@ serve(async (req) => {
 
         // Build records in parallel
         const recordResults = await Promise.allSettled(
-          batch.map((row, batchIdx) => rowToRecord(row, tab.captarget_status, tab.name, i + batchIdx))
+          batch.map((row) => rowToRecord(row, tab.captarget_status, tab.name))
         );
 
         const batchRecords: any[] = [];
