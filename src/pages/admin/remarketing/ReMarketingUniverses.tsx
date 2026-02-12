@@ -64,16 +64,30 @@ import { deleteUniverseWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
 type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
 type SortOrder = 'asc' | 'desc';
 
-/** Extract a short description from the guide's markdown content */
+/** Extract a short industry description from the guide's markdown content */
 function extractGuideDescription(guideContent: string | null | undefined): string | null {
   if (!guideContent) return null;
-  // Skip markdown headers and find the first substantial paragraph
+  
+  // Patterns that indicate boilerplate/meta text rather than actual industry descriptions
+  const boilerplatePatterns = [
+    /^\*?\*?analyst\s*note/i,
+    /^here\s+is\s+(the|a)\s+(comprehensive|definitive|foundational|complete)/i,
+    /^this\s+document\s+provides/i,
+    /^this\s+(guide|report|analysis)\s+(is|provides|covers|presents)/i,
+    /^\[uploaded\s+guide/i,
+    /^(note|disclaimer|warning)\s*:/i,
+  ];
+  
   const lines = guideContent.split('\n');
   for (const line of lines) {
-    const trimmed = line.trim();
-    // Skip headers, empty lines, table rows, and short lines
+    const trimmed = line.trim()
+      .replace(/^\*\*+/, '').replace(/\*\*+$/, '') // strip bold markers
+      .trim();
+    // Skip headers, empty lines, table rows, short lines, and markdown artifacts
     if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('|') || trimmed.startsWith('-') || trimmed.length < 40) continue;
-    // Found a paragraph - truncate to ~200 chars
+    // Skip boilerplate/meta lines
+    if (boilerplatePatterns.some(p => p.test(trimmed))) continue;
+    // Found a real paragraph - truncate to ~200 chars
     return trimmed.length > 200 ? trimmed.slice(0, 197) + '...' : trimmed;
   }
   return null;
