@@ -258,26 +258,29 @@ const ResizableHeader = ({
 };
 
 // Inline editable rank cell — uses a popover to float above the table
-const EditableRankCell = ({ value, onSave }: { value: number; onSave: (v: number) => void }) => {
+const EditableRankCell = ({ value, onSave }: { value: number; onSave: (v: number) => Promise<void> | void }) => {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(String(value));
+  const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setDraft(String(value)); }, [value]);
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.select(), 0); }, [open]);
 
-  const commit = () => {
-    setOpen(false);
+  const handleSave = async () => {
     const parsed = parseInt(draft, 10);
     if (!isNaN(parsed) && parsed > 0 && parsed !== value) {
-      onSave(parsed);
+      setSaving(true);
+      await onSave(parsed);
+      setSaving(false);
     } else {
       setDraft(String(value));
     }
+    setOpen(false);
   };
 
   return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) commit(); }}>
+    <Popover open={open} onOpenChange={(v) => { if (!v) { setDraft(String(value)); setOpen(false); } else { setOpen(true); } }}>
       <PopoverTrigger asChild>
         <button
           onClick={(e) => { e.stopPropagation(); setOpen(true); }}
@@ -293,26 +296,31 @@ const EditableRankCell = ({ value, onSave }: { value: number; onSave: (v: number
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto p-2 z-50"
+        className="w-auto p-3 z-50"
         align="start"
         side="bottom"
         sideOffset={4}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Position:</label>
-          <Input
-            ref={inputRef}
-            type="number"
-            min={1}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); commit(); }
-              if (e.key === 'Escape') { setDraft(String(value)); setOpen(false); }
-            }}
-            className="w-16 h-8 text-center text-sm font-semibold tabular-nums px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-medium text-muted-foreground">Edit Position</label>
+          <div className="flex items-center gap-2">
+            <Input
+              ref={inputRef}
+              type="number"
+              min={1}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); handleSave(); }
+                if (e.key === 'Escape') { setDraft(String(value)); setOpen(false); }
+              }}
+              className="w-20 h-8 text-center text-sm font-semibold tabular-nums px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <Button size="sm" className="h-8 px-3" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
@@ -353,7 +361,7 @@ const SortableTableRow = ({
   onArchive: (dealId: string, dealName: string) => void;
   onDelete: (dealId: string, dealName: string) => void;
   onTogglePriority: (dealId: string, currentStatus: boolean) => void;
-  onUpdateRank: (dealId: string, newRank: number) => void;
+  onUpdateRank: (dealId: string, newRank: number) => Promise<void> | void;
 }) => {
   const {
     attributes,
@@ -2178,11 +2186,12 @@ const ReMarketingDeals = () => {
                           onTogglePriority={handleTogglePriority}
                           onUpdateRank={async (dealId, newRank) => {
                             try {
-                              await supabase
+                              const { error } = await supabase
                                 .from('listings')
                                 .update({ manual_rank_override: newRank })
                                 .eq('id', dealId);
-                              queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
+                              if (error) throw error;
+                              await queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
                               toast({ title: 'Position updated', description: `Deal moved to position ${newRank}` });
                             } catch (err: any) {
                               toast({ title: 'Error', description: err.message, variant: 'destructive' });
