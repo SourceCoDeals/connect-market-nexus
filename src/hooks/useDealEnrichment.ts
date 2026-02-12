@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -105,8 +106,9 @@ export function useDealEnrichment(universeId?: string) {
       // Process batch in parallel
       const results = await Promise.allSettled(
         batch.map(async (deal) => {
-          const { data, error } = await supabase.functions.invoke('enrich-deal', {
-            body: { dealId: deal.listingId }
+          const { data, error } = await invokeWithTimeout<{ success?: boolean; error?: string; error_code?: string }>('enrich-deal', {
+            body: { dealId: deal.listingId },
+            timeoutMs: 90_000,
           });
           
           if (error) throw error;

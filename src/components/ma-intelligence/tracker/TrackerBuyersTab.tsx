@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { TrackerBuyersToolbar } from "./TrackerBuyersToolbar";
@@ -120,8 +121,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         const buyerId = buyerIds[i];
 
         try {
-          await supabase.functions.invoke("enrich-buyer", {
+          await invokeWithTimeout("enrich-buyer", {
             body: { buyerId },
+            timeoutMs: 90_000,
           });
 
           progress.current = i + 1;
@@ -175,8 +177,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
   const handleEnrichSingle = async (buyerId: string) => {
     try {
-      await supabase.functions.invoke("enrich-buyer", {
+      await invokeWithTimeout("enrich-buyer", {
         body: { buyerId },
+        timeoutMs: 90_000,
       });
 
       toast({

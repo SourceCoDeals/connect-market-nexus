@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -495,8 +496,9 @@ export default function CapTargetDeals() {
       let queued = 0;
       for (const id of dealIds) {
         try {
-          await supabase.functions.invoke("enrich-deal", {
+          await invokeWithTimeout("enrich-deal", {
             body: { dealId: id },
+            timeoutMs: 90_000,
           });
           queued++;
         } catch (err) {

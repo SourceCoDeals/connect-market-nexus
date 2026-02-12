@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createEdgeTimeoutSignal } from "../_shared/edge-timeout.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeState, normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
@@ -101,6 +102,8 @@ serve(async (req) => {
   }
 
   try {
+    const _edgeStartTime = Date.now();
+    const _edgeTimeout = createEdgeTimeoutSignal(_edgeStartTime);
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     // Edge Gateway routing requires the anon key in the `apikey` header.
