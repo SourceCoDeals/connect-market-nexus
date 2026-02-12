@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+
 import {
   Tooltip,
   TooltipContent,
@@ -105,6 +106,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  MeasuringStrategy,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -2087,8 +2089,10 @@ const ReMarketingDeals = () => {
               sensors={sensors}
               collisionDetection={closestCorners}
               onDragEnd={handleDragEnd}
+              measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
             >
-              <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <div className="relative w-full overflow-auto">
+              <table className="w-full caption-bottom text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
                     <th 
@@ -2216,7 +2220,8 @@ const ReMarketingDeals = () => {
                     </SortableContext>
                   )}
                 </TableBody>
-              </Table>
+              </table>
+              </div>
             </DndContext>
           </TooltipProvider>
         </CardContent>
