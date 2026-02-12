@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
 import { Progress } from "@/components/ui/progress";
@@ -123,6 +124,7 @@ export default function CapTargetDeals() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [statusTab, setStatusTab] = useState<"active" | "inactive">("active");
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
@@ -211,6 +213,8 @@ export default function CapTargetDeals() {
     if (!deals) return [];
 
     let filtered = deals.filter((deal) => {
+      // Tab filter
+      if (deal.captarget_status !== statusTab) return false;
       if (search) {
         const q = search.toLowerCase();
         const matchesSearch =
@@ -295,7 +299,7 @@ export default function CapTargetDeals() {
     });
 
     return filtered;
-  }, [deals, search, clientFilter, interestFilter, channelFilter, pushedFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+  }, [deals, search, clientFilter, interestFilter, channelFilter, pushedFilter, dateFrom, dateTo, sortColumn, sortDirection, statusTab]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -359,13 +363,23 @@ export default function CapTargetDeals() {
     [toast, queryClient]
   );
 
+  // Deals filtered by the current status tab (for bulk operations)
+  const tabDeals = useMemo(() => {
+    if (!deals) return [];
+    return deals.filter((d) => d.captarget_status === statusTab);
+  }, [deals, statusTab]);
+
+  // Tab counts for labels
+  const activeCount = useMemo(() => deals?.filter((d) => d.captarget_status === "active").length ?? 0, [deals]);
+  const inactiveCount = useMemo(() => deals?.filter((d) => d.captarget_status === "inactive").length ?? 0, [deals]);
+
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      if (!deals?.length) return;
+      if (!tabDeals.length) return;
       const targets = mode === "unenriched"
-        ? deals.filter((d) => !d.enriched_at)
-        : deals;
+        ? tabDeals.filter((d) => !d.enriched_at)
+        : tabDeals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to enrich");
@@ -430,16 +444,16 @@ export default function CapTargetDeals() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [tabDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Bulk Score
   const handleBulkScore = useCallback(
     async (mode: "unscored" | "all") => {
-      if (!deals?.length) return;
+      if (!tabDeals.length) return;
       const targets = mode === "unscored"
-        ? deals.filter((d) => d.deal_quality_score == null)
-        : deals;
+        ? tabDeals.filter((d) => d.deal_quality_score == null)
+        : tabDeals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to score");
@@ -484,7 +498,7 @@ export default function CapTargetDeals() {
       setIsScoring(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [tabDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Enrich selected deals (existing)
@@ -994,6 +1008,25 @@ export default function CapTargetDeals() {
         </div>
       )}
 
+      {/* Active / Inactive Tabs */}
+      <Tabs
+        value={statusTab}
+        onValueChange={(val) => {
+          setStatusTab(val as "active" | "inactive");
+          setSelectedIds(new Set());
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="active">
+            Active ({activeCount})
+          </TabsTrigger>
+          <TabsTrigger value="inactive">
+            Inactive ({inactiveCount})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={statusTab} forceMount>
+
       {/* Deals Table */}
       <Card>
         <CardContent className="p-0">
@@ -1228,9 +1261,12 @@ export default function CapTargetDeals() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+      </Tabs>
+
       {/* Footer stats */}
       <p className="text-xs text-muted-foreground text-center">
-        Showing {filteredDeals.length} of {totalDeals} deals
+        Showing {filteredDeals.length} of {statusTab === "active" ? activeCount : inactiveCount} {statusTab} deals
       </p>
     </div>
   );
