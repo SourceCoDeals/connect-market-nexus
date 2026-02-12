@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const BATCH_SIZE = 100;
 const HASH_LOOKUP_CHUNK = 50;
 // Edge functions CPU time limit is ~50s; paginate well before that
-const TIMEOUT_MS = 25_000;
+const TIMEOUT_MS = 45_000;
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
@@ -437,78 +437,55 @@ serve(async (req) => {
           }
         }
 
-        // Insert new rows in chunks using batch insert
+        // Insert new rows with pre-checked website deduplication
         if (toInsert.length > 0) {
-          const INSERT_CHUNK = 50;
-          for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {
-            const chunk = toInsert.slice(ic, ic + INSERT_CHUNK);
-            const { data: insertedData, error: batchInsertErr } = await supabase
+          // Pre-check which websites already exist to avoid unique index violations
+          const websitesToCheck = [...new Set(toInsert.map(r => r.website).filter(Boolean))];
+          const existingWebsites = new Set<string>();
+          
+          for (let wc = 0; wc < websitesToCheck.length; wc += HASH_LOOKUP_CHUNK) {
+            const chunk = websitesToCheck.slice(wc, wc + HASH_LOOKUP_CHUNK);
+            const { data: webRows } = await supabase
               .from("listings")
-              .insert(chunk);
-
-            if (!batchInsertErr) {
-              rowsInserted += chunk.length;
-            } else if (batchInsertErr.message?.includes("duplicate key")) {
-              // Batch failed due to duplicate — fall back to individual inserts
-              console.warn(`Batch insert failed (duplicate key), falling back to individual inserts for ${chunk.length} rows`);
-              for (const record of chunk) {
-                const { error: singleErr } = await supabase
-                  .from("listings")
-                  .insert(record);
-                if (!singleErr) {
-                  rowsInserted++;
-                } else if (singleErr.message?.includes("duplicate key")) {
-                  // Find existing by hash first, then by website variants
-                  let existingId: string | null = null;
-                  if (record.captarget_row_hash) {
-                    const { data: byHash } = await supabase
-                      .from("listings")
-                      .select("id")
-                      .eq("captarget_row_hash", record.captarget_row_hash)
-                      .maybeSingle();
-                    if (byHash) existingId = byHash.id;
-                  }
-                  if (!existingId && record.website) {
-                    // Try exact match + common URL variants (handles pre-normalization data)
-                    const domain = record.website;
-                    const { data: byWeb } = await supabase
-                      .from("listings")
-                      .select("id")
-                      .or(`website.eq.${domain},website.eq.https://${domain},website.eq.http://${domain},website.eq.https://www.${domain},website.eq.http://www.${domain},website.eq.www.${domain}`)
-                      .limit(1);
-                    if (byWeb && byWeb.length === 1) existingId = byWeb[0].id;
-                  }
-                  if (existingId) {
-                    const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash: _h, ...fallbackFields } = record;
-                    // Always write hash so future syncs can match by hash directly
-                    const { error: upErr } = await supabase
-                      .from("listings")
-                      .update({ ...fallbackFields, captarget_row_hash: record.captarget_row_hash })
-                      .eq("id", existingId);
-                    if (!upErr) rowsUpdated++;
-                    else { rowsSkipped++; syncErrors.push({ op: "fallback-update", error: upErr.message }); }
-                  } else {
-                    // Duplicate is likely on website unique index — retry insert without website
-                    // so multiple contacts at the same company each get their own listing row
-                    const { website: _w, ...recordWithoutWebsite } = record;
-                    const { error: retryErr } = await supabase
-                      .from("listings")
-                      .insert(recordWithoutWebsite);
-                    if (!retryErr) {
-                      rowsInserted++;
-                    } else {
-                      rowsSkipped++;
-                      syncErrors.push({ op: "insert-dup-no-match", hash: record.captarget_row_hash, website: record.website });
-                    }
-                  }
-                } else {
-                  rowsSkipped++;
-                  syncErrors.push({ op: "insert", error: singleErr.message });
-                }
+              .select("website")
+              .in("website", chunk);
+            if (webRows) {
+              for (const r of webRows) {
+                if (r.website) existingWebsites.add(r.website);
               }
+            }
+          }
+          
+          
+          // Track websites we're inserting in this batch to catch intra-batch dupes
+          const batchWebsites = new Set<string>();
+          const batchDomains = new Set<string>();
+          
+          for (const record of toInsert) {
+            if (record.website) {
+              const domain = normalizeDomain(record.website);
+              if (existingWebsites.has(record.website) || batchWebsites.has(record.website) ||
+                  (domain && batchDomains.has(domain))) {
+                record.website = null; // Clear to avoid unique constraint violation
+              } else {
+                batchWebsites.add(record.website);
+                if (domain) batchDomains.add(domain);
+              }
+            }
+          }
+
+          // Use individual inserts to avoid batch failures cascading
+          for (const record of toInsert) {
+            const { error: insertErr } = await supabase
+              .from("listings")
+              .insert(record);
+            if (!insertErr) {
+              rowsInserted++;
             } else {
-              rowsSkipped += chunk.length;
-              syncErrors.push({ op: "batch-insert", error: batchInsertErr.message });
+              rowsSkipped++;
+              if (syncErrors.length < 20) {
+                syncErrors.push({ op: "insert", error: insertErr.message, hash: record.captarget_row_hash?.slice(0, 8) });
+              }
             }
           }
         }
