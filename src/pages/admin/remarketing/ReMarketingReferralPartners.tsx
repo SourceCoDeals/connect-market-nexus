@@ -72,6 +72,26 @@ export default function ReMarketingReferralPartners() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      
+      // Fetch actual deal counts from listings table
+      const partnerIds = (data || []).map((p: any) => p.id);
+      if (partnerIds.length > 0) {
+        const { data: listings } = await supabase
+          .from("listings")
+          .select("referral_partner_id")
+          .in("referral_partner_id", partnerIds);
+        
+        const countMap: Record<string, number> = {};
+        listings?.forEach((l: any) => {
+          countMap[l.referral_partner_id] = (countMap[l.referral_partner_id] || 0) + 1;
+        });
+        
+        return (data as ReferralPartner[]).map(p => ({
+          ...p,
+          deal_count: countMap[p.id] || 0,
+        }));
+      }
+      
       return data as ReferralPartner[];
     },
   });
