@@ -1055,7 +1055,7 @@ Deno.serve(async (req) => {
           sources.platform = platformWebsite!;
           console.log(`Scraped platform website: ${platformContent.length} chars`);
 
-          // PERF: Start location page discovery immediately (runs in parallel with Claude batch 1)
+          // PERF: Start location page discovery immediately (runs in parallel with Gemini batch 1)
           locationPagePromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
             .then(async (links) => {
               const locationPage = links.find(link =>
@@ -1165,7 +1165,7 @@ Deno.serve(async (req) => {
 
             if (acceptedFields.length > 0) {
               promptsSuccessful++;
-              // Accumulate actual token usage from Claude API responses
+              // Accumulate actual token usage from Gemini API responses
               if (result.usage) {
                 totalInputTokens += result.usage.inputTokens || 0;
                 totalOutputTokens += result.usage.outputTokens || 0;

@@ -674,7 +674,7 @@ async function generatePhaseWithTimeout(
   }
 }
 
-// Phase generation with model parameter (Anthropic)
+// Phase generation with model parameter (Gemini)
 async function generatePhaseContentWithModel(
   phase: typeof GENERATION_PHASES[0],
   industryName: string,

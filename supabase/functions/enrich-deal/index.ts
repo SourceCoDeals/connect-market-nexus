@@ -114,7 +114,6 @@ serve(async (req) => {
     }
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -297,7 +296,7 @@ serve(async (req) => {
           if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
 
           if (extracted?.customer_types) out.customer_types = extracted.customer_types;
-          // customer_concentration: DB is NUMERIC but Claude often returns text.
+          // customer_concentration: DB is NUMERIC but LLM often returns text.
           // Extract percentage number if present; append text to customer_types.
           if (extracted?.customer_concentration) {
             const concText = String(extracted.customer_concentration);

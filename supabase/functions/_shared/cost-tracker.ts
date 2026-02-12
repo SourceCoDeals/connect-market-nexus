@@ -9,18 +9,12 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-export type CostProvider = 'anthropic' | 'gemini' | 'openai';
+export type CostProvider = 'gemini';
 
 // Pricing per million tokens (as of Feb 2026)
 const PRICING: Record<string, { inputPerMTok: number; outputPerMTok: number }> = {
-  // Anthropic
-  'claude-sonnet-4-20250514':  { inputPerMTok: 3.00, outputPerMTok: 15.00 },
-  'claude-3-5-haiku-20241022': { inputPerMTok: 0.80, outputPerMTok: 4.00 },
-  // Google
   'gemini-2.0-flash':          { inputPerMTok: 0.10, outputPerMTok: 0.40 },
   'gemini-2.0-pro-exp':        { inputPerMTok: 1.25, outputPerMTok: 5.00 },
-  // OpenAI
-  'gpt-4o-mini':               { inputPerMTok: 0.15, outputPerMTok: 0.60 },
 };
 
 export interface CostEntry {

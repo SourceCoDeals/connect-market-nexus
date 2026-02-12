@@ -732,7 +732,7 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
         if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
         if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
-        // customer_concentration is NUMERIC in DB but Claude returns rich text.
+        // customer_concentration is NUMERIC in DB but LLM returns rich text.
         // Append the text to customer_types so the detail isn't lost,
         // and try to extract a numeric value for the DB column.
         if (extracted.customer_concentration) {
@@ -797,7 +797,7 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           console.log(`Dropping ${droppedKeys.length} non-listing fields:`, droppedKeys);
         }
 
-        // SAFETY: Sanitize numeric fields — Claude sometimes returns prose for numeric columns.
+        // SAFETY: Sanitize numeric fields — LLM sometimes returns prose for numeric columns.
         // A single bad value causes PostgREST to reject the entire update.
         const NUMERIC_FIELDS = new Set([
           'revenue', 'ebitda', 'ebitda_margin', 'number_of_locations',
