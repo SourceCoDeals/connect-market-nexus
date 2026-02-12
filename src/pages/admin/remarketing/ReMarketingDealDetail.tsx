@@ -710,6 +710,7 @@ const ReMarketingDealDetail = () => {
 
       {/* Company Overview - Full width with 3 columns */}
       <CompanyOverviewCard
+        companyName={deal.internal_company_name || deal.title}
         website={effectiveWebsite}
         location={deal.location}
         address={deal.address}
@@ -748,6 +749,7 @@ const ReMarketingDealDetail = () => {
         }}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
+            internal_company_name: data.companyName,
             website: data.website,
             address: data.address,
             founded_year: data.foundedYear,

@@ -74,6 +74,7 @@ const CA_PROVINCES = [
 ];
 
 interface CompanyOverviewCardProps {
+  companyName?: string | null;
   website: string | null;
   location: string | null; // Legacy marketplace location
   address: string | null; // Legacy full address
@@ -107,6 +108,7 @@ interface CompanyOverviewCardProps {
   aiCalculatedScore?: number | null;
   onScoreChange?: (newScore: number) => Promise<void>;
   onSave: (data: {
+    companyName: string;
     website: string;
     address: string;
     foundedYear: number | null;
@@ -123,6 +125,7 @@ interface CompanyOverviewCardProps {
 }
 
 export const CompanyOverviewCard = ({
+  companyName,
   website,
   location,
   address,
@@ -154,6 +157,7 @@ export const CompanyOverviewCard = ({
   const [editingScore, setEditingScore] = useState("");
   const [isSavingScore, setIsSavingScore] = useState(false);
   const [formData, setFormData] = useState({
+    companyName: companyName || "",
     website: website || "",
     address: address || "",
     foundedYear: foundedYear?.toString() || "",
@@ -192,6 +196,7 @@ export const CompanyOverviewCard = ({
     setIsSaving(true);
     try {
       await onSave({
+        companyName: formData.companyName,
         website: formData.website,
         address: formData.address,
         foundedYear: formData.foundedYear ? parseInt(formData.foundedYear) : null,
@@ -215,6 +220,7 @@ export const CompanyOverviewCard = ({
 
   const openEdit = () => {
     setFormData({
+      companyName: companyName || "",
       website: website || "",
       address: address || "",
       foundedYear: foundedYear?.toString() || "",
@@ -331,6 +337,13 @@ export const CompanyOverviewCard = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 divide-y lg:divide-y-0 lg:divide-x divide-border">
             {/* Column 1 */}
             <div className="space-y-1 lg:pr-6">
+              {/* Company Name */}
+              <InfoRow
+                icon={Building2}
+                label="COMPANY NAME"
+                value={companyName || "–"}
+              />
+
               {/* Website */}
               <div className="flex items-start gap-2 py-2">
                 <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -601,6 +614,17 @@ export const CompanyOverviewCard = ({
             <DialogTitle>Edit Company Overview</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="companyName">Company Name</Label>
+              <Input
+                id="companyName"
+                placeholder="Company name"
+                value={formData.companyName}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                className="mt-1.5"
+              />
+            </div>
+
             <div>
               <Label htmlFor="website">Website</Label>
               <Input
