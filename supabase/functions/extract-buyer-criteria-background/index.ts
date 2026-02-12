@@ -212,14 +212,14 @@ async function processExtractionInBackground(
 
       const result = await response.json();
 
-      if (result.success && result.criteria) {
-        extractedCriteria = result.criteria;
+      if (result.success && result.extracted_data) {
+        extractedCriteria = result.extracted_data;
         confidenceScores = {
-          size: result.criteria.size_criteria?.confidence_score || 0,
-          service: result.criteria.service_criteria?.confidence_score || 0,
-          geography: result.criteria.geography_criteria?.confidence_score || 0,
-          buyer_types: result.criteria.buyer_types_criteria?.confidence_score || 0,
-          overall: result.criteria.overall_confidence || 0
+          size: result.extracted_data.size_criteria?.confidence_score || 0,
+          service: result.extracted_data.service_criteria?.confidence_score || 0,
+          geography: result.extracted_data.geography_criteria?.confidence_score || 0,
+          buyer_types: result.extracted_data.buyer_types_criteria?.confidence_score || 0,
+          overall: result.extracted_data.overall_confidence || result.confidence || 0
         };
 
         // Update progress with extracted data
