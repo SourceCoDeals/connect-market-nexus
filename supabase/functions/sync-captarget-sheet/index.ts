@@ -190,14 +190,15 @@ function parseServiceAccountKey(raw: string): any {
 
 // ── Build a record from a sheet row ─────────────────────────────────
 
-async function rowToRecord(row: string[], captargetStatus: string): Promise<Record<string, any>> {
+async function rowToRecord(row: string[], captargetStatus: string, tabName: string): Promise<Record<string, any>> {
   const clientName = (row[COL.client_folder_name] || "").trim();
   const companyName = (row[COL.company_name] || "").trim();
   const dateRaw = (row[COL.date] || "").trim();
   const firstName = (row[COL.first_name] || "").trim();
   const lastName = (row[COL.last_name] || "").trim();
+  const email = (row[COL.email] || "").trim();
 
-  const hashInput = `${clientName}|${companyName}|${dateRaw}`;
+  const hashInput = `${clientName}|${companyName}|${dateRaw}|${email}|${firstName}|${lastName}`;
   const rowHash = await computeHash(hashInput);
   const contactName = [firstName, lastName].filter(Boolean).join(" ");
 
@@ -218,8 +219,9 @@ async function rowToRecord(row: string[], captargetStatus: string): Promise<Reco
     main_contact_phone: (row[COL.phone] || "").trim() || null,
     captarget_source_url: (row[COL.source_url] || "").trim() || null,
     captarget_status: captargetStatus,
+    captarget_sheet_tab: tabName,
     deal_source: "captarget",
-    status: "captarget_review",
+    status: "pending",
     pushed_to_all_deals: false,
     is_internal_deal: true,
     // Required NOT NULL fields with defaults
@@ -335,7 +337,7 @@ serve(async (req) => {
 
         // Build records in parallel
         const recordResults = await Promise.allSettled(
-          batch.map((row) => rowToRecord(row, tab.captarget_status))
+          batch.map((row) => rowToRecord(row, tab.captarget_status, tab.name))
         );
 
         const batchRecords: any[] = [];
@@ -387,44 +389,98 @@ serve(async (req) => {
         for (const record of batchRecords) {
           const existingId = existingMap.get(record.captarget_row_hash);
           if (existingId) {
-            // For updates, strip fields that shouldn't be overwritten
-            const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, ...updateFields } = record;
+            // For updates, strip fields that shouldn't be overwritten (including dummy defaults)
+            const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, revenue, ebitda, location, category, ...updateFields } = record;
             toUpdate.push({ id: existingId, ...updateFields });
           } else {
             toInsert.push(record);
           }
         }
 
-        // Batch insert using upsert to handle duplicates gracefully
+        // Insert new rows individually; on duplicate-key conflicts, fall back to update
         if (toInsert.length > 0) {
-          const { data: inserted, error: insertErr } = await supabase
-            .from("listings")
-            .upsert(toInsert, { onConflict: "captarget_row_hash", ignoreDuplicates: true });
-          
-          if (insertErr) {
-            console.error("Batch insert error:", insertErr.message);
-            // Fallback: try individually
-            for (const record of toInsert) {
-              const { error: singleErr } = await supabase.from("listings").insert(record);
-              if (!singleErr) {
+          const INSERT_CHUNK = 50;
+          for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {
+            const chunk = toInsert.slice(ic, ic + INSERT_CHUNK);
+            const insertResults = await Promise.allSettled(
+              chunk.map((record: any) =>
+                supabase.from("listings").insert(record)
+              )
+            );
+            for (let idx = 0; idx < insertResults.length; idx++) {
+              const ir = insertResults[idx];
+              if (ir.status === "fulfilled" && !ir.value.error) {
                 rowsInserted++;
               } else {
-                rowsSkipped++;
+                const errMsg = ir.status === "rejected"
+                  ? ir.reason?.message
+                  : ir.value?.error?.message;
+                // On duplicate key (website or hash), find existing row and update instead
+                if (errMsg && errMsg.includes("duplicate key")) {
+                  const record = chunk[idx];
+                  const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash, revenue: _r, ebitda: _e, location: _l, category: _c, ...fallbackFields } = record;
+                  let existingId: string | null = null;
+                  if (captarget_row_hash) {
+                    const { data: byHash } = await supabase
+                      .from("listings")
+                      .select("id")
+                      .eq("captarget_row_hash", captarget_row_hash)
+                      .limit(1)
+                      .maybeSingle();
+                    if (byHash) existingId = byHash.id;
+                  }
+                  if (!existingId && record.website) {
+                    const { data: byWeb } = await supabase
+                      .from("listings")
+                      .select("id")
+                      .eq("website", record.website)
+                      .limit(1)
+                      .maybeSingle();
+                    if (byWeb) existingId = byWeb.id;
+                  }
+                  if (existingId) {
+                    const { error: upErr } = await supabase
+                      .from("listings")
+                      .update({ ...fallbackFields, captarget_row_hash })
+                      .eq("id", existingId);
+                    if (!upErr) {
+                      rowsUpdated++;
+                    } else {
+                      rowsSkipped++;
+                      syncErrors.push({ op: "insert-fallback-update", error: upErr.message });
+                    }
+                  } else {
+                    rowsSkipped++;
+                  }
+                } else {
+                  rowsSkipped++;
+                  if (errMsg) {
+                    syncErrors.push({ op: "insert", error: errMsg });
+                  }
+                }
               }
             }
-          } else {
-            rowsInserted += toInsert.length;
           }
         }
 
         // Batch updates
         if (toUpdate.length > 0) {
-          for (const { id, ...fields } of toUpdate) {
-            const { error: upErr } = await supabase.from("listings").update(fields).eq("id", id);
-            if (!upErr) {
-              rowsUpdated++;
-            } else {
-              rowsSkipped++;
+          const UPDATE_CHUNK = 100;
+          for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
+            const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
+            const updateResults = await Promise.allSettled(
+              chunk.map(({ id, ...fields }: any) =>
+                supabase.from("listings").update(fields).eq("id", id)
+              )
+            );
+            for (const ur of updateResults) {
+              if (ur.status === "fulfilled" && !ur.value.error) {
+                rowsUpdated++;
+              } else {
+                rowsSkipped++;
+                const errMsg = ur.status === "rejected" ? ur.reason?.message : ur.value?.error?.message;
+                syncErrors.push({ op: "update", error: errMsg });
+              }
             }
           }
         }
