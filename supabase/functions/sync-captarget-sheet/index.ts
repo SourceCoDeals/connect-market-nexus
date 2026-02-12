@@ -6,7 +6,9 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BATCH_SIZE = 250;
+const BATCH_SIZE = 500;
+// Edge functions get ~150s wall clock; we use 120s to leave margin
+const TIMEOUT_MS = 120_000;
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
@@ -32,7 +34,6 @@ async function getAccessToken(serviceAccountKey: any): Promise<string> {
   const payloadB64 = toBase64Url(encoder.encode(JSON.stringify(payload)));
   const unsignedToken = `${headerB64}.${payloadB64}`;
 
-  // Import the RSA private key
   const pemContents = serviceAccountKey.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
@@ -70,26 +71,6 @@ async function getAccessToken(serviceAccountKey: any): Promise<string> {
   return tokenData.access_token;
 }
 
-// ── Fetch all tab names from spreadsheet metadata ───────────────────
-
-async function fetchTabNames(
-  accessToken: string,
-  sheetId: string
-): Promise<string[]> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`;
-  const resp = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`Sheets metadata error: ${resp.status} – ${errText}`);
-  }
-
-  const data = await resp.json();
-  return (data.sheets || []).map((s: any) => s.properties.title as string);
-}
-
 async function fetchSheetRows(
   accessToken: string,
   sheetId: string,
@@ -114,29 +95,9 @@ async function fetchSheetRows(
 function normalizeInterestType(raw: string | undefined): string {
   if (!raw) return "unknown";
   const lower = raw.trim().toLowerCase();
-  // Handle common misspellings
-  if (
-    lower === "interest" ||
-    lower === "interested" ||
-    lower === "interset" ||
-    lower === "interst" ||
-    lower === "intrested"
-  )
-    return "interest";
-  if (
-    lower === "no interest" ||
-    lower === "no_interest" ||
-    lower === "not interested" ||
-    lower === "nointerest"
-  )
-    return "no_interest";
-  if (
-    lower === "keep in mind" ||
-    lower === "keep_in_mind" ||
-    lower === "keepinmind" ||
-    lower === "kim"
-  )
-    return "keep_in_mind";
+  if (["interest", "interested", "interset", "interst", "intrested"].includes(lower)) return "interest";
+  if (["no interest", "no_interest", "not interested", "nointerest"].includes(lower)) return "no_interest";
+  if (["keep in mind", "keep_in_mind", "keepinmind", "kim"].includes(lower)) return "keep_in_mind";
   return "unknown";
 }
 
@@ -166,11 +127,6 @@ function parseDate(raw: string | undefined): string | null {
   return d.toISOString();
 }
 
-// ── Column index mapping (0-based from sheet header) ────────────────
-// Sheet columns: client_folder_name, original_sheet_name, source_location,
-//   source_url, Company Name, Date, Details, Email, First Name, Last Name,
-//   Response, Title, Type, URL, Phone
-
 const COL = {
   client_folder_name: 0,
   original_sheet_name: 1,
@@ -189,17 +145,77 @@ const COL = {
   phone: 14,
 };
 
-// Check if a row has any meaningful data beyond just the first cell
-function rowHasData(row: string[]): boolean {
-  // A row is valid if it has data in at least one of: company_name, email, first_name, last_name
+// ── Parse service account key with resilient JSON handling ──────────
+
+function parseServiceAccountKey(raw: string): any {
+  const cleaned = raw
+    .trim()
+    .replace(/^\uFEFF/, '')
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+    .replace(/\u00A0/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  try {
+    const key = JSON.parse(cleaned);
+    if (!key.client_email || !key.private_key) {
+      throw new Error(`Service account key missing required fields. Keys found: ${Object.keys(key).join(', ')}`);
+    }
+    return key;
+  } catch (e) {
+    const pos = parseInt(String((e as Error).message).match(/position (\d+)/)?.[1] || '0');
+    if (pos > 0) {
+      const around = cleaned.substring(Math.max(0, pos - 5), pos + 10);
+      const codes = [...around].map(c => `${c}(${c.charCodeAt(0)})`).join(' ');
+      console.error(`Chars around position ${pos}: ${codes}`);
+    }
+    throw new Error(`GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON: ${(e as Error).message}`);
+  }
+}
+
+// ── Build a record from a sheet row ─────────────────────────────────
+
+async function rowToRecord(row: string[], captargetStatus: string): Promise<Record<string, any>> {
+  const clientName = (row[COL.client_folder_name] || "").trim();
   const companyName = (row[COL.company_name] || "").trim();
-  const email = (row[COL.email] || "").trim();
+  const dateRaw = (row[COL.date] || "").trim();
   const firstName = (row[COL.first_name] || "").trim();
   const lastName = (row[COL.last_name] || "").trim();
-  return !!(companyName || email || firstName || lastName);
+
+  const hashInput = `${clientName}|${companyName}|${dateRaw}`;
+  const rowHash = await computeHash(hashInput);
+  const contactName = [firstName, lastName].filter(Boolean).join(" ");
+
+  return {
+    captarget_row_hash: rowHash,
+    captarget_client_name: clientName || null,
+    title: companyName || null,
+    internal_company_name: companyName || null,
+    captarget_contact_date: parseDate(dateRaw),
+    captarget_call_notes: (row[COL.details] || "").trim() || null,
+    description: (row[COL.details] || "").trim() || null,
+    main_contact_email: (row[COL.email] || "").trim() || null,
+    main_contact_name: contactName || null,
+    main_contact_title: (row[COL.title] || "").trim() || null,
+    captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
+    captarget_interest_type: normalizeInterestType(row[COL.type]),
+    website: (row[COL.url] || "").trim() || null,
+    main_contact_phone: (row[COL.phone] || "").trim() || null,
+    captarget_source_url: (row[COL.source_url] || "").trim() || null,
+    captarget_status: captargetStatus,
+    deal_source: "captarget",
+    status: "captarget_review",
+    pushed_to_all_deals: false,
+    is_internal_deal: true,
+  };
 }
 
 // ── Main handler ────────────────────────────────────────────────────
+// Supports pagination via request body:
+//   { startTab?: number, startRow?: number }
+// Returns { hasMore, nextTab, nextRow } so the caller can continue.
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -217,51 +233,32 @@ serve(async (req) => {
   let syncStatus = "success";
   const tabsProcessed: string[] = [];
 
+  // Pagination state from caller
+  let startTab = 0;
+  let startRow = 0;
+  let hasMore = false;
+  let nextTab = 0;
+  let nextRow = 0;
+
   try {
-    // Load Google service account credentials
+    // Parse optional pagination params from body
+    try {
+      if (req.body) {
+        const body = await req.json();
+        startTab = body.startTab ?? 0;
+        startRow = body.startRow ?? 0;
+      }
+    } catch {
+      // No body or invalid JSON — start from the beginning
+    }
+
     const saKeyRaw = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!saKeyRaw) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY not configured");
-    
-    // Resilient JSON parsing — handle common copy-paste issues
-    let saKey: any;
-    const cleanJson = (raw: string) => {
-      return raw
-        .trim()
-        // Remove BOM and zero-width characters
-        .replace(/^\uFEFF/, '')
-        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
-        // Fix smart/curly quotes
-        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
-        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
-        // Fix non-breaking spaces
-        .replace(/\u00A0/g, ' ')
-        // Normalize line endings and collapse whitespace between JSON tokens
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n');
-    };
-    
-    const cleaned = cleanJson(saKeyRaw);
-    try {
-      saKey = JSON.parse(cleaned);
-    } catch (e) {
-      console.error(`Parse error: ${(e as Error).message}`);
-      // Log char codes around failure point
-      const pos = parseInt(String((e as Error).message).match(/position (\d+)/)?.[1] || '0');
-      if (pos > 0) {
-        const around = cleaned.substring(Math.max(0, pos - 5), pos + 10);
-        const codes = [...around].map(c => `${c}(${c.charCodeAt(0)})`).join(' ');
-        console.error(`Chars around position ${pos}: ${codes}`);
-      }
-      throw new Error(`GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON: ${(e as Error).message}`);
-    }
-    if (!saKey.client_email || !saKey.private_key) {
-      throw new Error(`Service account key missing required fields. Keys found: ${Object.keys(saKey).join(', ')}`);
-    }
+    const saKey = parseServiceAccountKey(saKeyRaw);
 
     const sheetId = Deno.env.get("CAPTARGET_SHEET_ID");
     if (!sheetId) throw new Error("CAPTARGET_SHEET_ID not configured");
 
-    // Pull from both tabs — configurable via env, defaults to Active/Inactive
     const activeTab = Deno.env.get("CAPTARGET_ACTIVE_TAB_NAME") || "Active Summary";
     const inactiveTab = Deno.env.get("CAPTARGET_INACTIVE_TAB_NAME") || "Inactive Summary";
     const tabs = [
@@ -269,10 +266,10 @@ serve(async (req) => {
       { name: inactiveTab, captarget_status: "inactive" },
     ];
 
-    // Authenticate and fetch sheet data
     const accessToken = await getAccessToken(saKey);
 
-    for (const tab of tabs) {
+    for (let tabIdx = startTab; tabIdx < tabs.length; tabIdx++) {
+      const tab = tabs[tabIdx];
       let tabRows: string[][];
       try {
         tabRows = await fetchSheetRows(accessToken, sheetId, tab.name);
@@ -287,75 +284,58 @@ serve(async (req) => {
         continue;
       }
 
-      // Skip header row (row 0) and skip 'Last Updated' metadata row if present
+      // Skip header row; filter out metadata rows
       const dataRows = tabRows.slice(1).filter((row) => {
         const firstCell = (row[0] || "").trim().toLowerCase();
         return firstCell !== "last updated" && firstCell !== "";
       });
 
-      rowsRead += dataRows.length;
-      console.log(`Read ${dataRows.length} data rows from tab "${tab.name}"`);
+      const rowOffset = tabIdx === startTab ? startRow : 0;
+      const rowsThisTab = dataRows.length - rowOffset;
+      if (rowsThisTab <= 0) continue;
 
-      // Process in batches
-      for (let i = 0; i < dataRows.length; i += BATCH_SIZE) {
+      rowsRead += rowsThisTab;
+      console.log(`Processing ${rowsThisTab} rows from tab "${tab.name}" (offset ${rowOffset})`);
+
+      for (let i = rowOffset; i < dataRows.length; i += BATCH_SIZE) {
+        // Timeout check BEFORE processing the next batch
+        if (Date.now() - startTime > TIMEOUT_MS) {
+          console.warn(`Timeout approaching at tab ${tabIdx} row ${i}, will resume`);
+          hasMore = true;
+          nextTab = tabIdx;
+          nextRow = i;
+          syncStatus = "partial";
+          break;
+        }
+
         const batch = dataRows.slice(i, i + BATCH_SIZE);
+
+        // Build records in parallel
+        const recordResults = await Promise.allSettled(
+          batch.map((row) => rowToRecord(row, tab.captarget_status))
+        );
+
         const batchRecords: any[] = [];
         const batchHashes: string[] = [];
 
-        for (const row of batch) {
-          try {
-            const clientName = (row[COL.client_folder_name] || "").trim();
-            const companyName = (row[COL.company_name] || "").trim();
-            const dateRaw = (row[COL.date] || "").trim();
-            const firstName = (row[COL.first_name] || "").trim();
-            const lastName = (row[COL.last_name] || "").trim();
-
-            // Generate composite hash for dedup
-            const hashInput = `${clientName}|${companyName}|${dateRaw}`;
-            const rowHash = await computeHash(hashInput);
-
-            const contactDate = parseDate(dateRaw);
-            const contactName = [firstName, lastName].filter(Boolean).join(" ");
-
-            const record: Record<string, any> = {
-              captarget_row_hash: rowHash,
-              captarget_client_name: clientName || null,
-              title: companyName || null,
-              internal_company_name: companyName || null,
-              captarget_contact_date: contactDate,
-              captarget_call_notes: (row[COL.details] || "").trim() || null,
-              description: (row[COL.details] || "").trim() || null,
-              main_contact_email: (row[COL.email] || "").trim() || null,
-              main_contact_name: contactName || null,
-              main_contact_title: (row[COL.title] || "").trim() || null,
-              captarget_outreach_channel: normalizeOutreachChannel(row[COL.response]),
-              captarget_interest_type: normalizeInterestType(row[COL.type]),
-              website: (row[COL.url] || "").trim() || null,
-              main_contact_phone: (row[COL.phone] || "").trim() || null,
-              captarget_source_url: (row[COL.source_url] || "").trim() || null,
-              captarget_status: tab.captarget_status,
-              deal_source: "captarget",
-              status: "captarget_review",
-              pushed_to_all_deals: false,
-              is_internal_deal: true,
-            };
-
-            batchRecords.push(record);
-            batchHashes.push(rowHash);
-          } catch (rowErr: any) {
+        for (let j = 0; j < recordResults.length; j++) {
+          const result = recordResults[j];
+          if (result.status === "fulfilled") {
+            batchRecords.push(result.value);
+            batchHashes.push(result.value.captarget_row_hash);
+          } else {
             rowsSkipped++;
             syncErrors.push({
               tab: tab.name,
-              row: i + batch.indexOf(row) + 2,
-              error: rowErr.message,
-              data: row.slice(0, 5),
+              row: i + j + 2,
+              error: result.reason?.message || "Unknown error",
             });
           }
         }
 
         if (batchRecords.length === 0) continue;
 
-        // Check which hashes already exist
+        // Look up existing hashes
         const { data: existing, error: lookupErr } = await supabase
           .from("listings")
           .select("id, captarget_row_hash")
@@ -373,18 +353,20 @@ serve(async (req) => {
         );
 
         const toInsert: any[] = [];
-        const toUpdate: { id: string; record: any }[] = [];
+        const toUpdate: any[] = [];
 
         for (const record of batchRecords) {
           const existingId = existingMap.get(record.captarget_row_hash);
           if (existingId) {
-            const { status, pushed_to_all_deals, deal_source, ...updateFields } = record;
-            toUpdate.push({ id: existingId, record: updateFields });
+            // For updates, strip fields that shouldn't be overwritten
+            const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, ...updateFields } = record;
+            toUpdate.push({ id: existingId, ...updateFields });
           } else {
             toInsert.push(record);
           }
         }
 
+        // Batch insert
         if (toInsert.length > 0) {
           const { error: insertErr } = await supabase
             .from("listings")
@@ -399,28 +381,35 @@ serve(async (req) => {
           }
         }
 
-        for (const { id, record } of toUpdate) {
-          const { error: updateErr } = await supabase
-            .from("listings")
-            .update(record)
-            .eq("id", id);
-
-          if (updateErr) {
-            rowsSkipped++;
-            syncErrors.push({ id, op: "update", error: updateErr.message });
-          } else {
-            rowsUpdated++;
+        // Batch update using upsert by id (much faster than individual updates)
+        if (toUpdate.length > 0) {
+          // Process updates in sub-batches to avoid payload limits
+          const UPDATE_CHUNK = 100;
+          for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
+            const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
+            // Use parallel individual updates but throttled
+            const updateResults = await Promise.allSettled(
+              chunk.map(({ id, ...fields }: any) =>
+                supabase.from("listings").update(fields).eq("id", id)
+              )
+            );
+            for (const ur of updateResults) {
+              if (ur.status === "fulfilled" && !ur.value.error) {
+                rowsUpdated++;
+              } else {
+                rowsSkipped++;
+                const errMsg = ur.status === "rejected" ? ur.reason?.message : ur.value?.error?.message;
+                syncErrors.push({ op: "update", error: errMsg });
+              }
+            }
           }
         }
 
-        // Check if we're approaching Edge Function timeout (50s)
-        if (Date.now() - startTime > 45000) {
-          console.warn("Approaching timeout, committing partial sync");
-          syncStatus = "partial";
-          break;
-        }
+        console.log(`Batch at row ${i}: +${toInsert.length} inserted, ~${toUpdate.length} updated`);
+      }
 
-      if (syncStatus === "partial") break;
+      if (hasMore) break;
+      tabsProcessed.push(tab.name);
     }
   } catch (err: any) {
     console.error("Sync failed:", err.message);
@@ -437,7 +426,7 @@ serve(async (req) => {
       rows_inserted: rowsInserted,
       rows_updated: rowsUpdated,
       rows_skipped: rowsSkipped,
-      errors: syncErrors,
+      errors: syncErrors.length > 0 ? syncErrors : null,
       duration_ms: durationMs,
       status: syncStatus,
     });
@@ -455,6 +444,9 @@ serve(async (req) => {
     rows_skipped: rowsSkipped,
     duration_ms: durationMs,
     error_count: syncErrors.length,
+    hasMore,
+    nextTab,
+    nextRow,
   };
 
   console.log("Sync complete:", JSON.stringify(result));
