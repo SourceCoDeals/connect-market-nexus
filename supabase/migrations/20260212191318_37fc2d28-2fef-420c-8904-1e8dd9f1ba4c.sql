@@ -1,0 +1,1 @@
+UPDATE public.listings SET manual_rank_override = 69 WHERE id = 'f045077d-34a8-4b50-9557-89d65c1acfdc';
