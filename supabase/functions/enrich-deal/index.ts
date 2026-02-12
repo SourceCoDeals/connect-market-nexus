@@ -740,20 +740,13 @@ serve(async (req) => {
         console.log('[Transcripts] All transcripts already have extracted_data from prior runs. Continuing to website scraping.');
       } else {
         const reason = needsExtraction.length === 0
-          ? 'All transcripts marked as processed but none have extracted_data. This should not happen after the retry fix.'
+          ? 'All transcripts marked as processed but none have extracted_data.'
           : transcriptErrors.length > 0
             ? `All ${transcriptReport.processable} transcript extractions failed: ${transcriptErrors.slice(0, 3).join('; ')}`
             : 'No transcripts had sufficient text content (>= 100 chars)';
 
-        console.error(`[Transcripts] GUARDRAIL FIRED: ${reason}`);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Transcript enrichment failed: ${reason}`,
-            transcriptReport,
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.warn(`[Transcripts] GUARDRAIL (non-fatal): ${reason}. Falling back to website-only enrichment.`);
+        // Continue to website scraping instead of failing
       }
     }
 
