@@ -319,7 +319,7 @@ serve(async (req) => {
       if (rowsThisTab <= 0) continue;
 
       rowsRead += rowsThisTab;
-      console.log(`Processing ${rowsThisTab} rows from tab "${tab.name}" (offset ${rowOffset})`);
+      console.log(`Tab "${tab.name}": ${allRows.length} total → ${dataRows.length} data rows (filtered: ${filteredByMeta} meta/empty-col0, ${filteredByData} no-data). Processing ${rowsThisTab} from offset ${rowOffset}.`);
 
       for (let i = rowOffset; i < dataRows.length; i += BATCH_SIZE) {
         // Timeout check BEFORE processing the next batch
