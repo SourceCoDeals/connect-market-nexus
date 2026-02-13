@@ -121,44 +121,6 @@ export function useDealEnrichment(universeId?: string) {
             throw errorObj;
           }
 
-          // Step 2: LinkedIn + Google enrichment (non-fatal, fire in parallel)
-          try {
-            const { data: listing } = await supabase
-              .from('listings')
-              .select('internal_company_name, title, address_city, address_state, address, linkedin_url, website')
-              .eq('id', deal.listingId)
-              .maybeSingle();
-
-            const companyName = listing?.internal_company_name || listing?.title;
-            if (companyName) {
-              await Promise.allSettled([
-                invokeWithTimeout('apify-linkedin-scrape', {
-                  body: {
-                    dealId: deal.listingId,
-                    linkedinUrl: listing?.linkedin_url,
-                    companyName,
-                    city: listing?.address_city,
-                    state: listing?.address_state,
-                    companyWebsite: listing?.website,
-                  },
-                  timeoutMs: 90_000,
-                }),
-                invokeWithTimeout('apify-google-reviews', {
-                  body: {
-                    dealId: deal.listingId,
-                    businessName: companyName,
-                    address: listing?.address,
-                    city: listing?.address_city,
-                    state: listing?.address_state,
-                  },
-                  timeoutMs: 90_000,
-                }),
-              ]);
-            }
-          } catch (externalErr) {
-            console.warn(`External enrichment failed for ${deal.listingId} (non-fatal):`, externalErr);
-          }
-          
           return data;
         })
       );
