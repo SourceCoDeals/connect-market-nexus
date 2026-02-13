@@ -88,5 +88,55 @@ export async function runListingEnrichmentPipeline(
     updatedFields.push(...enrichDeal.json.fieldsUpdated);
   }
 
+  // 2) LinkedIn + Google in PARALLEL (they're independent, non-fatal)
+  const companyName = listing.internal_company_name || listing.title;
+  if (companyName) {
+    const [liResult, googleResult] = await Promise.allSettled([
+      callFn(input, 'apify-linkedin-scrape', {
+        dealId: input.listingId,
+        linkedinUrl: listing.linkedin_url,
+        companyName,
+        city: listing.address_city,
+        state: listing.address_state,
+        companyWebsite: listing.website,
+      }),
+      callFn(input, 'apify-google-reviews', {
+        dealId: input.listingId,
+        businessName: companyName,
+        address: listing.address,
+        city: listing.address_city,
+        state: listing.address_state,
+      }),
+    ]);
+
+    // Process LinkedIn result — non-fatal
+    if (liResult.status === 'fulfilled') {
+      const liRes = liResult.value;
+      if (!liRes.ok) {
+        console.warn(`LinkedIn scrape failed (non-fatal): ${getErrorMessage('apify-linkedin-scrape', liRes.status, liRes.json)}`);
+      } else if (liRes.json?.success !== false) {
+        if (liRes.json?.linkedin_employee_count != null) updatedFields.push('linkedin_employee_count');
+        if (liRes.json?.linkedin_employee_range) updatedFields.push('linkedin_employee_range');
+        if (liRes.json?.linkedin_url) updatedFields.push('linkedin_url');
+        if (liRes.json?.matchConfidence) updatedFields.push('linkedin_match_confidence');
+        if (liRes.json?.scraped) updatedFields.push('linkedin_verified_at');
+      }
+    } else {
+      console.error('LinkedIn scrape rejected (non-fatal):', liResult.reason);
+    }
+
+    // Process Google result — non-fatal
+    if (googleResult.status === 'fulfilled') {
+      const googleRes = googleResult.value;
+      if (!googleRes.ok) {
+        console.warn(`Google reviews failed (non-fatal): ${getErrorMessage('apify-google-reviews', googleRes.status, googleRes.json)}`);
+      } else if (googleRes.json?.success === true) {
+        updatedFields.push('google_review_count');
+      }
+    } else {
+      console.error('Google reviews rejected (non-fatal):', googleResult.reason);
+    }
+  }
+
   return { ok: true, fieldsUpdated: Array.from(new Set(updatedFields)) };
 }
