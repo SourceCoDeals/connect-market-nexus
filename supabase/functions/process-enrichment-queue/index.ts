@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { checkProviderAvailability } from "../_shared/rate-limiter.ts";
 
 // Configuration - RELIABILITY-FIRST
 // Moderate parallelism to avoid rate limits across concurrent queue processors.
@@ -236,8 +237,16 @@ serve(async (req) => {
 
       // Add delay between chunks to spread API load (not before first chunk)
       if (chunkIndex > 0 && INTER_CHUNK_DELAY_MS > 0) {
-        console.log(`Waiting ${INTER_CHUNK_DELAY_MS}ms between chunks to avoid rate limits...`);
-        await new Promise(r => setTimeout(r, INTER_CHUNK_DELAY_MS));
+        // Check if Gemini is in cooldown before starting next chunk
+        const availability = await checkProviderAvailability(supabase, 'gemini');
+        if (!availability.ok && availability.retryAfterMs) {
+          const cooldownWait = Math.min(availability.retryAfterMs, 30000);
+          console.log(`Gemini in cooldown — waiting ${cooldownWait}ms before next chunk`);
+          await new Promise(r => setTimeout(r, cooldownWait));
+        } else {
+          console.log(`Waiting ${INTER_CHUNK_DELAY_MS}ms between chunks to avoid rate limits...`);
+          await new Promise(r => setTimeout(r, INTER_CHUNK_DELAY_MS));
+        }
       }
       chunkIndex++;
 
@@ -399,6 +408,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Processed ${results.processed} items (parallel mode)`,
+        remaining: remainingPending ?? 0,
         ...results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -265,8 +265,8 @@ export default function CapTargetDeals() {
           valB = (b.internal_company_name || b.title || "").toLowerCase();
           break;
         case "client_name":
-          valA = (a.category || "").toLowerCase();
-          valB = (b.category || "").toLowerCase();
+          valA = (a.category || a.industry || "").toLowerCase();
+          valB = (b.category || b.industry || "").toLowerCase();
           break;
         case "contact_name":
           valA = (a.main_contact_name || "").toLowerCase();

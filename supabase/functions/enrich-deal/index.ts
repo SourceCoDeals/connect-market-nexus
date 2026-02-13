@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeState, normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { checkProviderAvailability, reportRateLimit } from "../_shared/rate-limiter.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
 
@@ -624,7 +625,7 @@ serve(async (req) => {
             for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
               if (attempt > 0) {
                 console.log(`[Transcripts] Retrying transcript ${transcript.id} (attempt ${attempt + 1})`);
-                await new Promise((r) => setTimeout(r, 2000 * attempt)); // 2s backoff
+                await new Promise((r) => setTimeout(r, 2000 * (attempt + 1))); // 2s, 4s backoff
               }
 
               try {
@@ -689,9 +690,9 @@ serve(async (req) => {
           }
         }
 
-        // Small delay between batches
+        // Delay between batches to avoid rate-limit cascades
         if (i + BATCH_SIZE < validTranscripts.length) {
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => setTimeout(r, 500));
         }
       }
 
@@ -1134,13 +1135,21 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
 
     // Retry logic for AI calls (handles 429 rate limits)
     const MAX_AI_RETRIES = 3;
-    const AI_RETRY_DELAYS = [1000, 3000, 7000]; // fast exponential backoff
-    
+    const AI_RETRY_DELAYS = [2000, 5000, 10000]; // exponential backoff with room for rate-limit recovery
+
     let aiResponse: Response | null = null;
     let lastAiError = '';
-    
+
     for (let attempt = 0; attempt < MAX_AI_RETRIES; attempt++) {
       try {
+        // Check shared rate-limit coordinator before calling Gemini
+        const availability = await checkProviderAvailability(supabase, 'gemini');
+        if (!availability.ok && availability.retryAfterMs) {
+          const waitMs = Math.min(availability.retryAfterMs, 30000);
+          console.log(`[enrich-deal] Gemini in cooldown, waiting ${waitMs}ms before attempt ${attempt + 1}`);
+          await new Promise(r => setTimeout(r, waitMs));
+        }
+
         aiResponse = await fetch(GEMINI_API_URL, {
           method: 'POST',
           headers: getGeminiHeaders(geminiApiKey),
@@ -1307,8 +1316,16 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
 
         // Check for rate limit (429)
         if (aiResponse.status === 429) {
-          const retryAfter = aiResponse.headers.get('Retry-After');
-          const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : AI_RETRY_DELAYS[attempt];
+          // Report to shared rate-limit coordinator so other workers back off too
+          const retryAfterHeader = aiResponse.headers.get('Retry-After');
+          let retryAfterSeconds: number | undefined;
+          if (retryAfterHeader) {
+            const parsed = parseInt(retryAfterHeader, 10);
+            if (!isNaN(parsed)) retryAfterSeconds = parsed;
+          }
+          await reportRateLimit(supabase, 'gemini', retryAfterSeconds).catch(() => {});
+
+          const waitMs = retryAfterSeconds ? retryAfterSeconds * 1000 : AI_RETRY_DELAYS[attempt];
           const jitter = Math.random() * 1000;
           console.log(`AI rate limited (429), waiting ${Math.round(waitMs + jitter)}ms (attempt ${attempt + 1}/${MAX_AI_RETRIES})`);
           await new Promise(r => setTimeout(r, waitMs + jitter));
@@ -1333,9 +1350,10 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           break;
         }
 
-        // Non-retryable error - log and continue
+        // Non-retryable error (4xx except 429) - break immediately, don't waste retries
         lastAiError = await aiResponse.text();
-        console.error(`AI extraction error (attempt ${attempt + 1}):`, lastAiError);
+        console.error(`AI non-retryable error (${aiResponse.status}):`, lastAiError);
+        break;
         
       } catch (err) {
         lastAiError = getErrorMessage(err);
