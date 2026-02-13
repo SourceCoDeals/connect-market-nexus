@@ -564,6 +564,16 @@ export default function CapTargetDeals() {
       }
 
       const now = new Date().toISOString();
+
+      // Cancel any old pending items so only these deals run
+      try {
+        await supabase.functions.invoke("process-enrichment-queue", {
+          body: { action: "cancel_pending", before: now },
+        });
+      } catch {
+        // Non-blocking — old items will just finish naturally
+      }
+
       const seen = new Set<string>();
       const rows = dealIds
         .filter((id) => {
