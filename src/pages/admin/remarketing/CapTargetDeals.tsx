@@ -96,6 +96,8 @@ interface CapTargetDeal {
   captarget_status: string | null;
   is_priority_target: boolean | null;
   category: string | null;
+  executive_summary: string | null;
+  industry: string | null;
 }
 
 type SortColumn =
@@ -199,7 +201,9 @@ export default function CapTargetDeals() {
             google_review_count,
             captarget_status,
             is_priority_target,
-            category
+            category,
+            executive_summary,
+            industry
           `
           )
           .eq("deal_source", "captarget")
@@ -1207,12 +1211,12 @@ export default function CapTargetDeals() {
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         <span className="text-xs text-muted-foreground line-clamp-2">
-                          {deal.description || "—"}
+                          {deal.description || deal.executive_summary || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[160px] block">
-                          {deal.category || "—"}
+                          {deal.industry || deal.category || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
