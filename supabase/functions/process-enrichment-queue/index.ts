@@ -184,6 +184,11 @@ serve(async (req) => {
           })
           .eq('id', item.id)
       ));
+      for (const cr of completionResults) {
+        if (cr.status === 'rejected') {
+          console.error('Failed to mark enriched item as completed:', cr.reason);
+        }
+      }
       
       queueItems = queueItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
       
