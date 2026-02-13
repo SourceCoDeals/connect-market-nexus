@@ -900,23 +900,7 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const pagesToScrape = [
-      websiteUrl, // Homepage
-    ];
-
-    // Common paths where we find address, company info, services
-    // OPTIMIZED: Reduced from 10 paths to 4 most valuable for speed
-    const importantPaths = [
-      '/contact', '/contact-us',
-      '/about', '/about-us',
-    ];
-
-    // Add important paths
-    for (const path of importantPaths) {
-      pagesToScrape.push(`${baseUrl.origin}${path}`);
-    }
-
-    console.log(`Will attempt to scrape up to ${pagesToScrape.length} pages`);
+    console.log(`Will scrape homepage only: ${websiteUrl}`);
 
     // Scrape all pages in parallel (with limit)
     const scrapedPages: { url: string; content: string; success: boolean }[] = [];
@@ -951,16 +935,9 @@ serve(async (req) => {
       }
     }
 
-    // Scrape homepage + additional pages ALL IN PARALLEL for speed
-    // Homepage is pagesToScrape[0]; additional pages are the rest
-    const additionalPages = importantPaths.slice(0, 2).map(p => `${baseUrl.origin}${p}`);
-    const allPagesToScrape = [websiteUrl, ...additionalPages];
-
-    console.log(`Scraping ${allPagesToScrape.length} pages in parallel: ${allPagesToScrape.join(', ')}`);
-
-    const allResults = await Promise.all(allPagesToScrape.map(url => scrapePage(url)));
-    const homepageResult = allResults[0];
-    scrapedPages.push(...allResults);
+    // Scrape homepage only for speed (1 Firecrawl call instead of 3)
+    const homepageResult = await scrapePage(websiteUrl);
+    scrapedPages.push(homepageResult);
 
     if (!homepageResult.success) {
       console.error('Failed to scrape homepage');
