@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -319,8 +319,8 @@ export default function CapTargetDeals() {
     return filteredDeals.slice(start, start + PAGE_SIZE);
   }, [filteredDeals, safePage]);
 
-  // Reset to page 1 when filters change
-  useMemo(() => {
+  // Reset to page 1 when filters/sort change
+  useEffect(() => {
     setCurrentPage(1);
   }, [search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
 
