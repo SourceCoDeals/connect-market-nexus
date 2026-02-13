@@ -1349,6 +1349,8 @@ export default function CapTargetDeals() {
           </Button>
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
