@@ -431,12 +431,20 @@ export default function CapTargetDeals() {
       }
 
       const now = new Date().toISOString();
-      const rows = targets.map((d) => ({
-        listing_id: d.id,
-        status: "pending" as const,
-        attempts: 0,
-        queued_at: now,
-      }));
+      // Deduplicate by listing_id to avoid "ON CONFLICT DO UPDATE cannot affect row a second time"
+      const seen = new Set<string>();
+      const rows = targets
+        .filter((d) => {
+          if (seen.has(d.id)) return false;
+          seen.add(d.id);
+          return true;
+        })
+        .map((d) => ({
+          listing_id: d.id,
+          status: "pending" as const,
+          attempts: 0,
+          queued_at: now,
+        }));
 
       // Batch upsert in chunks to avoid PostgREST size limits
       const CHUNK = 500;
