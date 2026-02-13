@@ -151,49 +151,66 @@ export default function CapTargetDeals() {
     refetchOnMount: "always",
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("listings")
-        .select(
-          `
-          id,
-          title,
-          internal_company_name,
-          captarget_client_name,
-          captarget_contact_date,
-          captarget_outreach_channel,
-          captarget_interest_type,
-          main_contact_name,
-          main_contact_email,
-          main_contact_title,
-          main_contact_phone,
-          captarget_sheet_tab,
-          website,
-          description,
-          owner_response,
-          pushed_to_all_deals,
-          pushed_to_all_deals_at,
-          deal_source,
-          status,
-          created_at,
-          enriched_at,
-          deal_quality_score,
-          linkedin_employee_count,
-          linkedin_employee_range,
-          google_rating,
-          google_review_count,
-          captarget_status,
-          is_priority_target,
-          category
-        `
-        )
-        .eq("deal_source", "captarget")
-        .order("captarget_contact_date", {
-          ascending: false,
-          nullsFirst: false,
-        });
+      const allData: CapTargetDeal[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
 
-      if (error) throw error;
-      return data as CapTargetDeal[];
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("listings")
+          .select(
+            `
+            id,
+            title,
+            internal_company_name,
+            captarget_client_name,
+            captarget_contact_date,
+            captarget_outreach_channel,
+            captarget_interest_type,
+            main_contact_name,
+            main_contact_email,
+            main_contact_title,
+            main_contact_phone,
+            captarget_sheet_tab,
+            website,
+            description,
+            owner_response,
+            pushed_to_all_deals,
+            pushed_to_all_deals_at,
+            deal_source,
+            status,
+            created_at,
+            enriched_at,
+            deal_quality_score,
+            linkedin_employee_count,
+            linkedin_employee_range,
+            google_rating,
+            google_review_count,
+            captarget_status,
+            is_priority_target,
+            category
+          `
+          )
+          .eq("deal_source", "captarget")
+          .order("captarget_contact_date", {
+            ascending: false,
+            nullsFirst: false,
+          })
+          .range(offset, offset + batchSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allData.push(...(data as CapTargetDeal[]));
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return allData;
     },
   });
 
@@ -977,6 +994,7 @@ export default function CapTargetDeals() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
+                  <TableHead className="w-[50px] text-center">#</TableHead>
                   <TableHead>
                     <SortHeader column="company_name">Company</SortHeader>
                   </TableHead>
@@ -1032,7 +1050,7 @@ export default function CapTargetDeals() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredDeals.map((deal) => (
+                  filteredDeals.map((deal, index) => (
                     <TableRow
                       key={deal.id}
                       className={cn(
@@ -1054,6 +1072,9 @@ export default function CapTargetDeals() {
                           checked={selectedIds.has(deal.id)}
                           onCheckedChange={() => toggleSelect(deal.id)}
                         />
+                      </TableCell>
+                      <TableCell className="w-[50px] text-center text-xs text-muted-foreground tabular-nums">
+                        {index + 1}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
