@@ -542,59 +542,77 @@ export default function CapTargetDeals() {
     [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Enrich selected deals — queue-based (same as Enrich All but scoped to selection)
+  // Enrich selected deals — queue-based (same pattern as Enrich All)
   const handleEnrichSelected = useCallback(
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
       setIsEnriching(true);
 
+      // Register in global activity queue
+      let activityItem: { id: string } | null = null;
       try {
-        const now = new Date().toISOString();
-        const seen = new Set<string>();
-        const rows = dealIds
-          .filter((id) => {
-            if (seen.has(id)) return false;
-            seen.add(id);
-            return true;
-          })
-          .map((id) => ({
-            listing_id: id,
-            status: "pending" as const,
-            attempts: 0,
-            queued_at: now,
-          }));
-
-        const CHUNK = 500;
-        for (let i = 0; i < rows.length; i += CHUNK) {
-          const chunk = rows.slice(i, i + CHUNK);
-          const { error } = await supabase
-            .from("enrichment_queue")
-            .upsert(chunk, { onConflict: "listing_id" });
-          if (error) {
-            console.error("Queue upsert error:", error);
-            sonnerToast.error("Failed to queue enrichment");
-            setIsEnriching(false);
-            return;
-          }
-        }
-
-        // Trigger the queue processor (fire-and-forget)
-        invokeWithTimeout("process-enrichment-queue", { timeoutMs: 5_000 }).catch(() => {});
-
-        setSelectedIds(new Set());
-        sonnerToast.success(`${rows.length} deal${rows.length !== 1 ? "s" : ""} queued for enrichment`);
-
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
-        }, 5000);
-      } catch (err) {
-        console.error("Enrich selected error:", err);
-        sonnerToast.error("Failed to queue enrichment");
-      } finally {
-        setIsEnriching(false);
+        const result = await startOrQueueMajorOp({
+          operationType: "deal_enrichment",
+          totalItems: dealIds.length,
+          description: `Enriching ${dealIds.length} CapTarget deals`,
+          userId: user?.id || "",
+          contextJson: { source: "captarget_selected" },
+        });
+        activityItem = result.item;
+      } catch {
+        // Non-blocking
       }
+
+      const now = new Date().toISOString();
+      const seen = new Set<string>();
+      const rows = dealIds
+        .filter((id) => {
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        })
+        .map((id) => ({
+          listing_id: id,
+          status: "pending" as const,
+          attempts: 0,
+          queued_at: now,
+        }));
+
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("enrichment_queue")
+          .upsert(chunk, { onConflict: "listing_id" });
+        if (error) {
+          console.error("Queue upsert error:", error);
+          sonnerToast.error("Failed to queue enrichment");
+          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          setIsEnriching(false);
+          return;
+        }
+      }
+
+      sonnerToast.success(`Queued ${rows.length} deals for enrichment`);
+      setSelectedIds(new Set());
+
+      // Trigger worker
+      try {
+        const { data: result } = await supabase.functions
+          .invoke("process-enrichment-queue", { body: { source: "captarget_selected" } });
+
+        if (result?.synced > 0 || result?.processed > 0) {
+          const totalDone = (result?.synced || 0) + (result?.processed || 0);
+          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+        }
+      } catch {
+        // Non-blocking
+      }
+
+      setIsEnriching(false);
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [queryClient, supabase]
+    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient, supabase]
   );
 
   const interestTypeLabel = (type: string | null) => {
