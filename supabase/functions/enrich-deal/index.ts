@@ -917,13 +917,17 @@ serve(async (req) => {
         });
 
         if (!response.ok) {
+          let errorBody = '';
+          try { errorBody = await response.text(); } catch {}
+          console.error(`Firecrawl scrape failed for ${url}: HTTP ${response.status} — ${errorBody.slice(0, 300)}`);
           return { url, content: '', success: false };
         }
 
         const data = await response.json();
         const content = data.data?.markdown || data.markdown || '';
         return { url, content, success: content.length > 50 };
-      } catch {
+      } catch (err) {
+        console.error(`Firecrawl scrape exception for ${url}:`, err instanceof Error ? err.message : err);
         return { url, content: '', success: false };
       }
     }
@@ -933,22 +937,24 @@ serve(async (req) => {
     scrapedPages.push(homepageResult);
 
     if (!homepageResult.success) {
-      console.error('Failed to scrape homepage');
+      console.warn('Failed to scrape homepage — marking as enriched with limited data');
+      // Still mark the deal as enriched so it doesn't block the queue
+      await supabase
+        .from('listings')
+        .update({ enriched_at: new Date().toISOString() })
+        .eq('id', dealId);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
-      if (transcriptFieldsApplied > 0) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping failed: could not reach homepage.`,
-            fieldsUpdated: transcriptFieldNames,
-            transcriptReport,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to scrape website homepage' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          message: transcriptFieldsApplied > 0
+            ? `Transcript enrichment completed (${transcriptFieldsApplied} fields applied). Website scraping failed: could not reach homepage.`
+            : 'Website could not be scraped (site may be down or blocking). Deal marked as enriched with limited data.',
+          fieldsUpdated: transcriptFieldNames,
+          transcriptReport,
+          warning: 'website_scrape_failed',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
