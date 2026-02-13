@@ -15,6 +15,7 @@ import {
   Handshake,
   Activity,
   Crosshair,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +65,21 @@ export function ReMarketingSidebar() {
     refetchInterval: 30000,
   });
 
+  // Fetch un-pushed GP Partner deals count for badge
+  const { data: gpPartnersUnpushedCount } = useQuery({
+    queryKey: ["gp-partners-unpushed-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("listings")
+        .select("*", { count: "exact", head: true })
+        .eq("deal_source", "gp_partners")
+        .eq("pushed_to_all_deals", false);
+      if (error) return 0;
+      return count || 0;
+    },
+    refetchInterval: 30000,
+  });
+
   const navItems: NavItem[] = [
     {
       label: "Dashboard",
@@ -86,6 +102,12 @@ export function ReMarketingSidebar() {
       href: "/admin/remarketing/captarget-deals",
       icon: <Crosshair className="h-5 w-5" />,
       badge: captargetUnpushedCount || undefined,
+    },
+    {
+      label: "GP Partner Deals",
+      href: "/admin/remarketing/gp-partner-deals",
+      icon: <Briefcase className="h-5 w-5" />,
+      badge: gpPartnersUnpushedCount || undefined,
     },
     {
       label: "Referral Partners",

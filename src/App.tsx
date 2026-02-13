@@ -53,6 +53,7 @@ import ReMarketingActivityQueue from "@/pages/admin/remarketing/ReMarketingActiv
 import ReMarketingReferralPartners from "@/pages/admin/remarketing/ReMarketingReferralPartners";
 import ReMarketingReferralPartnerDetail from "@/pages/admin/remarketing/ReMarketingReferralPartnerDetail";
 import CapTargetDeals from "@/pages/admin/remarketing/CapTargetDeals";
+import GPPartnerDeals from "@/pages/admin/remarketing/GPPartnerDeals";
 
 import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
 import ReferralTrackerPage from "@/pages/ReferralTrackerPage";
@@ -163,6 +164,8 @@ function App() {
               <Route path="analytics/advanced" element={<ReMarketingAdvancedAnalytics />} />
               <Route path="captarget-deals" element={<CapTargetDeals />} />
               <Route path="captarget-deals/:dealId" element={<ReMarketingDealDetail />} />
+              <Route path="gp-partner-deals" element={<GPPartnerDeals />} />
+              <Route path="gp-partner-deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
               <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
               <Route path="activity-queue" element={<ReMarketingActivityQueue />} />

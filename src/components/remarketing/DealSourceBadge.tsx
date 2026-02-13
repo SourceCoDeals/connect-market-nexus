@@ -14,6 +14,10 @@ const SOURCE_CONFIG: Record<string, { label: string; className: string }> = {
     label: "Marketplace",
     className: "bg-green-50 text-green-700 border-green-200",
   },
+  gp_partners: {
+    label: "GP Partners",
+    className: "bg-orange-50 text-orange-700 border-orange-200",
+  },
   manual: {
     label: "Manual",
     className: "bg-gray-50 text-gray-600 border-gray-200",
