@@ -1099,14 +1099,6 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-      {/* Owner Response Section */}
-      <OwnerResponseSection
-        ownerResponse={deal.owner_response}
-        onSave={async (response) => {
-          await updateDealMutation.mutateAsync({ owner_response: response } as any);
-        }}
-      />
-
       {/* General Notes Section */}
       <GeneralNotesSection
         notes={deal.general_notes}
