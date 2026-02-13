@@ -136,6 +136,51 @@ export default function CapTargetDeals() {
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
+  // Column resizing
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    checkbox: 40,
+    number: 50,
+    company: 180,
+    description: 200,
+    industry: 130,
+    contact: 120,
+    interest: 80,
+    channel: 100,
+    liCount: 80,
+    liRange: 90,
+    reviews: 80,
+    rating: 70,
+    sourceTab: 90,
+    score: 70,
+    date: 80,
+    status: 80,
+  });
+  const resizingRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
+
+  const handleResizeStart = useCallback((col: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = columnWidths[col] || 100;
+    resizingRef.current = { col, startX, startW };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const diff = ev.clientX - resizingRef.current.startX;
+      const newWidth = Math.max(40, resizingRef.current.startW + diff);
+      setColumnWidths(prev => ({ ...prev, [resizingRef.current!.col]: newWidth }));
+    };
+
+    const onMouseUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [columnWidths]);
+
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -1131,54 +1176,41 @@ export default function CapTargetDeals() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[40px]">
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="w-[50px] text-center">#</TableHead>
-                  <TableHead>
-                    <SortHeader column="company_name">Company</SortHeader>
-                  </TableHead>
-                  <TableHead className="max-w-[200px]">Description</TableHead>
-                  <TableHead>
-                    <SortHeader column="client_name">Industry</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="contact_name">Contact</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="interest_type">Interest</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="outreach_channel">Channel</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="linkedin_employee_count">LI Count</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="linkedin_employee_range">LI Range</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="google_review_count">Reviews</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="google_rating">Rating</SortHeader>
-                  </TableHead>
-                  <TableHead>Source Tab</TableHead>
-                  <TableHead>
-                    <SortHeader column="score">Score</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="contact_date">Date</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="pushed">Status</SortHeader>
-                  </TableHead>
+                  {[
+                    { key: 'checkbox', content: <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />, noResize: true },
+                    { key: 'number', content: '#', noResize: true },
+                    { key: 'company', content: <SortHeader column="company_name">Company</SortHeader> },
+                    { key: 'description', content: 'Description' },
+                    { key: 'industry', content: <SortHeader column="client_name">Industry</SortHeader> },
+                    { key: 'contact', content: <SortHeader column="contact_name">Contact</SortHeader> },
+                    { key: 'interest', content: <SortHeader column="interest_type">Interest</SortHeader> },
+                    { key: 'channel', content: <SortHeader column="outreach_channel">Channel</SortHeader> },
+                    { key: 'liCount', content: <SortHeader column="linkedin_employee_count">LI Count</SortHeader> },
+                    { key: 'liRange', content: <SortHeader column="linkedin_employee_range">LI Range</SortHeader> },
+                    { key: 'reviews', content: <SortHeader column="google_review_count">Reviews</SortHeader> },
+                    { key: 'rating', content: <SortHeader column="google_rating">Rating</SortHeader> },
+                    { key: 'sourceTab', content: 'Source Tab' },
+                    { key: 'score', content: <SortHeader column="score">Score</SortHeader> },
+                    { key: 'date', content: <SortHeader column="contact_date">Date</SortHeader> },
+                    { key: 'status', content: <SortHeader column="pushed">Status</SortHeader> },
+                  ].map(({ key, content, noResize }) => (
+                    <TableHead
+                      key={key}
+                      style={{ width: columnWidths[key], minWidth: 40, maxWidth: columnWidths[key], position: 'relative' }}
+                      className="overflow-hidden text-ellipsis whitespace-nowrap"
+                    >
+                      {content}
+                      {!noResize && (
+                        <div
+                          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 z-10"
+                          onMouseDown={(e) => handleResizeStart(key, e)}
+                        />
+                      )}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
