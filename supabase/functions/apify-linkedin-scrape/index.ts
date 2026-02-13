@@ -98,10 +98,10 @@ serve(async (req) => {
       }
 
       // MULTI-CANDIDATE RANKING:
-      // Scrape up to 3 candidates and pick the best match by score.
+      // Scrape up to 3 candidates IN PARALLEL and pick the best match by score.
       // This prevents picking the wrong "NES" or "Johnson" company.
       const MAX_CANDIDATES_TO_SCRAPE = Math.min(candidateUrls.length, 3);
-      console.log(`Scraping ${MAX_CANDIDATES_TO_SCRAPE} of ${candidateUrls.length} candidates for ranking`);
+      console.log(`Scraping ${MAX_CANDIDATES_TO_SCRAPE} of ${candidateUrls.length} candidates in parallel for ranking`);
 
       type ScoredCandidate = {
         url: string;
@@ -109,17 +109,20 @@ serve(async (req) => {
         score: number;
         signals: Record<string, unknown>;
       };
+
+      // Scrape all candidates in parallel instead of sequentially
+      const candidateResults = await Promise.allSettled(
+        candidateUrls.slice(0, MAX_CANDIDATES_TO_SCRAPE).map(async (url) => {
+          console.log(`Scraping candidate: ${url}`);
+          const data = await scrapeWithApify(APIFY_API_TOKEN, url);
+          return { url, data };
+        })
+      );
+
       const scoredCandidates: ScoredCandidate[] = [];
-
-      for (let i = 0; i < MAX_CANDIDATES_TO_SCRAPE; i++) {
-        const url = candidateUrls[i];
-        console.log(`Scraping candidate ${i + 1}/${MAX_CANDIDATES_TO_SCRAPE}: ${url}`);
-
-        const candidateData = await scrapeWithApify(APIFY_API_TOKEN, url);
-        if (!candidateData) {
-          console.log(`Candidate ${url} returned no data, skipping`);
-          continue;
-        }
+      for (const result of candidateResults) {
+        if (result.status !== 'fulfilled' || !result.value.data) continue;
+        const { url, data: candidateData } = result.value;
 
         const { score, signals } = scoreLinkedInCandidate(
           candidateData, companyName, companyWebsite, city, state
@@ -127,12 +130,6 @@ serve(async (req) => {
         console.log(`Candidate "${candidateData.name}" (${url}): score=${score}, signals=${JSON.stringify(signals)}`);
 
         scoredCandidates.push({ url, data: candidateData, score, signals });
-
-        // Early exit: if we find a high-confidence match (score >= 65), stop searching
-        if (score >= 65) {
-          console.log(`High-confidence match found (score ${score}), stopping candidate search`);
-          break;
-        }
       }
 
       if (scoredCandidates.length === 0) {

@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
 import { Progress } from "@/components/ui/progress";
@@ -127,6 +128,7 @@ export default function CapTargetDeals() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [statusTab, setStatusTab] = useState<"active" | "inactive">("active");
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
@@ -227,6 +229,8 @@ export default function CapTargetDeals() {
     if (!deals) return [];
 
     let filtered = deals.filter((deal) => {
+      // Tab filter
+      if (deal.captarget_status !== statusTab) return false;
       if (search) {
         const q = search.toLowerCase();
         const matchesSearch =
@@ -385,6 +389,16 @@ export default function CapTargetDeals() {
     },
     [toast, queryClient]
   );
+
+  // Deals filtered by the current status tab (for bulk operations)
+  const tabDeals = useMemo(() => {
+    if (!deals) return [];
+    return deals.filter((d) => d.captarget_status === statusTab);
+  }, [deals, statusTab]);
+
+  // Tab counts for labels
+  const activeCount = useMemo(() => deals?.filter((d) => d.captarget_status === "active").length ?? 0, [deals]);
+  const inactiveCount = useMemo(() => deals?.filter((d) => d.captarget_status === "inactive").length ?? 0, [deals]);
 
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
@@ -1007,6 +1021,25 @@ export default function CapTargetDeals() {
           </Button>
         </div>
       )}
+
+      {/* Active / Inactive Tabs */}
+      <Tabs
+        value={statusTab}
+        onValueChange={(val) => {
+          setStatusTab(val as "active" | "inactive");
+          setSelectedIds(new Set());
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="active">
+            Active ({activeCount})
+          </TabsTrigger>
+          <TabsTrigger value="inactive">
+            Inactive ({inactiveCount})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={statusTab} forceMount>
 
       {/* Deals Table */}
       <Card>

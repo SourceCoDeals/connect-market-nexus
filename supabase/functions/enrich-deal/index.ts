@@ -610,9 +610,8 @@ serve(async (req) => {
           .in('id', failedTranscriptIds);
       }
 
-      // Process transcripts in parallel batches of 5 for speed
-      // With 11 transcripts this means 3 rounds instead of 4, saving ~25-30s
-      const BATCH_SIZE = 5;
+      // Process transcripts in parallel batches of 10 for speed
+      const BATCH_SIZE = 10;
       for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
         const batch = validTranscripts.slice(i, i + BATCH_SIZE);
 
@@ -692,7 +691,7 @@ serve(async (req) => {
 
         // Small delay between batches
         if (i + BATCH_SIZE < validTranscripts.length) {
-          await new Promise((r) => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, 100));
         }
       }
 
@@ -894,23 +893,7 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const pagesToScrape = [
-      websiteUrl, // Homepage
-    ];
-
-    // Common paths where we find address, company info, services
-    // OPTIMIZED: Reduced from 10 paths to 4 most valuable for speed
-    const importantPaths = [
-      '/contact', '/contact-us',
-      '/about', '/about-us',
-    ];
-
-    // Add important paths
-    for (const path of importantPaths) {
-      pagesToScrape.push(`${baseUrl.origin}${path}`);
-    }
-
-    console.log(`Will attempt to scrape up to ${pagesToScrape.length} pages`);
+    console.log(`Will scrape homepage only: ${websiteUrl}`);
 
     // Scrape all pages in parallel (with limit)
     const scrapedPages: { url: string; content: string; success: boolean }[] = [];
@@ -928,7 +911,7 @@ serve(async (req) => {
             url: url,
             formats: ['markdown'],
             onlyMainContent: true,
-            waitFor: 2000,
+            waitFor: 1000,
           }),
           signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
         });
@@ -945,7 +928,7 @@ serve(async (req) => {
       }
     }
 
-    // First, always scrape the homepage
+    // Scrape homepage only for speed (1 Firecrawl call instead of 3)
     const homepageResult = await scrapePage(websiteUrl);
     scrapedPages.push(homepageResult);
 
@@ -968,29 +951,6 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Try to find actual navigation links in the homepage to prioritize real pages
-    const homepageContent = homepageResult.content.toLowerCase();
-    const prioritizedPaths: string[] = [];
-
-    // Check which paths are likely to exist based on homepage content
-    for (const path of importantPaths) {
-      const pathName = path.replace(/[/-]/g, ' ').trim();
-      if (homepageContent.includes(pathName) || homepageContent.includes(path.slice(1))) {
-        prioritizedPaths.push(`${baseUrl.origin}${path}`);
-      }
-    }
-
-    // OPTIMIZED: Scrape up to 2 additional pages (was 4) for speed
-    const additionalPages = prioritizedPaths.length > 0
-      ? prioritizedPaths.slice(0, 2)
-      : importantPaths.slice(0, 2).map(p => `${baseUrl.origin}${p}`);
-
-    console.log(`Scraping additional pages: ${additionalPages.join(', ')}`);
-
-    // Scrape additional pages in parallel
-    const additionalResults = await Promise.all(additionalPages.map(url => scrapePage(url)));
-    scrapedPages.push(...additionalResults);
 
     // Count successful scrapes
     const successfulScrapes = scrapedPages.filter(p => p.success);
@@ -1168,7 +1128,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
 
     // Retry logic for AI calls (handles 429 rate limits)
     const MAX_AI_RETRIES = 3;
-    const AI_RETRY_DELAYS = [2000, 5000, 10000]; // exponential backoff
+    const AI_RETRY_DELAYS = [1000, 3000, 7000]; // fast exponential backoff
     
     let aiResponse: Response | null = null;
     let lastAiError = '';
