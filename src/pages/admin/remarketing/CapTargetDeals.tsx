@@ -548,8 +548,21 @@ export default function CapTargetDeals() {
 
   // Enrich selected deals — queue-based (same pattern as Enrich All)
   const handleEnrichSelected = useCallback(
-    async (dealIds: string[]) => {
+    async (dealIds: string[], mode: "all" | "unenriched" = "all") => {
       if (dealIds.length === 0) return;
+
+      // Filter to unenriched only if requested
+      let targetIds = dealIds;
+      if (mode === "unenriched" && filteredDeals) {
+        const enrichedSet = new Set(
+          filteredDeals.filter((d) => d.enriched_at).map((d) => d.id)
+        );
+        targetIds = dealIds.filter((id) => !enrichedSet.has(id));
+        if (targetIds.length === 0) {
+          sonnerToast.info("All selected deals are already enriched");
+          return;
+        }
+      }
       setIsEnriching(true);
 
       // Register in global activity queue
@@ -557,8 +570,8 @@ export default function CapTargetDeals() {
       try {
         const result = await startOrQueueMajorOp({
           operationType: "deal_enrichment",
-          totalItems: dealIds.length,
-          description: `Enriching ${dealIds.length} CapTarget deals`,
+          totalItems: targetIds.length,
+          description: `Enriching ${targetIds.length} CapTarget deals`,
           userId: user?.id || "",
           contextJson: { source: "captarget_selected" },
         });
@@ -579,7 +592,7 @@ export default function CapTargetDeals() {
       }
 
       const seen = new Set<string>();
-      const rows = dealIds
+      const rows = targetIds
         .filter((id) => {
           if (seen.has(id)) return false;
           seen.add(id);
@@ -626,7 +639,7 @@ export default function CapTargetDeals() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient, supabase]
+    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient, supabase, filteredDeals]
   );
 
   const interestTypeLabel = (type: string | null) => {
@@ -1059,20 +1072,32 @@ export default function CapTargetDeals() {
             )}
             Approve to All Deals
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleEnrichSelected(Array.from(selectedIds))}
-            disabled={isEnriching}
-            className="gap-2"
-          >
-            {isEnriching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            Enrich Selected
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isEnriching}
+                className="gap-2"
+              >
+                {isEnriching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Enrich Selected
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleEnrichSelected(Array.from(selectedIds), "unenriched")}>
+                Enrich Unenriched
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEnrichSelected(Array.from(selectedIds), "all")}>
+                Re-enrich All
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             size="sm"
             variant="ghost"
