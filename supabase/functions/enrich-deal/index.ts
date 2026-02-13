@@ -610,9 +610,8 @@ serve(async (req) => {
           .in('id', failedTranscriptIds);
       }
 
-      // Process transcripts in parallel batches of 5 for speed
-      // With 11 transcripts this means 3 rounds instead of 4, saving ~25-30s
-      const BATCH_SIZE = 5;
+      // Process transcripts in parallel batches of 10 for speed
+      const BATCH_SIZE = 10;
       for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
         const batch = validTranscripts.slice(i, i + BATCH_SIZE);
 
@@ -692,7 +691,7 @@ serve(async (req) => {
 
         // Small delay between batches
         if (i + BATCH_SIZE < validTranscripts.length) {
-          await new Promise((r) => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, 100));
         }
       }
 
@@ -935,7 +934,7 @@ serve(async (req) => {
             url: url,
             formats: ['markdown'],
             onlyMainContent: true,
-            waitFor: 2000,
+            waitFor: 1000,
           }),
           signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
         });
@@ -952,9 +951,16 @@ serve(async (req) => {
       }
     }
 
-    // First, always scrape the homepage
-    const homepageResult = await scrapePage(websiteUrl);
-    scrapedPages.push(homepageResult);
+    // Scrape homepage + additional pages ALL IN PARALLEL for speed
+    // Homepage is pagesToScrape[0]; additional pages are the rest
+    const additionalPages = importantPaths.slice(0, 2).map(p => `${baseUrl.origin}${p}`);
+    const allPagesToScrape = [websiteUrl, ...additionalPages];
+
+    console.log(`Scraping ${allPagesToScrape.length} pages in parallel: ${allPagesToScrape.join(', ')}`);
+
+    const allResults = await Promise.all(allPagesToScrape.map(url => scrapePage(url)));
+    const homepageResult = allResults[0];
+    scrapedPages.push(...allResults);
 
     if (!homepageResult.success) {
       console.error('Failed to scrape homepage');
@@ -975,29 +981,6 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Try to find actual navigation links in the homepage to prioritize real pages
-    const homepageContent = homepageResult.content.toLowerCase();
-    const prioritizedPaths: string[] = [];
-
-    // Check which paths are likely to exist based on homepage content
-    for (const path of importantPaths) {
-      const pathName = path.replace(/[/-]/g, ' ').trim();
-      if (homepageContent.includes(pathName) || homepageContent.includes(path.slice(1))) {
-        prioritizedPaths.push(`${baseUrl.origin}${path}`);
-      }
-    }
-
-    // OPTIMIZED: Scrape up to 2 additional pages (was 4) for speed
-    const additionalPages = prioritizedPaths.length > 0
-      ? prioritizedPaths.slice(0, 2)
-      : importantPaths.slice(0, 2).map(p => `${baseUrl.origin}${p}`);
-
-    console.log(`Scraping additional pages: ${additionalPages.join(', ')}`);
-
-    // Scrape additional pages in parallel
-    const additionalResults = await Promise.all(additionalPages.map(url => scrapePage(url)));
-    scrapedPages.push(...additionalResults);
 
     // Count successful scrapes
     const successfulScrapes = scrapedPages.filter(p => p.success);
