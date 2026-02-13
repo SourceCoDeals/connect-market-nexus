@@ -96,6 +96,8 @@ interface CapTargetDeal {
   captarget_status: string | null;
   is_priority_target: boolean | null;
   category: string | null;
+  industry: string | null;
+  executive_summary: string | null;
 }
 
 type SortColumn =
@@ -199,7 +201,9 @@ export default function CapTargetDeals() {
             google_review_count,
             captarget_status,
             is_priority_target,
-            category
+            category,
+            industry,
+            executive_summary
           `
           )
           .eq("deal_source", "captarget")
@@ -261,8 +265,8 @@ export default function CapTargetDeals() {
           valB = (b.internal_company_name || b.title || "").toLowerCase();
           break;
         case "client_name":
-          valA = (a.category || "").toLowerCase();
-          valB = (b.category || "").toLowerCase();
+          valA = (a.category || a.industry || "").toLowerCase();
+          valB = (b.category || b.industry || "").toLowerCase();
           break;
         case "contact_name":
           valA = (a.main_contact_name || "").toLowerCase();
@@ -1150,12 +1154,12 @@ export default function CapTargetDeals() {
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         <span className="text-xs text-muted-foreground line-clamp-2">
-                          {deal.description || "—"}
+                          {deal.description || deal.executive_summary || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[160px] block">
-                          {deal.category || "—"}
+                          {deal.category || deal.industry || "—"}
                         </span>
                       </TableCell>
                       <TableCell>

@@ -131,15 +131,26 @@ serve(async (req) => {
 
     console.log(`Found ${queueItems.length} items to process`);
 
-    // PRE-CHECK: Mark batch items as completed if their listings are already enriched
+    // PRE-CHECK: Mark batch items as completed if their listings are FULLY enriched
+    // (website AI + LinkedIn data + Google data). Deals with only enriched_at but missing
+    // LinkedIn/Google still need to run through the pipeline to get external data.
     const listingIds = queueItems.map((item: { listing_id: string }) => item.listing_id);
     const { data: enrichedListings } = await supabase
       .from('listings')
-      .select('id, enriched_at')
+      .select('id, enriched_at, linkedin_employee_count, linkedin_employee_range, google_review_count')
       .in('id', listingIds)
       .not('enriched_at', 'is', null);
 
-    const alreadyEnrichedIds = new Set(enrichedListings?.map(l => l.id) || []);
+    const alreadyFullyEnrichedIds = new Set(
+      (enrichedListings || [])
+        .filter(l =>
+          l.enriched_at &&
+          (l.linkedin_employee_count != null || l.linkedin_employee_range != null) &&
+          l.google_review_count != null
+        )
+        .map(l => l.id)
+    );
+    const alreadyEnrichedIds = alreadyFullyEnrichedIds;
     
     if (alreadyEnrichedIds.size > 0) {
       console.log(`Found ${alreadyEnrichedIds.size} listings already enriched - marking queue items as completed`);

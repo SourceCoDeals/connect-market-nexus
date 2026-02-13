@@ -1,6 +1,8 @@
 // Enrichment pipeline runner for process-enrichment-queue
 // Keeps the main edge function small and focused.
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 export type EnrichmentPipelineInput = {
   supabaseUrl: string;
   serviceRoleKey: string;
@@ -88,24 +90,47 @@ export async function runListingEnrichmentPipeline(
     updatedFields.push(...enrichDeal.json.fieldsUpdated);
   }
 
-  // 2) LinkedIn + Google in PARALLEL (they're independent, non-fatal)
-  const companyName = listing.internal_company_name || listing.title;
+  // 2) RE-FETCH listing context from DB after enrich-deal has written updated fields.
+  //    The original `listing` was fetched BEFORE enrichment, so it has stale data
+  //    (e.g., internal_company_name=null, address_city=null, linkedin_url=null).
+  //    enrich-deal just wrote the real company name, address, and linkedin_url —
+  //    LinkedIn/Google need these fresh values to find the right company.
+  let enrichedListing = listing;
+  try {
+    const supabase = createClient(input.supabaseUrl, input.serviceRoleKey);
+    const { data: freshListing } = await supabase
+      .from('listings')
+      .select('internal_company_name, title, address_city, address_state, address, linkedin_url, website')
+      .eq('id', input.listingId)
+      .single();
+
+    if (freshListing) {
+      enrichedListing = freshListing as ListingContext;
+      console.log(`[pipeline] Re-fetched listing after enrich-deal: name="${enrichedListing.internal_company_name}", city="${enrichedListing.address_city}", state="${enrichedListing.address_state}", linkedin="${enrichedListing.linkedin_url}"`);
+    }
+  } catch (err) {
+    console.warn('[pipeline] Failed to re-fetch listing after enrich-deal, using original context:', err);
+  }
+
+  // 3) LinkedIn + Google in PARALLEL (they're independent, non-fatal)
+  //    Now using enrichedListing which has the real company name, city, state, and linkedin_url
+  const companyName = enrichedListing.internal_company_name || enrichedListing.title;
   if (companyName) {
     const [liResult, googleResult] = await Promise.allSettled([
       callFn(input, 'apify-linkedin-scrape', {
         dealId: input.listingId,
-        linkedinUrl: listing.linkedin_url,
+        linkedinUrl: enrichedListing.linkedin_url,
         companyName,
-        city: listing.address_city,
-        state: listing.address_state,
-        companyWebsite: listing.website,
+        city: enrichedListing.address_city,
+        state: enrichedListing.address_state,
+        companyWebsite: enrichedListing.website,
       }),
       callFn(input, 'apify-google-reviews', {
         dealId: input.listingId,
         businessName: companyName,
-        address: listing.address,
-        city: listing.address_city,
-        state: listing.address_state,
+        address: enrichedListing.address,
+        city: enrichedListing.address_city,
+        state: enrichedListing.address_state,
       }),
     ]);
 
@@ -136,6 +161,8 @@ export async function runListingEnrichmentPipeline(
     } else {
       console.error('Google reviews rejected (non-fatal):', googleResult.reason);
     }
+  } else {
+    console.warn(`[pipeline] No company name available for LinkedIn/Google — skipping external enrichment for ${input.listingId}`);
   }
 
   return { ok: true, fieldsUpdated: Array.from(new Set(updatedFields)) };
