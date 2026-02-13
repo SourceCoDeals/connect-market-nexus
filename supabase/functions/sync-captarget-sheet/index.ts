@@ -260,33 +260,8 @@ serve(async (req) => {
     return corsPreflightResponse(req);
   }
 
-  // Pre-fetch the max deal_identifier number to generate our own, bypassing the broken sequence
-  let nextDealIdNum = 1001;
-  try {
-    const { data: maxRow } = await supabase
-      .from("listings")
-      .select("deal_identifier")
-      .not("deal_identifier", "is", null)
-      .order("deal_identifier", { ascending: false })
-      .limit(200);
-    if (maxRow && maxRow.length > 0) {
-      let maxNum = 0;
-      for (const r of maxRow) {
-        const parts = (r.deal_identifier as string).split("-");
-        const num = parseInt(parts[parts.length - 1], 10);
-        if (!isNaN(num) && num > maxNum) maxNum = num;
-      }
-      nextDealIdNum = maxNum + 1;
-    }
-  } catch (e) {
-    console.warn("Could not determine max deal_identifier, starting at 1001:", e);
-  }
-  const currentYear = new Date().getFullYear();
-  function getNextDealId(): string {
-    const id = `SCO-${currentYear}-${String(nextDealIdNum).padStart(3, "0")}`;
-    nextDealIdNum++;
-    return id;
-  }
+  // deal_identifier is now handled by the DB trigger (auto_generate_deal_identifier_trigger)
+  // which uses nextval('deal_identifier_seq') — no application-side generation needed.
 
   const startTime = Date.now();
   const syncErrors: any[] = [];
@@ -466,8 +441,7 @@ serve(async (req) => {
             const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, ...updateFields } = record;
             toUpdate.push({ id: existingId, ...updateFields });
           } else {
-            // Pre-set deal_identifier to bypass the broken sequence trigger
-            record.deal_identifier = getNextDealId();
+            // deal_identifier is assigned by DB trigger via nextval('deal_identifier_seq')
             toInsert.push(record);
           }
         }
