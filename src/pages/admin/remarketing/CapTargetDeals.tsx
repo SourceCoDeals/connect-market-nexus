@@ -542,38 +542,59 @@ export default function CapTargetDeals() {
     [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Enrich selected deals (existing)
+  // Enrich selected deals — queue-based (same as Enrich All but scoped to selection)
   const handleEnrichSelected = useCallback(
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
       setIsEnriching(true);
 
-      let queued = 0;
-      for (const id of dealIds) {
-        try {
-          await invokeWithTimeout("enrich-deal", {
-            body: { dealId: id },
-            timeoutMs: 90_000,
-          });
-          queued++;
-        } catch (err) {
-          console.error(`Failed to enrich deal ${id}:`, err);
+      try {
+        const now = new Date().toISOString();
+        const seen = new Set<string>();
+        const rows = dealIds
+          .filter((id) => {
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          })
+          .map((id) => ({
+            listing_id: id,
+            status: "pending" as const,
+            attempts: 0,
+            queued_at: now,
+          }));
+
+        const CHUNK = 500;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          const chunk = rows.slice(i, i + CHUNK);
+          const { error } = await supabase
+            .from("enrichment_queue")
+            .upsert(chunk, { onConflict: "listing_id" });
+          if (error) {
+            console.error("Queue upsert error:", error);
+            sonnerToast.error("Failed to queue enrichment");
+            setIsEnriching(false);
+            return;
+          }
         }
+
+        // Trigger the queue processor (fire-and-forget)
+        invokeWithTimeout("process-enrichment-queue", { timeoutMs: 5_000 }).catch(() => {});
+
+        setSelectedIds(new Set());
+        sonnerToast.success(`${rows.length} deal${rows.length !== 1 ? "s" : ""} queued for enrichment`);
+
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+        }, 5000);
+      } catch (err) {
+        console.error("Enrich selected error:", err);
+        sonnerToast.error("Failed to queue enrichment");
+      } finally {
+        setIsEnriching(false);
       }
-
-      setIsEnriching(false);
-      setSelectedIds(new Set());
-
-      toast({
-        title: "Enrichment Started",
-        description: `${queued} deal${queued !== 1 ? "s" : ""} queued for enrichment.`,
-      });
-
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
-      }, 5000);
     },
-    [toast, queryClient]
+    [queryClient, supabase]
   );
 
   const interestTypeLabel = (type: string | null) => {
