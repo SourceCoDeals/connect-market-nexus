@@ -469,7 +469,7 @@ const SortableTableRow = ({
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
           <EditableRankCell
-            value={listing.manual_rank_override || index + 1}
+            value={listing.manual_rank_override ?? (index + 1)}
             onSave={(newRank) => onUpdateRank(listing.id, newRank)}
           />
         </div>
@@ -1275,7 +1275,7 @@ const ReMarketingDeals = () => {
     sortedListingsRef.current = updatedListings;
 
     try {
-      // Parallel DB updates — only changed deals
+      // Parallel DB updates — only changed deals (throwOnError so failures are caught)
       if (changedDeals.length > 0) {
         await Promise.all(
           changedDeals.map((deal) =>
@@ -1283,6 +1283,7 @@ const ReMarketingDeals = () => {
               .from('listings')
               .update({ manual_rank_override: deal.manual_rank_override })
               .eq('id', deal.id)
+              .throwOnError()
           )
         );
       }
@@ -2205,15 +2206,56 @@ const ReMarketingDeals = () => {
                           onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
                           onUpdateRank={async (dealId, newRank) => {
-                            const currentList = [...localOrder];
-                            const movedIndex = currentList.findIndex(l => l.id === dealId);
+                            // Work on rank-sorted copy so position logic is correct
+                            // regardless of current table sort column
+                            const rankSorted = [...localOrder].sort((a, b) =>
+                              (a.manual_rank_override ?? 9999) - (b.manual_rank_override ?? 9999)
+                            );
+                            const movedIndex = rankSorted.findIndex(l => l.id === dealId);
                             if (movedIndex === -1) return;
 
-                            const targetPos = Math.max(1, Math.min(newRank, currentList.length));
-                            const [movedDeal] = currentList.splice(movedIndex, 1);
-                            currentList.splice(targetPos - 1, 0, movedDeal);
+                            const targetPos = Math.max(1, Math.min(newRank, rankSorted.length));
+                            const [movedDeal] = rankSorted.splice(movedIndex, 1);
+                            rankSorted.splice(targetPos - 1, 0, movedDeal);
 
-                            await persistRankChanges(currentList, `Deal moved to position ${targetPos}`);
+                            // Build a map of id → new rank from the rank-sorted list
+                            const newRanks = new Map(rankSorted.map((l, idx) => [l.id, idx + 1]));
+
+                            // Apply new ranks to localOrder (preserving current display sort)
+                            const updatedLocal = localOrder.map(l => ({
+                              ...l,
+                              manual_rank_override: newRanks.get(l.id) ?? l.manual_rank_override,
+                            }));
+
+                            // Only persist deals whose rank actually changed
+                            const changedDeals = updatedLocal.filter(deal => {
+                              const original = localOrder.find(d => d.id === deal.id);
+                              return !original || original.manual_rank_override !== deal.manual_rank_override;
+                            });
+
+                            // Optimistic UI update
+                            setLocalOrder(updatedLocal);
+                            sortedListingsRef.current = updatedLocal;
+
+                            try {
+                              if (changedDeals.length > 0) {
+                                await Promise.all(
+                                  changedDeals.map((deal) =>
+                                    supabase
+                                      .from('listings')
+                                      .update({ manual_rank_override: deal.manual_rank_override })
+                                      .eq('id', deal.id)
+                                      .throwOnError()
+                                  )
+                                );
+                              }
+                              await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+                              toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
+                            } catch (err: any) {
+                              console.error('Failed to update rank:', err);
+                              await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+                              toast({ title: 'Failed to update rank', variant: 'destructive' });
+                            }
                           }}
                         />
                       ))}
