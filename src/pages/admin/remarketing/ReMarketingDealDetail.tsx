@@ -955,6 +955,14 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
+      {/* Owner Response */}
+      <OwnerResponseSection
+        ownerResponse={deal.owner_response}
+        onSave={async (response) => {
+          await updateDealMutation.mutateAsync({ owner_response: response } as any);
+        }}
+      />
+
       {/* Key Quotes from Seller */}
       <KeyQuotesCard
         quotes={Array.isArray(deal.key_quotes) ? deal.key_quotes : null}
