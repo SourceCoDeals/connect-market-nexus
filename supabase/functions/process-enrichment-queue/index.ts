@@ -156,31 +156,24 @@ serve(async (req) => {
 
     console.log(`Found ${queueItems.length} items to process`);
 
-    // PRE-CHECK: Mark batch items as completed if their listings are FULLY enriched
-    // (enriched_at set AND LinkedIn/Google data present)
+    // PRE-CHECK: Mark batch items as completed if their listings are already enriched
+    // (enriched_at set — LinkedIn/Google data is optional)
     const listingIds = queueItems.map((item: { listing_id: string }) => item.listing_id);
     const { data: enrichedListings } = await supabase
       .from('listings')
-      .select('id, enriched_at, linkedin_employee_count, linkedin_employee_range, google_review_count, google_rating')
+      .select('id, enriched_at')
       .in('id', listingIds)
       .not('enriched_at', 'is', null);
 
-    // Only skip items that have FULL enrichment (website + LinkedIn + Google)
-    const fullyEnrichedIds = new Set(
-      (enrichedListings || [])
-        .filter(l => 
-          l.enriched_at && 
-          (l.linkedin_employee_count != null || l.linkedin_employee_range != null) &&
-          (l.google_review_count != null || l.google_rating != null)
-        )
-        .map(l => l.id)
+    const alreadyEnrichedIds = new Set(
+      (enrichedListings || []).map(l => l.id)
     );
     
-    if (fullyEnrichedIds.size > 0) {
-      console.log(`Found ${fullyEnrichedIds.size} listings fully enriched (website+LinkedIn+Google) - marking queue items as completed`);
+    if (alreadyEnrichedIds.size > 0) {
+      console.log(`Found ${alreadyEnrichedIds.size} listings already enriched — marking queue items as completed`);
       
-      const itemsToComplete = queueItems.filter((item: { listing_id: string }) => fullyEnrichedIds.has(item.listing_id));
-      const completionResults = await Promise.allSettled(itemsToComplete.map((item: { id: string; listing_id: string }) =>
+      const itemsToComplete = queueItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
+      await Promise.all(itemsToComplete.map((item: { id: string; listing_id: string }) =>
         supabase
           .from('enrichment_queue')
           .update({
@@ -197,22 +190,22 @@ serve(async (req) => {
         }
       }
       
-      queueItems = queueItems.filter((item: { listing_id: string }) => !fullyEnrichedIds.has(item.listing_id));
+      queueItems = queueItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
       
       if (queueItems.length === 0) {
-        console.log('All items were fully enriched - nothing to process');
+        console.log('All items were already enriched — nothing to process');
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: `Synced ${fullyEnrichedIds.size} fully-enriched items to completed`, 
+            message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`, 
             processed: 0,
-            synced: fullyEnrichedIds.size 
+            synced: alreadyEnrichedIds.size 
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      console.log(`${queueItems.length} items still need LinkedIn/Google enrichment - proceeding with pipeline`);
+      console.log(`${queueItems.length} items still need enrichment — proceeding with pipeline`);
     }
 
     const results = {
