@@ -116,9 +116,6 @@ export default function CapTargetDeals() {
 
   // Filters
   const [search, setSearch] = useState("");
-  const [clientFilter, setClientFilter] = useState<string>("all");
-  const [interestFilter, setInterestFilter] = useState<string>("all");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
   const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -196,17 +193,6 @@ export default function CapTargetDeals() {
     },
   });
 
-  // Get unique client names for filter dropdown
-  const clientNames = useMemo(() => {
-    if (!deals) return [];
-    const names = new Set(
-      deals
-        .map((d) => d.captarget_client_name)
-        .filter(Boolean) as string[]
-    );
-    return Array.from(names).sort();
-  }, [deals]);
-
   // Filter + sort deals
   const filteredDeals = useMemo(() => {
     if (!deals) return [];
@@ -222,9 +208,6 @@ export default function CapTargetDeals() {
           (deal.main_contact_email || "").toLowerCase().includes(q);
         if (!matchesSearch) return false;
       }
-      if (clientFilter !== "all" && deal.captarget_client_name !== clientFilter) return false;
-      if (interestFilter !== "all" && deal.captarget_interest_type !== interestFilter) return false;
-      if (channelFilter !== "all" && deal.captarget_outreach_channel !== channelFilter) return false;
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
       if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
@@ -297,7 +280,7 @@ export default function CapTargetDeals() {
     });
 
     return filtered;
-  }, [deals, search, clientFilter, interestFilter, channelFilter, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -875,46 +858,15 @@ export default function CapTargetDeals() {
               />
             </div>
 
-            {/* Client filter */}
-            <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Client Name" />
+            {/* Source Tab filter */}
+            <Select value={sourceTabFilter} onValueChange={setSourceTabFilter}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Source Tab" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Clients</SelectItem>
-                {clientNames.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Interest type filter */}
-            <Select value={interestFilter} onValueChange={setInterestFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Interest Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="interest">Interest</SelectItem>
-                <SelectItem value="no_interest">No Interest</SelectItem>
-                <SelectItem value="keep_in_mind">Keep in Mind</SelectItem>
-                <SelectItem value="unknown">Unknown</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Channel filter */}
-            <Select value={channelFilter} onValueChange={setChannelFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Channel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Channels</SelectItem>
-                <SelectItem value="Cold Call">Cold Call</SelectItem>
-                <SelectItem value="Cold Email">Cold Email</SelectItem>
-                <SelectItem value="Not Interested">Not Interested</SelectItem>
-                <SelectItem value="Unknown">Unknown</SelectItem>
+                <SelectItem value="all">All Tabs</SelectItem>
+                <SelectItem value="Active Summary">Active Summary</SelectItem>
+                <SelectItem value="Inactive Summary">Inactive Summary</SelectItem>
               </SelectContent>
             </Select>
 
