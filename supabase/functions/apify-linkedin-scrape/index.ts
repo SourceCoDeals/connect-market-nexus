@@ -352,14 +352,8 @@ serve(async (req) => {
       if (result.linkedin_employee_range) {
         updateData.linkedin_employee_range = result.linkedin_employee_range;
       }
-      if (result.linkedin_industry) {
-        updateData.linkedin_industry = result.linkedin_industry;
-      }
       if (result.linkedin_headquarters) {
         updateData.linkedin_headquarters = result.linkedin_headquarters;
-      }
-      if (result.linkedin_website) {
-        updateData.linkedin_website = result.linkedin_website;
       }
 
       const { error: updateError } = await supabase
