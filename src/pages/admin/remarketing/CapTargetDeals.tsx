@@ -678,7 +678,7 @@ export default function CapTargetDeals() {
   const totalDeals = deals?.length || 0;
   const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
   const interestCount = deals?.filter((d) => d.captarget_interest_type === "interest").length || 0;
-  const enrichedCount = deals?.filter((d) => d.enriched_at && (d.linkedin_employee_count || d.linkedin_employee_range) && (d.google_review_count || d.google_rating)).length || 0;
+  const enrichedCount = deals?.filter((d) => d.enriched_at).length || 0;
   const scoredCount = deals?.filter((d) => d.deal_quality_score != null).length || 0;
 
   const SortHeader = ({
