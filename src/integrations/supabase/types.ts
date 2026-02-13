@@ -4637,6 +4637,7 @@ export type Database = {
           linkedin_boost: number | null
           linkedin_employee_count: number | null
           linkedin_employee_range: string | null
+          linkedin_headquarters: string | null
           linkedin_match_confidence: string | null
           linkedin_match_signals: Json | null
           linkedin_url: string | null
@@ -4829,6 +4830,7 @@ export type Database = {
           linkedin_boost?: number | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
+          linkedin_headquarters?: string | null
           linkedin_match_confidence?: string | null
           linkedin_match_signals?: Json | null
           linkedin_url?: string | null
@@ -5021,6 +5023,7 @@ export type Database = {
           linkedin_boost?: number | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
+          linkedin_headquarters?: string | null
           linkedin_match_confidence?: string | null
           linkedin_match_signals?: Json | null
           linkedin_url?: string | null
