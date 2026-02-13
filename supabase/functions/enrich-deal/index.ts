@@ -94,6 +94,61 @@ const VALID_LISTING_UPDATE_KEYS = new Set([
   'financial_followup_questions',
 ]);
 
+/**
+ * Lightweight AI call to infer industry from deal metadata when website scraping is unavailable.
+ */
+async function inferIndustryFromContext(
+  deal: Record<string, any>,
+  geminiApiKey: string,
+  supabase: any,
+  dealId: string,
+): Promise<string | null> {
+  if (!geminiApiKey) return null;
+  // Skip if industry already set
+  if (deal.industry) return deal.industry;
+
+  const context = [
+    deal.title && `Company: ${deal.title}`,
+    deal.internal_company_name && `Internal Name: ${deal.internal_company_name}`,
+    deal.executive_summary && `Summary: ${String(deal.executive_summary).substring(0, 300)}`,
+    deal.services && `Services: ${String(deal.services).substring(0, 200)}`,
+    deal.category && `Category: ${deal.category}`,
+    deal.description && `Description: ${String(deal.description).substring(0, 200)}`,
+  ].filter(Boolean).join('\n');
+
+  if (!context || context.length < 10) return null;
+
+  try {
+    const response = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: getGeminiHeaders(geminiApiKey),
+      body: JSON.stringify({
+        model: DEFAULT_GEMINI_MODEL,
+        messages: [
+          { role: 'system', content: 'You classify businesses into concise industry labels. Return ONLY the industry label, nothing else. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Environmental Remediation", "Healthcare Staffing".' },
+          { role: 'user', content: `Classify this business:\n${context}` },
+        ],
+        max_tokens: 20,
+        temperature: 0,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const industry = data.choices?.[0]?.message?.content?.trim();
+    if (industry && industry.length > 1 && industry.length < 60) {
+      await supabase.from('listings').update({ industry }).eq('id', dealId);
+      console.log(`[inferIndustry] Set industry="${industry}" for deal ${dealId}`);
+      return industry;
+    }
+  } catch (err) {
+    console.warn('[inferIndustry] Failed (non-blocking):', err);
+  }
+  return null;
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -784,9 +839,14 @@ serve(async (req) => {
     }
     
     if (!websiteUrl) {
+      // Try to infer industry from available context even without a website
+      await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
+
       // If transcripts were processed, return success with a note about website scraping
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       if (transcriptFieldsApplied > 0) {
+        // Mark as enriched since we have transcript data
+        await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
         return new Response(
           JSON.stringify({
             success: true,
@@ -797,9 +857,11 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      // Mark as enriched even without transcripts — we tried our best
+      await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
       return new Response(
-        JSON.stringify({ error: 'No website URL found for this deal. Add a website in the company overview or deal memo.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: true, message: 'No website URL found. Deal marked as enriched with limited data.', fieldsUpdated: [] }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -939,6 +1001,8 @@ serve(async (req) => {
 
     if (!homepageResult.success) {
       console.warn('Failed to scrape homepage — marking as enriched with limited data');
+      // Try to infer industry from available context
+      await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
       // Still mark the deal as enriched so it doesn't block the queue
       await supabase
         .from('listings')
@@ -1186,7 +1250,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
                       },
                       industry: {
                         type: 'string',
-                        description: 'Primary industry classification (e.g., HVAC, Plumbing, IT Services, Healthcare)'
+                        description: 'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting". Always provide your best classification based on available information — never leave blank.'
                       },
                       geographic_states: {
                         type: 'array',
@@ -1304,7 +1368,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
                         description: 'Notes and flags for deal team about financial data quality or concerns'
                       }
                     },
-                    required: []
+                    required: ['industry']
                   }
                 }
               }
