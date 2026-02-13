@@ -43,6 +43,10 @@ import {
   Loader2,
   BarChart3,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Star,
   Target,
   Calculator,
@@ -130,6 +134,10 @@ export default function CapTargetDeals() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination
+  const PAGE_SIZE = 50;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Push in progress
   const [isPushing, setIsPushing] = useState(false);
@@ -303,6 +311,19 @@ export default function CapTargetDeals() {
     return filtered;
   }, [deals, search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
 
+  // Reset page when filters change
+  const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedDeals = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredDeals.slice(start, start + PAGE_SIZE);
+  }, [filteredDeals, safePage]);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
       setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
@@ -312,14 +333,14 @@ export default function CapTargetDeals() {
     }
   };
 
-  // Selection helpers
-  const allSelected = filteredDeals.length > 0 && filteredDeals.every((d) => selectedIds.has(d.id));
+  // Selection helpers — scoped to current page
+  const allSelected = paginatedDeals.length > 0 && paginatedDeals.every((d) => selectedIds.has(d.id));
 
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredDeals.map((d) => d.id)));
+      setSelectedIds(new Set(paginatedDeals.map((d) => d.id)));
     }
   };
 
@@ -1036,10 +1057,10 @@ export default function CapTargetDeals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDeals.length === 0 ? (
+                {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={15}
+                      colSpan={16}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1050,7 +1071,7 @@ export default function CapTargetDeals() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredDeals.map((deal, index) => (
+                  paginatedDeals.map((deal, index) => (
                     <TableRow
                       key={deal.id}
                       className={cn(
@@ -1074,7 +1095,7 @@ export default function CapTargetDeals() {
                         />
                       </TableCell>
                       <TableCell className="w-[50px] text-center text-xs text-muted-foreground tabular-nums">
-                        {index + 1}
+                        {(safePage - 1) * PAGE_SIZE + index + 1}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
@@ -1219,10 +1240,54 @@ export default function CapTargetDeals() {
         </CardContent>
       </Card>
 
-      {/* Footer stats */}
-      <p className="text-xs text-muted-foreground text-center">
-        Showing {filteredDeals.length} of {totalDeals} deals
-      </p>
+      {/* Pagination + Footer */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredDeals.length)} of {filteredDeals.length} deals
+          {filteredDeals.length !== totalDeals && ` (filtered from ${totalDeals})`}
+        </p>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(1)}
+            disabled={safePage <= 1}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={safePage <= 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm px-3 tabular-nums">
+            Page {safePage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={safePage >= totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={safePage >= totalPages}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
