@@ -96,8 +96,8 @@ interface CapTargetDeal {
   captarget_status: string | null;
   is_priority_target: boolean | null;
   category: string | null;
-  industry: string | null;
   executive_summary: string | null;
+  industry: string | null;
 }
 
 type SortColumn =
@@ -202,8 +202,8 @@ export default function CapTargetDeals() {
             captarget_status,
             is_priority_target,
             category,
-            industry,
-            executive_summary
+            executive_summary,
+            industry
           `
           )
           .eq("deal_source", "captarget")
@@ -435,12 +435,20 @@ export default function CapTargetDeals() {
       }
 
       const now = new Date().toISOString();
-      const rows = targets.map((d) => ({
-        listing_id: d.id,
-        status: "pending" as const,
-        attempts: 0,
-        queued_at: now,
-      }));
+      // Deduplicate by listing_id to avoid "ON CONFLICT DO UPDATE cannot affect row a second time"
+      const seen = new Set<string>();
+      const rows = targets
+        .filter((d) => {
+          if (seen.has(d.id)) return false;
+          seen.add(d.id);
+          return true;
+        })
+        .map((d) => ({
+          listing_id: d.id,
+          status: "pending" as const,
+          attempts: 0,
+          queued_at: now,
+        }));
 
       // Batch upsert in chunks to avoid PostgREST size limits
       const CHUNK = 500;
@@ -538,38 +546,87 @@ export default function CapTargetDeals() {
     [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Enrich selected deals (existing)
+  // Enrich selected deals — queue-based (same pattern as Enrich All)
   const handleEnrichSelected = useCallback(
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
       setIsEnriching(true);
 
-      let queued = 0;
-      for (const id of dealIds) {
-        try {
-          await invokeWithTimeout("enrich-deal", {
-            body: { dealId: id },
-            timeoutMs: 90_000,
-          });
-          queued++;
-        } catch (err) {
-          console.error(`Failed to enrich deal ${id}:`, err);
+      // Register in global activity queue
+      let activityItem: { id: string } | null = null;
+      try {
+        const result = await startOrQueueMajorOp({
+          operationType: "deal_enrichment",
+          totalItems: dealIds.length,
+          description: `Enriching ${dealIds.length} CapTarget deals`,
+          userId: user?.id || "",
+          contextJson: { source: "captarget_selected" },
+        });
+        activityItem = result.item;
+      } catch {
+        // Non-blocking
+      }
+
+      const now = new Date().toISOString();
+
+      // Cancel any old pending items so only these deals run
+      try {
+        await supabase.functions.invoke("process-enrichment-queue", {
+          body: { action: "cancel_pending", before: now },
+        });
+      } catch {
+        // Non-blocking — old items will just finish naturally
+      }
+
+      const seen = new Set<string>();
+      const rows = dealIds
+        .filter((id) => {
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        })
+        .map((id) => ({
+          listing_id: id,
+          status: "pending" as const,
+          attempts: 0,
+          queued_at: now,
+        }));
+
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("enrichment_queue")
+          .upsert(chunk, { onConflict: "listing_id" });
+        if (error) {
+          console.error("Queue upsert error:", error);
+          sonnerToast.error("Failed to queue enrichment");
+          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          setIsEnriching(false);
+          return;
         }
       }
 
-      setIsEnriching(false);
+      sonnerToast.success(`Queued ${rows.length} deals for enrichment`);
       setSelectedIds(new Set());
 
-      toast({
-        title: "Enrichment Started",
-        description: `${queued} deal${queued !== 1 ? "s" : ""} queued for enrichment.`,
-      });
+      // Trigger worker
+      try {
+        const { data: result } = await supabase.functions
+          .invoke("process-enrichment-queue", { body: { source: "captarget_selected" } });
 
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
-      }, 5000);
+        if (result?.synced > 0 || result?.processed > 0) {
+          const totalDone = (result?.synced || 0) + (result?.processed || 0);
+          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+        }
+      } catch {
+        // Non-blocking
+      }
+
+      setIsEnriching(false);
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [toast, queryClient]
+    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient, supabase]
   );
 
   const interestTypeLabel = (type: string | null) => {
@@ -1159,7 +1216,7 @@ export default function CapTargetDeals() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[160px] block">
-                          {deal.category || deal.industry || "—"}
+                          {deal.industry || deal.category || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -1267,7 +1324,7 @@ export default function CapTargetDeals() {
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
-                          {deal.enriched_at && (
+                          {deal.enriched_at && (deal.linkedin_employee_count || deal.linkedin_employee_range) && (deal.google_review_count || deal.google_rating) && (
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                               Enriched
                             </Badge>
@@ -1308,8 +1365,30 @@ export default function CapTargetDeals() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm px-3 tabular-nums">
-            Page {safePage} of {totalPages}
+          <span className="text-sm px-3 tabular-nums flex items-center gap-1">
+            Page
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={safePage}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                  setCurrentPage(val);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = parseInt((e.target as HTMLInputElement).value, 10);
+                  if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                    setCurrentPage(val);
+                  }
+                }
+              }}
+              className="w-12 h-7 text-center text-sm border border-input rounded-md bg-background tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            of {totalPages}
           </span>
           <Button
             variant="outline"
@@ -1331,6 +1410,8 @@ export default function CapTargetDeals() {
           </Button>
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

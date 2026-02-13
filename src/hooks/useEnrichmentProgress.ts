@@ -229,13 +229,23 @@ export function useEnrichmentProgress() {
       
       startTimeRef.current = null;
       initialCompletedRef.current = 0;
+      wasRunningRef.current = false;
+      lastTotalRef.current = 0;
+      
+      // Immediately hide the progress bar
+      setProgress(prev => ({
+        ...prev,
+        isEnriching: false,
+        isPaused: false,
+        pendingCount: 0,
+        processingCount: 0,
+      }));
       
       toast({ title: "Enrichment cancelled", description: "Remaining deals have been removed from the queue. Already completed deals are kept." });
-      fetchQueueStatus();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
-  }, [fetchQueueStatus]);
+  }, []);
   
   const dismissSummary = useCallback(() => {
     setShowSummary(false);

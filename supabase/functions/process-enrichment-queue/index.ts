@@ -41,6 +41,29 @@ serve(async (req) => {
     // Use service role for background processing
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Parse request body
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { /* empty body ok */ }
+
+    // Action: cancel all pending items (optionally before a cutoff)
+    if (body.action === 'cancel_pending') {
+      const cutoffIso = (body.before as string) || new Date().toISOString();
+      const { data: cancelled, error: cancelErr } = await supabase
+        .from('enrichment_queue')
+        .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: 'Cancelled by user' })
+        .eq('status', 'pending')
+        .lt('queued_at', cutoffIso)
+        .select('id');
+
+      if (cancelErr) {
+        console.error('Cancel error:', cancelErr);
+        return new Response(JSON.stringify({ error: cancelErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const count = cancelled?.length || 0;
+      console.log(`Cancelled ${count} pending items before ${cutoffIso}`);
+      return new Response(JSON.stringify({ cancelled: count }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     console.log('Processing enrichment queue (PARALLEL MODE)...');
 
     // Recovery: reset any items that were left in `processing` due to timeouts/crashes.
@@ -123,6 +146,8 @@ serve(async (req) => {
 
     if (!queueItems || queueItems.length === 0) {
       console.log('No pending enrichment items in queue');
+      // Complete any running global queue operation that has no more work
+      await completeGlobalQueueOperation(supabase, 'deal_enrichment');
       return new Response(
         JSON.stringify({ success: true, message: 'No pending items', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -132,30 +157,29 @@ serve(async (req) => {
     console.log(`Found ${queueItems.length} items to process`);
 
     // PRE-CHECK: Mark batch items as completed if their listings are FULLY enriched
-    // (website AI + LinkedIn data + Google data). Deals with only enriched_at but missing
-    // LinkedIn/Google still need to run through the pipeline to get external data.
+    // (enriched_at set AND LinkedIn/Google data present)
     const listingIds = queueItems.map((item: { listing_id: string }) => item.listing_id);
     const { data: enrichedListings } = await supabase
       .from('listings')
-      .select('id, enriched_at, linkedin_employee_count, linkedin_employee_range, google_review_count')
+      .select('id, enriched_at, linkedin_employee_count, linkedin_employee_range, google_review_count, google_rating')
       .in('id', listingIds)
       .not('enriched_at', 'is', null);
 
-    const alreadyFullyEnrichedIds = new Set(
+    // Only skip items that have FULL enrichment (website + LinkedIn + Google)
+    const fullyEnrichedIds = new Set(
       (enrichedListings || [])
-        .filter(l =>
-          l.enriched_at &&
+        .filter(l => 
+          l.enriched_at && 
           (l.linkedin_employee_count != null || l.linkedin_employee_range != null) &&
-          l.google_review_count != null
+          (l.google_review_count != null || l.google_rating != null)
         )
         .map(l => l.id)
     );
-    const alreadyEnrichedIds = alreadyFullyEnrichedIds;
     
-    if (alreadyEnrichedIds.size > 0) {
-      console.log(`Found ${alreadyEnrichedIds.size} listings already enriched - marking queue items as completed`);
+    if (fullyEnrichedIds.size > 0) {
+      console.log(`Found ${fullyEnrichedIds.size} listings fully enriched (website+LinkedIn+Google) - marking queue items as completed`);
       
-      const itemsToComplete = queueItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
+      const itemsToComplete = queueItems.filter((item: { listing_id: string }) => fullyEnrichedIds.has(item.listing_id));
       await Promise.all(itemsToComplete.map((item: { id: string; listing_id: string }) =>
         supabase
           .from('enrichment_queue')
@@ -168,20 +192,22 @@ serve(async (req) => {
           .eq('id', item.id)
       ));
       
-      queueItems = queueItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
+      queueItems = queueItems.filter((item: { listing_id: string }) => !fullyEnrichedIds.has(item.listing_id));
       
       if (queueItems.length === 0) {
-        console.log('All items were already enriched - nothing to process');
+        console.log('All items were fully enriched - nothing to process');
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`, 
+            message: `Synced ${fullyEnrichedIds.size} fully-enriched items to completed`, 
             processed: 0,
-            synced: alreadyEnrichedIds.size 
+            synced: fullyEnrichedIds.size 
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      
+      console.log(`${queueItems.length} items still need LinkedIn/Google enrichment - proceeding with pipeline`);
     }
 
     const results = {
@@ -363,22 +389,19 @@ serve(async (req) => {
 
     if (remainingPending === 0) {
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
-    } else if ((remainingPending ?? 0) > 0 && Date.now() - startedAt < MAX_FUNCTION_RUNTIME_MS - 5000) {
-      // Fire-and-forget self-invocation to keep processing remaining items
-      // without waiting for a 5-minute cron cycle
-      const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-      if (anonKey) {
-        console.log(`${remainingPending} items remaining — invoking next batch`);
-        fetch(`${supabaseUrl}/functions/v1/process-enrichment-queue`, {
-          method: 'POST',
-          headers: {
-            apikey: anonKey,
-            Authorization: `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ continuation: true }),
-        }).catch((err) => console.warn('Self-invocation failed (cron will retry):', err));
-      }
+    } else if ((remainingPending ?? 0) > 0) {
+      // Fire-and-forget self-invocation to continue processing remaining items
+      console.log(`${remainingPending} items remaining — triggering continuation...`);
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+      fetch(`${supabaseUrl}/functions/v1/process-enrichment-queue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ source: 'self-continuation' }),
+      }).catch(err => console.warn('Self-invocation failed (non-fatal):', err));
     }
 
     return new Response(
