@@ -419,20 +419,26 @@ export default function CapTargetDeals() {
       const now = new Date().toISOString();
       const rows = targets.map((d) => ({
         listing_id: d.id,
-        status: "pending",
+        status: "pending" as const,
         attempts: 0,
         queued_at: now,
       }));
 
-      const { error } = await supabase
-        .from("enrichment_queue")
-        .upsert(rows, { onConflict: "listing_id" });
+      // Batch upsert in chunks to avoid PostgREST size limits
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("enrichment_queue")
+          .upsert(chunk, { onConflict: "listing_id" });
 
-      if (error) {
-        sonnerToast.error("Failed to queue enrichment");
-        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
-        setIsEnriching(false);
-        return;
+        if (error) {
+          console.error("Queue upsert error:", error);
+          sonnerToast.error(`Failed to queue enrichment (batch ${Math.floor(i / CHUNK) + 1})`);
+          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          setIsEnriching(false);
+          return;
+        }
       }
 
       sonnerToast.success(`Queued ${targets.length} deals for enrichment`);
