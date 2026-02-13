@@ -230,7 +230,7 @@ async function rowToRecord(row: string[], captargetStatus: string, tabName: stri
     internal_company_name: companyName || null,
     captarget_contact_date: parseDate(dateRaw),
     captarget_call_notes: (row[COL.details] || "").trim() || null,
-    description: (row[COL.details] || "").trim() || null,
+    notes: (row[COL.details] || "").trim() || null,
     main_contact_email: (row[COL.email] || "").trim() || null,
     main_contact_name: contactName || null,
     main_contact_title: (row[COL.title] || "").trim() || null,
