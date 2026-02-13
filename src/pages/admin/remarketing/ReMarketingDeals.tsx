@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+
 import {
   Tooltip,
   TooltipContent,
@@ -99,12 +100,13 @@ import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
 import {
   DndContext,
-  closestCenter,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   DragEndEvent,
+  MeasuringStrategy,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -1254,57 +1256,73 @@ const ReMarketingDeals = () => {
     setLocalOrder(sortedListings);
   }, [sortedListings]);
 
-  // Handle drag end - update ranks with proper sequential numbering
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over || active.id === over.id) return;
-
-    const currentListings = sortedListingsRef.current;
-    const oldIndex = currentListings.findIndex((l) => l.id === active.id);
-    const newIndex = currentListings.findIndex((l) => l.id === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reordered = arrayMove(currentListings, oldIndex, newIndex);
-    
+  // Shared helper: reorder deals, optimistically update UI, persist only changed ranks
+  const persistRankChanges = useCallback(async (reordered: DealListing[], description: string) => {
+    // Compute new ranks and find which actually changed
     const updatedListings = reordered.map((listing, idx) => ({
       ...listing,
       manual_rank_override: idx + 1,
     }));
 
+    // Only persist deals whose rank actually changed
+    const changedDeals = updatedListings.filter((deal, idx) => {
+      const original = localOrder.find(d => d.id === deal.id);
+      return !original || original.manual_rank_override !== idx + 1;
+    });
+
+    // Optimistic update
     setLocalOrder(updatedListings);
     sortedListingsRef.current = updatedListings;
 
-    const updates = updatedListings.map((listing) => ({
-      id: listing.id,
-      manual_rank_override: listing.manual_rank_override,
-    }));
-
     try {
-      for (const update of updates) {
-        await supabase
-          .from('listings')
-          .update({ manual_rank_override: update.manual_rank_override })
-          .eq('id', update.id);
+      // Parallel DB updates — only changed deals
+      if (changedDeals.length > 0) {
+        await Promise.all(
+          changedDeals.map((deal) =>
+            supabase
+              .from('listings')
+              .update({ manual_rank_override: deal.manual_rank_override })
+              .eq('id', deal.id)
+          )
+        );
       }
 
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      
-      toast({ 
-        title: "Rank updated", 
-        description: `Deal moved to position ${newIndex + 1}` 
-      });
+      // Invalidate AFTER all writes complete to avoid stale refetch race
+      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      toast({ title: "Position updated", description });
     } catch (error) {
       console.error('Failed to update rank:', error);
-      setLocalOrder(currentListings);
-      sortedListingsRef.current = currentListings;
-      toast({ 
-        title: "Failed to update rank", 
-        variant: "destructive" 
-      });
+      // Revert on error — refetch fresh data
+      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      toast({ title: "Failed to update rank", variant: "destructive" });
     }
-  }, [queryClient, toast]);
+  }, [localOrder, queryClient, toast]);
+
+  // Handle drag end - update ranks with proper sequential numbering
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    console.log('[DnD] dragEnd fired', { activeId: active.id, overId: over?.id });
+    
+    if (!over || active.id === over.id) {
+      console.log('[DnD] no-op: same item or no target');
+      return;
+    }
+
+    const currentListings = [...localOrder];
+    const oldIndex = currentListings.findIndex((l) => l.id === active.id);
+    const newIndex = currentListings.findIndex((l) => l.id === over.id);
+
+    console.log('[DnD] indices', { oldIndex, newIndex, listLength: currentListings.length });
+
+    if (oldIndex === -1 || newIndex === -1) {
+      console.log('[DnD] item not found in localOrder');
+      return;
+    }
+
+    const reordered = arrayMove(currentListings, oldIndex, newIndex);
+    await persistRankChanges(reordered, `Deal moved to position ${newIndex + 1}`);
+  }, [localOrder, persistRankChanges]);
 
   // Multi-select handlers
   const handleToggleSelect = useCallback((dealId: string) => {
@@ -2069,10 +2087,12 @@ const ReMarketingDeals = () => {
           <TooltipProvider>
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCenter}
+              collisionDetection={closestCorners}
               onDragEnd={handleDragEnd}
+              measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
             >
-              <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <div className="relative w-full overflow-auto">
+              <table className="w-full caption-bottom text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
                     <th 
@@ -2185,45 +2205,23 @@ const ReMarketingDeals = () => {
                           onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
                           onUpdateRank={async (dealId, newRank) => {
-                            try {
-                              // Insert-at-position reorder: move deal to newRank, shift others down
-                              const currentList = [...localOrder];
-                              const movedIndex = currentList.findIndex(l => l.id === dealId);
-                              if (movedIndex === -1) return;
+                            const currentList = [...localOrder];
+                            const movedIndex = currentList.findIndex(l => l.id === dealId);
+                            if (movedIndex === -1) return;
 
-                              // Remove the deal from its current spot
-                              const [movedDeal] = currentList.splice(movedIndex, 1);
+                            const targetPos = Math.max(1, Math.min(newRank, currentList.length));
+                            const [movedDeal] = currentList.splice(movedIndex, 1);
+                            currentList.splice(targetPos - 1, 0, movedDeal);
 
-                              // Insert at the target position (1-indexed → 0-indexed)
-                              const insertAt = Math.max(0, Math.min(newRank - 1, currentList.length));
-                              currentList.splice(insertAt, 0, movedDeal);
-
-                              // Re-number all deals sequentially
-                              const updates = currentList.map((l, idx) => ({
-                                id: l.id,
-                                rank: idx + 1,
-                              }));
-
-                              // Batch update all ranks
-                              for (const u of updates) {
-                                await supabase
-                                  .from('listings')
-                                  .update({ manual_rank_override: u.rank })
-                                  .eq('id', u.id);
-                              }
-
-                              await queryClient.invalidateQueries({ queryKey: ['remarketing-deals'] });
-                              toast({ title: 'Position updated', description: `Deal moved to position ${newRank}` });
-                            } catch (err: any) {
-                              toast({ title: 'Error', description: err.message, variant: 'destructive' });
-                            }
+                            await persistRankChanges(currentList, `Deal moved to position ${targetPos}`);
                           }}
                         />
                       ))}
                     </SortableContext>
                   )}
                 </TableBody>
-              </Table>
+              </table>
+              </div>
             </DndContext>
           </TooltipProvider>
         </CardContent>

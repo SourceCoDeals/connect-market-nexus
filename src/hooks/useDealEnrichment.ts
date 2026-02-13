@@ -106,6 +106,7 @@ export function useDealEnrichment(universeId?: string) {
       // Process batch in parallel
       const results = await Promise.allSettled(
         batch.map(async (deal) => {
+          // Step 1: Website scrape + AI extraction
           const { data, error } = await invokeWithTimeout<{ success?: boolean; error?: string; error_code?: string }>('enrich-deal', {
             body: { dealId: deal.listingId },
             timeoutMs: 90_000,
@@ -119,7 +120,7 @@ export function useDealEnrichment(universeId?: string) {
             (errorObj as any).errorCode = data.error_code;
             throw errorObj;
           }
-          
+
           return data;
         })
       );

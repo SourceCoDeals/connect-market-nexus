@@ -47,6 +47,7 @@ import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSe
 import { FirefliesTranscriptSync } from "@/components/remarketing/FirefliesTranscriptSync";
 import {
   GeneralNotesSection,
+  OwnerResponseSection,
   ExecutiveSummaryCard,
   ServicesBusinessModelCard,
   GeographicCoverageCard,
@@ -710,6 +711,7 @@ const ReMarketingDealDetail = () => {
 
       {/* Company Overview - Full width with 3 columns */}
       <CompanyOverviewCard
+        companyName={deal.internal_company_name || deal.title}
         website={effectiveWebsite}
         location={deal.location}
         address={deal.address}
@@ -748,6 +750,7 @@ const ReMarketingDealDetail = () => {
         }}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
+            internal_company_name: data.companyName,
             website: data.website,
             address: data.address,
             founded_year: data.foundedYear,
@@ -952,6 +955,14 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
+      {/* Owner Response */}
+      <OwnerResponseSection
+        ownerResponse={deal.owner_response}
+        onSave={async (response) => {
+          await updateDealMutation.mutateAsync({ owner_response: response } as any);
+        }}
+      />
+
       {/* Key Quotes from Seller */}
       <KeyQuotesCard
         quotes={Array.isArray(deal.key_quotes) ? deal.key_quotes : null}
@@ -1085,6 +1096,14 @@ const ReMarketingDealDetail = () => {
           company_name: deal.internal_company_name || deal.title,
           primary_contact_email: deal.primary_contact_email,
           main_contact_email: deal.main_contact_email,
+        }}
+      />
+
+      {/* Owner Response Section */}
+      <OwnerResponseSection
+        ownerResponse={deal.owner_response}
+        onSave={async (response) => {
+          await updateDealMutation.mutateAsync({ owner_response: response } as any);
         }}
       />
 

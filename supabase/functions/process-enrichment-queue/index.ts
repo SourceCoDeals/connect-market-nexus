@@ -4,13 +4,14 @@ import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
-// Configuration - SPEED-FIRST
-// Higher parallelism for faster throughput. Failed items can be re-run.
+// Configuration - RELIABILITY-FIRST
+// Moderate parallelism to avoid rate limits across concurrent queue processors.
+// Each deal enrichment makes 1 Firecrawl + 1 Gemini + optional LinkedIn/Google calls.
 const BATCH_SIZE = 10; // Fetch 10 items per run
-const CONCURRENCY_LIMIT = 5; // Process 5 items in parallel
+const CONCURRENCY_LIMIT = 5; // Process 5 items in parallel (LinkedIn/Google removed — only enrich-deal now)
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
-const PROCESSING_TIMEOUT_MS = 120000; // 120 seconds per item
-const INTER_CHUNK_DELAY_MS = 500; // 500ms between parallel chunks
+const PROCESSING_TIMEOUT_MS = 90000; // 90 seconds per item
+const INTER_CHUNK_DELAY_MS = 1000; // 1s between parallel chunks
 
 // Stop early to avoid the platform killing the function mid-item.
 const MAX_FUNCTION_RUNTIME_MS = 140000; // ~140s

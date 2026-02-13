@@ -528,7 +528,7 @@ IMPORTANT: Populate as MANY fields as possible with MAXIMUM DETAIL. Use the extr
 
 CORE RULES:
 
-1. EXHAUSTIVE EXTRACTION: Read the ENTIRE transcript from start to finish.
+1. EXHAUSTIVE EXTRACTION: Read the ENTIRE transcript from start to finish. Owners reveal critical info throughout, not just when directly asked.
 2. ACCURACY OVER COMPLETENESS: It is better to return null than to return wrong data.
 3. NUMBERS AS RAW INTEGERS: All dollar amounts must be stored as raw numbers. "$7.5M" = 7500000.
 4. PERCENTAGES AS INTEGERS: margin_percentage=18 means 18%. NOT 0.18.
@@ -538,6 +538,19 @@ CORE RULES:
 8. FLAG INCONSISTENCIES in financial_notes or follow-up questions.
 9. DO NOT OVER-EXTRACT jokes or hypotheticals.
 10. IGNORE THE INTERVIEWER: Extract data from the business owner/seller only.
+
+DEPTH REQUIREMENTS — Every text field should be DETAILED with MAXIMUM CONTEXT:
+- executive_summary: 4-6 sentences covering what the company does, size, geography, key strengths, growth trajectory, and acquisition attractiveness. Write like a PE investor memo.
+- service_mix: 2-4 sentences with revenue percentages if stated, residential vs commercial split, recurring vs project-based, how services interrelate, in-house vs subcontracted.
+- business_model: 2-4 sentences covering revenue model, how they get paid, pricing structure, sales cycle, contract structures, repeat business rates.
+- owner_goals: 2-4 sentences with primary motivation, desired deal type, financial expectations, beyond-money goals, urgency signals. Include owner's exact words.
+- transition_preferences: 2-3 sentences covering duration, role, willing vs not willing, key relationships held, training plan, non-compete.
+- competitive_position: 2-3 sentences covering certifications, awards, vendor relationships, proprietary processes, market positioning, customer lock-in.
+- growth_trajectory: 2-3 sentences with specific numbers — revenue growth rates, new locations, new services, hiring, contract wins, expansion plans.
+- financial_notes: 3-5 sentences covering seasonality, revenue trends, one-time items, owner compensation, add-backs, debt, pending changes, capex, tax structure, working capital.
+- customer_types: 2-3 sentences covering specific segments, concentration details, key accounts, repeat rates.
+- technology_systems: 1-2 sentences naming specific platforms, software, tools.
+- key_quotes: 8-10 VERBATIM quotes from the owner, prioritized by financial specifics, growth statements, motivation, competitive advantages, risk revelations.
 
 Return a JSON object with these fields (use null for unknown, empty array [] when no items):
 

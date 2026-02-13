@@ -6,10 +6,11 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BATCH_SIZE = 100;
-const HASH_LOOKUP_CHUNK = 50;
+const BATCH_SIZE = 200;
+const HASH_LOOKUP_CHUNK = 100;
 // Edge functions CPU time limit is ~50s; paginate well before that
-const TIMEOUT_MS = 25_000;
+const TIMEOUT_MS = 45_000;
+const INSERT_CHUNK = 25; // Insert in small batches to avoid cascading failures
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
@@ -229,7 +230,7 @@ async function rowToRecord(row: string[], captargetStatus: string, tabName: stri
     internal_company_name: companyName || null,
     captarget_contact_date: parseDate(dateRaw),
     captarget_call_notes: (row[COL.details] || "").trim() || null,
-    description: (row[COL.details] || "").trim() || null,
+    owner_response: (row[COL.details] || "").trim() || null,
     main_contact_email: (row[COL.email] || "").trim() || null,
     main_contact_name: contactName || null,
     main_contact_title: (row[COL.title] || "").trim() || null,
@@ -257,6 +258,34 @@ serve(async (req) => {
 
   if (req.method === "OPTIONS") {
     return corsPreflightResponse(req);
+  }
+
+  // Pre-fetch the max deal_identifier number to generate our own, bypassing the broken sequence
+  let nextDealIdNum = 1001;
+  try {
+    const { data: maxRow } = await supabase
+      .from("listings")
+      .select("deal_identifier")
+      .not("deal_identifier", "is", null)
+      .order("deal_identifier", { ascending: false })
+      .limit(200);
+    if (maxRow && maxRow.length > 0) {
+      let maxNum = 0;
+      for (const r of maxRow) {
+        const parts = (r.deal_identifier as string).split("-");
+        const num = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+      nextDealIdNum = maxNum + 1;
+    }
+  } catch (e) {
+    console.warn("Could not determine max deal_identifier, starting at 1001:", e);
+  }
+  const currentYear = new Date().getFullYear();
+  function getNextDealId(): string {
+    const id = `SCO-${currentYear}-${String(nextDealIdNum).padStart(3, "0")}`;
+    nextDealIdNum++;
+    return id;
   }
 
   const startTime = Date.now();
@@ -437,80 +466,80 @@ serve(async (req) => {
             const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, ...updateFields } = record;
             toUpdate.push({ id: existingId, ...updateFields });
           } else {
+            // Pre-set deal_identifier to bypass the broken sequence trigger
+            record.deal_identifier = getNextDealId();
             toInsert.push(record);
           }
         }
 
-        // Insert new rows in chunks using batch insert
+        // Insert new rows with pre-checked website deduplication
         if (toInsert.length > 0) {
-          const INSERT_CHUNK = 50;
-          for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {
-            const chunk = toInsert.slice(ic, ic + INSERT_CHUNK);
-            const { data: insertedData, error: batchInsertErr } = await supabase
+          // Pre-check which websites already exist to avoid unique index violations
+          const websitesToCheck = [...new Set(toInsert.map(r => r.website).filter(Boolean))];
+          const existingWebsites = new Set<string>();
+          
+          for (let wc = 0; wc < websitesToCheck.length; wc += HASH_LOOKUP_CHUNK) {
+            const chunk = websitesToCheck.slice(wc, wc + HASH_LOOKUP_CHUNK);
+            const { data: webRows } = await supabase
               .from("listings")
-              .insert(chunk);
+              .select("website")
+              .in("website", chunk);
+            if (webRows) {
+              for (const r of webRows) {
+                if (r.website) existingWebsites.add(r.website);
+              }
+            }
+          }
+          
+          
+          // Track websites we're inserting in this batch to catch intra-batch dupes
+          const batchWebsites = new Set<string>();
+          const batchDomains = new Set<string>();
+          
+          for (const record of toInsert) {
+            if (record.website) {
+              const domain = normalizeDomain(record.website);
+              if (existingWebsites.has(record.website) || batchWebsites.has(record.website) ||
+                  (domain && batchDomains.has(domain))) {
+                record.website = null; // Clear to avoid unique constraint violation
+              } else {
+                batchWebsites.add(record.website);
+                if (domain) batchDomains.add(domain);
+              }
+            }
+          }
 
-            if (!batchInsertErr) {
-              rowsInserted += chunk.length;
-            } else if (batchInsertErr.message?.includes("duplicate key")) {
-              // Batch failed due to duplicate — fall back to individual inserts
-              console.warn(`Batch insert failed (duplicate key), falling back to individual inserts for ${chunk.length} rows`);
-              for (const record of chunk) {
+          // Insert in small batches instead of one-by-one for performance
+          for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {
+            const insertChunk = toInsert.slice(ic, ic + INSERT_CHUNK);
+            const { data: inserted, error: insertErr } = await supabase
+              .from("listings")
+              .insert(insertChunk)
+              .select("id");
+            if (!insertErr) {
+              rowsInserted += insertChunk.length;
+            } else {
+              // Batch failed — fall back to individual inserts for this chunk
+              for (const record of insertChunk) {
                 const { error: singleErr } = await supabase
                   .from("listings")
                   .insert(record);
                 if (!singleErr) {
                   rowsInserted++;
-                } else if (singleErr.message?.includes("duplicate key")) {
-                  // Find existing by hash first, then by website variants
-                  let existingId: string | null = null;
-                  if (record.captarget_row_hash) {
-                    const { data: byHash } = await supabase
-                      .from("listings")
-                      .select("id")
-                      .eq("captarget_row_hash", record.captarget_row_hash)
-                      .maybeSingle();
-                    if (byHash) existingId = byHash.id;
-                  }
-                  if (!existingId && record.website) {
-                    // Try exact match + common URL variants (handles pre-normalization data)
-                    const domain = record.website;
-                    const { data: byWeb } = await supabase
-                      .from("listings")
-                      .select("id")
-                      .or(`website.eq.${domain},website.eq.https://${domain},website.eq.http://${domain},website.eq.https://www.${domain},website.eq.http://www.${domain},website.eq.www.${domain}`)
-                      .limit(1)
-                      .maybeSingle();
-                    if (byWeb) existingId = byWeb.id;
-                  }
-                  if (existingId) {
-                    const { status: _s, pushed_to_all_deals: _p, deal_source: _d, is_internal_deal: _i, captarget_row_hash: _h, ...fallbackFields } = record;
-                    // Always write hash so future syncs can match by hash directly
-                    const { error: upErr } = await supabase
-                      .from("listings")
-                      .update({ ...fallbackFields, captarget_row_hash: record.captarget_row_hash })
-                      .eq("id", existingId);
-                    if (!upErr) rowsUpdated++;
-                    else { rowsSkipped++; syncErrors.push({ op: "fallback-update", error: upErr.message }); }
-                  } else {
-                    rowsSkipped++;
-                    syncErrors.push({ op: "insert-dup-no-match", hash: record.captarget_row_hash, website: record.website });
-                  }
                 } else {
                   rowsSkipped++;
-                  syncErrors.push({ op: "insert", error: singleErr.message });
+                  if (syncErrors.length < 50) {
+                    syncErrors.push({ op: "insert", error: singleErr.message, hash: record.captarget_row_hash?.slice(0, 8) });
+                  }
                 }
               }
-            } else {
-              rowsSkipped += chunk.length;
-              syncErrors.push({ op: "batch-insert", error: batchInsertErr.message });
             }
           }
         }
 
-        // Batch updates
+        // Batch updates — run in parallel for speed
         if (toUpdate.length > 0) {
-          const UPDATE_CHUNK = 100;
+          const UPDATE_CHUNK = 50;
           for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
             const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
             const updateResults = await Promise.allSettled(
@@ -524,7 +553,9 @@ serve(async (req) => {
               } else {
                 rowsSkipped++;
                 const errMsg = ur.status === "rejected" ? ur.reason?.message : ur.value?.error?.message;
-                syncErrors.push({ op: "update", error: errMsg });
+                if (syncErrors.length < 50) {
+                  syncErrors.push({ op: "update", error: errMsg });
+                }
               }
             }
           }

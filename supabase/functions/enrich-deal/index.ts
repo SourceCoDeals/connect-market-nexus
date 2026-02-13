@@ -739,20 +739,13 @@ serve(async (req) => {
         console.log('[Transcripts] All transcripts already have extracted_data from prior runs. Continuing to website scraping.');
       } else {
         const reason = needsExtraction.length === 0
-          ? 'All transcripts marked as processed but none have extracted_data. This should not happen after the retry fix.'
+          ? 'All transcripts marked as processed but none have extracted_data.'
           : transcriptErrors.length > 0
             ? `All ${transcriptReport.processable} transcript extractions failed: ${transcriptErrors.slice(0, 3).join('; ')}`
             : 'No transcripts had sufficient text content (>= 100 chars)';
 
-        console.error(`[Transcripts] GUARDRAIL FIRED: ${reason}`);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Transcript enrichment failed: ${reason}`,
-            transcriptReport,
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.warn(`[Transcripts] GUARDRAIL (non-fatal): ${reason}. Falling back to website-only enrichment.`);
+        // Continue to website scraping instead of failing
       }
     }
 
@@ -1035,7 +1028,7 @@ serve(async (req) => {
     // Step 2: Use AI to extract structured data
     console.log('Extracting deal intelligence with AI...');
 
-const systemPrompt = `You are a business analyst specializing in M&A due diligence. Extract comprehensive company information from website content.
+const systemPrompt = `You are a SENIOR M&A analyst conducting deep due diligence on an acquisition target. Extract EVERY piece of intelligence from this website content. Be EXHAUSTIVE — capture every detail, no matter how minor. Your output directly drives buyer matching and deal scoring.
 
 CRITICAL - COMPANY NAME EXTRACTION:
 - Extract the REAL company name from the website (look in header, logo, footer, about page, legal notices)
@@ -1077,26 +1070,41 @@ INFERENCE RULES (if explicit address not found):
 DO NOT extract vague regions like "Midwest", "Southeast", "Texas area" for address fields.
 The address_city and address_state fields must be specific - a real city name and 2-letter state code.
 
-Focus on extracting:
-1. Company name - The REAL business name (not a generic description)
-2. **Structured address** - REQUIRED: Extract city and state at minimum
-3. Executive summary - A clear 2-3 paragraph description of the business
-4. Services offered - List of services/products they provide
-5. Business model - How they make money (B2B, B2C, recurring revenue, project-based, etc.)
-6. Industry/sector - Primary industry classification
-7. Geographic coverage - States/regions they operate in (use 2-letter US state codes)
-8. Number of locations - Physical office/branch count
-9. Founded year - When the company was established
-10. Customer types - Who they serve (commercial, residential, government, etc.)
-11. Key risks - Any potential risk factors visible
-12. Competitive position - Market positioning information
-13. Technology/systems - Software, tools, or technology mentioned
-14. Real estate - Information about facilities (owned vs leased)
-15. Growth trajectory - Any growth indicators or history`;
+DEPTH REQUIREMENTS — Every field must be DETAILED and CONTEXTUAL:
 
-    const userPrompt = `Analyze this website content from "${deal.title || 'Unknown Company'}" and extract business information.
+1. **Executive Summary** (3-5 sentences MINIMUM): Write a PE-investor-grade overview. MUST include what the company does, approximate size indicators (employees, locations, years in business), geographic footprint, key differentiators, and why this is an attractive acquisition target. Use specific facts from the website, not vague language. Lead with the most compelling aspect.
+
+2. **Service Mix** (2-4 sentences): Don't just list services — describe the revenue model. Include residential vs commercial split if visible, recurring vs project-based work, how services interrelate, and any specializations or certifications that create competitive moats.
+
+3. **Business Model** (2-4 sentences): Explain HOW the company makes money. Include revenue model (project-based, recurring, subscription, retainer), customer acquisition channels, pricing structure if visible, and contract types. Mention B2B vs B2C split.
+
+4. **Competitive Position** (2-3 sentences): Market positioning, competitive advantages, certifications, awards, years of experience, unique capabilities, preferred vendor relationships, insurance carrier partnerships, or franchise affiliations that differentiate them.
+
+5. **Growth Trajectory** (2-3 sentences): Growth indicators — new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about recent growth, awards for growth. If no explicit growth data, note what expansion levers exist.
+
+6. **Technology Systems** (1-2 sentences): Software platforms, CRM, ERP, scheduling tools, fleet management, industry-specific technology, mobile apps, customer portals mentioned on the site.
+
+7. **Customer Types** (1-2 sentences): Don't just say "residential and commercial" — describe the customer segments with detail. E.g., "Primarily serves property management companies (60%+) and commercial building owners, with a growing residential segment through insurance restoration referrals."
+
+8. **Key Risks** (bullet points): Identify real risk factors visible from the website — owner dependency, single-location concentration, narrow service offering, geographic limitation, regulatory exposure, customer concentration hints.
+
+9. **Real Estate Info**: Owned vs leased facilities, warehouse/shop/office details, facility size if mentioned, multiple location details.
+
+10. **End Market Description** (1-2 sentences): The broader market context — industry trends, demand drivers, fragmentation level, regulatory environment.`;
+
+    const userPrompt = `Analyze this website content from "${deal.title || 'Unknown Company'}" and extract DEEP business intelligence. This data drives M&A buyer matching — every detail matters.
 
 IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
+
+DEPTH REQUIREMENTS:
+- Executive summary: Write 3-5 rich sentences a PE investor can scan in 30 seconds. Include what they do, how big they are, where they operate, what makes them special, and why a buyer would want them.
+- Service mix: Describe the full service portfolio with context — don't just list services. Explain how they fit together, what drives revenue, residential vs commercial mix.
+- Business model: Explain the revenue engine — how they get customers, how they charge, recurring vs one-time, contract structures.
+- Competitive position: What makes them defensible? Certifications, partnerships, reputation, proprietary processes, market share indicators.
+- Growth trajectory: What signals growth or stagnation? New locations, expanding teams, new services, awards, customer volume trends.
+- Customer types: Be specific about segments — not just "commercial" but what KIND of commercial customers.
+- Technology systems: Any software, platforms, tools, or technology investments visible.
+- Key risks: Real operational risks visible from the website.
 
 FINANCIAL EXTRACTION RULES:
 - If you find revenue or EBITDA figures, extract them with confidence levels
@@ -1113,11 +1121,9 @@ LOCATION COUNT RULES:
 - Single location business = 1
 
 Website Content:
-${websiteContent.substring(0, 20000)}
+${websiteContent.substring(0, 25000)}
 
-Extract all available business information using the provided tool. The address_city and address_state fields are REQUIRED - use inference from service areas or phone codes if a direct address is not visible.
-
-For financial data, include confidence levels and source quotes where available.`;
+Extract all available business information using the provided tool. Be EXHAUSTIVE — capture every detail. The address_city and address_state fields are REQUIRED.`;
 
 
     // Retry logic for AI calls (handles 429 rate limits)
@@ -1153,15 +1159,15 @@ For financial data, include confidence levels and source quotes where available.
                       },
                       executive_summary: {
                         type: 'string',
-                        description: 'A 2-3 paragraph executive summary describing the business, its services, market position, and value proposition'
+                        description: 'A 3-5 sentence PE-investor-grade summary. MUST include: what the company does, size indicators (employees, locations, years), geographic footprint, key differentiators, and acquisition attractiveness. Use specific facts, not vague language. Lead with the most compelling aspect.'
                       },
                       service_mix: {
                         type: 'string',
-                        description: 'Comma-separated list of services or products offered'
+                        description: 'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications. Do NOT just list services — describe the revenue model.'
                       },
                       business_model: {
                         type: 'string',
-                        description: 'Description of how the business generates revenue (e.g., B2B services, recurring contracts, project-based)'
+                        description: 'Detailed 2-4 sentence description of HOW the business makes money. Include revenue model (project-based, recurring, subscription), customer acquisition channels, pricing structure, B2B vs B2C split, average job size indicators, and contract types.'
                       },
                       industry: {
                         type: 'string',
@@ -1202,7 +1208,11 @@ For financial data, include confidence levels and source quotes where available.
                       },
                       customer_types: {
                         type: 'string',
-                        description: 'Types of customers served (e.g., "Residential, Commercial, Government")'
+                        description: 'Detailed 1-2 sentence description of customer segments. Be specific — not just "residential and commercial" but what KIND of customers, their profile, and any concentration patterns visible.'
+                      },
+                      end_market_description: {
+                        type: 'string',
+                        description: 'Broader market context: industry trends, demand drivers, fragmentation level, regulatory environment, and market size indicators (1-2 sentences).'
                       },
                       owner_goals: {
                         type: 'string',
@@ -1210,23 +1220,23 @@ For financial data, include confidence levels and source quotes where available.
                       },
                       key_risks: {
                         type: 'string',
-                        description: 'Potential risk factors identified'
+                        description: 'Bullet-pointed risk factors: owner dependency, single-location risk, narrow service offering, geographic limitation, regulatory exposure, customer concentration, key-man risk, or competitive threats visible from the website.'
                       },
                       competitive_position: {
                         type: 'string',
-                        description: 'Market positioning and competitive advantages'
+                        description: 'Detailed 2-3 sentence market positioning: certifications, awards, years of experience, unique capabilities, preferred vendor relationships, insurance carrier partnerships, franchise affiliations, market share indicators, and what creates a defensible moat.'
                       },
                       technology_systems: {
                         type: 'string',
-                        description: 'Software, tools, or technology platforms used'
+                        description: 'Detailed description of software platforms, CRM, ERP, scheduling tools, fleet management, industry-specific technology, mobile apps, customer portals, and any digital transformation investments visible on the site.'
                       },
                       real_estate_info: {
                         type: 'string',
-                        description: 'Information about facilities (owned vs leased, size, etc.)'
+                        description: 'Detailed facility information: owned vs leased, warehouse/shop/office details, facility size, multiple location descriptions, recent facility investments or expansions.'
                       },
                       growth_trajectory: {
                         type: 'string',
-                        description: 'Growth history and indicators'
+                        description: 'Detailed 2-3 sentence growth assessment: new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about growth, awards for growth, and what organic/inorganic expansion levers exist.'
                       },
                       linkedin_url: {
                         type: 'string',
@@ -1436,6 +1446,12 @@ For financial data, include confidence levels and source quotes where available.
       if (!VALID_LISTING_UPDATE_KEYS.has(key)) {
         delete (extracted as Record<string, unknown>)[key];
       }
+    }
+
+    // Protect manually-set internal_company_name from being overwritten by AI
+    if (deal.internal_company_name && extracted.internal_company_name) {
+      console.log(`[Enrichment] Preserving existing internal_company_name "${deal.internal_company_name}" (AI suggested: "${extracted.internal_company_name}")`);
+      delete extracted.internal_company_name;
     }
 
     // Normalize geographic_states using shared module

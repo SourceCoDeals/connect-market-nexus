@@ -113,16 +113,26 @@ export default function ReMarketingReferralPartnerDetail() {
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "archive" | "delete"; ids: string[] } | null>(null);
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<SortField>("added");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const saved = sessionStorage.getItem(`referral-sort-${partnerId}`);
+    return saved ? (JSON.parse(saved).field as SortField) : "added";
+  });
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    const saved = sessionStorage.getItem(`referral-sort-${partnerId}`);
+    return saved ? (JSON.parse(saved).dir as SortDir) : "desc";
+  });
 
   const toggleSort = (field: SortField) => {
+    let newDir: SortDir;
     if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      newDir = sortDir === "asc" ? "desc" : "asc";
+      setSortDir(newDir);
     } else {
+      newDir = "asc";
       setSortField(field);
-      setSortDir("asc");
+      setSortDir(newDir);
     }
+    sessionStorage.setItem(`referral-sort-${partnerId}`, JSON.stringify({ field, dir: newDir }));
   };
 
   // Fetch partner
@@ -470,18 +480,42 @@ export default function ReMarketingReferralPartnerDetail() {
     }
   };
 
-  // Bulk approve (set status to active)
+  // Bulk approve (set status to active) — rank at bottom of All Deals
   const handleBulkApprove = async () => {
     const ids = Array.from(selectedDealIds);
     if (!ids.length) return;
 
-    const { error } = await supabase
+    // Get current max rank so new deals go to the bottom
+    const { data: maxRankRow } = await supabase
       .from("listings")
-      .update({ status: "active" } as never)
-      .in("id", ids);
+      .select("manual_rank_override")
+      .eq("status", "active")
+      .not("manual_rank_override", "is", null)
+      .order("manual_rank_override", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (error) {
-      toast.error("Failed to approve deals");
+    let nextRank = (maxRankRow?.manual_rank_override as number | null) ?? 0;
+
+    // Update each deal with an incrementing rank at the bottom
+    const updates = ids.map((id) => {
+      nextRank += 1;
+      return supabase
+        .from("listings")
+        .update({
+          status: "active",
+          pushed_to_all_deals: true,
+          pushed_to_all_deals_at: new Date().toISOString(),
+          manual_rank_override: nextRank,
+        } as never)
+        .eq("id", id);
+    });
+
+    const results = await Promise.all(updates);
+    const failed = results.filter((r) => r.error);
+
+    if (failed.length) {
+      toast.error("Failed to approve some deals");
       return;
     }
 
@@ -970,9 +1004,11 @@ export default function ReMarketingReferralPartnerDetail() {
                       <TableRow
                         key={deal.id}
                         className={`cursor-pointer hover:bg-muted/50 ${
-                          deal.is_priority_target
-                            ? "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
-                            : ""
+                          deal.status === 'active'
+                            ? "bg-green-50 hover:bg-green-100/80 dark:bg-green-950/20 dark:hover:bg-green-950/40"
+                            : deal.is_priority_target
+                              ? "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+                              : ""
                         }`}
                         data-state={selectedDealIds.has(deal.id) ? "selected" : undefined}
                       >

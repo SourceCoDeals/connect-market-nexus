@@ -58,10 +58,14 @@ export function useEnrichmentProgress() {
 
   const fetchQueueStatus = useCallback(async () => {
     try {
+      // Only consider queue items from the last 2 hours as "active"
+      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabase
         .from('enrichment_queue')
-        .select('status, listing_id, last_error')
-        .in('status', ['pending', 'processing', 'completed', 'failed', 'paused']);
+        .select('status, listing_id, last_error, queued_at')
+        .in('status', ['pending', 'processing', 'completed', 'failed', 'paused'])
+        .gte('queued_at', cutoff);
 
       if (error) throw error;
 
@@ -90,8 +94,10 @@ export function useEnrichmentProgress() {
 
       const totalActive = counts.pending + counts.processing;
       const isPaused = counts.paused > 0 && totalActive === 0;
-      const totalCount = totalActive + counts.completed + counts.paused;
-      const isEnriching = totalActive > 0;
+      const totalCount = totalActive + counts.completed + counts.failed + counts.paused;
+      // Only show enrichment bar if something is actively processing or was recently queued
+      // Stale detection: if there are pending items but nothing is processing for a while, treat as stale
+      const isEnriching = counts.processing > 0 || (counts.pending > 0 && counts.completed > 0);
       const successfulCount = counts.completed;
 
       // Track timing for rate calculation

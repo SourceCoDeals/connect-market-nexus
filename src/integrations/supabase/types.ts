@@ -4668,6 +4668,7 @@ export type Database = {
           owner_last_name: string | null
           owner_notes: string | null
           owner_phone: string | null
+          owner_response: string | null
           owner_title: string | null
           ownership_structure: string | null
           part_time_employees: number | null
@@ -4859,6 +4860,7 @@ export type Database = {
           owner_last_name?: string | null
           owner_notes?: string | null
           owner_phone?: string | null
+          owner_response?: string | null
           owner_title?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
@@ -5050,6 +5052,7 @@ export type Database = {
           owner_last_name?: string | null
           owner_notes?: string | null
           owner_phone?: string | null
+          owner_response?: string | null
           owner_title?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null

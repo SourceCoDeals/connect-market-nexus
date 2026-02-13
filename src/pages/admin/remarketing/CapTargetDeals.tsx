@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +43,10 @@ import {
   Loader2,
   BarChart3,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Star,
   Target,
   Calculator,
@@ -77,6 +81,7 @@ interface CapTargetDeal {
   captarget_sheet_tab: string | null;
   website: string | null;
   description: string | null;
+  owner_response: string | null;
   pushed_to_all_deals: boolean | null;
   pushed_to_all_deals_at: string | null;
   deal_source: string | null;
@@ -90,6 +95,7 @@ interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
+  category: string | null;
 }
 
 type SortColumn =
@@ -117,10 +123,8 @@ export default function CapTargetDeals() {
 
   // Filters
   const [search, setSearch] = useState("");
-  const [clientFilter, setClientFilter] = useState<string>("all");
-  const [interestFilter, setInterestFilter] = useState<string>("all");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
+  const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
@@ -132,6 +136,10 @@ export default function CapTargetDeals() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination
+  const PAGE_SIZE = 50;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Push in progress
   const [isPushing, setIsPushing] = useState(false);
@@ -153,60 +161,68 @@ export default function CapTargetDeals() {
     refetchOnMount: "always",
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("listings")
-        .select(
-          `
-          id,
-          title,
-          internal_company_name,
-          captarget_client_name,
-          captarget_contact_date,
-          captarget_outreach_channel,
-          captarget_interest_type,
-          main_contact_name,
-          main_contact_email,
-          main_contact_title,
-          main_contact_phone,
-          captarget_sheet_tab,
-          website,
-          description,
-          pushed_to_all_deals,
-          pushed_to_all_deals_at,
-          deal_source,
-          status,
-          created_at,
-          enriched_at,
-          deal_quality_score,
-          linkedin_employee_count,
-          linkedin_employee_range,
-          google_rating,
-          google_review_count,
-          captarget_status,
-          is_priority_target
-        `
-        )
-        .eq("deal_source", "captarget")
-        .order("captarget_contact_date", {
-          ascending: false,
-          nullsFirst: false,
-        });
+      const allData: CapTargetDeal[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
 
-      if (error) throw error;
-      return data as CapTargetDeal[];
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("listings")
+          .select(
+            `
+            id,
+            title,
+            internal_company_name,
+            captarget_client_name,
+            captarget_contact_date,
+            captarget_outreach_channel,
+            captarget_interest_type,
+            main_contact_name,
+            main_contact_email,
+            main_contact_title,
+            main_contact_phone,
+            captarget_sheet_tab,
+            website,
+            description,
+            owner_response,
+            pushed_to_all_deals,
+            pushed_to_all_deals_at,
+            deal_source,
+            status,
+            created_at,
+            enriched_at,
+            deal_quality_score,
+            linkedin_employee_count,
+            linkedin_employee_range,
+            google_rating,
+            google_review_count,
+            captarget_status,
+            is_priority_target,
+            category
+          `
+          )
+          .eq("deal_source", "captarget")
+          .order("captarget_contact_date", {
+            ascending: false,
+            nullsFirst: false,
+          })
+          .range(offset, offset + batchSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allData.push(...(data as CapTargetDeal[]));
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return allData;
     },
   });
-
-  // Get unique client names for filter dropdown
-  const clientNames = useMemo(() => {
-    if (!deals) return [];
-    const names = new Set(
-      deals
-        .map((d) => d.captarget_client_name)
-        .filter(Boolean) as string[]
-    );
-    return Array.from(names).sort();
-  }, [deals]);
 
   // Filter + sort deals
   const filteredDeals = useMemo(() => {
@@ -225,11 +241,9 @@ export default function CapTargetDeals() {
           (deal.main_contact_email || "").toLowerCase().includes(q);
         if (!matchesSearch) return false;
       }
-      if (clientFilter !== "all" && deal.captarget_client_name !== clientFilter) return false;
-      if (interestFilter !== "all" && deal.captarget_interest_type !== interestFilter) return false;
-      if (channelFilter !== "all" && deal.captarget_outreach_channel !== channelFilter) return false;
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
+      if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
       if (dateFrom && deal.captarget_contact_date) {
         if (deal.captarget_contact_date < dateFrom) return false;
       }
@@ -247,8 +261,8 @@ export default function CapTargetDeals() {
           valB = (b.internal_company_name || b.title || "").toLowerCase();
           break;
         case "client_name":
-          valA = (a.captarget_client_name || "").toLowerCase();
-          valB = (b.captarget_client_name || "").toLowerCase();
+          valA = (a.category || "").toLowerCase();
+          valB = (b.category || "").toLowerCase();
           break;
         case "contact_name":
           valA = (a.main_contact_name || "").toLowerCase();
@@ -299,7 +313,20 @@ export default function CapTargetDeals() {
     });
 
     return filtered;
-  }, [deals, search, clientFilter, interestFilter, channelFilter, pushedFilter, dateFrom, dateTo, sortColumn, sortDirection, statusTab]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+
+  // Reset page when filters change
+  const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedDeals = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredDeals.slice(start, start + PAGE_SIZE);
+  }, [filteredDeals, safePage]);
+
+  // Reset to page 1 when filters/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -310,14 +337,14 @@ export default function CapTargetDeals() {
     }
   };
 
-  // Selection helpers
-  const allSelected = filteredDeals.length > 0 && filteredDeals.every((d) => selectedIds.has(d.id));
+  // Selection helpers — scoped to current page
+  const allSelected = paginatedDeals.length > 0 && paginatedDeals.every((d) => selectedIds.has(d.id));
 
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredDeals.map((d) => d.id)));
+      setSelectedIds(new Set(paginatedDeals.map((d) => d.id)));
     }
   };
 
@@ -376,10 +403,10 @@ export default function CapTargetDeals() {
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      if (!tabDeals.length) return;
+      if (!filteredDeals?.length) return;
       const targets = mode === "unenriched"
-        ? tabDeals.filter((d) => !d.enriched_at)
-        : tabDeals;
+        ? filteredDeals.filter((d) => !d.enriched_at)
+        : filteredDeals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to enrich");
@@ -406,20 +433,26 @@ export default function CapTargetDeals() {
       const now = new Date().toISOString();
       const rows = targets.map((d) => ({
         listing_id: d.id,
-        status: "pending",
+        status: "pending" as const,
         attempts: 0,
         queued_at: now,
       }));
 
-      const { error } = await supabase
-        .from("enrichment_queue")
-        .upsert(rows, { onConflict: "listing_id" });
+      // Batch upsert in chunks to avoid PostgREST size limits
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("enrichment_queue")
+          .upsert(chunk, { onConflict: "listing_id" });
 
-      if (error) {
-        sonnerToast.error("Failed to queue enrichment");
-        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
-        setIsEnriching(false);
-        return;
+        if (error) {
+          console.error("Queue upsert error:", error);
+          sonnerToast.error(`Failed to queue enrichment (batch ${Math.floor(i / CHUNK) + 1})`);
+          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          setIsEnriching(false);
+          return;
+        }
       }
 
       sonnerToast.success(`Queued ${targets.length} deals for enrichment`);
@@ -444,16 +477,16 @@ export default function CapTargetDeals() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [tabDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Bulk Score
   const handleBulkScore = useCallback(
     async (mode: "unscored" | "all") => {
-      if (!tabDeals.length) return;
+      if (!filteredDeals?.length) return;
       const targets = mode === "unscored"
-        ? tabDeals.filter((d) => d.deal_quality_score == null)
-        : tabDeals;
+        ? filteredDeals.filter((d) => d.deal_quality_score == null)
+        : filteredDeals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to score");
@@ -498,7 +531,7 @@ export default function CapTargetDeals() {
       setIsScoring(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [tabDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Enrich selected deals (existing)
@@ -887,46 +920,15 @@ export default function CapTargetDeals() {
               />
             </div>
 
-            {/* Client filter */}
-            <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Client Name" />
+            {/* Source Tab filter */}
+            <Select value={sourceTabFilter} onValueChange={setSourceTabFilter}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Source Tab" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Clients</SelectItem>
-                {clientNames.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Interest type filter */}
-            <Select value={interestFilter} onValueChange={setInterestFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Interest Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="interest">Interest</SelectItem>
-                <SelectItem value="no_interest">No Interest</SelectItem>
-                <SelectItem value="keep_in_mind">Keep in Mind</SelectItem>
-                <SelectItem value="unknown">Unknown</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Channel filter */}
-            <Select value={channelFilter} onValueChange={setChannelFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Channel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Channels</SelectItem>
-                <SelectItem value="Cold Call">Cold Call</SelectItem>
-                <SelectItem value="Cold Email">Cold Email</SelectItem>
-                <SelectItem value="Not Interested">Not Interested</SelectItem>
-                <SelectItem value="Unknown">Unknown</SelectItem>
+                <SelectItem value="all">All Tabs</SelectItem>
+                <SelectItem value="Active Summary">Active Summary</SelectItem>
+                <SelectItem value="Inactive Summary">Inactive Summary</SelectItem>
               </SelectContent>
             </Select>
 
@@ -939,6 +941,18 @@ export default function CapTargetDeals() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pushed">Pushed</SelectItem>
                 <SelectItem value="not_pushed">Not Pushed</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Source Tab filter */}
+            <Select value={sourceTabFilter} onValueChange={setSourceTabFilter}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Source Tab" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tabs</SelectItem>
+                <SelectItem value="Active Summary">Active Summary</SelectItem>
+                <SelectItem value="Inactive Summary">Inactive Summary</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1040,12 +1054,13 @@ export default function CapTargetDeals() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
+                  <TableHead className="w-[50px] text-center">#</TableHead>
                   <TableHead>
                     <SortHeader column="company_name">Company</SortHeader>
                   </TableHead>
                   <TableHead className="max-w-[200px]">Description</TableHead>
                   <TableHead>
-                    <SortHeader column="client_name">Client</SortHeader>
+                    <SortHeader column="client_name">Industry</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="contact_name">Contact</SortHeader>
@@ -1081,10 +1096,10 @@ export default function CapTargetDeals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDeals.length === 0 ? (
+                {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={15}
+                      colSpan={16}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1095,7 +1110,7 @@ export default function CapTargetDeals() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredDeals.map((deal) => (
+                  paginatedDeals.map((deal, index) => (
                     <TableRow
                       key={deal.id}
                       className={cn(
@@ -1118,6 +1133,9 @@ export default function CapTargetDeals() {
                           onCheckedChange={() => toggleSelect(deal.id)}
                         />
                       </TableCell>
+                      <TableCell className="w-[50px] text-center text-xs text-muted-foreground tabular-nums">
+                        {(safePage - 1) * PAGE_SIZE + index + 1}
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground truncate max-w-[220px]">
@@ -1137,7 +1155,7 @@ export default function CapTargetDeals() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[160px] block">
-                          {deal.captarget_client_name || "—"}
+                          {deal.category || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -1261,13 +1279,54 @@ export default function CapTargetDeals() {
         </CardContent>
       </Card>
 
-        </TabsContent>
-      </Tabs>
-
-      {/* Footer stats */}
-      <p className="text-xs text-muted-foreground text-center">
-        Showing {filteredDeals.length} of {statusTab === "active" ? activeCount : inactiveCount} {statusTab} deals
-      </p>
+      {/* Pagination + Footer */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredDeals.length)} of {filteredDeals.length} deals
+          {filteredDeals.length !== totalDeals && ` (filtered from ${totalDeals})`}
+        </p>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(1)}
+            disabled={safePage <= 1}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={safePage <= 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm px-3 tabular-nums">
+            Page {safePage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={safePage >= totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={safePage >= totalPages}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

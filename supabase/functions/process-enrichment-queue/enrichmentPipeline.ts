@@ -88,10 +88,9 @@ export async function runListingEnrichmentPipeline(
     updatedFields.push(...enrichDeal.json.fieldsUpdated);
   }
 
-  // 2) LinkedIn + Google in PARALLEL (they're independent)
+  // 2) LinkedIn + Google in PARALLEL (they're independent, non-fatal)
   const companyName = listing.internal_company_name || listing.title;
   if (companyName) {
-    // Fire both API calls simultaneously
     const [liResult, googleResult] = await Promise.allSettled([
       callFn(input, 'apify-linkedin-scrape', {
         dealId: input.listingId,
@@ -99,7 +98,7 @@ export async function runListingEnrichmentPipeline(
         companyName,
         city: listing.address_city,
         state: listing.address_state,
-        companyWebsite: listing.website, // Pass website for verification
+        companyWebsite: listing.website,
       }),
       callFn(input, 'apify-google-reviews', {
         dealId: input.listingId,
@@ -110,7 +109,7 @@ export async function runListingEnrichmentPipeline(
       }),
     ]);
 
-    // Process LinkedIn result — non-fatal (don't fail pipeline for LinkedIn/Google errors)
+    // Process LinkedIn result — non-fatal
     if (liResult.status === 'fulfilled') {
       const liRes = liResult.value;
       if (!liRes.ok) {

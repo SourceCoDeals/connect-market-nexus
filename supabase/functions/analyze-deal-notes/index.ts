@@ -222,20 +222,27 @@ serve(async (req) => {
     let aiExtracted: Record<string, unknown> = {};
     
     if (geminiApiKey || lovableApiKey) {
-      const systemPrompt = `You are an elite M&A analyst extracting EVERY piece of deal intelligence from internal notes, call summaries, and broker memos.
+      const systemPrompt = `You are an elite M&A analyst extracting EVERY piece of deal intelligence from internal notes, call summaries, and broker memos. Your output directly drives buyer matching and deal scoring — the more detail you extract, the better the matches.
 
 RULES:
-1. Extract EXHAUSTIVELY — capture every detail mentioned, no matter how minor.
-2. Accuracy over completeness — never fabricate or infer data not explicitly stated.
+1. Extract EXHAUSTIVELY — capture every detail mentioned, no matter how minor. Read word by word.
+2. Accuracy over fabrication — never invent data not explicitly stated. But DO capture inferences clearly marked as such.
 3. Numbers as raw integers (e.g., 5000000 not "5M").
 4. US states as 2-letter codes (e.g., "TX", "AZ").
 5. Key quotes must be VERBATIM from the notes — include speaker attribution if available.
-6. For services, describe the business model and service mix in 2-4 sentences, not just a list.
-7. Growth trajectory should describe the trend (e.g., "Increasing revenue growth at all locations").
-8. Financial notes should capture EBITDA status, revenue breakdowns, margin info — even if incomplete.
-9. Capture management/team details, expansion potential, valuation context, and technology/systems.`;
 
-      const userPrompt = `Extract ALL deal intelligence from these notes. Be exhaustive — every detail matters for buyer matching:
+DEPTH REQUIREMENTS — Every text field should be 2-5 sentences of rich context, NOT brief labels:
+- For services: Describe the full service portfolio, how services interrelate, what drives revenue. Don't just list — explain the business model.
+- For service_mix: Include residential vs commercial split, recurring vs project-based, revenue concentration by service line.
+- For competitive_position: Certifications, awards, preferred vendor relationships, years in market, customer lock-in, proprietary processes.
+- For growth_trajectory: Trend direction with specifics — revenue CAGR, new locations, new service lines, headcount growth, contract wins.
+- For financial_notes: Revenue breakdown by segment/location, EBITDA adjustments, add-backs, owner comp, margin trends, seasonality, capex needs.
+- For management_depth: Key personnel by role, tenure, capabilities, succession readiness. Is there a #2? Who runs day-to-day?
+- For owner_goals: Full context — motivation (retirement, burnout, health, growth), deal type preference, valuation expectations, timeline, emotional factors.
+- For customer_types: Specific segments with detail — not just "commercial" but what KIND, any concentration risks, key account details.
+- For technology_systems: Specific platforms, ERP, CRM, fleet management, industry-specific software, digital maturity level.`;
+
+      const userPrompt = `Extract ALL deal intelligence from these notes. Be EXHAUSTIVE — every detail matters for buyer matching. Write detailed, contextual descriptions (2-5 sentences each) rather than brief labels.
 
 ${notes.substring(0, 15000)}
 
@@ -249,31 +256,31 @@ Use the tool to return structured data.`;
           parameters: {
             type: 'object',
             properties: {
-              owner_goals: { type: 'string', description: 'Owner goals and motivations for selling. Empty string if not mentioned.' },
-              ownership_structure: { type: 'string', description: 'Ownership structure (sole owner, partnership, family-owned). Empty string if not mentioned.' },
-              transition_preferences: { type: 'string', description: 'Transition timeline, preferences, management continuity plans. Empty string if not mentioned.' },
-              seller_motivation: { type: 'string', description: 'Why the seller wants to sell, urgency level. Empty string if not mentioned.' },
-              special_requirements: { type: 'string', description: 'Deal breakers, must-haves, valuation expectations. Empty string if not mentioned.' },
-              timeline_notes: { type: 'string', description: 'Timeline and urgency notes. Empty string if not mentioned.' },
-              description: { type: 'string', description: 'Business description — what the company does, model, market position (2-4 sentences). Empty string if not mentioned.' },
-              services: { type: 'array', items: { type: 'string' }, description: 'List of specific services offered. Empty array if not mentioned.' },
-              service_mix: { type: 'string', description: 'Service mix and revenue model in detail (2-4 sentences). Empty string if not mentioned.' },
-              industry: { type: 'string', description: 'Industry vertical (e.g., "Automotive Repair"). Empty string if not mentioned.' },
-              customer_types: { type: 'string', description: 'Customer types and segments served. Empty string if not mentioned.' },
-              competitive_position: { type: 'string', description: 'Competitive advantages, differentiators. Empty string if not mentioned.' },
-              geographic_states: { type: 'array', items: { type: 'string' }, description: 'US states where business operates (2-letter codes). Empty array if not mentioned.' },
-              location: { type: 'string', description: 'Primary location/HQ (city, state format). Empty string if not mentioned.' },
-              number_of_locations: { type: 'number', description: 'Total physical locations. 0 if not mentioned.' },
-              financial_notes: { type: 'string', description: 'Detailed financial notes — revenue breakdown by segment/location, EBITDA status, margins, growth rates, addbacks, caveats. Empty string if not mentioned.' },
-              growth_trajectory: { type: 'string', description: 'Revenue/business growth trend. Empty string if not mentioned.' },
-              revenue_trend: { type: 'string', description: 'Revenue trend: "growing", "stable", or "declining". Empty string if not mentioned.' },
-              management_depth: { type: 'string', description: 'Management team details, key personnel. Empty string if not mentioned.' },
-              has_management_team: { type: 'boolean', description: 'Whether management team exists beyond owner.' },
-              key_risks: { type: 'array', items: { type: 'string' }, description: 'Risk factors, concerns, red flags. Empty array if not mentioned.' },
-              key_quotes: { type: 'array', items: { type: 'string' }, description: 'VERBATIM notable quotes from the notes. Empty array if none.' },
-              growth_drivers: { type: 'array', items: { type: 'string' }, description: 'Growth opportunities and expansion potential. Empty array if not mentioned.' },
-              real_estate_info: { type: 'string', description: 'Real estate details — owned vs leased. Empty string if not mentioned.' },
-              technology_systems: { type: 'string', description: 'Technology/software/systems used. Empty string if not mentioned.' },
+              owner_goals: { type: 'string', description: 'Detailed 2-5 sentences: Primary motivation for selling, desired deal type, financial expectations, beyond-money goals (legacy, employees, brand), urgency level. Include verbatim owner quotes where available.' },
+              ownership_structure: { type: 'string', description: 'Entity type, ownership percentages, family involvement, silent partners, employee equity, trust structures. Include all details mentioned.' },
+              transition_preferences: { type: 'string', description: 'Detailed 2-3 sentences: Transition timeline, owner role during transition, knowledge transfer readiness, key relationship dependencies, non-compete willingness, whether a #2 is in place.' },
+              seller_motivation: { type: 'string', description: 'Detailed context on why the seller wants to sell — retirement, burnout, health, growth capital, partner buyout, estate planning. Include urgency signals and emotional factors.' },
+              special_requirements: { type: 'string', description: 'Deal breakers, must-haves, non-negotiables: valuation floor, employee retention requirements, buyer location/type preferences, earnout preferences, closing timeline constraints.' },
+              timeline_notes: { type: 'string', description: 'Timeline and urgency details: target close date, competing offers, advisor engagement timeline, tax-driven deadlines.' },
+              description: { type: 'string', description: 'Business description — 3-5 sentences covering what the company does, business model, market position, competitive advantages, and size indicators. Write for a PE investor scanning in 30 seconds.' },
+              services: { type: 'array', items: { type: 'string' }, description: 'List of EVERY specific service offered. Be granular: "fire restoration", "water restoration", "mold remediation" NOT just "restoration". Include sub-services and planned services.' },
+              service_mix: { type: 'string', description: 'Detailed 2-4 sentences: Revenue breakdown by service line with percentages if stated, residential vs commercial split, recurring vs project-based, in-house vs subcontracted, cross-sell dynamics.' },
+              industry: { type: 'string', description: 'Primary industry classification (e.g., "Fire & Water Restoration", "Commercial HVAC", "Managed IT Services").' },
+              customer_types: { type: 'string', description: 'Detailed 2-3 sentences: Specific customer segments with concentration details. Not just "commercial" — what kind? Property managers, insurance companies, government agencies? Key account relationships, repeat business percentage.' },
+              competitive_position: { type: 'string', description: 'Detailed 2-3 sentences: Certifications, awards, preferred vendor status, franchise affiliations, proprietary processes, customer lock-in mechanisms, market share indicators, years in market, reputation drivers.' },
+              geographic_states: { type: 'array', items: { type: 'string' }, description: 'All US states where business operates, has customers, or holds licenses (2-letter codes). Include expansion targets.' },
+              location: { type: 'string', description: 'Primary location/HQ in "City, ST" format. Use suburb name if mentioned.' },
+              number_of_locations: { type: 'number', description: 'Total physical locations: offices, shops, warehouses, branches, storage (owned + leased). Home office = 1.' },
+              financial_notes: { type: 'string', description: 'Detailed 3-5 sentences: Revenue breakdown by segment/location, EBITDA adjustments and add-backs, owner compensation details, margin trends, seasonality patterns, capex requirements, working capital needs, debt structure, growth rates with specific numbers.' },
+              growth_trajectory: { type: 'string', description: 'Detailed 2-3 sentences: Revenue CAGR or trend with specifics, new location openings, service line additions, headcount growth, contract wins, market expansion, pipeline indicators.' },
+              revenue_trend: { type: 'string', description: 'Revenue trend: "growing", "stable", or "declining". Add context like growth rate if available.' },
+              management_depth: { type: 'string', description: 'Detailed 2-3 sentences: Key personnel by role and tenure, succession readiness, is there a strong #2? Who runs day-to-day operations? What happens if owner leaves? Training/mentoring pipeline.' },
+              has_management_team: { type: 'boolean', description: 'Whether a management team exists beyond the owner that could run the business independently.' },
+              key_risks: { type: 'array', items: { type: 'string' }, description: 'Specific risk factors: owner dependency, customer concentration, key-man risk, regulatory exposure, geographic limitation, technology debt, deferred maintenance, pending litigation, competitive threats.' },
+              key_quotes: { type: 'array', items: { type: 'string' }, description: 'VERBATIM notable quotes with speaker attribution. Prioritize quotes about goals, deal expectations, business challenges, and growth plans.' },
+              growth_drivers: { type: 'array', items: { type: 'string' }, description: 'Specific growth opportunities: geographic expansion targets, new service lines, acquisition candidates, technology investments, untapped customer segments, capacity utilization improvements.' },
+              real_estate_info: { type: 'string', description: 'Facility details: owned vs leased, square footage, lease terms, facility condition, expansion capacity, recent investments.' },
+              technology_systems: { type: 'string', description: 'Specific platforms and tools: CRM, ERP, fleet management, scheduling, industry-specific software, customer portals, mobile apps. Note digital maturity level.' },
             },
             required: [
               'owner_goals', 'ownership_structure', 'transition_preferences', 'special_requirements',
