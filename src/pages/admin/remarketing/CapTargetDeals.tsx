@@ -120,6 +120,7 @@ export default function CapTargetDeals() {
   const [interestFilter, setInterestFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
+  const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
@@ -226,6 +227,7 @@ export default function CapTargetDeals() {
       if (channelFilter !== "all" && deal.captarget_outreach_channel !== channelFilter) return false;
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
+      if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
       if (dateFrom && deal.captarget_contact_date) {
         if (deal.captarget_contact_date < dateFrom) return false;
       }
@@ -295,7 +297,7 @@ export default function CapTargetDeals() {
     });
 
     return filtered;
-  }, [deals, search, clientFilter, interestFilter, channelFilter, pushedFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+  }, [deals, search, clientFilter, interestFilter, channelFilter, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -362,10 +364,10 @@ export default function CapTargetDeals() {
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      if (!deals?.length) return;
+      if (!filteredDeals?.length) return;
       const targets = mode === "unenriched"
-        ? deals.filter((d) => !d.enriched_at)
-        : deals;
+        ? filteredDeals.filter((d) => !d.enriched_at)
+        : filteredDeals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to enrich");
@@ -430,16 +432,16 @@ export default function CapTargetDeals() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Bulk Score
   const handleBulkScore = useCallback(
     async (mode: "unscored" | "all") => {
-      if (!deals?.length) return;
+      if (!filteredDeals?.length) return;
       const targets = mode === "unscored"
-        ? deals.filter((d) => d.deal_quality_score == null)
-        : deals;
+        ? filteredDeals.filter((d) => d.deal_quality_score == null)
+        : filteredDeals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to score");
@@ -484,7 +486,7 @@ export default function CapTargetDeals() {
       setIsScoring(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Enrich selected deals (existing)
@@ -925,6 +927,18 @@ export default function CapTargetDeals() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pushed">Pushed</SelectItem>
                 <SelectItem value="not_pushed">Not Pushed</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Source Tab filter */}
+            <Select value={sourceTabFilter} onValueChange={setSourceTabFilter}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Source Tab" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tabs</SelectItem>
+                <SelectItem value="Active Summary">Active Summary</SelectItem>
+                <SelectItem value="Inactive Summary">Inactive Summary</SelectItem>
               </SelectContent>
             </Select>
 
