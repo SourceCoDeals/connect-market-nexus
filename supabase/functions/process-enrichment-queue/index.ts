@@ -40,6 +40,29 @@ serve(async (req) => {
     // Use service role for background processing
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Parse request body
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { /* empty body ok */ }
+
+    // Action: cancel all pending items (optionally before a cutoff)
+    if (body.action === 'cancel_pending') {
+      const cutoffIso = (body.before as string) || new Date().toISOString();
+      const { data: cancelled, error: cancelErr } = await supabase
+        .from('enrichment_queue')
+        .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: 'Cancelled by user' })
+        .eq('status', 'pending')
+        .lt('queued_at', cutoffIso)
+        .select('id');
+
+      if (cancelErr) {
+        console.error('Cancel error:', cancelErr);
+        return new Response(JSON.stringify({ error: cancelErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const count = cancelled?.length || 0;
+      console.log(`Cancelled ${count} pending items before ${cutoffIso}`);
+      return new Response(JSON.stringify({ cancelled: count }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     console.log('Processing enrichment queue (PARALLEL MODE)...');
 
     // Recovery: reset any items that were left in `processing` due to timeouts/crashes.
