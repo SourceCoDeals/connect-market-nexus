@@ -1,4 +1,5 @@
 export { GeneralNotesSection } from './GeneralNotesSection';
+export { OwnerResponseSection } from './OwnerResponseSection';
 export { ExecutiveSummaryCard } from './ExecutiveSummaryCard';
 export { ServicesBusinessModelCard } from './ServicesBusinessModelCard';
 export { GeographicCoverageCard } from './GeographicCoverageCard';

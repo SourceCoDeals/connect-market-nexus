@@ -47,6 +47,7 @@ import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSe
 import { FirefliesTranscriptSync } from "@/components/remarketing/FirefliesTranscriptSync";
 import {
   GeneralNotesSection,
+  OwnerResponseSection,
   ExecutiveSummaryCard,
   ServicesBusinessModelCard,
   GeographicCoverageCard,
@@ -1087,6 +1088,14 @@ const ReMarketingDealDetail = () => {
           company_name: deal.internal_company_name || deal.title,
           primary_contact_email: deal.primary_contact_email,
           main_contact_email: deal.main_contact_email,
+        }}
+      />
+
+      {/* Owner Response Section */}
+      <OwnerResponseSection
+        ownerResponse={deal.owner_response}
+        onSave={async (response) => {
+          await updateDealMutation.mutateAsync({ owner_response: response } as any);
         }}
       />
 
