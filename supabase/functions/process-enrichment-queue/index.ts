@@ -7,11 +7,11 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 // Configuration - RELIABILITY-FIRST
 // Moderate parallelism to avoid rate limits across concurrent queue processors.
 // Each deal enrichment makes 1 Firecrawl + 1 Gemini + optional LinkedIn/Google calls.
-const BATCH_SIZE = 6; // Fetch 6 items per run
-const CONCURRENCY_LIMIT = 3; // Process 3 items in parallel (reduced from 5 to prevent rate limit storms)
+const BATCH_SIZE = 10; // Fetch 10 items per run
+const CONCURRENCY_LIMIT = 5; // Process 5 items in parallel (LinkedIn/Google removed — only enrich-deal now)
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
-const PROCESSING_TIMEOUT_MS = 120000; // 120 seconds per item (increased from 90s to accommodate retries)
-const INTER_CHUNK_DELAY_MS = 2000; // 2s between parallel chunks to spread API load
+const PROCESSING_TIMEOUT_MS = 90000; // 90 seconds per item
+const INTER_CHUNK_DELAY_MS = 1000; // 1s between parallel chunks
 
 // Stop early to avoid the platform killing the function mid-item.
 const MAX_FUNCTION_RUNTIME_MS = 140000; // ~140s (increased to match longer per-item timeout)
