@@ -1304,8 +1304,30 @@ export default function CapTargetDeals() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm px-3 tabular-nums">
-            Page {safePage} of {totalPages}
+          <span className="text-sm px-3 tabular-nums flex items-center gap-1">
+            Page
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={safePage}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                  setCurrentPage(val);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = parseInt((e.target as HTMLInputElement).value, 10);
+                  if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                    setCurrentPage(val);
+                  }
+                }
+              }}
+              className="w-12 h-7 text-center text-sm border border-input rounded-md bg-background tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            of {totalPages}
           </span>
           <Button
             variant="outline"
