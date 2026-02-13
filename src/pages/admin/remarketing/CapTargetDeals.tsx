@@ -90,6 +90,7 @@ interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
+  category: string | null;
 }
 
 type SortColumn =
@@ -181,7 +182,8 @@ export default function CapTargetDeals() {
           google_rating,
           google_review_count,
           captarget_status,
-          is_priority_target
+          is_priority_target,
+          category
         `
         )
         .eq("deal_source", "captarget")
@@ -230,8 +232,8 @@ export default function CapTargetDeals() {
           valB = (b.internal_company_name || b.title || "").toLowerCase();
           break;
         case "client_name":
-          valA = (a.captarget_client_name || "").toLowerCase();
-          valB = (b.captarget_client_name || "").toLowerCase();
+          valA = (a.category || "").toLowerCase();
+          valB = (b.category || "").toLowerCase();
           break;
         case "contact_name":
           valA = (a.main_contact_name || "").toLowerCase();
@@ -980,7 +982,7 @@ export default function CapTargetDeals() {
                   </TableHead>
                   <TableHead className="max-w-[200px]">Description</TableHead>
                   <TableHead>
-                    <SortHeader column="client_name">Client</SortHeader>
+                    <SortHeader column="client_name">Industry</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="contact_name">Contact</SortHeader>
@@ -1072,7 +1074,7 @@ export default function CapTargetDeals() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[160px] block">
-                          {deal.captarget_client_name || "—"}
+                          {deal.category || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
