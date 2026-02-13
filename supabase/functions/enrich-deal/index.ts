@@ -1122,7 +1122,7 @@ For financial data, include confidence levels and source quotes where available.
 
     // Retry logic for AI calls (handles 429 rate limits)
     const MAX_AI_RETRIES = 3;
-    const AI_RETRY_DELAYS = [2000, 5000, 10000]; // exponential backoff
+    const AI_RETRY_DELAYS = [1000, 3000, 7000]; // fast exponential backoff
     
     let aiResponse: Response | null = null;
     let lastAiError = '';

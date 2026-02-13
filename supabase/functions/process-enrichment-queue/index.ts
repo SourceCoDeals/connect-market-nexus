@@ -4,17 +4,16 @@ import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
-// Configuration - RELIABILITY-FIRST
-// Moderate parallelism to avoid rate limits across concurrent queue processors.
-// Each deal enrichment makes 1 Firecrawl + 1 Gemini + optional LinkedIn/Google calls.
-const BATCH_SIZE = 6; // Fetch 6 items per run
-const CONCURRENCY_LIMIT = 3; // Process 3 items in parallel (reduced from 5 to prevent rate limit storms)
+// Configuration - SPEED-FIRST
+// Higher parallelism for faster throughput. Failed items can be re-run.
+const BATCH_SIZE = 10; // Fetch 10 items per run
+const CONCURRENCY_LIMIT = 5; // Process 5 items in parallel
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
-const PROCESSING_TIMEOUT_MS = 120000; // 120 seconds per item (increased from 90s to accommodate retries)
-const INTER_CHUNK_DELAY_MS = 2000; // 2s between parallel chunks to spread API load
+const PROCESSING_TIMEOUT_MS = 120000; // 120 seconds per item
+const INTER_CHUNK_DELAY_MS = 500; // 500ms between parallel chunks
 
 // Stop early to avoid the platform killing the function mid-item.
-const MAX_FUNCTION_RUNTIME_MS = 140000; // ~140s (increased to match longer per-item timeout)
+const MAX_FUNCTION_RUNTIME_MS = 140000; // ~140s
 
 // Helper to chunk array into smaller arrays
 function chunkArray<T>(arr: T[], size: number): T[][] {
@@ -130,60 +129,7 @@ serve(async (req) => {
 
     console.log(`Found ${queueItems.length} items to process`);
 
-    // PRE-CHECK: Mark items as completed if their listings are already enriched
-    // Also sweep ALL pending already-enriched items (not just this batch) to prevent stuck queues
-    const { data: allPendingEnriched } = await supabase
-      .from('enrichment_queue')
-      .select('id, listing_id')
-      .eq('status', 'pending')
-      .limit(500);
-
-    let extraSynced = 0;
-    if (allPendingEnriched && allPendingEnriched.length > 0) {
-      const allPendingListingIds = allPendingEnriched.map(i => i.listing_id);
-      const { data: enrichedCheck } = await supabase
-        .from('listings')
-        .select('id')
-        .in('id', allPendingListingIds)
-        .not('enriched_at', 'is', null);
-
-      const enrichedSet = new Set(enrichedCheck?.map(l => l.id) || []);
-      const toComplete = allPendingEnriched.filter(i => enrichedSet.has(i.listing_id));
-
-      if (toComplete.length > 0) {
-        await Promise.all(toComplete.map(item =>
-          supabase
-            .from('enrichment_queue')
-            .update({
-              status: 'completed',
-              completed_at: new Date().toISOString(),
-              last_error: null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id)
-        ));
-        extraSynced = toComplete.length;
-        console.log(`Pre-check: synced ${extraSynced} already-enriched items to completed`);
-
-        // Remove synced items from current batch
-        const completedIds = new Set(toComplete.map(i => i.id));
-        queueItems = queueItems.filter((item: { id: string }) => !completedIds.has(item.id));
-
-        if (queueItems.length === 0) {
-          console.log('All items were already enriched - nothing to process');
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: `Synced ${extraSynced} already-enriched items to completed`, 
-              processed: 0,
-              synced: extraSynced 
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-    }
-
+    // PRE-CHECK: Mark batch items as completed if their listings are already enriched
     const listingIds = queueItems.map((item: { listing_id: string }) => item.listing_id);
     const { data: enrichedListings } = await supabase
       .from('listings')
