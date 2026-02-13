@@ -145,6 +145,8 @@ serve(async (req) => {
 
     if (!queueItems || queueItems.length === 0) {
       console.log('No pending enrichment items in queue');
+      // Complete any running global queue operation that has no more work
+      await completeGlobalQueueOperation(supabase, 'deal_enrichment');
       return new Response(
         JSON.stringify({ success: true, message: 'No pending items', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
