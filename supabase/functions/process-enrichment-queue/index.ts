@@ -340,8 +340,22 @@ serve(async (req) => {
       .from('enrichment_queue')
       .select('*', { count: 'exact', head: true })
       .in('status', ['pending', 'processing']);
+
     if (remainingPending === 0) {
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
+    } else if ((remainingPending ?? 0) > 0) {
+      // Fire-and-forget self-invocation to continue processing remaining items
+      console.log(`${remainingPending} items remaining — triggering continuation...`);
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+      fetch(`${supabaseUrl}/functions/v1/process-enrichment-queue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ source: 'self-continuation' }),
+      }).catch(err => console.warn('Self-invocation failed (non-fatal):', err));
     }
 
     return new Response(
