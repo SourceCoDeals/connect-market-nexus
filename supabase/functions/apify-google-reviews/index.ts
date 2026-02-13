@@ -139,10 +139,14 @@ serve(async (req) => {
             }
           } else {
             // Mark as scraped but with 0 reviews (so we don't retry)
-            await supabase
+            const { error: zeroError } = await supabase
               .from('listings')
               .update({ google_review_count: 0 })
               .eq('id', deal.id);
+            if (zeroError) {
+              console.error(`Error marking deal ${deal.id} with 0 reviews:`, zeroError);
+              errors++;
+            }
           }
 
           // Rate limit - wait 2 seconds between scrapes

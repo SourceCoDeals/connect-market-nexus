@@ -501,10 +501,13 @@ serve(async (req) => {
         const allTranscriptIds = allTranscripts.map((t) => t.id);
         if (allTranscriptIds.length > 0) {
           console.log(`[Transcripts] Clearing extracted_data for ${allTranscriptIds.length} transcripts`);
-          await supabase
+          const { error: clearError } = await supabase
             .from('deal_transcripts')
             .update({ processed_at: null, extracted_data: null, applied_to_deal: false })
             .in('id', allTranscriptIds);
+          if (clearError) {
+            console.error(`[Transcripts] Failed to clear extracted_data:`, clearError);
+          }
         }
       } else {
         // Normal mode: only unprocessed or failed transcripts
@@ -605,10 +608,13 @@ serve(async (req) => {
 
       if (failedTranscriptIds.length > 0) {
         console.log(`[Transcripts] Resetting processed_at for ${failedTranscriptIds.length} previously-failed transcripts`);
-        await supabase
+        const { error: resetError } = await supabase
           .from('deal_transcripts')
           .update({ processed_at: null, extracted_data: null })
           .in('id', failedTranscriptIds);
+        if (resetError) {
+          console.error(`[Transcripts] Failed to reset processed_at:`, resetError);
+        }
       }
 
       // Process transcripts in parallel batches of 10 for speed

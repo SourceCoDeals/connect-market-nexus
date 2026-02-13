@@ -327,9 +327,6 @@ serve(async (req) => {
       linkedin_url: normalizedLinkedinUrl,
       linkedin_employee_count: employeeCount,
       linkedin_employee_range: employeeRange,
-      linkedin_industry: companyData.industry || null,
-      linkedin_headquarters: companyData.headquarters || null,
-      linkedin_website: companyData.website || null,
       linkedin_description: companyData.description?.substring(0, 1000) || null,
     };
 
@@ -351,9 +348,6 @@ serve(async (req) => {
       }
       if (result.linkedin_employee_range) {
         updateData.linkedin_employee_range = result.linkedin_employee_range;
-      }
-      if (result.linkedin_headquarters) {
-        updateData.linkedin_headquarters = result.linkedin_headquarters;
       }
 
       const { error: updateError } = await supabase

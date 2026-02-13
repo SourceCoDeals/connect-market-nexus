@@ -180,7 +180,7 @@ serve(async (req) => {
       console.log(`Found ${fullyEnrichedIds.size} listings fully enriched (website+LinkedIn+Google) - marking queue items as completed`);
       
       const itemsToComplete = queueItems.filter((item: { listing_id: string }) => fullyEnrichedIds.has(item.listing_id));
-      await Promise.all(itemsToComplete.map((item: { id: string; listing_id: string }) =>
+      const completionResults = await Promise.allSettled(itemsToComplete.map((item: { id: string; listing_id: string }) =>
         supabase
           .from('enrichment_queue')
           .update({
@@ -191,6 +191,11 @@ serve(async (req) => {
           })
           .eq('id', item.id)
       ));
+      for (const cr of completionResults) {
+        if (cr.status === 'rejected') {
+          console.error('Failed to mark enriched item as completed:', cr.reason);
+        }
+      }
       
       queueItems = queueItems.filter((item: { listing_id: string }) => !fullyEnrichedIds.has(item.listing_id));
       
