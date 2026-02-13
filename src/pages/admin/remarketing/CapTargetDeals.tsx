@@ -75,7 +75,7 @@ interface CapTargetDeal {
   main_contact_phone: string | null;
   captarget_sheet_tab: string | null;
   website: string | null;
-  description: string | null;
+  notes: string | null;
   pushed_to_all_deals: boolean | null;
   pushed_to_all_deals_at: string | null;
   deal_source: string | null;
@@ -166,7 +166,7 @@ export default function CapTargetDeals() {
           main_contact_phone,
           captarget_sheet_tab,
           website,
-          description,
+          notes,
           pushed_to_all_deals,
           pushed_to_all_deals_at,
           deal_source,
@@ -976,7 +976,7 @@ export default function CapTargetDeals() {
                   <TableHead>
                     <SortHeader column="company_name">Company</SortHeader>
                   </TableHead>
-                  <TableHead className="max-w-[200px]">Description</TableHead>
+                  <TableHead className="max-w-[200px]">Notes</TableHead>
                   <TableHead>
                     <SortHeader column="client_name">Client</SortHeader>
                   </TableHead>
@@ -1065,7 +1065,7 @@ export default function CapTargetDeals() {
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         <span className="text-xs text-muted-foreground line-clamp-2">
-                          {deal.description || "—"}
+                          {deal.notes || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
