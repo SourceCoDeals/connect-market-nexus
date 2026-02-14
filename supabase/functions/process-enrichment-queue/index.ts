@@ -173,7 +173,7 @@ serve(async (req) => {
       console.log(`Found ${alreadyEnrichedIds.size} listings already enriched — marking queue items as completed`);
       
       const itemsToComplete = queueItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
-      await Promise.all(itemsToComplete.map((item: { id: string; listing_id: string }) =>
+      const completionResults = await Promise.allSettled(itemsToComplete.map((item: { id: string; listing_id: string }) =>
         supabase
           .from('enrichment_queue')
           .update({
