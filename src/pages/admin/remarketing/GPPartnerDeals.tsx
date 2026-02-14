@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { formatCompactCurrency } from "@/lib/utils";
 import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -105,6 +106,8 @@ type SortColumn =
   | "company_name"
   | "industry"
   | "contact_name"
+  | "revenue"
+  | "ebitda"
   | "score"
   | "linkedin_employee_count"
   | "linkedin_employee_range"
@@ -267,6 +270,14 @@ export default function GPPartnerDeals() {
         case "contact_name":
           valA = (a.main_contact_name || "").toLowerCase();
           valB = (b.main_contact_name || "").toLowerCase();
+          break;
+        case "revenue":
+          valA = a.revenue ?? -1;
+          valB = b.revenue ?? -1;
+          break;
+        case "ebitda":
+          valA = a.ebitda ?? -1;
+          valB = b.ebitda ?? -1;
           break;
         case "score":
           valA = a.deal_quality_score ?? -1;
@@ -992,6 +1003,12 @@ export default function GPPartnerDeals() {
                     <SortHeader column="contact_name">Contact</SortHeader>
                   </TableHead>
                   <TableHead>
+                    <SortHeader column="revenue">Revenue</SortHeader>
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader column="ebitda">EBITDA</SortHeader>
+                  </TableHead>
+                  <TableHead>
                     <SortHeader column="linkedin_employee_count">LI Count</SortHeader>
                   </TableHead>
                   <TableHead>
@@ -1004,7 +1021,7 @@ export default function GPPartnerDeals() {
                     <SortHeader column="google_rating">Rating</SortHeader>
                   </TableHead>
                   <TableHead>
-                    <SortHeader column="score">Score</SortHeader>
+                    <SortHeader column="score">Quality</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="created_at">Added</SortHeader>
@@ -1018,7 +1035,7 @@ export default function GPPartnerDeals() {
                 {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={13}
+                      colSpan={15}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1100,6 +1117,20 @@ export default function GPPartnerDeals() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {deal.revenue != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(deal.revenue)}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {deal.ebitda != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(deal.ebitda)}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {deal.linkedin_employee_count != null ? (
                           <span className="text-sm tabular-nums">{deal.linkedin_employee_count.toLocaleString()}</span>
                         ) : (
@@ -1122,23 +1153,26 @@ export default function GPPartnerDeals() {
                       </TableCell>
                       <TableCell>
                         {deal.google_rating != null ? (
-                          <span className="text-sm tabular-nums">{deal.google_rating}</span>
+                          <span className="text-sm tabular-nums">⭐ {deal.google_rating}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">{"\u2014"}</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         {deal.deal_quality_score != null ? (
-                          <Badge variant="outline" className={cn(
-                            "tabular-nums",
-                            deal.deal_quality_score >= 80 ? "bg-green-50 text-green-700 border-green-200" :
-                            deal.deal_quality_score >= 60 ? "bg-amber-50 text-amber-700 border-amber-200" :
-                            "bg-gray-50 text-gray-600 border-gray-200"
-                          )}>
-                            {deal.deal_quality_score}
-                          </Badge>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className={cn(
+                              "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
+                              deal.deal_quality_score >= 80 ? "bg-green-100 text-green-700" :
+                              deal.deal_quality_score >= 60 ? "bg-blue-100 text-blue-700" :
+                              deal.deal_quality_score >= 40 ? "bg-yellow-100 text-yellow-700" :
+                              "bg-red-100 text-red-700"
+                            )}>
+                              {Math.round(deal.deal_quality_score)}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                          <span className="text-sm text-muted-foreground">{"\u2014"}</span>
                         )}
                       </TableCell>
                       <TableCell>
