@@ -14,9 +14,9 @@ import { updateGlobalQueueProgress, completeGlobalQueueOperation } from "../_sha
  */
 
 const BATCH_SIZE = 20;       // Larger batches since each item is fast
-const CONCURRENCY = 10;      // Higher parallelism — no AI calls, just Apify
-const MAX_FUNCTION_RUNTIME_MS = 140000;
-const PER_ITEM_TIMEOUT_MS = 30000; // 30s per item
+const CONCURRENCY = 5;       // Moderate parallelism — avoid overwhelming edge gateway
+const MAX_FUNCTION_RUNTIME_MS = 45000; // 45s — safely under the ~60s Supabase wall clock
+const PER_ITEM_TIMEOUT_MS = 20000; // 20s per item
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
