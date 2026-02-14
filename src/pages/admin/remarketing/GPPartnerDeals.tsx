@@ -1643,33 +1643,33 @@ export default function GPPartnerDeals() {
                 <p className="text-sm font-medium">
                   Preview ({csvPreview.total} rows total, showing first 5):
                 </p>
-                <div className="overflow-x-auto overflow-y-auto max-h-[300px] border rounded-md">
-                  <Table className="table-fixed" style={{ minWidth: 0 }}>
-                    <TableHeader>
-                      <TableRow>
+                <div className="overflow-x-auto overflow-y-auto max-h-[300px] border rounded-md w-full">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
                         {csvPreview.headers.slice(0, 8).map((h, i) => (
-                          <TableHead key={i} className="text-xs whitespace-nowrap" style={{ width: 120 }}>{h}</TableHead>
+                          <th key={i} className="text-xs font-medium text-muted-foreground whitespace-nowrap px-3 py-2 text-left">{h}</th>
                         ))}
                         {csvPreview.headers.length > 8 && (
-                          <TableHead className="text-xs text-muted-foreground" style={{ width: 80 }}>+{csvPreview.headers.length - 8} more</TableHead>
+                          <th className="text-xs font-medium text-muted-foreground whitespace-nowrap px-3 py-2 text-left">+{csvPreview.headers.length - 8} more</th>
                         )}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {csvPreview.rows.map((row, i) => (
-                        <TableRow key={i}>
+                        <tr key={i} className="border-t border-border">
                           {row.slice(0, 8).map((cell, j) => (
-                            <TableCell key={j} className="text-xs max-w-[120px] truncate">
+                            <td key={j} className="text-xs px-3 py-2 whitespace-nowrap max-w-[120px] truncate">
                               {cell || "\u2014"}
-                            </TableCell>
+                            </td>
                           ))}
                           {csvPreview.headers.length > 8 && (
-                            <TableCell className="text-xs text-muted-foreground">…</TableCell>
+                            <td className="text-xs px-3 py-2 text-muted-foreground">…</td>
                           )}
-                        </TableRow>
+                        </tr>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
