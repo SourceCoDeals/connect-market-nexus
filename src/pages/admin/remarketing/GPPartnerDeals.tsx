@@ -673,7 +673,89 @@ export default function GPPartnerDeals() {
     }
   }, [newDeal, queryClient]);
 
-  // CSV upload
+  // Robust CSV parser that handles multiline quoted fields
+  const parseFullCSV = (text: string): { headers: string[]; dataRows: string[][] } => {
+    const rows: string[][] = [];
+    let current = "";
+    let inQuotes = false;
+    const currentRow: string[] = [];
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"') {
+        if (inQuotes && text[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === ',' && !inQuotes) {
+        currentRow.push(current.trim());
+        current = "";
+      } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+        currentRow.push(current.trim());
+        current = "";
+        if (currentRow.some(c => c)) rows.push([...currentRow]);
+        currentRow.length = 0;
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+      } else {
+        current += ch;
+      }
+    }
+    // last row
+    currentRow.push(current.trim());
+    if (currentRow.some(c => c)) rows.push([...currentRow]);
+
+    if (rows.length === 0) return { headers: [], dataRows: [] };
+    return { headers: rows[0], dataRows: rows.slice(1) };
+  };
+
+  // Normalize for flexible header matching
+  const normalizeForMatch = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  // Header pattern mapping (normalized header → listing field)
+  const gpHeaderPatterns: [RegExp, string, string][] = [
+    [/^companyname$|^company$|^dealname$/, "title", "Company Name"],
+    [/^websiteurl$|^website$|^url$/, "website", "Website"],
+    [/^firstname$/, "_first_name", "First Name"],
+    [/^lastname$/, "_last_name", "Last Name"],
+    [/^(contactname|fullname)$/, "main_contact_name", "Contact Name"],
+    [/^(email|contactemail)$/, "main_contact_email", "Email"],
+    [/^(phonenumber|phone|contactphone)$/, "main_contact_phone", "Phone"],
+    [/^(title|contacttitle|jobtitle)$/, "main_contact_title", "Title/Role"],
+    [/^industry$/, "industry", "Industry"],
+    [/^(description|aidescription)$/, "description", "Description"],
+    [/^(location|address)$/, "location", "Location"],
+    [/^revenue$/, "revenue", "Revenue"],
+    [/^ebitda$/, "ebitda", "EBITDA"],
+    [/^(employeecount|employees|employeerange)$/, "full_time_employees", "Employees"],
+    [/^(linkedinurl|linkedin)$/, "linkedin_url", "LinkedIn"],
+    [/^(mainservices|services)$/, "services", "Services"],
+    [/^googlereviewcount$/, "google_review_count", "Reviews"],
+    [/^(googlereviewscore|googlerating)$/, "google_rating", "Rating"],
+    [/^(locations|numberoflocation)$/, "number_of_locations", "Locations"],
+    [/^(billnotes|notes|generalnotes)$/, "general_notes", "Notes"],
+    [/^(firefliesrecording|fireflies)$/, "fireflies_url", "Fireflies"],
+    [/^status$/, "_status", "Status"],
+    [/^(fitnotfit|fit)$/, "_fit", "Fit"],
+    [/^lastcontacted$/, "_last_contacted", "Last Contacted"],
+    [/^(datecreated|createdat)$/, "_date_created", "Date Created"],
+    [/^marketplace$/, "_marketplace", "Marketplace"],
+    [/^(emailresponse)$/, "_email_response", "Email Response"],
+    [/^(appointmentbooked)$/, "_appointment", "Appointment"],
+    [/^(buyersshown)$/, "_buyers_shown", "Buyers Shown"],
+    [/^(datasource)$/, "_data_source", "Data Source"],
+  ];
+
+  const mapHeader = (raw: string): { field: string; label: string } => {
+    const n = normalizeForMatch(raw);
+    for (const [pattern, field, label] of gpHeaderPatterns) {
+      if (pattern.test(n)) return { field, label };
+    }
+    return { field: "_skip", label: raw };
+  };
+
+  // CSV upload - preview
   const handleCsvSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -683,29 +765,17 @@ export default function GPPartnerDeals() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      if (lines.length < 2) {
+      const { headers, dataRows } = parseFullCSV(text);
+
+      if (headers.length === 0 || dataRows.length === 0) {
         setCsvErrors(["CSV must have a header row and at least one data row"]);
         setCsvPreview(null);
         return;
       }
 
-      // Parse headers properly (handle quoted fields)
-      const headers: string[] = [];
-      {
-        let cur = "", inQ = false;
-        for (const ch of lines[0]) {
-          if (ch === '"') { inQ = !inQ; }
-          else if (ch === ',' && !inQ) { headers.push(cur.trim()); cur = ""; }
-          else { cur += ch; }
-        }
-        headers.push(cur.trim());
-      }
-
-      // Check for company name column (flexible matching)
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+      // Check for company name column
       const hasCompanyName = headers.some((h) => {
-        const n = norm(h);
+        const n = normalizeForMatch(h);
         return n === "companyname" || n === "company" || n === "name" || n === "dealname";
       });
       if (!hasCompanyName) {
@@ -714,29 +784,16 @@ export default function GPPartnerDeals() {
         return;
       }
 
-      const rows = lines.slice(1).map((line) => {
-        // Simple CSV parse (handles basic cases)
-        const values: string[] = [];
-        let current = "";
-        let inQuotes = false;
-        for (const char of line) {
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === "," && !inQuotes) {
-            values.push(current.trim());
-            current = "";
-          } else {
-            current += char;
-          }
-        }
-        values.push(current.trim());
-        return values;
+      // Build mapped headers for preview
+      const mappedHeaders = headers.map((h) => {
+        const { label } = mapHeader(h);
+        return label;
       });
 
       setCsvPreview({
-        headers,
-        rows: rows.slice(0, 5),
-        total: rows.length,
+        headers: mappedHeaders,
+        rows: dataRows.slice(0, 5),
+        total: dataRows.length,
       });
     };
     reader.readAsText(file);
@@ -750,84 +807,22 @@ export default function GPPartnerDeals() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const text = ev.target?.result as string;
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      // Parse header row properly (handle quoted fields)
-      const rawHeaders: string[] = [];
-      {
-        let cur = "", inQ = false;
-        for (const ch of lines[0]) {
-          if (ch === '"') { inQ = !inQ; }
-          else if (ch === ',' && !inQ) { rawHeaders.push(cur.trim()); cur = ""; }
-          else { cur += ch; }
-        }
-        rawHeaders.push(cur.trim());
-      }
-
-      // Normalize headers for flexible matching
-      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const normalizedHeaders = rawHeaders.map(normalize);
-
-      // Map normalized patterns to listing fields
-      const headerPatterns: [RegExp, string][] = [
-        [/^companyname$/, "title"],
-        [/^websiteurl$|^website$/, "website"],
-        [/^firstname$/, "_first_name"],
-        [/^lastname$/, "_last_name"],
-        [/^(contactname|fullname|name)$/, "main_contact_name"],
-        [/^(email|contactemail)$/, "main_contact_email"],
-        [/^(phonenumber|phone|contactphone)$/, "main_contact_phone"],
-        [/^(title|contacttitle|jobtitle)$/, "main_contact_title"],
-        [/^industry$/, "industry"],
-        [/^(description|aidescription)$/, "description"],
-        [/^(location|address)$/, "location"],
-        [/^revenue$/, "revenue"],
-        [/^ebitda$/, "ebitda"],
-        [/^(employeecount|employeerange|employees)$/, "full_time_employees"],
-        [/^linkedinurl$|^linkedin$/, "linkedin_url"],
-        [/^(mainservices|services)$/, "services"],
-        [/^googlereviewcount$/, "google_review_count"],
-        [/^(googlereviewscore|googlerating)$/, "google_rating"],
-        [/^(locations|numberoflocation)$/, "number_of_locations"],
-        [/^(billnotes|notes|generalnotes)$/, "general_notes"],
-        [/^(firefliesrecording|fireflies)$/, "fireflies_url"],
-        [/^(status)$/, "_status"],
-        [/^(fitnotfit|fit)$/, "_fit"],
-        [/^(lastcontacted)$/, "_last_contacted"],
-        [/^(datecreated)$/, "_date_created"],
-      ];
+      const { headers, dataRows } = parseFullCSV(text);
 
       // Build column index → field mapping
-      const colMapping: (string | null)[] = normalizedHeaders.map((nh) => {
-        for (const [pattern, field] of headerPatterns) {
-          if (pattern.test(nh)) return field;
-        }
-        return null;
-      });
+      const colMapping = headers.map((h) => mapHeader(h).field);
 
       let inserted = 0;
       const errors: string[] = [];
       const newDealIds: string[] = [];
 
-      for (let i = 1; i < lines.length; i++) {
-        const values: string[] = [];
-        let current = "";
-        let inQuotes = false;
-        for (const char of lines[i]) {
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === "," && !inQuotes) {
-            values.push(current.trim());
-            current = "";
-          } else {
-            current += char;
-          }
-        }
-        values.push(current.trim());
+      for (let i = 0; i < dataRows.length; i++) {
+        const values = dataRows[i];
 
         // Build row object from dynamic mapping
         const row: Record<string, string> = {};
         colMapping.forEach((field, idx) => {
-          if (field && values[idx]?.trim()) {
+          if (field && !field.startsWith("_skip") && values[idx]?.trim()) {
             row[field] = values[idx].trim();
           }
         });
@@ -839,7 +834,7 @@ export default function GPPartnerDeals() {
 
         const companyName = row.title;
         if (!companyName) {
-          errors.push(`Row ${i}: Missing Company Name`);
+          errors.push(`Row ${i + 2}: Missing Company Name`);
           continue;
         }
 
@@ -1618,8 +1613,7 @@ export default function GPPartnerDeals() {
           <DialogHeader>
             <DialogTitle>Import Deals from CSV</DialogTitle>
             <DialogDescription>
-              Upload a CSV file with deal data. Required column: <code className="text-xs bg-muted px-1 py-0.5 rounded">company_name</code>.
-              Optional: <code className="text-xs bg-muted px-1 py-0.5 rounded">website</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_name</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_email</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_phone</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_title</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">industry</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">description</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">location</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">revenue</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">ebitda</code>.
+              Upload a CSV file with deal data. Column names are auto-detected (e.g. "Company Name", "Website URL", "First Name", "Industry", "Revenue", etc.).
             </DialogDescription>
           </DialogHeader>
 
