@@ -1643,23 +1643,29 @@ export default function GPPartnerDeals() {
                 <p className="text-sm font-medium">
                   Preview ({csvPreview.total} rows total, showing first 5):
                 </p>
-                <div className="overflow-x-auto border rounded-md">
-                  <Table>
+                <div className="overflow-x-auto overflow-y-auto max-h-[300px] border rounded-md">
+                  <Table className="table-fixed" style={{ minWidth: 0 }}>
                     <TableHeader>
                       <TableRow>
-                        {csvPreview.headers.map((h, i) => (
-                          <TableHead key={i} className="text-xs whitespace-nowrap">{h}</TableHead>
+                        {csvPreview.headers.slice(0, 8).map((h, i) => (
+                          <TableHead key={i} className="text-xs whitespace-nowrap" style={{ width: 120 }}>{h}</TableHead>
                         ))}
+                        {csvPreview.headers.length > 8 && (
+                          <TableHead className="text-xs text-muted-foreground" style={{ width: 80 }}>+{csvPreview.headers.length - 8} more</TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {csvPreview.rows.map((row, i) => (
                         <TableRow key={i}>
-                          {row.map((cell, j) => (
-                            <TableCell key={j} className="text-xs whitespace-nowrap max-w-[200px] truncate">
+                          {row.slice(0, 8).map((cell, j) => (
+                            <TableCell key={j} className="text-xs max-w-[120px] truncate">
                               {cell || "\u2014"}
                             </TableCell>
                           ))}
+                          {csvPreview.headers.length > 8 && (
+                            <TableCell className="text-xs text-muted-foreground">…</TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
