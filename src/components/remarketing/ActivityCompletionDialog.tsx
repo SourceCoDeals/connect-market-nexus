@@ -167,8 +167,13 @@ export function ActivityCompletionDialog() {
             >
               {statusLabel}
             </Badge>
-            {succeeded > 0 && failed === 0 && (
+            {succeeded > 0 && failed === 0 && succeeded >= total && (
               <span className="text-sm text-emerald-600 font-medium">All items processed successfully!</span>
+            )}
+            {succeeded > 0 && failed === 0 && succeeded < total && (
+              <span className="text-sm text-amber-600 font-medium">
+                {succeeded} of {total} processed ({total - succeeded} remaining)
+              </span>
             )}
             {failed > 0 && succeeded > 0 && (
               <span className="text-sm text-muted-foreground">
