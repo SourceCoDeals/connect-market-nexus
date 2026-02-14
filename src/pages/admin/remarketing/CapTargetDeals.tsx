@@ -689,6 +689,46 @@ export default function CapTargetDeals() {
     [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient, supabase, filteredDeals]
   );
 
+  // LinkedIn + Google only enrichment (skips website scraping)
+  const handleExternalOnlyEnrich = useCallback(async () => {
+    setIsEnriching(true);
+
+    let activityItem: { id: string } | null = null;
+    try {
+      const missingCount = deals?.filter(d => d.enriched_at && !d.linkedin_employee_count && !d.google_review_count).length || 0;
+      const result = await startOrQueueMajorOp({
+        operationType: "deal_enrichment",
+        totalItems: missingCount || 1,
+        description: `LinkedIn + Google enrichment for CapTarget deals`,
+        userId: user?.id || "",
+        contextJson: { source: "captarget_external_only" },
+      });
+      activityItem = result.item;
+    } catch {
+      // Non-blocking
+    }
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("enrich-external-only", {
+        body: { dealSource: "captarget", mode: "missing" },
+      });
+
+      if (error) {
+        sonnerToast.error("Failed to start LinkedIn/Google enrichment");
+        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+      } else {
+        sonnerToast.success(`Queued ${result?.total || 0} deals for LinkedIn + Google enrichment`, {
+          description: "This runs much faster than full enrichment — no website re-scraping",
+        });
+      }
+    } catch {
+      sonnerToast.error("Failed to invoke external enrichment");
+    }
+
+    setIsEnriching(false);
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+  }, [deals, user, startOrQueueMajorOp, completeOperation, queryClient]);
+
   const interestTypeLabel = (type: string | null) => {
     switch (type) {
       case "interest": return "Interest";
@@ -926,6 +966,9 @@ export default function CapTargetDeals() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleBulkEnrich("all")}>
                 Re-enrich All
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExternalOnlyEnrich}>
+                LinkedIn + Google Only
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
