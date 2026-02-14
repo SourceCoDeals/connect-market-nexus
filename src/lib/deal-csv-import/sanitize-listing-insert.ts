@@ -9,6 +9,8 @@ const EXTRA_ALLOWED_FIELDS = [
   // system-managed / defaults we set during import
   'status',
   'is_internal_deal',
+  'deal_source',
+  'pushed_to_all_deals',
   // required in schema (NOT NULL) but not user-mapped (public/anon-friendly)
   'location',
   // row-processor default

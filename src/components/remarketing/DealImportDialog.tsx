@@ -61,6 +61,10 @@ interface DealImportDialogProps {
   onImportComplete: () => void;
   onImportCompleteWithIds?: (importedIds: string[]) => void;
   referralPartnerId?: string;
+  /** Optional deal_source value injected into every imported listing (e.g. "gp_partners") */
+  dealSource?: string;
+  /** If true, sets pushed_to_all_deals=false on imported listings */
+  hideFromAllDeals?: boolean;
 }
 
 type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
@@ -71,6 +75,8 @@ export function DealImportDialog({
   onImportComplete,
   onImportCompleteWithIds,
   referralPartnerId,
+  dealSource,
+  hideFromAllDeals,
 }: DealImportDialogProps) {
   const [step, setStep] = useState<ImportStep>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -234,7 +240,9 @@ export function DealImportDialog({
             ...parsedData,
             status: referralPartnerId ? 'pending_referral_review' : 'active',
             location: computedLocation,
-            is_internal_deal: true, // Mark as internal/research deal - not for marketplace
+            is_internal_deal: true,
+            ...(dealSource ? { deal_source: dealSource } : {}),
+            ...(hideFromAllDeals ? { pushed_to_all_deals: false } : {}),
           });
 
           // Hard requirements enforced by DB schema.
