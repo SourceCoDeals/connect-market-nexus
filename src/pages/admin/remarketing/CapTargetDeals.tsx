@@ -452,10 +452,11 @@ export default function CapTargetDeals() {
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      if (!filteredDeals?.length) return;
+      // Use ALL deals (not filteredDeals) so bulk enrich works across active/inactive tabs
+      if (!deals?.length) return;
       const targets = mode === "unenriched"
-        ? filteredDeals.filter((d) => !d.enriched_at)
-        : filteredDeals;
+        ? deals.filter((d) => !d.enriched_at)
+        : deals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to enrich");
@@ -534,16 +535,17 @@ export default function CapTargetDeals() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Bulk Score
   const handleBulkScore = useCallback(
     async (mode: "unscored" | "all") => {
-      if (!filteredDeals?.length) return;
+      // Use ALL deals (not filteredDeals) so bulk score works across active/inactive tabs
+      if (!deals?.length) return;
       const targets = mode === "unscored"
-        ? filteredDeals.filter((d) => d.deal_quality_score == null)
-        : filteredDeals;
+        ? deals.filter((d) => d.deal_quality_score == null)
+        : deals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to score");
@@ -588,7 +590,7 @@ export default function CapTargetDeals() {
       setIsScoring(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
   // Enrich selected deals — queue-based (same pattern as Enrich All)
