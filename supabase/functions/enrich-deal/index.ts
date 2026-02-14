@@ -933,7 +933,7 @@ serve(async (req) => {
     // Timeout constants for external API calls
     const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds per page
     const AI_TIMEOUT_MS = 45000; // 45 seconds
-    const MIN_CONTENT_LENGTH = 200; // Minimum chars to proceed with AI
+    const MIN_CONTENT_LENGTH = 50; // Minimum chars to proceed with AI (lowered from 200 to allow short-content sites)
 
     // Step 1: Scrape MULTIPLE pages using Firecrawl
     // We need to crawl Contact, About, and Services pages to find address information

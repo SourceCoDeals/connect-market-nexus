@@ -79,7 +79,17 @@ export function useEnrichmentProgress() {
       
       const errorItems: DealEnrichmentError[] = [];
 
+      // Deduplicate by listing_id — keep the latest status per deal
+      // This prevents retried deals from being double-counted
+      const latestByListing = new Map<string, typeof data[0]>();
       data?.forEach((row) => {
+        const existing = latestByListing.get(row.listing_id);
+        if (!existing || row.queued_at > (existing as any).queued_at) {
+          latestByListing.set(row.listing_id, row);
+        }
+      });
+
+      latestByListing.forEach((row) => {
         const status = row.status as keyof typeof counts;
         if (counts[status] !== undefined) {
           counts[status]++;
