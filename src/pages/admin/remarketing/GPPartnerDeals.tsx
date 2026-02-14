@@ -690,11 +690,26 @@ export default function GPPartnerDeals() {
         return;
       }
 
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-      const requiredHeaders = ["company_name"];
-      const missing = requiredHeaders.filter((h) => !headers.includes(h));
-      if (missing.length > 0) {
-        setCsvErrors([`Missing required columns: ${missing.join(", ")}`]);
+      // Parse headers properly (handle quoted fields)
+      const headers: string[] = [];
+      {
+        let cur = "", inQ = false;
+        for (const ch of lines[0]) {
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { headers.push(cur.trim()); cur = ""; }
+          else { cur += ch; }
+        }
+        headers.push(cur.trim());
+      }
+
+      // Check for company name column (flexible matching)
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const hasCompanyName = headers.some((h) => {
+        const n = norm(h);
+        return n === "companyname" || n === "company" || n === "name" || n === "dealname";
+      });
+      if (!hasCompanyName) {
+        setCsvErrors(["Missing required column: Company Name (or similar)"]);
         setCsvPreview(null);
         return;
       }
@@ -736,21 +751,58 @@ export default function GPPartnerDeals() {
     reader.onload = async (ev) => {
       const text = ev.target?.result as string;
       const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      // Parse header row properly (handle quoted fields)
+      const rawHeaders: string[] = [];
+      {
+        let cur = "", inQ = false;
+        for (const ch of lines[0]) {
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { rawHeaders.push(cur.trim()); cur = ""; }
+          else { cur += ch; }
+        }
+        rawHeaders.push(cur.trim());
+      }
 
-      const fieldMap: Record<string, string> = {
-        company_name: "title",
-        website: "website",
-        contact_name: "main_contact_name",
-        contact_email: "main_contact_email",
-        contact_phone: "main_contact_phone",
-        contact_title: "main_contact_title",
-        industry: "industry",
-        description: "description",
-        location: "location",
-        revenue: "revenue",
-        ebitda: "ebitda",
-      };
+      // Normalize headers for flexible matching
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normalizedHeaders = rawHeaders.map(normalize);
+
+      // Map normalized patterns to listing fields
+      const headerPatterns: [RegExp, string][] = [
+        [/^companyname$/, "title"],
+        [/^websiteurl$|^website$/, "website"],
+        [/^firstname$/, "_first_name"],
+        [/^lastname$/, "_last_name"],
+        [/^(contactname|fullname|name)$/, "main_contact_name"],
+        [/^(email|contactemail)$/, "main_contact_email"],
+        [/^(phonenumber|phone|contactphone)$/, "main_contact_phone"],
+        [/^(title|contacttitle|jobtitle)$/, "main_contact_title"],
+        [/^industry$/, "industry"],
+        [/^(description|aidescription)$/, "description"],
+        [/^(location|address)$/, "location"],
+        [/^revenue$/, "revenue"],
+        [/^ebitda$/, "ebitda"],
+        [/^(employeecount|employeerange|employees)$/, "full_time_employees"],
+        [/^linkedinurl$|^linkedin$/, "linkedin_url"],
+        [/^(mainservices|services)$/, "services"],
+        [/^googlereviewcount$/, "google_review_count"],
+        [/^(googlereviewscore|googlerating)$/, "google_rating"],
+        [/^(locations|numberoflocation)$/, "number_of_locations"],
+        [/^(billnotes|notes|generalnotes)$/, "general_notes"],
+        [/^(firefliesrecording|fireflies)$/, "fireflies_url"],
+        [/^(status)$/, "_status"],
+        [/^(fitnotfit|fit)$/, "_fit"],
+        [/^(lastcontacted)$/, "_last_contacted"],
+        [/^(datecreated)$/, "_date_created"],
+      ];
+
+      // Build column index → field mapping
+      const colMapping: (string | null)[] = normalizedHeaders.map((nh) => {
+        for (const [pattern, field] of headerPatterns) {
+          if (pattern.test(nh)) return field;
+        }
+        return null;
+      });
 
       let inserted = 0;
       const errors: string[] = [];
@@ -772,13 +824,22 @@ export default function GPPartnerDeals() {
         }
         values.push(current.trim());
 
+        // Build row object from dynamic mapping
         const row: Record<string, string> = {};
-        headers.forEach((h, idx) => {
-          row[h] = values[idx] || "";
+        colMapping.forEach((field, idx) => {
+          if (field && values[idx]?.trim()) {
+            row[field] = values[idx].trim();
+          }
         });
 
-        if (!row.company_name?.trim()) {
-          errors.push(`Row ${i}: Missing company_name`);
+        // Combine first + last name if no full contact name
+        if (!row.main_contact_name && (row._first_name || row._last_name)) {
+          row.main_contact_name = `${row._first_name || ""} ${row._last_name || ""}`.trim();
+        }
+
+        const companyName = row.title;
+        if (!companyName) {
+          errors.push(`Row ${i}: Missing Company Name`);
           continue;
         }
 
@@ -788,8 +849,8 @@ export default function GPPartnerDeals() {
         }
 
         const listing: Record<string, unknown> = {
-          title: row.company_name.trim(),
-          internal_company_name: row.company_name.trim(),
+          title: companyName,
+          internal_company_name: companyName,
           deal_source: "gp_partners",
           status: "active",
           is_internal_deal: true,
@@ -797,20 +858,40 @@ export default function GPPartnerDeals() {
         };
 
         if (website) listing.website = website;
-        if (row.contact_name?.trim()) listing.main_contact_name = row.contact_name.trim();
-        if (row.contact_email?.trim()) listing.main_contact_email = row.contact_email.trim();
-        if (row.contact_phone?.trim()) listing.main_contact_phone = row.contact_phone.trim();
-        if (row.contact_title?.trim()) listing.main_contact_title = row.contact_title.trim();
-        if (row.industry?.trim()) listing.industry = row.industry.trim();
-        if (row.description?.trim()) listing.description = row.description.trim();
-        if (row.location?.trim()) listing.location = row.location.trim();
-        if (row.revenue?.trim()) {
+        if (row.main_contact_name) listing.main_contact_name = row.main_contact_name;
+        if (row.main_contact_email) listing.main_contact_email = row.main_contact_email;
+        if (row.main_contact_phone) listing.main_contact_phone = row.main_contact_phone;
+        if (row.main_contact_title) listing.main_contact_title = row.main_contact_title;
+        if (row.industry) listing.industry = row.industry;
+        if (row.description) listing.description = row.description;
+        if (row.location) listing.location = row.location;
+        if (row.linkedin_url) listing.linkedin_url = row.linkedin_url;
+        if (row.general_notes) listing.general_notes = row.general_notes;
+        if (row.fireflies_url) listing.fireflies_url = row.fireflies_url;
+        if (row.services) listing.services = row.services.split(/[,;|]/).map((s: string) => s.trim()).filter(Boolean);
+        if (row.revenue) {
           const rev = parseFloat(row.revenue.replace(/[$,]/g, ""));
           if (!isNaN(rev)) listing.revenue = rev;
         }
-        if (row.ebitda?.trim()) {
+        if (row.ebitda) {
           const ebi = parseFloat(row.ebitda.replace(/[$,]/g, ""));
           if (!isNaN(ebi)) listing.ebitda = ebi;
+        }
+        if (row.full_time_employees) {
+          const emp = parseInt(row.full_time_employees.replace(/[,]/g, ""), 10);
+          if (!isNaN(emp)) listing.full_time_employees = emp;
+        }
+        if (row.google_review_count) {
+          const cnt = parseInt(row.google_review_count.replace(/[,]/g, ""), 10);
+          if (!isNaN(cnt)) listing.google_review_count = cnt;
+        }
+        if (row.google_rating) {
+          const rating = parseFloat(row.google_rating);
+          if (!isNaN(rating)) listing.google_rating = rating;
+        }
+        if (row.number_of_locations) {
+          const loc = parseInt(row.number_of_locations.replace(/[,]/g, ""), 10);
+          if (!isNaN(loc)) listing.number_of_locations = loc;
         }
 
         const { data, error } = await supabase
