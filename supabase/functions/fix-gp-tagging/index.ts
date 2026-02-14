@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { csvCompanyNames, tagByIds, createListings, deleteIds, updateStatus } = await req.json();
+    const { csvCompanyNames, tagByIds, createListings, deleteIds, updateStatus, bulkUpdates } = await req.json();
     
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
       results.deletedCount = deleteIds.length;
     }
 
-    // Update status on specific IDs
+    // Update specific listings with data
     if (updateStatus?.ids?.length) {
       const { error } = await supabaseAdmin
         .from("listings")
@@ -35,6 +35,22 @@ Deno.serve(async (req) => {
         .in("id", updateStatus.ids);
       if (error) throw error;
       results.statusUpdatedCount = updateStatus.ids.length;
+    }
+
+    // Bulk update listings with arbitrary data
+    if (bulkUpdates?.length) {
+      const updated: string[] = [];
+      for (const item of bulkUpdates) {
+        const { id, ...data } = item;
+        const { error } = await supabaseAdmin.from("listings").update(data).eq("id", id);
+        if (error) {
+          results.bulkUpdateErrors = results.bulkUpdateErrors || [];
+          results.bulkUpdateErrors.push({ id, error: error.message });
+        } else {
+          updated.push(id);
+        }
+      }
+      results.bulkUpdatedCount = updated.length;
     }
 
     if (createListings?.length) {
