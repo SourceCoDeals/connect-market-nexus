@@ -1338,18 +1338,21 @@ export default function CapTargetDeals() {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         {deal.deal_quality_score != null ? (
-                          <Badge variant="outline" className={cn(
-                            "tabular-nums",
-                            deal.deal_quality_score >= 80 ? "bg-green-50 text-green-700 border-green-200" :
-                            deal.deal_quality_score >= 60 ? "bg-amber-50 text-amber-700 border-amber-200" :
-                            "bg-gray-50 text-gray-600 border-gray-200"
-                          )}>
-                            {deal.deal_quality_score}
-                          </Badge>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className={cn(
+                              "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
+                              deal.deal_quality_score >= 80 ? "bg-green-100 text-green-700" :
+                              deal.deal_quality_score >= 60 ? "bg-blue-100 text-blue-700" :
+                              deal.deal_quality_score >= 40 ? "bg-yellow-100 text-yellow-700" :
+                              "bg-red-100 text-red-700"
+                            )}>
+                              {Math.round(deal.deal_quality_score)}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>
