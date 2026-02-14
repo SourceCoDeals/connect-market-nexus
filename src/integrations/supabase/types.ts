@@ -4565,8 +4565,8 @@ export type Database = {
           deal_identifier: string | null
           deal_industry_score: number | null
           deal_motivation_score: number | null
-          deal_quality_score: number | null
           deal_owner_id: string | null
+          deal_quality_score: number | null
           deal_size_score: number | null
           deal_source: string | null
           deal_total_score: number | null
@@ -5116,17 +5116,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "listings_lead_source_id_fkey"
-            columns: ["lead_source_id"]
-            isOneToOne: false
-            referencedRelation: "lead_sources"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "listings_deal_owner_id_fkey"
             columns: ["deal_owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_lead_source_id_fkey"
+            columns: ["lead_source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sources"
             referencedColumns: ["id"]
           },
           {
@@ -8705,13 +8705,6 @@ export type Database = {
             columns: ["lead_source_id"]
             isOneToOne: false
             referencedRelation: "lead_sources"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "listings_deal_owner_id_fkey"
-            columns: ["deal_owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
