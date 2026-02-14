@@ -1915,6 +1915,25 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     }
 
     const websiteFieldsUpdated = Object.keys(updates);
+
+    // If industry is STILL missing after extraction, infer it from context
+    if (!updates.industry && !deal.industry) {
+      try {
+        const inferred = await inferIndustryFromContext(
+          { ...deal, ...updates },
+          geminiApiKey!,
+          supabase,
+          dealId
+        );
+        if (inferred) {
+          websiteFieldsUpdated.push('industry');
+          console.log(`[enrich-deal] Industry inferred as fallback: "${inferred}"`);
+        }
+      } catch (err) {
+        console.warn('[enrich-deal] Industry inference fallback failed (non-blocking):', err);
+      }
+    }
+
     // Merge transcript + website fields into one list (deduplicated)
     const allFieldsUpdated = [...new Set([...transcriptFieldNames, ...websiteFieldsUpdated])];
     console.log(`Updated ${allFieldsUpdated.length} fields (${transcriptFieldNames.length} transcript + ${websiteFieldsUpdated.length} website):`, allFieldsUpdated);
