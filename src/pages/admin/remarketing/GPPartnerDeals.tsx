@@ -87,6 +87,7 @@ interface GPPartnerDeal {
   created_at: string;
   enriched_at: string | null;
   deal_quality_score: number | null;
+  deal_total_score: number | null;
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
   google_rating: number | null;
@@ -202,6 +203,7 @@ export default function GPPartnerDeals() {
             created_at,
             enriched_at,
             deal_quality_score,
+            deal_total_score,
             linkedin_employee_count,
             linkedin_employee_range,
             google_rating,
@@ -280,8 +282,8 @@ export default function GPPartnerDeals() {
           valB = b.ebitda ?? -1;
           break;
         case "score":
-          valA = a.deal_quality_score ?? -1;
-          valB = b.deal_quality_score ?? -1;
+          valA = (a.deal_total_score ?? a.deal_quality_score) ?? -1;
+          valB = (b.deal_total_score ?? b.deal_quality_score) ?? -1;
           break;
         case "linkedin_employee_count":
           valA = a.linkedin_employee_count ?? -1;
@@ -482,7 +484,7 @@ export default function GPPartnerDeals() {
     async (mode: "unscored" | "all") => {
       if (!filteredDeals?.length) return;
       const targets = mode === "unscored"
-        ? filteredDeals.filter((d) => d.deal_quality_score == null)
+        ? filteredDeals.filter((d) => (d.deal_total_score ?? d.deal_quality_score) == null)
         : filteredDeals;
 
       if (!targets.length) {
@@ -707,13 +709,14 @@ export default function GPPartnerDeals() {
     let totalScore = 0;
     let scoredDeals = 0;
     dateFilteredDeals.forEach((d) => {
-      if (d.deal_quality_score != null) {
-        totalScore += d.deal_quality_score;
+      const score = d.deal_total_score ?? d.deal_quality_score;
+      if (score != null) {
+        totalScore += score;
         scoredDeals++;
       }
     });
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-    const needsScoring = dateFilteredDeals.filter((d) => d.deal_quality_score == null).length;
+    const needsScoring = dateFilteredDeals.filter((d) => (d.deal_total_score ?? d.deal_quality_score) == null).length;
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [dateFilteredDeals]);
 
@@ -721,7 +724,7 @@ export default function GPPartnerDeals() {
   const totalDeals = deals?.length || 0;
   const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
   const enrichedCount = deals?.filter((d) => d.enriched_at).length || 0;
-  const scoredCount = deals?.filter((d) => d.deal_quality_score != null).length || 0;
+  const scoredCount = deals?.filter((d) => (d.deal_total_score ?? d.deal_quality_score) != null).length || 0;
 
   const SortHeader = ({
     column,
@@ -1159,16 +1162,16 @@ export default function GPPartnerDeals() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {deal.deal_quality_score != null ? (
+                        {(deal.deal_total_score ?? deal.deal_quality_score) != null ? (
                           <div className="flex items-center justify-center gap-1.5">
                             <span className={cn(
                               "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
-                              deal.deal_quality_score >= 80 ? "bg-green-100 text-green-700" :
-                              deal.deal_quality_score >= 60 ? "bg-blue-100 text-blue-700" :
-                              deal.deal_quality_score >= 40 ? "bg-yellow-100 text-yellow-700" :
+                              (deal.deal_total_score ?? deal.deal_quality_score)! >= 80 ? "bg-green-100 text-green-700" :
+                              (deal.deal_total_score ?? deal.deal_quality_score)! >= 60 ? "bg-blue-100 text-blue-700" :
+                              (deal.deal_total_score ?? deal.deal_quality_score)! >= 40 ? "bg-yellow-100 text-yellow-700" :
                               "bg-red-100 text-red-700"
                             )}>
-                              {Math.round(deal.deal_quality_score)}
+                              {Math.round((deal.deal_total_score ?? deal.deal_quality_score)!)}
                             </span>
                           </div>
                         ) : (
