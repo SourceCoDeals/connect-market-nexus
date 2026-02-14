@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { csvCompanyNames, tagByIds } = await req.json();
+    const { csvCompanyNames, tagByIds, createListings } = await req.json();
     
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -19,6 +19,33 @@ Deno.serve(async (req) => {
     );
 
     const results: any = {};
+
+    // Create new listings
+    if (createListings?.length) {
+      const created: string[] = [];
+      for (const listing of createListings) {
+        const id = crypto.randomUUID();
+        const ts = Date.now();
+        const rand = Math.floor(Math.random() * 9000) + 1000;
+        const dealIdentifier = `GP-${ts}-${rand}`;
+        const { error } = await supabaseAdmin.from("listings").insert({
+          id,
+          title: listing.title,
+          deal_source: "gp_partners",
+          pushed_to_all_deals: false,
+          is_internal_deal: true,
+          deal_identifier: dealIdentifier,
+          status: "new",
+        });
+        if (error) {
+          results.createErrors = results.createErrors || [];
+          results.createErrors.push({ title: listing.title, error: error.message });
+        } else {
+          created.push(listing.title);
+        }
+      }
+      results.created = created;
+    }
 
     // Tag specific IDs as gp_partners
     if (tagByIds?.length) {
