@@ -1,0 +1,1 @@
+SELECT setval('public.deal_identifier_seq', 8000, true);
