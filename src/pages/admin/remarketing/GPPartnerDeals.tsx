@@ -1643,33 +1643,43 @@ export default function GPPartnerDeals() {
                 <p className="text-sm font-medium">
                   Preview ({csvPreview.total} rows total, showing first 5):
                 </p>
-                <div className="overflow-x-auto overflow-y-auto max-h-[300px] border rounded-md w-full">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50 sticky top-0">
-                      <tr>
-                        {csvPreview.headers.slice(0, 8).map((h, i) => (
-                          <th key={i} className="text-xs font-medium text-muted-foreground whitespace-nowrap px-3 py-2 text-left">{h}</th>
+                <div className="overflow-hidden border rounded-md">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[250px]">
+                    <table className="text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
+                      <colgroup>
+                        {csvPreview.headers.slice(0, 6).map((_, i) => (
+                          <col key={i} style={{ width: `${Math.floor(100 / Math.min(csvPreview.headers.length, 7))}%` }} />
                         ))}
-                        {csvPreview.headers.length > 8 && (
-                          <th className="text-xs font-medium text-muted-foreground whitespace-nowrap px-3 py-2 text-left">+{csvPreview.headers.length - 8} more</th>
+                        {csvPreview.headers.length > 6 && (
+                          <col style={{ width: `${Math.floor(100 / Math.min(csvPreview.headers.length, 7))}%` }} />
                         )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {csvPreview.rows.map((row, i) => (
-                        <tr key={i} className="border-t border-border">
-                          {row.slice(0, 8).map((cell, j) => (
-                            <td key={j} className="text-xs px-3 py-2 whitespace-nowrap max-w-[120px] truncate">
-                              {cell || "\u2014"}
-                            </td>
+                      </colgroup>
+                      <thead className="bg-muted/50 sticky top-0 z-10">
+                        <tr>
+                          {csvPreview.headers.slice(0, 6).map((h, i) => (
+                            <th key={i} className="text-xs font-medium text-muted-foreground px-2 py-2 text-left truncate">{h}</th>
                           ))}
-                          {csvPreview.headers.length > 8 && (
-                            <td className="text-xs px-3 py-2 text-muted-foreground">…</td>
+                          {csvPreview.headers.length > 6 && (
+                            <th className="text-xs font-medium text-muted-foreground px-2 py-2 text-left">+{csvPreview.headers.length - 6} more</th>
                           )}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {csvPreview.rows.map((row, i) => (
+                          <tr key={i} className="border-t border-border">
+                            {row.slice(0, 6).map((cell, j) => (
+                              <td key={j} className="text-xs px-2 py-1.5 truncate overflow-hidden">
+                                {cell || "\u2014"}
+                              </td>
+                            ))}
+                            {csvPreview.headers.length > 6 && (
+                              <td className="text-xs px-2 py-1.5 text-muted-foreground">…</td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
