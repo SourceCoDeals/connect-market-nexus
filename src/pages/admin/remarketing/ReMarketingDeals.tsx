@@ -1495,7 +1495,7 @@ const ReMarketingDeals = () => {
 
     const { error } = await supabase
       .from('listings')
-      .update({ deal_owner_id: ownerId } as any)
+      .update({ deal_owner_id: ownerId })
       .eq('id', dealId);
 
     if (error) {
