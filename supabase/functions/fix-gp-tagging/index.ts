@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { csvCompanyNames, tagByIds, createListings } = await req.json();
+    const { csvCompanyNames, tagByIds, createListings, deleteIds, updateStatus } = await req.json();
     
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -20,7 +20,23 @@ Deno.serve(async (req) => {
 
     const results: any = {};
 
-    // Create new listings
+    // Delete specific IDs
+    if (deleteIds?.length) {
+      const { error } = await supabaseAdmin.from("listings").delete().in("id", deleteIds);
+      if (error) throw error;
+      results.deletedCount = deleteIds.length;
+    }
+
+    // Update status on specific IDs
+    if (updateStatus?.ids?.length) {
+      const { error } = await supabaseAdmin
+        .from("listings")
+        .update({ status: updateStatus.status })
+        .in("id", updateStatus.ids);
+      if (error) throw error;
+      results.statusUpdatedCount = updateStatus.ids.length;
+    }
+
     if (createListings?.length) {
       const created: string[] = [];
       for (const listing of createListings) {
