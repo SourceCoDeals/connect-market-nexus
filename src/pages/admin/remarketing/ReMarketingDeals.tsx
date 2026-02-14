@@ -853,6 +853,7 @@ const ReMarketingDeals = () => {
           deal_source
         `)
         .eq('status', 'active')
+        .neq('pushed_to_all_deals', false)
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
         .order('deal_total_score', { ascending: false, nullsFirst: true })
         .order('created_at', { ascending: false });
