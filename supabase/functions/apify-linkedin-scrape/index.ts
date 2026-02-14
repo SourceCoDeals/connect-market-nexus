@@ -357,6 +357,10 @@ serve(async (req) => {
 
       if (updateError) {
         console.error('Error updating listing with LinkedIn data:', updateError);
+        return new Response(
+          JSON.stringify({ ...result, success: false, error: `DB update failed: ${updateError.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       } else {
         console.log(`Updated deal ${dealId} with LinkedIn data (employee count: ${result.linkedin_employee_count}, range: ${result.linkedin_employee_range}, confidence: ${matchConfidence})`);
       }

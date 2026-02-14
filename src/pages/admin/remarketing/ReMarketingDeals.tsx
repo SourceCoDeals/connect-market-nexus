@@ -98,6 +98,7 @@ import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUni
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
 import {
   DndContext,
   closestCorners,
@@ -153,6 +154,9 @@ interface DealListing {
   referral_partners: { id: string; name: string } | null;
   // Deal source
   deal_source: string | null;
+  // Deal owner
+  deal_owner_id: string | null;
+  deal_owner: { id: string; first_name: string | null; last_name: string | null; email: string } | null;
 }
 
 // Column width configuration
@@ -173,6 +177,7 @@ interface ColumnWidths {
   quality: number;
   sellerInterest: number;
   engagement: number;
+  dealOwner: number;
   added: number;
   actions: number;
 }
@@ -194,6 +199,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   quality: 80,
   sellerInterest: 90,
   engagement: 130,
+  dealOwner: 130,
   added: 90,
   actions: 50,
 };
@@ -347,6 +353,8 @@ const SortableTableRow = ({
   onDelete,
   onTogglePriority,
   onUpdateRank,
+  adminProfiles,
+  onAssignOwner,
 }: {
   listing: DealListing;
   index: number;
@@ -364,6 +372,8 @@ const SortableTableRow = ({
   onDelete: (dealId: string, dealName: string) => void;
   onTogglePriority: (dealId: string, currentStatus: boolean) => void;
   onUpdateRank: (dealId: string, newRank: number) => Promise<void> | void;
+  adminProfiles?: Record<string, { id: string; email: string; first_name: string; last_name: string; displayName: string }>;
+  onAssignOwner: (dealId: string, ownerId: string | null) => void;
 }) => {
   const {
     attributes,
@@ -661,6 +671,35 @@ const SortableTableRow = ({
         </div>
       </TableCell>
 
+      {/* Deal Owner */}
+      <TableCell style={{ width: columnWidths.dealOwner, minWidth: 80 }} onClick={(e) => e.stopPropagation()}>
+        <Select
+          value={listing.deal_owner_id || "__none"}
+          onValueChange={(val) => onAssignOwner(listing.id, val === "__none" ? null : val)}
+        >
+          <SelectTrigger className="h-7 text-xs border-dashed w-full">
+            <SelectValue placeholder="Assign...">
+              {listing.deal_owner?.first_name
+                ? `${listing.deal_owner.first_name} ${listing.deal_owner.last_name || ''}`.trim()
+                : listing.deal_owner_id && adminProfiles?.[listing.deal_owner_id]
+                  ? adminProfiles[listing.deal_owner_id].displayName
+                  : <span className="text-muted-foreground">Assign...</span>
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">
+              <span className="text-muted-foreground">Unassigned</span>
+            </SelectItem>
+            {adminProfiles && Object.values(adminProfiles).map((admin) => (
+              <SelectItem key={admin.id} value={admin.id}>
+                {admin.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+
       {/* Added date */}
       <TableCell className="text-muted-foreground text-sm" style={{ width: columnWidths.added, minWidth: 60 }}>
         {format(new Date(listing.created_at), 'MM/dd/yyyy')}
@@ -756,6 +795,9 @@ const ReMarketingDeals = () => {
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
 
+  // Admin profiles for deal owner assignment
+  const { data: adminProfiles } = useAdminProfiles();
+
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAddDealDialog, setShowAddDealDialog] = useState(false);
@@ -850,7 +892,9 @@ const ReMarketingDeals = () => {
           address_state,
           referral_partner_id,
           referral_partners(id, name),
-          deal_source
+          deal_source,
+          deal_owner_id,
+          deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
         `)
         .eq('status', 'active')
         .neq('deal_source', 'gp_partners')
@@ -1438,6 +1482,31 @@ const ReMarketingDeals = () => {
       description: newStatus ? "Deal marked as priority target" : "Deal is no longer a priority target" 
     });
   }, [toast]);
+
+  const handleAssignOwner = useCallback(async (dealId: string, ownerId: string | null) => {
+    // Optimistic update
+    const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
+    setLocalOrder(prev => prev.map(deal =>
+      deal.id === dealId ? {
+        ...deal,
+        deal_owner_id: ownerId,
+        deal_owner: ownerProfile ? { id: ownerProfile.id, first_name: ownerProfile.first_name, last_name: ownerProfile.last_name, email: ownerProfile.email } : null,
+      } : deal
+    ));
+
+    const { error } = await supabase
+      .from('listings')
+      .update({ deal_owner_id: ownerId })
+      .eq('id', dealId);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      return;
+    }
+
+    toast({ title: "Deal owner updated", description: ownerId ? "Owner has been assigned" : "Owner has been removed" });
+  }, [adminProfiles, toast, queryClient]);
 
   const handleBulkArchive = useCallback(async () => {
     setIsArchiving(true);
@@ -2151,6 +2220,9 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.engagement} onResize={(w) => handleColumnResize('engagement', w)} minWidth={80} className="text-center">
                       <SortableHeader column="engagement" label="Engagement" className="mx-auto" />
                     </ResizableHeader>
+                    <ResizableHeader width={columnWidths.dealOwner} onResize={(w) => handleColumnResize('dealOwner', w)} minWidth={80}>
+                      <span className="text-muted-foreground font-medium">Deal Owner</span>
+                    </ResizableHeader>
                     <ResizableHeader width={columnWidths.added} onResize={(w) => handleColumnResize('added', w)} minWidth={60}>
                       <SortableHeader column="added" label="Added" />
                     </ResizableHeader>
@@ -2177,7 +2249,7 @@ const ReMarketingDeals = () => {
                     ))
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
@@ -2206,6 +2278,8 @@ const ReMarketingDeals = () => {
                           onArchive={handleArchiveDeal}
                           onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
+                          adminProfiles={adminProfiles}
+                          onAssignOwner={handleAssignOwner}
                           onUpdateRank={async (dealId, newRank) => {
                             // Work on rank-sorted copy so position logic is correct
                             // regardless of current table sort column

@@ -1065,18 +1065,6 @@ export default function CapTargetDeals() {
               </SelectContent>
             </Select>
 
-            {/* Source Tab filter */}
-            <Select value={sourceTabFilter} onValueChange={setSourceTabFilter}>
-              <SelectTrigger className="w-[170px]">
-                <SelectValue placeholder="Source Tab" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tabs</SelectItem>
-                <SelectItem value="Active Summary">Active Summary</SelectItem>
-                <SelectItem value="Inactive Summary">Inactive Summary</SelectItem>
-              </SelectContent>
-            </Select>
-
             {/* Date range filter */}
             <div className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4 text-muted-foreground" />

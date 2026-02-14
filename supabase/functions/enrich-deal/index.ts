@@ -139,8 +139,12 @@ async function inferIndustryFromContext(
     const data = await response.json();
     const industry = data.choices?.[0]?.message?.content?.trim();
     if (industry && industry.length > 1 && industry.length < 60) {
-      await supabase.from('listings').update({ industry }).eq('id', dealId);
-      console.log(`[inferIndustry] Set industry="${industry}" for deal ${dealId}`);
+      const { error: industryError } = await supabase.from('listings').update({ industry }).eq('id', dealId);
+      if (industryError) {
+        console.error(`[inferIndustry] Failed to set industry for deal ${dealId}:`, industryError);
+      } else {
+        console.log(`[inferIndustry] Set industry="${industry}" for deal ${dealId}`);
+      }
       return industry;
     }
   } catch (err) {
@@ -852,7 +856,8 @@ serve(async (req) => {
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       if (transcriptFieldsApplied > 0) {
         // Mark as enriched since we have transcript data
-        await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
+        const { error: markEnrichedErr } = await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
+        if (markEnrichedErr) console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr);
         return new Response(
           JSON.stringify({
             success: true,
@@ -864,7 +869,8 @@ serve(async (req) => {
         );
       }
       // Mark as enriched even without transcripts — we tried our best
-      await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
+      const { error: markEnrichedErr2 } = await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
+      if (markEnrichedErr2) console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr2);
       return new Response(
         JSON.stringify({ success: true, message: 'No website URL found. Deal marked as enriched with limited data.', fieldsUpdated: [] }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1010,10 +1016,11 @@ serve(async (req) => {
       // Try to infer industry from available context
       await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
       // Still mark the deal as enriched so it doesn't block the queue
-      await supabase
+      const { error: markEnrichedErr3 } = await supabase
         .from('listings')
         .update({ enriched_at: new Date().toISOString() })
         .eq('id', dealId);
+      if (markEnrichedErr3) console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr3);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       return new Response(
         JSON.stringify({
