@@ -85,7 +85,10 @@ export function ActivityCompletionDialog() {
     completedItem.operation_type;
   const succeeded = completedItem.completed_items;
   const failed = completedItem.failed_items;
-  const total = completedItem.total_items;
+  // Use actual succeeded+failed as the authoritative total when it's larger,
+  // since total_items may reflect the initial queued count before deduplication
+  const rawTotal = completedItem.total_items;
+  const total = Math.max(rawTotal, succeeded + failed);
   const errors: GlobalActivityErrorEntry[] = Array.isArray(completedItem.error_log)
     ? completedItem.error_log
     : [];

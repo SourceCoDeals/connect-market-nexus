@@ -1374,7 +1374,7 @@ export default function CapTargetDeals() {
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
-                          {deal.enriched_at && (deal.linkedin_employee_count || deal.linkedin_employee_range) && (deal.google_review_count || deal.google_rating) && (
+                          {deal.enriched_at && (
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                               Enriched
                             </Badge>
