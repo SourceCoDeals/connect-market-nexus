@@ -129,6 +129,7 @@ interface DealListing {
   status: string | null;
   created_at: string;
   category: string | null;
+  industry: string | null;
   website: string | null;
   executive_summary: string | null;
   service_mix: any | null;
@@ -531,31 +532,37 @@ const SortableTableRow = ({
 
       {/* Industry */}
       <TableCell style={{ width: columnWidths.industry, minWidth: 60 }}>
-        {listing.category ? (
-          <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
-            {listing.category.length > 18 ? listing.category.substring(0, 18) + '...' : listing.category}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+        {(() => {
+          const industryVal = listing.industry || listing.category;
+          return industryVal ? (
+            <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
+              {industryVal.length > 18 ? industryVal.substring(0, 18) + '...' : industryVal}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        })()}
       </TableCell>
 
       {/* Description */}
       <TableCell style={{ width: columnWidths.description, minWidth: 120 }}>
-        {listing.description ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-sm text-muted-foreground leading-tight line-clamp-3 cursor-default" style={{ maxWidth: columnWidths.description - 16 }}>
-                {listing.description}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p className="text-xs">{listing.description}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+        {(() => {
+          const descText = listing.description || listing.executive_summary;
+          return descText ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-sm text-muted-foreground leading-tight line-clamp-3 cursor-default" style={{ maxWidth: columnWidths.description - 16 }}>
+                  {descText}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">{descText}</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        })()}
       </TableCell>
 
       {/* Location - City, State only */}
@@ -870,6 +877,7 @@ const ReMarketingDeals = () => {
           status,
           created_at,
           category,
+          industry,
           website,
           executive_summary,
           service_mix,
@@ -1108,7 +1116,8 @@ const ReMarketingDeals = () => {
     const states = new Set<string>();
     const employeeRanges = new Set<string>();
     listings.forEach(l => {
-      if (l.category) industries.add(l.category);
+      if (l.industry) industries.add(l.industry);
+      else if (l.category) industries.add(l.category);
       if (l.address_state) states.add(l.address_state);
       if (l.linkedin_employee_range) employeeRanges.add(l.linkedin_employee_range);
     });
@@ -1155,7 +1164,8 @@ const ReMarketingDeals = () => {
       }
 
       if (industryFilter !== "all") {
-        if (listing.category !== industryFilter) return false;
+        const listingIndustry = listing.industry || listing.category;
+        if (listingIndustry !== industryFilter) return false;
       }
 
       if (stateFilter !== "all") {
@@ -1231,8 +1241,8 @@ const ReMarketingDeals = () => {
           bVal = (b.referral_partners?.name || "").toLowerCase();
           break;
         case "industry":
-          aVal = (a.category || "").toLowerCase();
-          bVal = (b.category || "").toLowerCase();
+          aVal = (a.industry || a.category || "").toLowerCase();
+          bVal = (b.industry || b.category || "").toLowerCase();
           break;
         case "revenue":
           aVal = a.revenue || 0;
