@@ -100,7 +100,6 @@ interface CapTargetDeal {
   status: string | null;
   created_at: string;
   enriched_at: string | null;
-  deal_quality_score: number | null;
   deal_total_score: number | null;
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
@@ -258,7 +257,6 @@ export default function CapTargetDeals() {
             status,
             created_at,
             enriched_at,
-            deal_quality_score,
             deal_total_score,
             linkedin_employee_count,
             linkedin_employee_range,
@@ -354,8 +352,8 @@ export default function CapTargetDeals() {
           valB = b.pushed_to_all_deals ? 1 : 0;
           break;
         case "score":
-          valA = (a.deal_total_score ?? a.deal_quality_score) ?? -1;
-          valB = (b.deal_total_score ?? b.deal_quality_score) ?? -1;
+          valA = a.deal_total_score ?? -1;
+          valB = b.deal_total_score ?? -1;
           break;
         case "linkedin_employee_count":
           valA = a.linkedin_employee_count ?? -1;
@@ -584,7 +582,7 @@ export default function CapTargetDeals() {
       if (!deals?.length) return;
 
       const totalCount = mode === "unscored"
-        ? deals.filter((d) => (d.deal_total_score ?? d.deal_quality_score) == null).length
+        ? deals.filter((d) => d.deal_total_score == null).length
         : deals.length;
 
       if (!totalCount) {
@@ -870,14 +868,14 @@ export default function CapTargetDeals() {
     let totalScore = 0;
     let scoredDeals = 0;
     dateFilteredDeals.forEach((d) => {
-      const score = d.deal_total_score ?? d.deal_quality_score;
+      const score = d.deal_total_score;
       if (score != null) {
         totalScore += score;
         scoredDeals++;
       }
     });
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-    const needsScoring = dateFilteredDeals.filter((d) => (d.deal_total_score ?? d.deal_quality_score) == null).length;
+    const needsScoring = dateFilteredDeals.filter((d) => d.deal_total_score == null).length;
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [dateFilteredDeals]);
 
@@ -886,7 +884,7 @@ export default function CapTargetDeals() {
   const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
   const interestCount = deals?.filter((d) => d.captarget_interest_type === "interest").length || 0;
   const enrichedCount = deals?.filter((d) => d.enriched_at).length || 0;
-  const scoredCount = deals?.filter((d) => (d.deal_total_score ?? d.deal_quality_score) != null).length || 0;
+  const scoredCount = deals?.filter((d) => d.deal_total_score != null).length || 0;
 
   const SortHeader = ({
     column,
@@ -1554,7 +1552,7 @@ export default function CapTargetDeals() {
                       </TableCell>
                       <TableCell className="text-center">
                         {(() => {
-                          const score = deal.deal_total_score ?? deal.deal_quality_score;
+                          const score = deal.deal_total_score;
                           return score != null ? (
                           <div className="flex items-center justify-center gap-1.5">
                             <span className={cn(

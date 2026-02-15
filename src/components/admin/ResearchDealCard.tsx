@@ -49,14 +49,13 @@ export function ResearchDealCard({
   const geographicStates = (listing as any).geographic_states;
   const enrichedAt = (listing as any).enriched_at;
   const dealTotalScore = (listing as any).deal_total_score;
-  const dealQualityScore = (listing as any).deal_quality_score;
   const linkedinEmployeeCount = (listing as any).linkedin_employee_count;
   const googleRating = (listing as any).google_rating;
   const googleReviewsCount = (listing as any).google_reviews_count;
   const companyWebsite = (listing as any).company_website;
   const isPriorityTarget = (listing as any).is_priority_target;
   
-  const qualityScore = dealTotalScore || dealQualityScore || null;
+  const qualityScore = dealTotalScore || null;
   const isEnriched = !!enrichedAt;
   
   // Parse geographic states
