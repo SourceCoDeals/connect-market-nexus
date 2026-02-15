@@ -576,16 +576,16 @@ export default function CapTargetDeals() {
     [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Bulk Score
+  // Bulk Score — single backend call with self-continuation
   const handleBulkScore = useCallback(
     async (mode: "unscored" | "all") => {
-      // Use ALL deals (not filteredDeals) so bulk score works across active/inactive tabs
       if (!deals?.length) return;
-      const targets = mode === "unscored"
-        ? deals.filter((d) => d.deal_quality_score == null)
-        : deals;
 
-      if (!targets.length) {
+      const totalCount = mode === "unscored"
+        ? deals.filter((d) => d.deal_quality_score == null).length
+        : deals.length;
+
+      if (!totalCount) {
         sonnerToast.info("No deals to score");
         return;
       }
@@ -597,8 +597,8 @@ export default function CapTargetDeals() {
       try {
         const result = await startOrQueueMajorOp({
           operationType: "deal_enrichment",
-          totalItems: targets.length,
-          description: `Scoring ${targets.length} CapTarget deals`,
+          totalItems: totalCount,
+          description: `Scoring ${totalCount} CapTarget deals`,
           userId: user?.id || "",
           contextJson: { source: "captarget_scoring" },
         });
@@ -607,28 +607,30 @@ export default function CapTargetDeals() {
         // Non-blocking
       }
 
-      sonnerToast.info(`Scoring ${targets.length} deals...`);
+      sonnerToast.info(`Scoring ${totalCount} deals in background...`);
 
-      let successCount = 0;
-      for (const deal of targets) {
-        try {
-          await supabase.functions.invoke("calculate-deal-quality", {
-            body: { listingId: deal.id },
-          });
-          successCount++;
-          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
-        } catch {
-          // continue
-        }
+      try {
+        // Single call — the backend handles batching + self-continuation
+        await supabase.functions.invoke("calculate-deal-quality", {
+          body: {
+            batchSource: "captarget",
+            unscoredOnly: mode === "unscored",
+            globalQueueId: activityItem?.id,
+          },
+        });
+      } catch (err) {
+        console.error("Scoring invocation failed:", err);
+        sonnerToast.error("Failed to start scoring");
+        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
       }
 
-      sonnerToast.success(`Scored ${successCount} of ${targets.length} deals`);
-      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
-
       setIsScoring(false);
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+      // Data will refresh as the backend processes batches
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+      }, 5000);
     },
-    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [deals, user, startOrQueueMajorOp, completeOperation, queryClient]
   );
 
   // Enrich selected deals — queue-based (same pattern as Enrich All)
