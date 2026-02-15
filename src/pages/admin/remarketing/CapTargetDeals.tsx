@@ -1284,28 +1284,34 @@ export default function CapTargetDeals() {
 
           <div className="h-5 w-px bg-border" />
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              const dealIds = Array.from(selectedIds);
-              const { error } = await supabase
-                .from("listings")
-                .update({ is_priority_target: true } as never)
-                .in("id", dealIds);
-              if (error) {
-                toast({ title: "Error", description: "Failed to mark as priority" });
-              } else {
-                toast({ title: "Priority Set", description: `${dealIds.length} deal(s) marked as priority` });
-                setSelectedIds(new Set());
-                refetch();
-              }
-            }}
-            className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
-          >
-            <Star className="h-4 w-4 fill-amber-500" />
-            Mark as Priority
-          </Button>
+          {(() => {
+            const dealIds = Array.from(selectedIds);
+            const allPriority = dealIds.length > 0 && dealIds.every(id => deals?.find(d => d.id === id)?.is_priority_target);
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const newValue = !allPriority;
+                  const { error } = await supabase
+                    .from("listings")
+                    .update({ is_priority_target: newValue } as never)
+                    .in("id", dealIds);
+                  if (error) {
+                    toast({ title: "Error", description: "Failed to update priority" });
+                  } else {
+                    toast({ title: newValue ? "Priority Set" : "Priority Removed", description: `${dealIds.length} deal(s) updated` });
+                    setSelectedIds(new Set());
+                    refetch();
+                  }
+                }}
+                className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+              >
+                <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                {allPriority ? "Remove Priority" : "Mark as Priority"}
+              </Button>
+            );
+          })()}
           <Button
             size="sm"
             variant="outline"

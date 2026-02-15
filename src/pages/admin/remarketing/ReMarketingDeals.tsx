@@ -2045,28 +2045,34 @@ const ReMarketingDeals = () => {
                 <FolderPlus className="h-4 w-4 mr-1" />
                 Send to Universe
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
-                onClick={async () => {
-                  const dealIds = Array.from(selectedDeals);
-                  const { error } = await supabase
-                    .from('listings')
-                    .update({ is_priority_target: true } as never)
-                    .in('id', dealIds);
-                  if (error) {
-                    toast({ title: 'Error', description: 'Failed to mark as priority', variant: 'destructive' });
-                  } else {
-                    toast({ title: 'Priority Set', description: `${dealIds.length} deal(s) marked as priority` });
-                    setSelectedDeals(new Set());
-                    refetchListings();
-                  }
-                }}
-              >
-                <Star className="h-4 w-4 fill-amber-500" />
-                Mark as Priority
-              </Button>
+              {(() => {
+                const dealIds = Array.from(selectedDeals);
+                const allPriority = dealIds.length > 0 && dealIds.every(id => localOrder?.find(d => d.id === id)?.is_priority_target);
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+                    onClick={async () => {
+                      const newValue = !allPriority;
+                      const { error } = await supabase
+                        .from('listings')
+                        .update({ is_priority_target: newValue } as never)
+                        .in('id', dealIds);
+                      if (error) {
+                        toast({ title: 'Error', description: 'Failed to update priority', variant: 'destructive' });
+                      } else {
+                        toast({ title: newValue ? 'Priority Set' : 'Priority Removed', description: `${dealIds.length} deal(s) updated` });
+                        setSelectedDeals(new Set());
+                        refetchListings();
+                      }
+                    }}
+                  >
+                    <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                    {allPriority ? "Remove Priority" : "Mark as Priority"}
+                  </Button>
+                );
+              })()}
 
               <div className="h-5 w-px bg-border" />
 

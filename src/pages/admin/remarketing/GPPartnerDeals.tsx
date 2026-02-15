@@ -977,28 +977,34 @@ export default function GPPartnerDeals() {
             )}
             Enrich Selected
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
-            onClick={async () => {
-              const dealIds = Array.from(selectedIds);
-              const { error } = await supabase
-                .from("listings")
-                .update({ is_priority_target: true } as never)
-                .in("id", dealIds);
-              if (error) {
-                sonnerToast.error("Failed to mark as priority");
-              } else {
-                sonnerToast.success(`${dealIds.length} deal(s) marked as priority`);
-                setSelectedIds(new Set());
-                queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] });
-              }
-            }}
-          >
-            <Star className="h-4 w-4 fill-amber-500" />
-            Mark as Priority
-          </Button>
+          {(() => {
+            const dealIds = Array.from(selectedIds);
+            const allPriority = dealIds.length > 0 && dealIds.every(id => filteredDeals?.find(d => d.id === id)?.is_priority_target);
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+                onClick={async () => {
+                  const newValue = !allPriority;
+                  const { error } = await supabase
+                    .from("listings")
+                    .update({ is_priority_target: newValue } as never)
+                    .in("id", dealIds);
+                  if (error) {
+                    sonnerToast.error("Failed to update priority");
+                  } else {
+                    sonnerToast.success(newValue ? `${dealIds.length} deal(s) marked as priority` : `${dealIds.length} deal(s) priority removed`);
+                    setSelectedIds(new Set());
+                    queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] });
+                  }
+                }}
+              >
+                <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                {allPriority ? "Remove Priority" : "Mark as Priority"}
+              </Button>
+            );
+          })()}
         </div>
       )}
 
