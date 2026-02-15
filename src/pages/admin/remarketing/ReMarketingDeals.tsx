@@ -2048,7 +2048,31 @@ const ReMarketingDeals = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
+                onClick={async () => {
+                  const dealIds = Array.from(selectedDeals);
+                  const { error } = await supabase
+                    .from('listings')
+                    .update({ is_priority_target: true } as never)
+                    .in('id', dealIds);
+                  if (error) {
+                    toast({ title: 'Error', description: 'Failed to mark as priority', variant: 'destructive' });
+                  } else {
+                    toast({ title: 'Priority Set', description: `${dealIds.length} deal(s) marked as priority` });
+                    setSelectedDeals(new Set());
+                    refetchListings();
+                  }
+                }}
+              >
+                <Star className="h-4 w-4 fill-amber-500" />
+                Mark as Priority
+              </Button>
+
+              <div className="h-5 w-px bg-border" />
+
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => setShowArchiveDialog(true)}
               >
                 <Archive className="h-4 w-4 mr-1" />
@@ -2057,7 +2081,7 @@ const ReMarketingDeals = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="text-destructive border-destructive/30 hover:bg-destructive/10"
                 onClick={() => setShowDeleteDialog(true)}
               >
                 <Trash2 className="h-4 w-4 mr-1" />

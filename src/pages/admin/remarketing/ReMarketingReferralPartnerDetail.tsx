@@ -905,14 +905,46 @@ export default function ReMarketingReferralPartnerDetail() {
           {/* Bulk Actions Toolbar */}
           {someSelected && (
             <div className="px-6 pb-3">
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                <span className="text-sm font-medium px-2">
+              <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <Badge variant="secondary" className="text-sm font-medium">
                   {selectedDealIds.size} selected
-                </span>
+                </Badge>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedDealIds(new Set())}>
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+
+                <div className="h-5 w-px bg-border" />
+
                 <Button size="sm" variant="outline" onClick={handleBulkApprove}>
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  <CheckCircle2 className="h-4 w-4 mr-1" />
                   Approve to All Deals
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
+                  onClick={async () => {
+                    const dealIds = Array.from(selectedDealIds);
+                    const { error } = await supabase
+                      .from("listings")
+                      .update({ is_priority_target: true })
+                      .in("id", dealIds);
+                    if (error) {
+                      toast.error("Failed to mark as priority");
+                    } else {
+                      toast.success(`${dealIds.length} deal(s) marked as priority`);
+                      setSelectedDealIds(new Set());
+                      queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+                    }
+                  }}
+                >
+                  <Star className="h-4 w-4 fill-amber-500" />
+                  Mark as Priority
+                </Button>
+
+                <div className="h-5 w-px bg-border" />
+
                 <Button
                   size="sm"
                   variant="outline"
@@ -920,7 +952,7 @@ export default function ReMarketingReferralPartnerDetail() {
                     setConfirmAction({ type: "archive", ids: Array.from(selectedDealIds) })
                   }
                 >
-                  <Archive className="h-3 w-3 mr-1" />
+                  <Archive className="h-4 w-4 mr-1" />
                   Archive
                 </Button>
                 <Button
@@ -931,7 +963,7 @@ export default function ReMarketingReferralPartnerDetail() {
                     setConfirmAction({ type: "delete", ids: Array.from(selectedDealIds) })
                   }
                 >
-                  <Trash2 className="h-3 w-3 mr-1" />
+                  <Trash2 className="h-4 w-4 mr-1" />
                   Delete
                 </Button>
               </div>
