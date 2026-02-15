@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { ColumnFilterDropdown } from "@/components/ui/column-filter-dropdown";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
@@ -143,6 +144,11 @@ export default function CapTargetDeals() {
   const [dateTo, setDateTo] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
+
+  // Column filters (excluded values)
+  const [excludedIndustries, setExcludedIndustries] = useState<Set<string>>(new Set());
+  const [excludedInterestTypes, setExcludedInterestTypes] = useState<Set<string>>(new Set());
+  const [excludedChannels, setExcludedChannels] = useState<Set<string>>(new Set());
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
@@ -291,6 +297,22 @@ export default function CapTargetDeals() {
     },
   });
 
+  // Extract unique values for column filters
+  const uniqueIndustries = useMemo(() => {
+    if (!deals) return [];
+    return [...new Set(deals.map(d => d.industry || d.category || "").filter(Boolean))];
+  }, [deals]);
+
+  const uniqueInterestTypes = useMemo(() => {
+    if (!deals) return [];
+    return [...new Set(deals.map(d => d.captarget_interest_type || "").filter(Boolean))];
+  }, [deals]);
+
+  const uniqueChannels = useMemo(() => {
+    if (!deals) return [];
+    return [...new Set(deals.map(d => d.captarget_outreach_channel || "").filter(Boolean))];
+  }, [deals]);
+
   // Filter + sort deals
   const filteredDeals = useMemo(() => {
     if (!deals) return [];
@@ -317,6 +339,21 @@ export default function CapTargetDeals() {
       if (dateTo && deal.captarget_contact_date) {
         if (deal.captarget_contact_date > dateTo + "T23:59:59") return false;
       }
+
+      // Column filters
+      if (excludedIndustries.size > 0) {
+        const industry = deal.industry || deal.category || "";
+        if (excludedIndustries.has(industry)) return false;
+      }
+      if (excludedInterestTypes.size > 0) {
+        const interest = deal.captarget_interest_type || "";
+        if (excludedInterestTypes.has(interest)) return false;
+      }
+      if (excludedChannels.size > 0) {
+        const channel = deal.captarget_outreach_channel || "";
+        if (excludedChannels.has(channel)) return false;
+      }
+
       return true;
     });
 
@@ -380,7 +417,7 @@ export default function CapTargetDeals() {
     });
 
     return filtered;
-  }, [deals, search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection, excludedIndustries, excludedInterestTypes, excludedChannels]);
 
   // Reset page when filters change
   const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
@@ -393,7 +430,7 @@ export default function CapTargetDeals() {
   // Reset to page 1 when filters/sort change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+  }, [search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection, excludedIndustries, excludedInterestTypes, excludedChannels]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -1399,10 +1436,10 @@ export default function CapTargetDeals() {
                     { key: 'number', content: '#', noResize: true },
                     { key: 'company', content: <SortHeader column="company_name">Company</SortHeader> },
                     { key: 'description', content: 'Description' },
-                    { key: 'industry', content: <SortHeader column="client_name">Industry</SortHeader> },
+                    { key: 'industry', content: <div className="flex items-center gap-1"><SortHeader column="client_name">Industry</SortHeader><ColumnFilterDropdown values={uniqueIndustries} excludedValues={excludedIndustries} onExcludedChange={setExcludedIndustries} label="Industry" /></div> },
                     { key: 'contact', content: <SortHeader column="contact_name">Contact</SortHeader> },
-                    { key: 'interest', content: <SortHeader column="interest_type">Interest</SortHeader> },
-                    { key: 'channel', content: <SortHeader column="outreach_channel">Channel</SortHeader> },
+                    { key: 'interest', content: <div className="flex items-center gap-1"><SortHeader column="interest_type">Interest</SortHeader><ColumnFilterDropdown values={uniqueInterestTypes} excludedValues={excludedInterestTypes} onExcludedChange={setExcludedInterestTypes} label="Interest" /></div> },
+                    { key: 'channel', content: <div className="flex items-center gap-1"><SortHeader column="outreach_channel">Channel</SortHeader><ColumnFilterDropdown values={uniqueChannels} excludedValues={excludedChannels} onExcludedChange={setExcludedChannels} label="Channel" /></div> },
                     { key: 'liCount', content: <SortHeader column="linkedin_employee_count">LI Count</SortHeader> },
                     { key: 'liRange', content: <SortHeader column="linkedin_employee_range">LI Range</SortHeader> },
                     { key: 'reviews', content: <SortHeader column="google_review_count">Reviews</SortHeader> },
