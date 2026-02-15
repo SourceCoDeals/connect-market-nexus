@@ -82,7 +82,7 @@ const ReMarketingDealDetail = () => {
         .from('listings')
         .select('*')
         .eq('id', dealId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
