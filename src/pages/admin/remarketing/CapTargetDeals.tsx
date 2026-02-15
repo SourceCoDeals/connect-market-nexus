@@ -51,6 +51,8 @@ import {
   Target,
   Calculator,
   RefreshCw,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -65,6 +67,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CapTargetDeal {
   id: string;
@@ -197,6 +209,12 @@ export default function CapTargetDeals() {
   const [syncProgress, setSyncProgress] = useState({ inserted: 0, updated: 0, skipped: 0, page: 0 });
   const [syncSummaryOpen, setSyncSummaryOpen] = useState(false);
   const [syncSummary, setSyncSummary] = useState<{ inserted: number; updated: number; skipped: number; status: "success" | "error"; message?: string } | null>(null);
+
+  // Archive & Delete state
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch CapTarget deals
   const {
@@ -729,6 +747,66 @@ export default function CapTargetDeals() {
     queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
   }, [deals, user, startOrQueueMajorOp, completeOperation, queryClient]);
 
+  // Archive selected deals (soft delete via status change)
+  const handleBulkArchive = useCallback(async () => {
+    setIsArchiving(true);
+    try {
+      const dealIds = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('listings')
+        .update({ captarget_status: 'inactive' } as any)
+        .in('id', dealIds);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Deals Archived',
+        description: `${dealIds.length} deal(s) have been moved to Inactive`,
+      });
+      setSelectedIds(new Set());
+      setShowArchiveDialog(false);
+      refetch();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Archive Failed', description: err.message });
+    } finally {
+      setIsArchiving(false);
+    }
+  }, [selectedIds, toast, refetch]);
+
+  // Permanently delete selected deals
+  const handleBulkDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const dealIds = Array.from(selectedIds);
+
+      // Delete related records first
+      for (const dealId of dealIds) {
+        await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+        await supabase.from('buyer_deal_scores').delete().eq('deal_id', dealId);
+      }
+
+      const { error } = await supabase
+        .from('listings')
+        .delete()
+        .in('id', dealIds);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Deals Deleted',
+        description: `${dealIds.length} deal(s) have been permanently deleted`,
+      });
+      setSelectedIds(new Set());
+      setShowDeleteDialog(false);
+      refetch();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Delete Failed', description: err.message });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedIds, toast, refetch]);
+
   const interestTypeLabel = (type: string | null) => {
     switch (type) {
       case "interest": return "Interest";
@@ -1176,6 +1254,40 @@ export default function CapTargetDeals() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <div className="h-5 w-px bg-border" />
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowArchiveDialog(true)}
+            disabled={isArchiving}
+            className="gap-2"
+          >
+            {isArchiving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+            Archive
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={isDeleting}
+            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            Delete
+          </Button>
+
+          <div className="h-5 w-px bg-border" />
+
           <Button
             size="sm"
             variant="ghost"
@@ -1185,6 +1297,46 @@ export default function CapTargetDeals() {
           </Button>
         </div>
       )}
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {selectedIds.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the selected deals to the Inactive tab. They can be found there later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkArchive} disabled={isArchiving}>
+              {isArchiving ? 'Archiving...' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Permanently Delete {selectedIds.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected deals and all related data (scores, enrichment records). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Active / Inactive Tabs */}
       <Tabs
