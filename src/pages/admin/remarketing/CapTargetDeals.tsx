@@ -26,6 +26,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -53,6 +54,9 @@ import {
   RefreshCw,
   Archive,
   Trash2,
+  MoreHorizontal,
+  ExternalLink,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -1439,6 +1443,7 @@ export default function CapTargetDeals() {
                     { key: 'score', content: <SortHeader column="score">Score</SortHeader> },
                     { key: 'date', content: <SortHeader column="contact_date">Date</SortHeader> },
                     { key: 'status', content: <SortHeader column="pushed">Status</SortHeader> },
+                    { key: 'actions', content: '', noResize: true },
                   ].map(({ key, content, noResize }) => (
                     <TableHead
                       key={key}
@@ -1460,7 +1465,7 @@ export default function CapTargetDeals() {
                 {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={16}
+                      colSpan={17}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1640,6 +1645,56 @@ export default function CapTargetDeals() {
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/captarget-deals/${deal.id}`, { state: { from: "/admin/remarketing/captarget-deals" } })}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEnrichSelected([deal.id], "all")}>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Enrich Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newValue = !deal.is_priority_target;
+                                const { error } = await supabase.from("listings").update({ is_priority_target: newValue } as never).eq("id", deal.id);
+                                if (error) { toast({ title: "Error", description: "Failed to update priority" }); }
+                                else { toast({ title: newValue ? "Priority Set" : "Priority Removed" }); refetch(); }
+                              }}
+                              className={deal.is_priority_target ? "text-amber-600" : ""}
+                            >
+                              <Star className={cn("h-4 w-4 mr-2", deal.is_priority_target && "fill-amber-500")} />
+                              {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePushToAllDeals([deal.id])}
+                              disabled={!!deal.pushed_to_all_deals}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Approve to All Deals
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => {
+                                setSelectedIds(new Set([deal.id]));
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Deal
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

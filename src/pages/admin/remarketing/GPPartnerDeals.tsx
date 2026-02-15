@@ -27,6 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -65,6 +66,9 @@ import {
   FileSpreadsheet,
   AlertCircle,
   XCircle,
+  MoreHorizontal,
+  ExternalLink,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -1059,13 +1063,14 @@ export default function GPPartnerDeals() {
                   <TableHead>
                     <SortHeader column="pushed">Status</SortHeader>
                   </TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={15}
+                      colSpan={16}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1227,6 +1232,45 @@ export default function GPPartnerDeals() {
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/gp-partner-deals/${deal.id}`, { state: { from: "/admin/remarketing/gp-partner-deals" } })}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEnrichSelected([deal.id])}>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Enrich Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newValue = !deal.is_priority_target;
+                                const { error } = await supabase.from("listings").update({ is_priority_target: newValue } as never).eq("id", deal.id);
+                                if (error) { sonnerToast.error("Failed to update priority"); }
+                                else { sonnerToast.success(newValue ? "Marked as priority" : "Priority removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                              }}
+                              className={deal.is_priority_target ? "text-amber-600" : ""}
+                            >
+                              <Star className={cn("h-4 w-4 mr-2", deal.is_priority_target && "fill-amber-500")} />
+                              {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePushToAllDeals([deal.id])}
+                              disabled={!!deal.pushed_to_all_deals}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Approve to All Deals
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
