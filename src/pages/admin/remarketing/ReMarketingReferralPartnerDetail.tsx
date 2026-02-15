@@ -66,6 +66,7 @@ import {
   Star,
 } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AddPartnerDialog } from "@/components/remarketing/AddPartnerDialog";
 import { AddDealDialog } from "@/components/remarketing/AddDealDialog";
@@ -920,28 +921,34 @@ export default function ReMarketingReferralPartnerDetail() {
                   <CheckCircle2 className="h-4 w-4 mr-1" />
                   Approve to All Deals
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
-                  onClick={async () => {
-                    const dealIds = Array.from(selectedDealIds);
-                    const { error } = await supabase
-                      .from("listings")
-                      .update({ is_priority_target: true })
-                      .in("id", dealIds);
-                    if (error) {
-                      toast.error("Failed to mark as priority");
-                    } else {
-                      toast.success(`${dealIds.length} deal(s) marked as priority`);
-                      setSelectedDealIds(new Set());
-                      queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
-                    }
-                  }}
-                >
-                  <Star className="h-4 w-4 fill-amber-500" />
-                  Mark as Priority
-                </Button>
+                {(() => {
+                  const selectedArr = Array.from(selectedDealIds);
+                  const allPriority = selectedArr.length > 0 && selectedArr.every(id => deals?.find(d => d.id === id)?.is_priority_target);
+                  return (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+                      onClick={async () => {
+                        const newValue = !allPriority;
+                        const { error } = await supabase
+                          .from("listings")
+                          .update({ is_priority_target: newValue })
+                          .in("id", selectedArr);
+                        if (error) {
+                          toast.error("Failed to update priority");
+                        } else {
+                          toast.success(newValue ? `${selectedArr.length} deal(s) marked as priority` : `${selectedArr.length} deal(s) priority removed`);
+                          setSelectedDealIds(new Set());
+                          queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+                        }
+                      }}
+                    >
+                      <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                      {allPriority ? "Remove Priority" : "Mark as Priority"}
+                    </Button>
+                  );
+                })()}
 
                 <div className="h-5 w-px bg-border" />
 
