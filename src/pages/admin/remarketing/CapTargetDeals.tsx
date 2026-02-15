@@ -415,13 +415,32 @@ export default function CapTargetDeals() {
     }
   };
 
-  const toggleSelect = (id: string) => {
+  const lastSelectedIndexRef = useRef<number | null>(null);
+
+  const toggleSelect = (id: string, event?: React.MouseEvent) => {
+    const currentIndex = paginatedDeals.findIndex((d) => d.id === id);
+
+    if (event?.shiftKey && lastSelectedIndexRef.current !== null && currentIndex !== -1) {
+      const start = Math.min(lastSelectedIndexRef.current, currentIndex);
+      const end = Math.max(lastSelectedIndexRef.current, currentIndex);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (let i = start; i <= end; i++) {
+          next.add(paginatedDeals[i].id);
+        }
+        return next;
+      });
+      lastSelectedIndexRef.current = currentIndex;
+      return;
+    }
+
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    lastSelectedIndexRef.current = currentIndex;
   };
 
   // Push to All Deals (approve)
@@ -1428,12 +1447,15 @@ export default function CapTargetDeals() {
                       }
                     >
                       <TableCell
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-[40px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelect(deal.id, e);
+                        }}
+                        className="w-[40px] cursor-pointer select-none"
                       >
                         <Checkbox
                           checked={selectedIds.has(deal.id)}
-                          onCheckedChange={() => toggleSelect(deal.id)}
+                          onCheckedChange={() => {/* handled by TableCell onClick for shift support */}}
                         />
                       </TableCell>
                       <TableCell className="w-[50px] text-center text-xs text-muted-foreground tabular-nums">
