@@ -220,10 +220,10 @@ serve(async (req) => {
 
     // New batch mode: score all deals from a specific source with self-continuation
     if (batchSource) {
-      let query = supabase.from("listings").select("*")
-        .eq("source", batchSource)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: true });
+      // Use captarget_status to identify CapTarget deals (no "source" column exists)
+      let query = batchSource === "captarget"
+        ? supabase.from("listings").select("*").not("captarget_status", "is", null).is("deleted_at", null).order("created_at", { ascending: true })
+        : supabase.from("listings").select("*").eq("deal_source", batchSource).is("deleted_at", null).order("created_at", { ascending: true });
 
       if (unscoredOnly) {
         query = query.is("deal_total_score", null);
