@@ -142,7 +142,6 @@ interface DealListing {
   google_review_count: number | null;
   google_rating: number | null;
   is_priority_target: boolean | null;
-  deal_quality_score: number | null;
   deal_total_score: number | null;
   seller_interest_score: number | null;
   manual_rank_override: number | null;
@@ -884,7 +883,6 @@ const ReMarketingDeals = () => {
           google_review_count,
           google_rating,
           is_priority_target,
-          deal_quality_score,
           deal_total_score,
           seller_interest_score,
           manual_rank_override,

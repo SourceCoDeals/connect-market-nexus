@@ -159,7 +159,7 @@ export default function ReMarketingReferralPartnerDetail() {
         .select(
            `id, title, internal_company_name, location, revenue, ebitda, category, website,
            status, created_at, full_time_employees, address_city, address_state,
-           enriched_at, deal_total_score, deal_quality_score,
+           enriched_at, deal_total_score,
            linkedin_employee_count, linkedin_employee_range,
            google_review_count, google_rating, is_priority_target,
            main_contact_name, main_contact_title, main_contact_email, deal_source`
@@ -213,9 +213,9 @@ export default function ReMarketingReferralPartnerDetail() {
   const kpis = useMemo(() => {
     if (!deals) return { total: 0, enriched: 0, scored: 0, avgQuality: 0 };
     const enriched = deals.filter((d) => d.enriched_at).length;
-    const scored = deals.filter((d) => (d.deal_quality_score ?? d.deal_total_score) != null).length;
+    const scored = deals.filter((d) => d.deal_total_score != null).length;
     const qualityScores = deals
-      .map((d) => d.deal_quality_score ?? d.deal_total_score)
+      .map((d) => d.deal_total_score)
       .filter((s): s is number => s != null);
     const avgQuality = qualityScores.length
       ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
@@ -237,7 +237,7 @@ export default function ReMarketingReferralPartnerDetail() {
           case "revenue": return deal.revenue ?? -Infinity;
           case "ebitda": return deal.ebitda ?? -Infinity;
           case "status": return (deal.status || "").toLowerCase();
-          case "quality": return deal.deal_quality_score ?? deal.deal_total_score ?? -Infinity;
+          case "quality": return deal.deal_total_score ?? -Infinity;
           case "employees": return deal.linkedin_employee_count ?? -Infinity;
           case "range": return (deal.linkedin_employee_range || "").toLowerCase();
           case "rating": return deal.google_rating ?? -Infinity;
@@ -417,7 +417,7 @@ export default function ReMarketingReferralPartnerDetail() {
   const handleBulkScore = async (mode: "unscored" | "all") => {
     if (!deals?.length) return;
     const targets = mode === "unscored"
-      ? deals.filter((d) => d.deal_quality_score == null)
+      ? deals.filter((d) => d.deal_total_score == null)
       : deals;
 
     if (!targets.length) {
@@ -1093,7 +1093,7 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
                           {(() => {
-                            const score = deal.deal_quality_score ?? deal.deal_total_score;
+                            const score = deal.deal_total_score;
                             if (score == null) return <span className="text-xs text-muted-foreground">-</span>;
                             const color = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-500";
                             return <span className={`text-sm font-semibold ${color}`}>{score}</span>;
