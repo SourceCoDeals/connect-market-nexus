@@ -624,11 +624,15 @@ export default function CapTargetDeals() {
         if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
       }
 
-      setIsScoring(false);
-      // Data will refresh as the backend processes batches
-      setTimeout(() => {
+      // Set up periodic refetching while scoring runs in background
+      const refreshInterval = setInterval(() => {
         queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
-      }, 5000);
+      }, 10000); // Refresh every 10 seconds
+      
+      // Stop polling after 20 minutes max
+      setTimeout(() => clearInterval(refreshInterval), 20 * 60 * 1000);
+      
+      setIsScoring(false);
     },
     [deals, user, startOrQueueMajorOp, completeOperation, queryClient]
   );
