@@ -64,6 +64,7 @@ import {
   Upload,
   FileSpreadsheet,
   AlertCircle,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -939,9 +940,16 @@ export default function GPPartnerDeals() {
       {/* Bulk Actions (selection-based) */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-          <span className="text-sm font-medium">
-            {selectedIds.size} deal{selectedIds.size !== 1 ? "s" : ""} selected
-          </span>
+          <Badge variant="secondary" className="text-sm font-medium">
+            {selectedIds.size} selected
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+            <XCircle className="h-4 w-4 mr-1" />
+            Clear
+          </Button>
+
+          <div className="h-5 w-px bg-border" />
+
           <Button
             size="sm"
             onClick={() => handlePushToAllDeals(Array.from(selectedIds))}
@@ -971,10 +979,25 @@ export default function GPPartnerDeals() {
           </Button>
           <Button
             size="sm"
-            variant="ghost"
-            onClick={() => setSelectedIds(new Set())}
+            variant="outline"
+            className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
+            onClick={async () => {
+              const dealIds = Array.from(selectedIds);
+              const { error } = await supabase
+                .from("listings")
+                .update({ is_priority_target: true } as never)
+                .in("id", dealIds);
+              if (error) {
+                sonnerToast.error("Failed to mark as priority");
+              } else {
+                sonnerToast.success(`${dealIds.length} deal(s) marked as priority`);
+                setSelectedIds(new Set());
+                queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] });
+              }
+            }}
           >
-            Clear
+            <Star className="h-4 w-4 fill-amber-500" />
+            Mark as Priority
           </Button>
         </div>
       )}
@@ -1062,7 +1085,8 @@ export default function GPPartnerDeals() {
                       key={deal.id}
                       className={cn(
                         "cursor-pointer hover:bg-muted/50 transition-colors",
-                        deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
+                        deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
+                        !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
                       )}
                       onClick={() =>
                         navigate(
