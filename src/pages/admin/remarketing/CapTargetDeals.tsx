@@ -142,7 +142,7 @@ export default function CapTargetDeals() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
-  const [statusTab, setStatusTab] = useState<"active" | "inactive">("active");
+  const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
@@ -297,7 +297,7 @@ export default function CapTargetDeals() {
 
     let filtered = deals.filter((deal) => {
       // Tab filter
-      if (deal.captarget_status !== statusTab) return false;
+      if (statusTab !== "all" && deal.captarget_status !== statusTab) return false;
       if (search) {
         const q = search.toLowerCase();
         const matchesSearch =
@@ -479,6 +479,7 @@ export default function CapTargetDeals() {
   // Deals filtered by the current status tab (for bulk operations)
   const tabDeals = useMemo(() => {
     if (!deals) return [];
+    if (statusTab === "all") return deals;
     return deals.filter((d) => d.captarget_status === statusTab);
   }, [deals, statusTab]);
 
@@ -1361,11 +1362,14 @@ export default function CapTargetDeals() {
       <Tabs
         value={statusTab}
         onValueChange={(val) => {
-          setStatusTab(val as "active" | "inactive");
+          setStatusTab(val as "all" | "active" | "inactive");
           setSelectedIds(new Set());
         }}
       >
         <TabsList>
+          <TabsTrigger value="all">
+            All ({totalDeals})
+          </TabsTrigger>
           <TabsTrigger value="active">
             Active ({activeCount})
           </TabsTrigger>
