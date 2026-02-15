@@ -1287,6 +1287,28 @@ export default function CapTargetDeals() {
           <Button
             size="sm"
             variant="outline"
+            onClick={async () => {
+              const dealIds = Array.from(selectedIds);
+              const { error } = await supabase
+                .from("listings")
+                .update({ is_priority_target: true } as never)
+                .in("id", dealIds);
+              if (error) {
+                toast({ title: "Error", description: "Failed to mark as priority" });
+              } else {
+                toast({ title: "Priority Set", description: `${dealIds.length} deal(s) marked as priority` });
+                setSelectedIds(new Set());
+                refetch();
+              }
+            }}
+            className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
+          >
+            <Star className="h-4 w-4 fill-amber-500" />
+            Mark as Priority
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => setShowArchiveDialog(true)}
             disabled={isArchiving}
             className="gap-2"
@@ -1448,7 +1470,8 @@ export default function CapTargetDeals() {
                       key={deal.id}
                       className={cn(
                         "cursor-pointer hover:bg-muted/50 transition-colors",
-                        deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
+                        deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
+                        !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
                       )}
                       onClick={() =>
                         navigate(
