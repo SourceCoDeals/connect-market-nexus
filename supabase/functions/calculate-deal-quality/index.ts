@@ -16,6 +16,19 @@ interface DealQualityScores {
   scoring_notes?: string;
 }
 
+// Parse linkedin_employee_range strings like "11-50 employees" → midpoint estimate
+function estimateEmployeesFromRange(range: string | null): number {
+  if (!range) return 0;
+  const cleaned = range.replace(/,/g, '').toLowerCase();
+  const plusMatch = cleaned.match(/(\d+)\+/);
+  if (plusMatch) return parseInt(plusMatch[1], 10) * 1.2; // conservative estimate above floor
+  const rangeMatch = cleaned.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (rangeMatch) return Math.round((parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10)) / 2);
+  const singleMatch = cleaned.match(/^(\d+)/);
+  if (singleMatch) return parseInt(singleMatch[1], 10);
+  return 0;
+}
+
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
 
@@ -30,7 +43,14 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const ebitda = normalizeFinancial(deal.ebitda || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
 
-  const employeeCount = deal.linkedin_employee_count || 0;
+  // Employee count: prefer linkedin_employee_count, then full_time_employees, then parse range string
+  let employeeCount = deal.linkedin_employee_count || deal.full_time_employees || 0;
+  let employeeSource = 'LinkedIn';
+  if (!employeeCount && deal.linkedin_employee_range) {
+    employeeCount = estimateEmployeesFromRange(deal.linkedin_employee_range);
+    employeeSource = 'LinkedIn range';
+  }
+
   const reviewCount = deal.google_review_count || 0;
   const googleRating = deal.google_rating || 0;
 
@@ -73,6 +93,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (ebitda >= 3000000 && sizeFloor < 85) { sizeFloor = 85; notes.push('$3M+ EBITDA'); }
 
   } else {
+    // No financials — use proxy signals for size estimation
     let empPts = 0;
     if (employeeCount >= 200)     empPts = 60;
     else if (employeeCount >= 100) empPts = 54;
@@ -86,7 +107,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
     if (employeeCount > 0) {
       linkedinBoost = empPts;
-      notes.push(`LinkedIn: ${employeeCount} employees (size proxy)`);
+      notes.push(`${employeeSource}: ~${Math.round(employeeCount)} employees (size proxy)`);
     }
 
     let revPts = 0;
@@ -108,8 +129,26 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
     sizeScore = Math.min(90, empPts + revPts + ratPts);
 
+    // Baseline floor: enriched deals with some data shouldn't score 0
+    // If we have industry, description, or website data, give a minimum baseline
     if (sizeScore === 0) {
-      notes.push('No financials or proxy data');
+      const hasIndustry = !!(deal.industry || deal.category);
+      const hasDescription = !!(deal.description || deal.executive_summary);
+      const hasWebsite = !!(deal.website);
+      const hasEnrichment = !!deal.enriched_at;
+
+      let baseline = 0;
+      if (hasEnrichment) baseline += 5;
+      if (hasIndustry) baseline += 3;
+      if (hasDescription) baseline += 2;
+      if (hasWebsite) baseline += 2;
+
+      if (baseline > 0) {
+        sizeScore = baseline;
+        notes.push(`Baseline score (no size data yet): enriched=${hasEnrichment}, industry=${hasIndustry}`);
+      } else {
+        notes.push('No data available for scoring');
+      }
     } else {
       notes.push('No financials — using proxy signals');
     }
