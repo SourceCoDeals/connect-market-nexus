@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -15,13 +14,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useTimeframe } from "@/hooks/use-timeframe";
+import { useFilterEngine } from "@/hooks/use-filter-engine";
+import { FilterBar, TimeframeSelector, CAPTARGET_FIELDS } from "@/components/filters";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,13 +29,11 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import {
-  Search,
   Building2,
   ArrowUpDown,
   CheckCircle2,
   Sparkles,
   ArrowRight,
-  Calendar,
   Loader2,
   BarChart3,
   ChevronDown,
@@ -324,7 +317,20 @@ export default function CapTargetDeals() {
       return true;
     });
 
-    filtered.sort((a, b) => {
+  const {
+    filteredItems: engineFiltered,
+    filterState,
+    setFilterState,
+    activeFilterCount,
+    dynamicOptions,
+    filteredCount,
+    totalCount: engineTotal,
+  } = useFilterEngine(tabItems, CAPTARGET_FIELDS);
+
+  // Sort the engine-filtered results
+  const filteredDeals = useMemo(() => {
+    const sorted = [...engineFiltered];
+    sorted.sort((a, b) => {
       let valA: any, valB: any;
       switch (sortColumn) {
         case "company_name":
@@ -382,11 +388,10 @@ export default function CapTargetDeals() {
       if (valA > valB) return sortDirection === "asc" ? 1 : -1;
       return 0;
     });
+    return sorted;
+  }, [engineFiltered, sortColumn, sortDirection]);
 
-    return filtered;
-  }, [deals, search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
-
-  // Reset page when filters change
+  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedDeals = useMemo(() => {
@@ -397,7 +402,7 @@ export default function CapTargetDeals() {
   // Reset to page 1 when filters/sort change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, pushedFilter, sourceTabFilter, dateFrom, dateTo, sortColumn, sortDirection]);
+  }, [filterState, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -855,19 +860,11 @@ export default function CapTargetDeals() {
     }
   };
 
-  // Date-filtered deals for KPI stats
+  // Date-filtered deals for KPI stats (driven by TimeframeSelector)
   const dateFilteredDeals = useMemo(() => {
-    if (!deals || dateFilter === "all") return deals || [];
-    const now = new Date();
-    let cutoff: Date;
-    switch (dateFilter) {
-      case "7d": cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
-      case "30d": cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
-      case "90d": cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
-      default: return deals;
-    }
-    return deals.filter((d) => new Date(d.created_at) >= cutoff);
-  }, [deals, dateFilter]);
+    if (!deals) return [];
+    return deals.filter((d) => isInRange(d.created_at));
+  }, [deals, isInRange]);
 
   // KPI Stats (based on date-filtered deals)
   const kpiStats = useMemo(() => {
@@ -1105,17 +1102,7 @@ export default function CapTargetDeals() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All Time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="90d">Last 90 Days</SelectItem>
-            </SelectContent>
-          </Select>
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} compact />
         </div>
       </div>
 
@@ -1179,66 +1166,14 @@ export default function CapTargetDeals() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Search */}
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search company, client, contact..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-
-            {/* Source Tab filter */}
-            <Select value={sourceTabFilter} onValueChange={setSourceTabFilter}>
-              <SelectTrigger className="w-[170px]">
-                <SelectValue placeholder="Source Tab" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tabs</SelectItem>
-                <SelectItem value="Active Summary">Active Summary</SelectItem>
-                <SelectItem value="Inactive Summary">Inactive Summary</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Pushed filter */}
-            <Select value={pushedFilter} onValueChange={setPushedFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Pushed Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pushed">Pushed</SelectItem>
-                <SelectItem value="not_pushed">Not Pushed</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Date range filter */}
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-[140px] h-9"
-                placeholder="From"
-              />
-              <span className="text-muted-foreground text-xs">to</span>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-[140px] h-9"
-                placeholder="To"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        filterState={filterState}
+        onFilterStateChange={setFilterState}
+        fieldDefinitions={CAPTARGET_FIELDS}
+        dynamicOptions={dynamicOptions}
+        totalCount={engineTotal}
+        filteredCount={filteredCount}
+      />
 
       {/* Bulk Actions (selection-based) */}
       {selectedIds.size > 0 && (
