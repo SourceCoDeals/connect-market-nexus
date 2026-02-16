@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createEdgeTimeoutSignal } from "../_shared/edge-timeout.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
 import { callGeminiWithTool, type RateLimitConfig } from "../_shared/ai-providers.ts";
@@ -898,8 +897,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const _edgeStartTime = Date.now();
-    const _edgeTimeout = createEdgeTimeoutSignal(_edgeStartTime);
     console.log('[enrich-buyer] request received');
     const { buyerId, skipLock } = await req.json();
 
