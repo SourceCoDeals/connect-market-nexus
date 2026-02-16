@@ -44,13 +44,14 @@ const PLATFORM_OWNED_FIELDS = new Set([
 ]);
 
 // Fields that may ONLY be populated from TRANSCRIPTS — NEVER from any website
-// num_platforms and deal_preferences are internal strategy details that can't be
-// reliably distinguished from portfolio-level data on websites.
-// NOTE: Size criteria (target_revenue, target_ebitda, sweet spots) were removed from
-// this set because PE firm websites commonly publish their investment criteria ranges
-// and blocking website extraction left 99.7% of buyers without any size data for scoring.
+// Financial information must never be scraped from websites per policy.
+// This includes both actual company financials AND PE firm investment size criteria,
+// since website-sourced financial data is unreliable and may violate data policies.
 const TRANSCRIPT_ONLY_FIELDS = new Set([
   'num_platforms', 'deal_preferences',
+  // Size criteria — financial data must NEVER come from website scraping
+  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
+  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
 ]);
 
 // Fields allowed to fall back from PE firm website when platform website is unavailable
@@ -1251,7 +1252,8 @@ Deno.serve(async (req) => {
     if (peContent) {
       allTasks.push(
         () => extractPEIntelligence(peContent, geminiApiKey).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
-        () => extractSizeCriteria(peContent, geminiApiKey).then(r => ({ name: 'size_criteria', result: validateSizeCriteria(r), url: peFirmWebsite })),
+        // Size criteria extraction DISABLED — financial data must NEVER come from website scraping.
+        // Revenue/EBITDA ranges may only be populated from transcripts or manual entry.
       );
     }
 
