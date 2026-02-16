@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { formatCompactCurrency } from "@/lib/utils";
+import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -56,6 +59,10 @@ import {
   Upload,
   FileSpreadsheet,
   AlertCircle,
+  XCircle,
+  MoreHorizontal,
+  ExternalLink,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -78,7 +85,7 @@ interface GPPartnerDeal {
   status: string | null;
   created_at: string;
   enriched_at: string | null;
-  deal_quality_score: number | null;
+  deal_total_score: number | null;
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
   google_rating: number | null;
@@ -98,6 +105,8 @@ type SortColumn =
   | "company_name"
   | "industry"
   | "contact_name"
+  | "revenue"
+  | "ebitda"
   | "score"
   | "linkedin_employee_count"
   | "linkedin_employee_range"
@@ -153,11 +162,6 @@ export default function GPPartnerDeals() {
 
   // CSV upload dialog
   const [csvUploadOpen, setCsvUploadOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState<{ headers: string[]; rows: string[][]; total: number } | null>(null);
-  const [csvErrors, setCsvErrors] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch GP Partner deals
   const {
@@ -194,7 +198,7 @@ export default function GPPartnerDeals() {
             status,
             created_at,
             enriched_at,
-            deal_quality_score,
+            deal_total_score,
             linkedin_employee_count,
             linkedin_employee_range,
             google_rating,
@@ -259,9 +263,17 @@ export default function GPPartnerDeals() {
           valA = (a.main_contact_name || "").toLowerCase();
           valB = (b.main_contact_name || "").toLowerCase();
           break;
+        case "revenue":
+          valA = a.revenue ?? -1;
+          valB = b.revenue ?? -1;
+          break;
+        case "ebitda":
+          valA = a.ebitda ?? -1;
+          valB = b.ebitda ?? -1;
+          break;
         case "score":
-          valA = a.deal_quality_score ?? -1;
-          valB = b.deal_quality_score ?? -1;
+          valA = a.deal_total_score ?? -1;
+          valB = b.deal_total_score ?? -1;
           break;
         case "linkedin_employee_count":
           valA = a.linkedin_employee_count ?? -1;
@@ -461,7 +473,7 @@ export default function GPPartnerDeals() {
     async (mode: "unscored" | "all") => {
       if (!filteredDeals?.length) return;
       const targets = mode === "unscored"
-        ? filteredDeals.filter((d) => d.deal_quality_score == null)
+        ? filteredDeals.filter((d) => d.deal_total_score == null)
         : filteredDeals;
 
       if (!targets.length) {
@@ -658,206 +670,12 @@ export default function GPPartnerDeals() {
       }
     }
   }, [newDeal, queryClient]);
-
-  // CSV upload
-  const handleCsvSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setCsvFile(file);
-    setCsvErrors([]);
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      if (lines.length < 2) {
-        setCsvErrors(["CSV must have a header row and at least one data row"]);
-        setCsvPreview(null);
-        return;
-      }
-
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-      const requiredHeaders = ["company_name"];
-      const missing = requiredHeaders.filter((h) => !headers.includes(h));
-      if (missing.length > 0) {
-        setCsvErrors([`Missing required columns: ${missing.join(", ")}`]);
-        setCsvPreview(null);
-        return;
-      }
-
-      const rows = lines.slice(1).map((line) => {
-        // Simple CSV parse (handles basic cases)
-        const values: string[] = [];
-        let current = "";
-        let inQuotes = false;
-        for (const char of line) {
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === "," && !inQuotes) {
-            values.push(current.trim());
-            current = "";
-          } else {
-            current += char;
-          }
-        }
-        values.push(current.trim());
-        return values;
-      });
-
-      setCsvPreview({
-        headers,
-        rows: rows.slice(0, 5),
-        total: rows.length,
-      });
-    };
-    reader.readAsText(file);
-  };
-
-  const handleCsvUpload = useCallback(async () => {
-    if (!csvFile || !csvPreview) return;
-    setIsUploading(true);
-    setCsvErrors([]);
-
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const text = ev.target?.result as string;
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-
-      const fieldMap: Record<string, string> = {
-        company_name: "title",
-        website: "website",
-        contact_name: "main_contact_name",
-        contact_email: "main_contact_email",
-        contact_phone: "main_contact_phone",
-        contact_title: "main_contact_title",
-        industry: "industry",
-        description: "description",
-        location: "location",
-        revenue: "revenue",
-        ebitda: "ebitda",
-      };
-
-      let inserted = 0;
-      const errors: string[] = [];
-      const newDealIds: string[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const values: string[] = [];
-        let current = "";
-        let inQuotes = false;
-        for (const char of lines[i]) {
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === "," && !inQuotes) {
-            values.push(current.trim());
-            current = "";
-          } else {
-            current += char;
-          }
-        }
-        values.push(current.trim());
-
-        const row: Record<string, string> = {};
-        headers.forEach((h, idx) => {
-          row[h] = values[idx] || "";
-        });
-
-        if (!row.company_name?.trim()) {
-          errors.push(`Row ${i}: Missing company_name`);
-          continue;
-        }
-
-        let website = (row.website || "").trim();
-        if (website && !website.startsWith("http://") && !website.startsWith("https://")) {
-          website = `https://${website}`;
-        }
-
-        const listing: Record<string, unknown> = {
-          title: row.company_name.trim(),
-          internal_company_name: row.company_name.trim(),
-          deal_source: "gp_partners",
-          status: "active",
-          is_internal_deal: true,
-          pushed_to_all_deals: false,
-        };
-
-        if (website) listing.website = website;
-        if (row.contact_name?.trim()) listing.main_contact_name = row.contact_name.trim();
-        if (row.contact_email?.trim()) listing.main_contact_email = row.contact_email.trim();
-        if (row.contact_phone?.trim()) listing.main_contact_phone = row.contact_phone.trim();
-        if (row.contact_title?.trim()) listing.main_contact_title = row.contact_title.trim();
-        if (row.industry?.trim()) listing.industry = row.industry.trim();
-        if (row.description?.trim()) listing.description = row.description.trim();
-        if (row.location?.trim()) listing.location = row.location.trim();
-        if (row.revenue?.trim()) {
-          const rev = parseFloat(row.revenue.replace(/[$,]/g, ""));
-          if (!isNaN(rev)) listing.revenue = rev;
-        }
-        if (row.ebitda?.trim()) {
-          const ebi = parseFloat(row.ebitda.replace(/[$,]/g, ""));
-          if (!isNaN(ebi)) listing.ebitda = ebi;
-        }
-
-        const { data, error } = await supabase
-          .from("listings")
-          .insert(listing as never)
-          .select("id")
-          .single();
-
-        if (error) {
-          errors.push(`Row ${i} (${row.company_name}): ${error.message}`);
-        } else {
-          inserted++;
-          if (data?.id && website) {
-            newDealIds.push(data.id);
-          }
-        }
-      }
-
-      // Queue new deals for enrichment
-      if (newDealIds.length > 0) {
-        const now = new Date().toISOString();
-        const queueRows = newDealIds.map((id) => ({
-          listing_id: id,
-          status: "pending" as const,
-          attempts: 0,
-          queued_at: now,
-        }));
-
-        const CHUNK = 500;
-        for (let i = 0; i < queueRows.length; i += CHUNK) {
-          await supabase
-            .from("enrichment_queue")
-            .upsert(queueRows.slice(i, i + CHUNK), { onConflict: "listing_id" });
-        }
-
-        try {
-          await supabase.functions.invoke("process-enrichment-queue", {
-            body: { source: "gp_partners_csv" },
-          });
-        } catch {
-          // Non-blocking
-        }
-      }
-
-      setCsvErrors(errors);
-      setIsUploading(false);
-
-      if (inserted > 0) {
-        sonnerToast.success(`Imported ${inserted} deals${errors.length > 0 ? ` (${errors.length} errors)` : ""}`);
-        queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
-        if (errors.length === 0) {
-          setCsvUploadOpen(false);
-          setCsvFile(null);
-          setCsvPreview(null);
-        }
-      } else {
-        sonnerToast.error("No deals imported");
-      }
-    };
-    reader.readAsText(csvFile);
-  }, [csvFile, csvPreview, queryClient]);
+  // CSV import handled by DealImportDialog
+  const handleImportComplete = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+    setCsvUploadOpen(false);
+  }, [queryClient]);
 
   // Date-filtered deals for KPI stats (driven by TimeframeSelector)
   const dateFilteredDeals = useMemo(() => {
@@ -872,13 +690,14 @@ export default function GPPartnerDeals() {
     let totalScore = 0;
     let scoredDeals = 0;
     dateFilteredDeals.forEach((d) => {
-      if (d.deal_quality_score != null) {
-        totalScore += d.deal_quality_score;
+      const score = d.deal_total_score;
+      if (score != null) {
+        totalScore += score;
         scoredDeals++;
       }
     });
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-    const needsScoring = dateFilteredDeals.filter((d) => d.deal_quality_score == null).length;
+    const needsScoring = dateFilteredDeals.filter((d) => d.deal_total_score == null).length;
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [dateFilteredDeals]);
 
@@ -886,7 +705,7 @@ export default function GPPartnerDeals() {
   const totalDeals = deals?.length || 0;
   const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
   const enrichedCount = deals?.filter((d) => d.enriched_at).length || 0;
-  const scoredCount = deals?.filter((d) => d.deal_quality_score != null).length || 0;
+  const scoredCount = deals?.filter((d) => d.deal_total_score != null).length || 0;
 
   const SortHeader = ({
     column,
@@ -1075,9 +894,16 @@ export default function GPPartnerDeals() {
       {/* Bulk Actions (selection-based) */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-          <span className="text-sm font-medium">
-            {selectedIds.size} deal{selectedIds.size !== 1 ? "s" : ""} selected
-          </span>
+          <Badge variant="secondary" className="text-sm font-medium">
+            {selectedIds.size} selected
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+            <XCircle className="h-4 w-4 mr-1" />
+            Clear
+          </Button>
+
+          <div className="h-5 w-px bg-border" />
+
           <Button
             size="sm"
             onClick={() => handlePushToAllDeals(Array.from(selectedIds))}
@@ -1105,13 +931,34 @@ export default function GPPartnerDeals() {
             )}
             Enrich Selected
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            Clear
-          </Button>
+          {(() => {
+            const dealIds = Array.from(selectedIds);
+            const allPriority = dealIds.length > 0 && dealIds.every(id => filteredDeals?.find(d => d.id === id)?.is_priority_target);
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+                onClick={async () => {
+                  const newValue = !allPriority;
+                  const { error } = await supabase
+                    .from("listings")
+                    .update({ is_priority_target: newValue } as never)
+                    .in("id", dealIds);
+                  if (error) {
+                    sonnerToast.error("Failed to update priority");
+                  } else {
+                    sonnerToast.success(newValue ? `${dealIds.length} deal(s) marked as priority` : `${dealIds.length} deal(s) priority removed`);
+                    setSelectedIds(new Set());
+                    queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] });
+                  }
+                }}
+              >
+                <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                {allPriority ? "Remove Priority" : "Mark as Priority"}
+              </Button>
+            );
+          })()}
         </div>
       )}
 
@@ -1140,6 +987,12 @@ export default function GPPartnerDeals() {
                     <SortHeader column="contact_name">Contact</SortHeader>
                   </TableHead>
                   <TableHead>
+                    <SortHeader column="revenue">Revenue</SortHeader>
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader column="ebitda">EBITDA</SortHeader>
+                  </TableHead>
+                  <TableHead>
                     <SortHeader column="linkedin_employee_count">LI Count</SortHeader>
                   </TableHead>
                   <TableHead>
@@ -1152,7 +1005,7 @@ export default function GPPartnerDeals() {
                     <SortHeader column="google_rating">Rating</SortHeader>
                   </TableHead>
                   <TableHead>
-                    <SortHeader column="score">Score</SortHeader>
+                    <SortHeader column="score">Quality</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="created_at">Added</SortHeader>
@@ -1160,13 +1013,14 @@ export default function GPPartnerDeals() {
                   <TableHead>
                     <SortHeader column="pushed">Status</SortHeader>
                   </TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={13}
+                      colSpan={16}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1192,7 +1046,8 @@ export default function GPPartnerDeals() {
                       key={deal.id}
                       className={cn(
                         "cursor-pointer hover:bg-muted/50 transition-colors",
-                        deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
+                        deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
+                        !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
                       )}
                       onClick={() =>
                         navigate(
@@ -1248,6 +1103,20 @@ export default function GPPartnerDeals() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {deal.revenue != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(deal.revenue)}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {deal.ebitda != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(deal.ebitda)}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {deal.linkedin_employee_count != null ? (
                           <span className="text-sm tabular-nums">{deal.linkedin_employee_count.toLocaleString()}</span>
                         ) : (
@@ -1270,23 +1139,26 @@ export default function GPPartnerDeals() {
                       </TableCell>
                       <TableCell>
                         {deal.google_rating != null ? (
-                          <span className="text-sm tabular-nums">{deal.google_rating}</span>
+                          <span className="text-sm tabular-nums">⭐ {deal.google_rating}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">{"\u2014"}</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {deal.deal_quality_score != null ? (
-                          <Badge variant="outline" className={cn(
-                            "tabular-nums",
-                            deal.deal_quality_score >= 80 ? "bg-green-50 text-green-700 border-green-200" :
-                            deal.deal_quality_score >= 60 ? "bg-amber-50 text-amber-700 border-amber-200" :
-                            "bg-gray-50 text-gray-600 border-gray-200"
-                          )}>
-                            {deal.deal_quality_score}
-                          </Badge>
+                      <TableCell className="text-center">
+                        {deal.deal_total_score != null ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className={cn(
+                              "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
+                              deal.deal_total_score >= 80 ? "bg-green-100 text-green-700" :
+                              deal.deal_total_score >= 60 ? "bg-blue-100 text-blue-700" :
+                              deal.deal_total_score >= 40 ? "bg-yellow-100 text-yellow-700" :
+                              "bg-red-100 text-red-700"
+                            )}>
+                              {Math.round(deal.deal_total_score)}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                          <span className="text-sm text-muted-foreground">{"\u2014"}</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1304,12 +1176,51 @@ export default function GPPartnerDeals() {
                           ) : (
                             <span className="text-xs text-muted-foreground">{"\u2014"}</span>
                           )}
-                          {deal.enriched_at && (deal.linkedin_employee_count || deal.linkedin_employee_range) && (deal.google_review_count || deal.google_rating) && (
+                          {deal.enriched_at && (
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                               Enriched
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/gp-partner-deals/${deal.id}`, { state: { from: "/admin/remarketing/gp-partner-deals" } })}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEnrichSelected([deal.id])}>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Enrich Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newValue = !deal.is_priority_target;
+                                const { error } = await supabase.from("listings").update({ is_priority_target: newValue } as never).eq("id", deal.id);
+                                if (error) { sonnerToast.error("Failed to update priority"); }
+                                else { sonnerToast.success(newValue ? "Marked as priority" : "Priority removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                              }}
+                              className={deal.is_priority_target ? "text-amber-600" : ""}
+                            >
+                              <Star className={cn("h-4 w-4 mr-2", deal.is_priority_target && "fill-amber-500")} />
+                              {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePushToAllDeals([deal.id])}
+                              disabled={!!deal.pushed_to_all_deals}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Approve to All Deals
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -1478,95 +1389,14 @@ export default function GPPartnerDeals() {
         </DialogContent>
       </Dialog>
 
-      {/* CSV Upload Dialog */}
-      <Dialog open={csvUploadOpen} onOpenChange={(open) => {
-        setCsvUploadOpen(open);
-        if (!open) { setCsvFile(null); setCsvPreview(null); setCsvErrors([]); }
-      }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Import Deals from CSV</DialogTitle>
-            <DialogDescription>
-              Upload a CSV file with deal data. Required column: <code className="text-xs bg-muted px-1 py-0.5 rounded">company_name</code>.
-              Optional: <code className="text-xs bg-muted px-1 py-0.5 rounded">website</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_name</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_email</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_phone</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">contact_title</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">industry</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">description</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">location</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">revenue</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">ebitda</code>.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleCsvSelect}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full h-20 border-dashed"
-              >
-                <div className="flex flex-col items-center gap-1">
-                  <Upload className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm">{csvFile ? csvFile.name : "Click to select CSV file"}</span>
-                </div>
-              </Button>
-            </div>
-
-            {csvPreview && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  Preview ({csvPreview.total} rows total, showing first 5):
-                </p>
-                <div className="overflow-x-auto border rounded-md">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {csvPreview.headers.map((h, i) => (
-                          <TableHead key={i} className="text-xs whitespace-nowrap">{h}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {csvPreview.rows.map((row, i) => (
-                        <TableRow key={i}>
-                          {row.map((cell, j) => (
-                            <TableCell key={j} className="text-xs whitespace-nowrap max-w-[200px] truncate">
-                              {cell || "\u2014"}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-
-            {csvErrors.length > 0 && (
-              <div className="space-y-1 bg-destructive/10 rounded-md p-3">
-                {csvErrors.map((err, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm text-destructive">
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    <span>{err}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCsvUploadOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleCsvUpload}
-              disabled={isUploading || !csvPreview || csvErrors.some(e => e.startsWith("Missing required"))}
-            >
-              {isUploading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Import {csvPreview?.total || 0} Deals
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* CSV Upload Dialog - reuses the shared DealImportDialog */}
+      <DealImportDialog
+        open={csvUploadOpen}
+        onOpenChange={setCsvUploadOpen}
+        onImportComplete={handleImportComplete}
+        dealSource="gp_partners"
+        hideFromAllDeals
+      />
     </div>
   );
 }

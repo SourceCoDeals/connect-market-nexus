@@ -20,8 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface NavItem {
@@ -36,49 +36,8 @@ export function ReMarketingSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  // Fetch pending submissions count for badge
-  const { data: pendingCount } = useQuery({
-    queryKey: ["pending-submissions-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("referral_submissions")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending");
-      if (error) return 0;
-      return count || 0;
-    },
-    refetchInterval: 30000, // Refresh every 30s
-  });
 
-  // Fetch un-pushed CapTarget deals count for badge
-  const { data: captargetUnpushedCount } = useQuery({
-    queryKey: ["captarget-unpushed-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("listings")
-        .select("*", { count: "exact", head: true })
-        .eq("deal_source", "captarget")
-        .eq("pushed_to_all_deals", false);
-      if (error) return 0;
-      return count || 0;
-    },
-    refetchInterval: 30000,
-  });
 
-  // Fetch un-pushed GP Partner deals count for badge
-  const { data: gpPartnersUnpushedCount } = useQuery({
-    queryKey: ["gp-partners-unpushed-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("listings")
-        .select("*", { count: "exact", head: true })
-        .eq("deal_source", "gp_partners")
-        .eq("pushed_to_all_deals", false);
-      if (error) return 0;
-      return count || 0;
-    },
-    refetchInterval: 30000,
-  });
 
   const navItems: NavItem[] = [
     {
@@ -101,19 +60,16 @@ export function ReMarketingSidebar() {
       label: "CapTarget Deals",
       href: "/admin/remarketing/captarget-deals",
       icon: <Crosshair className="h-5 w-5" />,
-      badge: captargetUnpushedCount || undefined,
     },
     {
       label: "GP Partner Deals",
       href: "/admin/remarketing/gp-partner-deals",
       icon: <Briefcase className="h-5 w-5" />,
-      badge: gpPartnersUnpushedCount || undefined,
     },
     {
       label: "Referral Partners",
       href: "/admin/remarketing/referral-partners",
       icon: <Handshake className="h-5 w-5" />,
-      badge: pendingCount || undefined,
     },
     {
       label: "All Buyers",

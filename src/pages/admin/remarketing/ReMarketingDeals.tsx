@@ -135,6 +135,7 @@ interface DealListing {
   status: string | null;
   created_at: string;
   category: string | null;
+  industry: string | null;
   website: string | null;
   executive_summary: string | null;
   service_mix: any | null;
@@ -148,7 +149,6 @@ interface DealListing {
   google_review_count: number | null;
   google_rating: number | null;
   is_priority_target: boolean | null;
-  deal_quality_score: number | null;
   deal_total_score: number | null;
   seller_interest_score: number | null;
   manual_rank_override: number | null;
@@ -538,31 +538,37 @@ const SortableTableRow = ({
 
       {/* Industry */}
       <TableCell style={{ width: columnWidths.industry, minWidth: 60 }}>
-        {listing.category ? (
-          <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
-            {listing.category.length > 18 ? listing.category.substring(0, 18) + '...' : listing.category}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+        {(() => {
+          const industryVal = listing.industry || listing.category;
+          return industryVal ? (
+            <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
+              {industryVal.length > 18 ? industryVal.substring(0, 18) + '...' : industryVal}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        })()}
       </TableCell>
 
       {/* Description */}
       <TableCell style={{ width: columnWidths.description, minWidth: 120 }}>
-        {listing.description ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-sm text-muted-foreground leading-tight line-clamp-3 cursor-default" style={{ maxWidth: columnWidths.description - 16 }}>
-                {listing.description}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p className="text-xs">{listing.description}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+        {(() => {
+          const descText = listing.description || listing.executive_summary;
+          return descText ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-sm text-muted-foreground leading-tight line-clamp-3 cursor-default" style={{ maxWidth: columnWidths.description - 16 }}>
+                  {descText}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">{descText}</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        })()}
       </TableCell>
 
       {/* Location - City, State only */}
@@ -791,9 +797,18 @@ const ReMarketingDeals = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
-  // Unified filter system
-  const { timeframe, setTimeframe, isInRange } = useTimeframe('all_time');
-  const { views: savedViews, addView, removeView } = useSavedViews('remarketing-deals');
+  const [search, setSearch] = useState("");
+  const [universeFilter, setUniverseFilter] = useState<string>("all");
+  const [scoreFilter, setScoreFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
+  const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+  const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
 
   // Admin profiles for deal owner assignment
   const { data: adminProfiles } = useAdminProfiles();
@@ -871,6 +886,7 @@ const ReMarketingDeals = () => {
           status,
           created_at,
           category,
+          industry,
           website,
           executive_summary,
           service_mix,
@@ -884,7 +900,6 @@ const ReMarketingDeals = () => {
           google_review_count,
           google_rating,
           is_priority_target,
-          deal_quality_score,
           deal_total_score,
           seller_interest_score,
           manual_rank_override,
@@ -897,6 +912,7 @@ const ReMarketingDeals = () => {
           deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
         `)
         .eq('status', 'active')
+        .neq('deal_source', 'gp_partners')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
         .order('deal_total_score', { ascending: false, nullsFirst: true })
         .order('created_at', { ascending: false });
@@ -1102,21 +1118,94 @@ const ReMarketingDeals = () => {
     return `${states.slice(0, 2).join(', ')} +${states.length - 2}`;
   };
 
-  // Unified filter engine
-  const {
-    filteredItems: filteredByEngine,
-    filterState,
-    setFilterState,
-    activeFilterCount,
-    totalCount,
-    filteredCount,
-    dynamicOptions,
-  } = useFilterEngine(listings ?? [], DEAL_LISTING_FIELDS);
+  // Derive unique filter options from data
+  const filterOptions = useMemo(() => {
+    if (!listings) return { industries: [], states: [], employeeRanges: [] };
+    const industries = new Set<string>();
+    const states = new Set<string>();
+    const employeeRanges = new Set<string>();
+    listings.forEach(l => {
+      if (l.industry) industries.add(l.industry);
+      else if (l.category) industries.add(l.category);
+      if (l.address_state) states.add(l.address_state);
+      if (l.linkedin_employee_range) employeeRanges.add(l.linkedin_employee_range);
+    });
+    return {
+      industries: Array.from(industries).sort(),
+      states: Array.from(states).sort(),
+      employeeRanges: Array.from(employeeRanges).sort(),
+    };
+  }, [listings]);
 
-  // Apply timeframe on top of engine results (timeframe filters created_at)
+  // Filter listings
   const filteredListings = useMemo(() => {
-    return filteredByEngine.filter(listing => isInRange(listing.created_at));
-  }, [filteredByEngine, isInRange]);
+    if (!listings) return [];
+    
+    return listings.filter(listing => {
+      if (search) {
+        const searchLower = search.toLowerCase();
+        const matchesSearch = 
+          listing.title?.toLowerCase().includes(searchLower) ||
+          listing.internal_company_name?.toLowerCase().includes(searchLower) ||
+          listing.description?.toLowerCase().includes(searchLower) ||
+          listing.location?.toLowerCase().includes(searchLower) ||
+          listing.website?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+
+      if (universeFilter !== "all") {
+        const stats = scoreStats?.[listing.id];
+        if (!stats || !stats.universeIds.has(universeFilter)) return false;
+      }
+
+      if (scoreFilter !== "all") {
+        const score = listing.deal_total_score ?? 0;
+        const tier = getTierFromScore(score);
+        if (scoreFilter !== tier) return false;
+      }
+
+      if (referralPartnerFilter !== "all") {
+        if (referralPartnerFilter === "referred") {
+          if (!listing.referral_partner_id) return false;
+        } else {
+          if (listing.referral_partner_id !== referralPartnerFilter) return false;
+        }
+      }
+
+      if (industryFilter !== "all") {
+        const listingIndustry = listing.industry || listing.category;
+        if (listingIndustry !== industryFilter) return false;
+      }
+
+      if (stateFilter !== "all") {
+        if (listing.address_state !== stateFilter) return false;
+      }
+
+      if (employeeFilter !== "all") {
+        if (listing.linkedin_employee_range !== employeeFilter) return false;
+      }
+
+      if (dateFilter !== "all") {
+        const createdAt = new Date(listing.created_at);
+        if (dateFilter === "custom") {
+          if (customDateFrom && createdAt < customDateFrom) return false;
+          if (customDateTo) {
+            const endOfDay = new Date(customDateTo);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (createdAt > endOfDay) return false;
+          }
+        } else {
+          const now = new Date();
+          const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+          if (dateFilter === "7d" && daysDiff > 7) return false;
+          if (dateFilter === "30d" && daysDiff > 30) return false;
+          if (dateFilter === "90d" && daysDiff > 90) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [listings, search, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -1169,8 +1258,8 @@ const ReMarketingDeals = () => {
           bVal = (b.referral_partners?.name || "").toLowerCase();
           break;
         case "industry":
-          aVal = (a.category || "").toLowerCase();
-          bVal = (b.category || "").toLowerCase();
+          aVal = (a.industry || a.category || "").toLowerCase();
+          bVal = (b.industry || b.category || "").toLowerCase();
           break;
         case "revenue":
           aVal = a.revenue || 0;
@@ -1722,7 +1811,69 @@ const ReMarketingDeals = () => {
             <Calculator className="h-4 w-4 mr-2" />
             {isCalculating ? "Scoring..." : "Score Deals"}
           </Button>
-          <TimeframeSelector value={timeframe} onChange={setTimeframe} compact />
+          <Popover open={showCustomDatePicker} onOpenChange={setShowCustomDatePicker}>
+            <PopoverTrigger asChild>
+              <div>
+                <Select value={dateFilter} onValueChange={(val) => {
+                  setDateFilter(val);
+                  if (val === "custom") {
+                    setShowCustomDatePicker(true);
+                  }
+                }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Time">
+                      {dateFilter === "custom" && customDateFrom
+                        ? `${format(customDateFrom, "MM/dd")}${customDateTo ? ` - ${format(customDateTo, "MM/dd")}` : " →"}`
+                        : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="7d">Last 7 Days</SelectItem>
+                    <SelectItem value="30d">Last 30 Days</SelectItem>
+                    <SelectItem value="90d">Last 90 Days</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverTrigger>
+            {dateFilter === "custom" && (
+              <PopoverContent className="w-auto p-4" align="end">
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Select Date Range</p>
+                  <div className="flex gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">From</label>
+                      <Input
+                        type="date"
+                        value={customDateFrom ? format(customDateFrom, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setCustomDateFrom(e.target.value ? new Date(e.target.value + "T00:00:00") : undefined)}
+                        className="w-[140px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">To</label>
+                      <Input
+                        type="date"
+                        value={customDateTo ? format(customDateTo, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setCustomDateTo(e.target.value ? new Date(e.target.value + "T00:00:00") : undefined)}
+                        className="w-[140px]"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setCustomDateFrom(undefined);
+                      setCustomDateTo(undefined);
+                      setDateFilter("all");
+                      setShowCustomDatePicker(false);
+                    }}>Clear</Button>
+                    <Button size="sm" onClick={() => setShowCustomDatePicker(false)}>Apply</Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            )}
+          </Popover>
         </div>
       </div>
 
@@ -1841,10 +1992,40 @@ const ReMarketingDeals = () => {
                 <FolderPlus className="h-4 w-4 mr-1" />
                 Send to Universe
               </Button>
+              {(() => {
+                const dealIds = Array.from(selectedDeals);
+                const allPriority = dealIds.length > 0 && dealIds.every(id => localOrder?.find(d => d.id === id)?.is_priority_target);
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+                    onClick={async () => {
+                      const newValue = !allPriority;
+                      const { error } = await supabase
+                        .from('listings')
+                        .update({ is_priority_target: newValue } as never)
+                        .in('id', dealIds);
+                      if (error) {
+                        toast({ title: 'Error', description: 'Failed to update priority', variant: 'destructive' });
+                      } else {
+                        toast({ title: newValue ? 'Priority Set' : 'Priority Removed', description: `${dealIds.length} deal(s) updated` });
+                        setSelectedDeals(new Set());
+                        refetchListings();
+                      }
+                    }}
+                  >
+                    <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                    {allPriority ? "Remove Priority" : "Mark as Priority"}
+                  </Button>
+                );
+              })()}
+
+              <div className="h-5 w-px bg-border" />
+
               <Button
                 size="sm"
                 variant="outline"
-                className="text-amber-600 border-amber-200 hover:bg-amber-50"
                 onClick={() => setShowArchiveDialog(true)}
               >
                 <Archive className="h-4 w-4 mr-1" />
@@ -1853,7 +2034,7 @@ const ReMarketingDeals = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="text-destructive border-destructive/30 hover:bg-destructive/10"
                 onClick={() => setShowDeleteDialog(true)}
               >
                 <Trash2 className="h-4 w-4 mr-1" />

@@ -85,7 +85,10 @@ export function ActivityCompletionDialog() {
     completedItem.operation_type;
   const succeeded = completedItem.completed_items;
   const failed = completedItem.failed_items;
-  const total = completedItem.total_items;
+  // Use actual succeeded+failed as the authoritative total when it's larger,
+  // since total_items may reflect the initial queued count before deduplication
+  const rawTotal = completedItem.total_items;
+  const total = Math.max(rawTotal, succeeded + failed);
   const errors: GlobalActivityErrorEntry[] = Array.isArray(completedItem.error_log)
     ? completedItem.error_log
     : [];
@@ -164,8 +167,13 @@ export function ActivityCompletionDialog() {
             >
               {statusLabel}
             </Badge>
-            {succeeded > 0 && failed === 0 && (
+            {succeeded > 0 && failed === 0 && succeeded >= total && (
               <span className="text-sm text-emerald-600 font-medium">All items processed successfully!</span>
+            )}
+            {succeeded > 0 && failed === 0 && succeeded < total && (
+              <span className="text-sm text-amber-600 font-medium">
+                {succeeded} of {total} processed ({total - succeeded} remaining)
+              </span>
             )}
             {failed > 0 && succeeded > 0 && (
               <span className="text-sm text-muted-foreground">

@@ -21,6 +21,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,6 +45,11 @@ import {
   Target,
   Calculator,
   RefreshCw,
+  Archive,
+  Trash2,
+  MoreHorizontal,
+  ExternalLink,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -58,6 +64,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CapTargetDeal {
   id: string;
@@ -81,7 +97,7 @@ interface CapTargetDeal {
   status: string | null;
   created_at: string;
   enriched_at: string | null;
-  deal_quality_score: number | null;
+  deal_total_score: number | null;
   linkedin_employee_count: number | null;
   linkedin_employee_range: string | null;
   google_rating: number | null;
@@ -117,8 +133,13 @@ export default function CapTargetDeals() {
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
 
   // Filters
-  const [statusTab, setStatusTab] = useState<"active" | "inactive">("active");
-  const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
+  const [search, setSearch] = useState("");
+  const [pushedFilter, setPushedFilter] = useState<string>("all");
+  const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
@@ -186,6 +207,12 @@ export default function CapTargetDeals() {
   const [syncSummaryOpen, setSyncSummaryOpen] = useState(false);
   const [syncSummary, setSyncSummary] = useState<{ inserted: number; updated: number; skipped: number; status: "success" | "error"; message?: string } | null>(null);
 
+  // Archive & Delete state
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Fetch CapTarget deals
   const {
     data: deals,
@@ -227,7 +254,7 @@ export default function CapTargetDeals() {
             status,
             created_at,
             enriched_at,
-            deal_quality_score,
+            deal_total_score,
             linkedin_employee_count,
             linkedin_employee_range,
             google_rating,
@@ -261,11 +288,34 @@ export default function CapTargetDeals() {
     },
   });
 
-  // Pre-filter by tab, then run through the shared filter engine
-  const tabItems = useMemo(
-    () => (deals ?? []).filter((d) => d.captarget_status === statusTab),
-    [deals, statusTab]
-  );
+  // Filter + sort deals
+  const filteredDeals = useMemo(() => {
+    if (!deals) return [];
+
+    let filtered = deals.filter((deal) => {
+      // Tab filter
+      if (statusTab !== "all" && deal.captarget_status !== statusTab) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const matchesSearch =
+          (deal.title || "").toLowerCase().includes(q) ||
+          (deal.internal_company_name || "").toLowerCase().includes(q) ||
+          (deal.captarget_client_name || "").toLowerCase().includes(q) ||
+          (deal.main_contact_name || "").toLowerCase().includes(q) ||
+          (deal.main_contact_email || "").toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+      if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
+      if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
+      if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
+      if (dateFrom && deal.captarget_contact_date) {
+        if (deal.captarget_contact_date < dateFrom) return false;
+      }
+      if (dateTo && deal.captarget_contact_date) {
+        if (deal.captarget_contact_date > dateTo + "T23:59:59") return false;
+      }
+      return true;
+    });
 
   const {
     filteredItems: engineFiltered,
@@ -312,8 +362,8 @@ export default function CapTargetDeals() {
           valB = b.pushed_to_all_deals ? 1 : 0;
           break;
         case "score":
-          valA = a.deal_quality_score ?? -1;
-          valB = b.deal_quality_score ?? -1;
+          valA = a.deal_total_score ?? -1;
+          valB = b.deal_total_score ?? -1;
           break;
         case "linkedin_employee_count":
           valA = a.linkedin_employee_count ?? -1;
@@ -374,13 +424,32 @@ export default function CapTargetDeals() {
     }
   };
 
-  const toggleSelect = (id: string) => {
+  const lastSelectedIndexRef = useRef<number | null>(null);
+
+  const toggleSelect = (id: string, event?: React.MouseEvent) => {
+    const currentIndex = paginatedDeals.findIndex((d) => d.id === id);
+
+    if (event?.shiftKey && lastSelectedIndexRef.current !== null && currentIndex !== -1) {
+      const start = Math.min(lastSelectedIndexRef.current, currentIndex);
+      const end = Math.max(lastSelectedIndexRef.current, currentIndex);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (let i = start; i <= end; i++) {
+          next.add(paginatedDeals[i].id);
+        }
+        return next;
+      });
+      lastSelectedIndexRef.current = currentIndex;
+      return;
+    }
+
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    lastSelectedIndexRef.current = currentIndex;
   };
 
   // Push to All Deals (approve)
@@ -419,6 +488,7 @@ export default function CapTargetDeals() {
   // Deals filtered by the current status tab (for bulk operations)
   const tabDeals = useMemo(() => {
     if (!deals) return [];
+    if (statusTab === "all") return deals;
     return deals.filter((d) => d.captarget_status === statusTab);
   }, [deals, statusTab]);
 
@@ -429,10 +499,11 @@ export default function CapTargetDeals() {
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      if (!filteredDeals?.length) return;
+      // Use ALL deals (not filteredDeals) so bulk enrich works across active/inactive tabs
+      if (!deals?.length) return;
       const targets = mode === "unenriched"
-        ? filteredDeals.filter((d) => !d.enriched_at)
-        : filteredDeals;
+        ? deals.filter((d) => !d.enriched_at)
+        : deals;
 
       if (!targets.length) {
         sonnerToast.info("No deals to enrich");
@@ -511,18 +582,19 @@ export default function CapTargetDeals() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Bulk Score
+  // Bulk Score — single backend call with self-continuation
   const handleBulkScore = useCallback(
     async (mode: "unscored" | "all") => {
-      if (!filteredDeals?.length) return;
-      const targets = mode === "unscored"
-        ? filteredDeals.filter((d) => d.deal_quality_score == null)
-        : filteredDeals;
+      if (!deals?.length) return;
 
-      if (!targets.length) {
+      const totalCount = mode === "unscored"
+        ? deals.filter((d) => d.deal_total_score == null).length
+        : deals.length;
+
+      if (!totalCount) {
         sonnerToast.info("No deals to score");
         return;
       }
@@ -534,8 +606,8 @@ export default function CapTargetDeals() {
       try {
         const result = await startOrQueueMajorOp({
           operationType: "deal_enrichment",
-          totalItems: targets.length,
-          description: `Scoring ${targets.length} CapTarget deals`,
+          totalItems: totalCount,
+          description: `Scoring ${totalCount} CapTarget deals`,
           userId: user?.id || "",
           contextJson: { source: "captarget_scoring" },
         });
@@ -544,28 +616,34 @@ export default function CapTargetDeals() {
         // Non-blocking
       }
 
-      sonnerToast.info(`Scoring ${targets.length} deals...`);
+      sonnerToast.info(`Scoring ${totalCount} deals in background...`);
 
-      let successCount = 0;
-      for (const deal of targets) {
-        try {
-          await supabase.functions.invoke("calculate-deal-quality", {
-            body: { listingId: deal.id },
-          });
-          successCount++;
-          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
-        } catch {
-          // continue
-        }
+      try {
+        // Single call — the backend handles batching + self-continuation
+        await supabase.functions.invoke("calculate-deal-quality", {
+          body: {
+            batchSource: "captarget",
+            unscoredOnly: mode === "unscored",
+            globalQueueId: activityItem?.id,
+          },
+        });
+      } catch (err) {
+        console.error("Scoring invocation failed:", err);
+        sonnerToast.error("Failed to start scoring");
+        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
       }
 
-      sonnerToast.success(`Scored ${successCount} of ${targets.length} deals`);
-      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
-
+      // Set up periodic refetching while scoring runs in background
+      const refreshInterval = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+      }, 10000); // Refresh every 10 seconds
+      
+      // Stop polling after 20 minutes max
+      setTimeout(() => clearInterval(refreshInterval), 20 * 60 * 1000);
+      
       setIsScoring(false);
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     },
-    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [deals, user, startOrQueueMajorOp, completeOperation, queryClient]
   );
 
   // Enrich selected deals — queue-based (same pattern as Enrich All)
@@ -664,6 +742,106 @@ export default function CapTargetDeals() {
     [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient, supabase, filteredDeals]
   );
 
+  // LinkedIn + Google only enrichment (skips website scraping)
+  const handleExternalOnlyEnrich = useCallback(async () => {
+    setIsEnriching(true);
+
+    let activityItem: { id: string } | null = null;
+    try {
+      const missingCount = deals?.filter(d => d.enriched_at && !d.linkedin_employee_count && !d.google_review_count).length || 0;
+      const result = await startOrQueueMajorOp({
+        operationType: "deal_enrichment",
+        totalItems: missingCount || 1,
+        description: `LinkedIn + Google enrichment for CapTarget deals`,
+        userId: user?.id || "",
+        contextJson: { source: "captarget_external_only" },
+      });
+      activityItem = result.item;
+    } catch {
+      // Non-blocking
+    }
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("enrich-external-only", {
+        body: { dealSource: "captarget", mode: "missing" },
+      });
+
+      if (error) {
+        sonnerToast.error("Failed to start LinkedIn/Google enrichment");
+        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+      } else {
+        sonnerToast.success(`Queued ${result?.total || 0} deals for LinkedIn + Google enrichment`, {
+          description: "This runs much faster than full enrichment — no website re-scraping",
+        });
+      }
+    } catch {
+      sonnerToast.error("Failed to invoke external enrichment");
+    }
+
+    setIsEnriching(false);
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
+  }, [deals, user, startOrQueueMajorOp, completeOperation, queryClient]);
+
+  // Archive selected deals (soft delete via status change)
+  const handleBulkArchive = useCallback(async () => {
+    setIsArchiving(true);
+    try {
+      const dealIds = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('listings')
+        .update({ captarget_status: 'inactive' } as any)
+        .in('id', dealIds);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Deals Archived',
+        description: `${dealIds.length} deal(s) have been moved to Inactive`,
+      });
+      setSelectedIds(new Set());
+      setShowArchiveDialog(false);
+      refetch();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Archive Failed', description: err.message });
+    } finally {
+      setIsArchiving(false);
+    }
+  }, [selectedIds, toast, refetch]);
+
+  // Permanently delete selected deals
+  const handleBulkDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const dealIds = Array.from(selectedIds);
+
+      // Delete related records first
+      for (const dealId of dealIds) {
+        await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+        await supabase.from('buyer_deal_scores').delete().eq('deal_id', dealId);
+      }
+
+      const { error } = await supabase
+        .from('listings')
+        .delete()
+        .in('id', dealIds);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Deals Deleted',
+        description: `${dealIds.length} deal(s) have been permanently deleted`,
+      });
+      setSelectedIds(new Set());
+      setShowDeleteDialog(false);
+      refetch();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Delete Failed', description: err.message });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedIds, toast, refetch]);
+
   const interestTypeLabel = (type: string | null) => {
     switch (type) {
       case "interest": return "Interest";
@@ -695,13 +873,14 @@ export default function CapTargetDeals() {
     let totalScore = 0;
     let scoredDeals = 0;
     dateFilteredDeals.forEach((d) => {
-      if (d.deal_quality_score != null) {
-        totalScore += d.deal_quality_score;
+      const score = d.deal_total_score;
+      if (score != null) {
+        totalScore += score;
         scoredDeals++;
       }
     });
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-    const needsScoring = dateFilteredDeals.filter((d) => d.deal_quality_score == null).length;
+    const needsScoring = dateFilteredDeals.filter((d) => d.deal_total_score == null).length;
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [dateFilteredDeals]);
 
@@ -710,7 +889,7 @@ export default function CapTargetDeals() {
   const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
   const interestCount = deals?.filter((d) => d.captarget_interest_type === "interest").length || 0;
   const enrichedCount = deals?.filter((d) => d.enriched_at).length || 0;
-  const scoredCount = deals?.filter((d) => d.deal_quality_score != null).length || 0;
+  const scoredCount = deals?.filter((d) => d.deal_total_score != null).length || 0;
 
   const SortHeader = ({
     column,
@@ -894,6 +1073,9 @@ export default function CapTargetDeals() {
               <DropdownMenuItem onClick={() => handleBulkEnrich("all")}>
                 Re-enrich All
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExternalOnlyEnrich}>
+                LinkedIn + Google Only
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -1038,6 +1220,68 @@ export default function CapTargetDeals() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <div className="h-5 w-px bg-border" />
+
+          {(() => {
+            const dealIds = Array.from(selectedIds);
+            const allPriority = dealIds.length > 0 && dealIds.every(id => deals?.find(d => d.id === id)?.is_priority_target);
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const newValue = !allPriority;
+                  const { error } = await supabase
+                    .from("listings")
+                    .update({ is_priority_target: newValue } as never)
+                    .in("id", dealIds);
+                  if (error) {
+                    toast({ title: "Error", description: "Failed to update priority" });
+                  } else {
+                    toast({ title: newValue ? "Priority Set" : "Priority Removed", description: `${dealIds.length} deal(s) updated` });
+                    setSelectedIds(new Set());
+                    refetch();
+                  }
+                }}
+                className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+              >
+                <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                {allPriority ? "Remove Priority" : "Mark as Priority"}
+              </Button>
+            );
+          })()}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowArchiveDialog(true)}
+            disabled={isArchiving}
+            className="gap-2"
+          >
+            {isArchiving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+            Archive
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={isDeleting}
+            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            Delete
+          </Button>
+
+          <div className="h-5 w-px bg-border" />
+
           <Button
             size="sm"
             variant="ghost"
@@ -1048,15 +1292,58 @@ export default function CapTargetDeals() {
         </div>
       )}
 
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {selectedIds.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the selected deals to the Inactive tab. They can be found there later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkArchive} disabled={isArchiving}>
+              {isArchiving ? 'Archiving...' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Permanently Delete {selectedIds.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected deals and all related data (scores, enrichment records). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Active / Inactive Tabs */}
       <Tabs
         value={statusTab}
         onValueChange={(val) => {
-          setStatusTab(val as "active" | "inactive");
+          setStatusTab(val as "all" | "active" | "inactive");
           setSelectedIds(new Set());
         }}
       >
         <TabsList>
+          <TabsTrigger value="all">
+            All ({totalDeals})
+          </TabsTrigger>
           <TabsTrigger value="active">
             Active ({activeCount})
           </TabsTrigger>
@@ -1091,6 +1378,7 @@ export default function CapTargetDeals() {
                     { key: 'score', content: <SortHeader column="score">Score</SortHeader> },
                     { key: 'date', content: <SortHeader column="contact_date">Date</SortHeader> },
                     { key: 'status', content: <SortHeader column="pushed">Status</SortHeader> },
+                    { key: 'actions', content: '', noResize: true },
                   ].map(({ key, content, noResize }) => (
                     <TableHead
                       key={key}
@@ -1112,7 +1400,7 @@ export default function CapTargetDeals() {
                 {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={16}
+                      colSpan={17}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1128,7 +1416,8 @@ export default function CapTargetDeals() {
                       key={deal.id}
                       className={cn(
                         "cursor-pointer hover:bg-muted/50 transition-colors",
-                        deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
+                        deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
+                        !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
                       )}
                       onClick={() =>
                         navigate(
@@ -1138,12 +1427,15 @@ export default function CapTargetDeals() {
                       }
                     >
                       <TableCell
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-[40px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelect(deal.id, e);
+                        }}
+                        className="w-[40px] cursor-pointer select-none"
                       >
                         <Checkbox
                           checked={selectedIds.has(deal.id)}
-                          onCheckedChange={() => toggleSelect(deal.id)}
+                          onCheckedChange={() => {/* handled by TableCell onClick for shift support */}}
                         />
                       </TableCell>
                       <TableCell className="w-[50px] text-center text-xs text-muted-foreground tabular-nums">
@@ -1231,19 +1523,25 @@ export default function CapTargetDeals() {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {deal.deal_quality_score != null ? (
-                          <Badge variant="outline" className={cn(
-                            "tabular-nums",
-                            deal.deal_quality_score >= 80 ? "bg-green-50 text-green-700 border-green-200" :
-                            deal.deal_quality_score >= 60 ? "bg-amber-50 text-amber-700 border-amber-200" :
-                            "bg-gray-50 text-gray-600 border-gray-200"
-                          )}>
-                            {deal.deal_quality_score}
-                          </Badge>
+                      <TableCell className="text-center">
+                        {(() => {
+                          const score = deal.deal_total_score;
+                          return score != null ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className={cn(
+                              "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
+                              score >= 80 ? "bg-green-100 text-green-700" :
+                              score >= 60 ? "bg-blue-100 text-blue-700" :
+                              score >= 40 ? "bg-yellow-100 text-yellow-700" :
+                              "bg-red-100 text-red-700"
+                            )}>
+                              {Math.round(score)}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                          <span className="text-sm text-muted-foreground">—</span>
+                        );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {deal.captarget_status ? (
@@ -1276,12 +1574,62 @@ export default function CapTargetDeals() {
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
-                          {deal.enriched_at && (deal.linkedin_employee_count || deal.linkedin_employee_range) && (deal.google_review_count || deal.google_rating) && (
+                          {deal.enriched_at && (
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                               Enriched
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/captarget-deals/${deal.id}`, { state: { from: "/admin/remarketing/captarget-deals" } })}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEnrichSelected([deal.id], "all")}>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Enrich Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newValue = !deal.is_priority_target;
+                                const { error } = await supabase.from("listings").update({ is_priority_target: newValue } as never).eq("id", deal.id);
+                                if (error) { toast({ title: "Error", description: "Failed to update priority" }); }
+                                else { toast({ title: newValue ? "Priority Set" : "Priority Removed" }); refetch(); }
+                              }}
+                              className={deal.is_priority_target ? "text-amber-600" : ""}
+                            >
+                              <Star className={cn("h-4 w-4 mr-2", deal.is_priority_target && "fill-amber-500")} />
+                              {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePushToAllDeals([deal.id])}
+                              disabled={!!deal.pushed_to_all_deals}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Approve to All Deals
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => {
+                                setSelectedIds(new Set([deal.id]));
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Deal
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

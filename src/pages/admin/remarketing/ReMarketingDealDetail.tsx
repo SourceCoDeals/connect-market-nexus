@@ -82,7 +82,7 @@ const ReMarketingDealDetail = () => {
         .from('listings')
         .select('*')
         .eq('id', dealId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -741,8 +741,6 @@ const ReMarketingDealDetail = () => {
         linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
         // Deal quality score (editable)
         dealQualityScore={deal.deal_total_score ?? undefined}
-        // AI-calculated score (read-only reference)
-        aiCalculatedScore={deal.deal_quality_score ?? undefined}
         onScoreChange={async (newScore) => {
           await updateDealMutation.mutateAsync({
             deal_total_score: newScore,

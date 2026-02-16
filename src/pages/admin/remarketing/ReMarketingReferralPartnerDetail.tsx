@@ -66,6 +66,7 @@ import {
   Star,
 } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AddPartnerDialog } from "@/components/remarketing/AddPartnerDialog";
 import { AddDealDialog } from "@/components/remarketing/AddDealDialog";
@@ -159,7 +160,7 @@ export default function ReMarketingReferralPartnerDetail() {
         .select(
            `id, title, internal_company_name, location, revenue, ebitda, category, website,
            status, created_at, full_time_employees, address_city, address_state,
-           enriched_at, deal_total_score, deal_quality_score,
+           enriched_at, deal_total_score,
            linkedin_employee_count, linkedin_employee_range,
            google_review_count, google_rating, is_priority_target,
            main_contact_name, main_contact_title, main_contact_email, deal_source`
@@ -213,9 +214,9 @@ export default function ReMarketingReferralPartnerDetail() {
   const kpis = useMemo(() => {
     if (!deals) return { total: 0, enriched: 0, scored: 0, avgQuality: 0 };
     const enriched = deals.filter((d) => d.enriched_at).length;
-    const scored = deals.filter((d) => (d.deal_quality_score ?? d.deal_total_score) != null).length;
+    const scored = deals.filter((d) => d.deal_total_score != null).length;
     const qualityScores = deals
-      .map((d) => d.deal_quality_score ?? d.deal_total_score)
+      .map((d) => d.deal_total_score)
       .filter((s): s is number => s != null);
     const avgQuality = qualityScores.length
       ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
@@ -237,7 +238,7 @@ export default function ReMarketingReferralPartnerDetail() {
           case "revenue": return deal.revenue ?? -Infinity;
           case "ebitda": return deal.ebitda ?? -Infinity;
           case "status": return (deal.status || "").toLowerCase();
-          case "quality": return deal.deal_quality_score ?? deal.deal_total_score ?? -Infinity;
+          case "quality": return deal.deal_total_score ?? -Infinity;
           case "employees": return deal.linkedin_employee_count ?? -Infinity;
           case "range": return (deal.linkedin_employee_range || "").toLowerCase();
           case "rating": return deal.google_rating ?? -Infinity;
@@ -417,7 +418,7 @@ export default function ReMarketingReferralPartnerDetail() {
   const handleBulkScore = async (mode: "unscored" | "all") => {
     if (!deals?.length) return;
     const targets = mode === "unscored"
-      ? deals.filter((d) => d.deal_quality_score == null)
+      ? deals.filter((d) => d.deal_total_score == null)
       : deals;
 
     if (!targets.length) {
@@ -905,14 +906,52 @@ export default function ReMarketingReferralPartnerDetail() {
           {/* Bulk Actions Toolbar */}
           {someSelected && (
             <div className="px-6 pb-3">
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                <span className="text-sm font-medium px-2">
+              <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <Badge variant="secondary" className="text-sm font-medium">
                   {selectedDealIds.size} selected
-                </span>
+                </Badge>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedDealIds(new Set())}>
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+
+                <div className="h-5 w-px bg-border" />
+
                 <Button size="sm" variant="outline" onClick={handleBulkApprove}>
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  <CheckCircle2 className="h-4 w-4 mr-1" />
                   Approve to All Deals
                 </Button>
+                {(() => {
+                  const selectedArr = Array.from(selectedDealIds);
+                  const allPriority = selectedArr.length > 0 && selectedArr.every(id => deals?.find(d => d.id === id)?.is_priority_target);
+                  return (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+                      onClick={async () => {
+                        const newValue = !allPriority;
+                        const { error } = await supabase
+                          .from("listings")
+                          .update({ is_priority_target: newValue })
+                          .in("id", selectedArr);
+                        if (error) {
+                          toast.error("Failed to update priority");
+                        } else {
+                          toast.success(newValue ? `${selectedArr.length} deal(s) marked as priority` : `${selectedArr.length} deal(s) priority removed`);
+                          setSelectedDealIds(new Set());
+                          queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+                        }
+                      }}
+                    >
+                      <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
+                      {allPriority ? "Remove Priority" : "Mark as Priority"}
+                    </Button>
+                  );
+                })()}
+
+                <div className="h-5 w-px bg-border" />
+
                 <Button
                   size="sm"
                   variant="outline"
@@ -920,7 +959,7 @@ export default function ReMarketingReferralPartnerDetail() {
                     setConfirmAction({ type: "archive", ids: Array.from(selectedDealIds) })
                   }
                 >
-                  <Archive className="h-3 w-3 mr-1" />
+                  <Archive className="h-4 w-4 mr-1" />
                   Archive
                 </Button>
                 <Button
@@ -931,7 +970,7 @@ export default function ReMarketingReferralPartnerDetail() {
                     setConfirmAction({ type: "delete", ids: Array.from(selectedDealIds) })
                   }
                 >
-                  <Trash2 className="h-3 w-3 mr-1" />
+                  <Trash2 className="h-4 w-4 mr-1" />
                   Delete
                 </Button>
               </div>
@@ -1093,7 +1132,7 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
                           {(() => {
-                            const score = deal.deal_quality_score ?? deal.deal_total_score;
+                            const score = deal.deal_total_score;
                             if (score == null) return <span className="text-xs text-muted-foreground">-</span>;
                             const color = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-500";
                             return <span className={`text-sm font-semibold ${color}`}>{score}</span>;

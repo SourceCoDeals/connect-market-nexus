@@ -31,72 +31,80 @@ interface EnrichmentProgress {
   errors: DealEnrichmentError[];
 }
 
+const EMPTY_PROGRESS: EnrichmentProgress = {
+  isEnriching: false,
+  isPaused: false,
+  completedCount: 0,
+  totalCount: 0,
+  pendingCount: 0,
+  processingCount: 0,
+  failedCount: 0,
+  progress: 0,
+  estimatedTimeRemaining: '',
+  processingRate: 0,
+  successfulCount: 0,
+  errors: [],
+};
+
 export function useEnrichmentProgress() {
-  const [progress, setProgress] = useState<EnrichmentProgress>({
-    isEnriching: false,
-    isPaused: false,
-    completedCount: 0,
-    totalCount: 0,
-    pendingCount: 0,
-    processingCount: 0,
-    failedCount: 0,
-    progress: 0,
-    estimatedTimeRemaining: '',
-    processingRate: 0,
-    successfulCount: 0,
-    errors: [],
-  });
-  
+  const [progress, setProgress] = useState<EnrichmentProgress>(EMPTY_PROGRESS);
   const [summary, setSummary] = useState<DealEnrichmentSummary | null>(null);
   const [showSummary, setShowSummary] = useState(false);
 
-  // Track timing for rate calculation
   const startTimeRef = useRef<number | null>(null);
   const initialCompletedRef = useRef<number>(0);
   const wasRunningRef = useRef(false);
   const lastTotalRef = useRef(0);
+  // Debounce realtime events — only fetch once per interval
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFetchRef = useRef(0);
 
   const fetchQueueStatus = useCallback(async () => {
-    try {
-      // Only consider queue items from the last 2 hours as "active"
-      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      
-      const { data, error } = await supabase
-        .from('enrichment_queue')
-        .select('status, listing_id, last_error, queued_at')
-        .in('status', ['pending', 'processing', 'completed', 'failed', 'paused'])
-        .gte('queued_at', cutoff);
+    // Throttle: skip if last fetch was < 3 seconds ago
+    const now = Date.now();
+    if (now - lastFetchRef.current < 3000) return;
+    lastFetchRef.current = now;
 
-      if (error) throw error;
+    try {
+      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+      // Use lightweight count queries instead of fetching all rows
+      const [pendingRes, processingRes, completedRes, failedRes, pausedRes] = await Promise.all([
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending').gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'processing').gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed').gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'failed').gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'paused').gte('queued_at', cutoff),
+      ]);
 
       const counts = {
-        pending: 0,
-        processing: 0,
-        completed: 0,
-        failed: 0,
-        paused: 0,
+        pending: pendingRes.count ?? 0,
+        processing: processingRes.count ?? 0,
+        completed: completedRes.count ?? 0,
+        failed: failedRes.count ?? 0,
+        paused: pausedRes.count ?? 0,
       };
-      
-      const errorItems: DealEnrichmentError[] = [];
 
-      data?.forEach((row) => {
-        const status = row.status as keyof typeof counts;
-        if (counts[status] !== undefined) {
-          counts[status]++;
-        }
-        if (row.status === 'failed' && row.last_error) {
-          errorItems.push({
-            listingId: row.listing_id,
-            error: row.last_error,
-          });
-        }
-      });
+      // Only fetch error details if there are failed items (and limit to 50)
+      let errorItems: DealEnrichmentError[] = [];
+      if (counts.failed > 0) {
+        const { data: failedData } = await supabase
+          .from('enrichment_queue')
+          .select('listing_id, last_error')
+          .eq('status', 'failed')
+          .gte('queued_at', cutoff)
+          .not('last_error', 'is', null)
+          .limit(50);
+
+        errorItems = (failedData ?? []).map((row) => ({
+          listingId: row.listing_id,
+          error: row.last_error ?? 'Unknown error',
+        }));
+      }
 
       const totalActive = counts.pending + counts.processing;
       const isPaused = counts.paused > 0 && totalActive === 0;
       const totalCount = totalActive + counts.completed + counts.failed + counts.paused;
-      // Only show enrichment bar if something is actively processing or was recently queued
-      // Stale detection: if there are pending items but nothing is processing for a while, treat as stale
       const isEnriching = counts.processing > 0 || (counts.pending > 0 && counts.completed > 0);
       const successfulCount = counts.completed;
 
@@ -114,8 +122,7 @@ export function useEnrichmentProgress() {
       if (startTimeRef.current && counts.completed > initialCompletedRef.current) {
         const elapsedMinutes = (Date.now() - startTimeRef.current) / 60000;
         if (elapsedMinutes > 0.1) {
-          const completedSinceStart = counts.completed - initialCompletedRef.current;
-          processingRate = completedSinceStart / elapsedMinutes;
+          processingRate = (counts.completed - initialCompletedRef.current) / elapsedMinutes;
         }
       }
 
@@ -139,10 +146,10 @@ export function useEnrichmentProgress() {
       }
 
       const progressPercent = totalCount > 0 ? (counts.completed / totalCount) * 100 : 0;
-      
+
       // Detect completion transition
       const justCompleted = wasRunningRef.current && !isEnriching && !isPaused && lastTotalRef.current > 0;
-      
+
       if (justCompleted) {
         setSummary({
           total: lastTotalRef.current,
@@ -153,7 +160,7 @@ export function useEnrichmentProgress() {
         });
         setShowSummary(true);
       }
-      
+
       wasRunningRef.current = isEnriching || isPaused;
       if (isEnriching || isPaused) {
         lastTotalRef.current = totalCount;
@@ -173,7 +180,6 @@ export function useEnrichmentProgress() {
         successfulCount,
         errors: errorItems,
       });
-
     } catch (error) {
       console.error('Error fetching enrichment queue status:', error);
     }
@@ -181,14 +187,13 @@ export function useEnrichmentProgress() {
 
   const pauseEnrichment = useCallback(async () => {
     try {
-      // Set all pending items to paused
       const { error } = await supabase
         .from('enrichment_queue')
         .update({ status: 'paused' })
         .eq('status', 'pending');
-
       if (error) throw error;
       toast({ title: "Enrichment paused", description: "Remaining deals have been paused. In-progress deals will finish." });
+      lastFetchRef.current = 0; // Allow immediate fetch
       fetchQueueStatus();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -197,20 +202,16 @@ export function useEnrichmentProgress() {
 
   const resumeEnrichment = useCallback(async () => {
     try {
-      // Set all paused items back to pending
       const { error } = await supabase
         .from('enrichment_queue')
         .update({ status: 'pending' })
         .eq('status', 'paused');
-
       if (error) throw error;
-      
-      // Trigger the worker
       void supabase.functions
         .invoke('process-enrichment-queue', { body: { source: 'resume' } })
         .catch(console.warn);
-      
       toast({ title: "Enrichment resumed", description: "Remaining deals will continue enriching." });
+      lastFetchRef.current = 0;
       fetchQueueStatus();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -219,34 +220,27 @@ export function useEnrichmentProgress() {
 
   const cancelEnrichment = useCallback(async () => {
     try {
-      // Delete all pending and paused items from queue
+      // Delete all pending, paused, AND processing items
       const { error } = await supabase
         .from('enrichment_queue')
         .delete()
-        .in('status', ['pending', 'paused']);
-
+        .in('status', ['pending', 'paused', 'processing']);
       if (error) throw error;
-      
+
       startTimeRef.current = null;
       initialCompletedRef.current = 0;
       wasRunningRef.current = false;
       lastTotalRef.current = 0;
-      
+
       // Immediately hide the progress bar
-      setProgress(prev => ({
-        ...prev,
-        isEnriching: false,
-        isPaused: false,
-        pendingCount: 0,
-        processingCount: 0,
-      }));
-      
-      toast({ title: "Enrichment cancelled", description: "Remaining deals have been removed from the queue. Already completed deals are kept." });
+      setProgress(EMPTY_PROGRESS);
+
+      toast({ title: "Enrichment cancelled", description: "Remaining deals have been removed from the queue." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   }, []);
-  
+
   const dismissSummary = useCallback(() => {
     setShowSummary(false);
     setSummary(null);
@@ -265,16 +259,23 @@ export function useEnrichmentProgress() {
           table: 'enrichment_queue',
         },
         () => {
-          fetchQueueStatus();
+          // Debounce realtime events — batch rapid changes into one fetch
+          if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+          fetchTimeoutRef.current = setTimeout(() => {
+            lastFetchRef.current = 0; // Reset throttle for this debounced call
+            fetchQueueStatus();
+          }, 2000);
         }
       )
       .subscribe();
 
-    const interval = setInterval(fetchQueueStatus, 5000);
+    // Poll every 10 seconds instead of 5
+    const interval = setInterval(fetchQueueStatus, 10000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     };
   }, [fetchQueueStatus]);
 

@@ -185,10 +185,12 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json();
-    const { listingId, calculateAll, forceRecalculate, triggerEnrichment } = body;
+    const { listingId, calculateAll, forceRecalculate, triggerEnrichment,
+            batchSource, unscoredOnly, globalQueueId, offset = 0 } = body;
 
     let listingsToScore: any[] = [];
     let enrichmentQueued = 0;
+    const BATCH_SIZE = 200;
 
     const queueDealsForEnrichment = async (dealIds: string[], reason: string) => {
       console.log(`Queueing ${dealIds.length} deals for enrichment (${reason})`);
@@ -216,7 +218,39 @@ serve(async (req) => {
       return queuedCount;
     };
 
-    if (listingId) {
+    // New batch mode: score all deals from a specific source with self-continuation
+    if (batchSource) {
+      // Use captarget_status to identify CapTarget deals (no "source" column exists)
+      let query = batchSource === "captarget"
+        ? supabase.from("listings").select("*").not("captarget_status", "is", null).is("deleted_at", null).order("created_at", { ascending: true })
+        : supabase.from("listings").select("*").eq("deal_source", batchSource).is("deleted_at", null).order("created_at", { ascending: true });
+
+      if (unscoredOnly) {
+        query = query.is("deal_total_score", null);
+      }
+
+      query = query.range(offset, offset + BATCH_SIZE - 1);
+
+      const { data: listings, error: listingsError } = await query;
+      if (listingsError) throw new Error("Failed to fetch listings: " + listingsError.message);
+      listingsToScore = listings || [];
+
+      console.log(`[batch] Source=${batchSource}, offset=${offset}, fetched=${listingsToScore.length}`);
+
+      if (listingsToScore.length === 0) {
+        // Done — mark global queue as completed
+        if (globalQueueId) {
+          await supabase.from("global_activity_queue").update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          }).eq("id", globalQueueId);
+        }
+        return new Response(
+          JSON.stringify({ success: true, message: "All deals scored", scored: 0, done: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else if (listingId) {
       const { data: listing, error: listingError } = await supabase
         .from("listings").select("*").eq("id", listingId).single();
       if (listingError || !listing) throw new Error("Listing not found");
@@ -240,7 +274,7 @@ serve(async (req) => {
       listingsToScore = listings || [];
     } else {
       return new Response(
-        JSON.stringify({ error: "Must provide listingId, calculateAll: true, or forceRecalculate: true" }),
+        JSON.stringify({ error: "Must provide listingId, calculateAll, forceRecalculate, or batchSource" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -278,13 +312,48 @@ serve(async (req) => {
     }
 
     console.log(`Scored ${scored} listings, ${errors} errors, ${enrichmentQueued} queued for enrichment`);
+
+    // Update global activity queue progress
+    if (globalQueueId) {
+      const totalScoredSoFar = offset + scored;
+      await supabase.from("global_activity_queue").update({
+        completed_items: totalScoredSoFar,
+      }).eq("id", globalQueueId);
+    }
+
+    // Self-continuation for batch mode
+    if (batchSource && listingsToScore.length === BATCH_SIZE) {
+      const nextOffset = offset + BATCH_SIZE;
+      const selfUrl = `${supabaseUrl}/functions/v1/calculate-deal-quality`;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey;
+      console.log(`[batch] Continuing at offset ${nextOffset}...`);
+      fetch(selfUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${supabaseKey}`,
+          "apikey": anonKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ batchSource, unscoredOnly, globalQueueId, offset: nextOffset }),
+      }).catch(() => {}); // fire-and-forget
+    } else if (batchSource && listingsToScore.length < BATCH_SIZE && globalQueueId) {
+      // Last batch — mark complete
+      const totalScoredSoFar = offset + scored;
+      await supabase.from("global_activity_queue").update({
+        status: "completed",
+        completed_items: totalScoredSoFar,
+        completed_at: new Date().toISOString(),
+      }).eq("id", globalQueueId);
+      console.log(`[batch] Complete! Total scored: ${totalScoredSoFar}`);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         message: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}`,
         scored, errors, enrichmentQueued,
         results: results.slice(0, 10),
-        remaining: listingsToScore.length > 50 ? "More deals available, run again" : undefined,
+        remaining: batchSource && listingsToScore.length === BATCH_SIZE ? "Continuing in background..." : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
