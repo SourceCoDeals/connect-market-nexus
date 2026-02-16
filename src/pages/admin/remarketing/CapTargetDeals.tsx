@@ -50,6 +50,8 @@ import {
   MoreHorizontal,
   ExternalLink,
   Zap,
+  Shield,
+  ChevronUp,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -205,9 +207,18 @@ export default function CapTargetDeals() {
   const [isScoring, setIsScoring] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const syncAbortRef = useRef<AbortController | null>(null);
-  const [syncProgress, setSyncProgress] = useState({ inserted: 0, updated: 0, skipped: 0, page: 0 });
+  const [syncProgress, setSyncProgress] = useState({ inserted: 0, updated: 0, skipped: 0, excluded: 0, page: 0 });
   const [syncSummaryOpen, setSyncSummaryOpen] = useState(false);
-  const [syncSummary, setSyncSummary] = useState<{ inserted: number; updated: number; skipped: number; status: "success" | "error"; message?: string } | null>(null);
+  const [syncSummary, setSyncSummary] = useState<{ inserted: number; updated: number; skipped: number; excluded: number; status: "success" | "error"; message?: string } | null>(null);
+
+  // Cleanup state
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [showCleanupDialog, setShowCleanupDialog] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<{ cleaned: number; total_checked: number; breakdown?: Record<string, number>; sample?: Array<{ company: string; reason: string }> } | null>(null);
+  const [cleanupResultOpen, setCleanupResultOpen] = useState(false);
+
+  // Exclusion log state
+  const [showExclusionLog, setShowExclusionLog] = useState(false);
 
   // Archive & Delete state
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
@@ -887,6 +898,40 @@ export default function CapTargetDeals() {
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [dateFilteredDeals]);
 
+  // Exclusion log query
+  const { data: exclusionLog } = useQuery({
+    queryKey: ["captarget-exclusion-log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("captarget_sync_exclusions")
+        .select("id, company_name, exclusion_reason, exclusion_category, source, excluded_at")
+        .order("excluded_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60_000,
+  });
+
+  const handleCleanup = async () => {
+    setIsCleaningUp(true);
+    setShowCleanupDialog(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("cleanup-captarget-deals", {
+        body: { confirm: true },
+      });
+      if (error) throw error;
+      setCleanupResult(data);
+      setCleanupResultOpen(true);
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["captarget-exclusion-log"] });
+    } catch (e: any) {
+      sonnerToast.error("Cleanup failed", { description: e.message });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
   // Summary stats
   const totalDeals = deals?.length || 0;
   const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
@@ -950,17 +995,18 @@ export default function CapTargetDeals() {
               const abortCtrl = new AbortController();
               syncAbortRef.current = abortCtrl;
               setIsSyncing(true);
-              setSyncProgress({ inserted: 0, updated: 0, skipped: 0, page: 0 });
+              setSyncProgress({ inserted: 0, updated: 0, skipped: 0, excluded: 0, page: 0 });
               let totalInserted = 0;
               let totalUpdated = 0;
               let totalSkipped = 0;
+              let totalExcluded = 0;
               let pageNum = 0;
               let page = { startTab: 0, startRow: 0 };
               try {
                 let hasMore = true;
                 while (hasMore) {
                   if (abortCtrl.signal.aborted) {
-                    setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, status: "success", message: "Sync cancelled by user" });
+                    setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, excluded: totalExcluded, status: "success", message: "Sync cancelled by user" });
                     setSyncSummaryOpen(true);
                     refetch();
                     return;
@@ -973,17 +1019,18 @@ export default function CapTargetDeals() {
                   totalInserted += data?.rows_inserted ?? 0;
                   totalUpdated += data?.rows_updated ?? 0;
                   totalSkipped += data?.rows_skipped ?? 0;
-                  setSyncProgress({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, page: pageNum });
+                  totalExcluded += data?.rows_excluded ?? 0;
+                  setSyncProgress({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, excluded: totalExcluded, page: pageNum });
                   hasMore = data?.hasMore === true;
                   if (hasMore) {
                     page = { startTab: data.nextTab, startRow: data.nextRow };
                   }
                 }
-                setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, status: "success" });
+                setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, excluded: totalExcluded, status: "success" });
                 setSyncSummaryOpen(true);
                 refetch();
               } catch (e: any) {
-                setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, status: "error", message: e.message });
+                setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, excluded: totalExcluded, status: "error", message: e.message });
                 setSyncSummaryOpen(true);
               } finally {
                 setIsSyncing(false);
@@ -1034,7 +1081,7 @@ export default function CapTargetDeals() {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-3 py-2">
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-4 gap-3 text-center">
                   <div className="rounded-lg border p-3">
                     <p className="text-2xl font-bold text-emerald-600">{syncSummary?.inserted ?? 0}</p>
                     <p className="text-xs text-muted-foreground">Inserted</p>
@@ -1047,6 +1094,12 @@ export default function CapTargetDeals() {
                     <p className="text-2xl font-bold text-muted-foreground">{syncSummary?.skipped ?? 0}</p>
                     <p className="text-xs text-muted-foreground">Skipped</p>
                   </div>
+                  {(syncSummary?.excluded ?? 0) > 0 && (
+                    <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                      <p className="text-2xl font-bold text-orange-600">{syncSummary?.excluded ?? 0}</p>
+                      <p className="text-xs text-muted-foreground">Excluded</p>
+                    </div>
+                  )}
                 </div>
                 {syncSummary?.status === "error" && syncSummary.message && (
                   <p className="text-sm text-destructive bg-destructive/10 rounded-md p-2">{syncSummary.message}</p>
@@ -1167,6 +1220,124 @@ export default function CapTargetDeals() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Exclusion Log (collapsible) */}
+      {exclusionLog && exclusionLog.length > 0 && (
+        <Card className="border-orange-200">
+          <CardContent className="p-0">
+            <button
+              className="w-full flex items-center justify-between p-3 text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+              onClick={() => setShowExclusionLog(!showExclusionLog)}
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-orange-500" />
+                <span>{exclusionLog.length} companies excluded from CapTarget sync</span>
+              </div>
+              {showExclusionLog ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {showExclusionLog && (
+              <div className="border-t px-3 pb-3">
+                <div className="flex items-center justify-between py-2">
+                  <p className="text-xs text-muted-foreground">Recent exclusions (PE/VC/advisory firms blocked from import)</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                    disabled={isCleaningUp}
+                    onClick={() => setShowCleanupDialog(true)}
+                  >
+                    {isCleaningUp ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Shield className="h-3 w-3 mr-1" />}
+                    Clean Existing Deals
+                  </Button>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Company</TableHead>
+                        <TableHead className="text-xs">Reason</TableHead>
+                        <TableHead className="text-xs">Source</TableHead>
+                        <TableHead className="text-xs">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {exclusionLog.map((ex: any) => (
+                        <TableRow key={ex.id}>
+                          <TableCell className="text-xs font-medium">{ex.company_name || "—"}</TableCell>
+                          <TableCell className="text-xs">{ex.exclusion_reason}</TableCell>
+                          <TableCell className="text-xs">
+                            <Badge variant="outline" className="text-[10px]">
+                              {ex.source === "retroactive_cleanup" ? "cleanup" : "sync"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {ex.excluded_at ? format(new Date(ex.excluded_at), "MMM d, h:mm a") : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Cleanup confirmation dialog */}
+      <AlertDialog open={showCleanupDialog} onOpenChange={setShowCleanupDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clean Up Existing CapTarget Deals?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will scan all existing CapTarget deals and remove any PE firms, VC firms, M&A advisors, investment banks, family offices, and search funds. Removed deals are logged for audit. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCleanup} className="bg-orange-600 hover:bg-orange-700">
+              Run Cleanup
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cleanup result dialog */}
+      <Dialog open={cleanupResultOpen} onOpenChange={setCleanupResultOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-orange-500" />
+              Cleanup Complete
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{cleanupResult?.total_checked ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Deals Checked</p>
+              </div>
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                <p className="text-2xl font-bold text-orange-600">{cleanupResult?.cleaned ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Removed</p>
+              </div>
+            </div>
+            {cleanupResult?.sample && cleanupResult.sample.length > 0 && (
+              <div className="max-h-48 overflow-y-auto text-xs space-y-1">
+                <p className="font-medium text-muted-foreground">Sample of removed companies:</p>
+                {cleanupResult.sample.map((s: any, i: number) => (
+                  <p key={i} className="text-muted-foreground">
+                    <span className="font-medium text-foreground">{s.company}</span> — {s.reason}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCleanupResultOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Filters */}
       <FilterBar
