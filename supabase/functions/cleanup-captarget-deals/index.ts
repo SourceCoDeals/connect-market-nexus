@@ -41,7 +41,7 @@ serve(async (req) => {
     while (hasMore) {
       const { data: deals, error: fetchErr } = await supabase
         .from("listings")
-        .select("id, internal_company_name, title, captarget_call_notes, main_contact_title, captarget_row_hash")
+        .select("id, internal_company_name, title, captarget_call_notes, main_contact_title, captarget_row_hash, industry, category")
         .eq("deal_source", "captarget")
         .range(offset, offset + BATCH_SIZE - 1);
 
@@ -71,6 +71,7 @@ serve(async (req) => {
           companyName: deal.internal_company_name || deal.title,
           description: deal.captarget_call_notes,
           contactTitle: deal.main_contact_title,
+          industry: deal.industry || deal.category,
         });
 
         if (result.excluded) {

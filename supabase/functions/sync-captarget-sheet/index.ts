@@ -450,6 +450,7 @@ serve(async (req) => {
               companyName: record.internal_company_name || record.title,
               description: record.captarget_call_notes,
               contactTitle: record.main_contact_title,
+              industry: null, // Industry not yet enriched at sync time
             });
 
             if (exclusionCheck.excluded) {
