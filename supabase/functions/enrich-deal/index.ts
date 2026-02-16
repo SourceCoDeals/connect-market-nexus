@@ -6,8 +6,27 @@ import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shar
 import { checkProviderAvailability, reportRateLimit } from "../_shared/rate-limiter.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
-
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import {
+  // Configuration
+  DEAL_SCRAPE_TIMEOUT_MS,
+  DEAL_AI_TIMEOUT_MS,
+  DEAL_MIN_CONTENT_LENGTH,
+  DEAL_AI_RETRY_CONFIG,
+  // Constants
+  VALID_LISTING_UPDATE_KEYS,
+  NUMERIC_LISTING_FIELDS,
+  WEBSITE_PLACEHOLDERS,
+  // Prompts
+  DEAL_SYSTEM_PROMPT,
+  buildDealUserPrompt,
+  DEAL_TOOL_SCHEMA,
+  // Validators
+  validateDealExtraction,
+  // Transcript mapping
+  mapTranscriptToListing,
+  sanitizeListingUpdates,
+} from "../_shared/deal-extraction.ts";
 
 // Financial confidence levels per spec
 type FinancialConfidence = 'high' | 'medium' | 'low';
@@ -33,66 +52,6 @@ const getErrorMessage = (error: unknown): string => {
   }
 };
 
-// Only allow updates to real listings columns (prevents schema-cache 500s)
-// NOTE: 'location' is intentionally excluded - it's for marketplace anonymity
-const VALID_LISTING_UPDATE_KEYS = new Set([
-  'internal_company_name', // extracted company name
-  'title', // fallback if internal_company_name not set
-  'executive_summary',
-  'services',
-  'service_mix',
-  'business_model',
-  'industry',
-  'geographic_states',
-  'number_of_locations',
-  // Structured address fields (for remarketing accuracy)
-  'street_address',
-  'address_city',
-  'address_state',
-  'address_zip',
-  'address_country',
-  'address', // legacy full address field
-  'headquarters_address',
-  'founded_year',
-  'full_time_employees',
-  'part_time_employees',
-  'website',
-  'customer_types',
-  'end_market_description',
-  'customer_concentration',
-  'customer_geography',
-  'owner_goals',
-  'ownership_structure',
-  'transition_preferences',
-  'special_requirements',
-  'timeline_notes',
-  'key_risks',
-  'competitive_position',
-  'technology_systems',
-  'real_estate_info',
-  'growth_trajectory',
-  'key_quotes',
-  'primary_contact_name',
-  'primary_contact_email',
-  'primary_contact_phone',
-  // LinkedIn data from Apify
-  'linkedin_employee_count',
-  'linkedin_employee_range',
-  'linkedin_url', // Extracted from website or entered manually
-  // Financial tracking fields per spec
-  'revenue',
-  'ebitda',
-  'revenue_confidence',
-  'revenue_is_inferred',
-  'revenue_source_quote',
-  'ebitda_margin',
-  'ebitda_confidence',
-  'ebitda_is_inferred',
-  'ebitda_source_quote',
-  'financial_notes',
-  'financial_followup_questions',
-]);
-
 /**
  * Lightweight AI call to infer industry from deal metadata when website scraping is unavailable.
  */
@@ -103,7 +62,6 @@ async function inferIndustryFromContext(
   dealId: string,
 ): Promise<string | null> {
   if (!geminiApiKey) return null;
-  // Skip if industry already set
   if (deal.industry) return deal.industry;
 
   const context = [
@@ -163,7 +121,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    // Edge Gateway routing requires the anon key in the `apikey` header.
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     if (!supabaseAnonKey) {
       console.error('SUPABASE_ANON_KEY is not set — internal function calls will fail');
@@ -186,7 +143,6 @@ serve(async (req) => {
       );
     }
 
-    // Pre-flight check for GEMINI_API_KEY (used by extract-deal-transcript)
     if (!geminiApiKey) {
       console.error('[enrich-deal] GEMINI_API_KEY is not set — transcript extraction will fail');
       return new Response(
@@ -198,7 +154,9 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the deal/listing with extraction_sources (includes version for optimistic lock)
+    // ========================================================================
+    // FETCH DEAL
+    // ========================================================================
     const { data: deal, error: dealError } = await supabase
       .from('listings')
       .select('*, extraction_sources')
@@ -213,12 +171,8 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // STEP 0: Transcripts (highest priority)
-    // - Apply ALREADY extracted transcript intelligence to the listing first
-    // - Then process any truly unprocessed transcripts (processed_at is null)
+    // STEP 0: TRANSCRIPT PROCESSING (highest priority source)
     // ========================================================================
-
-    // Fetch ALL transcripts for this deal (we need the full picture for reporting)
     const { data: allTranscripts, error: transcriptsError } = await supabase
       .from('deal_transcripts')
       .select('id, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id, transcript_url')
@@ -228,21 +182,20 @@ serve(async (req) => {
     let transcriptsProcessed = 0;
     let transcriptsAppliedFromExisting = 0;
     const transcriptErrors: string[] = [];
-    const transcriptFieldNames: string[] = []; // Track which fields transcripts applied
+    const transcriptFieldNames: string[] = [];
 
-    // Reporting fields (returned to UI)
     const transcriptReport = {
       totalTranscripts: allTranscripts?.length || 0,
-      processable: 0, // pending w/ sufficient text
-      skipped: 0, // pending but too short/placeholder
-      processed: 0, // processed (LLM) this run
-      appliedFromExisting: 0, // fields applied from already-extracted transcripts
-      appliedFromExistingTranscripts: 0, // transcripts that contributed at least 1 applied field
+      processable: 0,
+      skipped: 0,
+      processed: 0,
+      appliedFromExisting: 0,
+      appliedFromExistingTranscripts: 0,
       errors: [] as string[],
     };
 
     if (!transcriptsError && allTranscripts?.length) {
-      const sample = allTranscripts.slice(0, 5).map((t) => ({
+      const sample = allTranscripts.slice(0, 5).map((t: any) => ({
         id: t.id,
         processed_at: t.processed_at,
         text_len: t.transcript_text ? t.transcript_text.length : 0,
@@ -252,178 +205,25 @@ serve(async (req) => {
       console.log(`[Transcripts] fetched=${allTranscripts.length}`, sample);
     }
 
-    // 0A) Apply existing extracted_data (even if applied_to_deal was previously true)
-    // Rationale: older runs could mark transcripts processed/applied but fail to update listings.
+    // 0A) Apply existing extracted_data from previously-processed transcripts
     if (!transcriptsError && allTranscripts && allTranscripts.length > 0) {
-      const transcriptsWithExtracted = allTranscripts.filter((t) => t.extracted_data && typeof t.extracted_data === 'object');
+      const transcriptsWithExtracted = allTranscripts.filter((t: any) => t.extracted_data && typeof t.extracted_data === 'object');
 
       if (transcriptsWithExtracted.length > 0) {
         const listingKeys = new Set(Object.keys(deal as Record<string, unknown>));
         let cumulativeUpdates: Record<string, unknown> = {};
         let cumulativeSources = deal.extraction_sources;
 
-        const PLACEHOLDER_STRINGS = new Set([
-          'unknown',
-          '<unknown>',
-          'n/a',
-          'na',
-          'not specified',
-          'not provided',
-          'none',
-          'null',
-          '-',
-          '—',
-        ]);
-
-        const normalizePlaceholderString = (s: string): string =>
-          s
-            .trim()
-            .toLowerCase()
-            // common LLM placeholders like <UNKNOWN>
-            .replace(/^<|>$/g, '')
-            .trim();
-
-        const isPlaceholder = (v: unknown): boolean => {
-          if (typeof v !== 'string') return false;
-          const raw = v.trim().toLowerCase();
-          const normalized = normalizePlaceholderString(raw);
-          return raw.length === 0 || PLACEHOLDER_STRINGS.has(raw) || PLACEHOLDER_STRINGS.has(normalized);
-        };
-
-        const toFiniteNumber = (v: unknown): number | undefined => {
-          if (v === null || v === undefined) return undefined;
-          if (typeof v === 'number' && Number.isFinite(v)) return v;
-          if (typeof v === 'string') {
-            if (isPlaceholder(v)) return undefined;
-            const cleaned = v.replace(/[$,]/g, '').trim();
-            const pct = cleaned.endsWith('%') ? cleaned.slice(0, -1).trim() : cleaned;
-            const n = Number(pct);
-            if (Number.isFinite(n)) return n;
-          }
-          return undefined;
-        };
-
-        const mapExtractedToListing = (extracted: any): Record<string, unknown> => {
-          const out: Record<string, unknown> = {};
-
-          // Structured revenue
-          {
-            const revenueValue = toFiniteNumber(extracted?.revenue?.value);
-            if (revenueValue != null) {
-              out.revenue = revenueValue;
-              if (extracted?.revenue?.confidence) out.revenue_confidence = extracted.revenue.confidence;
-              out.revenue_is_inferred = !!extracted?.revenue?.is_inferred;
-              if (extracted?.revenue?.source_quote) out.revenue_source_quote = extracted.revenue.source_quote;
-            }
-          }
-
-          // Structured EBITDA
-          {
-            const ebitdaAmount = toFiniteNumber(extracted?.ebitda?.amount);
-            if (ebitdaAmount != null) out.ebitda = ebitdaAmount;
-
-            const marginPct = toFiniteNumber(extracted?.ebitda?.margin_percentage);
-            if (marginPct != null) out.ebitda_margin = marginPct / 100;
-
-            if (extracted?.ebitda?.confidence) out.ebitda_confidence = extracted.ebitda.confidence;
-            if (extracted?.ebitda) out.ebitda_is_inferred = !!extracted.ebitda.is_inferred;
-            if (extracted?.ebitda?.source_quote) out.ebitda_source_quote = extracted.ebitda.source_quote;
-          }
-
-          // Common fields
-          if (Array.isArray(extracted?.geographic_states) && extracted.geographic_states.length) out.geographic_states = extracted.geographic_states;
-
-          {
-            const n = toFiniteNumber(extracted?.number_of_locations);
-            if (n != null) out.number_of_locations = n;
-          }
-          {
-            const n = toFiniteNumber(extracted?.full_time_employees);
-            if (n != null) out.full_time_employees = n;
-          }
-          {
-            const n = toFiniteNumber(extracted?.founded_year);
-            if (n != null) out.founded_year = n;
-          }
-
-          if (extracted?.service_mix) out.service_mix = extracted.service_mix;
-          if (extracted?.business_model) out.business_model = extracted.business_model;
-          if (extracted?.industry) out.industry = extracted.industry;
-
-          if (extracted?.owner_goals) out.owner_goals = extracted.owner_goals;
-          if (extracted?.transition_preferences) out.transition_preferences = extracted.transition_preferences;
-          if (extracted?.special_requirements) out.special_requirements = extracted.special_requirements;
-          if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
-
-          if (extracted?.customer_types) out.customer_types = extracted.customer_types;
-          // customer_concentration: DB is NUMERIC but LLM often returns text.
-          // Extract percentage number if present; append text to customer_types.
-          if (extracted?.customer_concentration) {
-            const concText = String(extracted.customer_concentration);
-            const pctMatch = concText.match(/(\d{1,3})(?:\s*%|\s*percent)/i);
-            if (pctMatch) {
-              const n = Number(pctMatch[1]);
-              if (Number.isFinite(n) && n > 0 && n <= 100) out.customer_concentration = n;
-            }
-            if (out.customer_types) {
-              out.customer_types += '\n\nCustomer Concentration: ' + concText;
-            } else {
-              out.customer_types = 'Customer Concentration: ' + concText;
-            }
-          }
-          if (extracted?.customer_geography) out.customer_geography = extracted.customer_geography;
-          if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
-
-          if (extracted?.executive_summary) out.executive_summary = extracted.executive_summary;
-          if (extracted?.competitive_position) out.competitive_position = extracted.competitive_position;
-          if (extracted?.growth_trajectory) out.growth_trajectory = extracted.growth_trajectory;
-          if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) {
-            out.key_risks = extracted.key_risks.map((r: string) => `• ${r}`).join('\n');
-          }
-          if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
-          if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
-
-          if (Array.isArray(extracted?.key_quotes) && extracted.key_quotes.length) out.key_quotes = extracted.key_quotes;
-          if (extracted?.financial_notes) out.financial_notes = extracted.financial_notes;
-          if (Array.isArray(extracted?.financial_followup_questions) && extracted.financial_followup_questions.length) {
-            out.financial_followup_questions = extracted.financial_followup_questions;
-          }
-
-          if (extracted?.primary_contact_name) out.primary_contact_name = extracted.primary_contact_name;
-          if (extracted?.primary_contact_email) out.primary_contact_email = extracted.primary_contact_email;
-          if (extracted?.primary_contact_phone) out.primary_contact_phone = extracted.primary_contact_phone;
-
-          // Fields that were previously missing from this mapping
-          if (extracted?.ownership_structure) out.ownership_structure = extracted.ownership_structure;
-          if (extracted?.headquarters_address) out.headquarters_address = extracted.headquarters_address;
-          if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
-          if (extracted?.website) out.website = extracted.website;
-          if (extracted?.location) out.location = extracted.location;
-          {
-            const pt = toFiniteNumber(extracted?.part_time_employees);
-            if (pt != null) out.part_time_employees = pt;
-          }
-
-          // Filter to known listing columns (defensive)
-          const filtered: Record<string, unknown> = {};
-          for (const [k, v] of Object.entries(out)) {
-            if (listingKeys.has(k)) filtered[k] = v;
-          }
-          return filtered;
-        };
-
         for (const t of transcriptsWithExtracted) {
           const extracted = t.extracted_data as any;
-          const flat = mapExtractedToListing(extracted);
+          const flat = mapTranscriptToListing(extracted, listingKeys);
           if (Object.keys(flat).length === 0) continue;
 
           let updates: Record<string, unknown>;
           let sourceUpdates: Record<string, unknown>;
 
           if (forceReExtract) {
-            // Force mode: bypass priority checks — overwrite ALL fields from transcripts
             updates = { ...flat };
-            // Build source tracking entries manually
             sourceUpdates = {};
             for (const key of Object.keys(flat)) {
               sourceUpdates[key] = createFieldSource('transcript', t.id);
@@ -444,7 +244,6 @@ serve(async (req) => {
 
           transcriptsAppliedFromExisting++;
 
-          // Merge geographic states rather than replace (unless force re-extracting)
           if (!forceReExtract && updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
             updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as any);
           }
@@ -452,72 +251,18 @@ serve(async (req) => {
           cumulativeUpdates = { ...cumulativeUpdates, ...updates };
           cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates as any);
 
-          // Keep local deal object in sync so subsequent priority checks see new values
           Object.assign(deal, updates);
         }
 
         if (Object.keys(cumulativeUpdates).length > 0) {
-          // Final safety: never allow placeholder strings into numeric columns.
-          // Postgres will hard-fail the whole update otherwise.
-          const NUMERIC_FIELDS = new Set([
-            'revenue',
-            'ebitda',
-            'ebitda_margin',
-            'number_of_locations',
-            'full_time_employees',
-            'founded_year',
-            'linkedin_employee_count',
-            'part_time_employees',
-            'team_page_employee_count',
-            'customer_concentration', // numeric column — LLM often returns prose
-          ]);
-
-          const sanitizedUpdates: Record<string, unknown> = { ...cumulativeUpdates };
-          const removed: Array<{ key: string; value: unknown }> = [];
-
-          for (const [k, v] of Object.entries(sanitizedUpdates)) {
-            if (!NUMERIC_FIELDS.has(k)) continue;
-
-            // Supabase numeric columns sometimes travel as strings; coerce when possible.
-            if (typeof v === 'string') {
-              const cleaned = v.replace(/[$,]/g, '').trim();
-              const n = Number(cleaned);
-              if (Number.isFinite(n)) {
-                sanitizedUpdates[k] = n;
-                continue;
-              }
-            }
-
-            if (typeof v !== 'number' || !Number.isFinite(v)) {
-              removed.push({ key: k, value: v });
-              delete sanitizedUpdates[k];
-            }
-          }
-
-          // Also strip any placeholder strings from ANY field (not just numeric).
-          // This prevents a single "Unknown" from failing the entire update.
-          const removedPlaceholders: Array<{ key: string; value: unknown }> = [];
-          for (const [k, v] of Object.entries(sanitizedUpdates)) {
-            if (typeof v === 'string' && isPlaceholder(v)) {
-              removedPlaceholders.push({ key: k, value: v });
-              delete sanitizedUpdates[k];
-            }
-          }
+          const sanitizedUpdates = sanitizeListingUpdates(cumulativeUpdates);
 
           const numericPreview = Object.fromEntries(
             Object.entries(sanitizedUpdates)
-              .filter(([k]) => NUMERIC_FIELDS.has(k))
+              .filter(([k]) => NUMERIC_LISTING_FIELDS.has(k))
               .map(([k, v]) => [k, { value: v, type: typeof v }])
           );
-
           console.log('[Transcripts] Numeric payload preview (post-sanitize):', numericPreview);
-
-          if (removed.length > 0) {
-            console.warn('[Transcripts] Removed invalid numeric fields from updates:', removed);
-          }
-          if (removedPlaceholders.length > 0) {
-            console.warn('[Transcripts] Removed placeholder string fields from updates:', removedPlaceholders);
-          }
 
           const { error: applyExistingError } = await supabase
             .from('listings')
@@ -533,9 +278,7 @@ serve(async (req) => {
           } else {
             transcriptReport.appliedFromExisting = Object.keys(cumulativeUpdates).length;
             transcriptReport.appliedFromExistingTranscripts = transcriptsAppliedFromExisting;
-            // Track which fields were applied from transcripts (for merged response)
             transcriptFieldNames.push(...Object.keys(cumulativeUpdates));
-            // Keep deal.extraction_sources accurate for the rest of the pipeline
             (deal as any).extraction_sources = cumulativeSources;
           }
         }
@@ -543,18 +286,14 @@ serve(async (req) => {
     }
 
     // 0B) Process transcripts that need AI extraction
-    // forceReExtract=true: Re-process ALL transcripts with latest prompts (useful after prompt updates)
-    // Otherwise: Only process unprocessed or failed transcripts
     let needsExtraction: typeof allTranscripts = [];
-    
+
     if (!transcriptsError && allTranscripts && allTranscripts.length > 0) {
       if (forceReExtract) {
-        // Force re-extraction: include ALL transcripts
         console.log(`[Transcripts] forceReExtract=true: Re-processing ALL ${allTranscripts.length} transcripts with new prompts`);
         needsExtraction = allTranscripts;
-        
-        // Clear extracted_data and processed_at so fresh extraction can apply
-        const allTranscriptIds = allTranscripts.map((t) => t.id);
+
+        const allTranscriptIds = allTranscripts.map((t: any) => t.id);
         if (allTranscriptIds.length > 0) {
           console.log(`[Transcripts] Clearing extracted_data for ${allTranscriptIds.length} transcripts`);
           const { error: clearError } = await supabase
@@ -566,14 +305,9 @@ serve(async (req) => {
           }
         }
       } else {
-        // Normal mode: only unprocessed or failed transcripts
-        // FIX #3: Check extracted_data FIRST — if a transcript already has extracted_data,
-        // it was successfully processed and should not be re-sent to the LLM.
-        needsExtraction = allTranscripts.filter((t) => {
-          // Already has valid extracted data → skip
+        needsExtraction = allTranscripts.filter((t: any) => {
           const hasExtracted = t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data).length > 0;
           if (hasExtracted) return false;
-          // Never processed, or processed but extraction was empty/failed
           return true;
         });
       }
@@ -586,13 +320,11 @@ serve(async (req) => {
       const firefliesLinkPattern = /fireflies\.ai\/view\/[^:]+::([a-zA-Z0-9]+)/;
       for (const t of needsExtraction) {
         if (t.source === 'link' && !t.fireflies_transcript_id) {
-          // Check transcript_text or transcript_url for a Fireflies link
           const textToCheck = (t.transcript_text || '') + ' ' + ((t as any).transcript_url || '');
           const match = textToCheck.match(firefliesLinkPattern);
           if (match) {
             const ffId = match[1];
             console.log(`[Transcripts] Detected Fireflies URL in link transcript ${t.id}, extracted ID: ${ffId}`);
-            // Update DB record to proper Fireflies source
             const { error: convertErr } = await supabase
               .from('deal_transcripts')
               .update({
@@ -603,7 +335,7 @@ serve(async (req) => {
             if (!convertErr) {
               t.source = 'fireflies';
               t.fireflies_transcript_id = ffId;
-              t.transcript_text = ''; // Clear the URL-only text so it gets fetched
+              t.transcript_text = '';
             } else {
               console.warn(`[Transcripts] Failed to convert link transcript ${t.id}:`, convertErr);
             }
@@ -611,14 +343,11 @@ serve(async (req) => {
         }
       }
 
-      // Fetch Fireflies content for transcripts that have empty text
-      // Check both source='fireflies' AND any transcript with a Fireflies URL (user may have pasted a URL manually)
+      // Fetch Fireflies content for transcripts with empty text
       const firefliesEmpty = needsExtraction.filter(
-        (t) => {
+        (t: any) => {
           if (t.transcript_text && t.transcript_text.trim().length >= 100) return false;
-          // Source is explicitly Fireflies with an ID
           if (t.source === 'fireflies' && t.fireflies_transcript_id) return true;
-          // Source is Fireflies but no ID yet (URL-only — fetch-fireflies-content will resolve it)
           if (t.source === 'fireflies') return true;
           return false;
         }
@@ -643,8 +372,7 @@ serve(async (req) => {
         }
       }
 
-      // Filter valid transcripts (must have >= 100 chars of text)
-      const validTranscripts = needsExtraction.filter((t) =>
+      const validTranscripts = needsExtraction.filter((t: any) =>
         t.transcript_text && t.transcript_text.trim().length >= 100
       );
 
@@ -657,10 +385,9 @@ serve(async (req) => {
 
       console.log(`[Transcripts] Processing ${validTranscripts.length} transcripts in batches...`);
 
-      // Reset processed_at for failed transcripts so extract-deal-transcript can re-process them
       const failedTranscriptIds = validTranscripts
-        .filter((t) => t.processed_at) // Only reset ones that were previously set
-        .map((t) => t.id);
+        .filter((t: any) => t.processed_at)
+        .map((t: any) => t.id);
 
       if (failedTranscriptIds.length > 0) {
         console.log(`[Transcripts] Resetting processed_at for ${failedTranscriptIds.length} previously-failed transcripts`);
@@ -673,21 +400,19 @@ serve(async (req) => {
         }
       }
 
-      // Process transcripts in parallel batches of 10 for speed
       const BATCH_SIZE = 10;
       for (let i = 0; i < validTranscripts.length; i += BATCH_SIZE) {
         const batch = validTranscripts.slice(i, i + BATCH_SIZE);
 
         const batchResults = await Promise.allSettled(
-          batch.map(async (transcript) => {
-            // Retry once on failure with 2s backoff (handles transient API errors)
+          batch.map(async (transcript: any) => {
             const MAX_RETRIES = 1;
             let lastError: Error | null = null;
 
             for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
               if (attempt > 0) {
                 console.log(`[Transcripts] Retrying transcript ${transcript.id} (attempt ${attempt + 1})`);
-                await new Promise((r) => setTimeout(r, 2000 * (attempt + 1))); // 2s, 4s backoff
+                await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
               }
 
               try {
@@ -719,14 +444,13 @@ serve(async (req) => {
                 if (!extractResponse.ok) {
                   const errText = await extractResponse.text();
                   lastError = new Error(errText.slice(0, 200));
-                  // Retry on 5xx/429 errors, fail immediately on 4xx
                   if (extractResponse.status < 500 && extractResponse.status !== 429) {
                     throw lastError;
                   }
-                  continue; // Retry
+                  continue;
                 }
 
-                return transcript.id; // Success
+                return transcript.id;
               } catch (err) {
                 lastError = err instanceof Error ? err : new Error(String(err));
                 if (attempt === MAX_RETRIES) throw lastError;
@@ -737,7 +461,6 @@ serve(async (req) => {
           })
         );
 
-        // Process batch results
         for (let j = 0; j < batchResults.length; j++) {
           const result = batchResults[j];
           const transcript = batch[j];
@@ -752,25 +475,20 @@ serve(async (req) => {
           }
         }
 
-        // Delay between batches to avoid rate-limit cascades
         if (i + BATCH_SIZE < validTranscripts.length) {
           await new Promise((r) => setTimeout(r, 500));
         }
       }
 
-      // FIX #6: processed counter should include BOTH LLM-processed this run AND applied from existing
       transcriptReport.processed = transcriptsProcessed + (transcriptReport.appliedFromExistingTranscripts || 0);
       (transcriptReport as any).processedThisRun = transcriptsProcessed;
       transcriptReport.errors = transcriptErrors;
     } else {
-      // FIX #6 (cont): Even when needsExtraction is empty, report applied-from-existing as processed
       transcriptReport.processed = transcriptReport.appliedFromExistingTranscripts || 0;
       (transcriptReport as any).processedThisRun = 0;
     }
 
-    // FIX #1: ALWAYS re-fetch deal after step 0A (not just after 0B).
-    // Step 0A updates enriched_at in the DB but NOT in the local deal object.
-    // Without this re-fetch, the optimistic lock for website update will fail with 409.
+    // Re-fetch deal after transcript processing
     if (transcriptReport.appliedFromExisting > 0 || transcriptsProcessed > 0) {
       const { data: refreshedDeal } = await supabase
         .from('listings')
@@ -783,22 +501,17 @@ serve(async (req) => {
       }
     }
 
-    // FIX #2: If transcripts exist and were already applied (from step 0A),
-    // but no NEW extraction was needed, this is SUCCESS not failure.
-    // GUARDRAIL: Only fire if transcripts exist but NOTHING was extracted or applied.
+    // Guardrail: warn if transcripts exist but nothing was extracted
     if (
       transcriptReport.totalTranscripts > 0 &&
       transcriptsProcessed === 0 &&
       transcriptReport.appliedFromExisting === 0
     ) {
-      // Check if all transcripts already have extracted_data (already processed in prior run)
       const allHaveExtracted = allTranscripts?.every(
-        (t) => t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data as any).length > 0
+        (t: any) => t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data as any).length > 0
       );
 
       if (allHaveExtracted) {
-        // FIX #2: This is not a failure — transcripts were processed in a previous run.
-        // Continue to website scraping.
         console.log('[Transcripts] All transcripts already have extracted_data from prior runs. Continuing to website scraping.');
       } else {
         const reason = needsExtraction.length === 0
@@ -806,53 +519,40 @@ serve(async (req) => {
           : transcriptErrors.length > 0
             ? `All ${transcriptReport.processable} transcript extractions failed: ${transcriptErrors.slice(0, 3).join('; ')}`
             : 'No transcripts had sufficient text content (>= 100 chars)';
-
         console.warn(`[Transcripts] GUARDRAIL (non-fatal): ${reason}. Falling back to website-only enrichment.`);
-        // Continue to website scraping instead of failing
       }
     }
 
-    // Capture version for optimistic locking
-    // IMPORTANT: Only use enriched_at, NOT updated_at as fallback
-    // If enriched_at is null, the lock check uses .is('enriched_at', null)
+    // ========================================================================
+    // STEP 1: WEBSITE SCRAPING
+    // ========================================================================
     const lockVersion = deal.enriched_at;
 
-    // Get website URL - prefer website field, fallback to extracting from internal_deal_memo_link
-    // Reject LLM placeholder values that may have been written in prior runs
-    const WEBSITE_PLACEHOLDERS = ['<unknown>', 'unknown', 'n/a', 'none', 'null', 'not found', 'not specified', 'not provided'];
+    // Resolve website URL
     let websiteUrl = deal.website;
     if (websiteUrl && WEBSITE_PLACEHOLDERS.includes(websiteUrl.trim().toLowerCase())) {
       console.log(`[Website] Rejecting placeholder website value: "${websiteUrl}"`);
       websiteUrl = null;
     }
-    
+
     if (!websiteUrl && deal.internal_deal_memo_link) {
       const memoLink = deal.internal_deal_memo_link;
-      
-      // Skip SharePoint/OneDrive links
       if (!memoLink.includes('sharepoint.com') && !memoLink.includes('onedrive')) {
-        // Handle "Website: https://..." format
         const websiteMatch = memoLink.match(/Website:\s*(https?:\/\/[^\s]+)/i);
         if (websiteMatch) {
           websiteUrl = websiteMatch[1];
         } else if (memoLink.match(/^https?:\/\/[a-zA-Z0-9]/)) {
-          // Direct URL
           websiteUrl = memoLink;
         } else if (memoLink.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) {
-          // Domain-only format
           websiteUrl = `https://${memoLink}`;
         }
       }
     }
-    
-    if (!websiteUrl) {
-      // Try to infer industry from available context even without a website
-      await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
 
-      // If transcripts were processed, return success with a note about website scraping
+    if (!websiteUrl) {
+      await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       if (transcriptFieldsApplied > 0) {
-        // Mark as enriched since we have transcript data
         const { error: markEnrichedErr } = await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
         if (markEnrichedErr) console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr);
         return new Response(
@@ -865,7 +565,6 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      // Mark as enriched even without transcripts — we tried our best
       const { error: markEnrichedErr2 } = await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
       if (markEnrichedErr2) console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr2);
       return new Response(
@@ -874,23 +573,21 @@ serve(async (req) => {
       );
     }
 
-    // Handle multiple comma-separated URLs — take the first one
+    // Handle multiple comma-separated URLs
     if (websiteUrl.includes(',')) {
       const urls = websiteUrl.split(',').map((u: string) => u.trim()).filter(Boolean);
       websiteUrl = urls[0];
       console.log(`Multiple URLs detected, using first: "${websiteUrl}" (from ${urls.length} URLs)`);
     }
 
-    // Ensure proper URL format
     if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
       websiteUrl = `https://${websiteUrl}`;
     }
 
-    // SECURITY: Validate URL to prevent SSRF attacks
+    // SSRF validation
     const urlValidation = validateUrl(websiteUrl);
     if (!urlValidation.valid) {
       console.error(`SSRF blocked for deal website: ${websiteUrl} - ${urlValidation.reason}`);
-      // If transcripts were processed, return success instead of hard SSRF error
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       if (transcriptFieldsApplied > 0) {
         return new Response(
@@ -912,9 +609,7 @@ serve(async (req) => {
 
     console.log(`Enriching deal ${dealId} from website: ${websiteUrl}`);
 
-    // Check if Firecrawl is configured
     if (!firecrawlApiKey) {
-      // If transcripts were processed, return success with a note about website scraping
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       if (transcriptFieldsApplied > 0) {
         return new Response(
@@ -933,16 +628,7 @@ serve(async (req) => {
       );
     }
 
-    // Timeout constants for external API calls
-    const SCRAPE_TIMEOUT_MS = 30000; // 30 seconds per page
-    const AI_TIMEOUT_MS = 45000; // 45 seconds
-    const MIN_CONTENT_LENGTH = 50; // Minimum chars to proceed with AI (lowered from 200 to allow short-content sites)
-
-    // Step 1: Scrape MULTIPLE pages using Firecrawl
-    // We need to crawl Contact, About, and Services pages to find address information
-    console.log('Scraping website with Firecrawl (multi-page)...');
-
-    // Build list of pages to scrape - homepage + common important pages
+    // Parse URL
     let baseUrl: URL;
     try {
       baseUrl = new URL(websiteUrl);
@@ -967,10 +653,9 @@ serve(async (req) => {
     }
     console.log(`Will scrape homepage only: ${websiteUrl}`);
 
-    // Scrape all pages in parallel (with limit)
+    // Scrape homepage
     const scrapedPages: { url: string; content: string; success: boolean }[] = [];
 
-    // Helper function to scrape a single page
     async function scrapePage(url: string): Promise<{ url: string; content: string; success: boolean }> {
       try {
         const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -985,7 +670,7 @@ serve(async (req) => {
             onlyMainContent: true,
             waitFor: 1000,
           }),
-          signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
+          signal: AbortSignal.timeout(DEAL_SCRAPE_TIMEOUT_MS),
         });
 
         if (!response.ok) {
@@ -1004,15 +689,12 @@ serve(async (req) => {
       }
     }
 
-    // Scrape homepage only for speed (1 Firecrawl call instead of 3)
     const homepageResult = await scrapePage(websiteUrl);
     scrapedPages.push(homepageResult);
 
     if (!homepageResult.success) {
       console.warn('Failed to scrape homepage — marking as enriched with limited data');
-      // Try to infer industry from available context
       await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
-      // Still mark the deal as enriched so it doesn't block the queue
       const { error: markEnrichedErr3 } = await supabase
         .from('listings')
         .update({ enriched_at: new Date().toISOString() })
@@ -1033,11 +715,9 @@ serve(async (req) => {
       );
     }
 
-    // Count successful scrapes
     const successfulScrapes = scrapedPages.filter(p => p.success);
     console.log(`Successfully scraped ${successfulScrapes.length} of ${scrapedPages.length} pages`);
 
-    // Combine all scraped content with page markers
     let websiteContent = '';
     for (const page of scrapedPages) {
       if (page.success && page.content.length > 50) {
@@ -1046,7 +726,6 @@ serve(async (req) => {
       }
     }
 
-    // Log which pages were scraped for diagnostics
     const scrapedPagesSummary = scrapedPages.map(p => ({
       url: p.url,
       success: p.success,
@@ -1054,8 +733,8 @@ serve(async (req) => {
     }));
     console.log('Scrape summary:', JSON.stringify(scrapedPagesSummary));
 
-    if (!websiteContent || websiteContent.length < MIN_CONTENT_LENGTH) {
-      console.log(`Insufficient website content scraped: ${websiteContent.length} chars (need ${MIN_CONTENT_LENGTH}+)`);
+    if (!websiteContent || websiteContent.length < DEAL_MIN_CONTENT_LENGTH) {
+      console.log(`Insufficient website content scraped: ${websiteContent.length} chars (need ${DEAL_MIN_CONTENT_LENGTH}+)`);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       if (transcriptFieldsApplied > 0) {
         return new Response(
@@ -1069,22 +748,18 @@ serve(async (req) => {
         );
       }
       return new Response(
-        JSON.stringify({ success: false, error: `Could not extract sufficient content from website (${websiteContent.length} chars, need ${MIN_CONTENT_LENGTH}+)` }),
+        JSON.stringify({ success: false, error: `Could not extract sufficient content from website (${websiteContent.length} chars, need ${DEAL_MIN_CONTENT_LENGTH}+)` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log(`Scraped ${websiteContent.length} characters from website`);
 
-    // Check if AI gateway is configured
     if (!geminiApiKey) {
-      // Fall back to basic extraction without AI
       console.log('No AI key configured, using basic extraction');
       const updates: Record<string, unknown> = {
         enriched_at: new Date().toISOString(),
       };
-
-      // Basic extraction from website content
       if (!deal.executive_summary && websiteContent.length > 200) {
         updates.executive_summary = websiteContent.substring(0, 500).trim() + '...';
       }
@@ -1106,114 +781,21 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Use AI to extract structured data
+    // ========================================================================
+    // STEP 2: AI EXTRACTION
+    // ========================================================================
     console.log('Extracting deal intelligence with AI...');
 
-const systemPrompt = `You are a SENIOR M&A analyst conducting deep due diligence on an acquisition target. Extract EVERY piece of intelligence from this website content. Be EXHAUSTIVE — capture every detail, no matter how minor. Your output directly drives buyer matching and deal scoring.
+    const userPrompt = buildDealUserPrompt(deal.title, websiteContent);
 
-CRITICAL - COMPANY NAME EXTRACTION:
-- Extract the REAL company name from the website (look in header, logo, footer, about page, legal notices)
-- The company name should be the actual business name, NOT a generic description
-- Examples of GOOD names: "Acme Plumbing Inc.", "Johnson HVAC Services", "Precision Solar LLC"
-- Examples of BAD names: "Performance Marketing Agency", "Home Services Company", "Leading Provider"
-- If you find a generic placeholder title, look harder for the real company name
-
-CRITICAL - ADDRESS EXTRACTION (HIGHEST PRIORITY):
-You MUST extract a physical address. This is required for deal matching. Search AGGRESSIVELY for address information.
-
-WHERE TO FIND ADDRESS (search ALL of these):
-1. **Footer** - Most common location, look for city/state near copyright or contact info
-2. **Contact page** - "Contact Us", "Locations", "Get in Touch" sections
-3. **About page** - "About Us", "Our Story", company history sections
-4. **Header** - Sometimes addresses appear in top navigation
-5. **Google Maps embed** - Look for embedded map with address
-6. **Phone numbers** - Area codes can indicate location (e.g., 214 = Dallas, TX)
-7. **Service area mentions** - "Serving the Dallas-Fort Worth area", "Based in Chicago"
-8. **License/certification info** - Often includes state (e.g., "Licensed in Texas")
-9. **Job postings** - Often mention office location
-10. **Press releases** - Often include headquarters location
-11. **Copyright notices** - May include city/state
-
-EXTRACT INTO STRUCTURED COMPONENTS:
-- street_address: Just the street number and name (e.g., "123 Main Street")
-- address_city: City name ONLY (e.g., "Dallas", "Chicago", "Phoenix")
-- address_state: 2-letter US state code ONLY (e.g., "TX", "IL", "AZ")
-- address_zip: 5-digit ZIP code (e.g., "75201")
-- address_country: Country code, default "US"
-
-INFERENCE RULES (if explicit address not found):
-- If you see "Serving Dallas-Fort Worth" → address_city: "Dallas", address_state: "TX"
-- If you see "Chicago-based" → address_city: "Chicago", address_state: "IL"  
-- If you see "Headquartered in Phoenix, Arizona" → address_city: "Phoenix", address_state: "AZ"
-- If you see a phone area code, infer the city/state from it
-- If you see state licensing info, use that state
-
-DO NOT extract vague regions like "Midwest", "Southeast", "Texas area" for address fields.
-The address_city and address_state fields must be specific - a real city name and 2-letter state code.
-
-DEPTH REQUIREMENTS — Every field must be DETAILED and CONTEXTUAL:
-
-1. **Executive Summary** (3-5 sentences MINIMUM): Write a PE-investor-grade overview. MUST include what the company does, approximate size indicators (employees, locations, years in business), geographic footprint, key differentiators, and why this is an attractive acquisition target. Use specific facts from the website, not vague language. Lead with the most compelling aspect.
-
-2. **Service Mix** (2-4 sentences): Don't just list services — describe the revenue model. Include residential vs commercial split if visible, recurring vs project-based work, how services interrelate, and any specializations or certifications that create competitive moats.
-
-3. **Business Model** (2-4 sentences): Explain HOW the company makes money. Include revenue model (project-based, recurring, subscription, retainer), customer acquisition channels, pricing structure if visible, and contract types. Mention B2B vs B2C split.
-
-4. **Competitive Position** (2-3 sentences): Market positioning, competitive advantages, certifications, awards, years of experience, unique capabilities, preferred vendor relationships, insurance carrier partnerships, or franchise affiliations that differentiate them.
-
-5. **Growth Trajectory** (2-3 sentences): Growth indicators — new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about recent growth, awards for growth. If no explicit growth data, note what expansion levers exist.
-
-6. **Technology Systems** (1-2 sentences): Software platforms, CRM, ERP, scheduling tools, fleet management, industry-specific technology, mobile apps, customer portals mentioned on the site.
-
-7. **Customer Types** (1-2 sentences): Don't just say "residential and commercial" — describe the customer segments with detail. E.g., "Primarily serves property management companies (60%+) and commercial building owners, with a growing residential segment through insurance restoration referrals."
-
-8. **Key Risks** (bullet points): Identify real risk factors visible from the website — owner dependency, single-location concentration, narrow service offering, geographic limitation, regulatory exposure, customer concentration hints.
-
-9. **Real Estate Info**: Owned vs leased facilities, warehouse/shop/office details, facility size if mentioned, multiple location details.
-
-10. **End Market Description** (1-2 sentences): The broader market context — industry trends, demand drivers, fragmentation level, regulatory environment.`;
-
-    const userPrompt = `Analyze this website content from "${deal.title || 'Unknown Company'}" and extract DEEP business intelligence. This data drives M&A buyer matching — every detail matters.
-
-IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
-
-DEPTH REQUIREMENTS:
-- Executive summary: Write 3-5 rich sentences a PE investor can scan in 30 seconds. Include what they do, how big they are, where they operate, what makes them special, and why a buyer would want them.
-- Service mix: Describe the full service portfolio with context — don't just list services. Explain how they fit together, what drives revenue, residential vs commercial mix.
-- Business model: Explain the revenue engine — how they get customers, how they charge, recurring vs one-time, contract structures.
-- Competitive position: What makes them defensible? Certifications, partnerships, reputation, proprietary processes, market share indicators.
-- Growth trajectory: What signals growth or stagnation? New locations, expanding teams, new services, awards, customer volume trends.
-- Customer types: Be specific about segments — not just "commercial" but what KIND of commercial customers.
-- Technology systems: Any software, platforms, tools, or technology investments visible.
-- Key risks: Real operational risks visible from the website.
-
-FINANCIAL DATA POLICY:
-- Do NOT extract any financial information (revenue, EBITDA, margins, etc.) from websites.
-- Financial data may ONLY come from transcripts or manual entry, never from web scraping.
-- If financial figures appear on the website, IGNORE them entirely.
-
-LOCATION COUNT RULES:
-- Count ALL physical locations: offices, branches, shops, stores, facilities
-- Look for patterns: "X locations", "operate out of X", "facilities in"
-- Count individual location mentions if total not stated
-- Single location business = 1
-
-Website Content:
-${websiteContent.substring(0, 25000)}
-
-Extract all available business information using the provided tool. Be EXHAUSTIVE — capture every detail. The address_city and address_state fields are REQUIRED.`;
-
-
-    // Retry logic for AI calls (handles 429 rate limits)
-    const MAX_AI_RETRIES = 3;
-    const AI_RETRY_DELAYS = [2000, 5000, 10000]; // exponential backoff with room for rate-limit recovery
+    const MAX_AI_RETRIES = DEAL_AI_RETRY_CONFIG.maxRetries;
+    const AI_RETRY_DELAYS = DEAL_AI_RETRY_CONFIG.delays;
 
     let aiResponse: Response | null = null;
     let lastAiError = '';
 
     for (let attempt = 0; attempt < MAX_AI_RETRIES; attempt++) {
       try {
-        // Check shared rate-limit coordinator before calling Gemini
         const availability = await checkProviderAvailability(supabase, 'gemini');
         if (!availability.ok && availability.retryAfterMs) {
           const waitMs = Math.min(availability.retryAfterMs, 30000);
@@ -1227,123 +809,16 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           body: JSON.stringify({
             model: DEFAULT_GEMINI_MODEL,
             messages: [
-              { role: 'system', content: systemPrompt },
+              { role: 'system', content: DEAL_SYSTEM_PROMPT },
               { role: 'user', content: userPrompt }
             ],
-            tools: [
-              {
-                type: 'function',
-                function: {
-                  name: 'extract_deal_intelligence',
-                  description: 'Extract comprehensive business/deal intelligence from website content',
-                  parameters: {
-                    type: 'object',
-                    properties: {
-                      internal_company_name: {
-                        type: 'string',
-                        description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
-                      },
-                      executive_summary: {
-                        type: 'string',
-                        description: 'A 3-5 sentence PE-investor-grade summary. MUST include: what the company does, size indicators (employees, locations, years), geographic footprint, key differentiators, and acquisition attractiveness. Use specific facts, not vague language. Lead with the most compelling aspect.'
-                      },
-                      service_mix: {
-                        type: 'string',
-                        description: 'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications. Do NOT just list services — describe the revenue model.'
-                      },
-                      business_model: {
-                        type: 'string',
-                        description: 'Detailed 2-4 sentence description of HOW the business makes money. Include revenue model (project-based, recurring, subscription), customer acquisition channels, pricing structure, B2B vs B2C split, average job size indicators, and contract types.'
-                      },
-                      industry: {
-                        type: 'string',
-                        description: 'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting". Always provide your best classification based on available information — never leave blank.'
-                      },
-                      geographic_states: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations explicitly stated in the text. Do NOT infer neighboring states. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
-                      },
-                      number_of_locations: {
-                        type: 'number',
-                        description: 'Number of physical locations/offices/branches'
-                      },
-                      street_address: {
-                        type: 'string',
-                        description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip. Leave empty/null if not found - do NOT use placeholder values like "Not Found", "N/A", or "Unknown".'
-                      },
-                      address_city: {
-                        type: 'string',
-                        description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
-                      },
-                      address_state: {
-                        type: 'string',
-                        description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
-                      },
-                      address_zip: {
-                        type: 'string',
-                        description: 'ZIP code (e.g., "75201", "90210")'
-                      },
-                      address_country: {
-                        type: 'string',
-                        description: 'Country code, typically "US" or "CA"'
-                      },
-                      founded_year: {
-                        type: 'number',
-                        description: 'Year the company was founded'
-                      },
-                      customer_types: {
-                        type: 'string',
-                        description: 'Detailed 1-2 sentence description of customer segments. Be specific — not just "residential and commercial" but what KIND of customers, their profile, and any concentration patterns visible.'
-                      },
-                      end_market_description: {
-                        type: 'string',
-                        description: 'Broader market context: industry trends, demand drivers, fragmentation level, regulatory environment, and market size indicators (1-2 sentences).'
-                      },
-                      owner_goals: {
-                        type: 'string',
-                        description: 'Any mentioned goals from the owner (exit, growth, succession, etc.)'
-                      },
-                      key_risks: {
-                        type: 'string',
-                        description: 'Bullet-pointed risk factors: owner dependency, single-location risk, narrow service offering, geographic limitation, regulatory exposure, customer concentration, key-man risk, or competitive threats visible from the website.'
-                      },
-                      competitive_position: {
-                        type: 'string',
-                        description: 'Detailed 2-3 sentence market positioning: certifications, awards, years of experience, unique capabilities, preferred vendor relationships, insurance carrier partnerships, franchise affiliations, market share indicators, and what creates a defensible moat.'
-                      },
-                      technology_systems: {
-                        type: 'string',
-                        description: 'Detailed description of software platforms, CRM, ERP, scheduling tools, fleet management, industry-specific technology, mobile apps, customer portals, and any digital transformation investments visible on the site.'
-                      },
-                      real_estate_info: {
-                        type: 'string',
-                        description: 'Detailed facility information: owned vs leased, warehouse/shop/office details, facility size, multiple location descriptions, recent facility investments or expansions.'
-                      },
-                      growth_trajectory: {
-                        type: 'string',
-                        description: 'Detailed 2-3 sentence growth assessment: new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about growth, awards for growth, and what organic/inorganic expansion levers exist.'
-                      },
-                      linkedin_url: {
-                        type: 'string',
-                        description: 'LinkedIn company page URL if found on the website'
-                      },
-                      // Financial fields REMOVED — financial data must NEVER be scraped from websites.
-                      // Revenue, EBITDA, margins, and related fields may only come from transcripts or manual entry.
-                    },
-                    required: ['industry']
-                  }
-                }
-              }
-            ],
+            tools: [DEAL_TOOL_SCHEMA],
             tool_choice: { type: 'function', function: { name: 'extract_deal_intelligence' } }
           }),
-          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+          signal: AbortSignal.timeout(DEAL_AI_TIMEOUT_MS),
         });
 
-        // Check for rate limit (429)
         if (aiResponse.status === 429) {
-          // Report to shared rate-limit coordinator so other workers back off too
           const retryAfterHeader = aiResponse.headers.get('Retry-After');
           let retryAfterSeconds: number | undefined;
           if (retryAfterHeader) {
@@ -1359,12 +834,8 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           continue;
         }
 
-        // If successful, break out of retry loop
-        if (aiResponse.ok) {
-          break;
-        }
+        if (aiResponse.ok) break;
 
-        // Server errors (500, 502, 503, 529) — retry with backoff
         if (aiResponse.status >= 500 || aiResponse.status === 529) {
           lastAiError = await aiResponse.text().catch(() => `HTTP ${aiResponse!.status}`);
           if (attempt < MAX_AI_RETRIES - 1) {
@@ -1377,11 +848,10 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           break;
         }
 
-        // Non-retryable error (4xx except 429) - break immediately, don't waste retries
         lastAiError = await aiResponse.text();
         console.error(`AI non-retryable error (${aiResponse.status}):`, lastAiError);
         break;
-        
+
       } catch (err) {
         lastAiError = getErrorMessage(err);
         console.error(`AI call exception (attempt ${attempt + 1}):`, lastAiError);
@@ -1395,8 +865,8 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       const errorDetail = lastAiError || 'No response from AI provider';
       console.error('AI extraction failed after retries:', errorDetail);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: `AI extraction failed: ${errorDetail.substring(0, 300)}`,
           retries: MAX_AI_RETRIES,
         }),
@@ -1407,7 +877,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     const aiData = await aiResponse.json();
     console.log('AI response:', JSON.stringify(aiData, null, 2));
 
-    // Cost tracking: log Gemini usage (non-blocking)
+    // Cost tracking (non-blocking)
     const geminiUsage = aiData.usage;
     if (geminiUsage) {
       logAICallCost(supabase, 'enrich-deal', 'gemini', DEFAULT_GEMINI_MODEL,
@@ -1416,10 +886,10 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       ).catch(() => {});
     }
 
-    // Extract tool call results
+    // Parse tool call results
     let extracted: Record<string, unknown> = {};
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    
+
     if (toolCall?.function?.arguments) {
       try {
         extracted = JSON.parse(toolCall.function.arguments);
@@ -1431,33 +901,13 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     console.log('Extracted data:', extracted);
 
     // ========================================================================
-    // STRIP FINANCIAL DATA FROM WEBSITE EXTRACTION
-    // Financial data must NEVER come from website scraping — only from transcripts
-    // or manual entry. This is a safety net in case the AI returns financial fields
-    // despite not being asked for them.
+    // STEP 3: VALIDATE + CLEAN EXTRACTED DATA
     // ========================================================================
-    const FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES = [
-      'revenue', 'revenue_value', 'revenue_confidence', 'revenue_is_inferred', 'revenue_source_quote',
-      'ebitda', 'ebitda_amount', 'ebitda_margin', 'ebitda_margin_percentage',
-      'ebitda_confidence', 'ebitda_is_inferred', 'ebitda_source_quote',
-      'financial_notes', 'financial_followup_questions',
-    ];
 
-    for (const field of FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES) {
-      if (extracted[field] !== undefined) {
-        console.log(`🚫 FINANCIAL SCRAPING BLOCKED: Stripping '${field}' from website-extracted data — financial data may only come from transcripts or manual entry`);
-        delete extracted[field];
-      }
-    }
+    // Run all validators (strips financials, cleans addresses, validates LinkedIn, etc.)
+    validateDealExtraction(extracted, websiteContent);
 
-    // Drop any unexpected keys so we never attempt to write missing columns
-    for (const key of Object.keys(extracted)) {
-      if (!VALID_LISTING_UPDATE_KEYS.has(key)) {
-        delete (extracted as Record<string, unknown>)[key];
-      }
-    }
-
-    // Protect manually-set internal_company_name from being overwritten by AI
+    // Protect manually-set internal_company_name from AI overwrite
     if (deal.internal_company_name && extracted.internal_company_name) {
       console.log(`[Enrichment] Preserving existing internal_company_name "${deal.internal_company_name}" (AI suggested: "${extracted.internal_company_name}")`);
       delete extracted.internal_company_name;
@@ -1468,192 +918,9 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       extracted.geographic_states = normalizeStates(extracted.geographic_states as string[]);
     }
 
-    // Validate and clean structured address fields
-    const US_STATE_CODES = new Set([
-      'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-      'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-      'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-      'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC', 'PR'
-    ]);
-    const CA_PROVINCE_CODES = new Set(['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']);
-
-    // Normalize address_state to 2-letter code (handles full names like "Florida" -> "FL")
-    if (extracted.address_state) {
-      const normalized = normalizeState(String(extracted.address_state));
-      if (normalized && (US_STATE_CODES.has(normalized) || CA_PROVINCE_CODES.has(normalized))) {
-        extracted.address_state = normalized;
-      } else {
-        console.log(`Rejecting invalid address_state: "${extracted.address_state}"`);
-        delete extracted.address_state;
-      }
-    }
-
-    // Validate address_zip (US 5-digit or Canadian postal code)
-    if (extracted.address_zip) {
-      const zipStr = String(extracted.address_zip).trim();
-      const usZipPattern = /^\d{5}(-\d{4})?$/;
-      const caPostalPattern = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
-      if (!usZipPattern.test(zipStr) && !caPostalPattern.test(zipStr)) {
-        console.log(`Rejecting invalid address_zip: "${extracted.address_zip}"`);
-        delete extracted.address_zip;
-      } else {
-        extracted.address_zip = zipStr;
-      }
-    }
-
-    // Shared placeholder values for address field cleaning
-    const ADDRESS_PLACEHOLDERS = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
-
-    // Clean address_city - AI sometimes puts full address in city field
-    // We need to extract just the city name
-    if (extracted.address_city) {
-      let cityStr = String(extracted.address_city).trim();
-      
-      // Common patterns where AI puts full address in city field:
-      // "123 Main St. Dallas" -> extract "Dallas"
-      // "23 Westbrook Industrial Park Rd. Westbrook" -> extract "Westbrook"
-      // "456 Oak Ave, Chicago, IL 60601" -> extract "Chicago"
-      
-      // Pattern 1: Full address with comma-separated city,state,zip at end
-      // e.g., "123 Main St, Dallas, TX 75201"
-      const fullAddressPattern = /^(.+?),\s*([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?$/;
-      const fullMatch = cityStr.match(fullAddressPattern);
-      if (fullMatch) {
-        // Extract just the city from the match
-        cityStr = fullMatch[2].trim();
-        // If we don't have street_address, save the street part
-        if (!extracted.street_address && fullMatch[1]) {
-          extracted.street_address = fullMatch[1].trim();
-        }
-        console.log(`Extracted city "${cityStr}" from full address, street: "${fullMatch[1]}"`);
-      }
-      
-      // Pattern 2: Street address followed by city name without proper separators
-      // Look for common street indicators and take what follows
-      // e.g., "23 Westbrook Industrial Park Rd. Westbrook" -> "Westbrook"
-      // e.g., "456 Oak Avenue Suite 200 Chicago" -> "Chicago"
-      if (!fullMatch) {
-        const streetIndicators = /(St\.?|Street|Ave\.?|Avenue|Rd\.?|Road|Dr\.?|Drive|Blvd\.?|Boulevard|Ln\.?|Lane|Way|Ct\.?|Court|Pkwy\.?|Parkway|Pl\.?|Place|Cir\.?|Circle|Park)\s+/i;
-        const streetMatch = cityStr.match(streetIndicators);
-        if (streetMatch && streetMatch.index !== undefined) {
-          // Find the last occurrence of street indicator
-          const lastStreetIndex = cityStr.lastIndexOf(streetMatch[0]);
-          if (lastStreetIndex > 0) {
-            const afterStreet = cityStr.substring(lastStreetIndex + streetMatch[0].length).trim();
-            // Remove trailing state code or zip
-            const cleanedCity = afterStreet.replace(/,?\s*[A-Z]{2}\s*(\d{5})?$/, '').trim();
-            
-            // Only use this if it looks like a city name (1-3 words, no numbers)
-            if (cleanedCity.length > 0 && cleanedCity.length < 50 && !/\d/.test(cleanedCity)) {
-              // Save the street address part
-              if (!extracted.street_address) {
-                extracted.street_address = cityStr.substring(0, lastStreetIndex + streetMatch[0].length - 1).trim();
-              }
-              cityStr = cleanedCity;
-              console.log(`Parsed city "${cityStr}" from combined address, street: "${extracted.street_address}"`);
-            }
-          }
-        }
-      }
-      
-      // Pattern 3: Simple trailing ", ST" pattern
-      cityStr = cityStr.replace(/,\s*[A-Z]{2}$/, '').trim();
-      
-      // Pattern 4: Remove trailing ZIP code
-      cityStr = cityStr.replace(/\s+\d{5}(-\d{4})?$/, '').trim();
-      
-      // Reject placeholder values
-      if (cityStr.length > 0 && cityStr.length < 50 && !ADDRESS_PLACEHOLDERS.includes(cityStr.toLowerCase())) {
-        extracted.address_city = cityStr;
-      } else {
-        console.log(`Rejecting invalid/placeholder address_city: "${extracted.address_city}"`);
-        delete extracted.address_city;
-      }
-    }
-
-    // Clean street_address - reject placeholder values
-    if (extracted.street_address) {
-      const streetStr = String(extracted.street_address).trim();
-      if (streetStr.length > 0 && !ADDRESS_PLACEHOLDERS.includes(streetStr.toLowerCase())) {
-        extracted.street_address = streetStr;
-      } else {
-        console.log(`Rejecting placeholder street_address: "${extracted.street_address}"`);
-        delete extracted.street_address;
-      }
-    }
-
-    // Default address_country to US if we have other address fields
-    if ((extracted.address_city || extracted.address_state) && !extracted.address_country) {
-      extracted.address_country = 'US';
-    }
-
-    // IMPORTANT: Remove 'location' from extracted data - we never update it from enrichment
-    // The 'location' field is for marketplace anonymity (e.g., "Southeast US")
-    delete extracted.location;
-
     // ========================================================================
-    // ENHANCED LOCATION COUNT EXTRACTION (per spec)
+    // STEP 4: EXTERNAL ENRICHMENT (LinkedIn + Google Reviews)
     // ========================================================================
-    
-    // If AI didn't extract location count, try regex patterns on content
-    if (!extracted.number_of_locations) {
-      const locationPatterns = [
-        /(\d+)\s+(?:staffed\s+)?locations?/i,
-        /(\d+)\s+offices?/i,
-        /(\d+)\s+branches?/i,
-        /(\d+)\s+stores?/i,
-        /(\d+)\s+shops?/i,
-        /(\d+)\s+facilities/i,
-        /operate\s+out\s+of\s+(\d+)/i,
-        /(\d+)\s+sites?\s+across/i,
-      ];
-      
-      for (const pattern of locationPatterns) {
-        const match = websiteContent.match(pattern);
-        if (match) {
-          const count = parseInt(match[1], 10);
-          if (count > 0 && count < 1000) { // Sanity check
-            extracted.number_of_locations = count;
-            console.log(`Extracted location count via regex: ${count}`);
-            break;
-          }
-        }
-      }
-      
-      // If still no count, check for "multiple locations" -> estimate 3
-      if (!extracted.number_of_locations) {
-        if (/multiple\s+locations?/i.test(websiteContent)) {
-          extracted.number_of_locations = 3;
-          console.log('Inferred multiple locations as 3');
-        } else if (/several\s+locations?/i.test(websiteContent)) {
-          extracted.number_of_locations = 4;
-          console.log('Inferred several locations as 4');
-        }
-      }
-    }
-
-    // Validate and normalize linkedin_url - must be a DIRECT linkedin.com/company/ URL
-    if (extracted.linkedin_url) {
-      const linkedinUrlStr = String(extracted.linkedin_url).trim();
-      // Only accept direct LinkedIn company URLs, reject Google/search/redirect URLs
-      const linkedinCompanyPattern = /^https?:\/\/(www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+\/?$/;
-      if (linkedinCompanyPattern.test(linkedinUrlStr)) {
-        // Normalize to consistent format
-        const match = linkedinUrlStr.match(/linkedin\.com\/company\/([^\/\?]+)/);
-        if (match) {
-          extracted.linkedin_url = `https://www.linkedin.com/company/${match[1]}`;
-          console.log(`Validated LinkedIn URL: ${extracted.linkedin_url}`);
-        }
-      } else {
-        console.log(`Rejecting non-direct LinkedIn URL: "${linkedinUrlStr}"`);
-        delete extracted.linkedin_url;
-      }
-    }
-
-    // Try to fetch LinkedIn data if we have a URL or company name
-    // skipExternalEnrichment=true when called from enrichmentPipeline (which calls these separately
-    // at the pipeline level to avoid nested function timeout chains)
     const linkedinUrl = extracted.linkedin_url as string | undefined;
     const companyName = (extracted.internal_company_name || deal.internal_company_name || deal.title) as string | undefined;
 
@@ -1674,17 +941,16 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
             companyName,
             city: extracted.address_city || deal.address_city,
             state: extracted.address_state || deal.address_state,
-            dealId: dealId, // Let the function update directly too as backup
-            companyWebsite: websiteUrl || deal.website, // Required for website verification
+            dealId: dealId,
+            companyWebsite: websiteUrl || deal.website,
           }),
-          signal: AbortSignal.timeout(180000), // 180 seconds — multi-candidate ranking can scrape up to 3 profiles
+          signal: AbortSignal.timeout(180000),
         });
 
         if (linkedinResponse.ok) {
           const linkedinData = await linkedinResponse.json();
           if (linkedinData.success && linkedinData.scraped) {
             console.log('LinkedIn data retrieved:', linkedinData);
-
             if (linkedinData.linkedin_employee_count) {
               extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
             }
@@ -1701,15 +967,12 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           console.warn('LinkedIn scrape failed:', linkedinResponse.status);
         }
       } catch (linkedinError) {
-        // Non-blocking - LinkedIn enrichment is optional
         console.warn('LinkedIn enrichment failed (non-blocking):', linkedinError);
       }
     } else if (skipExternalEnrichment) {
       console.log('[enrich-deal] Skipping LinkedIn/Google (handled by pipeline)');
     }
 
-    // Try to fetch Google reviews data
-    // Use company name and location for search
     if (!skipExternalEnrichment) {
       const googleSearchName = companyName || deal.title;
       const googleLocation = (extracted.address_city && extracted.address_state)
@@ -1734,9 +997,9 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
               businessName: googleSearchName,
               city: extracted.address_city || deal.address_city,
               state: extracted.address_state || deal.address_state,
-              dealId: dealId, // Let the function update directly
+              dealId: dealId,
             }),
-            signal: AbortSignal.timeout(95000), // Slightly longer than Google scraper's 90s timeout
+            signal: AbortSignal.timeout(95000),
           });
 
           if (googleResponse.ok) {
@@ -1750,13 +1013,14 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
             console.warn('Google reviews scrape failed:', googleResponse.status);
           }
         } catch (googleError) {
-          // Non-blocking - Google enrichment is optional
           console.warn('Google reviews enrichment failed (non-blocking):', googleError);
         }
       }
     }
 
-    // Build priority-aware updates using shared module
+    // ========================================================================
+    // STEP 5: WRITE TO DATABASE
+    // ========================================================================
     const { updates, sourceUpdates } = buildPriorityUpdates(
       deal,
       deal.extraction_sources,
@@ -1764,15 +1028,13 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       'website'
     );
 
-    // Add enriched_at timestamp
     const finalUpdates: Record<string, unknown> = {
       ...updates,
       enriched_at: new Date().toISOString(),
-      last_enriched_at: new Date().toISOString(), // For auto-enrichment cache
+      last_enriched_at: new Date().toISOString(),
       extraction_sources: updateExtractionSources(deal.extraction_sources, sourceUpdates),
     };
 
-    // Merge geographic states if both exist (website shouldn't overwrite existing)
     if (updates.geographic_states && deal.geographic_states?.length > 0) {
       finalUpdates.geographic_states = mergeStates(
         deal.geographic_states,
@@ -1780,17 +1042,14 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       );
     }
 
-    // Update the listing with optimistic locking
     let updateQuery = supabase
       .from('listings')
       .update(finalUpdates)
       .eq('id', dealId);
 
-    // Apply optimistic lock: only update if version hasn't changed
     if (lockVersion) {
       updateQuery = updateQuery.eq('enriched_at', lockVersion);
     } else {
-      // If never enriched before, ensure it's still null
       updateQuery = updateQuery.is('enriched_at', null);
     }
 
@@ -1808,10 +1067,8 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       );
     }
 
-    // Check for optimistic lock conflict
     if (!updateResult || updateResult.length === 0) {
       console.warn(`Optimistic lock conflict for deal ${dealId} - record was modified by another process`);
-      // Return 409 Conflict so queue processor can retry or skip properly
       return new Response(
         JSON.stringify({
           success: false,
@@ -1825,7 +1082,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
 
     const websiteFieldsUpdated = Object.keys(updates);
 
-    // If industry is STILL missing after extraction, infer it from context
+    // Fallback industry inference
     if (!updates.industry && !deal.industry) {
       try {
         const inferred = await inferIndustryFromContext(
@@ -1843,7 +1100,6 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       }
     }
 
-    // Merge transcript + website fields into one list (deduplicated)
     const allFieldsUpdated = [...new Set([...transcriptFieldNames, ...websiteFieldsUpdated])];
     console.log(`Updated ${allFieldsUpdated.length} fields (${transcriptFieldNames.length} transcript + ${websiteFieldsUpdated.length} website):`, allFieldsUpdated);
 
@@ -1854,14 +1110,12 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           (transcriptFieldNames.length > 0 ? ` (${transcriptFieldNames.length} from transcripts, ${websiteFieldsUpdated.length} from website)` : ''),
         fieldsUpdated: allFieldsUpdated,
         extracted,
-        // "What We Scraped" diagnostic report
         scrapeReport: {
           totalPagesAttempted: scrapedPages.length,
           successfulPages: successfulScrapes.length,
           totalCharactersScraped: websiteContent.length,
           pages: scrapedPagesSummary,
         },
-        // Transcript processing report
         transcriptReport,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
