@@ -45,6 +45,7 @@ import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore, PipelineSummaryCard, DealBuyerChat, DealSourceBadge } from "@/components/remarketing";
 import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
 import { FirefliesTranscriptSync } from "@/components/remarketing/FirefliesTranscriptSync";
+import { FirefliesManualLink } from "@/components/remarketing/FirefliesManualLink";
 import {
   GeneralNotesSection,
   OwnerResponseSection,
@@ -1085,7 +1086,16 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-      {/* Transcripts Section */}
+      {/* Manual Fireflies Search & Link */}
+      <FirefliesManualLink
+        listingId={dealId!}
+        companyName={deal.internal_company_name || deal.title || ''}
+        onTranscriptLinked={() => {
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+        }}
+      />
+
+
       <DealTranscriptSection
         dealId={dealId!}
         transcripts={transcripts || []}
