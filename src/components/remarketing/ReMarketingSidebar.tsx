@@ -10,7 +10,7 @@ import {
   ChevronRight,
   BarChart3,
   Settings,
-  Trophy,
+  
   Handshake,
   Activity,
   Crosshair,
@@ -79,11 +79,6 @@ export function ReMarketingSidebar() {
       label: "Analytics",
       href: "/admin/remarketing/analytics",
       icon: <BarChart3 className="h-5 w-5" />,
-    },
-    {
-      label: "Advanced Analytics",
-      href: "/admin/remarketing/analytics/advanced",
-      icon: <Trophy className="h-5 w-5" />,
     },
     {
       label: "Activity Queue",
