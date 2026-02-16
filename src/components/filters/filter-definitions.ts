@@ -559,6 +559,7 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     group: "Business",
     icon: Briefcase,
     dynamicOptions: true,
+    accessor: (item: any) => item.industry || item.category || "",
   },
   {
     key: "linkedin_employee_count",
