@@ -6,16 +6,18 @@
  *
  * Priority order:
  *   1. Safelist (RIA, CPA, law, consulting, insurance, services) → KEEP
- *   2. Blocklist keywords → EXCLUDE
- *   3. Company name patterns → EXCLUDE
- *   4. Title + name pattern combo → EXCLUDE
- *   5. Default → KEEP
+ *   2. Blocklist keywords (name + description + industry text) → EXCLUDE
+ *   3. Industry field (enriched label, e.g. "Private Equity") → EXCLUDE
+ *   4. Company name patterns → EXCLUDE
+ *   5. Title + name pattern combo → EXCLUDE
+ *   6. Default → KEEP
  */
 
 export interface ExclusionInput {
   companyName: string | null;
   description: string | null;
   contactTitle: string | null;
+  industry: string | null;
 }
 
 export interface ExclusionResult {
@@ -115,6 +117,8 @@ const SAFELIST: Record<string, string[]> = {
 const BLOCKLIST: Record<string, string[]> = {
   pe_buyout: [
     "private equity",
+    "private investment firm",
+    "investment firm",
     "buyout fund",
     "buyout firm",
     "growth equity",
@@ -226,9 +230,10 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
   const name = (input.companyName || "").toLowerCase().trim();
   const desc = (input.description || "").toLowerCase().trim();
   const title = (input.contactTitle || "").toLowerCase().trim();
+  const industry = (input.industry || "").toLowerCase().trim();
 
-  // Combined text for keyword searches
-  const combined = `${name} ${desc}`;
+  // Combined text for keyword searches (includes description + industry)
+  const combined = `${name} ${desc} ${industry}`;
 
   // Nothing to check
   if (!name && !desc) {
@@ -267,7 +272,35 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
     }
   }
 
-  // ── 3. NAME PATTERN CHECK (company name only) ──
+  // ── 3. INDUSTRY FIELD CHECK (enriched industry label) ──
+  if (industry) {
+    const excludedIndustries: Record<string, string> = {
+      "private equity": "PE/Buyout",
+      "venture capital": "Venture Capital",
+      "investment banking": "Investment Banking",
+      "m&a advisory": "M&A Advisory",
+      "financial advisory": "M&A Advisory",
+      "business brokerage": "Investment Banking",
+      "hedge fund": "PE/Buyout",
+    };
+    for (const [industryKey, categoryLabel] of Object.entries(excludedIndustries)) {
+      if (industry.includes(industryKey)) {
+        return {
+          excluded: true,
+          reason: `Industry: "${input.industry}" matches excluded industry "${industryKey}"`,
+          category: Object.keys(BLOCKLIST).find(k =>
+            categoryLabel === ({
+              pe_buyout: "PE/Buyout", vc: "Venture Capital", ma_advisory: "M&A Advisory",
+              investment_banking: "Investment Banking", family_office: "Family Office",
+              search_fund: "Search Fund",
+            } as Record<string, string>)[k]
+          ) || "industry_match",
+        };
+      }
+    }
+  }
+
+  // ── 4. NAME PATTERN CHECK (company name only) ──
   if (name && NAME_SUFFIX_PATTERN.test(name)) {
     return {
       excluded: true,
@@ -284,7 +317,7 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
     };
   }
 
-  // ── 4. TITLE-SUPPORTED CHECK (title + name pattern combo) ──
+  // ── 5. TITLE-SUPPORTED CHECK (title + name pattern combo) ──
   if (title && name) {
     const hasFinanceTitle = FINANCE_TITLES.some((ft) => title.includes(ft));
     const hasNamePattern = NAME_SUFFIX_PATTERN.test(name);
@@ -298,7 +331,7 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
     }
   }
 
-  // ── 5. DEFAULT: KEEP ──
+  // ── 6. DEFAULT: KEEP ──
   return { excluded: false, reason: "No exclusion signals", category: "kept" };
 }
 
@@ -313,6 +346,7 @@ export const EXCLUSION_CATEGORY_LABELS: Record<string, string> = {
   search_fund: "Search Fund",
   name_pattern: "Name Pattern",
   title_supported: "Title + Name Pattern",
+  industry_match: "Industry Match",
   safelisted: "Safelisted",
   kept: "Kept",
 };

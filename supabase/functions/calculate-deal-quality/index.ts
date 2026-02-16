@@ -30,7 +30,23 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const ebitda = normalizeFinancial(deal.ebitda || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
 
-  const employeeCount = deal.linkedin_employee_count || 0;
+  // Employee count fallback chain: linkedin count → full_time_employees → parsed linkedin_employee_range
+  let employeeCount = deal.linkedin_employee_count || deal.full_time_employees || 0;
+  if (!employeeCount && deal.linkedin_employee_range) {
+    const rangeStr = String(deal.linkedin_employee_range);
+    const rangeMatch = rangeStr.match(/(\d{1,3}(?:,\d{3})*)\s*[-–]\s*(\d{1,3}(?:,\d{3})*)/);
+    if (rangeMatch) {
+      const low = parseInt(rangeMatch[1].replace(/,/g, ''), 10);
+      const high = parseInt(rangeMatch[2].replace(/,/g, ''), 10);
+      employeeCount = Math.round((low + high) / 2);
+      notes.push(`Employee range parsed: "${rangeStr}" → ~${employeeCount}`);
+    } else {
+      const plusMatch = rangeStr.match(/(\d{1,3}(?:,\d{3})*)\+/);
+      if (plusMatch) {
+        employeeCount = parseInt(plusMatch[1].replace(/,/g, ''), 10);
+      }
+    }
+  }
   const reviewCount = deal.google_review_count || 0;
   const googleRating = deal.google_rating || 0;
 
@@ -109,7 +125,30 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     sizeScore = Math.min(90, empPts + revPts + ratPts);
 
     if (sizeScore === 0) {
-      notes.push('No financials or proxy data');
+      // Baseline floor for enriched deals — don't punish for missing size data
+      let baselineScore = 0;
+      const hasIndustry = !!deal.industry;
+      const hasDescription = !!(deal.description || deal.executive_summary);
+      const hasWebsite = !!deal.website;
+      const isEnriched = !!deal.enriched_at;
+
+      if (isEnriched) baselineScore += 3;
+      if (hasIndustry) baselineScore += 3;
+      if (hasDescription) baselineScore += 3;
+      if (hasWebsite) baselineScore += 3;
+
+      if (baselineScore > 0) {
+        sizeScore = Math.min(12, baselineScore);
+        const signals = [
+          isEnriched && 'enriched',
+          hasIndustry && 'industry',
+          hasDescription && 'description',
+          hasWebsite && 'website',
+        ].filter(Boolean).join(', ');
+        notes.push(`Baseline score (no size data yet): ${signals}`);
+      } else {
+        notes.push('No financials or proxy data');
+      }
     } else {
       notes.push('No financials — using proxy signals');
     }
@@ -169,7 +208,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     revenue_score: hasFinancials ? revenueScore : undefined,
     ebitda_score: hasFinancials ? ebitdaScore : undefined,
     linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
-    quality_calculation_version: 'v4',
+    quality_calculation_version: 'v5',
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
