@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { checkCompanyExclusion } from "../_shared/captarget-exclusion-filter.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -271,6 +272,9 @@ serve(async (req) => {
   let rowsSkipped = 0;
   let filteredByMeta = 0;
   let filteredByData = 0;
+  let rowsExcluded = 0;
+  const exclusionReasons: Array<{ company: string; reason: string; category: string }> = [];
+  let exclusionsToLog: any[] = [];
   let syncStatus = "success";
   const tabsProcessed: string[] = [];
 
@@ -441,6 +445,35 @@ serve(async (req) => {
             const { status, pushed_to_all_deals, deal_source, is_internal_deal, captarget_row_hash, ...updateFields } = record;
             toUpdate.push({ id: existingId, ...updateFields });
           } else {
+            // Check if this company is a non-acquisition-target (PE/VC/advisory/etc.)
+            const exclusionCheck = checkCompanyExclusion({
+              companyName: record.internal_company_name || record.title,
+              description: record.captarget_call_notes,
+              contactTitle: record.main_contact_title,
+            });
+
+            if (exclusionCheck.excluded) {
+              rowsExcluded++;
+              if (exclusionReasons.length < 200) {
+                exclusionReasons.push({
+                  company: record.internal_company_name || record.title || "Unknown",
+                  reason: exclusionCheck.reason,
+                  category: exclusionCheck.category,
+                });
+              }
+              exclusionsToLog.push({
+                company_name: record.internal_company_name || record.title,
+                contact_title: record.main_contact_title,
+                description_snippet: (record.captarget_call_notes || "").slice(0, 500),
+                exclusion_reason: exclusionCheck.reason,
+                exclusion_category: exclusionCheck.category,
+                source: "sync",
+                captarget_row_hash: record.captarget_row_hash,
+                raw_row_data: record,
+              });
+              continue;
+            }
+
             // deal_identifier is assigned by DB trigger via nextval('deal_identifier_seq')
             toInsert.push(record);
           }
@@ -535,7 +568,17 @@ serve(async (req) => {
           }
         }
 
-        console.log(`Batch at row ${i}: +${rowsInserted} total inserted, ~${toUpdate.length} updated this batch`);
+        // Log exclusions in bulk
+        if (exclusionsToLog.length > 0) {
+          for (let el = 0; el < exclusionsToLog.length; el += INSERT_CHUNK) {
+            const chunk = exclusionsToLog.slice(el, el + INSERT_CHUNK);
+            const { error: exclErr } = await supabase.from("captarget_sync_exclusions").insert(chunk);
+            if (exclErr) console.error("Failed to log exclusions:", exclErr.message);
+          }
+          exclusionsToLog = [];
+        }
+
+        console.log(`Batch at row ${i}: +${rowsInserted} inserted, ~${toUpdate.length} updated, ${rowsExcluded} excluded`);
       }
 
       if (hasMore) break;
@@ -556,6 +599,7 @@ serve(async (req) => {
       rows_inserted: rowsInserted,
       rows_updated: rowsUpdated,
       rows_skipped: rowsSkipped,
+      rows_excluded: rowsExcluded,
       errors: syncErrors.length > 0
         ? syncErrors.slice(0, 100).concat(syncErrors.length > 100 ? [{ truncated: syncErrors.length - 100 }] : [])
         : null,
@@ -574,6 +618,8 @@ serve(async (req) => {
     rows_inserted: rowsInserted,
     rows_updated: rowsUpdated,
     rows_skipped: rowsSkipped,
+    rows_excluded: rowsExcluded,
+    exclusion_summary: exclusionReasons.slice(0, 50),
     duration_ms: durationMs,
     error_count: syncErrors.length,
     hasMore,
