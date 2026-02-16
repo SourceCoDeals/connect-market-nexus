@@ -583,40 +583,10 @@ async function extractPEIntelligence(content: string, apiKey: string): Promise<a
 }
 
 // ============================================================================
-// PROMPT 6: SIZE CRITERIA (PE FIRM)
+// PROMPT 6: SIZE CRITERIA — REMOVED
+// Financial data (revenue/EBITDA ranges) must NEVER come from website scraping.
+// Size criteria may only be populated from transcripts or manual entry.
 // ============================================================================
-
-const PROMPT_6_SIZE = {
-  name: 'extract_size_criteria',
-  description: 'Extract size/financial criteria from PE firm website',
-  input_schema: {
-    type: 'object',
-    properties: {
-      min_revenue: { type: 'integer', description: 'Minimum revenue in dollars (e.g., 10000000 for $10M)' },
-      max_revenue: { type: 'integer', description: 'Maximum revenue in dollars' },
-      revenue_sweet_spot: { type: 'integer', description: 'Ideal revenue target in dollars' },
-      min_ebitda: { type: 'integer', description: 'Minimum EBITDA in dollars' },
-      max_ebitda: { type: 'integer', description: 'Maximum EBITDA in dollars' },
-      ebitda_sweet_spot: { type: 'integer', description: 'Ideal EBITDA target in dollars' },
-    },
-  },
-};
-
-const PROMPT_6_SYSTEM = `Extract revenue and EBITDA criteria from PE firm website.
-
-CRITICAL RULES:
-1. Revenue and EBITDA values must be in DOLLARS, not multiples
-2. If you see "5x EBITDA" - this is a MULTIPLE, not a dollar amount. Return null.
-3. Valid examples: "$5M EBITDA", "$5 million EBITDA", "EBITDA of $5,000,000"
-4. Invalid examples: "5x EBITDA", "5-7x", "mid-single digit multiples"
-
-If no dollar amounts are explicitly stated, return null for all fields.`;
-
-async function extractSizeCriteria(content: string, apiKey: string): Promise<any> {
-  console.log('Running Prompt 6: Size Criteria');
-  const userPrompt = `PE Firm Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the size/financial criteria. Only extract DOLLAR amounts, not multiples.`;
-  return await callGeminiAI(PROMPT_6_SYSTEM, userPrompt, PROMPT_6_SIZE, apiKey);
-}
 
 // ============================================================================
 // VALIDATION FUNCTIONS
