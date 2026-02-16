@@ -1,7 +1,15 @@
--- First, copy any deal_quality_score values to deal_total_score where deal_total_score is null
-UPDATE public.listings 
-SET deal_total_score = deal_quality_score 
-WHERE deal_total_score IS NULL AND deal_quality_score IS NOT NULL;
+-- First, copy any deal_quality_score values to deal_total_score (only if column still exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'listings' AND column_name = 'deal_quality_score'
+  ) THEN
+    UPDATE public.listings
+    SET deal_total_score = deal_quality_score
+    WHERE deal_total_score IS NULL AND deal_quality_score IS NOT NULL;
+  END IF;
+END $$;
 
 -- Drop the view that depends on the column first
 DROP VIEW IF EXISTS public.ranked_deals;
