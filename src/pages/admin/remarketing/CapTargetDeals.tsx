@@ -803,13 +803,13 @@ export default function CapTargetDeals() {
       });
       setSelectedIds(new Set());
       setShowArchiveDialog(false);
-      refetch();
+      await queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Archive Failed', description: err.message });
     } finally {
       setIsArchiving(false);
     }
-  }, [selectedIds, toast, refetch]);
+  }, [selectedIds, toast, queryClient]);
 
   // Permanently delete selected deals
   const handleBulkDelete = useCallback(async () => {
@@ -837,13 +837,13 @@ export default function CapTargetDeals() {
       });
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
-      refetch();
+      await queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Delete Failed', description: err.message });
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedIds, toast, refetch]);
+  }, [selectedIds, toast, queryClient]);
 
   const interestTypeLabel = (type: string | null) => {
     switch (type) {
