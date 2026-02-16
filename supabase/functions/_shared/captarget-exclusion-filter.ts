@@ -6,10 +6,11 @@
  *
  * Priority order:
  *   1. Safelist (RIA, CPA, law, consulting, insurance, services) → KEEP
- *   2. Blocklist keywords → EXCLUDE
- *   3. Company name patterns → EXCLUDE
- *   4. Title + name pattern combo → EXCLUDE
- *   5. Default → KEEP
+ *   2. Blocklist keywords (name + description + industry text) → EXCLUDE
+ *   3. Industry field (enriched label, e.g. "Private Equity") → EXCLUDE
+ *   4. Company name patterns → EXCLUDE
+ *   5. Title + name pattern combo → EXCLUDE
+ *   6. Default → KEEP
  */
 
 export interface ExclusionInput {
@@ -116,6 +117,8 @@ const SAFELIST: Record<string, string[]> = {
 const BLOCKLIST: Record<string, string[]> = {
   pe_buyout: [
     "private equity",
+    "private investment firm",
+    "investment firm",
     "buyout fund",
     "buyout firm",
     "growth equity",
@@ -247,8 +250,8 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
   const title = (input.contactTitle || "").toLowerCase().trim();
   const industry = (input.industry || "").toLowerCase().trim();
 
-  // Combined text for keyword searches
-  const combined = `${name} ${desc}`;
+  // Combined text for keyword searches (includes description + industry)
+  const combined = `${name} ${desc} ${industry}`;
 
   // Nothing to check
   if (!name && !desc && !industry) {
@@ -317,7 +320,7 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
     };
   }
 
-  // ── 4. TITLE-SUPPORTED CHECK (title + name pattern combo) ──
+  // ── 5. TITLE-SUPPORTED CHECK (title + name pattern combo) ──
   if (title && name) {
     const hasFinanceTitle = FINANCE_TITLES.some((ft) => title.includes(ft));
     const hasNamePattern = NAME_SUFFIX_PATTERN.test(name);
@@ -331,7 +334,7 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
     }
   }
 
-  // ── 5. DEFAULT: KEEP ──
+  // ── 6. DEFAULT: KEEP ──
   return { excluded: false, reason: "No exclusion signals", category: "kept" };
 }
 
@@ -347,6 +350,7 @@ export const EXCLUSION_CATEGORY_LABELS: Record<string, string> = {
   name_pattern: "Name Pattern",
   industry_blocked: "Industry Blocked",
   title_supported: "Title + Name Pattern",
+  industry_match: "Industry Match",
   safelisted: "Safelisted",
   kept: "Kept",
 };

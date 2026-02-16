@@ -12,8 +12,9 @@ interface DealQualityScores {
   revenue_score?: number;
   ebitda_score?: number;
   linkedin_boost?: number;
-  quality_calculation_version?: string;
+  quality_calculation_version: string;
   scoring_notes?: string;
+  scoring_confidence: string;
 }
 
 // Parse linkedin_employee_range strings like "11-50 employees" → midpoint estimate
@@ -60,38 +61,56 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   let sizeFloor = 0;
   let sizeScore = 0;
 
+  // ── Path A: Has financials ──
   if (hasFinancials) {
-    if (revenue >= 100000000)     revenueScore = 75;
-    else if (revenue >= 50000000) revenueScore = 70;
-    else if (revenue >= 25000000) revenueScore = 64;
-    else if (revenue >= 10000000) revenueScore = 58;
-    else if (revenue >= 7000000)  revenueScore = 50;
-    else if (revenue >= 5000000)  revenueScore = 44;
-    else if (revenue >= 3000000)  revenueScore = 37;
-    else if (revenue >= 2000000)  revenueScore = 28;
-    else if (revenue >= 1000000)  revenueScore = 20;
-    else if (revenue >= 500000)   revenueScore = 10;
-    else if (revenue > 0)         revenueScore = 5;
+    if (revenue >= 100_000_000)     revenueScore = 75;
+    else if (revenue >= 50_000_000) revenueScore = 70;
+    else if (revenue >= 25_000_000) revenueScore = 64;
+    else if (revenue >= 10_000_000) revenueScore = 58;
+    else if (revenue >= 7_000_000)  revenueScore = 50;
+    else if (revenue >= 5_000_000)  revenueScore = 44;
+    else if (revenue >= 3_000_000)  revenueScore = 37;
+    else if (revenue >= 2_000_000)  revenueScore = 28;
+    else if (revenue >= 1_000_000)  revenueScore = 20;
+    else if (revenue >= 500_000)    revenueScore = 10;
+    else if (revenue > 0)           revenueScore = 5;
 
-    if (ebitda >= 5000000)        ebitdaScore = 15;
-    else if (ebitda >= 3000000)   ebitdaScore = 13;
-    else if (ebitda >= 2000000)   ebitdaScore = 11;
-    else if (ebitda >= 1000000)   ebitdaScore = 9;
-    else if (ebitda >= 500000)    ebitdaScore = 7;
-    else if (ebitda >= 300000)    ebitdaScore = 5;
-    else if (ebitda >= 150000)    ebitdaScore = 3;
+    if (ebitda >= 5_000_000)        ebitdaScore = 15;
+    else if (ebitda >= 3_000_000)   ebitdaScore = 13;
+    else if (ebitda >= 2_000_000)   ebitdaScore = 11;
+    else if (ebitda >= 1_000_000)   ebitdaScore = 9;
+    else if (ebitda >= 500_000)     ebitdaScore = 7;
+    else if (ebitda >= 300_000)     ebitdaScore = 5;
+    else if (ebitda >= 150_000)     ebitdaScore = 3;
 
     sizeScore = Math.min(90, revenueScore + ebitdaScore);
 
-    if (revenue >= 50000000)      { sizeFloor = 90; notes.push('$50M+ revenue'); }
-    else if (revenue >= 25000000) { sizeFloor = 85; notes.push('$25M+ revenue'); }
-    else if (revenue >= 10000000) { sizeFloor = 80; notes.push('$10M+ revenue'); }
-    else if (revenue >= 7000000)  { sizeFloor = 75; notes.push('$7M+ revenue'); }
-    else if (revenue >= 5000000)  { sizeFloor = 70; notes.push('$5M+ revenue'); }
+    // Size floors for large financials
+    if (revenue >= 50_000_000)      { sizeFloor = 90; }
+    else if (revenue >= 25_000_000) { sizeFloor = 85; }
+    else if (revenue >= 10_000_000) { sizeFloor = 80; }
+    else if (revenue >= 7_000_000)  { sizeFloor = 75; }
+    else if (revenue >= 5_000_000)  { sizeFloor = 70; }
 
-    if (ebitda >= 5000000 && sizeFloor < 90) { sizeFloor = 90; notes.push('$5M+ EBITDA'); }
-    else if (ebitda >= 3000000 && sizeFloor < 85) { sizeFloor = 85; notes.push('$3M+ EBITDA'); }
+    if (ebitda >= 5_000_000 && sizeFloor < 90)      { sizeFloor = 90; }
+    else if (ebitda >= 3_000_000 && sizeFloor < 85)  { sizeFloor = 85; }
 
+    // Apply financial size floor before industry multiplier
+    sizeScore = Math.max(sizeScore, sizeFloor);
+
+    const revLabel = revenue >= 100_000_000 ? '$100M+' : revenue >= 50_000_000 ? '$50M+' : revenue >= 25_000_000 ? '$25M+'
+      : revenue >= 10_000_000 ? '$10M+' : revenue >= 7_000_000 ? '$7M+' : revenue >= 5_000_000 ? '$5M+'
+      : revenue >= 3_000_000 ? '$3M+' : revenue >= 2_000_000 ? '$2M+' : revenue >= 1_000_000 ? '$1M+'
+      : revenue >= 500_000 ? '$500K+' : '$0+';
+    notes.push(`${revLabel} revenue`);
+    if (ebitda > 0) {
+      const ebitdaLabel = ebitda >= 5_000_000 ? '$5M+' : ebitda >= 3_000_000 ? '$3M+' : ebitda >= 2_000_000 ? '$2M+'
+        : ebitda >= 1_000_000 ? '$1M+' : ebitda >= 500_000 ? '$500K+' : ebitda >= 300_000 ? '$300K+'
+        : ebitda >= 150_000 ? '$150K+' : '<$150K';
+      notes.push(`${ebitdaLabel} EBITDA`);
+    }
+
+  // ── Path B: No financials ──
   } else {
     // No financials — use proxy signals for size estimation
     let empPts = 0;
@@ -105,29 +124,39 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (employeeCount >= 3)  empPts = 12;
     else if (employeeCount > 0)   empPts = 6;
 
+    // Step 1-2: Employee scoring
+    let empScore = 0;
     if (employeeCount > 0) {
       linkedinBoost = empPts;
       notes.push(`${employeeSource}: ~${Math.round(employeeCount)} employees (size proxy)`);
     }
 
-    let revPts = 0;
-    if (reviewCount >= 200)       revPts = 15;
-    else if (reviewCount >= 100)  revPts = 12;
-    else if (reviewCount >= 50)   revPts = 9;
-    else if (reviewCount >= 20)   revPts = 6;
-    else if (reviewCount > 0)     revPts = 3;
+    // Step 3: Google review fallback — ONLY if zero employees AND <3 locations
+    let reviewScore = 0;
+    if (employeeCount === 0 && locationCount < 3) {
+      const reviewCount = deal.google_review_count || 0;
+      if (reviewCount >= 500)       reviewScore = 20;
+      else if (reviewCount >= 200)  reviewScore = 15;
+      else if (reviewCount >= 100)  reviewScore = 10;
+      else if (reviewCount >= 50)   reviewScore = 7;
+      else if (reviewCount >= 20)   reviewScore = 4;
+      else if (reviewCount > 0)     reviewScore = 2;
 
-    let ratPts = 0;
-    if (googleRating >= 4.5)      ratPts = 15;
-    else if (googleRating >= 4.0) ratPts = 12;
-    else if (googleRating >= 3.5) ratPts = 9;
-    else if (googleRating >= 3.0) ratPts = 3;
-
-    if (reviewCount > 0) {
-      notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating`);
+      if (reviewCount > 0) {
+        notes.push(`Google: ${reviewCount} reviews (fallback)`);
+      }
     }
 
-    sizeScore = Math.min(90, empPts + revPts + ratPts);
+    // Step 4: Combine and apply location floor
+    sizeScore = empScore > 0 ? empScore : reviewScore;
+
+    if (locationCount >= 10)     sizeScore = Math.max(sizeScore, 60);
+    else if (locationCount >= 5) sizeScore = Math.max(sizeScore, 50);
+    else if (locationCount >= 3) sizeScore = Math.max(sizeScore, 40);
+
+    if (locationCount >= 3) {
+      notes.push(`${locationCount} locations (floor ${locationCount >= 10 ? 60 : locationCount >= 5 ? 50 : 40})`);
+    }
 
     // Baseline floor: enriched deals with some data shouldn't score 0
     // If we have industry, description, or website data, give a minimum baseline
@@ -154,6 +183,20 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     }
   }
 
+  // ── Industry multiplier ──
+  const industryTier = deal.industry_tier || null;
+  let industryMultiplier = 1.0;
+  if (industryTier === 1) industryMultiplier = 1.15;
+  else if (industryTier === 2) industryMultiplier = 1.0;
+  else if (industryTier === 3) industryMultiplier = 0.9;
+
+  const adjustedSizeScore = Math.round(sizeScore * industryMultiplier);
+
+  if (industryTier && industryMultiplier !== 1.0) {
+    notes.push(`Tier ${industryTier} industry (${industryMultiplier}x)`);
+  }
+
+  // ── Market score (0–10) ──
   let marketScore = 0;
   const city = (deal.address_city || '').toLowerCase();
   const state = (deal.address_state || '').toUpperCase();
@@ -177,39 +220,49 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   if (majorMetros.some(metro => locationText.includes(metro))) {
     marketScore += 5;
-    notes.push('Major metro area');
+    notes.push('major metro');
   } else if (secondaryCities.some(c => locationText.includes(c))) {
     marketScore += 3;
+    notes.push('secondary city');
   } else if (city || state) {
     marketScore += 2;
   }
 
-  const locationCount = deal.location_count || 0;
-  if (locationCount >= 5) marketScore += 3;
-  else if (locationCount >= 3) marketScore += 2;
-  else if (locationCount >= 2) marketScore += 1;
+  // Multi-location market signal bonus (separate from location floor)
+  if (locationCount >= 3) marketScore += 2;
 
   const description = (deal.description || deal.executive_summary || '').toLowerCase();
   const businessModel = (deal.business_model || '').toLowerCase();
   const allText = `${(deal.category || '')} ${(deal.service_mix || '')} ${businessModel} ${description}`.toLowerCase();
   if (/recurring|subscription|contract|maintenance|managed/.test(allText)) {
     marketScore += 2;
-    notes.push('Recurring revenue model');
+    notes.push('recurring revenue model');
   }
 
   marketScore = Math.min(10, marketScore);
 
-  const rawScore = sizeScore + marketScore;
-  const totalScore = sizeFloor > 0 ? Math.max(rawScore, sizeFloor) : rawScore;
+  // ── Final score ──
+  const totalScore = Math.min(100, Math.max(0, adjustedSizeScore + marketScore));
+
+  // ── Confidence rating ──
+  let confidence = 'very_low';
+  if (hasFinancials) {
+    confidence = 'high';
+  } else if ((employeeCount >= 10 && employeeSource === 'linkedin') || locationCount >= 3) {
+    confidence = 'medium';
+  } else if (employeeCount > 0 || (employeeCount === 0 && locationCount < 3 && (deal.google_review_count || 0) > 0)) {
+    confidence = 'low';
+  }
 
   return {
-    deal_total_score: Math.min(100, Math.max(0, totalScore)),
+    deal_total_score: totalScore,
     deal_size_score: Math.min(90, Math.max(0, sizeScore)),
     revenue_score: hasFinancials ? revenueScore : undefined,
     ebitda_score: hasFinancials ? ebitdaScore : undefined,
     linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
-    quality_calculation_version: 'v4',
-    scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
+    quality_calculation_version: 'v5',
+    scoring_notes: notes.length > 0 ? notes.join('; ') : undefined,
+    scoring_confidence: confidence,
   };
 }
 
@@ -346,6 +399,7 @@ serve(async (req) => {
             linkedin_boost: scores.linkedin_boost,
             quality_calculation_version: scores.quality_calculation_version,
             scoring_notes: scores.scoring_notes,
+            scoring_confidence: scores.scoring_confidence,
           })
           .eq("id", listing.id);
         if (updateError) { console.error(`Failed to update listing ${listing.id}:`, updateError); errors++; }
