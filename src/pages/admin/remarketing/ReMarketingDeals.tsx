@@ -796,6 +796,9 @@ const ReMarketingDeals = () => {
   const [scoreFilter, setScoreFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
+  const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
@@ -1178,17 +1181,25 @@ const ReMarketingDeals = () => {
 
       if (dateFilter !== "all") {
         const createdAt = new Date(listing.created_at);
-        const now = new Date();
-        const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (dateFilter === "7d" && daysDiff > 7) return false;
-        if (dateFilter === "30d" && daysDiff > 30) return false;
-        if (dateFilter === "90d" && daysDiff > 90) return false;
+        if (dateFilter === "custom") {
+          if (customDateFrom && createdAt < customDateFrom) return false;
+          if (customDateTo) {
+            const endOfDay = new Date(customDateTo);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (createdAt > endOfDay) return false;
+          }
+        } else {
+          const now = new Date();
+          const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+          if (dateFilter === "7d" && daysDiff > 7) return false;
+          if (dateFilter === "30d" && daysDiff > 30) return false;
+          if (dateFilter === "90d" && daysDiff > 90) return false;
+        }
       }
 
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, dateFilter, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
+  }, [listings, search, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -1794,17 +1805,69 @@ const ReMarketingDeals = () => {
             <Calculator className="h-4 w-4 mr-2" />
             {isCalculating ? "Scoring..." : "Score Deals"}
           </Button>
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All Time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="90d">Last 90 Days</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover open={showCustomDatePicker} onOpenChange={setShowCustomDatePicker}>
+            <PopoverTrigger asChild>
+              <div>
+                <Select value={dateFilter} onValueChange={(val) => {
+                  setDateFilter(val);
+                  if (val === "custom") {
+                    setShowCustomDatePicker(true);
+                  }
+                }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Time">
+                      {dateFilter === "custom" && customDateFrom
+                        ? `${format(customDateFrom, "MM/dd")}${customDateTo ? ` - ${format(customDateTo, "MM/dd")}` : " →"}`
+                        : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="7d">Last 7 Days</SelectItem>
+                    <SelectItem value="30d">Last 30 Days</SelectItem>
+                    <SelectItem value="90d">Last 90 Days</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverTrigger>
+            {dateFilter === "custom" && (
+              <PopoverContent className="w-auto p-4" align="end">
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Select Date Range</p>
+                  <div className="flex gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">From</label>
+                      <Input
+                        type="date"
+                        value={customDateFrom ? format(customDateFrom, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setCustomDateFrom(e.target.value ? new Date(e.target.value + "T00:00:00") : undefined)}
+                        className="w-[140px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">To</label>
+                      <Input
+                        type="date"
+                        value={customDateTo ? format(customDateTo, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setCustomDateTo(e.target.value ? new Date(e.target.value + "T00:00:00") : undefined)}
+                        className="w-[140px]"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setCustomDateFrom(undefined);
+                      setCustomDateTo(undefined);
+                      setDateFilter("all");
+                      setShowCustomDatePicker(false);
+                    }}>Clear</Button>
+                    <Button size="sm" onClick={() => setShowCustomDatePicker(false)}>Apply</Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            )}
+          </Popover>
         </div>
       </div>
 
