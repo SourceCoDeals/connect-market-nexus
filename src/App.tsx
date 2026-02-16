@@ -55,7 +55,7 @@ import CapTargetDeals from "@/pages/admin/remarketing/CapTargetDeals";
 import GPPartnerDeals from "@/pages/admin/remarketing/GPPartnerDeals";
 import EnrichmentTest from "@/pages/admin/EnrichmentTest";
 
-import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
+
 import ReferralTrackerPage from "@/pages/ReferralTrackerPage";
 import { ReMarketingLayout } from "@/components/remarketing";
 import WebhooksPage from "@/pages/admin/settings/WebhooksPage";
@@ -162,7 +162,7 @@ function App() {
               <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
               <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
               <Route path="analytics" element={<ReMarketingAnalytics />} />
-              <Route path="analytics/advanced" element={<ReMarketingAdvancedAnalytics />} />
+              
               <Route path="captarget-deals" element={<CapTargetDeals />} />
               <Route path="captarget-deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route path="gp-partner-deals" element={<GPPartnerDeals />} />
