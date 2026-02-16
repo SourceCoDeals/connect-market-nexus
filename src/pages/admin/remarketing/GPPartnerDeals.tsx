@@ -99,12 +99,14 @@ interface GPPartnerDeal {
   location: string | null;
   address_city: string | null;
   address_state: string | null;
+  deal_owner_id: string | null;
+  deal_owner: { id: string; first_name: string | null; last_name: string | null; email: string } | null;
 }
 
 type SortColumn =
   | "company_name"
   | "industry"
-  | "contact_name"
+  | "owner"
   | "revenue"
   | "ebitda"
   | "score"
@@ -211,7 +213,9 @@ export default function GPPartnerDeals() {
             ebitda,
             location,
             address_city,
-            address_state
+            address_state,
+            deal_owner_id,
+            deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
           `
           )
           .eq("deal_source", "gp_partners")
@@ -259,9 +263,9 @@ export default function GPPartnerDeals() {
           valA = (a.industry || a.category || "").toLowerCase();
           valB = (b.industry || b.category || "").toLowerCase();
           break;
-        case "contact_name":
-          valA = (a.main_contact_name || "").toLowerCase();
-          valB = (b.main_contact_name || "").toLowerCase();
+        case "owner":
+          valA = (a.deal_owner?.first_name || a.deal_owner?.email || "").toLowerCase();
+          valB = (b.deal_owner?.first_name || b.deal_owner?.email || "").toLowerCase();
           break;
         case "revenue":
           valA = a.revenue ?? -1;
@@ -984,7 +988,7 @@ export default function GPPartnerDeals() {
                     <SortHeader column="industry">Industry</SortHeader>
                   </TableHead>
                   <TableHead>
-                    <SortHeader column="contact_name">Contact</SortHeader>
+                    <SortHeader column="owner">Owner</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="revenue">Revenue</SortHeader>
@@ -1091,16 +1095,12 @@ export default function GPPartnerDeals() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm">
-                            {deal.main_contact_name || "\u2014"}
-                          </span>
-                          {deal.main_contact_title && (
-                            <span className="text-xs text-muted-foreground">
-                              {deal.main_contact_title}
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-sm truncate max-w-[120px] block">
+                          {deal.deal_owner?.first_name
+                            ? `${deal.deal_owner.first_name} ${deal.deal_owner.last_name || ''}`.trim()
+                            : <span className="text-muted-foreground">{"\u2014"}</span>
+                          }
+                        </span>
                       </TableCell>
                       <TableCell>
                         {deal.revenue != null ? (
