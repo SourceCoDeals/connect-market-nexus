@@ -9,6 +9,7 @@ export type TimeframePreset =
   | "last_14d"
   | "last_30d"
   | "last_90d"
+  | "last_365d"
   | "all_time"
   | "custom";
 
@@ -32,6 +33,7 @@ export const TIMEFRAME_PRESETS: {
   { key: "last_14d", label: "Last 14 days" },
   { key: "last_30d", label: "Last 30 days" },
   { key: "last_90d", label: "Last 90 days" },
+  { key: "last_365d", label: "Last year" },
   { key: "all_time", label: "All time" },
   { key: "custom", label: "Custom range" },
 ];
@@ -52,6 +54,8 @@ function computeRange(value: TimeframeValue): DateRange {
       return { from: startOfDay(subDays(now, 30)), to: now };
     case "last_90d":
       return { from: startOfDay(subDays(now, 90)), to: now };
+    case "last_365d":
+      return { from: startOfDay(subDays(now, 365)), to: now };
     case "all_time":
       return { from: null, to: null };
     case "custom":

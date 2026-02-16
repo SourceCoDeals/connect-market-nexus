@@ -134,7 +134,7 @@ export default function CapTargetDeals() {
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
   // Timeframe drives both KPI stats and table filtering
-  const { timeframe, setTimeframe, dateRange, isInRange } = useTimeframe("all_time");
+  const { timeframe, setTimeframe, dateRange, isInRange } = useTimeframe("last_365d");
 
   // Filters
   const [search, setSearch] = useState("");
