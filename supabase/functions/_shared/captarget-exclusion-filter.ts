@@ -206,7 +206,6 @@ const BLOCKED_INDUSTRIES = [
   "investment banking",
   "investment firm",
   "m&a advisory",
-  "financial advisory",
   "business brokerage",
   "family office",
   "hedge fund",
