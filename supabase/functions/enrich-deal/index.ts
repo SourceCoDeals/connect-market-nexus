@@ -1502,6 +1502,9 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       }
     }
 
+    // Shared placeholder values for address field cleaning
+    const ADDRESS_PLACEHOLDERS = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
+
     // Clean address_city - AI sometimes puts full address in city field
     // We need to extract just the city name
     if (extracted.address_city) {
@@ -1561,8 +1564,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       cityStr = cityStr.replace(/\s+\d{5}(-\d{4})?$/, '').trim();
       
       // Reject placeholder values
-      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available'];
-      if (cityStr.length > 0 && cityStr.length < 50 && !placeholders.includes(cityStr.toLowerCase())) {
+      if (cityStr.length > 0 && cityStr.length < 50 && !ADDRESS_PLACEHOLDERS.includes(cityStr.toLowerCase())) {
         extracted.address_city = cityStr;
       } else {
         console.log(`Rejecting invalid/placeholder address_city: "${extracted.address_city}"`);
@@ -1573,8 +1575,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     // Clean street_address - reject placeholder values
     if (extracted.street_address) {
       const streetStr = String(extracted.street_address).trim();
-      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
-      if (streetStr.length > 0 && !placeholders.includes(streetStr.toLowerCase())) {
+      if (streetStr.length > 0 && !ADDRESS_PLACEHOLDERS.includes(streetStr.toLowerCase())) {
         extracted.street_address = streetStr;
       } else {
         console.log(`Rejecting placeholder street_address: "${extracted.street_address}"`);
