@@ -1,30 +1,27 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, RefreshCw, Eye, Heart, MessageSquare, UserPlus, Search as SearchIcon } from "lucide-react";
+import { RefreshCw, Eye, Heart, MessageSquare, UserPlus, Search as SearchIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { useRecentActivity } from "@/hooks/use-recent-activity";
+import { useFilterEngine } from "@/hooks/use-filter-engine";
+import { FilterBar, ACTIVITY_FIELDS } from "@/components/filters";
 
 export function RecentActivityTab() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("all");
   const [limit, setLimit] = useState(50);
-  
+
   const { data: activities = [], isLoading, refetch } = useRecentActivity(limit);
 
-  const filteredActivities = activities.filter(activity => {
-    const matchesSearch = !searchTerm || 
-      activity.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      activity.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      activity.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterType === "all" || activity.activity_type === filterType;
-    
-    return matchesSearch && matchesFilter;
-  });
+  const {
+    filteredItems: filteredActivities,
+    filterState,
+    setFilterState,
+    dynamicOptions,
+    filteredCount,
+    totalCount,
+  } = useFilterEngine(activities, ACTIVITY_FIELDS);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -131,49 +128,30 @@ export function RecentActivityTab() {
       </div>
 
       {/* Filters */}
+      <FilterBar
+        filterState={filterState}
+        onFilterStateChange={setFilterState}
+        fieldDefinitions={ACTIVITY_FIELDS}
+        dynamicOptions={dynamicOptions}
+        totalCount={totalCount}
+        filteredCount={filteredCount}
+      >
+        <Select value={limit.toString()} onValueChange={(value) => setLimit(parseInt(value))}>
+          <SelectTrigger className="w-24 h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="25">25</SelectItem>
+            <SelectItem value="50">50</SelectItem>
+            <SelectItem value="100">100</SelectItem>
+            <SelectItem value="200">200</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      {/* Activity list */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users, emails, or activities..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Activities</SelectItem>
-                  <SelectItem value="signup">Signups</SelectItem>
-                  <SelectItem value="listing_view">Listing Views</SelectItem>
-                  <SelectItem value="save">Saves</SelectItem>
-                  <SelectItem value="connection_request">Connections</SelectItem>
-                  <SelectItem value="search">Searches</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={limit.toString()} onValueChange={(value) => setLimit(parseInt(value))}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="200">200</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {filteredActivities.length > 0 ? (
               filteredActivities.map((activity) => (
@@ -236,7 +214,7 @@ export function RecentActivityTab() {
               <div className="flex justify-between items-center">
                 <span className="text-sm">Conversion rate</span>
                 <span className="text-sm font-medium">
-                  {activityTypeCounts.listing_view > 0 ? 
+                  {activityTypeCounts.listing_view > 0 ?
                     ((activityTypeCounts.connection_request || 0) / activityTypeCounts.listing_view * 100).toFixed(1) : 0}%
                 </span>
               </div>
