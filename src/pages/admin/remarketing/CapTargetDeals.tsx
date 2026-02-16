@@ -902,7 +902,7 @@ export default function CapTargetDeals() {
   const { data: exclusionLog } = useQuery({
     queryKey: ["captarget-exclusion-log"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("captarget_sync_exclusions")
         .select("id, company_name, exclusion_reason, exclusion_category, source, excluded_at")
         .order("excluded_at", { ascending: false })
