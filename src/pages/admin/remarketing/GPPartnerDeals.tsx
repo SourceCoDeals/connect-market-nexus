@@ -68,6 +68,14 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface GPPartnerDeal {
   id: string;
@@ -125,6 +133,9 @@ export default function GPPartnerDeals() {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
+
+  // Admin profiles for deal owner assignment
+  const { data: adminProfiles } = useAdminProfiles();
 
   // Filters
   const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
@@ -681,7 +692,32 @@ export default function GPPartnerDeals() {
     setCsvUploadOpen(false);
   }, [queryClient]);
 
-  // Date-filtered deals for KPI stats (driven by TimeframeSelector)
+  // Assign deal owner
+  const handleAssignOwner = useCallback(async (dealId: string, ownerId: string | null) => {
+    const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
+    queryClient.setQueryData(["remarketing", "gp-partner-deals"], (old: GPPartnerDeal[] | undefined) =>
+      old?.map(deal =>
+        deal.id === dealId ? {
+          ...deal,
+          deal_owner_id: ownerId,
+          deal_owner: ownerProfile ? { id: ownerProfile.id, first_name: ownerProfile.first_name, last_name: ownerProfile.last_name, email: ownerProfile.email } : null,
+        } : deal
+      )
+    );
+
+    const { error } = await supabase
+      .from('listings')
+      .update({ deal_owner_id: ownerId })
+      .eq('id', dealId);
+
+    if (error) {
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
+      sonnerToast.error("Failed to update deal owner");
+      return;
+    }
+    sonnerToast.success(ownerId ? "Owner assigned" : "Owner removed");
+  }, [adminProfiles, queryClient]);
+
   const dateFilteredDeals = useMemo(() => {
     if (!deals) return [];
     return deals.filter((d) => isInRange(d.created_at));
@@ -988,7 +1024,7 @@ export default function GPPartnerDeals() {
                     <SortHeader column="industry">Industry</SortHeader>
                   </TableHead>
                   <TableHead>
-                    <SortHeader column="owner">Owner</SortHeader>
+                    <SortHeader column="owner">Deal Owner</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="revenue">Revenue</SortHeader>
@@ -1094,13 +1130,30 @@ export default function GPPartnerDeals() {
                           {deal.industry || deal.category || "\u2014"}
                         </span>
                       </TableCell>
-                      <TableCell>
-                        <span className="text-sm truncate max-w-[120px] block">
-                          {deal.deal_owner?.first_name
-                            ? `${deal.deal_owner.first_name} ${deal.deal_owner.last_name || ''}`.trim()
-                            : <span className="text-muted-foreground">{"\u2014"}</span>
-                          }
-                        </span>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Select
+                          value={deal.deal_owner_id || "__none"}
+                          onValueChange={(val) => handleAssignOwner(deal.id, val === "__none" ? null : val)}
+                        >
+                          <SelectTrigger className="h-7 text-xs border-dashed w-[120px]">
+                            <SelectValue placeholder="Assign...">
+                              {deal.deal_owner?.first_name
+                                ? `${deal.deal_owner.first_name} ${deal.deal_owner.last_name || ''}`.trim()
+                                : <span className="text-muted-foreground">Assign...</span>
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">
+                              <span className="text-muted-foreground">Unassigned</span>
+                            </SelectItem>
+                            {adminProfiles && Object.values(adminProfiles).map((admin) => (
+                              <SelectItem key={admin.id} value={admin.id}>
+                                {admin.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         {deal.revenue != null ? (
