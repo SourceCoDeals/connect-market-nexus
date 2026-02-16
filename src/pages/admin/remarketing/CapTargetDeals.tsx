@@ -145,9 +145,19 @@ export default function CapTargetDeals() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
-  // Sorting
-  const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  // Sorting – persist in sessionStorage so it survives detail-view navigation
+  const [sortColumn, setSortColumn] = useState<SortColumn>(() => {
+    return (sessionStorage.getItem("captarget_sort_column") as SortColumn) || "contact_date";
+  });
+  const [sortDirection, setSortDirection] = useState<SortDirection>(() => {
+    return (sessionStorage.getItem("captarget_sort_direction") as SortDirection) || "desc";
+  });
+
+  // Sync sort state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("captarget_sort_column", sortColumn);
+    sessionStorage.setItem("captarget_sort_direction", sortDirection);
+  }, [sortColumn, sortDirection]);
 
   // Column resizing
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
