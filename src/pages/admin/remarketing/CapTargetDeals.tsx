@@ -308,13 +308,11 @@ export default function CapTargetDeals() {
     },
   });
 
-  // Filter + sort deals
-  const tabItems = useMemo(() => {
+  // Filter deals by everything EXCEPT status tab (for accurate tab counts)
+  const preTabFiltered = useMemo(() => {
     if (!deals) return [];
 
     return deals.filter((deal) => {
-      // Tab filter
-      if (statusTab !== "all" && deal.captarget_status !== statusTab) return false;
       if (search) {
         const q = search.toLowerCase();
         const matchesSearch =
@@ -338,7 +336,13 @@ export default function CapTargetDeals() {
       }
       return true;
     });
-  }, [deals, statusTab, search, pushedFilter, sourceTabFilter, dateRange]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateRange]);
+
+  // Apply status tab filter
+  const tabItems = useMemo(() => {
+    if (statusTab === "all") return preTabFiltered;
+    return preTabFiltered.filter((deal) => deal.captarget_status === statusTab);
+  }, [preTabFiltered, statusTab]);
 
   const {
     filteredItems: engineFiltered,
@@ -515,9 +519,10 @@ export default function CapTargetDeals() {
     return deals.filter((d) => d.captarget_status === statusTab);
   }, [deals, statusTab]);
 
-  // Tab counts for labels
-  const activeCount = useMemo(() => deals?.filter((d) => d.captarget_status === "active").length ?? 0, [deals]);
-  const inactiveCount = useMemo(() => deals?.filter((d) => d.captarget_status === "inactive").length ?? 0, [deals]);
+  // Tab counts based on filtered data (respects timeframe + search + other filters)
+  const filteredTotal = preTabFiltered.length;
+  const activeCount = useMemo(() => preTabFiltered.filter((d) => d.captarget_status === "active").length, [preTabFiltered]);
+  const inactiveCount = useMemo(() => preTabFiltered.filter((d) => d.captarget_status === "inactive").length, [preTabFiltered]);
 
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
@@ -1525,7 +1530,7 @@ export default function CapTargetDeals() {
       >
         <TabsList>
           <TabsTrigger value="all">
-            All ({totalDeals})
+            All ({filteredTotal})
           </TabsTrigger>
           <TabsTrigger value="active">
             Active ({activeCount})
