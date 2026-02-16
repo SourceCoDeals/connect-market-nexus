@@ -65,7 +65,7 @@ function scorePillClass(score: number | null): string {
 }
 
 function isAllDealVisible(d: DealRow): boolean {
-  if (d.status !== "active") return false;
+  if (d.status === "archived" || d.status === "inactive") return false;
   const src = d.deal_source;
   if (src === "captarget" || src === "gp_partners") return d.pushed_to_all_deals === true;
   return true;
