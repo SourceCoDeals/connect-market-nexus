@@ -279,7 +279,6 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
       "venture capital": "Venture Capital",
       "investment banking": "Investment Banking",
       "m&a advisory": "M&A Advisory",
-      "financial advisory": "M&A Advisory",
       "business brokerage": "Investment Banking",
       "hedge fund": "PE/Buyout",
     };
