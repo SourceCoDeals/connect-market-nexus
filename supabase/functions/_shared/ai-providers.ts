@@ -17,13 +17,6 @@ export interface RateLimitConfig {
 export const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 export const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
-/**
- * Build Gemini API URL for native endpoint (non-OpenAI compatible)
- */
-export function getGeminiNativeUrl(model: string, apiKey: string): string {
-  return `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey}`;
-}
-
 // Default models
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.0-pro-exp";

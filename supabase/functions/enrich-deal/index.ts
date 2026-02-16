@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createEdgeTimeoutSignal } from "../_shared/edge-timeout.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeState, normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
@@ -162,8 +161,6 @@ serve(async (req) => {
   }
 
   try {
-    const _edgeStartTime = Date.now();
-    const _edgeTimeout = createEdgeTimeoutSignal(_edgeStartTime);
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     // Edge Gateway routing requires the anon key in the `apikey` header.
@@ -1190,13 +1187,10 @@ DEPTH REQUIREMENTS:
 - Technology systems: Any software, platforms, tools, or technology investments visible.
 - Key risks: Real operational risks visible from the website.
 
-FINANCIAL EXTRACTION RULES:
-- If you find revenue or EBITDA figures, extract them with confidence levels
-- High confidence: explicit statement like "Revenue: $5M"
-- Medium confidence: inferred from context like "growing business with 50 employees"
-- Low confidence: vague references that need clarification
-- Include the exact quote that supports any financial figure
-- If data is unclear, add follow-up questions
+FINANCIAL DATA POLICY:
+- Do NOT extract any financial information (revenue, EBITDA, margins, etc.) from websites.
+- Financial data may ONLY come from transcripts or manual entry, never from web scraping.
+- If financial figures appear on the website, IGNORE them entirely.
 
 LOCATION COUNT RULES:
 - Count ALL physical locations: offices, branches, shops, stores, facilities
@@ -1334,52 +1328,8 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
                         type: 'string',
                         description: 'LinkedIn company page URL if found on the website'
                       },
-                      // Financial fields — FLATTENED to avoid Gemini "too much branching" error
-                      revenue_value: {
-                        type: 'number',
-                        description: 'Annual revenue in dollars (e.g., 5000000 for $5M)'
-                      },
-                      revenue_confidence: {
-                        type: 'string',
-                        description: 'Confidence level for revenue: high, medium, or low'
-                      },
-                      revenue_is_inferred: {
-                        type: 'boolean',
-                        description: 'True if revenue was calculated/inferred from other data'
-                      },
-                      revenue_source_quote: {
-                        type: 'string',
-                        description: 'Exact text where revenue was mentioned'
-                      },
-                      ebitda_amount: {
-                        type: 'number',
-                        description: 'EBITDA in dollars'
-                      },
-                      ebitda_margin_percentage: {
-                        type: 'number',
-                        description: 'EBITDA margin as percentage (e.g., 18 for 18%)'
-                      },
-                      ebitda_confidence: {
-                        type: 'string',
-                        description: 'Confidence level for EBITDA: high, medium, or low'
-                      },
-                      ebitda_is_inferred: {
-                        type: 'boolean',
-                        description: 'True if EBITDA was calculated from margin and revenue'
-                      },
-                      ebitda_source_quote: {
-                        type: 'string',
-                        description: 'Exact text supporting the EBITDA figure'
-                      },
-                      financial_followup_questions: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        description: 'Questions to clarify financials if data is unclear'
-                      },
-                      financial_notes: {
-                        type: 'string',
-                        description: 'Notes and flags for deal team about financial data quality or concerns'
-                      }
+                      // Financial fields REMOVED — financial data must NEVER be scraped from websites.
+                      // Revenue, EBITDA, margins, and related fields may only come from transcripts or manual entry.
                     },
                     required: ['industry']
                   }
@@ -1481,65 +1431,23 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     console.log('Extracted data:', extracted);
 
     // ========================================================================
-    // PROCESS FINANCIAL DATA WITH CONFIDENCE TRACKING (per spec)
-    // Schema is now flattened — fields come back as revenue_value, ebitda_amount, etc.
+    // STRIP FINANCIAL DATA FROM WEBSITE EXTRACTION
+    // Financial data must NEVER come from website scraping — only from transcripts
+    // or manual entry. This is a safety net in case the AI returns financial fields
+    // despite not being asked for them.
     // ========================================================================
-    
-    // Handle flattened revenue fields from AI extraction
-    if (extracted.revenue_value) {
-      extracted.revenue = extracted.revenue_value;
-      delete extracted.revenue_value;
-      if (!extracted.revenue_confidence) extracted.revenue_confidence = 'medium';
-    }
-    // Legacy: handle nested revenue object from older schema
-    const revenueData = extracted.revenue as { value?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | number | undefined;
-    if (revenueData && typeof revenueData === 'object' && revenueData.value) {
-      extracted.revenue = revenueData.value;
-      extracted.revenue_confidence = revenueData.confidence || 'medium';
-      extracted.revenue_is_inferred = revenueData.is_inferred || false;
-      if (revenueData.source_quote) extracted.revenue_source_quote = revenueData.source_quote;
-    }
-    
-    // Handle flattened EBITDA fields
-    if (extracted.ebitda_amount) {
-      extracted.ebitda = extracted.ebitda_amount;
-      delete extracted.ebitda_amount;
-    }
-    if (extracted.ebitda_margin_percentage) {
-      extracted.ebitda_margin = (extracted.ebitda_margin_percentage as number) / 100;
-      delete extracted.ebitda_margin_percentage;
-    }
-    // SPEC: Calculate EBITDA from revenue × margin if amount not provided
-    if (!extracted.ebitda && extracted.ebitda_margin && extracted.revenue && typeof extracted.revenue === 'number') {
-      const calculatedEbitda = extracted.revenue * (extracted.ebitda_margin as number);
-      extracted.ebitda = calculatedEbitda;
-      extracted.ebitda_is_inferred = true;
-      extracted.ebitda_source_quote = `Calculated: ${(extracted.revenue as number) / 1000000}M revenue × ${((extracted.ebitda_margin as number) * 100).toFixed(1)}% margin`;
-      if (!extracted.ebitda_confidence) extracted.ebitda_confidence = 'medium';
-      console.log(`Calculated EBITDA from margin: $${calculatedEbitda.toLocaleString()}`);
-    }
-    // Legacy: handle nested ebitda object from older schema
-    const ebitdaData = extracted.ebitda as { amount?: number; margin_percentage?: number; confidence?: FinancialConfidence; is_inferred?: boolean; source_quote?: string } | number | undefined;
-    if (ebitdaData && typeof ebitdaData === 'object') {
-      if (ebitdaData.amount) extracted.ebitda = ebitdaData.amount;
-      if (ebitdaData.margin_percentage) extracted.ebitda_margin = ebitdaData.margin_percentage / 100;
-      if (ebitdaData.confidence) extracted.ebitda_confidence = ebitdaData.confidence;
-      extracted.ebitda_is_inferred = ebitdaData.is_inferred || false;
-      if (ebitdaData.source_quote) extracted.ebitda_source_quote = ebitdaData.source_quote;
-    }
-    // (EBITDA margin calculation already handled above)
-    // Clean up flattened fields that don't map to DB columns
-    delete extracted.ebitda_amount;
-    delete extracted.ebitda_margin_percentage;
+    const FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES = [
+      'revenue', 'revenue_value', 'revenue_confidence', 'revenue_is_inferred', 'revenue_source_quote',
+      'ebitda', 'ebitda_amount', 'ebitda_margin', 'ebitda_margin_percentage',
+      'ebitda_confidence', 'ebitda_is_inferred', 'ebitda_source_quote',
+      'financial_notes', 'financial_followup_questions',
+    ];
 
-    // Handle financial follow-up questions
-    if (extracted.financial_followup_questions && Array.isArray(extracted.financial_followup_questions)) {
-      console.log(`Generated ${extracted.financial_followup_questions.length} financial follow-up questions`);
-    }
-
-    // Handle financial notes
-    if (extracted.financial_notes && typeof extracted.financial_notes === 'string') {
-      console.log('Financial notes extracted:', extracted.financial_notes.substring(0, 100));
+    for (const field of FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES) {
+      if (extracted[field] !== undefined) {
+        console.log(`🚫 FINANCIAL SCRAPING BLOCKED: Stripping '${field}' from website-extracted data — financial data may only come from transcripts or manual entry`);
+        delete extracted[field];
+      }
     }
 
     // Drop any unexpected keys so we never attempt to write missing columns
@@ -1593,6 +1501,9 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
         extracted.address_zip = zipStr;
       }
     }
+
+    // Shared placeholder values for address field cleaning
+    const ADDRESS_PLACEHOLDERS = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
 
     // Clean address_city - AI sometimes puts full address in city field
     // We need to extract just the city name
@@ -1653,8 +1564,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       cityStr = cityStr.replace(/\s+\d{5}(-\d{4})?$/, '').trim();
       
       // Reject placeholder values
-      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available'];
-      if (cityStr.length > 0 && cityStr.length < 50 && !placeholders.includes(cityStr.toLowerCase())) {
+      if (cityStr.length > 0 && cityStr.length < 50 && !ADDRESS_PLACEHOLDERS.includes(cityStr.toLowerCase())) {
         extracted.address_city = cityStr;
       } else {
         console.log(`Rejecting invalid/placeholder address_city: "${extracted.address_city}"`);
@@ -1665,8 +1575,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     // Clean street_address - reject placeholder values
     if (extracted.street_address) {
       const streetStr = String(extracted.street_address).trim();
-      const placeholders = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
-      if (streetStr.length > 0 && !placeholders.includes(streetStr.toLowerCase())) {
+      if (streetStr.length > 0 && !ADDRESS_PLACEHOLDERS.includes(streetStr.toLowerCase())) {
         extracted.street_address = streetStr;
       } else {
         console.log(`Rejecting placeholder street_address: "${extracted.street_address}"`);
