@@ -9,8 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   BarChart3,
-  Upload,
-  Database,
+  Settings,
   Trophy,
   Handshake,
   Activity,
@@ -92,14 +91,9 @@ export function ReMarketingSidebar() {
       icon: <Activity className="h-5 w-5" />,
     },
     {
-      label: "Data Import",
-      href: "/admin/remarketing/import",
-      icon: <Upload className="h-5 w-5" />,
-    },
-    {
-      label: "Bulk Import",
-      href: "/admin/remarketing/bulk-import",
-      icon: <Database className="h-5 w-5" />,
+      label: "Settings",
+      href: "/admin/remarketing/settings",
+      icon: <Settings className="h-5 w-5" />,
     },
   ];
 
