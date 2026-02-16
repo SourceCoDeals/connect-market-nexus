@@ -117,6 +117,67 @@ interface ScoredResult {
 }
 
 // ============================================================================
+// SCORING CONFIGURATION
+// All tunable thresholds in one place. Values are identical to what was
+// previously hardcoded inline — this is a pure extraction, no behavior change.
+// ============================================================================
+
+const SCORING_CONFIG = {
+  // --- Tier bands (composite score → letter grade) ---
+  TIER_A_MIN: 80,
+  TIER_B_MIN: 65,
+  TIER_C_MIN: 50,
+  TIER_D_MIN: 35,
+
+  // --- Size scoring tolerances ---
+  SWEET_SPOT_EXACT_TOLERANCE: 0.1,   // ±10% of sweet spot = perfect match
+  SWEET_SPOT_NEAR_TOLERANCE: 0.2,    // ±20% of sweet spot = near match
+  BELOW_MIN_SLIGHT: 0.9,             // 90% of min = 1-10% below
+  BELOW_MIN_MODERATE: 0.7,           // 70% of min = 10-30% below
+  ABOVE_MAX_DISQUALIFY: 1.5,         // 150% of max = hard disqualify
+  SINGLE_LOCATION_PENALTY: 0.85,     // 15% penalty for single-location deals
+
+  // --- Size multipliers applied to composite score ---
+  SIZE_MULT_SWEET_EXACT: 1.0,
+  SIZE_MULT_SWEET_NEAR: 0.95,
+  SIZE_MULT_IN_RANGE: 1.0,
+  SIZE_MULT_SLIGHT_BELOW: 0.7,
+  SIZE_MULT_MODERATE_BELOW: 0.5,
+  SIZE_MULT_HEAVY_PENALTY: 0.3,
+  SIZE_MULT_HEAVY_ALLOW: 0.5,
+  SIZE_MULT_ABOVE_MAX: 0.7,
+
+  // --- Service multipliers (score → composite multiplier) ---
+  SERVICE_MULT_ZERO: 0.0,
+  SERVICE_MULT_BELOW_20: 0.4,
+  SERVICE_MULT_BELOW_40: 0.6,
+  SERVICE_MULT_BELOW_60: 0.8,
+  SERVICE_MULT_BELOW_80: 0.9,
+  SERVICE_MULT_ABOVE_80: 1.0,
+
+  // --- Geography mode factors ---
+  GEO_MODE_CRITICAL: 0.6,
+  GEO_MODE_PREFERRED: 0.25,
+
+  // --- Bonus/penalty caps ---
+  THESIS_BONUS_MAX: 20,
+  DATA_QUALITY_BONUS_MAX: 10,
+  CUSTOM_BONUS_MAX: 25,
+  LEARNING_PENALTY_MIN: -5,
+  LEARNING_PENALTY_MAX: 25,
+
+  // --- Needs-review thresholds ---
+  REVIEW_SCORE_LOW: 50,
+  REVIEW_SCORE_HIGH: 65,
+
+  // --- Bulk scoring batch config ---
+  BULK_BATCH_SIZE: 5,
+  BULK_DELAY_LARGE: 600,   // >100 buyers
+  BULK_DELAY_MEDIUM: 400,  // >50 buyers
+  BULK_DELAY_SMALL: 300,   // <=50 buyers
+} as const;
+
+// ============================================================================
 // DEFAULT SERVICE ADJACENCY MAP
 // ============================================================================
 
@@ -309,39 +370,39 @@ function calculateSizeScore(
   // === Revenue-based scoring ===
   if (dealRevenue != null && dealRevenue > 0) {
     // Sweet spot match (±10%)
-    if (revenueSweetSpot && Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <= 0.1) {
+    if (revenueSweetSpot && Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <= SCORING_CONFIG.SWEET_SPOT_EXACT_TOLERANCE) {
       score = 97;
-      multiplier = 1.0;
+      multiplier = SCORING_CONFIG.SIZE_MULT_SWEET_EXACT;
       reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — exact sweet spot match`;
     }
     // Sweet spot match (±20%)
-    else if (revenueSweetSpot && Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <= 0.2) {
+    else if (revenueSweetSpot && Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <= SCORING_CONFIG.SWEET_SPOT_NEAR_TOLERANCE) {
       score = 90;
-      multiplier = 0.95;
+      multiplier = SCORING_CONFIG.SIZE_MULT_SWEET_NEAR;
       reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — near sweet spot ($${(revenueSweetSpot/1e6).toFixed(1)}M)`;
     }
     // Within buyer's stated range
     else if (buyerMinRevenue && buyerMaxRevenue && dealRevenue >= buyerMinRevenue && dealRevenue <= buyerMaxRevenue) {
       score = 80;
-      multiplier = 1.0;
+      multiplier = SCORING_CONFIG.SIZE_MULT_IN_RANGE;
       reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — within buyer range ($${(buyerMinRevenue/1e6).toFixed(1)}M-$${(buyerMaxRevenue/1e6).toFixed(1)}M)`;
     }
     // 1-10% below minimum
-    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue && dealRevenue >= buyerMinRevenue * 0.9) {
+    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue && dealRevenue >= buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_SLIGHT) {
       const percentBelow = Math.round(((buyerMinRevenue - dealRevenue) / buyerMinRevenue) * 100);
       score = 62;
-      multiplier = 0.7;
+      multiplier = SCORING_CONFIG.SIZE_MULT_SLIGHT_BELOW;
       reasoning = `Revenue ${percentBelow}% below minimum — slight undersize`;
     }
     // 10-30% below minimum
-    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue * 0.9 && dealRevenue >= buyerMinRevenue * 0.7) {
+    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_SLIGHT && dealRevenue >= buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_MODERATE) {
       const percentBelow = Math.round(((buyerMinRevenue - dealRevenue) / buyerMinRevenue) * 100);
       score = 45;
-      multiplier = 0.5;
+      multiplier = SCORING_CONFIG.SIZE_MULT_MODERATE_BELOW;
       reasoning = `Revenue ${percentBelow}% below minimum — undersized`;
     }
     // >30% below minimum
-    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue * 0.7) {
+    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_MODERATE) {
       const percentBelow = Math.round(((buyerMinRevenue - dealRevenue) / buyerMinRevenue) * 100);
       if (behavior.below_minimum_handling === 'disqualify') {
         score = 0;
@@ -349,16 +410,16 @@ function calculateSizeScore(
         reasoning = `DISQUALIFIED: Revenue ${percentBelow}% below minimum — hard disqualify`;
       } else if (behavior.below_minimum_handling === 'penalize') {
         score = 15;
-        multiplier = 0.3;
+        multiplier = SCORING_CONFIG.SIZE_MULT_HEAVY_PENALTY;
         reasoning = `Revenue ${percentBelow}% below minimum — heavy penalty`;
       } else {
         score = 30;
-        multiplier = 0.5;
+        multiplier = SCORING_CONFIG.SIZE_MULT_HEAVY_ALLOW;
         reasoning = `Revenue ${percentBelow}% below minimum — allowed with penalty`;
       }
     }
     // >50% above maximum
-    else if (buyerMaxRevenue && dealRevenue > buyerMaxRevenue * 1.5) {
+    else if (buyerMaxRevenue && dealRevenue > buyerMaxRevenue * SCORING_CONFIG.ABOVE_MAX_DISQUALIFY) {
       score = 0;
       multiplier = 0.0;
       reasoning = `DISQUALIFIED: Revenue $${(dealRevenue/1e6).toFixed(1)}M — way above buyer max ($${(buyerMaxRevenue/1e6).toFixed(1)}M)`;
@@ -367,7 +428,7 @@ function calculateSizeScore(
     else if (buyerMaxRevenue && dealRevenue > buyerMaxRevenue) {
       const percentAbove = Math.round(((dealRevenue - buyerMaxRevenue) / buyerMaxRevenue) * 100);
       score = 50;
-      multiplier = 0.7;
+      multiplier = SCORING_CONFIG.SIZE_MULT_ABOVE_MAX;
       reasoning = `Revenue ${percentAbove}% above max — oversized`;
     }
     // Only has min, deal is above it
@@ -424,7 +485,7 @@ function calculateSizeScore(
   if (behavior.penalize_single_location) {
     const locationCount = listing.location_count || 1;
     if (locationCount === 1) {
-      score = Math.round(score * 0.85);
+      score = Math.round(score * SCORING_CONFIG.SINGLE_LOCATION_PENALTY);
       reasoning += ". Single-location penalty applied";
     }
   }
@@ -451,11 +512,11 @@ async function calculateGeographyScore(
   let scoreFloor = 0;
   switch (geographyMode) {
     case 'preferred':
-      modeFactor = 0.6;
+      modeFactor = SCORING_CONFIG.GEO_MODE_CRITICAL;
       scoreFloor = 30;
       break;
     case 'minimal':
-      modeFactor = 0.25;
+      modeFactor = SCORING_CONFIG.GEO_MODE_PREFERRED;
       scoreFloor = 50;
       break;
     default: // critical
@@ -845,12 +906,12 @@ async function calculateServiceScore(
 }
 
 function getServiceMultiplier(serviceScore: number): number {
-  if (serviceScore === 0) return 0.0;   // Hard disqualification only
-  if (serviceScore <= 20) return 0.4;   // Was 0.15 — too harsh for sparse data
-  if (serviceScore <= 40) return 0.6;   // Was 0.4
-  if (serviceScore <= 60) return 0.8;   // Was 0.7
-  if (serviceScore <= 80) return 0.9;
-  return 1.0;
+  if (serviceScore === 0) return SCORING_CONFIG.SERVICE_MULT_ZERO;
+  if (serviceScore <= 20) return SCORING_CONFIG.SERVICE_MULT_BELOW_20;
+  if (serviceScore <= 40) return SCORING_CONFIG.SERVICE_MULT_BELOW_40;
+  if (serviceScore <= 60) return SCORING_CONFIG.SERVICE_MULT_BELOW_60;
+  if (serviceScore <= 80) return SCORING_CONFIG.SERVICE_MULT_BELOW_80;
+  return SCORING_CONFIG.SERVICE_MULT_ABOVE_80;
 }
 
 function checkServiceAdjacency(
@@ -1590,10 +1651,10 @@ async function scoreSingleBuyer(
   // === Step o: Determine tier ===
   let tier: string;
   if (isDisqualified) tier = "F";
-  else if (finalScore >= 80) tier = "A";
-  else if (finalScore >= 65) tier = "B";
-  else if (finalScore >= 50) tier = "C";
-  else if (finalScore >= 35) tier = "D";
+  else if (finalScore >= SCORING_CONFIG.TIER_A_MIN) tier = "A";
+  else if (finalScore >= SCORING_CONFIG.TIER_B_MIN) tier = "B";
+  else if (finalScore >= SCORING_CONFIG.TIER_C_MIN) tier = "C";
+  else if (finalScore >= SCORING_CONFIG.TIER_D_MIN) tier = "D";
   else tier = "F";
 
   // === Data completeness + provenance ===
@@ -1615,7 +1676,7 @@ async function scoreSingleBuyer(
 
   // === Needs review flag (only in ambiguous score zone with low-quality data) ===
   const needsReview = (
-    finalScore >= 50 && finalScore <= 65 &&
+    finalScore >= SCORING_CONFIG.REVIEW_SCORE_LOW && finalScore <= SCORING_CONFIG.REVIEW_SCORE_HIGH &&
     (confidenceLevel === 'low' || dataCompleteness === 'low')
   );
 
@@ -1918,8 +1979,7 @@ async function handleBulkScore(
     fetchLearningPatterns(supabase, allBuyerIds),
   ]);
 
-  // Process in batches of 5
-  const batchSize = 5;
+  const batchSize = SCORING_CONFIG.BULK_BATCH_SIZE;
   const scores: any[] = [];
   const errors: string[] = [];
 
@@ -2008,7 +2068,7 @@ async function handleBulkScore(
 
     // Adaptive rate limit delay — increase for large runs to avoid API rate limits
     if (i + batchSize < buyersToScore.length) {
-      const delay = buyersToScore.length > 100 ? 600 : buyersToScore.length > 50 ? 400 : 300;
+      const delay = buyersToScore.length > 100 ? SCORING_CONFIG.BULK_DELAY_LARGE : buyersToScore.length > 50 ? SCORING_CONFIG.BULK_DELAY_MEDIUM : SCORING_CONFIG.BULK_DELAY_SMALL;
       await new Promise(r => setTimeout(r, delay));
     }
   }
