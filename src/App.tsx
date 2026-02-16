@@ -54,6 +54,7 @@ import ReMarketingReferralPartners from "@/pages/admin/remarketing/ReMarketingRe
 import ReMarketingReferralPartnerDetail from "@/pages/admin/remarketing/ReMarketingReferralPartnerDetail";
 import CapTargetDeals from "@/pages/admin/remarketing/CapTargetDeals";
 import GPPartnerDeals from "@/pages/admin/remarketing/GPPartnerDeals";
+import EnrichmentTest from "@/pages/admin/EnrichmentTest";
 
 import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
 import ReferralTrackerPage from "@/pages/ReferralTrackerPage";
@@ -147,6 +148,7 @@ function App() {
               <Route path="notifications" element={<AdminNotifications />} />
               <Route path="settings/webhooks" element={<WebhooksPage />} />
               <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
+              <Route path="enrichment-test" element={<EnrichmentTest />} />
             </Route>
 
             {/* Remarketing routes with dedicated ReMarketingLayout */}
