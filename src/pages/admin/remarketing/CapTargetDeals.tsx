@@ -328,9 +328,10 @@ export default function CapTargetDeals() {
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
       if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
-      // Timeframe-based date filtering on created_at
+      // Timeframe-based date filtering on captarget_contact_date (the date shown in the table)
       if (dateRange.from || dateRange.to) {
-        const dealDate = deal.created_at ? new Date(deal.created_at) : null;
+        const dateStr = deal.captarget_contact_date || deal.created_at;
+        const dealDate = dateStr ? new Date(dateStr) : null;
         if (!dealDate) return false;
         if (dateRange.from && dealDate < dateRange.from) return false;
         if (dateRange.to && dealDate > dateRange.to) return false;
@@ -885,7 +886,7 @@ export default function CapTargetDeals() {
   // Date-filtered deals for KPI stats (driven by TimeframeSelector)
   const dateFilteredDeals = useMemo(() => {
     if (!deals) return [];
-    return deals.filter((d) => isInRange(d.created_at));
+    return deals.filter((d) => isInRange(d.captarget_contact_date || d.created_at));
   }, [deals, isInRange]);
 
   // KPI Stats (based on date-filtered deals)
