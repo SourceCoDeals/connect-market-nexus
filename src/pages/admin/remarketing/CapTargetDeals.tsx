@@ -131,6 +131,8 @@ export default function CapTargetDeals() {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
+  // Timeframe for KPI stats
+  const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
 
   // Filters
   const [search, setSearch] = useState("");
@@ -289,10 +291,10 @@ export default function CapTargetDeals() {
   });
 
   // Filter + sort deals
-  const filteredDeals = useMemo(() => {
+  const tabItems = useMemo(() => {
     if (!deals) return [];
 
-    let filtered = deals.filter((deal) => {
+    return deals.filter((deal) => {
       // Tab filter
       if (statusTab !== "all" && deal.captarget_status !== statusTab) return false;
       if (search) {
@@ -316,6 +318,7 @@ export default function CapTargetDeals() {
       }
       return true;
     });
+  }, [deals, statusTab, search, pushedFilter, sourceTabFilter, dateFrom, dateTo]);
 
   const {
     filteredItems: engineFiltered,
@@ -1715,3 +1718,4 @@ export default function CapTargetDeals() {
     </div>
   );
 }
+
