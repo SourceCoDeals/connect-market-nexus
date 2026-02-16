@@ -186,7 +186,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { listingId, calculateAll, forceRecalculate, triggerEnrichment,
-            batchSource, unscoredOnly, globalQueueId, offset = 0 } = body;
+            batchSource, unscoredOnly, globalQueueId, offset = 0, scoredSoFar = 0 } = body;
 
     let listingsToScore: any[] = [];
     let enrichmentQueued = 0;
@@ -227,9 +227,12 @@ serve(async (req) => {
 
       if (unscoredOnly) {
         query = query.is("deal_total_score", null);
+        // When filtering unscored only, always start from 0 since scored deals
+        // drop out of the result set after each batch
+        query = query.range(0, BATCH_SIZE - 1);
+      } else {
+        query = query.range(offset, offset + BATCH_SIZE - 1);
       }
-
-      query = query.range(offset, offset + BATCH_SIZE - 1);
 
       const { data: listings, error: listingsError } = await query;
       if (listingsError) throw new Error("Failed to fetch listings: " + listingsError.message);
@@ -315,18 +318,21 @@ serve(async (req) => {
 
     // Update global activity queue progress
     if (globalQueueId) {
-      const totalScoredSoFar = offset + scored;
+      const totalScoredSoFar = scoredSoFar + scored;
       await supabase.from("global_activity_queue").update({
         completed_items: totalScoredSoFar,
+        failed_items: errors,
       }).eq("id", globalQueueId);
     }
 
     // Self-continuation for batch mode
     if (batchSource && listingsToScore.length === BATCH_SIZE) {
-      const nextOffset = offset + BATCH_SIZE;
+      const nextScoredSoFar = scoredSoFar + scored;
+      // For unscoredOnly, keep offset at 0 since scored deals drop out of results
+      const nextOffset = unscoredOnly ? 0 : offset + BATCH_SIZE;
       const selfUrl = `${supabaseUrl}/functions/v1/calculate-deal-quality`;
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey;
-      console.log(`[batch] Continuing at offset ${nextOffset}...`);
+      console.log(`[batch] Continuing at offset ${nextOffset}, scored so far: ${nextScoredSoFar}...`);
       fetch(selfUrl, {
         method: "POST",
         headers: {
@@ -334,14 +340,15 @@ serve(async (req) => {
           "apikey": anonKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ batchSource, unscoredOnly, globalQueueId, offset: nextOffset }),
+        body: JSON.stringify({ batchSource, unscoredOnly, globalQueueId, offset: nextOffset, scoredSoFar: nextScoredSoFar }),
       }).catch(() => {}); // fire-and-forget
     } else if (batchSource && listingsToScore.length < BATCH_SIZE && globalQueueId) {
       // Last batch — mark complete
-      const totalScoredSoFar = offset + scored;
+      const totalScoredSoFar = scoredSoFar + scored;
       await supabase.from("global_activity_queue").update({
         status: "completed",
         completed_items: totalScoredSoFar,
+        failed_items: errors,
         completed_at: new Date().toISOString(),
       }).eq("id", globalQueueId);
       console.log(`[batch] Complete! Total scored: ${totalScoredSoFar}`);
