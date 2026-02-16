@@ -16,11 +16,11 @@ import {
   DecisionHistoryChart,
   ScoreCalibrationChart
 } from '@/components/remarketing';
-import { 
-  BarChart3, 
-  Users, 
-  Target, 
-  TrendingUp, 
+import {
+  BarChart3,
+  Users,
+  Target,
+  TrendingUp,
   Activity,
   RefreshCw,
   Calendar,
@@ -30,15 +30,16 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-
-const timeRanges = [
-  { label: '7 Days', days: 7 },
-  { label: '30 Days', days: 30 },
-  { label: '90 Days', days: 90 }
-];
+import { TimeframeSelector } from '@/components/filters/TimeframeSelector';
+import { useTimeframe } from '@/hooks/use-timeframe';
+import { differenceInDays } from 'date-fns';
 
 const ReMarketingAnalytics = () => {
-  const [daysBack, setDaysBack] = useState(30);
+  const { timeframe, setTimeframe, dateRange } = useTimeframe('last_30d');
+  // Compute daysBack for backward compat with hooks that expect a number
+  const daysBack = dateRange.from
+    ? differenceInDays(new Date(), dateRange.from)
+    : 365;
   const [activeTab, setActiveTab] = useState('overview');
   const { data, isLoading, error, refetch } = useReMarketingAnalytics(daysBack);
 
@@ -100,21 +101,9 @@ const ReMarketingAnalytics = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          <div className="flex rounded-md border">
-            {timeRanges.map(({ label, days }) => (
-              <Button
-                key={days}
-                variant={daysBack === days ? 'secondary' : 'ghost'}
-                size="sm"
-                className="rounded-none first:rounded-l-md last:rounded-r-md"
-                onClick={() => setDaysBack(days)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-          <Button 
-            variant="outline" 
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} compact />
+          <Button
+            variant="outline"
             size="icon"
             onClick={() => refetch()}
             disabled={isLoading}

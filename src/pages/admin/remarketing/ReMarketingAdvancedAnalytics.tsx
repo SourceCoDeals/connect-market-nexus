@@ -9,20 +9,25 @@ import {
   WinRateAnalysis,
   OutreachVelocityDashboard
 } from '@/components/remarketing';
-import { 
-  ArrowLeft, 
-  Trophy, 
-  Timer, 
+import {
+  ArrowLeft,
+  Trophy,
+  Timer,
   RefreshCw,
   TrendingUp
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { subDays, differenceInDays, format } from 'date-fns';
+import { TimeframeSelector } from '@/components/filters/TimeframeSelector';
+import { useTimeframe } from '@/hooks/use-timeframe';
 
 const ReMarketingAdvancedAnalytics = () => {
   const [activeTab, setActiveTab] = useState('win-rate');
-  const [daysBack, setDaysBack] = useState(90);
+  const { timeframe, setTimeframe, dateRange } = useTimeframe('last_90d');
+  const daysBack = dateRange.from
+    ? differenceInDays(new Date(), dateRange.from)
+    : 365;
 
   // Fetch outreach records with related data
   const { data: outreachData, isLoading: outreachLoading, refetch } = useQuery({
@@ -291,21 +296,9 @@ const ReMarketingAdvancedAnalytics = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          <div className="flex rounded-md border">
-            {[30, 90, 180].map((days) => (
-              <Button
-                key={days}
-                variant={daysBack === days ? 'secondary' : 'ghost'}
-                size="sm"
-                className="rounded-none first:rounded-l-md last:rounded-r-md"
-                onClick={() => setDaysBack(days)}
-              >
-                {days}d
-              </Button>
-            ))}
-          </div>
-          <Button 
-            variant="outline" 
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} compact />
+          <Button
+            variant="outline"
             size="icon"
             onClick={() => refetch()}
             disabled={isLoading}

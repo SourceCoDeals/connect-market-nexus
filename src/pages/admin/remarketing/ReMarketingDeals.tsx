@@ -118,6 +118,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
+import { FilterBar, DEAL_LISTING_FIELDS } from "@/components/filters";
+import { useFilterEngine } from "@/hooks/use-filter-engine";
+import { useTimeframe } from "@/hooks/use-timeframe";
+import { TimeframeSelector } from "@/components/filters/TimeframeSelector";
+import { useSavedViews } from "@/hooks/use-saved-views";
+import type { FilterState } from "@/components/filters/filter-definitions";
 
 interface DealListing {
   id: string;
@@ -785,15 +791,9 @@ const ReMarketingDeals = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
-  const [search, setSearch] = useState("");
-  const [universeFilter, setUniverseFilter] = useState<string>("all");
-  const [scoreFilter, setScoreFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("all");
-  const [industryFilter, setIndustryFilter] = useState<string>("all");
-  const [stateFilter, setStateFilter] = useState<string>("all");
-  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
-  const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
+  // Unified filter system
+  const { timeframe, setTimeframe, isInRange } = useTimeframe('all_time');
+  const { views: savedViews, addView, removeView } = useSavedViews('remarketing-deals');
 
   // Admin profiles for deal owner assignment
   const { data: adminProfiles } = useAdminProfiles();
@@ -838,7 +838,7 @@ const ReMarketingDeals = () => {
   // Clear the ref when listings change significantly (e.g., page change, filter change)
   useEffect(() => {
     enrichingDealsRef.current.clear();
-  }, [sortColumn, sortDirection, statusFilter, universeFilter, search, industryFilter, stateFilter, employeeFilter, referralPartnerFilter]);
+  }, [sortColumn, sortDirection]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -1102,84 +1102,21 @@ const ReMarketingDeals = () => {
     return `${states.slice(0, 2).join(', ')} +${states.length - 2}`;
   };
 
-  // Derive unique filter options from data
-  const filterOptions = useMemo(() => {
-    if (!listings) return { industries: [], states: [], employeeRanges: [] };
-    const industries = new Set<string>();
-    const states = new Set<string>();
-    const employeeRanges = new Set<string>();
-    listings.forEach(l => {
-      if (l.category) industries.add(l.category);
-      if (l.address_state) states.add(l.address_state);
-      if (l.linkedin_employee_range) employeeRanges.add(l.linkedin_employee_range);
-    });
-    return {
-      industries: Array.from(industries).sort(),
-      states: Array.from(states).sort(),
-      employeeRanges: Array.from(employeeRanges).sort(),
-    };
-  }, [listings]);
+  // Unified filter engine
+  const {
+    filteredItems: filteredByEngine,
+    filterState,
+    setFilterState,
+    activeFilterCount,
+    totalCount,
+    filteredCount,
+    dynamicOptions,
+  } = useFilterEngine(listings ?? [], DEAL_LISTING_FIELDS);
 
-  // Filter listings
+  // Apply timeframe on top of engine results (timeframe filters created_at)
   const filteredListings = useMemo(() => {
-    if (!listings) return [];
-    
-    return listings.filter(listing => {
-      if (search) {
-        const searchLower = search.toLowerCase();
-        const matchesSearch = 
-          listing.title?.toLowerCase().includes(searchLower) ||
-          listing.internal_company_name?.toLowerCase().includes(searchLower) ||
-          listing.description?.toLowerCase().includes(searchLower) ||
-          listing.location?.toLowerCase().includes(searchLower) ||
-          listing.website?.toLowerCase().includes(searchLower);
-        if (!matchesSearch) return false;
-      }
-
-      if (universeFilter !== "all") {
-        const stats = scoreStats?.[listing.id];
-        if (!stats || !stats.universeIds.has(universeFilter)) return false;
-      }
-
-      if (scoreFilter !== "all") {
-        const score = listing.deal_total_score ?? 0;
-        const tier = getTierFromScore(score);
-        if (scoreFilter !== tier) return false;
-      }
-
-      if (referralPartnerFilter !== "all") {
-        if (referralPartnerFilter === "referred") {
-          if (!listing.referral_partner_id) return false;
-        } else {
-          if (listing.referral_partner_id !== referralPartnerFilter) return false;
-        }
-      }
-
-      if (industryFilter !== "all") {
-        if (listing.category !== industryFilter) return false;
-      }
-
-      if (stateFilter !== "all") {
-        if (listing.address_state !== stateFilter) return false;
-      }
-
-      if (employeeFilter !== "all") {
-        if (listing.linkedin_employee_range !== employeeFilter) return false;
-      }
-
-      if (dateFilter !== "all") {
-        const createdAt = new Date(listing.created_at);
-        const now = new Date();
-        const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (dateFilter === "7d" && daysDiff > 7) return false;
-        if (dateFilter === "30d" && daysDiff > 30) return false;
-        if (dateFilter === "90d" && daysDiff > 90) return false;
-      }
-
-      return true;
-    });
-  }, [listings, search, universeFilter, scoreFilter, dateFilter, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
+    return filteredByEngine.filter(listing => isInRange(listing.created_at));
+  }, [filteredByEngine, isInRange]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -1785,17 +1722,7 @@ const ReMarketingDeals = () => {
             <Calculator className="h-4 w-4 mr-2" />
             {isCalculating ? "Scoring..." : "Score Deals"}
           </Button>
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All Time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="90d">Last 90 Days</SelectItem>
-            </SelectContent>
-          </Select>
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} compact />
         </div>
       </div>
 
@@ -1876,153 +1803,21 @@ const ReMarketingDeals = () => {
         />
       )}
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search deals by name, domain, or geography..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select value={universeFilter} onValueChange={setUniverseFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Trackers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Trackers</SelectItem>
-                {universes?.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={scoreFilter} onValueChange={setScoreFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Any Score" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Score</SelectItem>
-                <SelectItem value="A">Tier A (80+)</SelectItem>
-                <SelectItem value="B">Tier B (60-79)</SelectItem>
-                <SelectItem value="C">Tier C (40-59)</SelectItem>
-                <SelectItem value="D">Tier D (&lt;40)</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={referralPartnerFilter} onValueChange={setReferralPartnerFilter}>
-              <SelectTrigger className="w-[170px]">
-                <SelectValue placeholder="All Sources" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sources</SelectItem>
-                <SelectItem value="referred">Referred Deals Only</SelectItem>
-                {(() => {
-                  const partners = new Map<string, string>();
-                  listings?.forEach(l => {
-                    if (l.referral_partners?.id && l.referral_partners?.name) {
-                      partners.set(l.referral_partners.id, l.referral_partners.name);
-                    }
-                  });
-                  return Array.from(partners.entries()).map(([id, name]) => (
-                    <SelectItem key={id} value={id}>{name}</SelectItem>
-                  ));
-                })()}
-              </SelectContent>
-            </Select>
-
-            <Select value={industryFilter} onValueChange={setIndustryFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="All Industries" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Industries</SelectItem>
-                {filterOptions.industries.map(ind => (
-                  <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={stateFilter} onValueChange={setStateFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="All States" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All States</SelectItem>
-                {filterOptions.states.map(st => (
-                  <SelectItem key={st} value={st}>{st}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="All Sizes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sizes</SelectItem>
-                {filterOptions.employeeRanges.map(er => (
-                  <SelectItem key={er} value={er}>{er}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Active filter count */}
-          {(referralPartnerFilter !== "all" || industryFilter !== "all" || stateFilter !== "all" || employeeFilter !== "all" || scoreFilter !== "all" || universeFilter !== "all") && (
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-              <span className="text-xs text-muted-foreground">Active filters:</span>
-              {referralPartnerFilter !== "all" && (
-                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setReferralPartnerFilter("all")}>
-                  {referralPartnerFilter === "referred" ? "Referred Deals" : (() => {
-                    const p = listings?.find(l => l.referral_partners?.id === referralPartnerFilter);
-                    return p?.referral_partners?.name || "Partner";
-                  })()} ✕
-                </Badge>
-              )}
-              {industryFilter !== "all" && (
-                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setIndustryFilter("all")}>
-                  {industryFilter} ✕
-                </Badge>
-              )}
-              {stateFilter !== "all" && (
-                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setStateFilter("all")}>
-                  {stateFilter} ✕
-                </Badge>
-              )}
-              {employeeFilter !== "all" && (
-                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setEmployeeFilter("all")}>
-                  {employeeFilter} ✕
-                </Badge>
-              )}
-              {scoreFilter !== "all" && (
-                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setScoreFilter("all")}>
-                  Tier {scoreFilter} ✕
-                </Badge>
-              )}
-              {universeFilter !== "all" && (
-                <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setUniverseFilter("all")}>
-                  Universe ✕
-                </Badge>
-              )}
-              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
-                setIndustryFilter("all");
-                setStateFilter("all");
-                setEmployeeFilter("all");
-                setScoreFilter("all");
-                setUniverseFilter("all");
-              }}>
-                Clear all
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Unified Filter Bar */}
+      <FilterBar
+        filterState={filterState}
+        onFilterStateChange={setFilterState}
+        fieldDefinitions={DEAL_LISTING_FIELDS}
+        dynamicOptions={dynamicOptions}
+        totalCount={totalCount}
+        filteredCount={filteredListings.length}
+        timeframe={timeframe}
+        onTimeframeChange={setTimeframe}
+        savedViews={savedViews}
+        onSaveView={(name, filters) => addView({ name, filters })}
+        onDeleteView={removeView}
+        onSelectView={(view) => setFilterState(view.filters)}
+      />
 
       {/* Bulk Actions Toolbar */}
       {selectedDeals.size > 0 && (
