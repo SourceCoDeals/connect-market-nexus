@@ -133,16 +133,13 @@ export default function CapTargetDeals() {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
-  // Timeframe for KPI stats
-  const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
+  // Timeframe drives both KPI stats and table filtering
+  const { timeframe, setTimeframe, dateRange, isInRange } = useTimeframe("all_time");
 
   // Filters
   const [search, setSearch] = useState("");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
   const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
-  const [dateFilter, setDateFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
   // Sorting – persist in sessionStorage so it survives detail-view navigation
@@ -331,15 +328,16 @@ export default function CapTargetDeals() {
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
       if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
-      if (dateFrom && deal.captarget_contact_date) {
-        if (deal.captarget_contact_date < dateFrom) return false;
-      }
-      if (dateTo && deal.captarget_contact_date) {
-        if (deal.captarget_contact_date > dateTo + "T23:59:59") return false;
+      // Timeframe-based date filtering on created_at
+      if (dateRange.from || dateRange.to) {
+        const dealDate = deal.created_at ? new Date(deal.created_at) : null;
+        if (!dealDate) return false;
+        if (dateRange.from && dealDate < dateRange.from) return false;
+        if (dateRange.to && dealDate > dateRange.to) return false;
       }
       return true;
     });
-  }, [deals, statusTab, search, pushedFilter, sourceTabFilter, dateFrom, dateTo]);
+  }, [deals, statusTab, search, pushedFilter, sourceTabFilter, dateRange]);
 
   const {
     filteredItems: engineFiltered,
