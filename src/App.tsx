@@ -47,15 +47,15 @@ import ReMarketingIntroductions from "@/pages/admin/remarketing/ReMarketingIntro
 import ReMarketingAnalytics from "@/pages/admin/remarketing/ReMarketingAnalytics";
 import ReMarketingDeals from "@/pages/admin/remarketing/ReMarketingDeals";
 import ReMarketingDealDetail from "@/pages/admin/remarketing/ReMarketingDealDetail";
-import ReMarketingDataImport from "@/pages/admin/remarketing/ReMarketingDataImport";
-import ReMarketingBulkImport from "@/pages/admin/remarketing/ReMarketingBulkImport";
+import ReMarketingSettings from "@/pages/admin/remarketing/ReMarketingSettings";
 import ReMarketingActivityQueue from "@/pages/admin/remarketing/ReMarketingActivityQueue";
 import ReMarketingReferralPartners from "@/pages/admin/remarketing/ReMarketingReferralPartners";
 import ReMarketingReferralPartnerDetail from "@/pages/admin/remarketing/ReMarketingReferralPartnerDetail";
 import CapTargetDeals from "@/pages/admin/remarketing/CapTargetDeals";
 import GPPartnerDeals from "@/pages/admin/remarketing/GPPartnerDeals";
+import EnrichmentTest from "@/pages/admin/EnrichmentTest";
 
-import ReMarketingAdvancedAnalytics from "@/pages/admin/remarketing/ReMarketingAdvancedAnalytics";
+
 import ReferralTrackerPage from "@/pages/ReferralTrackerPage";
 import { ReMarketingLayout } from "@/components/remarketing";
 import WebhooksPage from "@/pages/admin/settings/WebhooksPage";
@@ -147,6 +147,7 @@ function App() {
               <Route path="notifications" element={<AdminNotifications />} />
               <Route path="settings/webhooks" element={<WebhooksPage />} />
               <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
+              <Route path="enrichment-test" element={<EnrichmentTest />} />
             </Route>
 
             {/* Remarketing routes with dedicated ReMarketingLayout */}
@@ -161,7 +162,7 @@ function App() {
               <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
               <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
               <Route path="analytics" element={<ReMarketingAnalytics />} />
-              <Route path="analytics/advanced" element={<ReMarketingAdvancedAnalytics />} />
+              
               <Route path="captarget-deals" element={<CapTargetDeals />} />
               <Route path="captarget-deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route path="gp-partner-deals" element={<GPPartnerDeals />} />
@@ -169,8 +170,7 @@ function App() {
               <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
               <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
               <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
-              <Route path="import" element={<ReMarketingDataImport />} />
-              <Route path="bulk-import" element={<ReMarketingBulkImport />} />
+              <Route path="settings" element={<ReMarketingSettings />} />
 
             </Route>
 

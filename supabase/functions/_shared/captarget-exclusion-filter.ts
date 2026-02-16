@@ -201,6 +201,24 @@ const FINANCE_TITLES = [
   "investment partner",
 ];
 
+// ─── Blocked industry labels (enriched by AI after import) ───
+
+const BLOCKED_INDUSTRIES = [
+  "private equity",
+  "venture capital",
+  "investment banking",
+  "investment firm",
+  "m&a advisory",
+  "business brokerage",
+  "family office",
+  "hedge fund",
+  "asset management",
+  "fund management",
+  "capital markets",
+  "merchant banking",
+  "search fund",
+];
+
 // ─── Helpers ───
 
 function textContains(text: string, keyword: string): boolean {
@@ -236,7 +254,7 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
   const combined = `${name} ${desc} ${industry}`;
 
   // Nothing to check
-  if (!name && !desc) {
+  if (!name && !desc && !industry) {
     return { excluded: false, reason: "No company data to evaluate", category: "kept" };
   }
 
@@ -272,34 +290,20 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
     }
   }
 
-  // ── 3. INDUSTRY FIELD CHECK (enriched industry label) ──
+  // ── 2.5. INDUSTRY CHECK (enriched label from AI) ──
+  // Exact match only to avoid false positives (e.g. "asset management software" ≠ "asset management")
   if (industry) {
-    const excludedIndustries: Record<string, string> = {
-      "private equity": "PE/Buyout",
-      "venture capital": "Venture Capital",
-      "investment banking": "Investment Banking",
-      "m&a advisory": "M&A Advisory",
-      "business brokerage": "Investment Banking",
-      "hedge fund": "PE/Buyout",
-    };
-    for (const [industryKey, categoryLabel] of Object.entries(excludedIndustries)) {
-      if (industry.includes(industryKey)) {
-        return {
-          excluded: true,
-          reason: `Industry: "${input.industry}" matches excluded industry "${industryKey}"`,
-          category: Object.keys(BLOCKLIST).find(k =>
-            categoryLabel === ({
-              pe_buyout: "PE/Buyout", vc: "Venture Capital", ma_advisory: "M&A Advisory",
-              investment_banking: "Investment Banking", family_office: "Family Office",
-              search_fund: "Search Fund",
-            } as Record<string, string>)[k]
-          ) || "industry_match",
-        };
-      }
+    const industryMatch = BLOCKED_INDUSTRIES.find((bi) => industry === bi);
+    if (industryMatch) {
+      return {
+        excluded: true,
+        reason: `Industry: '${industry}' matches blocked industry '${industryMatch}'`,
+        category: "industry_blocked",
+      };
     }
   }
 
-  // ── 4. NAME PATTERN CHECK (company name only) ──
+  // ── 3. NAME PATTERN CHECK (company name only) ──
   if (name && NAME_SUFFIX_PATTERN.test(name)) {
     return {
       excluded: true,
@@ -344,6 +348,7 @@ export const EXCLUSION_CATEGORY_LABELS: Record<string, string> = {
   family_office: "Family Office",
   search_fund: "Search Fund",
   name_pattern: "Name Pattern",
+  industry_blocked: "Industry Blocked",
   title_supported: "Title + Name Pattern",
   industry_match: "Industry Match",
   safelisted: "Safelisted",

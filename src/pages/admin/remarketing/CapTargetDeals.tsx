@@ -133,6 +133,8 @@ export default function CapTargetDeals() {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
+  // Timeframe for KPI stats
+  const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
 
   // Filters
   const [search, setSearch] = useState("");
@@ -143,9 +145,19 @@ export default function CapTargetDeals() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
-  // Sorting
-  const [sortColumn, setSortColumn] = useState<SortColumn>("contact_date");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  // Sorting – persist in sessionStorage so it survives detail-view navigation
+  const [sortColumn, setSortColumn] = useState<SortColumn>(() => {
+    return (sessionStorage.getItem("captarget_sort_column") as SortColumn) || "contact_date";
+  });
+  const [sortDirection, setSortDirection] = useState<SortDirection>(() => {
+    return (sessionStorage.getItem("captarget_sort_direction") as SortDirection) || "desc";
+  });
+
+  // Sync sort state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("captarget_sort_column", sortColumn);
+    sessionStorage.setItem("captarget_sort_direction", sortDirection);
+  }, [sortColumn, sortDirection]);
 
   // Column resizing
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
@@ -300,10 +312,10 @@ export default function CapTargetDeals() {
   });
 
   // Filter + sort deals
-  const filteredDeals = useMemo(() => {
+  const tabItems = useMemo(() => {
     if (!deals) return [];
 
-    let filtered = deals.filter((deal) => {
+    return deals.filter((deal) => {
       // Tab filter
       if (statusTab !== "all" && deal.captarget_status !== statusTab) return false;
       if (search) {
@@ -327,6 +339,7 @@ export default function CapTargetDeals() {
       }
       return true;
     });
+  }, [deals, statusTab, search, pushedFilter, sourceTabFilter, dateFrom, dateTo]);
 
   const {
     filteredItems: engineFiltered,
@@ -811,13 +824,13 @@ export default function CapTargetDeals() {
       });
       setSelectedIds(new Set());
       setShowArchiveDialog(false);
-      refetch();
+      await queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Archive Failed', description: err.message });
     } finally {
       setIsArchiving(false);
     }
-  }, [selectedIds, toast, refetch]);
+  }, [selectedIds, toast, queryClient]);
 
   // Permanently delete selected deals
   const handleBulkDelete = useCallback(async () => {
@@ -845,13 +858,13 @@ export default function CapTargetDeals() {
       });
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
-      refetch();
+      await queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Delete Failed', description: err.message });
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedIds, toast, refetch]);
+  }, [selectedIds, toast, queryClient]);
 
   const interestTypeLabel = (type: string | null) => {
     switch (type) {
@@ -899,7 +912,7 @@ export default function CapTargetDeals() {
   const { data: exclusionLog } = useQuery({
     queryKey: ["captarget-exclusion-log"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("captarget_sync_exclusions")
         .select("id, company_name, exclusion_reason, exclusion_category, source, excluded_at")
         .order("excluded_at", { ascending: false })
@@ -1886,3 +1899,4 @@ export default function CapTargetDeals() {
     </div>
   );
 }
+

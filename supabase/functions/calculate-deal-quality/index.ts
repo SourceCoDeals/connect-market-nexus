@@ -17,6 +17,19 @@ interface DealQualityScores {
   scoring_confidence: string;
 }
 
+// Parse linkedin_employee_range strings like "11-50 employees" → midpoint estimate
+function estimateEmployeesFromRange(range: string | null): number {
+  if (!range) return 0;
+  const cleaned = range.replace(/,/g, '').toLowerCase();
+  const plusMatch = cleaned.match(/(\d+)\+/);
+  if (plusMatch) return parseInt(plusMatch[1], 10) * 1.2; // conservative estimate above floor
+  const rangeMatch = cleaned.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (rangeMatch) return Math.round((parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10)) / 2);
+  const singleMatch = cleaned.match(/^(\d+)/);
+  if (singleMatch) return parseInt(singleMatch[1], 10);
+  return 0;
+}
+
 function calculateScoresFromData(deal: any): DealQualityScores {
   const notes: string[] = [];
 
@@ -31,15 +44,16 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const ebitda = normalizeFinancial(deal.ebitda || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
 
-  // Employee waterfall: LinkedIn → website (FT+PT) → team page count
-  const totalWebsiteEmployees = (deal.full_time_employees || 0) + (deal.part_time_employees || 0);
-  const employeeCount = deal.linkedin_employee_count || totalWebsiteEmployees || deal.team_page_employee_count || 0;
-  const employeeSource = deal.linkedin_employee_count > 0 ? 'linkedin'
-    : totalWebsiteEmployees > 0 ? 'website'
-    : deal.team_page_employee_count > 0 ? 'team_page'
-    : 'none';
+  // Employee count: prefer linkedin_employee_count, then full_time_employees, then parse range string
+  let employeeCount = deal.linkedin_employee_count || deal.full_time_employees || 0;
+  let employeeSource = 'LinkedIn';
+  if (!employeeCount && deal.linkedin_employee_range) {
+    employeeCount = estimateEmployeesFromRange(deal.linkedin_employee_range);
+    employeeSource = 'LinkedIn range';
+  }
 
-  const locationCount = deal.number_of_locations || 0;
+  const reviewCount = deal.google_review_count || 0;
+  const googleRating = deal.google_rating || 0;
 
   let revenueScore = 0;
   let ebitdaScore = 0;
@@ -98,25 +112,23 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   // ── Path B: No financials ──
   } else {
-    notes.push('No financials');
+    // No financials — use proxy signals for size estimation
+    let empPts = 0;
+    if (employeeCount >= 200)     empPts = 60;
+    else if (employeeCount >= 100) empPts = 54;
+    else if (employeeCount >= 50) empPts = 48;
+    else if (employeeCount >= 25) empPts = 42;
+    else if (employeeCount >= 15) empPts = 36;
+    else if (employeeCount >= 10) empPts = 30;
+    else if (employeeCount >= 5)  empPts = 21;
+    else if (employeeCount >= 3)  empPts = 12;
+    else if (employeeCount > 0)   empPts = 6;
 
     // Step 1-2: Employee scoring
     let empScore = 0;
     if (employeeCount > 0) {
-      if (employeeCount >= 200)      empScore = 60;
-      else if (employeeCount >= 100) empScore = 54;
-      else if (employeeCount >= 50)  empScore = 48;
-      else if (employeeCount >= 25)  empScore = 42;
-      else if (employeeCount >= 15)  empScore = 36;
-      else if (employeeCount >= 10)  empScore = 30;
-      else if (employeeCount >= 5)   empScore = 21;
-      else if (employeeCount >= 3)   empScore = 12;
-      else                           empScore = 6;
-
-      linkedinBoost = empScore;
-      const sourceLabel = employeeSource === 'linkedin' ? 'LinkedIn'
-        : employeeSource === 'website' ? 'Website' : 'Team page';
-      notes.push(`${sourceLabel}: ${employeeCount} employees (size proxy)`);
+      linkedinBoost = empPts;
+      notes.push(`${employeeSource}: ~${Math.round(employeeCount)} employees (size proxy)`);
     }
 
     // Step 3: Google review fallback — ONLY if zero employees AND <3 locations
@@ -146,8 +158,28 @@ function calculateScoresFromData(deal: any): DealQualityScores {
       notes.push(`${locationCount} locations (floor ${locationCount >= 10 ? 60 : locationCount >= 5 ? 50 : 40})`);
     }
 
+    // Baseline floor: enriched deals with some data shouldn't score 0
+    // If we have industry, description, or website data, give a minimum baseline
     if (sizeScore === 0) {
-      notes.push('No employees; No reviews; VERY LOW confidence');
+      const hasIndustry = !!(deal.industry || deal.category);
+      const hasDescription = !!(deal.description || deal.executive_summary);
+      const hasWebsite = !!(deal.website);
+      const hasEnrichment = !!deal.enriched_at;
+
+      let baseline = 0;
+      if (hasEnrichment) baseline += 5;
+      if (hasIndustry) baseline += 3;
+      if (hasDescription) baseline += 2;
+      if (hasWebsite) baseline += 2;
+
+      if (baseline > 0) {
+        sizeScore = baseline;
+        notes.push(`Baseline score (no size data yet): enriched=${hasEnrichment}, industry=${hasIndustry}`);
+      } else {
+        notes.push('No data available for scoring');
+      }
+    } else {
+      notes.push('No financials — using proxy signals');
     }
   }
 
@@ -246,7 +278,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { listingId, calculateAll, forceRecalculate, triggerEnrichment,
-            batchSource, unscoredOnly, globalQueueId, offset = 0 } = body;
+            batchSource, unscoredOnly, globalQueueId, offset = 0, scoredSoFar = 0 } = body;
 
     let listingsToScore: any[] = [];
     let enrichmentQueued = 0;
@@ -287,9 +319,12 @@ serve(async (req) => {
 
       if (unscoredOnly) {
         query = query.is("deal_total_score", null);
+        // When filtering unscored only, always start from 0 since scored deals
+        // drop out of the result set after each batch
+        query = query.range(0, BATCH_SIZE - 1);
+      } else {
+        query = query.range(offset, offset + BATCH_SIZE - 1);
       }
-
-      query = query.range(offset, offset + BATCH_SIZE - 1);
 
       const { data: listings, error: listingsError } = await query;
       if (listingsError) throw new Error("Failed to fetch listings: " + listingsError.message);
@@ -376,18 +411,21 @@ serve(async (req) => {
 
     // Update global activity queue progress
     if (globalQueueId) {
-      const totalScoredSoFar = offset + scored;
+      const totalScoredSoFar = scoredSoFar + scored;
       await supabase.from("global_activity_queue").update({
         completed_items: totalScoredSoFar,
+        failed_items: errors,
       }).eq("id", globalQueueId);
     }
 
     // Self-continuation for batch mode
     if (batchSource && listingsToScore.length === BATCH_SIZE) {
-      const nextOffset = offset + BATCH_SIZE;
+      const nextScoredSoFar = scoredSoFar + scored;
+      // For unscoredOnly, keep offset at 0 since scored deals drop out of results
+      const nextOffset = unscoredOnly ? 0 : offset + BATCH_SIZE;
       const selfUrl = `${supabaseUrl}/functions/v1/calculate-deal-quality`;
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey;
-      console.log(`[batch] Continuing at offset ${nextOffset}...`);
+      console.log(`[batch] Continuing at offset ${nextOffset}, scored so far: ${nextScoredSoFar}...`);
       fetch(selfUrl, {
         method: "POST",
         headers: {
@@ -395,14 +433,15 @@ serve(async (req) => {
           "apikey": anonKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ batchSource, unscoredOnly, globalQueueId, offset: nextOffset }),
+        body: JSON.stringify({ batchSource, unscoredOnly, globalQueueId, offset: nextOffset, scoredSoFar: nextScoredSoFar }),
       }).catch(() => {}); // fire-and-forget
     } else if (batchSource && listingsToScore.length < BATCH_SIZE && globalQueueId) {
       // Last batch — mark complete
-      const totalScoredSoFar = offset + scored;
+      const totalScoredSoFar = scoredSoFar + scored;
       await supabase.from("global_activity_queue").update({
         status: "completed",
         completed_items: totalScoredSoFar,
+        failed_items: errors,
         completed_at: new Date().toISOString(),
       }).eq("id", globalQueueId);
       console.log(`[batch] Complete! Total scored: ${totalScoredSoFar}`);

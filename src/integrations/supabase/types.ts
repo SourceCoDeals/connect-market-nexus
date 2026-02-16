@@ -1225,11 +1225,51 @@ export type Database = {
         }
         Relationships: []
       }
+      captarget_sync_exclusions: {
+        Row: {
+          captarget_row_hash: string | null
+          company_name: string | null
+          contact_title: string | null
+          description_snippet: string | null
+          excluded_at: string | null
+          exclusion_category: string
+          exclusion_reason: string
+          id: string
+          raw_row_data: Json | null
+          source: string | null
+        }
+        Insert: {
+          captarget_row_hash?: string | null
+          company_name?: string | null
+          contact_title?: string | null
+          description_snippet?: string | null
+          excluded_at?: string | null
+          exclusion_category: string
+          exclusion_reason: string
+          id?: string
+          raw_row_data?: Json | null
+          source?: string | null
+        }
+        Update: {
+          captarget_row_hash?: string | null
+          company_name?: string | null
+          contact_title?: string | null
+          description_snippet?: string | null
+          excluded_at?: string | null
+          exclusion_category?: string
+          exclusion_reason?: string
+          id?: string
+          raw_row_data?: Json | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       captarget_sync_log: {
         Row: {
           duration_ms: number | null
           errors: Json | null
           id: string
+          rows_excluded: number | null
           rows_inserted: number | null
           rows_read: number | null
           rows_skipped: number | null
@@ -1241,6 +1281,7 @@ export type Database = {
           duration_ms?: number | null
           errors?: Json | null
           id?: string
+          rows_excluded?: number | null
           rows_inserted?: number | null
           rows_read?: number | null
           rows_skipped?: number | null
@@ -1252,6 +1293,7 @@ export type Database = {
           duration_ms?: number | null
           errors?: Json | null
           id?: string
+          rows_excluded?: number | null
           rows_inserted?: number | null
           rows_read?: number | null
           rows_skipped?: number | null
