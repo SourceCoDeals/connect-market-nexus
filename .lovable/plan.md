@@ -1,43 +1,28 @@
 
 
-## Problem: Duplicate Empty Records Instead of Re-tagging Existing Deals
+## Plan: Clean Up Data Import / Bulk Import from ReMarketing Sidebar
 
-### What Went Wrong
+### What Changes
 
-When the edge function couldn't find exact title matches for 6 deals, instead of locating the existing records (which had enriched data -- descriptions, locations, etc.), it **created brand-new empty records**. This left you with:
+1. **Delete** the Bulk Import page file (`src/pages/admin/remarketing/ReMarketingBulkImport.tsx`) and its related validation component (`src/components/remarketing/ImportValidationPanel.tsx`) if it is only used there.
 
-- **6 duplicate empty listings** tagged as `gp_partners` (no description, no location, no revenue)
-- **The original enriched versions** still sitting in "All Deals" tagged as `manual`
+2. **Add a "Settings" nav item** to the ReMarketing sidebar that links to `/admin/remarketing/settings`.
 
-**Affected deals with duplicates:**
+3. **Create a new Settings page** (`src/pages/admin/remarketing/ReMarketingSettings.tsx`) that contains the **Merge Deals** panel (reusing the existing `DealMergePanel` component) inside a collapsible card. This gives it a proper home without cluttering the main nav.
 
-| Deal | Original (has data) | Duplicate (empty, gp_partners) |
-|------|-------------------|-------------------------------|
-| Advacned Window Inc | `91136b64` (manual, has description + location) | `ccf7d87c` (new, empty) |
-| Auto Body Brothers | Not found in DB -- genuinely new | `707a8dce` (new, empty) |
-| Brook Capital | Not found -- genuinely new | `078f9305` (new, empty) |
-| Northern lights Heating & Cooling | Not found -- genuinely new | `f900cb7f` (new, empty) |
-| Rhinelander Collision Center | Not found -- genuinely new | `4fbe9865` (new, empty) |
-| SHORELINE AUTO BODY | Not found -- genuinely new | `1ab21ffe` (new, empty) |
+4. **Remove from sidebar**: Remove both "Data Import" and "Bulk Import" nav items from `ReMarketingSidebar.tsx`. Remove the now-unused `Upload` and `Database` icon imports.
 
-### Fix Plan
+5. **Update routing in `App.tsx`**:
+   - Remove the `import` and `bulk-import` routes.
+   - Remove the `ReMarketingBulkImport` import.
+   - Replace `ReMarketingDataImport` import/route with the new `ReMarketingSettings` page at path `settings`.
 
-**Step 1: Fix "Advacned Window Inc" (has existing data)**
-- Delete the empty duplicate (`ccf7d87c`)
-- Re-tag the original enriched record (`91136b64`) as `gp_partners` so it keeps its description, location, and all other data
-
-**Step 2: Keep the 5 genuinely new deals**
-- Auto Body Brothers, Brook Capital, Northern Lights Heating & Cooling, Rhinelander Collision Center, and SHORELINE AUTO BODY do not have pre-existing records with data -- they are legitimately new entries from the spreadsheet
-- Update their status from `new` to `active` so they appear properly in GP Partners
-
-**Step 3: Verify final count**
-- Confirm exactly 42 deals in GP Partners
-- Confirm no remaining duplicates
+6. **Delete the old Data Import page** (`src/pages/admin/remarketing/ReMarketingDataImport.tsx`) since the Merge Deals panel moves to the new Settings page.
 
 ### Technical Details
 
-- Use `fix-gp-tagging` edge function with `tagByIds` to re-tag the original Advacned Window record
-- Delete the empty duplicate via direct SQL (through the edge function)
-- Update status on the 5 new records from `new` to `active`
-- Run a final verification query to confirm 42 unique GP Partners deals with no orphaned duplicates
+- **Files to delete**: `ReMarketingBulkImport.tsx`, `ReMarketingDataImport.tsx`
+- **Files to create**: `ReMarketingSettings.tsx` (settings page with Merge Deals section)
+- **Files to edit**: `ReMarketingSidebar.tsx` (swap 2 items for 1 Settings item), `App.tsx` (update routes/imports)
+- **No changes** to any enrichment code, edge functions, or the `DealMergePanel` component itself
 
