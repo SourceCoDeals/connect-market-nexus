@@ -16,6 +16,7 @@ export interface ExclusionInput {
   companyName: string | null;
   description: string | null;
   contactTitle: string | null;
+  industry: string | null;
 }
 
 export interface ExclusionResult {
@@ -197,6 +198,25 @@ const FINANCE_TITLES = [
   "investment partner",
 ];
 
+// ─── Blocked industry labels (enriched by AI after import) ───
+
+const BLOCKED_INDUSTRIES = [
+  "private equity",
+  "venture capital",
+  "investment banking",
+  "investment firm",
+  "m&a advisory",
+  "financial advisory",
+  "business brokerage",
+  "family office",
+  "hedge fund",
+  "asset management",
+  "fund management",
+  "capital markets",
+  "merchant banking",
+  "search fund",
+];
+
 // ─── Helpers ───
 
 function textContains(text: string, keyword: string): boolean {
@@ -226,12 +246,13 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
   const name = (input.companyName || "").toLowerCase().trim();
   const desc = (input.description || "").toLowerCase().trim();
   const title = (input.contactTitle || "").toLowerCase().trim();
+  const industry = (input.industry || "").toLowerCase().trim();
 
   // Combined text for keyword searches
   const combined = `${name} ${desc}`;
 
   // Nothing to check
-  if (!name && !desc) {
+  if (!name && !desc && !industry) {
     return { excluded: false, reason: "No company data to evaluate", category: "kept" };
   }
 
@@ -263,6 +284,19 @@ export function checkCompanyExclusion(input: ExclusionInput): ExclusionResult {
         excluded: true,
         reason: `${categoryLabels[blockCategory] || blockCategory}: matched '${match}'`,
         category: blockCategory,
+      };
+    }
+  }
+
+  // ── 2.5. INDUSTRY CHECK (enriched label from AI) ──
+  // Exact match only to avoid false positives (e.g. "asset management software" ≠ "asset management")
+  if (industry) {
+    const industryMatch = BLOCKED_INDUSTRIES.find((bi) => industry === bi);
+    if (industryMatch) {
+      return {
+        excluded: true,
+        reason: `Industry: '${industry}' matches blocked industry '${industryMatch}'`,
+        category: "industry_blocked",
       };
     }
   }
@@ -312,6 +346,7 @@ export const EXCLUSION_CATEGORY_LABELS: Record<string, string> = {
   family_office: "Family Office",
   search_fund: "Search Fund",
   name_pattern: "Name Pattern",
+  industry_blocked: "Industry Blocked",
   title_supported: "Title + Name Pattern",
   safelisted: "Safelisted",
   kept: "Kept",
