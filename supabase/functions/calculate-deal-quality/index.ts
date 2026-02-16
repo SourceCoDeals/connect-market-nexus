@@ -105,21 +105,24 @@ function calculateScoresFromData(deal: any): DealQualityScores {
       notes.push(`LinkedIn: ${employeeCount} employees (size proxy)`);
     }
 
+    // Only use Google reviews as size proxy when LinkedIn data is weak/missing
     let revPts = 0;
-    if (reviewCount >= 200)       revPts = 15;
-    else if (reviewCount >= 100)  revPts = 12;
-    else if (reviewCount >= 50)   revPts = 9;
-    else if (reviewCount >= 20)   revPts = 6;
-    else if (reviewCount > 0)     revPts = 3;
-
     let ratPts = 0;
-    if (googleRating >= 4.5)      ratPts = 15;
-    else if (googleRating >= 4.0) ratPts = 12;
-    else if (googleRating >= 3.5) ratPts = 9;
-    else if (googleRating >= 3.0) ratPts = 3;
+    if (employeeCount < 10) {
+      if (reviewCount >= 200)       revPts = 15;
+      else if (reviewCount >= 100)  revPts = 12;
+      else if (reviewCount >= 50)   revPts = 9;
+      else if (reviewCount >= 20)   revPts = 6;
+      else if (reviewCount > 0)     revPts = 3;
 
-    if (reviewCount > 0) {
-      notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating`);
+      if (googleRating >= 4.5)      ratPts = 15;
+      else if (googleRating >= 4.0) ratPts = 12;
+      else if (googleRating >= 3.5) ratPts = 9;
+      else if (googleRating >= 3.0) ratPts = 3;
+
+      if (reviewCount > 0) {
+        notes.push(`Google: ${reviewCount} reviews, ${googleRating} rating`);
+      }
     }
 
     sizeScore = Math.min(90, empPts + revPts + ratPts);
@@ -208,7 +211,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     revenue_score: hasFinancials ? revenueScore : undefined,
     ebitda_score: hasFinancials ? ebitdaScore : undefined,
     linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
-    quality_calculation_version: 'v5',
+    quality_calculation_version: 'v5.1',
     scoring_notes: notes.length > 0 ? notes.join("; ") : undefined,
   };
 }
