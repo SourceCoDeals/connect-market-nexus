@@ -1137,6 +1137,18 @@ const ReMarketingDeals = () => {
     };
   }, [listings]);
 
+  // Timeframe, filter engine, and saved views
+  const { timeframe, setTimeframe } = useTimeframe("all_time");
+  const {
+    filteredItems: _engineFiltered,
+    filterState,
+    setFilterState,
+    dynamicOptions,
+    totalCount,
+  } = useFilterEngine(listings || [], DEAL_LISTING_FIELDS);
+  const { views: savedViews, addView, removeView } = useSavedViews("remarketing-deals");
+
+
   // Filter listings
   const filteredListings = useMemo(() => {
     if (!listings) return [];
