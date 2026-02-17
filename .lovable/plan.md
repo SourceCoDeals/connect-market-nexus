@@ -1,56 +1,79 @@
 
 
-# Fix: Listing Creation Failure + Build Error
+# Fix: Newly Created Listings Invisible in Admin
 
-## Problem Summary
+## Root Cause
 
-Two issues are blocking the admin listing creation flow:
+The admin listing tabs use a **flawed two-bucket classification** that creates a gap:
 
-1. **Database: LPAD truncation bug** -- The `generate_deal_identifier()` function uses `LPAD(sequence, 3, '0')`. The sequence is currently at **8000**, which gets truncated to `'800'` -- colliding with identifiers that already exist from when the sequence was at 800. Every new insert fails with a unique constraint violation.
+| Tab | Filter Logic | Your Listing |
+|-----|-------------|--------------|
+| Marketplace | `is_internal_deal = false` AND has image | `is_internal_deal = true` -- EXCLUDED |
+| Research | `is_internal_deal = true` AND no image | Has image -- EXCLUDED |
 
-2. **Build error: TypeScript signal incompatibility** -- `score-buyer-deal/index.ts` passes a plain `RequestInit` to `fetchWithAutoRetry()` which expects `RequestInit & { signal?: AbortSignal }`. The `null` possibility on `signal` in standard `RequestInit` doesn't match the stricter signature.
+New listings created via the admin form default to `is_internal_deal = true` (correct safety behavior) and can have images attached. This combination matches **neither tab**, making them invisible.
 
-## Fix 1: Database Migration
+## The Fix
 
-A single SQL migration will:
+The Research/Internal tab filter is wrong. Internal deals should show regardless of image status. The image filter was originally meant to separate "admin-quality listings" from "data-only research imports," but it creates this blind spot.
 
-- **Replace the function** with `LPAD(..., 5, '0')` -- supports up to 99,999 identifiers per year
-- **Add a retry loop** -- if a generated identifier collides, increment and try again (up to 10 attempts)
-- **Advance the sequence** to `7726` (current max suffix 7625 + 100 safety margin), resetting it below the danger zone since the wider LPAD now handles large numbers correctly
+### Change 1: Fix `use-listings-by-type.ts`
+
+Remove the image-based exclusion from the research/internal tab. Internal deals should show whether or not they have an image.
 
 ```text
-Current: 'SCO-' || year || '-' || LPAD(seq, 3, '0')
-  seq 8005 --> 'SCO-2026-800' (TRUNCATED! collision!)
+// BEFORE (line 52-56):
+query = query
+  .eq('is_internal_deal', true)
+  .or('image_url.is.null,image_url.eq.');
 
-Fixed:   'SCO-' || year || '-' || LPAD(seq, 5, '0')  
-  seq 8005 --> 'SCO-2026-08005' (correct, unique)
+// AFTER:
+query = query
+  .eq('is_internal_deal', true);
 ```
 
-## Fix 2: Build Error in score-buyer-deal
+### Change 2: Fix `useListingTypeCounts` in the same file
 
-Change the local `fetchWithRetry` wrapper to cast the options parameter so the `signal` type aligns:
+Update the research count query (lines 135-141) to match:
 
-```typescript
-// Line 229: cast to match the shared function's stricter type
-return fetchWithAutoRetry(url, options as RequestInit & { signal?: AbortSignal }, {
+```text
+// BEFORE:
+supabase
+  .from('listings')
+  .select('id', { count: 'exact', head: true })
+  .is('deleted_at', null)
+  .or('image_url.is.null,image_url.eq.')
+  .eq('is_internal_deal', true)
+
+// AFTER:
+supabase
+  .from('listings')
+  .select('id', { count: 'exact', head: true })
+  .is('deleted_at', null)
+  .eq('is_internal_deal', true)
 ```
 
-## Fix 3: Chunk Error Recovery (secondary)
+### Change 3: Fix the older `use-listings-query.ts`
 
-Add a global error handler in the Vite/React lazy-loading layer to catch `Failed to fetch dynamically imported module` errors and force a page reload. This prevents stale build artifacts from surfacing as "Critical Error" toasts.
+Remove the image requirement filter (lines 45-46) since it creates the same blind spot for any code paths still using this hook:
 
-## Bulletproofing
+```text
+// REMOVE these two lines:
+.not('image_url', 'is', null)
+.neq('image_url', '')
+```
 
-- 5-digit LPAD supports 99,999 identifiers per year before any risk
-- Retry loop in the DB function auto-recovers from any future collision
-- Sequence reset clears the current collision zone
-- Chunk error handler prevents stale-deploy errors from blocking the UI
+## Why This Is Safe
 
-## Changes Summary
+- The `is_internal_deal` flag is the authoritative visibility control, not the image URL
+- The publish-listing edge function already validates image presence before publishing to the marketplace
+- Marketplace tab still requires `is_internal_deal = false` (only set via the publish flow), so no unvetted listings leak to buyers
+- Internal/draft listings with images simply appear in the Research/Internal tab where admins can manage and eventually publish them
+
+## Summary
 
 | File | Change |
 |------|--------|
-| SQL Migration | Replace `generate_deal_identifier()`, reset sequence |
-| `supabase/functions/score-buyer-deal/index.ts` | Type cast on line 229 |
-| `src/App.tsx` or router config | Add dynamic import error recovery handler |
+| `src/hooks/admin/listings/use-listings-by-type.ts` | Remove `.or('image_url.is.null,image_url.eq.')` from research query and count query |
+| `src/hooks/admin/listings/use-listings-query.ts` | Remove `.not('image_url', 'is', null)` and `.neq('image_url', '')` filters |
 
