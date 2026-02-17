@@ -34,7 +34,9 @@ export async function queueDealEnrichment(dealIds: string[]): Promise<number> {
     queued_at: new Date().toISOString(),
   }));
 
-  const { error } = await supabase.from("enrichment_queue").insert(rows);
+  const { error } = await supabase
+    .from("enrichment_queue")
+    .upsert(rows, { onConflict: "listing_id", ignoreDuplicates: false });
   if (error) {
     console.error("Failed to queue deal enrichment:", error);
     toast.error("Failed to queue enrichment");
