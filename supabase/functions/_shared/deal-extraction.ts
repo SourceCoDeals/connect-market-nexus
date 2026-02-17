@@ -170,9 +170,9 @@ DEPTH REQUIREMENTS — Every field must be DETAILED and CONTEXTUAL:
 
 2. **Service Mix** (2-4 sentences): Don't just list services — describe the revenue model. Include residential vs commercial split if visible, recurring vs project-based work, how services interrelate, and any specializations or certifications that create competitive moats.
 
-3. **Growth Trajectory** (2-3 sentences): Growth indicators — new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about recent growth, awards for growth. If no explicit growth data, note what expansion levers exist.
+3. **Customer Types** (1-2 sentences): Don't just say "residential and commercial" — describe the customer segments with detail. E.g., "Primarily serves property management companies (60%+) and commercial building owners, with a growing residential segment through insurance restoration referrals."
 
-4. **Customer Types** (1-2 sentences): Don't just say "residential and commercial" — describe the customer segments with detail. E.g., "Primarily serves property management companies (60%+) and commercial building owners, with a growing residential segment through insurance restoration referrals."`;
+4. **Key Quotes** (up to 10): Extract verbatim quotes from the website — testimonials, taglines, mission statements, or any revealing text that captures the company's positioning or value proposition.`;
 
 export function buildDealUserPrompt(dealTitle: string, websiteContent: string): string {
   return `Analyze this website content from "${dealTitle || 'Unknown Company'}" and extract DEEP business intelligence. This data drives M&A buyer matching — every detail matters.
@@ -180,15 +180,14 @@ export function buildDealUserPrompt(dealTitle: string, websiteContent: string): 
 IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
 
 DEPTH REQUIREMENTS:
-- Executive summary: Write 3-5 rich sentences a PE investor can scan in 30 seconds. Include what they do, how big they are, where they operate, what makes them special, and why a buyer would want them.
+- Executive summary: Write 3-5 rich sentences a PE investor can scan in 30 seconds. Include what they do, where they operate, what makes them special, and why a buyer would want them.
 - Service mix: Describe the full service portfolio with context — don't just list services. Explain how they fit together, what drives revenue, residential vs commercial mix.
-- Growth trajectory: What signals growth or stagnation? New locations, expanding teams, new services, awards, customer volume trends.
 - Customer types: Be specific about segments — not just "commercial" but what KIND of commercial customers.
+- Key quotes: Extract up to 10 verbatim quotes — testimonials, taglines, mission statements, or any revealing text.
 
-FINANCIAL DATA POLICY:
-- Do NOT extract any financial information (revenue, EBITDA, margins, etc.) from websites.
-- Financial data may ONLY come from transcripts or manual entry, never from web scraping.
-- If financial figures appear on the website, IGNORE them entirely.
+IMPORTANT:
+- Do NOT extract any financial information (revenue, EBITDA, margins, etc.) from websites. Financial data may ONLY come from transcripts or manual entry.
+- Do NOT extract owner goals, transition preferences, or deal-related information from websites.
 
 LOCATION COUNT RULES:
 - Count ALL physical locations: offices, branches, shops, stores, facilities
@@ -206,30 +205,50 @@ export const DEAL_TOOL_SCHEMA = {
   type: 'function',
   function: {
     name: 'extract_deal_intelligence',
-    description: 'Extract comprehensive business/deal intelligence from website content',
+    description: 'Extract business intelligence from website content for M&A deal matching',
     parameters: {
       type: 'object',
       properties: {
+        // Company identity
         internal_company_name: {
           type: 'string',
           description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
         },
+        industry: {
+          type: 'string',
+          description: 'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting".'
+        },
+        website: {
+          type: 'string',
+          description: 'Canonical website URL if different from the scraped URL (e.g., redirected domain)'
+        },
+        linkedin_url: {
+          type: 'string',
+          description: 'LinkedIn company page URL if found on the website'
+        },
+        // Summary & services
         executive_summary: {
           type: 'string',
-          description: 'A 3-5 sentence PE-investor-grade summary. MUST include: what the company does, size indicators (employees, locations, years), geographic footprint, key differentiators, and acquisition attractiveness. Use specific facts, not vague language. Lead with the most compelling aspect.'
+          description: 'A 3-5 sentence PE-investor-grade summary. Include: what the company does, size indicators (locations, years), geographic footprint, key differentiators, and acquisition attractiveness.'
+        },
+        services: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of EVERY distinct service/product offered. Be specific: "fire restoration" not just "restoration". Use lowercase except proper nouns.'
         },
         service_mix: {
           type: 'string',
-          description: 'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications. Do NOT just list services — describe the revenue model.'
+          description: 'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications.'
         },
-        industry: {
+        // Location & geography
+        location: {
           type: 'string',
-          description: 'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting". Always provide your best classification based on available information — never leave blank.'
+          description: 'Primary location in "City, ST" format (e.g., "Dallas, TX", "Chicago, IL")'
         },
         geographic_states: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations explicitly stated in the text. Do NOT infer neighboring states. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
+          description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
         },
         number_of_locations: {
           type: 'number',
@@ -237,15 +256,15 @@ export const DEAL_TOOL_SCHEMA = {
         },
         street_address: {
           type: 'string',
-          description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip. Leave empty/null if not found - do NOT use placeholder values like "Not Found", "N/A", or "Unknown".'
+          description: 'Street address only (e.g., "123 Main Street"). Do NOT include city/state/zip. Null if not found.'
         },
         address_city: {
           type: 'string',
-          description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
+          description: 'City name only (e.g., "Dallas", "Los Angeles").'
         },
         address_state: {
           type: 'string',
-          description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
+          description: '2-letter US state code (e.g., "TX", "CA") or Canadian province code (e.g., "ON", "BC").'
         },
         address_zip: {
           type: 'string',
@@ -255,19 +274,21 @@ export const DEAL_TOOL_SCHEMA = {
           type: 'string',
           description: 'Country code, typically "US" or "CA"'
         },
+        // Customers
         customer_types: {
           type: 'string',
-          description: 'Detailed 1-2 sentence description of customer segments. Be specific — not just "residential and commercial" but what KIND of customers, their profile, and any concentration patterns visible.'
+          description: 'Detailed 1-2 sentence description of customer segments. Be specific — not just "commercial" but what KIND of customers.'
         },
-        growth_trajectory: {
+        customer_geography: {
           type: 'string',
-          description: 'Detailed 2-3 sentence growth assessment: new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about growth, awards for growth, and what organic/inorganic expansion levers exist.'
+          description: 'Service radius, coverage area, or where customers are located (e.g., "50-mile radius around Indianapolis", "All of southern Indiana and Louisville metro")'
         },
-        linkedin_url: {
-          type: 'string',
-          description: 'LinkedIn company page URL if found on the website'
+        // Quotes & evidence
+        key_quotes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Up to 10 verbatim quotes from the website — testimonials, taglines, mission statements, or any text that reveals the company\'s positioning, reputation, or value proposition.'
         },
-        // Financial fields REMOVED — financial data must NEVER be scraped from websites.
       },
       required: ['industry']
     }
