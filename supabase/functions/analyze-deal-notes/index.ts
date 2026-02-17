@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, extractStatesFromText, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source-priority.ts";
+import { isPlaceholder } from "../_shared/deal-extraction.ts";
 import { callGeminiWithRetry, GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
@@ -415,7 +416,9 @@ Use the tool to return structured data.`;
       deal,
       deal.extraction_sources,
       extracted,
-      'notes'
+      'notes',
+      undefined,
+      isPlaceholder
     );
 
     // Add notes_analyzed_at

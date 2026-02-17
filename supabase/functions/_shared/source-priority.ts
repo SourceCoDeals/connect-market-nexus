@@ -45,7 +45,8 @@ export function canOverwriteField(
   fieldName: string,
   existingSource: ExtractionSource | null | undefined,
   newSource: ExtractionSource,
-  existingValue: unknown
+  existingValue: unknown,
+  isPlaceholderFn?: (v: unknown) => boolean
 ): boolean {
   // If no existing value, always allow
   if (existingValue === null || existingValue === undefined || existingValue === '') {
@@ -54,6 +55,12 @@ export function canOverwriteField(
 
   // If empty array, allow
   if (Array.isArray(existingValue) && existingValue.length === 0) {
+    return true;
+  }
+
+  // If existing value is a placeholder string (e.g. "Not discussed on this call."),
+  // treat it as empty — any source can overwrite useless placeholder data.
+  if (isPlaceholderFn && isPlaceholderFn(existingValue)) {
     return true;
   }
 
@@ -126,13 +133,18 @@ export function updateExtractionSources(
 /**
  * Build updates object respecting source priority
  * Returns only fields that should be updated based on priority rules
+ *
+ * @param isPlaceholderFn - Optional function to detect placeholder strings.
+ *   When provided, existing field values that are placeholders (e.g. "Not discussed on this call.")
+ *   are treated as empty, allowing any source to overwrite them.
  */
 export function buildPriorityUpdates<T extends Record<string, unknown>>(
   existingData: T,
   extractionSources: ExtractionSources | null | undefined,
   newData: Partial<T>,
   newSource: ExtractionSource,
-  transcriptId?: string
+  transcriptId?: string,
+  isPlaceholderFn?: (v: unknown) => boolean
 ): { updates: Partial<T>; sourceUpdates: ExtractionSources; rejected: string[] } {
   const updates: Partial<T> = {};
   const sourceUpdates: ExtractionSources = {};
@@ -145,7 +157,7 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
     const existingSourceType = existingFieldSource?.source;
     const existingValue = existingData[key as keyof T];
 
-    if (canOverwriteField(key, existingSourceType, newSource, existingValue)) {
+    if (canOverwriteField(key, existingSourceType, newSource, existingValue, isPlaceholderFn)) {
       (updates as Record<string, unknown>)[key] = value;
       sourceUpdates[key] = createFieldSource(
         newSource,

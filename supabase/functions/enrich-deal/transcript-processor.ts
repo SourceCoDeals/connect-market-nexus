@@ -15,6 +15,7 @@ import {
   NUMERIC_LISTING_FIELDS,
   mapTranscriptToListing,
   sanitizeListingUpdates,
+  isPlaceholder,
 } from "../_shared/deal-extraction.ts";
 
 export interface TranscriptReport {
@@ -83,7 +84,8 @@ export async function applyExistingTranscriptData(
         cumulativeSources,
         flat as any,
         'transcript',
-        t.id
+        t.id,
+        isPlaceholder
       );
       updates = result.updates as Record<string, unknown>;
       sourceUpdates = result.sourceUpdates;
@@ -150,9 +152,10 @@ export async function processNewTranscripts(
   supabaseUrl: string,
   supabaseServiceKey: string,
   supabaseAnonKey: string,
-): Promise<{ processed: number; errors: string[]; processable: number; skipped: number }> {
+): Promise<{ processed: number; errors: string[]; processable: number; skipped: number; fieldNames: string[] }> {
   let transcriptsProcessed = 0;
   const transcriptErrors: string[] = [];
+  const allFieldNames: string[] = [];
 
   // Detect Fireflies URLs in link-type transcripts and convert them
   const firefliesLinkPattern = /fireflies\.ai\/view\/[^:]+::([a-zA-Z0-9]+)/;
@@ -288,7 +291,12 @@ export async function processNewTranscripts(
               continue;
             }
 
-            return transcript.id;
+            // Parse response to capture which fields were applied
+            const responseBody = await extractResponse.json().catch(() => ({}));
+            return {
+              transcriptId: transcript.id,
+              fieldsUpdated: responseBody.fieldsUpdated || [],
+            };
           } catch (err) {
             lastError = err instanceof Error ? err : new Error(String(err));
             if (attempt === MAX_RETRIES) throw lastError;
@@ -305,7 +313,11 @@ export async function processNewTranscripts(
 
       if (result.status === 'fulfilled') {
         transcriptsProcessed++;
-        console.log(`[Transcripts] Successfully processed transcript ${transcript.id}`);
+        const { fieldsUpdated } = result.value;
+        if (fieldsUpdated?.length > 0) {
+          allFieldNames.push(...fieldsUpdated);
+        }
+        console.log(`[Transcripts] Successfully processed transcript ${transcript.id} (${fieldsUpdated?.length || 0} fields applied)`);
       } else {
         const errMsg = getErrorMessage(result.reason);
         console.error(`[Transcripts] Failed transcript ${transcript.id}:`, errMsg);
@@ -318,5 +330,5 @@ export async function processNewTranscripts(
     }
   }
 
-  return { processed: transcriptsProcessed, errors: transcriptErrors, processable, skipped };
+  return { processed: transcriptsProcessed, errors: transcriptErrors, processable, skipped, fieldNames: [...new Set(allFieldNames)] };
 }

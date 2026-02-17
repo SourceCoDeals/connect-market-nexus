@@ -17,6 +17,7 @@ import {
   DEAL_TOOL_SCHEMA,
   // Validators
   validateDealExtraction,
+  isPlaceholder,
 } from "../_shared/deal-extraction.ts";
 // Sub-modules extracted from this file
 import { applyExistingTranscriptData, processNewTranscripts } from "./transcript-processor.ts";
@@ -253,6 +254,13 @@ serve(async (req) => {
       transcriptErrors.push(...newResult.errors);
       transcriptReport.processable = newResult.processable;
       transcriptReport.skipped = newResult.skipped;
+
+      // Capture field names from newly processed transcripts (Bug fix: Step 0B was not
+      // reporting field names back to the orchestrator, causing "no new fields" even when
+      // extract-deal-transcript applied data to the deal)
+      if (newResult.fieldNames?.length > 0) {
+        transcriptFieldNames.push(...newResult.fieldNames);
+      }
 
       transcriptReport.processed = transcriptsProcessed + (transcriptReport.appliedFromExistingTranscripts || 0);
       (transcriptReport as any).processedThisRun = transcriptsProcessed;
@@ -686,7 +694,9 @@ serve(async (req) => {
       deal,
       deal.extraction_sources,
       extracted,
-      'website'
+      'website',
+      undefined,       // no transcriptId for website source
+      isPlaceholder    // treat "Not discussed on this call." etc. as empty
     );
 
     const finalUpdates: Record<string, unknown> = {
