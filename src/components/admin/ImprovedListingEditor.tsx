@@ -253,6 +253,17 @@ export function ImprovedListingEditor({
         });
         return;
       }
+
+      // Marketplace listings require an image
+      if (targetType === 'marketplace' && !selectedImage && !imagePreview) {
+        setImageError('An image is required for marketplace listings');
+        toast({
+          variant: "destructive",
+          title: "Image Required",
+          description: "Marketplace listings must include a featured image.",
+        });
+        return;
+      }
       
       // Get form values and call the submit handler
       const formData = form.getValues();
