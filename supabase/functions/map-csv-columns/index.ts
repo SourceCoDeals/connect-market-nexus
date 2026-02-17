@@ -62,12 +62,12 @@ const DEAL_FIELDS = [
   { field: 'address_city', description: 'City name' },
   { field: 'address_state', description: 'State (2-letter code)' },
   { field: 'address_zip', description: 'ZIP code' },
-  { field: 'primary_contact_name', description: 'Full name of primary contact or owner' },
-  { field: 'primary_contact_first_name', description: 'First name only of primary contact' },
-  { field: 'primary_contact_last_name', description: 'Last name only of primary contact' },
-  { field: 'primary_contact_email', description: 'Primary contact email address' },
-  { field: 'primary_contact_phone', description: 'Primary contact phone number' },
-  { field: 'primary_contact_title', description: 'Job title or role of primary contact (e.g., Owner, CEO)' },
+  { field: 'main_contact_name', description: 'Full name of primary contact or owner' },
+  { field: 'main_contact_first_name', description: 'First name only of primary contact' },
+  { field: 'main_contact_last_name', description: 'Last name only of primary contact' },
+  { field: 'main_contact_email', description: 'Primary contact email address' },
+  { field: 'main_contact_phone', description: 'Primary contact phone number' },
+  { field: 'main_contact_title', description: 'Job title or role of primary contact (e.g., Owner, CEO)' },
   { field: 'internal_company_name', description: 'Internal name for the company' },
   { field: 'internal_notes', description: 'Internal notes (not shown to buyers)' },
   { field: 'owner_goals', description: 'Owner goals or seller motivation' },
@@ -137,12 +137,12 @@ Be intelligent about variations:
 - "Address", "Location", "Street Address" → address
 - "City" → address_city
 - "State" (2-letter codes like TX, CA) → address_state
-- "First Name" (contact's first name only) → primary_contact_first_name
-- "Last Name" (contact's last name only) → primary_contact_last_name  
-- "Contact Name", "Owner Name", "Full Name" → primary_contact_name
-- "Title", "Role", "Position", "Job Title" (if about a person) → primary_contact_title
-- "Email", "Contact Email", "Owner Email" → primary_contact_email
-- "Phone", "Phone Number", "Contact Phone", "Mobile" → primary_contact_phone
+- "First Name" (contact's first name only) → main_contact_first_name
+- "Last Name" (contact's last name only) → main_contact_last_name
+- "Contact Name", "Owner Name", "Full Name" → main_contact_name
+- "Title", "Role", "Position", "Job Title" (if about a person) → main_contact_title
+- "Email", "Contact Email", "Owner Email" → main_contact_email
+- "Phone", "Phone Number", "Contact Phone", "Mobile" → main_contact_phone
 - "LinkedIn URL", "LinkedIn", "LI URL", "Company LinkedIn" → linkedin_url
 - "Fireflies", "Fireflies URL", "Recording URL", "Call Recording" → fireflies_url
 - "Google Reviews", "Review Count", "Reviews" → google_review_count
@@ -408,32 +408,32 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       }
       // Contact - First Name
       else if (lower === 'first name' || (lower.includes('first') && lower.includes('name'))) {
-        targetField = 'primary_contact_first_name';
+        targetField = 'main_contact_first_name';
         confidence = 0.9;
       }
       // Contact - Last Name
       else if (lower === 'last name' || (lower.includes('last') && lower.includes('name'))) {
-        targetField = 'primary_contact_last_name';
+        targetField = 'main_contact_last_name';
         confidence = 0.9;
       }
       // Contact - Full Name
       else if ((lower.includes('contact') || lower.includes('owner')) && lower.includes('name')) {
-        targetField = 'primary_contact_name';
+        targetField = 'main_contact_name';
         confidence = 0.8;
       }
       // Contact - Title/Role
       else if (lower === 'title' || lower.includes('job title') || lower.includes('role') || lower.includes('position')) {
-        targetField = 'primary_contact_title';
+        targetField = 'main_contact_title';
         confidence = 0.75;
       }
       // Email
       else if (lower === 'email' || lower.includes('email') && !lower.includes('sent')) {
-        targetField = 'primary_contact_email';
+        targetField = 'main_contact_email';
         confidence = 0.9;
       }
       // Phone
       else if (lower === 'phone' || lower.includes('phone') || lower.includes('mobile') || lower.includes('cell')) {
-        targetField = 'primary_contact_phone';
+        targetField = 'main_contact_phone';
         confidence = 0.9;
       }
       // Google Review Count

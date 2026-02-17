@@ -971,14 +971,11 @@ const ReMarketingDealDetail = () => {
 
       {/* Primary Contact */}
       <PrimaryContactCard
-        name={deal.primary_contact_name || deal.main_contact_name}
-        email={deal.primary_contact_email || deal.main_contact_email}
-        phone={deal.primary_contact_phone || deal.main_contact_phone}
+        name={deal.main_contact_name}
+        email={deal.main_contact_email}
+        phone={deal.main_contact_phone}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
-            primary_contact_name: data.name,
-            primary_contact_email: data.email,
-            primary_contact_phone: data.phone,
             main_contact_name: data.name,
             main_contact_email: data.email,
             main_contact_phone: data.phone,
@@ -1077,8 +1074,8 @@ const ReMarketingDealDetail = () => {
       {/* Fireflies Transcript Sync */}
       <FirefliesTranscriptSync
         listingId={dealId!}
-        contactEmail={deal.main_contact_email ?? deal.primary_contact_email ?? null}
-        contactName={deal.main_contact_name ?? deal.primary_contact_name ?? null}
+        contactEmail={deal.main_contact_email ?? null}
+        contactName={deal.main_contact_name ?? null}
         existingTranscripts={transcripts?.filter((t: any) => t.source === 'fireflies').length || 0}
         onSyncComplete={() => {
           queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
@@ -1092,7 +1089,6 @@ const ReMarketingDealDetail = () => {
         isLoading={transcriptsLoading}
         dealInfo={{
           company_name: deal.internal_company_name || deal.title,
-          primary_contact_email: deal.primary_contact_email,
           main_contact_email: deal.main_contact_email,
         }}
       />

@@ -90,8 +90,6 @@ interface DealTranscriptSectionProps {
     location?: string;
     revenue?: number;
     ebitda?: number;
-    primary_contact_email?: string;
-    primary_contact_name?: string;
     main_contact_email?: string;
   };
 }
@@ -222,7 +220,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
   // Fireflies search state
   const [addMode, setAddMode] = useState<'manual' | 'fireflies'>('manual');
-  const [firefliesEmail, setFirefliesEmail] = useState(dealInfo?.main_contact_email || dealInfo?.primary_contact_email || '');
+  const [firefliesEmail, setFirefliesEmail] = useState(dealInfo?.main_contact_email || '');
   const [firefliesSearching, setFirefliesSearching] = useState(false);
   const [firefliesResults, setFirefliesResults] = useState<any[]>([]);
   const [selectedFirefliesIds, setSelectedFirefliesIds] = useState<Set<string>>(new Set());
@@ -681,9 +679,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (extracted.real_estate_info) { updateData.real_estate_info = extracted.real_estate_info; appliedFields.push('Real Estate'); }
       
       // Contact info
-      if (extracted.primary_contact_name) { updateData.primary_contact_name = extracted.primary_contact_name; appliedFields.push('Contact Name'); }
-      if (extracted.primary_contact_email) { updateData.primary_contact_email = extracted.primary_contact_email; appliedFields.push('Contact Email'); }
-      if (extracted.primary_contact_phone) { updateData.primary_contact_phone = extracted.primary_contact_phone; appliedFields.push('Contact Phone'); }
+      if (extracted.main_contact_name) { updateData.main_contact_name = extracted.main_contact_name; appliedFields.push('Contact Name'); }
+      if (extracted.main_contact_email) { updateData.main_contact_email = extracted.main_contact_email; appliedFields.push('Contact Email'); }
+      if (extracted.main_contact_phone) { updateData.main_contact_phone = extracted.main_contact_phone; appliedFields.push('Contact Phone'); }
       
       // Key Quotes (now has column!)
       const safeQuotesForMerge = Array.isArray(extracted.key_quotes) ? extracted.key_quotes : (typeof extracted.key_quotes === 'string' && extracted.key_quotes ? [extracted.key_quotes] : undefined);

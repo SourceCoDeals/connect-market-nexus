@@ -68,9 +68,9 @@ interface ExtractionResult {
   real_estate_info?: string;
   
   // Contact info
-  primary_contact_name?: string;
-  primary_contact_email?: string;
-  primary_contact_phone?: string;
+  main_contact_name?: string;
+  main_contact_email?: string;
+  main_contact_phone?: string;
   
   // Metadata
   key_quotes?: string[];
@@ -586,9 +586,9 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
   "full_time_employees": number|null,
   "part_time_employees": number|null,
   "website": string|null,
-  "primary_contact_name": string|null,
-  "primary_contact_email": string|null,
-  "primary_contact_phone": string|null,
+  "main_contact_name": string|null,
+  "main_contact_email": string|null,
+  "main_contact_phone": string|null,
   "key_quotes": string[]
 }
 
@@ -782,9 +782,9 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         if (extracted.financial_followup_questions?.length) {
           flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
         }
-        if (extracted.primary_contact_name) flatExtracted.primary_contact_name = extracted.primary_contact_name;
-        if (extracted.primary_contact_email) flatExtracted.primary_contact_email = extracted.primary_contact_email;
-        if (extracted.primary_contact_phone) flatExtracted.primary_contact_phone = extracted.primary_contact_phone;
+        if (extracted.main_contact_name) flatExtracted.main_contact_name = extracted.main_contact_name;
+        if (extracted.main_contact_email) flatExtracted.main_contact_email = extracted.main_contact_email;
+        if (extracted.main_contact_phone) flatExtracted.main_contact_phone = extracted.main_contact_phone;
         if (extracted.industry) flatExtracted.industry = extracted.industry;
         if (extracted.website) flatExtracted.website = extracted.website;
         if (extracted.location) flatExtracted.location = extracted.location;
