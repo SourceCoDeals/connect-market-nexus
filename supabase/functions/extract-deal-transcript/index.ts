@@ -33,7 +33,6 @@ interface ExtractionResult {
   // Business basics
   full_time_employees?: number;
   location?: string;
-  headquarters_address?: string;
   founded_year?: number;
   industry?: string;
   website?: string;
@@ -564,7 +563,6 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
   "service_mix": string|null,
   "business_model": string|null,
   "location": string|null,
-  "headquarters_address": string|null,
   "geographic_states": string[],
   "number_of_locations": number|null,
   "owner_goals": string|null,
@@ -788,7 +786,6 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         if (extracted.industry) flatExtracted.industry = extracted.industry;
         if (extracted.website) flatExtracted.website = extracted.website;
         if (extracted.location) flatExtracted.location = extracted.location;
-        if (extracted.headquarters_address) flatExtracted.headquarters_address = extracted.headquarters_address;
         if ((extracted as any).ownership_structure) flatExtracted.ownership_structure = (extracted as any).ownership_structure;
         if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.services?.length) flatExtracted.services = extracted.services;

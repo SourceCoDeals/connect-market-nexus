@@ -52,7 +52,6 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'address_zip',
   'address_country',
   'address', // legacy full address field
-  'headquarters_address',
   'founded_year',
   'full_time_employees',
   'part_time_employees',
@@ -683,7 +682,6 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (extracted?.main_contact_phone) out.main_contact_phone = extracted.main_contact_phone;
 
   if (extracted?.ownership_structure) out.ownership_structure = extracted.ownership_structure;
-  if (extracted?.headquarters_address) out.headquarters_address = extracted.headquarters_address;
   if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
   if (extracted?.website) out.website = extracted.website;
   if (extracted?.location) out.location = extracted.location;

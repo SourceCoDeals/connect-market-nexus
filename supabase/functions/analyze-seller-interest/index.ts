@@ -143,7 +143,6 @@ serve(async (req) => {
         internal_company_name,
         owner_notes,
         internal_notes,
-        mr_notes,
         general_notes,
         owner_goals,
         seller_motivation,
@@ -170,7 +169,6 @@ serve(async (req) => {
     const allNotes = [
       deal.owner_notes,
       deal.internal_notes,
-      deal.mr_notes,
       deal.general_notes,
       deal.owner_goals,
       deal.seller_motivation,

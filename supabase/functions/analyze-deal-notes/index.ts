@@ -273,9 +273,7 @@ Use the tool to return structured data.`;
               number_of_locations: { type: 'number', description: 'Total physical locations: offices, shops, warehouses, branches, storage (owned + leased). Home office = 1.' },
               financial_notes: { type: 'string', description: 'Detailed 3-5 sentences: Revenue breakdown by segment/location, EBITDA adjustments and add-backs, owner compensation details, margin trends, seasonality patterns, capex requirements, working capital needs, debt structure, growth rates with specific numbers.' },
               growth_trajectory: { type: 'string', description: 'Detailed 2-3 sentences: Revenue CAGR or trend with specifics, new location openings, service line additions, headcount growth, contract wins, market expansion, pipeline indicators.' },
-              revenue_trend: { type: 'string', description: 'Revenue trend: "growing", "stable", or "declining". Add context like growth rate if available.' },
               management_depth: { type: 'string', description: 'Detailed 2-3 sentences: Key personnel by role and tenure, succession readiness, is there a strong #2? Who runs day-to-day operations? What happens if owner leaves? Training/mentoring pipeline.' },
-              has_management_team: { type: 'boolean', description: 'Whether a management team exists beyond the owner that could run the business independently.' },
               key_risks: { type: 'array', items: { type: 'string' }, description: 'Specific risk factors: owner dependency, customer concentration, key-man risk, regulatory exposure, geographic limitation, technology debt, deferred maintenance, pending litigation, competitive threats.' },
               key_quotes: { type: 'array', items: { type: 'string' }, description: 'VERBATIM notable quotes with speaker attribution. Prioritize quotes about goals, deal expectations, business challenges, and growth plans.' },
               growth_drivers: { type: 'array', items: { type: 'string' }, description: 'Specific growth opportunities: geographic expansion targets, new service lines, acquisition candidates, technology investments, untapped customer segments, capacity utilization improvements.' },
@@ -286,7 +284,7 @@ Use the tool to return structured data.`;
               'owner_goals', 'ownership_structure', 'transition_preferences', 'special_requirements',
               'description', 'services', 'industry', 'customer_types', 'competitive_position',
               'geographic_states', 'location', 'number_of_locations',
-              'financial_notes', 'growth_trajectory', 'management_depth', 'has_management_team',
+              'financial_notes', 'growth_trajectory', 'management_depth',
               'key_risks', 'key_quotes', 'growth_drivers'
             ]
           }

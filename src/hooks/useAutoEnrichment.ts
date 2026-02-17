@@ -7,7 +7,7 @@
   * Auto-Enrichment Hook per Deal Page System Spec
   * 
   * Triggers automatic enrichment when:
-  * 1. last_enriched_at > 24 hours ago
+  * 1. enriched_at > 24 hours ago
   * 2. Key fields missing (executive_summary < 50 chars, address_city empty, geographic_states empty)
   * 3. Has sources available (website or internal_deal_memo_link)
   */
@@ -18,7 +18,6 @@
      id: string;
      website?: string | null;
      internal_deal_memo_link?: string | null;
-     last_enriched_at?: string | null;
      enriched_at?: string | null;
      executive_summary?: string | null;
      address_city?: string | null;
@@ -83,7 +82,7 @@
        return { shouldEnrich: false, reason: null };
      }
  
-     const enrichedAt = deal.last_enriched_at || deal.enriched_at;
+     const enrichedAt = deal.enriched_at;
      const now = new Date();
      
      // Check 1: Never enriched

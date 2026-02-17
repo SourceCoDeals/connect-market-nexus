@@ -614,9 +614,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (extracted.founded_year) { updateData.founded_year = extracted.founded_year; appliedFields.push('Founded Year'); }
       if (extracted.industry) { updateData.industry = extracted.industry; appliedFields.push('Industry'); }
       if (extracted.website) { updateData.website = extracted.website; appliedFields.push('Website'); }
-      // Note: headquarters_address maps to 'address'
-      if (extracted.headquarters_address) { updateData.address = extracted.headquarters_address; appliedFields.push('Address'); }
-      
       // Services & Business model
       if (extracted.service_mix) { updateData.service_mix = extracted.service_mix; appliedFields.push('Service Mix'); }
       if (extracted.business_model) { updateData.business_model = extracted.business_model; appliedFields.push('Business Model'); }
