@@ -32,6 +32,7 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
       "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!response.ok) {

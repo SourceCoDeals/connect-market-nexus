@@ -148,7 +148,8 @@ async function shouldSendDigest(type: string, data: any): Promise<boolean> {
 }
 
 async function sendAdminDigest(supabase: any, type: string, data: any, correlationId: string) {
-  const adminEmails = ['adam.haile@sourcecodeals.com']; // Can be expanded
+  const adminEmails = (Deno.env.get("ADMIN_NOTIFICATION_EMAILS") || "adam.haile@sourcecodeals.com")
+    .split(",").map((e: string) => e.trim()).filter(Boolean);
   
   const subject = `${type.charAt(0).toUpperCase() + type.slice(1)} Admin Digest - SourceCo Marketplace`;
   

@@ -36,9 +36,10 @@ export default function MAAllBuyers() {
   }, []);
 
   const loadData = async () => {
+    try {
     const [trackersRes, buyersRes] = await Promise.all([
-      supabase.from("industry_trackers").select("id, name"),
-      supabase.from("remarketing_buyers").select("*").order("company_name")
+      supabase.from("industry_trackers").select("id, name").limit(500),
+      supabase.from("remarketing_buyers").select("*").order("company_name").limit(2000),
     ]);
 
     const trackerMap: Record<string, string> = {};
@@ -62,6 +63,10 @@ export default function MAAllBuyers() {
     }));
     setBuyers(mappedBuyers);
     setIsLoading(false);
+    } catch (error: any) {
+      console.error("Failed to load buyers:", error);
+      setIsLoading(false);
+    }
   };
 
   const filteredBuyers = useMemo(() => {

@@ -7,10 +7,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Updated to use ahaile14@gmail.com as requested admin email
-const ADMIN_EMAILS = [
-  "ahaile14@gmail.com"
-];
+const ADMIN_EMAILS = (Deno.env.get("ADMIN_NOTIFICATION_EMAILS") || "ahaile14@gmail.com")
+  .split(",")
+  .map((e) => e.trim())
+  .filter(Boolean);
 
 interface AdminNotificationRequest {
   first_name: string;
@@ -75,10 +75,13 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("BREVO_API_KEY environment variable is not set");
     }
     
+    const senderEmail = Deno.env.get("SENDER_EMAIL") || "adam.haile@sourcecodeals.com";
+    const senderName = Deno.env.get("SENDER_NAME") || "Adam Haile";
+
     const brevoPayload = {
       sender: {
         name: "SourceCo Marketplace",
-        email: "adam.haile@sourcecodeals.com"
+        email: senderEmail
       },
       to: ADMIN_EMAILS.map(email => ({
         email: email
@@ -87,8 +90,8 @@ const handler = async (req: Request): Promise<Response> => {
       htmlContent: htmlContent,
       textContent: textContent,
       replyTo: {
-        email: "adam.haile@sourcecodeals.com",
-        name: "Adam Haile"
+        email: senderEmail,
+        name: senderName
       },
       // Disable click tracking to prevent broken links
       params: {
@@ -104,7 +107,8 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
         "Accept": "application/json"
       },
-      body: JSON.stringify(brevoPayload)
+      body: JSON.stringify(brevoPayload),
+      signal: AbortSignal.timeout(15000),
     });
     
     const responseData = await response.json();

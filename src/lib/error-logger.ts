@@ -17,15 +17,24 @@ class ErrorLogger {
   private buffer: ErrorLogEntry[] = [];
   private maxBufferSize = 50;
   private flushInterval = 30000; // 30 seconds
+  private intervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     // Start periodic flush
     if (typeof window !== 'undefined') {
-      setInterval(() => this.flush(), this.flushInterval);
-      
+      this.intervalId = setInterval(() => this.flush(), this.flushInterval);
+
       // Flush on page unload
       window.addEventListener('beforeunload', () => this.flush());
     }
+  }
+
+  destroy() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.flush();
   }
 
   async logError(
