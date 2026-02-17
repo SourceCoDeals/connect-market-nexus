@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -17,29 +15,23 @@ import { toast } from "sonner";
 
 interface ServicesBusinessModelCardProps {
   serviceMix: string | null;
-  businessModel: string | null;
-  onSave: (data: { serviceMix: string; businessModel: string }) => Promise<void>;
+  onSave: (data: { serviceMix: string }) => Promise<void>;
 }
 
-export const ServicesBusinessModelCard = ({ 
-  serviceMix, 
-  businessModel, 
-  onSave 
+export const ServicesBusinessModelCard = ({
+  serviceMix,
+  onSave
 }: ServicesBusinessModelCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editedServiceMix, setEditedServiceMix] = useState(serviceMix || "");
-  const [editedBusinessModel, setEditedBusinessModel] = useState(businessModel || "");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave({ 
-        serviceMix: editedServiceMix, 
-        businessModel: editedBusinessModel 
-      });
+      await onSave({ serviceMix: editedServiceMix });
       setIsEditOpen(false);
-      toast.success("Services & business model updated");
+      toast.success("Service mix updated");
     } catch (error) {
       toast.error("Failed to save");
     } finally {
@@ -49,7 +41,6 @@ export const ServicesBusinessModelCard = ({
 
   const openEdit = () => {
     setEditedServiceMix(serviceMix || "");
-    setEditedBusinessModel(businessModel || "");
     setIsEditOpen(true);
   };
 
@@ -60,11 +51,11 @@ export const ServicesBusinessModelCard = ({
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <Briefcase className="h-5 w-5" />
-              Services & Business Model
+              Services
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-8 w-8"
               onClick={openEdit}
             >
@@ -72,7 +63,7 @@ export const ServicesBusinessModelCard = ({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
               Service Mix
@@ -81,22 +72,13 @@ export const ServicesBusinessModelCard = ({
               {serviceMix || <span className="text-muted-foreground italic">Not specified</span>}
             </p>
           </div>
-          <Separator />
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-              Business Model
-            </p>
-            <p className="text-sm">
-              {businessModel || <span className="text-muted-foreground italic">Not specified</span>}
-            </p>
-          </div>
         </CardContent>
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Services & Business Model</DialogTitle>
+            <DialogTitle>Edit Service Mix</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -106,16 +88,6 @@ export const ServicesBusinessModelCard = ({
                 placeholder="e.g., Residential roofing 60%, Commercial 30%, Repairs 10%"
                 value={editedServiceMix}
                 onChange={(e) => setEditedServiceMix(e.target.value)}
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="businessModel">Business Model</Label>
-              <Textarea
-                id="businessModel"
-                placeholder="e.g., B2B with DRP partnerships, retail walk-ins"
-                value={editedBusinessModel}
-                onChange={(e) => setEditedBusinessModel(e.target.value)}
                 className="mt-1.5"
               />
             </div>

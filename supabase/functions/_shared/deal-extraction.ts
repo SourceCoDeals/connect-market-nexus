@@ -41,7 +41,6 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'executive_summary',
   'services',
   'service_mix',
-  'business_model',
   'industry',
   'geographic_states',
   'number_of_locations',
@@ -66,7 +65,6 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'special_requirements',
   'timeline_notes',
   'key_risks',
-  'competitive_position',
   'technology_systems',
   'real_estate_info',
   'growth_trajectory',
@@ -166,7 +164,7 @@ The address_city and address_state fields must be specific - a real city name an
 
 DEPTH REQUIREMENTS — Every field must be DETAILED and CONTEXTUAL:
 
-1. **Executive Summary** (3-5 sentences MINIMUM): Write a PE-investor-grade overview. MUST include what the company does, approximate size indicators (locations, years in business), geographic footprint, key differentiators, and why this is an attractive acquisition target. Use specific facts from the website, not vague language. Lead with the most compelling aspect.
+1. **Executive Summary** (5-8 sentences MINIMUM): Write a PE-investor-grade overview. This is the MOST IMPORTANT field. MUST include: what the company does, business model (how it makes money — B2B/B2C/mixed, recurring/project-based, contract/transactional), approximate size indicators (locations, years in business, employee count), geographic footprint, competitive advantages (certifications, preferred vendor status, proprietary processes, awards, customer lock-in, market position), customer base quality, and why this is an attractive acquisition target. Use specific facts from the website, not vague language. Every sentence should contain at least one concrete detail. Lead with the most compelling aspect.
 
 2. **Service Mix** (2-4 sentences): Don't just list services — describe the revenue model. Include residential vs commercial split if visible, recurring vs project-based work, how services interrelate, and any specializations or certifications that create competitive moats.
 
@@ -180,7 +178,7 @@ export function buildDealUserPrompt(dealTitle: string, websiteContent: string): 
 IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
 
 DEPTH REQUIREMENTS:
-- Executive summary: Write 3-5 rich sentences a PE investor can scan in 30 seconds. Include what they do, where they operate, what makes them special, and why a buyer would want them.
+- Executive summary: Write 5-8 rich sentences a PE investor can scan in 60 seconds. Include what they do, how they make money (business model), where they operate, competitive advantages (certifications, preferred vendor status, awards, proprietary processes), customer base, and why a buyer would want them. Every sentence must contain a specific fact.
 - Service mix: Describe the full service portfolio with context — don't just list services. Explain how they fit together, what drives revenue, residential vs commercial mix.
 - Customer types: Be specific about segments — not just "commercial" but what KIND of commercial customers.
 - Key quotes: Extract up to 10 verbatim quotes — testimonials, taglines, mission statements, or any revealing text.
@@ -229,7 +227,7 @@ export const DEAL_TOOL_SCHEMA = {
         // Summary & services
         executive_summary: {
           type: 'string',
-          description: 'A 3-5 sentence PE-investor-grade summary. Include: what the company does, size indicators (locations, years), geographic footprint, key differentiators, and acquisition attractiveness.'
+          description: 'A 5-8 sentence PE-investor-grade summary. This is the MOST IMPORTANT field. Include: what the company does, business model (how it makes money — B2B/B2C, recurring/project-based), size indicators (locations, years, employees), geographic footprint, competitive advantages (certifications, preferred vendor status, proprietary processes, market position, awards), customer base quality, and acquisition attractiveness. Every sentence must contain a specific fact or detail.'
         },
         services: {
           type: 'array',

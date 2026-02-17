@@ -234,7 +234,6 @@ RULES:
 DEPTH REQUIREMENTS — Every text field should be 2-5 sentences of rich context, NOT brief labels:
 - For services: Describe the full service portfolio, how services interrelate, what drives revenue. Don't just list — explain the business model.
 - For service_mix: Include residential vs commercial split, recurring vs project-based, revenue concentration by service line.
-- For competitive_position: Certifications, awards, preferred vendor relationships, years in market, customer lock-in, proprietary processes.
 - For growth_trajectory: Trend direction with specifics — revenue CAGR, new locations, new service lines, headcount growth, contract wins.
 - For financial_notes: Revenue breakdown by segment/location, EBITDA adjustments, add-backs, owner comp, margin trends, seasonality, capex needs.
 - For management_depth: Key personnel by role, tenure, capabilities, succession readiness. Is there a #2? Who runs day-to-day?
@@ -267,7 +266,6 @@ Use the tool to return structured data.`;
               service_mix: { type: 'string', description: 'Detailed 2-4 sentences: Revenue breakdown by service line with percentages if stated, residential vs commercial split, recurring vs project-based, in-house vs subcontracted, cross-sell dynamics.' },
               industry: { type: 'string', description: 'Primary industry classification (e.g., "Fire & Water Restoration", "Commercial HVAC", "Managed IT Services").' },
               customer_types: { type: 'string', description: 'Detailed 2-3 sentences: Specific customer segments with concentration details. Not just "commercial" — what kind? Property managers, insurance companies, government agencies? Key account relationships, repeat business percentage.' },
-              competitive_position: { type: 'string', description: 'Detailed 2-3 sentences: Certifications, awards, preferred vendor status, franchise affiliations, proprietary processes, customer lock-in mechanisms, market share indicators, years in market, reputation drivers.' },
               geographic_states: { type: 'array', items: { type: 'string' }, description: 'All US states where business operates, has customers, or holds licenses (2-letter codes). Include expansion targets.' },
               location: { type: 'string', description: 'Primary location/HQ in "City, ST" format. Use suburb name if mentioned.' },
               number_of_locations: { type: 'number', description: 'Total physical locations: offices, shops, warehouses, branches, storage (owned + leased). Home office = 1.' },
@@ -282,7 +280,7 @@ Use the tool to return structured data.`;
             },
             required: [
               'owner_goals', 'ownership_structure', 'transition_preferences', 'special_requirements',
-              'description', 'services', 'industry', 'customer_types', 'competitive_position',
+              'description', 'services', 'industry', 'customer_types',
               'geographic_states', 'location', 'number_of_locations',
               'financial_notes', 'growth_trajectory', 'management_depth',
               'key_risks', 'key_quotes', 'growth_drivers'

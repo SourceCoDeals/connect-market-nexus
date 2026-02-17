@@ -922,11 +922,9 @@ const ReMarketingDealDetail = () => {
       <div className="grid gap-6 lg:grid-cols-2">
         <ServicesBusinessModelCard
           serviceMix={deal.service_mix}
-          businessModel={deal.business_model}
           onSave={async (data) => {
             await updateDealMutation.mutateAsync({
               service_mix: data.serviceMix,
-              business_model: data.businessModel,
             });
           }}
         />
@@ -1002,7 +1000,6 @@ const ReMarketingDealDetail = () => {
         otherNotes={deal.owner_notes}
         internalNotes={deal.internal_notes}
         keyRisks={deal.key_risks as string | null}
-        competitivePosition={deal.competitive_position as string | null}
         technologySystems={deal.technology_systems as string | null}
         realEstateInfo={deal.real_estate_info as string | null}
         growthTrajectory={deal.growth_trajectory as string | null}
@@ -1011,7 +1008,6 @@ const ReMarketingDealDetail = () => {
             owner_notes: data.otherNotes,
             internal_notes: data.internalNotes,
             key_risks: data.keyRisks,
-            competitive_position: data.competitivePosition,
             technology_systems: data.technologySystems,
             real_estate_info: data.realEstateInfo,
             growth_trajectory: data.growthTrajectory,
