@@ -19,6 +19,7 @@ import {
   PLACEHOLDER_STRINGS,
   validateFieldProvenance,
 } from "./provenance.ts";
+import { normalizeState, VALID_US_STATE_CODES } from "./geography.ts";
 
 // ============================================================================
 // CONFIGURATION
@@ -38,25 +39,11 @@ export const BUYER_AI_TIMEOUT_MS = 30000;
 export const BUYER_AI_CONCURRENCY = 3;
 
 // ============================================================================
-// STATE CODE CONSTANTS
+// STATE CODE CONSTANTS (delegated to canonical geography.ts)
 // ============================================================================
 
-// State name to code mapping
-export const STATE_NAME_TO_CODE: Record<string, string> = {
-  'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
-  'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
-  'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
-  'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
-  'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
-  'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
-  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
-  'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
-  'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
-  'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
-  'district of columbia': 'DC'
-};
-
-export const VALID_STATE_CODES = new Set(Object.values(STATE_NAME_TO_CODE));
+// Re-export VALID_US_STATE_CODES under the name callers expect
+export const VALID_STATE_CODES = VALID_US_STATE_CODES;
 
 export const REGION_MAP: Record<string, string> = {
   'CT': 'Northeast', 'ME': 'Northeast', 'MA': 'Northeast', 'NH': 'Northeast',
@@ -125,12 +112,9 @@ export const LOCATION_PATTERNS = [
 // ============================================================================
 
 export function normalizeStateCode(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 2 && VALID_STATE_CODES.has(trimmed.toUpperCase())) {
-    return trimmed.toUpperCase();
-  }
-  const code = STATE_NAME_TO_CODE[trimmed.toLowerCase()];
-  return code || trimmed;
+  // Delegate to canonical normalizeState; fall back to trimmed input if unrecognized
+  // (preserves original behavior: callers filter via VALID_STATE_CODES.has())
+  return normalizeState(value) || value.trim();
 }
 
 export function getRegionFromState(stateCode: string): string | null {

@@ -100,8 +100,9 @@ function parseRetryAfter(response: Response): number | null {
 
 /**
  * Fetch with automatic retry on rate limits (429) and server errors (5xx).
+ * Exported for use by edge functions that need retry-aware fetch.
  */
-async function fetchWithAutoRetry(
+export async function fetchWithAutoRetry(
   url: string,
   options: RequestInit & { signal?: AbortSignal },
   config: {

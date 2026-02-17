@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createEdgeTimeoutSignal } from "../_shared/edge-timeout.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, fetchWithAutoRetry } from "../_shared/ai-providers.ts";
 import { calculateProximityScore, getProximityTier, normalizeStateCode } from "../_shared/geography-utils.ts";
+import { normalizeState, extractStatesFromText as sharedExtractStatesFromText } from "../_shared/geography.ts";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
@@ -217,54 +218,19 @@ const DEFAULT_SERVICE_ADJACENCY: Record<string, string[]> = {
   "solar": ["electrical", "renewable energy", "energy services"],
 };
 
-// ============================================================================
-// AI CALL RETRY HELPER
-// ============================================================================
-
+// AI CALL RETRY HELPER — uses shared fetchWithAutoRetry from ai-providers.ts
+// Local wrapper preserves the original call signature for existing callers
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
   maxRetries: number = 3,
   baseDelayMs: number = 2000
 ): Promise<Response> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await fetch(url, options);
-      // Success or non-retryable client errors
-      if (response.ok || (response.status >= 400 && response.status < 429)) return response;
-
-      // Rate limited (429) — wait with Retry-After header or exponential backoff
-      if (response.status === 429) {
-        if (attempt === maxRetries) return response;
-        const retryAfter = response.headers.get('retry-after');
-        const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : baseDelayMs * Math.pow(2, attempt);
-        const jitter = Math.random() * 1000;
-        console.warn(`[score-buyer-deal] Rate limited (429), waiting ${Math.round(waitMs + jitter)}ms (attempt ${attempt + 1}/${maxRetries})...`);
-        await new Promise(r => setTimeout(r, waitMs + jitter));
-        continue;
-      }
-
-      // Server error (5xx, 529) — retry with backoff
-      if (response.status >= 500) {
-        if (attempt === maxRetries) return response;
-        lastError = new Error(`HTTP ${response.status}`);
-        const delay = baseDelayMs * Math.pow(2, attempt);
-        console.warn(`[score-buyer-deal] Server error (${response.status}), retrying in ${delay}ms...`);
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-
-      return response;
-    } catch (e) {
-      lastError = e instanceof Error ? e : new Error(String(e));
-      if (attempt < maxRetries) {
-        const delay = baseDelayMs * Math.pow(2, attempt);
-        await new Promise(r => setTimeout(r, delay));
-      }
-    }
-  }
-  throw lastError || new Error("fetchWithRetry failed");
+  return fetchWithAutoRetry(url, options, {
+    maxRetries,
+    baseDelayMs,
+    callerName: 'score-buyer-deal',
+  });
 }
 
 // ============================================================================
@@ -547,36 +513,8 @@ async function calculateGeographyScore(
     return normalizeStateCode(s);
   };
 
-  // Helper: extract state codes from a free-text geographic description
-  const extractStatesFromText = (text: string): string[] => {
-    if (!text) return [];
-    const found: string[] = [];
-    // Match 2-letter state codes preceded by comma/space
-    const codePattern = /\b([A-Z]{2})\b/g;
-    let match;
-    while ((match = codePattern.exec(text.toUpperCase())) !== null) {
-      const code = match[1];
-      if (normalizeStateCode(code)) found.push(code);
-    }
-    // Also match full state names
-    const stateNames: Record<string, string> = {
-      'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
-      'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
-      'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
-      'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
-      'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
-      'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
-      'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
-      'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
-      'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
-      'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
-    };
-    const lower = text.toLowerCase();
-    for (const [name, code] of Object.entries(stateNames)) {
-      if (lower.includes(name)) found.push(code);
-    }
-    return [...new Set(found)];
-  };
+  // Delegate to shared geography module for text-based state extraction
+  const extractStatesFromText = sharedExtractStatesFromText;
 
   // 1. target_geographies (strongest signal)
   const targetGeos = (buyer.target_geographies || []).filter(Boolean)
