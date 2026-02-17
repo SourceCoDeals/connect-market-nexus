@@ -1,26 +1,57 @@
 
 
-# Fix: Use upsert for scoring queue to prevent duplicate key errors
+# Fix: Re-enrichment skips deals that were previously enriched
 
 ## Problem
 
-The same unique constraint issue we just fixed for the enrichment queue also exists in the **scoring queue**. Both `queueDealScoring` and `queueAlignmentScoring` in `src/lib/remarketing/queueScoring.ts` use `.insert()`, which will fail if a row already exists for that deal/buyer (e.g., from a previous completed or failed scoring run).
+The `process-enrichment-queue` worker has a pre-check (lines 159-206) that looks at the `enriched_at` field on the listing. If it's already set (from a prior enrichment run), the worker marks the queue item as "completed" without actually re-processing. This is why you see "No new fields were extracted" -- the worker never ran the pipeline.
 
-## Scope
+Logs confirm this:
+```
+Found 1 listings already enriched -- marking queue items as completed
+All items were already enriched -- nothing to process
+```
 
-Only one file needs updating: `src/lib/remarketing/queueScoring.ts`
+## Solution
 
-- **Line 49**: Change `.insert(rows)` to `.upsert(rows, { onConflict: "...", ignoreDuplicates: false })` for deal scoring
-- **Line 94**: Same change for alignment scoring
+When a deal is explicitly re-queued for enrichment, we need to bypass that skip logic. Two changes:
 
-The `onConflict` columns will depend on the table's unique constraints (likely a composite of `universe_id` + `listing_id` + `score_type` for deals, and `universe_id` + `buyer_id` + `score_type` for alignment).
+### 1. Add a `force` flag to enrichment queue rows
 
-## Already Fixed (no action needed)
+In `queueDealEnrichment` (`src/lib/remarketing/queueEnrichment.ts`), add a `force: true` column to the upserted rows so the worker knows this is an intentional re-enrichment, not a duplicate.
 
-- `enrichment_queue` -- just fixed (uses upsert on `listing_id`)
-- `buyer_enrichment_queue` -- already uses upsert on `buyer_id`
+### 2. Update the worker pre-check to respect the `force` flag
+
+In `process-enrichment-queue/index.ts` (lines 159-206), modify the skip logic so that items with `force = true` are never skipped, even if `enriched_at` is already set. Only auto-queued or duplicate items without the force flag get the fast-path completion.
+
+### 3. Database: add `force` column to enrichment_queue
+
+A simple boolean column with a default of `false`.
+
+### 4. Same fix for buyer enrichment queue (if applicable)
+
+Check `process-buyer-enrichment-queue` for the same pattern and apply the force flag there too.
+
+## Technical Details
+
+**Migration:**
+```sql
+ALTER TABLE public.enrichment_queue
+  ADD COLUMN IF NOT EXISTS force boolean DEFAULT false;
+
+ALTER TABLE public.buyer_enrichment_queue
+  ADD COLUMN IF NOT EXISTS force boolean DEFAULT false;
+```
+
+**queueEnrichment.ts changes:**
+- `queueDealEnrichment`: set `force: true` in upserted rows
+- `queueBuyerEnrichment`: set `force: true` in upserted rows
+
+**Worker changes (process-enrichment-queue/index.ts, ~line 168-193):**
+- Filter the "already enriched" skip to only apply when `force` is not true
+- After processing a forced item, reset `force` to `false`
 
 ## Result
 
-Re-scoring deals or buyers will reset their queue status to "pending" instead of crashing with a constraint violation.
+Clicking "Enrich" on a previously-enriched deal will actually re-run the full pipeline (website scraping, transcript processing, LinkedIn/Google) and merge any new data from the 19 transcripts.
 
