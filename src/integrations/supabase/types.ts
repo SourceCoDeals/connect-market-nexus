@@ -4621,6 +4621,7 @@ export type Database = {
           revenue_score: number | null
           revenue_source_quote: string | null
           revenue_trend: string | null
+          scoring_confidence: string | null
           scoring_notes: string | null
           seller_interest_analyzed_at: string | null
           seller_interest_confidence: string | null
@@ -4814,6 +4815,7 @@ export type Database = {
           revenue_score?: number | null
           revenue_source_quote?: string | null
           revenue_trend?: string | null
+          scoring_confidence?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_confidence?: string | null
@@ -5007,6 +5009,7 @@ export type Database = {
           revenue_score?: number | null
           revenue_source_quote?: string | null
           revenue_trend?: string | null
+          scoring_confidence?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_confidence?: string | null

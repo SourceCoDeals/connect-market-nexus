@@ -135,16 +135,13 @@ export default function CapTargetDeals() {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
-  // Timeframe for KPI stats
-  const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
+  // Timeframe drives both KPI stats and table filtering
+  const { timeframe, setTimeframe, dateRange, isInRange } = useTimeframe("last_365d");
 
   // Filters
   const [search, setSearch] = useState("");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
   const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
-  const [dateFilter, setDateFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
   // Sorting – persist in sessionStorage so it survives detail-view navigation
@@ -313,13 +310,11 @@ export default function CapTargetDeals() {
     },
   });
 
-  // Filter + sort deals
-  const tabItems = useMemo(() => {
+  // Filter deals by everything EXCEPT status tab (for accurate tab counts)
+  const preTabFiltered = useMemo(() => {
     if (!deals) return [];
 
     return deals.filter((deal) => {
-      // Tab filter
-      if (statusTab !== "all" && deal.captarget_status !== statusTab) return false;
       if (search) {
         const q = search.toLowerCase();
         const matchesSearch =
@@ -333,15 +328,23 @@ export default function CapTargetDeals() {
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
       if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
-      if (dateFrom && deal.captarget_contact_date) {
-        if (deal.captarget_contact_date < dateFrom) return false;
-      }
-      if (dateTo && deal.captarget_contact_date) {
-        if (deal.captarget_contact_date > dateTo + "T23:59:59") return false;
+      // Timeframe-based date filtering on captarget_contact_date (the date shown in the table)
+      if (dateRange.from || dateRange.to) {
+        const dateStr = deal.captarget_contact_date || deal.created_at;
+        const dealDate = dateStr ? new Date(dateStr) : null;
+        if (!dealDate) return false;
+        if (dateRange.from && dealDate < dateRange.from) return false;
+        if (dateRange.to && dealDate > dateRange.to) return false;
       }
       return true;
     });
-  }, [deals, statusTab, search, pushedFilter, sourceTabFilter, dateFrom, dateTo]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateRange]);
+
+  // Apply status tab filter
+  const tabItems = useMemo(() => {
+    if (statusTab === "all") return preTabFiltered;
+    return preTabFiltered.filter((deal) => deal.captarget_status === statusTab);
+  }, [preTabFiltered, statusTab]);
 
   const {
     filteredItems: engineFiltered,
@@ -518,9 +521,10 @@ export default function CapTargetDeals() {
     return deals.filter((d) => d.captarget_status === statusTab);
   }, [deals, statusTab]);
 
-  // Tab counts for labels
-  const activeCount = useMemo(() => deals?.filter((d) => d.captarget_status === "active").length ?? 0, [deals]);
-  const inactiveCount = useMemo(() => deals?.filter((d) => d.captarget_status === "inactive").length ?? 0, [deals]);
+  // Tab counts based on filtered data (respects timeframe + search + other filters)
+  const filteredTotal = preTabFiltered.length;
+  const activeCount = useMemo(() => preTabFiltered.filter((d) => d.captarget_status === "active").length, [preTabFiltered]);
+  const inactiveCount = useMemo(() => preTabFiltered.filter((d) => d.captarget_status === "inactive").length, [preTabFiltered]);
 
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
@@ -889,7 +893,7 @@ export default function CapTargetDeals() {
   // Date-filtered deals for KPI stats (driven by TimeframeSelector)
   const dateFilteredDeals = useMemo(() => {
     if (!deals) return [];
-    return deals.filter((d) => isInRange(d.created_at));
+    return deals.filter((d) => isInRange(d.captarget_contact_date || d.created_at));
   }, [deals, isInRange]);
 
   // KPI Stats (based on date-filtered deals)
@@ -1545,7 +1549,7 @@ export default function CapTargetDeals() {
       >
         <TabsList>
           <TabsTrigger value="all">
-            All ({totalDeals})
+            All ({filteredTotal})
           </TabsTrigger>
           <TabsTrigger value="active">
             Active ({activeCount})

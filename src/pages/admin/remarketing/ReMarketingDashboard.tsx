@@ -34,6 +34,7 @@ interface DealRow {
   ebitda: number | null;
   category: string | null;
   address_state: string | null;
+  status: string | null;
 }
 
 // ─── Helpers ───
@@ -64,6 +65,7 @@ function scorePillClass(score: number | null): string {
 }
 
 function isAllDealVisible(d: DealRow): boolean {
+  if (d.status === "archived" || d.status === "inactive") return false;
   const src = d.deal_source;
   if (src === "captarget" || src === "gp_partners") return d.pushed_to_all_deals === true;
   return true;
@@ -114,15 +116,31 @@ const ReMarketingDashboard = () => {
 
   const { data: adminProfiles } = useAdminProfiles();
 
-  // ── Master query: fetch all listings with needed columns ──
+  // ── Master query: fetch all listings with needed columns (paginated to avoid 1000-row limit) ──
   const { data: allDeals, isLoading: dealsLoading } = useQuery({
     queryKey: ["dashboard", "all-deals"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("listings")
-        .select("id, title, internal_company_name, deal_source, pushed_to_all_deals, pushed_to_all_deals_at, deal_total_score, deal_owner_id, enrichment_status, enriched_at, created_at, revenue, ebitda, category, address_state");
-      if (error) throw error;
-      return (data || []) as DealRow[];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
+      const allData: DealRow[] = [];
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("listings")
+          .select("id, title, internal_company_name, deal_source, pushed_to_all_deals, pushed_to_all_deals_at, deal_total_score, deal_owner_id, enrichment_status, enriched_at, created_at, revenue, ebitda, category, address_state, status")
+          .in("status", ["active", "pending"])
+          .range(offset, offset + batchSize - 1);
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allData.push(...(data as unknown as DealRow[]));
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      return allData;
     },
     staleTime: 30_000,
   });

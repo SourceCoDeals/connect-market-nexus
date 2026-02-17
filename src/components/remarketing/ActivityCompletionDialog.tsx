@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +51,7 @@ export function ActivityCompletionDialog() {
 
   useEffect(() => {
     const currentActiveIds = new Set<string>();
-    const terminalItems: GlobalActivityQueueItem[] = [];
+    const terminalItemIds: string[] = [];
 
     for (const item of allItems) {
       if (item.status === "running" || item.status === "paused") {
@@ -61,19 +62,41 @@ export function ActivityCompletionDialog() {
         prevActiveIdsRef.current.has(item.id) &&
         !shownIdsRef.current.has(item.id)
       ) {
-        terminalItems.push(item);
+        terminalItemIds.push(item.id);
       }
     }
 
     prevActiveIdsRef.current = currentActiveIds;
 
-    // Show the most recent terminal item
-    if (terminalItems.length > 0) {
-      const latest = terminalItems[0]; // allItems is ordered by queued_at desc
-      shownIdsRef.current.add(latest.id);
-      setCompletedItem(latest);
-      setOpen(true);
-      setErrorsExpanded(false);
+    // Re-fetch the latest row directly to avoid stale cache from realtime race conditions
+    if (terminalItemIds.length > 0) {
+      const latestId = terminalItemIds[0];
+      shownIdsRef.current.add(latestId);
+
+      // Small delay to let any in-flight DB updates settle, then fetch fresh data
+      const timer = setTimeout(async () => {
+        try {
+          const { data } = await supabase
+            .from("global_activity_queue")
+            .select("*")
+            .eq("id", latestId)
+            .maybeSingle();
+          if (data) {
+            setCompletedItem(data as unknown as GlobalActivityQueueItem);
+          } else {
+            // Fallback to cached version
+            const cached = allItems.find(i => i.id === latestId);
+            if (cached) setCompletedItem(cached);
+          }
+        } catch {
+          const cached = allItems.find(i => i.id === latestId);
+          if (cached) setCompletedItem(cached);
+        }
+        setOpen(true);
+        setErrorsExpanded(false);
+      }, 1500); // 1.5s delay to let final DB writes complete
+
+      return () => clearTimeout(timer);
     }
   }, [allItems]);
 
