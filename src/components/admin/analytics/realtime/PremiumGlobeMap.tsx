@@ -63,7 +63,8 @@ export function PremiumGlobeMap({ users, onUserClick, focusedSessionId, classNam
         setIsManuallyPaused(true);
         setHighlightedSession(focusedSessionId);
         // Clear highlight after 3 seconds
-        setTimeout(() => setHighlightedSession(null), 3000);
+        const timer = setTimeout(() => setHighlightedSession(null), 3000);
+        return () => clearTimeout(timer);
       }
     }
   }, [focusedSessionId, users]);

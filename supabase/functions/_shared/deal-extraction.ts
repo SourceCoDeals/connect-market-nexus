@@ -52,7 +52,6 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'address_zip',
   'address_country',
   'address', // legacy full address field
-  'headquarters_address',
   'founded_year',
   'full_time_employees',
   'part_time_employees',
@@ -72,9 +71,9 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'real_estate_info',
   'growth_trajectory',
   'key_quotes',
-  'primary_contact_name',
-  'primary_contact_email',
-  'primary_contact_phone',
+  'main_contact_name',
+  'main_contact_email',
+  'main_contact_phone',
   // LinkedIn data from Apify
   'linkedin_employee_count',
   'linkedin_employee_range',
@@ -678,12 +677,11 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
     out.financial_followup_questions = extracted.financial_followup_questions;
   }
 
-  if (extracted?.primary_contact_name) out.primary_contact_name = extracted.primary_contact_name;
-  if (extracted?.primary_contact_email) out.primary_contact_email = extracted.primary_contact_email;
-  if (extracted?.primary_contact_phone) out.primary_contact_phone = extracted.primary_contact_phone;
+  if (extracted?.main_contact_name) out.main_contact_name = extracted.main_contact_name;
+  if (extracted?.main_contact_email) out.main_contact_email = extracted.main_contact_email;
+  if (extracted?.main_contact_phone) out.main_contact_phone = extracted.main_contact_phone;
 
   if (extracted?.ownership_structure) out.ownership_structure = extracted.ownership_structure;
-  if (extracted?.headquarters_address) out.headquarters_address = extracted.headquarters_address;
   if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
   if (extracted?.website) out.website = extracted.website;
   if (extracted?.location) out.location = extracted.location;

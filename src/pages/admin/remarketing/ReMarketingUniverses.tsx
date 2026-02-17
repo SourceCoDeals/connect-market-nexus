@@ -135,18 +135,20 @@ const ReMarketingUniverses = () => {
   const { data: buyerStats } = useQuery({
     queryKey: ['remarketing', 'universe-buyer-stats'],
     queryFn: async () => {
-      // Get all buyers with data_completeness
+      // Get all buyers with data_completeness (capped to prevent unbounded fetch)
       const { data: buyers, error: buyersError } = await supabase
         .from('remarketing_buyers')
         .select('id, universe_id, data_completeness')
-        .eq('archived', false);
+        .eq('archived', false)
+        .limit(10000);
 
       if (buyersError) throw buyersError;
 
       // Get buyer IDs that have transcripts
       const { data: transcripts, error: transcriptsError } = await supabase
         .from('buyer_transcripts')
-        .select('buyer_id');
+        .select('buyer_id')
+        .limit(10000);
 
       if (transcriptsError) throw transcriptsError;
 
@@ -181,7 +183,8 @@ const ReMarketingUniverses = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_scores')
-        .select('universe_id, listing_id');
+        .select('universe_id, listing_id')
+        .limit(50000);
 
       if (error) throw error;
 

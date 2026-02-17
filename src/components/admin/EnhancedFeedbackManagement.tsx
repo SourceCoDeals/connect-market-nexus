@@ -101,27 +101,22 @@ export function EnhancedFeedbackManagement() {
       const { data: messages, error } = await supabase
         .from('feedback_messages')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (error) throw error;
 
-      // Get user profiles for each message
-      const messagesWithProfiles: FeedbackMessage[] = [];
-      
-      for (const msg of messages || []) {
-        let userProfile = null;
-        
-        if (msg.user_id) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', msg.user_id)
-            .single();
-          
-          userProfile = profile;
-        }
+      // Batch-fetch all user profiles in one query instead of N+1
+      const userIds = [...new Set((messages || []).filter(m => m.user_id).map(m => m.user_id))];
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from('profiles').select('id, email, first_name, last_name').in('id', userIds)
+        : { data: [] };
 
-        messagesWithProfiles.push({
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+      const messagesWithProfiles: FeedbackMessage[] = (messages || []).map(msg => {
+        const userProfile = msg.user_id ? profileMap.get(msg.user_id) : null;
+        return {
           id: msg.id,
           message: msg.message,
           category: msg.category,
@@ -138,8 +133,8 @@ export function EnhancedFeedbackManagement() {
           user_first_name: userProfile?.first_name || 'Unknown',
           user_last_name: userProfile?.last_name || 'User',
           read_by_admin: (msg as any).read_by_admin || false
-        });
-      }
+        };
+      });
 
       setFeedbackMessages(messagesWithProfiles);
     } catch (error) {

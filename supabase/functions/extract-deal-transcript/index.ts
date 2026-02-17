@@ -33,7 +33,6 @@ interface ExtractionResult {
   // Business basics
   full_time_employees?: number;
   location?: string;
-  headquarters_address?: string;
   founded_year?: number;
   industry?: string;
   website?: string;
@@ -68,9 +67,9 @@ interface ExtractionResult {
   real_estate_info?: string;
   
   // Contact info
-  primary_contact_name?: string;
-  primary_contact_email?: string;
-  primary_contact_phone?: string;
+  main_contact_name?: string;
+  main_contact_email?: string;
+  main_contact_phone?: string;
   
   // Metadata
   key_quotes?: string[];
@@ -564,7 +563,6 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
   "service_mix": string|null,
   "business_model": string|null,
   "location": string|null,
-  "headquarters_address": string|null,
   "geographic_states": string[],
   "number_of_locations": number|null,
   "owner_goals": string|null,
@@ -586,9 +584,9 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
   "full_time_employees": number|null,
   "part_time_employees": number|null,
   "website": string|null,
-  "primary_contact_name": string|null,
-  "primary_contact_email": string|null,
-  "primary_contact_phone": string|null,
+  "main_contact_name": string|null,
+  "main_contact_email": string|null,
+  "main_contact_phone": string|null,
   "key_quotes": string[]
 }
 
@@ -782,13 +780,12 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         if (extracted.financial_followup_questions?.length) {
           flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
         }
-        if (extracted.primary_contact_name) flatExtracted.primary_contact_name = extracted.primary_contact_name;
-        if (extracted.primary_contact_email) flatExtracted.primary_contact_email = extracted.primary_contact_email;
-        if (extracted.primary_contact_phone) flatExtracted.primary_contact_phone = extracted.primary_contact_phone;
+        if (extracted.main_contact_name) flatExtracted.main_contact_name = extracted.main_contact_name;
+        if (extracted.main_contact_email) flatExtracted.main_contact_email = extracted.main_contact_email;
+        if (extracted.main_contact_phone) flatExtracted.main_contact_phone = extracted.main_contact_phone;
         if (extracted.industry) flatExtracted.industry = extracted.industry;
         if (extracted.website) flatExtracted.website = extracted.website;
         if (extracted.location) flatExtracted.location = extracted.location;
-        if (extracted.headquarters_address) flatExtracted.headquarters_address = extracted.headquarters_address;
         if ((extracted as any).ownership_structure) flatExtracted.ownership_structure = (extracted as any).ownership_structure;
         if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.services?.length) flatExtracted.services = extracted.services;

@@ -36,12 +36,12 @@ export const DEAL_IMPORT_FIELDS: DealImportField[] = [
   { value: "number_of_locations", label: "Number of Locations", description: "Location count" },
   
   // Contact
-  { value: "primary_contact_name", label: "Contact Name", description: "Full name of primary contact" },
-  { value: "primary_contact_title", label: "Contact Title", description: "Job title or role (e.g., CFO, CEO)" },
-  { value: "primary_contact_first_name", label: "Contact First Name", description: "First name (will combine with last)" },
-  { value: "primary_contact_last_name", label: "Contact Last Name", description: "Last name (will combine with first)" },
-  { value: "primary_contact_email", label: "Contact Email", description: "Email address" },
-  { value: "primary_contact_phone", label: "Contact Phone", description: "Phone number" },
+  { value: "main_contact_name", label: "Contact Name", description: "Full name of primary contact" },
+  { value: "main_contact_title", label: "Contact Title", description: "Job title or role (e.g., CFO, CEO)" },
+  { value: "main_contact_first_name", label: "Contact First Name", description: "First name (will combine with last)" },
+  { value: "main_contact_last_name", label: "Contact Last Name", description: "Last name (will combine with first)" },
+  { value: "main_contact_email", label: "Contact Email", description: "Email address" },
+  { value: "main_contact_phone", label: "Contact Phone", description: "Phone number" },
   
   // URLs
   { value: "linkedin_url", label: "LinkedIn URL", description: "Company LinkedIn profile" },

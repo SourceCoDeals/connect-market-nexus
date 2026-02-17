@@ -116,11 +116,11 @@ export function processRow(
         }
       }
       // First name (combine later)
-      else if (field === 'primary_contact_first_name') {
+      else if (field === 'main_contact_first_name') {
         firstName = value;
       }
       // Last name (combine later)
-      else if (field === 'primary_contact_last_name') {
+      else if (field === 'main_contact_last_name') {
         lastName = value;
       }
       // String fields (default)
@@ -140,11 +140,11 @@ export function processRow(
   // Combine first + last name
   if (firstName || lastName) {
     const fullName = `${firstName} ${lastName}`.trim();
-    if (fullName && !data.primary_contact_name) {
-      data.primary_contact_name = fullName;
+    if (fullName && !data.main_contact_name) {
+      data.main_contact_name = fullName;
     }
   }
-  
+
   // Validate required fields
   if (!data.title) {
     errors.push({
@@ -153,20 +153,6 @@ export function processRow(
       message: 'Missing required field: Company Name',
     });
     return { data: null, errors };
-  }
-  
-  // Remap primary_contact_* → main_contact_* (import uses primary_, DB uses main_)
-  const contactRemap: Record<string, string> = {
-    primary_contact_name: 'main_contact_name',
-    primary_contact_title: 'main_contact_title',
-    primary_contact_email: 'main_contact_email',
-    primary_contact_phone: 'main_contact_phone',
-  };
-  for (const [from, to] of Object.entries(contactRemap)) {
-    if (data[from] !== undefined) {
-      data[to] = data[from];
-      delete data[from];
-    }
   }
   
   // Set defaults

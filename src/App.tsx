@@ -1,4 +1,5 @@
 
+import { lazy, Suspense } from "react";
 import {
   Routes,
   Route,
@@ -13,61 +14,77 @@ import { NavigationStateProvider } from "@/context/NavigationStateContext";
 import SessionTrackingProvider from "@/components/SessionTrackingProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/components/MainLayout";
-import AdminLayout from "@/components/admin/AdminLayout";
-import Welcome from "@/pages/Welcome";
-import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
-import SignupSuccess from "@/pages/SignupSuccess";
-import OwnerInquiry from "@/pages/OwnerInquiry";
-import OwnerInquirySuccess from "@/pages/OwnerInquirySuccess";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import PendingApproval from "@/pages/PendingApproval";
-import Unauthorized from "@/pages/Unauthorized";
-import Profile from "@/pages/Profile";
-import Marketplace from "@/pages/Marketplace";
-import ListingDetail from "@/pages/ListingDetail";
-import MyRequests from "@/pages/MyRequests";
-import SavedListings from "@/pages/SavedListings";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminListings from "@/pages/admin/AdminListings";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import FirmAgreements from "@/pages/admin/FirmAgreements";
-import AdminRequests from "@/pages/admin/AdminRequests";
-import AdminDealSourcing from "@/pages/admin/AdminDealSourcing";
-import AdminPipeline from "@/pages/admin/AdminPipeline";
-import AdminNotifications from "@/pages/admin/AdminNotifications";
-import ReMarketingDashboard from "@/pages/admin/remarketing/ReMarketingDashboard";
-import ReMarketingUniverses from "@/pages/admin/remarketing/ReMarketingUniverses";
-import ReMarketingUniverseDetail from "@/pages/admin/remarketing/ReMarketingUniverseDetail";
-import ReMarketingBuyers from "@/pages/admin/remarketing/ReMarketingBuyers";
-import ReMarketingBuyerDetail from "@/pages/admin/remarketing/ReMarketingBuyerDetail";
-import ReMarketingDealMatching from "@/pages/admin/remarketing/ReMarketingDealMatching";
-import ReMarketingIntroductions from "@/pages/admin/remarketing/ReMarketingIntroductions";
-import ReMarketingAnalytics from "@/pages/admin/remarketing/ReMarketingAnalytics";
-import ReMarketingDeals from "@/pages/admin/remarketing/ReMarketingDeals";
-import ReMarketingDealDetail from "@/pages/admin/remarketing/ReMarketingDealDetail";
-import ReMarketingSettings from "@/pages/admin/remarketing/ReMarketingSettings";
-import ReMarketingActivityQueue from "@/pages/admin/remarketing/ReMarketingActivityQueue";
-import ReMarketingReferralPartners from "@/pages/admin/remarketing/ReMarketingReferralPartners";
-import ReMarketingReferralPartnerDetail from "@/pages/admin/remarketing/ReMarketingReferralPartnerDetail";
-import CapTargetDeals from "@/pages/admin/remarketing/CapTargetDeals";
-import GPPartnerDeals from "@/pages/admin/remarketing/GPPartnerDeals";
-import EnrichmentTest from "@/pages/admin/EnrichmentTest";
-
-
-import ReferralTrackerPage from "@/pages/ReferralTrackerPage";
-import { ReMarketingLayout } from "@/components/remarketing";
-import WebhooksPage from "@/pages/admin/settings/WebhooksPage";
-import TranscriptAnalytics from "@/pages/admin/analytics/TranscriptAnalytics";
-import { MAIntelligenceLayout } from "@/components/ma-intelligence";
-import { MADashboard, MATrackers, MATrackerDetail, MAAllBuyers, MABuyerDetail, MAAllDeals, MADealDetail } from "@/pages/admin/ma-intelligence";
-import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { SimpleToastProvider } from "@/components/ui/simple-toast";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorHandler } from "@/lib/error-handler";
+
+// Auth pages - eagerly loaded (needed immediately)
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import AuthCallback from "@/pages/auth/callback";
+import PendingApproval from "@/pages/PendingApproval";
+
+// Lazy-loaded page groups
+const Welcome = lazy(() => import("@/pages/Welcome"));
+const SignupSuccess = lazy(() => import("@/pages/SignupSuccess"));
+const OwnerInquiry = lazy(() => import("@/pages/OwnerInquiry"));
+const OwnerInquirySuccess = lazy(() => import("@/pages/OwnerInquirySuccess"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const Unauthorized = lazy(() => import("@/pages/Unauthorized"));
+const ReferralTrackerPage = lazy(() => import("@/pages/ReferralTrackerPage"));
+
+// Main app pages - lazy loaded
+const Marketplace = lazy(() => import("@/pages/Marketplace"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const ListingDetail = lazy(() => import("@/pages/ListingDetail"));
+const MyRequests = lazy(() => import("@/pages/MyRequests"));
+const SavedListings = lazy(() => import("@/pages/SavedListings"));
+
+// Admin pages - lazy loaded (admin-only, heavy)
+const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const AdminListings = lazy(() => import("@/pages/admin/AdminListings"));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+const FirmAgreements = lazy(() => import("@/pages/admin/FirmAgreements"));
+const AdminRequests = lazy(() => import("@/pages/admin/AdminRequests"));
+const AdminDealSourcing = lazy(() => import("@/pages/admin/AdminDealSourcing"));
+const AdminPipeline = lazy(() => import("@/pages/admin/AdminPipeline"));
+const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications"));
+const WebhooksPage = lazy(() => import("@/pages/admin/settings/WebhooksPage"));
+const TranscriptAnalytics = lazy(() => import("@/pages/admin/analytics/TranscriptAnalytics"));
+const EnrichmentTest = lazy(() => import("@/pages/admin/EnrichmentTest"));
+
+// ReMarketing pages - lazy loaded (admin subsystem)
+const ReMarketingLayout = lazy(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
+const ReMarketingDashboard = lazy(() => import("@/pages/admin/remarketing/ReMarketingDashboard"));
+const ReMarketingUniverses = lazy(() => import("@/pages/admin/remarketing/ReMarketingUniverses"));
+const ReMarketingUniverseDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingUniverseDetail"));
+const ReMarketingDeals = lazy(() => import("@/pages/admin/remarketing/ReMarketingDeals"));
+const ReMarketingDealDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingDealDetail"));
+const ReMarketingBuyers = lazy(() => import("@/pages/admin/remarketing/ReMarketingBuyers"));
+const ReMarketingBuyerDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingBuyerDetail"));
+const ReMarketingDealMatching = lazy(() => import("@/pages/admin/remarketing/ReMarketingDealMatching"));
+const ReMarketingIntroductions = lazy(() => import("@/pages/admin/remarketing/ReMarketingIntroductions"));
+const ReMarketingAnalytics = lazy(() => import("@/pages/admin/remarketing/ReMarketingAnalytics"));
+const ReMarketingSettings = lazy(() => import("@/pages/admin/remarketing/ReMarketingSettings"));
+const ReMarketingActivityQueue = lazy(() => import("@/pages/admin/remarketing/ReMarketingActivityQueue"));
+const ReMarketingReferralPartners = lazy(() => import("@/pages/admin/remarketing/ReMarketingReferralPartners"));
+const ReMarketingReferralPartnerDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingReferralPartnerDetail"));
+const CapTargetDeals = lazy(() => import("@/pages/admin/remarketing/CapTargetDeals"));
+const GPPartnerDeals = lazy(() => import("@/pages/admin/remarketing/GPPartnerDeals"));
+
+// M&A Intelligence pages - lazy loaded (admin subsystem)
+const MAIntelligenceLayout = lazy(() => import("@/components/ma-intelligence").then(m => ({ default: m.MAIntelligenceLayout })));
+const MADashboard = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MADashboard })));
+const MATrackers = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MATrackers })));
+const MATrackerDetail = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MATrackerDetail })));
+const MAAllBuyers = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllBuyers })));
+const MABuyerDetail = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MABuyerDetail })));
+const MAAllDeals = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllDeals })));
+const MADealDetail = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MADealDetail })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -104,6 +121,7 @@ function App() {
                   <SimpleToastProvider>
                       <Toaster />
                       <SonnerToaster />
+          <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" /></div>}>
           <Routes>
             {/* Public entry point - persona selection */}
             <Route path="/welcome" element={<Welcome />} />
@@ -189,7 +207,8 @@ function App() {
             {/* Catch-all route for 404 Not Found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-                    
+          </Suspense>
+
                 </SimpleToastProvider>
               </AnalyticsProvider>
             </SessionTrackingProvider>

@@ -64,12 +64,12 @@ export interface ParsedDealData {
   number_of_locations?: number;
   
   // Contact
-  primary_contact_name?: string;
-  primary_contact_title?: string;
-  primary_contact_first_name?: string;
-  primary_contact_last_name?: string;
-  primary_contact_email?: string;
-  primary_contact_phone?: string;
+  main_contact_name?: string;
+  main_contact_title?: string;
+  main_contact_first_name?: string;
+  main_contact_last_name?: string;
+  main_contact_email?: string;
+  main_contact_phone?: string;
   
   // URLs
   linkedin_url?: string;

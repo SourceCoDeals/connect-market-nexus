@@ -130,28 +130,24 @@ export function useAdminStats() {
           if (connectionsError) throw connectionsError;
           
           if (connections && connections.length > 0) {
-            // For each connection, get user and listing details separately
-            const connectionActivities = await Promise.all(connections.map(async (connection) => {
-              // Get user details
-              const { data: userData, error: userError } = await supabase
-                .from('profiles')
-                .select('first_name, last_name')
-                .eq('id', connection.user_id)
-                .maybeSingle();
-              
-              // Get listing details
-              const { data: listingData, error: listingError } = await supabase
-                .from('listings')
-                .select('title')
-                .eq('id', connection.listing_id)
-                .maybeSingle();
-              
-              const userName = userError || !userData ? 'Unknown User' : 
-                `${userData.first_name} ${userData.last_name}`;
-              
-              const listingTitle = listingError || !listingData ? 'Unknown Listing' : 
-                listingData.title;
-              
+            // Batch-fetch user and listing details instead of N+1 queries
+            const userIds = [...new Set(connections.map(c => c.user_id))];
+            const listingIds = [...new Set(connections.map(c => c.listing_id))];
+
+            const [{ data: users }, { data: listings }] = await Promise.all([
+              supabase.from('profiles').select('id, first_name, last_name').in('id', userIds),
+              supabase.from('listings').select('id, title').in('id', listingIds),
+            ]);
+
+            const userMap = new Map((users || []).map(u => [u.id, u]));
+            const listingMap = new Map((listings || []).map(l => [l.id, l]));
+
+            const connectionActivities = connections.map(connection => {
+              const userData = userMap.get(connection.user_id);
+              const listingData = listingMap.get(connection.listing_id);
+              const userName = userData ? `${userData.first_name} ${userData.last_name}` : 'Unknown User';
+              const listingTitle = listingData?.title || 'Unknown Listing';
+
               return {
                 id: `connection-${connection.id}`,
                 type: "connection_request" as const,
@@ -159,8 +155,8 @@ export function useAdminStats() {
                 timestamp: connection.created_at,
                 user_id: connection.user_id,
               };
-            }));
-            
+            });
+
             activities.push(...connectionActivities);
           }
           

@@ -1031,7 +1031,6 @@ serve(async (req) => {
     const finalUpdates: Record<string, unknown> = {
       ...updates,
       enriched_at: new Date().toISOString(),
-      last_enriched_at: new Date().toISOString(),
       extraction_sources: updateExtractionSources(deal.extraction_sources, sourceUpdates),
     };
 

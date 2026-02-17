@@ -63,9 +63,11 @@ import {
   MoreHorizontal,
   ExternalLink,
   Zap,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { exportDealsToCSV } from "@/lib/exportUtils";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
@@ -999,6 +1001,23 @@ export default function GPPartnerDeals() {
               </Button>
             );
           })()}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            onClick={async () => {
+              const ids = Array.from(selectedIds);
+              const result = await exportDealsToCSV(ids);
+              if (result.success) {
+                sonnerToast.success(`${result.count} deal(s) exported to CSV`);
+              } else {
+                sonnerToast.error(result.error || "Export failed");
+              }
+            }}
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
         </div>
       )}
 

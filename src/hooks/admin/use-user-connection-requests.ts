@@ -23,45 +23,40 @@ export function useUserConnectionRequests(userId: string) {
 
       if (error) throw error;
 
-      const enhancedRequests = await Promise.all(requests.map(async (request) => {
-        const { data: userData, error: userError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', request.user_id)
-          .maybeSingle();
-        
-        const { data: listingData, error: listingError } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('id', request.listing_id)
-          .maybeSingle();
-        
-        // Fetch admin profiles who performed follow-ups (if available)
-        let followedUpByAdmin = null;
-        if (request.followed_up_by) {
-          const { data: adminProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', request.followed_up_by)
-            .maybeSingle();
-          followedUpByAdmin = adminProfile ? createUserObject(adminProfile) : null;
-        }
-        
-        let negativeFollowedUpByAdmin = null;
-        if ((request as any).negative_followed_up_by) {
-          const { data: adminProfileNeg } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', (request as any).negative_followed_up_by)
-            .maybeSingle();
-          negativeFollowedUpByAdmin = adminProfileNeg ? createUserObject(adminProfileNeg) : null;
-        }
-        
-        const user = userError || !userData ? null : createUserObject(userData);
+      // Batch-fetch all related data instead of N+1 queries per request
+      const allProfileIds = new Set<string>();
+      const allListingIds = new Set<string>();
+
+      for (const req of requests) {
+        allProfileIds.add(req.user_id);
+        if (req.followed_up_by) allProfileIds.add(req.followed_up_by);
+        if ((req as any).negative_followed_up_by) allProfileIds.add((req as any).negative_followed_up_by);
+        allListingIds.add(req.listing_id);
+      }
+
+      const [{ data: allProfiles }, { data: allListings }] = await Promise.all([
+        supabase.from('profiles').select('*').in('id', [...allProfileIds]),
+        supabase.from('listings').select('*').in('id', [...allListingIds]),
+      ]);
+
+      const profileMap = new Map((allProfiles || []).map(p => [p.id, p]));
+      const listingMap = new Map((allListings || []).map(l => [l.id, l]));
+
+      const enhancedRequests = requests.map(request => {
+        const userData = profileMap.get(request.user_id);
+        const listingData = listingMap.get(request.listing_id);
+
+        const followedUpByAdmin = request.followed_up_by
+          ? (profileMap.get(request.followed_up_by) ? createUserObject(profileMap.get(request.followed_up_by)!) : null)
+          : null;
+        const negativeFollowedUpByAdmin = (request as any).negative_followed_up_by
+          ? (profileMap.get((request as any).negative_followed_up_by) ? createUserObject(profileMap.get((request as any).negative_followed_up_by)!) : null)
+          : null;
+
+        const user = userData ? createUserObject(userData) : null;
         const listing = listingData ? createListingFromData(listingData) : null;
-        
         const status = request.status as "pending" | "approved" | "rejected";
-        
+
         const result: AdminConnectionRequest = {
           ...request,
           status,
@@ -74,7 +69,7 @@ export function useUserConnectionRequests(userId: string) {
         };
 
         return result;
-      }));
+      });
 
       return enhancedRequests;
     },

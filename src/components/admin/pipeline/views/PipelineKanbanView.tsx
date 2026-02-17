@@ -44,7 +44,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   const { toast } = useToast();
   
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || null));
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || null)).catch(() => {});
   }, []);
   
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
