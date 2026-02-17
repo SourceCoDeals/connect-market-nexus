@@ -1,61 +1,126 @@
 
 
-# Fix: Prevent Remarketing Deals from Leaking into Public Marketplace Views
+# Fix: Queue-Based Scoring Instead of Fire-All-At-Once
 
-## The Problem
+## Problem
 
-The "Similar Listings" section (and several other queries) fetches all active listings without filtering out internal/remarketing deals (`is_internal_deal = true`). This leaks confidential remarketing data to public marketplace users.
+When you click "Score All Deals" or trigger scoring across multiple buyers/deals, the frontend fires concurrent edge function calls -- one per deal or buyer -- all at once. Each call hits the Gemini API, causing 429 (RESOURCE_EXHAUSTED) rate limit errors. The edge function logs confirm this: multiple `score-industry-alignment` calls overlap and get rejected.
 
-## Root Cause
+The enrichment system already solved this problem with a database-backed queue + worker pattern. Scoring needs the same treatment.
 
-The `is_internal_deal` filter was added to the main marketplace listing query but was never applied to the similar listings hook or several analytics hooks that also query the `listings` table.
+## Current Architecture (Broken)
 
-## Fix: Add `is_internal_deal = false` Filter to All Public-Facing Queries
+```text
+Browser
+  |
+  |-- for each deal:
+  |     invoke('score-buyer-deal', { bulk: true, listingId, universeId })
+  |       --> Gemini API (all at once) --> 429 errors
+  |
+  |-- for each buyer:
+  |     invoke('score-industry-alignment', { buyerId, universeId })
+  |       --> Gemini API (sequential but client-side, dies on navigation)
+```
 
-Every query that surfaces listings to marketplace (non-admin) users must include `.eq('is_internal_deal', false)`.
+## Proposed Architecture (Queue-Based)
 
-### Critical (user-visible data leak):
-
-| File | Line(s) | What it does |
-|------|---------|-------------|
-| `src/hooks/use-similar-listings.ts` | 16-20 | **Similar Listings carousel** -- the bug in the screenshot |
-| `src/hooks/use-simple-listings.ts` (fetchMetadata) | 87-93 | Category/location filter options -- could expose internal categories |
-| `src/hooks/marketplace/use-listings.ts` | 210-215 | Single listing fetch by ID -- could return an internal deal if someone navigates to it directly |
-
-### Secondary (admin analytics, lower risk but still incorrect data mixing):
-
-| File | What it does |
-|------|-------------|
-| `src/hooks/use-market-intelligence.ts` | Pricing intelligence -- mixes internal deal financials into market data |
-| `src/hooks/use-revenue-optimization.ts` | Revenue analytics |
-| `src/hooks/use-automated-intelligence.ts` | Automated intelligence |
-| `src/hooks/usePremiumAnalytics.ts` | Premium analytics |
-| `src/hooks/useEngagementAnalytics.ts` | Engagement analytics |
-| `src/hooks/use-listing-intelligence.ts` | Listing intelligence |
-| `src/hooks/useListingHealth.ts` | Listing health |
-| `src/hooks/use-smart-alerts.ts` | Smart alerts |
-| `src/hooks/use-revenue-intelligence.ts` | Revenue intelligence |
-
-For admin analytics hooks, the filter depends on intent -- if analytics should cover all deals, no change is needed. But the **three critical files** above must be fixed unconditionally.
+```text
+Browser clicks "Score All"
+  |
+  +--> Insert rows into `remarketing_scoring_queue` table
+  +--> Register operation in Global Activity Queue
+  +--> Invoke `process-scoring-queue` worker (fire-and-forget)
+  |
+  Worker (edge function):
+  |-- Pull next item from queue
+  |-- Call Gemini API with retry + backoff
+  |-- Mark item complete
+  |-- Loop until timeout (140s safety)
+  |-- Self-invoke if items remain
+  |
+  Browser polls Global Activity Queue for progress
+```
 
 ## Technical Changes
 
-For each critical file, add `.eq('is_internal_deal', false)` to the Supabase query:
+### 1. New database table: `remarketing_scoring_queue`
 
-**`use-similar-listings.ts`** (line 19, after `.eq('status', 'active')`):
-```typescript
-.eq('is_internal_deal', false)
-```
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | uuid (PK) | Row ID |
+| universe_id | uuid | Which universe |
+| buyer_id | uuid (nullable) | For alignment scoring |
+| listing_id | uuid (nullable) | For deal scoring |
+| score_type | text | 'alignment' or 'deal' |
+| status | text | 'pending', 'processing', 'completed', 'failed' |
+| attempts | int | Retry count |
+| last_error | text | Error message |
+| created_at | timestamptz | When queued |
+| processed_at | timestamptz | When completed |
 
-**`use-simple-listings.ts` fetchMetadata** (line 91, after `.eq('status', 'active')`):
-```typescript
-.eq('is_internal_deal', false)
-```
+### 2. New edge function: `process-scoring-queue`
 
-**`marketplace/use-listings.ts` single listing fetch** (line 214, after `.is('deleted_at', null)`):
-```typescript
-.eq('is_internal_deal', false)
-```
+- Pulls the next pending item from the queue (ordered by created_at)
+- Sets status to 'processing'
+- Calls the appropriate existing edge function (`score-industry-alignment` or `score-buyer-deal`) internally
+- Handles 429 errors with exponential backoff (4s, 8s, 16s)
+- Marks item as completed or failed
+- Loops until 140s safety threshold
+- Self-invokes if queue still has items
+- Updates Global Activity Queue progress
 
-These are one-line additions in three files. No other logic changes needed.
+### 3. Update frontend "Score All" actions
+
+**File: `src/pages/admin/remarketing/ReMarketingUniverseDetail.tsx`**
+
+Replace the `for` loop that fires concurrent `score-buyer-deal` calls with:
+- Insert all items into `remarketing_scoring_queue`
+- Register a `buyer_scoring` operation in the Global Activity Queue
+- Fire-and-forget invoke of `process-scoring-queue`
+- UI shows progress via the existing activity queue polling
+
+**File: `src/hooks/useAlignmentScoring.ts`**
+
+Replace the client-side sequential loop with:
+- Insert all unscored buyers into `remarketing_scoring_queue` with type='alignment'
+- Register operation in Global Activity Queue
+- Fire-and-forget invoke of `process-scoring-queue`
+- Progress tracked via DB polling instead of client-side state (survives navigation)
+
+### 4. Integrate with Global Activity Queue
+
+**File: `supabase/functions/_shared/global-activity-queue.ts`**
+
+Add `'buyer_scoring': 'process-scoring-queue'` to the processor map (already partially there). The existing activity status bar and progress UI will automatically pick up scoring operations.
+
+### 5. Other call sites to update
+
+These files also invoke scoring directly and should queue instead:
+
+| File | Current Behavior |
+|------|-----------------|
+| `AddToUniverseQuickAction.tsx` | Fire-and-forget `score-buyer-deal` |
+| `UniverseAssignmentButton.tsx` | Fire-and-forget `score-buyer-deal` |
+| `BulkScoringPanel.tsx` | Direct invoke |
+| `BulkAssignUniverseDialog.tsx` | Loop of fire-and-forget calls |
+| `AddDealToUniverseDialog.tsx` | Loop of fire-and-forget calls |
+| `AddBuyerToUniverseDialog.tsx` | Loop of fire-and-forget calls |
+| `ReMarketingDealMatching.tsx` | Direct invoke with timeout |
+
+Each of these will be updated to insert into the queue and invoke the worker instead.
+
+## What Does NOT Change
+
+- The `score-buyer-deal` and `score-industry-alignment` edge functions themselves -- they still do the actual AI scoring. The worker calls them internally.
+- The scoring algorithms and AI prompts
+- The database tables for scores (`remarketing_scores`, `remarketing_buyers.alignment_score`)
+- The Global Activity Queue UI components
+
+## Result
+
+- No more 429 rate limit errors from concurrent API calls
+- Scoring survives page navigation (queue is in the database)
+- Progress visible across all ReMarketing pages via the activity status bar
+- Automatic retry with backoff for transient failures
+- Consistent with how enrichment already works
 
