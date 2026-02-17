@@ -29,6 +29,7 @@ export default function AuthCallback() {
           console.log('✅ User session found, checking profile...');
           
           // Get latest profile data to see if verification was successful
+          // eslint-disable-next-line prefer-const
           let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('email_verified, approval_status, is_admin, first_name, last_name, email')

@@ -281,7 +281,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
             formData.append('listingId', dealId);
             const { data, error } = await supabase.functions.invoke('parse-transcript-file', { body: formData });
             if (!error && data?.text) transcriptText = data.text;
-          } catch {}
+          } catch { /* file parse failed, use fallback text */ }
         }
         const { error } = await supabase.from('deal_transcripts').insert({
           listing_id: dealId,

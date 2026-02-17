@@ -31,6 +31,7 @@ export function useNuclearAuth() {
         
         if (session?.user) {
           // Fetch profile data directly
+          // eslint-disable-next-line prefer-const
           let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
