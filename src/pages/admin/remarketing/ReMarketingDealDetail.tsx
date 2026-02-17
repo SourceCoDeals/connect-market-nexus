@@ -255,28 +255,16 @@ const ReMarketingDealDetail = () => {
     }, 500);
 
     try {
-      const { data, error } = await supabase.functions.invoke('enrich-deal', {
-        body: { dealId }
-      });
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment([dealId]);
 
       clearInterval(progressTimer);
-
-      if (error) throw error;
-
-      if (data?.success) {
-        setEnrichmentProgress(100);
-        setEnrichmentStage('Complete!');
-        toast.success(`Enriched ${data.fieldsUpdated?.length || 0} fields from website`);
-        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
-        // Reset after brief delay
-        setTimeout(() => { setIsEnriching(false); setEnrichmentProgress(0); setEnrichmentStage(''); }, 1500);
-        return;
-      } else {
-        toast.error(data?.error || "Failed to enrich from website");
-      }
+      setEnrichmentProgress(100);
+      setEnrichmentStage('Queued for background processing');
+      setTimeout(() => { setIsEnriching(false); setEnrichmentProgress(0); setEnrichmentStage(''); }, 1500);
     } catch (error: any) {
       clearInterval(progressTimer);
-      toast.error(error.message || "Failed to enrich from website");
+      toast.error(error.message || "Failed to queue enrichment");
     }
     setIsEnriching(false);
     setEnrichmentProgress(0);

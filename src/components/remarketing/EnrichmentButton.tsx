@@ -36,22 +36,12 @@ export const EnrichmentButton = ({
 
   const enrichMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await invokeWithTimeout<any>('enrich-buyer', {
-        body: { buyerId },
-        timeoutMs: 180_000,
-      });
-
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Enrichment failed');
-
-      return data;
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyerId]);
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       setEnrichmentResult('success');
-      toast.success(`Enriched ${buyerName}`, {
-        description: `Updated ${data.data.fieldsUpdated} fields with ${data.data.dataCompleteness} confidence`
-      });
-      // Force an immediate refetch for active queries so the UI updates right away
+      toast.success(`Queued ${buyerName} for enrichment`);
       void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', buyerId], refetchType: 'active' });
       void queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'], refetchType: 'active' });
       onSuccess?.();

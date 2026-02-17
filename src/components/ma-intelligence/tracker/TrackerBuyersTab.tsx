@@ -116,44 +116,20 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     setEnrichmentProgress(progress);
 
     try {
-      for (let i = 0; i < buyerIds.length; i++) {
-        if (progress.isPaused) break;
-
-        const buyerId = buyerIds[i];
-
-        try {
-          await invokeWithTimeout("enrich-buyer", {
-            body: { buyerId },
-            timeoutMs: 90_000,
-          });
-
-          progress.current = i + 1;
-          progress.completedIds.push(buyerId);
-          setEnrichmentProgress({ ...progress });
-
-          if (activityItem) {
-            updateProgress.mutate({ id: activityItem.id, completedItems: progress.current });
-          }
-
-          // Save progress to localStorage
-          saveSessionState(trackerId, "Bulk Enrichment", progress.current, progress.total);
-        } catch (error: any) {
-          console.error(`Error enriching buyer ${buyerId}:`, error);
-        }
-      }
-
-      clearSessionState(trackerId);
-      setEnrichmentProgress(null);
-      setSelectedBuyers(new Set());
-      loadBuyers();
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment(buyerIds);
 
       if (activityItem) {
         completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
       }
 
+      clearSessionState(trackerId);
+      setEnrichmentProgress(null);
+      setSelectedBuyers(new Set());
+
       toast({
-        title: "Enrichment complete",
-        description: `Successfully enriched ${progress.completedIds.length} of ${buyerIds.length} buyers`,
+        title: "Enrichment queued",
+        description: `Queued ${buyerIds.length} buyers for background enrichment`,
       });
     } catch (error: any) {
       if (activityItem) {
@@ -178,10 +154,8 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
   const handleEnrichSingle = async (buyerId: string) => {
     try {
-      await invokeWithTimeout("enrich-buyer", {
-        body: { buyerId },
-        timeoutMs: 90_000,
-      });
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyerId]);
 
       toast({
         title: "Enrichment started",
@@ -252,13 +226,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     try {
       const buyerIds = Array.from(selectedBuyers);
 
-      // Call scoring edge function
-      await supabase.functions.invoke("score-buyer-deal", {
-        body: {
-          buyer_ids: buyerIds,
-          deal_id: dealId,
-        },
-      });
+      // Queue scoring
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoring({ universeId: dealId || "", listingIds: [dealId || ""] });
 
       toast({
         title: "Scoring started",

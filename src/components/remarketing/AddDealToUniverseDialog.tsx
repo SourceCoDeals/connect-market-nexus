@@ -196,21 +196,8 @@ export const AddDealToUniverseDialog = ({
       ) || [];
       
       if (unenrichedWithWebsites.length > 0) {
-        toast.info(`Enriching ${unenrichedWithWebsites.length} deal${unenrichedWithWebsites.length > 1 ? "s" : ""} in background...`);
-        
-        // Enrich each deal in the background (don't await)
-        for (const listing of unenrichedWithWebsites) {
-          supabase.functions.invoke("enrich-deal", {
-            body: { dealId: listing.id },
-          }).then(({ data, error }) => {
-            if (error) {
-              console.error(`Enrichment error for ${listing.id}:`, error);
-            } else if (data?.success) {
-              console.log(`Enriched ${listing.internal_company_name || listing.title}`);
-              queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
-            }
-          });
-        }
+        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+        await queueDealEnrichment(unenrichedWithWebsites.map(l => l.id));
       }
       
       // Queue background scoring for each deal

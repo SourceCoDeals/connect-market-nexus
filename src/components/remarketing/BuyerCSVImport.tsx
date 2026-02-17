@@ -585,75 +585,16 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     const BATCH_SIZE = 5;
     const BATCH_DELAY_MS = 1000;
 
-    // Process in parallel batches
-    for (let i = 0; i < buyers.length; i += BATCH_SIZE) {
-      // Check if credits depleted - stop immediately
-      if (creditsDepleted) break;
-
-      const batch = buyers.slice(i, i + BATCH_SIZE);
-      
-      // Process batch in parallel
-      const results = await Promise.allSettled(
-        batch.map(async (buyer) => {
-          const { data, error } = await invokeWithTimeout<any>('enrich-buyer', {
-            body: { buyerId: buyer.id },
-            timeoutMs: 180_000,
-          });
-          
-          if (error) throw error;
-          
-          // Check for error in response body
-          if (data && !data.success) {
-            const errorObj = new Error(data.error || 'Enrichment failed');
-            (errorObj as any).errorCode = data.error_code;
-            throw errorObj;
-          }
-          
-          return data;
-        })
-      );
-
-      // Process results
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          enriched++;
-        } else {
-          failed++;
-          const error = result.reason;
-          const errorCode = (error as any)?.errorCode;
-          const errorMessage = error?.message || '';
-
-          // Check for payment/credits error - fail fast
-          if (
-            errorCode === 'payment_required' ||
-            errorMessage.includes('402') ||
-            errorMessage.includes('credits') ||
-            errorMessage.includes('payment')
-          ) {
-            creditsDepleted = true;
-            toast.error(
-              'AI credits depleted. Please add credits in Settings → Workspace → Usage to continue.',
-              { duration: 10000 }
-            );
-            break;
-          }
-        }
-      }
-
-      setEnrichmentProgress({ current: Math.min(i + BATCH_SIZE, buyers.length), total: buyers.length });
-
-      // Delay between batches (not after last batch or if credits depleted)
-      if (i + BATCH_SIZE < buyers.length && !creditsDepleted) {
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
-      }
-    }
-
-    setImportResults(prev => ({ ...prev, enriched }));
-    
-    if (creditsDepleted) {
-      toast.warning(`Enrichment stopped. ${enriched} buyers enriched before credits ran out.`);
-    } else {
-      toast.success(`Enriched ${enriched} of ${buyers.length} buyers`);
+    // Queue all buyers for background enrichment
+    try {
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      const queued = await queueBuyerEnrichment(buyers.map(b => b.id), universeId);
+      setEnrichmentProgress({ current: buyers.length, total: buyers.length });
+      setImportResults(prev => ({ ...prev, enriched: queued }));
+      toast.success(`Queued ${queued} buyers for background enrichment`);
+    } catch (error) {
+      console.error('Failed to queue enrichment:', error);
+      toast.error('Failed to queue enrichment');
     }
   };
 

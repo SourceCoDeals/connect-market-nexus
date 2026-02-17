@@ -69,34 +69,9 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
     buyerId: string
   ): Promise<{ success: boolean; partial?: boolean; reason?: string; rateLimited?: boolean }> => {
     try {
-      const { data, error } = await invokeWithTimeout<{ success?: boolean; error_code?: string; code?: string; error?: string; warning?: string }>('enrich-buyer', {
-        body: { buyerId },
-        timeoutMs: 180_000, // 3 min — buyer enrichment makes 4-5 AI calls
-      });
-
-      if (error) {
-        const parsed = parseInvokeError(error);
-        const isRateLimited = parsed.status === 429 || parsed.code === 'RATE_LIMIT_EXCEEDED';
-        const isPaymentRequired = parsed.status === 402 || parsed.code === 'payment_required';
-        const extra = parsed.resetTime ? ` (reset: ${new Date(parsed.resetTime).toLocaleTimeString()})` : '';
-        return {
-          success: false,
-          reason: `${parsed.message}${extra}`,
-          rateLimited: isRateLimited || isPaymentRequired,
-        };
-      }
-
-      if (!data?.success) {
-        const isRateLimited = data?.error_code === 'rate_limited' || data?.code === 'RATE_LIMIT_EXCEEDED';
-        const isPaymentRequired = data?.error_code === 'payment_required';
-        return {
-          success: false,
-          reason: data?.error || 'Unknown error',
-          rateLimited: isRateLimited || isPaymentRequired,
-        };
-      }
-
-      return { success: true, partial: !!data.warning };
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyerId]);
+      return { success: true };
     } catch (err) {
       return { success: false, reason: err instanceof Error ? err.message : 'Unknown error' };
     }
@@ -148,14 +123,9 @@ export function useBulkEnrichment(options: UseBulkEnrichmentOptions = {}) {
       }
 
       if (deal.company_website) {
-        const { error } = await invokeWithTimeout('enrich-deal', {
-          body: { dealId, onlyFillEmpty: true },
-          timeoutMs: 120_000,
-        });
-        if (error && isRateLimitOrPaymentError(error)) {
-          return { success: false, reason: error.message, rateLimited: true };
-        }
-        if (!error) enriched = true;
+        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+        await queueDealEnrichment([dealId]);
+        enriched = true;
       }
 
       return { success: enriched, reason: enriched ? undefined : 'No data sources available' };

@@ -285,12 +285,8 @@ const ReMarketingBuyerDetail = () => {
   // Mutations
   const enrichMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await invokeWithTimeout<any>('enrich-buyer', {
-        body: { buyerId: id },
-        timeoutMs: 180_000,
-      });
-      if (error) throw error;
-      return data;
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([id!]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', id] });

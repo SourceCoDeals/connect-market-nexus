@@ -127,36 +127,10 @@
      setIsAutoEnriching(true);
      console.log(`[AutoEnrich] Triggering for deal ${dealId}: ${reason}`);
      
-     try {
-       const { data, error } = await invokeWithTimeout<{ success?: boolean; fieldsUpdated?: string[]; error_code?: string; error?: string }>('enrich-deal', {
-         body: { dealId },
-         timeoutMs: 120_000, // 2 min — enrichment is heavy
-       });
- 
-       if (error) throw error;
- 
-       if (data?.success) {
-         const fieldsCount = data.fieldsUpdated?.length || 0;
-         if (fieldsCount > 0) {
-           toast.success(`Auto-enriched ${fieldsCount} fields`, {
-             description: reason || 'Updated from website',
-             duration: 3000,
-           });
-         }
-         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
-       } else {
-         console.warn('[AutoEnrich] Failed:', data?.error);
-         if (data?.error_code === 'rate_limited' || data?.error?.includes?.('429')) {
-           toast.info('Auto-enrichment delayed — API is busy. Will retry on next visit.', { duration: 4000 });
-         } else if (data?.error_code === 'payment_required') {
-           toast.warning('Auto-enrichment skipped — AI credits depleted.', { duration: 6000 });
-         } else {
-           toast.error('Auto-enrichment failed for this deal.', {
-             description: data?.error || 'Unknown error',
-             duration: 5000,
-           });
-         }
-       }
+      try {
+        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+        await queueDealEnrichment([dealId]);
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
      } catch (error: any) {
        console.error('[AutoEnrich] Error:', error);
        const msg = error?.message || '';

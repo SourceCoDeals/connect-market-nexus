@@ -98,20 +98,12 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
     }
 
     try {
-      let successCount = 0;
-      for (const dealId of dealIds) {
-        try {
-          await invokeWithTimeout("enrich-deal", {
-            body: { dealId },
-            timeoutMs: 90_000,
-          });
-          successCount++;
-          if (activityItem) {
-            updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
-          }
-        } catch (error: any) {
-          console.error(`Error enriching deal ${dealId}:`, error);
-        }
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment(dealIds);
+
+      let successCount = dealIds.length;
+      if (activityItem) {
+        updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
       }
 
       toast({
@@ -258,10 +250,8 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
   const handleEnrichSingle = async (dealId: string) => {
     try {
-      await invokeWithTimeout("enrich-deal", {
-        body: { dealId },
-        timeoutMs: 90_000,
-      });
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment([dealId]);
 
       toast({
         title: "Enrichment started",

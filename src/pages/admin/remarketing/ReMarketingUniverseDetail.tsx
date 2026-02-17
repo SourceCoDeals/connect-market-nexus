@@ -1010,13 +1010,11 @@ const ReMarketingUniverseDetail = () => {
                       }}
                       onEnrichDeal={async (listingId) => {
                         try {
-                          await supabase.functions.invoke('enrich-deal', {
-                            body: { dealId: listingId }
-                          });
-                          toast.success('Deal enriched');
+                          const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+                          await queueDealEnrichment([listingId]);
                           refetchDeals();
                         } catch (error) {
-                          toast.error('Failed to enrich deal');
+                          toast.error('Failed to queue enrichment');
                         }
                       }}
                     />
