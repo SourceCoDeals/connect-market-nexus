@@ -254,17 +254,6 @@ export function ImprovedListingEditor({
         return;
       }
 
-      // Marketplace listings require an image
-      if (targetType === 'marketplace' && !selectedImage && !imagePreview) {
-        setImageError('An image is required for marketplace listings');
-        toast({
-          variant: "destructive",
-          title: "Image Required",
-          description: "Marketplace listings must include a featured image.",
-        });
-        return;
-      }
-      
       // Get form values and call the submit handler
       const formData = form.getValues();
       
@@ -364,24 +353,10 @@ export function ImprovedListingEditor({
       <Form {...form}>
         <form onSubmit={handleFormSubmit}>
           {/* Target type banner */}
-          {!listing && targetType && (
-            <div className={cn(
-              "mb-6 flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium",
-              targetType === 'marketplace' 
-                ? "border-primary/30 bg-primary/5 text-primary" 
-                : "border-amber-500/30 bg-amber-500/5 text-amber-700"
-            )}>
-              {targetType === 'marketplace' ? (
-                <>
-                  <Globe className="h-4 w-4 shrink-0" />
-                  This listing will be published to the public marketplace upon creation
-                </>
-              ) : (
-                <>
-                  <Target className="h-4 w-4 shrink-0" />
-                  This listing will be saved as an internal research deal
-                </>
-              )}
+          {!listing && (
+            <div className="mb-6 flex items-center gap-3 rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm font-medium text-muted-foreground">
+              <Target className="h-4 w-4 shrink-0" />
+              This listing will be created as a draft. Use the Publish button on the card to make it live on the marketplace.
             </div>
           )}
           
