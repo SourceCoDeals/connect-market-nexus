@@ -55,9 +55,8 @@ export function OwnerIntroConfigDialog({
         .order('first_name')
         .then((result) => {
           if (result.data) setDealOwnerAdmins(result.data);
-        })
-        .catch((err) => console.error('Failed to load deal owner admins:', err))
-        .finally(() => setIsLoadingDealOwnerAdmins(false));
+          setIsLoadingDealOwnerAdmins(false);
+        });
     }
   }, [open, needsDealOwner]);
 
@@ -72,9 +71,8 @@ export function OwnerIntroConfigDialog({
         .order('first_name')
         .then((result) => {
           if (result.data) setPrimaryOwnerAdmins(result.data);
-        })
-        .catch((err) => console.error('Failed to load primary owner admins:', err))
-        .finally(() => setIsLoadingPrimaryOwnerAdmins(false));
+          setIsLoadingPrimaryOwnerAdmins(false);
+        });
     }
   }, [open, needsPrimaryOwner]);
 

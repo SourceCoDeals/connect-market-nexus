@@ -1077,7 +1077,6 @@ const ReMarketingDealDetail = () => {
         isLoading={transcriptsLoading}
         dealInfo={{
           company_name: deal.internal_company_name || deal.title,
-          primary_contact_email: deal.main_contact_email,
           main_contact_email: deal.main_contact_email,
         }}
         contactEmail={deal.main_contact_email ?? null}
