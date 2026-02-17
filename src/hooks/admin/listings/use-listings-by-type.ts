@@ -51,8 +51,7 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
           } else {
             // Research: internal deals without images (remarketing deals)
             query = query
-              .eq('is_internal_deal', true)
-              .or('image_url.is.null,image_url.eq.');
+              .eq('is_internal_deal', true);
           }
           
           // Apply status filter if provided
@@ -136,7 +135,6 @@ export function useListingTypeCounts() {
           .from('listings')
           .select('id', { count: 'exact', head: true })
           .is('deleted_at', null)
-          .or('image_url.is.null,image_url.eq.')
           .eq('is_internal_deal', true)
       ]);
 
