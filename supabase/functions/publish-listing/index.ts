@@ -131,8 +131,8 @@ Deno.serve(async (req) => {
       // Check if already published
       if (listing.is_internal_deal === false && listing.published_at) {
         return new Response(
-          JSON.stringify({ error: 'Listing is already published', listing }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'Listing is already published', listing }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -153,10 +153,11 @@ Deno.serve(async (req) => {
       if ((remarketingLinks && remarketingLinks.length > 0) || (remarketingScores && remarketingScores.length > 0)) {
         return new Response(
           JSON.stringify({ 
+            success: false,
             error: 'Cannot publish: listing is linked to remarketing systems. Remove from universes first or create a separate marketplace listing.',
             remarketingLinked: true 
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -165,10 +166,11 @@ Deno.serve(async (req) => {
       if (!validation.valid) {
         return new Response(
           JSON.stringify({ 
+            success: false,
             error: 'Listing does not meet quality requirements',
             validationErrors: validation.errors 
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
