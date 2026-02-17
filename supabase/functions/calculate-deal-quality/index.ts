@@ -54,6 +54,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   const reviewCount = deal.google_review_count || 0;
   const googleRating = deal.google_rating || 0;
+  const locationCount = deal.number_of_locations || 0;
 
   let revenueScore = 0;
   let ebitdaScore = 0;
