@@ -105,7 +105,7 @@ export const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps>
           <span className="text-muted-foreground">Number</span>
         </div>
         <div className="flex items-center gap-2">
-          {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? (
+          {/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) ? (
             <CheckCircle className="h-4 w-4 text-green-500" />
           ) : (
             <XCircle className="h-4 w-4 text-red-500" />

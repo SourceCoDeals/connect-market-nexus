@@ -37,6 +37,7 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
     if (user && isOpen) {
       loadConversationHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isOpen]);
 
   const loadConversationHistory = async () => {

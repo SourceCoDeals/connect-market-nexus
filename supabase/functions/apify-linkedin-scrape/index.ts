@@ -691,7 +691,7 @@ function isLinkedInCompanyUrl(url: string): boolean {
 }
 
 function normalizeLinkedInUrl(url: string): string {
-  const match = url.match(/linkedin\.com\/company\/([^\/\?]+)/);
+  const match = url.match(/linkedin\.com\/company\/([^/?]+)/);
   if (match) {
     return `https://www.linkedin.com/company/${match[1]}`;
   }

@@ -22,13 +22,14 @@ export function RealTimeTab() {
           return user.country === activeFilter.value;
         case 'device':
           return user.deviceType === activeFilter.value;
-        case 'referrer':
+        case 'referrer': {
           const referrer = user.referrer || user.utmSource || 'Direct';
           const normalized = referrer.includes('google') ? 'Google' :
             referrer.includes('facebook') ? 'Facebook' :
             referrer.includes('linkedin') ? 'LinkedIn' :
             referrer === 'Direct' ? 'Direct' : 'Other';
           return normalized === activeFilter.value;
+        }
         case 'entrySource':
           return user.entrySource === activeFilter.value;
         default:

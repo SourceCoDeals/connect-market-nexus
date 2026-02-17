@@ -15,24 +15,20 @@ export function useAdminUsers() {
     return useQuery({
       queryKey: ['admin-users'],
       queryFn: async () => {
-        try {
-          // First get all profiles including unverified ones - explicitly select fee agreement fields
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('*')
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false });
+        // First get all profiles including unverified ones - explicitly select fee agreement fields
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false });
 
-          if (profilesError) {
-            throw profilesError;
-          }
-
-          // createUserObject NEVER throws - always returns valid User
-          // Users with _hasDataIssues flag will still be visible in admin
-          return profilesData?.map(profile => createUserObject(profile)) || [];
-        } catch (error) {
-          throw error;
+        if (profilesError) {
+          throw profilesError;
         }
+
+        // createUserObject NEVER throws - always returns valid User
+        // Users with _hasDataIssues flag will still be visible in admin
+        return profilesData?.map(profile => createUserObject(profile)) || [];
       },
       enabled: authChecked && user && isAdmin,
       retry: 3,
@@ -87,21 +83,17 @@ export function useAdminUsers() {
   const useUpdateAdminStatus = () => {
     const { execute, state: retryState } = useRetry(
       async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
-        try {
-          const rpcFunction = isAdmin ? 'promote_user_to_admin' : 'demote_admin_user';
-          
-          const { data, error } = await supabase.rpc(rpcFunction, {
-            target_user_id: userId
-          });
+        const rpcFunction = isAdmin ? 'promote_user_to_admin' : 'demote_admin_user';
 
-          if (error) {
-            throw error;
-          }
+        const { data, error } = await supabase.rpc(rpcFunction, {
+          target_user_id: userId
+        });
 
-          return { userId, isAdmin, result: data };
-        } catch (error) {
+        if (error) {
           throw error;
         }
+
+        return { userId, isAdmin, result: data };
       },
       {
         maxRetries: 2,

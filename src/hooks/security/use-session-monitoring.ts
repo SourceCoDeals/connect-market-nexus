@@ -27,8 +27,6 @@ export const useSessionMonitoring = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    let intervalId: NodeJS.Timeout;
-
     const validateSession = async () => {
       setState(prev => ({ ...prev, isValidating: true }));
 
@@ -87,10 +85,10 @@ export const useSessionMonitoring = () => {
     validateSession();
 
     // Set up periodic validation (every 5 minutes)
-    intervalId = setInterval(validateSession, 5 * 60 * 1000);
+    const intervalId = setInterval(validateSession, 5 * 60 * 1000);
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      clearInterval(intervalId);
     };
   }, [user?.id]);
 

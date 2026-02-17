@@ -1024,7 +1024,7 @@ function calculateServiceOverlap(
   }
 
   // Tokenize for word-level matching (e.g., "fire restoration" matches "restoration")
-  const tokenize = (s: string) => s.split(/[\s\-\/&]+/).filter(w => w.length > 2);
+  const tokenize = (s: string) => s.split(/[\s\-/&]+/).filter(w => w.length > 2);
 
   const matching = dealServices.filter((ds: string) =>
     buyerServices.some((bs: string) => {

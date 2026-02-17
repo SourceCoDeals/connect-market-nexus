@@ -299,6 +299,7 @@ export function isValidUUID(value: string): boolean {
 export function sanitizeString(value: string, maxLength: number = 10000): string {
   if (!value || typeof value !== 'string') return '';
   // Remove control characters except newlines and tabs
+  // eslint-disable-next-line no-control-regex
   const sanitized = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   return sanitized.substring(0, maxLength);
 }

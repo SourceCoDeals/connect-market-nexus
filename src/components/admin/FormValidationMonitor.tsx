@@ -36,6 +36,7 @@ export function FormValidationMonitor() {
 
   useEffect(() => {
     loadFormMetrics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTimeRange]);
 
   const loadFormMetrics = async () => {

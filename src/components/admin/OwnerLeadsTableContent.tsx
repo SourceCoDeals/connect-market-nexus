@@ -211,21 +211,24 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
         case 'company':
           comparison = (a.company_name || '').localeCompare(b.company_name || '');
           break;
-        case 'revenue':
+        case 'revenue': {
           const aRevenue = REVENUE_PRIORITY[a.estimated_revenue_range || ''] || 0;
           const bRevenue = REVENUE_PRIORITY[b.estimated_revenue_range || ''] || 0;
           comparison = aRevenue - bRevenue;
           break;
-        case 'timeline':
+        }
+        case 'timeline': {
           const aTimeline = TIMELINE_PRIORITY[a.sale_timeline || ''] || 0;
           const bTimeline = TIMELINE_PRIORITY[b.sale_timeline || ''] || 0;
           comparison = aTimeline - bTimeline;
           break;
-        case 'status':
+        }
+        case 'status': {
           const aStatus = STATUS_PRIORITY[a.status] || 0;
           const bStatus = STATUS_PRIORITY[b.status] || 0;
           comparison = aStatus - bStatus;
           break;
+        }
         case 'date':
           comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           break;

@@ -18,7 +18,7 @@ export function useSavedViews(pageKey: string, defaultViews: SavedView[] = []) {
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) return JSON.parse(stored);
-    } catch {}
+    } catch { /* ignored */ }
     return defaultViews;
   });
 
@@ -26,7 +26,7 @@ export function useSavedViews(pageKey: string, defaultViews: SavedView[] = []) {
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(views));
-    } catch {}
+    } catch { /* ignored */ }
   }, [views, storageKey]);
 
   const addView = useCallback(

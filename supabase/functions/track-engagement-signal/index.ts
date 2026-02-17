@@ -74,7 +74,7 @@ serve(async (req) => {
     }
 
     // Validate signal type
-    if (!SIGNAL_VALUES.hasOwnProperty(signal_type)) {
+    if (!Object.prototype.hasOwnProperty.call(SIGNAL_VALUES, signal_type)) {
       return new Response(
         JSON.stringify({ error: `Invalid signal_type. Must be one of: ${Object.keys(SIGNAL_VALUES).join(', ')}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -117,6 +117,7 @@ export function ReferrerLogo({ domain, className }: ReferrerLogoProps) {
 }
 
 // Helper to get display-friendly referrer name
+// eslint-disable-next-line react-refresh/only-export-components
 export function formatReferrerName(domain: string): string {
   const lowerDomain = domain.toLowerCase();
   

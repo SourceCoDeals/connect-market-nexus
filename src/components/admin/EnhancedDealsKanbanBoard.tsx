@@ -225,7 +225,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         <DragOverlay>
           {activeId ? (
             <EnhancedDealKanbanCard 
-              deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
+              deal={filteredAndSortedDeals!.find(d => d.deal_id === activeId)!}
               isDragging 
             />
           ) : null}

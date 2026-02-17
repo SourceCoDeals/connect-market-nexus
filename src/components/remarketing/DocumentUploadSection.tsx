@@ -204,7 +204,7 @@ export const DocumentUploadSection = ({
                 id: queueId,
                 errorEntry: { itemId: doc.name, error: errMsg },
               });
-            } catch {}
+            } catch { /* ignored */ }
           }
         }
       } catch (err: any) {
@@ -217,7 +217,7 @@ export const DocumentUploadSection = ({
               id: queueId,
               errorEntry: { itemId: doc.name, error: errMsg },
             });
-          } catch {}
+          } catch { /* ignored */ }
         }
       }
 
@@ -231,7 +231,7 @@ export const DocumentUploadSection = ({
             completedItems: successes + failures,
             failedItems: failures,
           });
-        } catch {}
+        } catch { /* ignored */ }
       }
 
       if (i < enrichableDocs.length - 1) {
@@ -246,7 +246,7 @@ export const DocumentUploadSection = ({
           id: queueId,
           finalStatus: failures === enrichableDocs.length ? 'failed' : 'completed',
         });
-      } catch {}
+      } catch { /* ignored */ }
     }
 
     setIsEnriching(false);

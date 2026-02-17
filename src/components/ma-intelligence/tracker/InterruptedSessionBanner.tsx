@@ -94,6 +94,7 @@ export function InterruptedSessionBanner({ trackerId }: InterruptedSessionBanner
 }
 
 // Helper function to save session state
+// eslint-disable-next-line react-refresh/only-export-components
 export function saveSessionState(
   trackerId: string,
   operation: string,
@@ -113,6 +114,7 @@ export function saveSessionState(
 }
 
 // Helper function to clear session state
+// eslint-disable-next-line react-refresh/only-export-components
 export function clearSessionState(trackerId: string) {
   const storageKey = `ma-intelligence-session-${trackerId}`;
   localStorage.removeItem(storageKey);

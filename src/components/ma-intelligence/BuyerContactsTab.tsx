@@ -105,6 +105,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
 
   useEffect(() => {
     loadContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyerId]);
 
   useEffect(() => {

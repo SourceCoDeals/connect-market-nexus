@@ -35,6 +35,7 @@ export function TrackerActivityTab({ trackerId }: TrackerActivityTabProps) {
 
   useEffect(() => {
     loadActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackerId, filterType, dateRange]);
 
   const loadActivities = async () => {

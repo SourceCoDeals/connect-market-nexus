@@ -71,10 +71,12 @@ export function FeedbackManagement({ className }: FeedbackManagementProps) {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     filterMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedbackMessages, statusFilter, categoryFilter, priorityFilter]);
 
   const fetchFeedbackMessages = async () => {

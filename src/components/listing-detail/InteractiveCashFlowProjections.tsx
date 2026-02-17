@@ -104,6 +104,7 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
     }
 
     return projections;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedScenario, revenue, ebitda, currentMargin, customGrowthRates, marginExpansion]);
 
   // Helper function to calculate IRR (simplified)
@@ -138,6 +139,7 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
       irr,
       terminalValuePV
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectionData, exitMultiple, discountRate]);
 
 

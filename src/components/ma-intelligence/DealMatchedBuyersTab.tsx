@@ -86,6 +86,7 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
 
   useEffect(() => {
     loadBuyerScores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealId]);
 
   const loadBuyerScores = async () => {

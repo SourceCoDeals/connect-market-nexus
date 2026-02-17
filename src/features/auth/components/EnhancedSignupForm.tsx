@@ -968,15 +968,15 @@ export const EnhancedSignupForm: React.FC = () => {
         return watch('email') && watch('password');
       case 1:
         return watch('firstName') && watch('lastName') && watch('company');
-      case 2:
+      case 2: {
         const type = watch('buyerType');
         if (!type) return false;
-        
+
         // Check buyer-specific required fields
         switch (type) {
           case 'searchFund':
-            return watch('searchType') && 
-                   watch('acqEquityBand') && 
+            return watch('searchType') &&
+                   watch('acqEquityBand') &&
                    watch('financingPlan')?.length > 0 &&
                    watch('flexSub2mEbitda') !== undefined;
           case 'privateEquity':
@@ -986,7 +986,7 @@ export const EnhancedSignupForm: React.FC = () => {
           case 'familyOffice':
             return watch('discretionType');
           case 'independentSponsor':
-            return watch('committedEquityBand') && 
+            return watch('committedEquityBand') &&
                    watch('equitySource')?.length > 0 &&
                    watch('flexSubXmEbitda') !== undefined;
           case 'individual':
@@ -994,6 +994,7 @@ export const EnhancedSignupForm: React.FC = () => {
           default:
             return true;
         }
+      }
       default:
         return true;
     }

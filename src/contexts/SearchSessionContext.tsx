@@ -14,7 +14,7 @@ interface SearchSessionContextValue {
   hasActiveSearch: () => boolean;
 }
 
-const SearchSessionContext = createContext<SearchSessionContextValue | undefined>(undefined);
+export const SearchSessionContext = createContext<SearchSessionContextValue | undefined>(undefined);
 
 export const SearchSessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const searchSession = useSearchSession();

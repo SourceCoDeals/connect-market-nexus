@@ -42,6 +42,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
     if (trackerId && trackerId !== 'new') {
       loadDeals();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackerId]);
 
   const loadDeals = async () => {

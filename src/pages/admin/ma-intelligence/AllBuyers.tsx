@@ -92,11 +92,12 @@ export default function MAAllBuyers() {
           aVal = (a.industry_vertical || "").toLowerCase();
           bVal = (b.industry_vertical || "").toLowerCase();
           break;
-        case "confidence":
+        case "confidence": {
           const order = { high: 3, medium: 2, low: 1 };
           const aOrder = order[(a.thesis_confidence?.toLowerCase() as keyof typeof order)] || 0;
           const bOrder = order[(b.thesis_confidence?.toLowerCase() as keyof typeof order)] || 0;
           return sortDirection === "asc" ? aOrder - bOrder : bOrder - aOrder;
+        }
         default:
           return 0;
       }

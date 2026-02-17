@@ -675,7 +675,7 @@ serve(async (req) => {
 
         if (!response.ok) {
           let errorBody = '';
-          try { errorBody = await response.text(); } catch {}
+          try { errorBody = await response.text(); } catch { /* ignored */ }
           console.error(`Firecrawl scrape failed for ${url}: HTTP ${response.status} — ${errorBody.slice(0, 300)}`);
           return { url, content: '', success: false };
         }

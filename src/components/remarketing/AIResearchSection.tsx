@@ -1083,7 +1083,7 @@ export const AIResearchSection = ({
                 setExtractedCriteria(event.criteria);
                 break;
 
-              case 'complete':
+              case 'complete': {
                 setState('complete');
                 const finalContent = event.content || fullContent;
                 const finalWordCount = event.totalWords || finalContent.split(/\s+/).length;
@@ -1112,8 +1112,9 @@ export const AIResearchSection = ({
                   saveGuideToDocuments(finalContent, industryName, universeId, onDocumentAdded);
                 }
                 break;
+              }
 
-              case 'error':
+              case 'error': {
                 // Set detailed error info for the error panel
                 const errorCode = event.error_code || 'unknown';
                 setErrorDetails({
@@ -1143,6 +1144,7 @@ export const AIResearchSection = ({
                   throw err;
                 }
                 throw new Error(event.message);
+              }
 
               case 'timeout_warning':
                 // Show toast warning about approaching timeout

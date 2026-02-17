@@ -68,6 +68,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
         setOrderedStageIds(stages.map(s => s.id));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, stages]);
 
   // Update ordered stages when selection changes
@@ -82,6 +83,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
       }
     });
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.watch, orderedStageIds]);
 
   const moveStageUp = (index: number) => {
