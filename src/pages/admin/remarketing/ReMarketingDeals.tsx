@@ -90,9 +90,11 @@ import {
   Plus,
   Trash2,
   FolderPlus,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore, DealImportDialog, EnrichmentProgressIndicator, AddDealDialog, ReMarketingChat, DealSourceBadge } from "@/components/remarketing";
+import { exportDealsToCSV } from "@/lib/exportUtils";
 import { DealEnrichmentSummaryDialog } from "@/components/remarketing";
 import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
@@ -2033,6 +2035,23 @@ const ReMarketingDeals = () => {
                   </Button>
                 );
               })()}
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const ids = Array.from(selectedDeals);
+                  const result = await exportDealsToCSV(ids);
+                  if (result.success) {
+                    toast({ title: "Exported", description: `${result.count} deal(s) exported to CSV` });
+                  } else {
+                    toast({ title: "Export failed", description: result.error, variant: "destructive" });
+                  }
+                }}
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Export CSV
+              </Button>
 
               <div className="h-5 w-px bg-border" />
 
