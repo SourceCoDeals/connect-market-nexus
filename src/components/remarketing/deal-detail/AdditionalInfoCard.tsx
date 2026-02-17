@@ -10,14 +10,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Pencil, Loader2, FileText, Plus, AlertTriangle, Shield, Cpu, Building, TrendingUp as GrowthIcon } from "lucide-react";
+import { Pencil, Loader2, FileText, Plus, AlertTriangle, Cpu, Building, TrendingUp as GrowthIcon } from "lucide-react";
 import { toast } from "sonner";
 
 interface AdditionalInfoCardProps {
   otherNotes: string | null;
   internalNotes: string | null;
   keyRisks?: string | null;
-  competitivePosition?: string | null;
   technologySystems?: string | null;
   realEstateInfo?: string | null;
   growthTrajectory?: string | null;
@@ -25,7 +24,6 @@ interface AdditionalInfoCardProps {
     otherNotes: string; 
     internalNotes: string;
     keyRisks?: string;
-    competitivePosition?: string;
     technologySystems?: string;
     realEstateInfo?: string;
     growthTrajectory?: string;
@@ -33,13 +31,12 @@ interface AdditionalInfoCardProps {
 }
 
 export const AdditionalInfoCard = ({ 
-  otherNotes, internalNotes, keyRisks, competitivePosition, technologySystems, realEstateInfo, growthTrajectory, onSave 
+  otherNotes, internalNotes, keyRisks, technologySystems, realEstateInfo, growthTrajectory, onSave
 }: AdditionalInfoCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editedOtherNotes, setEditedOtherNotes] = useState(otherNotes || "");
   const [editedInternalNotes, setEditedInternalNotes] = useState(internalNotes || "");
   const [editedKeyRisks, setEditedKeyRisks] = useState(keyRisks || "");
-  const [editedCompetitivePosition, setEditedCompetitivePosition] = useState(competitivePosition || "");
   const [editedTechnologySystems, setEditedTechnologySystems] = useState(technologySystems || "");
   const [editedRealEstateInfo, setEditedRealEstateInfo] = useState(realEstateInfo || "");
   const [editedGrowthTrajectory, setEditedGrowthTrajectory] = useState(growthTrajectory || "");
@@ -48,17 +45,17 @@ export const AdditionalInfoCard = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave({ otherNotes: editedOtherNotes, internalNotes: editedInternalNotes, keyRisks: editedKeyRisks, competitivePosition: editedCompetitivePosition, technologySystems: editedTechnologySystems, realEstateInfo: editedRealEstateInfo, growthTrajectory: editedGrowthTrajectory });
+      await onSave({ otherNotes: editedOtherNotes, internalNotes: editedInternalNotes, keyRisks: editedKeyRisks, technologySystems: editedTechnologySystems, realEstateInfo: editedRealEstateInfo, growthTrajectory: editedGrowthTrajectory });
       setIsEditOpen(false);
       toast.success("Additional information updated");
     } catch { toast.error("Failed to save"); } finally { setIsSaving(false); }
   };
 
   const openEdit = () => {
-    setEditedOtherNotes(otherNotes || ""); setEditedInternalNotes(internalNotes || ""); setEditedKeyRisks(keyRisks || ""); setEditedCompetitivePosition(competitivePosition || ""); setEditedTechnologySystems(technologySystems || ""); setEditedRealEstateInfo(realEstateInfo || ""); setEditedGrowthTrajectory(growthTrajectory || ""); setIsEditOpen(true);
+    setEditedOtherNotes(otherNotes || ""); setEditedInternalNotes(internalNotes || ""); setEditedKeyRisks(keyRisks || ""); setEditedTechnologySystems(technologySystems || ""); setEditedRealEstateInfo(realEstateInfo || ""); setEditedGrowthTrajectory(growthTrajectory || ""); setIsEditOpen(true);
   };
 
-  const hasContent = otherNotes || internalNotes || keyRisks || competitivePosition || technologySystems || realEstateInfo || growthTrajectory;
+  const hasContent = otherNotes || internalNotes || keyRisks || technologySystems || realEstateInfo || growthTrajectory;
 
   const InfoField = ({
     icon: Icon,
@@ -104,7 +101,6 @@ export const AdditionalInfoCard = ({
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <InfoField icon={AlertTriangle} label="Key Risks" value={keyRisks} />
-                <InfoField icon={Shield} label="Competitive Position" value={competitivePosition} />
                 <InfoField icon={Cpu} label="Technology / Systems" value={technologySystems} />
                 <InfoField icon={Building} label="Real Estate" value={realEstateInfo} />
               </div>
@@ -127,7 +123,6 @@ export const AdditionalInfoCard = ({
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div><Label htmlFor="keyRisks">Key Risks</Label><Textarea id="keyRisks" placeholder="Customer concentration risk..." value={editedKeyRisks} onChange={(e) => setEditedKeyRisks(e.target.value)} className="mt-1.5 min-h-[80px]" /></div>
-              <div><Label htmlFor="competitivePosition">Competitive Position</Label><Textarea id="competitivePosition" placeholder="Market leader in region..." value={editedCompetitivePosition} onChange={(e) => setEditedCompetitivePosition(e.target.value)} className="mt-1.5 min-h-[80px]" /></div>
               <div><Label htmlFor="technologySystems">Technology / Systems</Label><Textarea id="technologySystems" placeholder="Uses ServiceTitan..." value={editedTechnologySystems} onChange={(e) => setEditedTechnologySystems(e.target.value)} className="mt-1.5 min-h-[80px]" /></div>
               <div><Label htmlFor="realEstateInfo">Real Estate</Label><Textarea id="realEstateInfo" placeholder="Owned 10,000 sq ft..." value={editedRealEstateInfo} onChange={(e) => setEditedRealEstateInfo(e.target.value)} className="mt-1.5 min-h-[80px]" /></div>
             </div>

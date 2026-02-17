@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
-import { DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { GEMINI_25_FLASH_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,50 +27,41 @@ interface ExtractionResult {
     is_inferred?: boolean;
     source_quote?: string;
   };
-  financial_followup_questions?: string[];
   financial_notes?: string;
-  
+
   // Business basics
-  full_time_employees?: number;
   location?: string;
-  founded_year?: number;
   industry?: string;
   website?: string;
-  
-  // Services & Business model
+
+  // Services
   services?: string[];
   service_mix?: string;
-  business_model?: string;
-  
+
   // Geography
   geographic_states?: string[];
   number_of_locations?: number;
-  
+
   // Owner & Transaction
   owner_goals?: string;
+  ownership_structure?: string;
   transition_preferences?: string;
-  special_requirements?: string;
   timeline_notes?: string;
-  
+
   // Customers
   customer_types?: string;
-  end_market_description?: string;
   customer_concentration?: string;
   customer_geography?: string;
-  
+
   // Strategic info
   executive_summary?: string;
-  competitive_position?: string;
   growth_trajectory?: string;
-  key_risks?: string[];
-  technology_systems?: string;
-  real_estate_info?: string;
-  
+
   // Contact info
   main_contact_name?: string;
   main_contact_email?: string;
   main_contact_phone?: string;
-  
+
   // Metadata
   key_quotes?: string[];
 }
@@ -232,39 +223,33 @@ Scan the ENTIRE transcript for financial context beyond revenue/EBITDA. Include 
 
 If NOTHING beyond revenue/EBITDA mentioned: "No additional financial context provided in this call."
 
-### Financial Follow-up Questions (array)
+## SECTION 2: EXECUTIVE SUMMARY (string — 5-12 sentences)
 
-Generate questions for ACTUAL gaps — do NOT include all of these every time:
-1. Revenue not stated/vague → "Can you provide TTM revenue?"
-2. EBITDA not stated → "What is your adjusted EBITDA or SDE?"
-3. Margins unusually high (>30%) or low (<5%) → "Can you walk through major cost categories?"
-4. Revenue and EBITDA seem contradictory → point out the math
-5. No owner compensation mentioned → "What is total owner compensation including salary, benefits, personal expenses?"
-6. Growth claims without numbers → "Can you share revenue for each of the last 3 years?"
-7. SDE used instead of EBITDA → "What owner compensation is included in the SDE figure?"
-8. Unclear gross vs net → "Is that gross revenue or net revenue after returns/refunds?"
-If financials are comprehensive and clear, return empty array.
+This is the SINGLE MOST IMPORTANT field. It must be a comprehensive, investor-ready overview that covers everything a PE buyer needs to evaluate the opportunity at a glance. This field replaces separate "business model" and "competitive position" fields, so it MUST weave those themes in.
 
-## SECTION 2: EXECUTIVE SUMMARY (string — 3-5 sentences)
-
-Write a summary a PE investor could scan in 30 seconds. MUST include ALL available:
-1. **What the company does** — primary services/products in plain language
-2. **Size indicators** — revenue, EBITDA, employee count (use whichever are available)
-3. **Geographic presence** — where they operate, locations, service radius
-4. **Key strengths** — recurring revenue, long relationships, certifications, proprietary processes, reputation
-5. **Growth trajectory** — how fast they've grown AND where they could go with investment
-6. **Acquisition attractiveness** — platform opportunity? strong add-on? geographic gap filler?
+Write a summary a PE investor could scan in 60 seconds. MUST include ALL of the following that are available:
+1. **What the company does and HOW it makes money** — primary services/products, business model (B2B vs B2C vs mixed, recurring vs project-based, subscription vs contract vs transactional), revenue model, and how services interrelate.
+2. **Size indicators** — revenue, EBITDA, margins, employee count (use whichever are available). Be precise with numbers.
+3. **Geographic presence** — where they operate, HQ location, number of locations, service radius, states covered.
+4. **Competitive advantages and market position** — certifications, preferred vendor relationships, proprietary processes, customer lock-in mechanisms, brand reputation, years in market, franchise affiliations, awards, barriers to entry. What makes this company hard to replicate?
+5. **Customer base quality** — type of customers (residential, commercial, government, insurance), recurring/repeat rates, contract vs spot work, key account relationships.
+6. **Growth trajectory** — how fast they've grown AND where they could go with investment. Specific levers: geographic expansion, new services, acquisitions, sales team, commercial push.
+7. **Acquisition attractiveness** — platform opportunity? strong add-on? geographic gap filler? What's the thesis?
+8. **Owner goals and transaction motivation (1-2 sentences, IF available)** — why the owner wants to sell or partner, what they're looking for in a deal (retirement, growth capital, partial liquidity, health reasons, partner buyout, etc.). Only include if the transcript contains this information; omit entirely if not discussed.
 
 **Style rules:**
 - Write in third person ("The company..." not "They...").
 - Use SPECIFIC numbers from the transcript, not vague language.
-- Do NOT include risks in executive summary — that goes elsewhere.
-- Do NOT include owner goals/transition preferences here.
+- Do NOT include risks in executive summary — those go in other fields.
 - Lead with the most compelling aspect.
+- The business overview (points 1-7) should be 5-10 sentences depending on the level of detail available in the transcript.
+- Owner goals (point 8) should be 1-2 sentences appended at the end, only if discussed in the transcript.
+- Every sentence should contain at least one SPECIFIC fact, number, or detail.
+- This is NOT a brief tagline — it's a full investment summary.
 
-**Example:** "ABC Restoration is a $8.2M revenue fire and water restoration company based in Sellersburg, IN, operating across southern Indiana and the Louisville metro area. The company employs 45 full-time staff across two locations and generates approximately $1.5M in adjusted EBITDA (18% margins). Founded in 2005, the business has grown from $2M to $8.2M over five years, driven by expansion into roofing and a growing commercial segment. The company holds IICRC certifications, maintains preferred vendor relationships with three major insurance carriers, and has built a strong regional reputation. This represents an attractive platform opportunity in the fragmented restoration services market with clear organic growth levers and add-on acquisition potential."
+**Example:** "ABC Restoration is a $8.2M revenue fire and water restoration company based in Sellersburg, IN, operating across southern Indiana and the Louisville metro area with 45 full-time staff across two locations. The company generates approximately $1.5M in adjusted EBITDA (18% margins) through a diversified service model spanning fire restoration (~40%), water restoration (~35%), and a growing roofing segment (~25%), with approximately 60% residential and 40% commercial mix. Revenue is driven by a combination of insurance-referred restoration projects (recurring via DRP partnerships with State Farm, Allstate, and USAA) and direct-to-consumer retail work, creating a resilient demand profile. The company holds IICRC certifications, maintains preferred vendor status with three major insurance carriers, and has built an 18-year track record and strong regional reputation that creates significant barriers to entry for competitors. Founded in 2005, the business has grown from $2M to $8.2M over five years, with recent expansion into commercial roofing opening a substantial new revenue stream. This represents an attractive platform opportunity in the fragmented $70B restoration services market, with clear organic growth levers (geographic expansion into Kentucky, commercial segment growth) and add-on acquisition potential (two smaller competitors identified as targets). The owner is seeking a full exit within the next 12-18 months, primarily motivated by retirement after 20 years of ownership, and is open to a transition period of up to one year to ensure continuity of key insurance carrier relationships."
 
-## SECTION 3: SERVICES & BUSINESS MODEL
+## SECTION 3: SERVICES
 
 ### Services (array of strings)
 
@@ -286,18 +271,6 @@ List EVERY distinct service/product mentioned ANYWHERE in the transcript — not
 5. **In-house vs subcontracted** for each service
 6. **Recently added or planned services**
 If owner didn't provide percentage breakdowns, say so explicitly. Do NOT make up percentages.
-
-### Business Model (string — detailed paragraph)
-
-Describe HOW the business makes money (different from WHAT services they offer):
-1. **Revenue model:** Project-based? Recurring contracts? Subscription? Retainer? T&M? Fixed bid?
-2. **How they get paid:** Insurance claims? Direct from customer? Government? Property management?
-3. **Pricing structure:** Per square foot? Xactimate estimates? Competitive bid? Cost-plus?
-4. **Residential vs commercial** with detail on how model differs
-5. **Average job size** if mentioned
-6. **Sales cycle:** Lead to closed job timeline. How customers find them.
-7. **Contract structure:** Long-term contracts, preferred vendor agreements, MSAs?
-8. **Repeat business:** What % from repeat customers or ongoing relationships?
 
 ## SECTION 4: GEOGRAPHIC COVERAGE
 
@@ -350,17 +323,6 @@ If not discussed: "Ownership structure not discussed on this call."
 6. **Non-compete willingness**
 If not discussed: "Transition preferences not discussed on this call."
 
-### Special Requirements (string or null)
-Deal-breakers, must-haves, non-negotiables. CRITICAL for buyer matching:
-- "Will NOT sell to a competitor"
-- "All employees must keep jobs"
-- "Need an earnout"
-- "Buyer has to be local"
-- "Won't consider below 5x EBITDA"
-- "Partner has to agree"
-- "Need to close before year-end for tax reasons"
-If none mentioned, set to null.
-
 ### Timeline Notes (string or null)
 - Desired close date: "Done by Q4"
 - Urgency factors: Health, lease expiration, key employee leaving, partner pressure, market timing
@@ -378,9 +340,6 @@ If not discussed, set to null.
 4. **Growing vs shrinking segments**
 5. **Segments they want to grow into**
 If no percentages: describe qualitatively and note "Specific revenue breakdown by segment not provided."
-
-### End Market Description (string)
-Describe ultimate end customers — who uses/benefits from the service (can differ from who pays). Include: typical customer profile, how they find the company, what triggers their need, decision-making process.
 
 ### Customer Concentration (string — detailed text)
 Assess concentration risk:
@@ -400,16 +359,6 @@ If not discussed: "Customer concentration not discussed. Recommend follow-up."
 
 ## SECTION 7: STRATEGIC ANALYSIS
 
-### Competitive Position (string — detailed paragraph)
-Pull from ANYWHERE in the transcript — owners reveal advantages indirectly:
-1. **Market position:** Leader? Niche? Low-cost? Premium?
-2. **Reputation:** "20 years, 4.9 Google rating"
-3. **Certifications/credentials:** IICRC, ISO, trade licenses, preferred vendor status
-4. **Unique capabilities:** Proprietary processes, specialized equipment, in-house capabilities competitors outsource
-5. **Customer relationships:** "Customers for 15+ years"
-6. **Barriers to entry:** What would it take to replicate?
-7. **Named competitors** and how they compare
-
 ### Growth Trajectory (string — detailed paragraph, TWO parts)
 **Part 1 — Historical (what HAS happened):**
 - Revenue over time: "Grew from $2M to $8M over 5 years"
@@ -424,62 +373,10 @@ Pull from ANYWHERE in the transcript — owners reveal advantages indirectly:
 - Acquisition opportunities: "Two smaller competitors I could acquire"
 Use SPECIFIC NUMBERS. Do not generalize.
 
-### Key Risks (array of specific strings)
-List EVERY risk — both explicit AND inferred. Tag inferred with "(inferred)":
-- **Key person dependency:** Owner holds sales/operations/relationships?
-- **Customer concentration:** Any customer >15% of revenue?
-- **Workforce:** Hiring difficulty, turnover, skilled labor reliance, union?
-- **Regulatory/licensing:** Compliance requirements, license renewals?
-- **Seasonality:** Revenue concentrated in certain months?
-- **Technology:** Outdated systems, no CRM, manual processes?
-- **Lease/real estate:** Expiration, above-market rent to related party?
-- **Insurance dependency:** Carrier relationships that could change?
-- **Equipment age:** Fleet/equipment needing replacement?
-- **Litigation:** Pending or past lawsuits?
-- **Environmental:** Contamination, hazmat, EPA?
-- **Supplier dependency:** Single-source suppliers?
-- **Succession gap:** No clear #2 beyond owner?
-Be SPECIFIC: "Owner personally manages all insurance adjuster relationships, creating key person risk" NOT just "Key person risk."
-
-### Technology Systems (string — organized by category)
-List EVERY tool mentioned. Organize by category:
-- **Accounting:** QuickBooks, Xero, Sage, etc.
-- **CRM:** Salesforce, HubSpot, "we use a spreadsheet", "we don't have one"
-- **Estimating:** Xactimate, PlanSwift, custom spreadsheets
-- **Scheduling/dispatch:** ServiceTitan, Jobber, Housecall Pro
-- **Fleet management:** GPS tracking, fuel cards
-- **Communication:** Slack, Teams, email-only
-- **Industry-specific:** Specialized tools for their trade
-- **Marketing:** WordPress, Google Ads, SEO provider
-ABSENCE of systems is just as important: "No formal CRM" or "Everything managed through spreadsheets."
-
-### Real Estate Info (string or null)
-- **Owned vs leased** for each location
-- **Square footage:** offices, shops, warehouses
-- **Lease terms:** Monthly rent, expiration, renewal options, related-party leases
-- **Property value** if owned and mentioned
-- **Zoning or special use permits**
-- **Real estate plans:** "Sell building separately", "Buyer assumes lease"
-- **Equipment stored on-site** affecting space needs
-If not discussed, set to null.
-
 ## SECTION 8: COMPANY BASICS
 
 ### Industry (string)
 Use MOST SPECIFIC category: "Fire & Water Restoration" NOT "Restoration" or "Construction". "Commercial HVAC Services" NOT "HVAC". If spans multiple, lead with largest revenue contributor.
-
-### Founded Year (integer)
-"Started in 2005" → 2005. "Been around 20 years" → calculate from current year. "Dad started it in the '80s" → estimate and note.
-
-### Full-time Employees (integer)
-Count ALL FT staff. Owners mention employees in fragments — add them up:
-- "12 guys in field and 3 in office" = 15 (+ owner if FT = 16)
-- "4 crews of 3" = 12 field minimum
-- "About 40-45 people" → use 43 (midpoint)
-- Do NOT include subcontractors unless owner explicitly counts them
-
-### Part-time Employees (integer or null)
-Seasonal/temporary/part-time. "10 extra guys in summer" = 10. "Part-time bookkeeper" = 1.
 
 ### Website (string or null)
 Full URL format: "https://www.example.com". If company name mentioned but no URL, leave null — do NOT guess.
@@ -539,16 +436,13 @@ CORE RULES:
 10. IGNORE THE INTERVIEWER: Extract data from the business owner/seller only.
 
 DEPTH REQUIREMENTS — Every text field should be DETAILED with MAXIMUM CONTEXT:
-- executive_summary: 4-6 sentences covering what the company does, size, geography, key strengths, growth trajectory, and acquisition attractiveness. Write like a PE investor memo.
+- executive_summary: 5-12 sentences — this is the MOST IMPORTANT field. 5-10 sentences covering what the company does, business model (how it makes money), size indicators, geography, competitive advantages (certifications, preferred vendor status, proprietary processes, market position), customer base quality, growth trajectory, and acquisition attractiveness. Then 1-2 sentences on owner goals and why they want to transact (only if discussed in transcript). Write like a PE investor memo. Every sentence must contain specific facts or numbers.
 - service_mix: 2-4 sentences with revenue percentages if stated, residential vs commercial split, recurring vs project-based, how services interrelate, in-house vs subcontracted.
-- business_model: 2-4 sentences covering revenue model, how they get paid, pricing structure, sales cycle, contract structures, repeat business rates.
 - owner_goals: 2-4 sentences with primary motivation, desired deal type, financial expectations, beyond-money goals, urgency signals. Include owner's exact words.
 - transition_preferences: 2-3 sentences covering duration, role, willing vs not willing, key relationships held, training plan, non-compete.
-- competitive_position: 2-3 sentences covering certifications, awards, vendor relationships, proprietary processes, market positioning, customer lock-in.
 - growth_trajectory: 2-3 sentences with specific numbers — revenue growth rates, new locations, new services, hiring, contract wins, expansion plans.
 - financial_notes: 3-5 sentences covering seasonality, revenue trends, one-time items, owner compensation, add-backs, debt, pending changes, capex, tax structure, working capital.
 - customer_types: 2-3 sentences covering specific segments, concentration details, key accounts, repeat rates.
-- technology_systems: 1-2 sentences naming specific platforms, software, tools.
 - key_quotes: 8-10 VERBATIM quotes from the owner, prioritized by financial specifics, growth statements, motivation, competitive advantages, risk revelations.
 
 Return a JSON object with these fields (use null for unknown, empty array [] when no items):
@@ -557,32 +451,21 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
   "revenue": { "value": number|null, "confidence": "high"|"medium"|"low", "is_inferred": boolean, "source_quote": string|null, "inference_method": string|null },
   "ebitda": { "amount": number|null, "margin_percentage": number|null, "confidence": "high"|"medium"|"low", "is_inferred": boolean, "source_quote": string|null },
   "financial_notes": string|null,
-  "financial_followup_questions": string[],
   "executive_summary": string|null,
   "services": string[],
   "service_mix": string|null,
-  "business_model": string|null,
   "location": string|null,
   "geographic_states": string[],
   "number_of_locations": number|null,
   "owner_goals": string|null,
   "ownership_structure": string|null,
   "transition_preferences": string|null,
-  "special_requirements": string|null,
   "timeline_notes": string|null,
   "customer_types": string|null,
-  "end_market_description": string|null,
   "customer_concentration": string|null,
   "customer_geography": string|null,
-  "competitive_position": string|null,
   "growth_trajectory": string|null,
-  "key_risks": string[],
-  "technology_systems": string|null,
-  "real_estate_info": string|null,
   "industry": string|null,
-  "founded_year": number|null,
-  "full_time_employees": number|null,
-  "part_time_employees": number|null,
   "website": string|null,
   "main_contact_name": string|null,
   "main_contact_email": string|null,
@@ -599,13 +482,13 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
       GEMINI_API_URL,
       getGeminiHeaders(geminiApiKey),
       {
-        model: DEFAULT_GEMINI_MODEL,
+        model: GEMINI_25_FLASH_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: extractionPrompt },
         ],
         temperature: 0,
-        max_tokens: 8192,
+        max_tokens: 16384,
         response_format: { type: 'json_object' },
       },
       90000,
@@ -729,19 +612,9 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           const n = toFiniteNumber(extracted.number_of_locations);
           if (n != null) flatExtracted.number_of_locations = n;
         }
-        {
-          const n = toFiniteNumber(extracted.full_time_employees);
-          if (n != null) flatExtracted.full_time_employees = n;
-        }
-        {
-          const n = toFiniteNumber(extracted.founded_year);
-          if (n != null) flatExtracted.founded_year = n;
-        }
         if (extracted.service_mix) flatExtracted.service_mix = extracted.service_mix;
-        if (extracted.business_model) flatExtracted.business_model = extracted.business_model;
         if (extracted.owner_goals) flatExtracted.owner_goals = extracted.owner_goals;
         if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
-        if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
         if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
         // customer_concentration is NUMERIC in DB but LLM returns rich text.
         // Append the text to customer_types so the detail isn't lost,
@@ -762,24 +635,10 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           }
         }
         if (extracted.customer_geography) flatExtracted.customer_geography = extracted.customer_geography;
-        if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
         if (extracted.executive_summary) flatExtracted.executive_summary = extracted.executive_summary;
-        if (extracted.competitive_position) flatExtracted.competitive_position = extracted.competitive_position;
         if (extracted.growth_trajectory) flatExtracted.growth_trajectory = extracted.growth_trajectory;
-        if (extracted.key_risks) {
-          // Store as bullet-pointed text for the text DB column
-          // Each risk on its own line with a bullet for readability
-          flatExtracted.key_risks = Array.isArray(extracted.key_risks)
-            ? extracted.key_risks.map(r => `• ${r}`).join('\n')
-            : String(extracted.key_risks);
-        }
-        if (extracted.technology_systems) flatExtracted.technology_systems = extracted.technology_systems;
-        if (extracted.real_estate_info) flatExtracted.real_estate_info = extracted.real_estate_info;
         if (extracted.key_quotes?.length) flatExtracted.key_quotes = extracted.key_quotes;
         if (extracted.financial_notes) flatExtracted.financial_notes = extracted.financial_notes;
-        if (extracted.financial_followup_questions?.length) {
-          flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
-        }
         if (extracted.main_contact_name) flatExtracted.main_contact_name = extracted.main_contact_name;
         if (extracted.main_contact_email) flatExtracted.main_contact_email = extracted.main_contact_email;
         if (extracted.main_contact_phone) flatExtracted.main_contact_phone = extracted.main_contact_phone;
@@ -789,10 +648,6 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         if ((extracted as any).ownership_structure) flatExtracted.ownership_structure = (extracted as any).ownership_structure;
         if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.services?.length) flatExtracted.services = extracted.services;
-        {
-          const n = toFiniteNumber((extracted as any).part_time_employees);
-          if (n != null) flatExtracted.part_time_employees = n;
-        }
 
         // SAFETY: Only update columns that actually exist on the listings row.
         // PostgREST rejects the entire update when any unknown column is present.

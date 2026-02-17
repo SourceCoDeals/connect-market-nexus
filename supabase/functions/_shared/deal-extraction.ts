@@ -41,7 +41,6 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'executive_summary',
   'services',
   'service_mix',
-  'business_model',
   'industry',
   'geographic_states',
   'number_of_locations',
@@ -66,7 +65,6 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'special_requirements',
   'timeline_notes',
   'key_risks',
-  'competitive_position',
   'technology_systems',
   'real_estate_info',
   'growth_trajectory',
@@ -166,25 +164,13 @@ The address_city and address_state fields must be specific - a real city name an
 
 DEPTH REQUIREMENTS — Every field must be DETAILED and CONTEXTUAL:
 
-1. **Executive Summary** (3-5 sentences MINIMUM): Write a PE-investor-grade overview. MUST include what the company does, approximate size indicators (employees, locations, years in business), geographic footprint, key differentiators, and why this is an attractive acquisition target. Use specific facts from the website, not vague language. Lead with the most compelling aspect.
+1. **Executive Summary** (5-8 sentences MINIMUM): Write a PE-investor-grade overview. This is the MOST IMPORTANT field. MUST include: what the company does, business model (how it makes money — B2B/B2C/mixed, recurring/project-based, contract/transactional), approximate size indicators (locations, years in business, employee count), geographic footprint, competitive advantages (certifications, preferred vendor status, proprietary processes, awards, customer lock-in, market position), customer base quality, and why this is an attractive acquisition target. Use specific facts from the website, not vague language. Every sentence should contain at least one concrete detail. Lead with the most compelling aspect.
 
 2. **Service Mix** (2-4 sentences): Don't just list services — describe the revenue model. Include residential vs commercial split if visible, recurring vs project-based work, how services interrelate, and any specializations or certifications that create competitive moats.
 
-3. **Business Model** (2-4 sentences): Explain HOW the company makes money. Include revenue model (project-based, recurring, subscription, retainer), customer acquisition channels, pricing structure if visible, and contract types. Mention B2B vs B2C split.
+3. **Customer Types** (1-2 sentences): Don't just say "residential and commercial" — describe the customer segments with detail. E.g., "Primarily serves property management companies (60%+) and commercial building owners, with a growing residential segment through insurance restoration referrals."
 
-4. **Competitive Position** (2-3 sentences): Market positioning, competitive advantages, certifications, awards, years of experience, unique capabilities, preferred vendor relationships, insurance carrier partnerships, or franchise affiliations that differentiate them.
-
-5. **Growth Trajectory** (2-3 sentences): Growth indicators — new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about recent growth, awards for growth. If no explicit growth data, note what expansion levers exist.
-
-6. **Technology Systems** (1-2 sentences): Software platforms, CRM, ERP, scheduling tools, fleet management, industry-specific technology, mobile apps, customer portals mentioned on the site.
-
-7. **Customer Types** (1-2 sentences): Don't just say "residential and commercial" — describe the customer segments with detail. E.g., "Primarily serves property management companies (60%+) and commercial building owners, with a growing residential segment through insurance restoration referrals."
-
-8. **Key Risks** (bullet points): Identify real risk factors visible from the website — owner dependency, single-location concentration, narrow service offering, geographic limitation, regulatory exposure, customer concentration hints.
-
-9. **Real Estate Info**: Owned vs leased facilities, warehouse/shop/office details, facility size if mentioned, multiple location details.
-
-10. **End Market Description** (1-2 sentences): The broader market context — industry trends, demand drivers, fragmentation level, regulatory environment.`;
+4. **Key Quotes** (up to 10): Extract verbatim quotes from the website — testimonials, taglines, mission statements, or any revealing text that captures the company's positioning or value proposition.`;
 
 export function buildDealUserPrompt(dealTitle: string, websiteContent: string): string {
   return `Analyze this website content from "${dealTitle || 'Unknown Company'}" and extract DEEP business intelligence. This data drives M&A buyer matching — every detail matters.
@@ -192,19 +178,14 @@ export function buildDealUserPrompt(dealTitle: string, websiteContent: string): 
 IMPORTANT: You MUST find and extract the company's physical location (city and state). Look in the footer, contact page, about page, service area mentions, phone area codes, or any other location hints. This is required for deal matching.
 
 DEPTH REQUIREMENTS:
-- Executive summary: Write 3-5 rich sentences a PE investor can scan in 30 seconds. Include what they do, how big they are, where they operate, what makes them special, and why a buyer would want them.
+- Executive summary: Write 5-8 rich sentences a PE investor can scan in 60 seconds. Include what they do, how they make money (business model), where they operate, competitive advantages (certifications, preferred vendor status, awards, proprietary processes), customer base, and why a buyer would want them. Every sentence must contain a specific fact.
 - Service mix: Describe the full service portfolio with context — don't just list services. Explain how they fit together, what drives revenue, residential vs commercial mix.
-- Business model: Explain the revenue engine — how they get customers, how they charge, recurring vs one-time, contract structures.
-- Competitive position: What makes them defensible? Certifications, partnerships, reputation, proprietary processes, market share indicators.
-- Growth trajectory: What signals growth or stagnation? New locations, expanding teams, new services, awards, customer volume trends.
 - Customer types: Be specific about segments — not just "commercial" but what KIND of commercial customers.
-- Technology systems: Any software, platforms, tools, or technology investments visible.
-- Key risks: Real operational risks visible from the website.
+- Key quotes: Extract up to 10 verbatim quotes — testimonials, taglines, mission statements, or any revealing text.
 
-FINANCIAL DATA POLICY:
-- Do NOT extract any financial information (revenue, EBITDA, margins, etc.) from websites.
-- Financial data may ONLY come from transcripts or manual entry, never from web scraping.
-- If financial figures appear on the website, IGNORE them entirely.
+IMPORTANT:
+- Do NOT extract any financial information (revenue, EBITDA, margins, etc.) from websites. Financial data may ONLY come from transcripts or manual entry.
+- Do NOT extract owner goals, transition preferences, or deal-related information from websites.
 
 LOCATION COUNT RULES:
 - Count ALL physical locations: offices, branches, shops, stores, facilities
@@ -213,7 +194,7 @@ LOCATION COUNT RULES:
 - Single location business = 1
 
 Website Content:
-${websiteContent.substring(0, 25000)}
+${websiteContent.substring(0, 50000)}
 
 Extract all available business information using the provided tool. Be EXHAUSTIVE — capture every detail. The address_city and address_state fields are REQUIRED.`;
 }
@@ -222,34 +203,50 @@ export const DEAL_TOOL_SCHEMA = {
   type: 'function',
   function: {
     name: 'extract_deal_intelligence',
-    description: 'Extract comprehensive business/deal intelligence from website content',
+    description: 'Extract business intelligence from website content for M&A deal matching',
     parameters: {
       type: 'object',
       properties: {
+        // Company identity
         internal_company_name: {
           type: 'string',
           description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
         },
+        industry: {
+          type: 'string',
+          description: 'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting".'
+        },
+        website: {
+          type: 'string',
+          description: 'Canonical website URL if different from the scraped URL (e.g., redirected domain)'
+        },
+        linkedin_url: {
+          type: 'string',
+          description: 'LinkedIn company page URL if found on the website'
+        },
+        // Summary & services
         executive_summary: {
           type: 'string',
-          description: 'A 3-5 sentence PE-investor-grade summary. MUST include: what the company does, size indicators (employees, locations, years), geographic footprint, key differentiators, and acquisition attractiveness. Use specific facts, not vague language. Lead with the most compelling aspect.'
+          description: 'A 5-8 sentence PE-investor-grade summary. This is the MOST IMPORTANT field. Include: what the company does, business model (how it makes money — B2B/B2C, recurring/project-based), size indicators (locations, years, employees), geographic footprint, competitive advantages (certifications, preferred vendor status, proprietary processes, market position, awards), customer base quality, and acquisition attractiveness. Every sentence must contain a specific fact or detail.'
+        },
+        services: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of EVERY distinct service/product offered. Be specific: "fire restoration" not just "restoration". Use lowercase except proper nouns.'
         },
         service_mix: {
           type: 'string',
-          description: 'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications. Do NOT just list services — describe the revenue model.'
+          description: 'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications.'
         },
-        business_model: {
+        // Location & geography
+        location: {
           type: 'string',
-          description: 'Detailed 2-4 sentence description of HOW the business makes money. Include revenue model (project-based, recurring, subscription), customer acquisition channels, pricing structure, B2B vs B2C split, average job size indicators, and contract types.'
-        },
-        industry: {
-          type: 'string',
-          description: 'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting". Always provide your best classification based on available information — never leave blank.'
+          description: 'Primary location in "City, ST" format (e.g., "Dallas, TX", "Chicago, IL")'
         },
         geographic_states: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations explicitly stated in the text. Do NOT infer neighboring states. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
+          description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
         },
         number_of_locations: {
           type: 'number',
@@ -257,15 +254,15 @@ export const DEAL_TOOL_SCHEMA = {
         },
         street_address: {
           type: 'string',
-          description: 'Street address only (e.g., "123 Main Street", "456 Oak Ave Suite 200"). Do NOT include city/state/zip. Leave empty/null if not found - do NOT use placeholder values like "Not Found", "N/A", or "Unknown".'
+          description: 'Street address only (e.g., "123 Main Street"). Do NOT include city/state/zip. Null if not found.'
         },
         address_city: {
           type: 'string',
-          description: 'City name only (e.g., "Dallas", "Los Angeles"). Do NOT include state or zip.'
+          description: 'City name only (e.g., "Dallas", "Los Angeles").'
         },
         address_state: {
           type: 'string',
-          description: '2-letter US state code (e.g., "TX", "CA", "FL") or Canadian province code (e.g., "ON", "BC"). Must be exactly 2 uppercase letters.'
+          description: '2-letter US state code (e.g., "TX", "CA") or Canadian province code (e.g., "ON", "BC").'
         },
         address_zip: {
           type: 'string',
@@ -275,47 +272,21 @@ export const DEAL_TOOL_SCHEMA = {
           type: 'string',
           description: 'Country code, typically "US" or "CA"'
         },
-        founded_year: {
-          type: 'number',
-          description: 'Year the company was founded'
-        },
+        // Customers
         customer_types: {
           type: 'string',
-          description: 'Detailed 1-2 sentence description of customer segments. Be specific — not just "residential and commercial" but what KIND of customers, their profile, and any concentration patterns visible.'
+          description: 'Detailed 1-2 sentence description of customer segments. Be specific — not just "commercial" but what KIND of customers.'
         },
-        end_market_description: {
+        customer_geography: {
           type: 'string',
-          description: 'Broader market context: industry trends, demand drivers, fragmentation level, regulatory environment, and market size indicators (1-2 sentences).'
+          description: 'Service radius, coverage area, or where customers are located (e.g., "50-mile radius around Indianapolis", "All of southern Indiana and Louisville metro")'
         },
-        owner_goals: {
-          type: 'string',
-          description: 'Any mentioned goals from the owner (exit, growth, succession, etc.)'
+        // Quotes & evidence
+        key_quotes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Up to 10 verbatim quotes from the website — testimonials, taglines, mission statements, or any text that reveals the company\'s positioning, reputation, or value proposition.'
         },
-        key_risks: {
-          type: 'string',
-          description: 'Bullet-pointed risk factors: owner dependency, single-location risk, narrow service offering, geographic limitation, regulatory exposure, customer concentration, key-man risk, or competitive threats visible from the website.'
-        },
-        competitive_position: {
-          type: 'string',
-          description: 'Detailed 2-3 sentence market positioning: certifications, awards, years of experience, unique capabilities, preferred vendor relationships, insurance carrier partnerships, franchise affiliations, market share indicators, and what creates a defensible moat.'
-        },
-        technology_systems: {
-          type: 'string',
-          description: 'Detailed description of software platforms, CRM, ERP, scheduling tools, fleet management, industry-specific technology, mobile apps, customer portals, and any digital transformation investments visible on the site.'
-        },
-        real_estate_info: {
-          type: 'string',
-          description: 'Detailed facility information: owned vs leased, warehouse/shop/office details, facility size, multiple location descriptions, recent facility investments or expansions.'
-        },
-        growth_trajectory: {
-          type: 'string',
-          description: 'Detailed 2-3 sentence growth assessment: new locations, expanding service areas, recently added services, hiring signals, new equipment investments, customer testimonials about growth, awards for growth, and what organic/inorganic expansion levers exist.'
-        },
-        linkedin_url: {
-          type: 'string',
-          description: 'LinkedIn company page URL if found on the website'
-        },
-        // Financial fields REMOVED — financial data must NEVER be scraped from websites.
       },
       required: ['industry']
     }
@@ -626,22 +597,11 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
     const n = toFiniteNumber(extracted?.number_of_locations);
     if (n != null) out.number_of_locations = n;
   }
-  {
-    const n = toFiniteNumber(extracted?.full_time_employees);
-    if (n != null) out.full_time_employees = n;
-  }
-  {
-    const n = toFiniteNumber(extracted?.founded_year);
-    if (n != null) out.founded_year = n;
-  }
-
   if (extracted?.service_mix) out.service_mix = extracted.service_mix;
-  if (extracted?.business_model) out.business_model = extracted.business_model;
   if (extracted?.industry) out.industry = extracted.industry;
 
   if (extracted?.owner_goals) out.owner_goals = extracted.owner_goals;
   if (extracted?.transition_preferences) out.transition_preferences = extracted.transition_preferences;
-  if (extracted?.special_requirements) out.special_requirements = extracted.special_requirements;
   if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
 
   if (extracted?.customer_types) out.customer_types = extracted.customer_types;
@@ -660,22 +620,12 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
     }
   }
   if (extracted?.customer_geography) out.customer_geography = extracted.customer_geography;
-  if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
 
   if (extracted?.executive_summary) out.executive_summary = extracted.executive_summary;
-  if (extracted?.competitive_position) out.competitive_position = extracted.competitive_position;
   if (extracted?.growth_trajectory) out.growth_trajectory = extracted.growth_trajectory;
-  if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) {
-    out.key_risks = extracted.key_risks.map((r: string) => `• ${r}`).join('\n');
-  }
-  if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
-  if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
 
   if (Array.isArray(extracted?.key_quotes) && extracted.key_quotes.length) out.key_quotes = extracted.key_quotes;
   if (extracted?.financial_notes) out.financial_notes = extracted.financial_notes;
-  if (Array.isArray(extracted?.financial_followup_questions) && extracted.financial_followup_questions.length) {
-    out.financial_followup_questions = extracted.financial_followup_questions;
-  }
 
   if (extracted?.main_contact_name) out.main_contact_name = extracted.main_contact_name;
   if (extracted?.main_contact_email) out.main_contact_email = extracted.main_contact_email;
@@ -685,10 +635,6 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
   if (extracted?.website) out.website = extracted.website;
   if (extracted?.location) out.location = extracted.location;
-  {
-    const pt = toFiniteNumber(extracted?.part_time_employees);
-    if (pt != null) out.part_time_employees = pt;
-  }
 
   // Filter to known listing columns (defensive)
   const filtered: Record<string, unknown> = {};

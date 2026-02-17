@@ -192,7 +192,7 @@ function DealEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
   const [after, setAfter] = useState<Record<string, unknown> | null>(null);
 
   const DEAL_FIELDS = [
-    "executive_summary", "description", "business_model", "revenue", "ebitda",
+    "executive_summary", "description", "revenue", "ebitda",
     "full_time_employees", "address_city", "address_state", "address_zip",
     "website", "linkedin_url", "enriched_at", "deal_total_score",
   ];

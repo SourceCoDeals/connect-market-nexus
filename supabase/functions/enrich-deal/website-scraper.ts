@@ -126,8 +126,69 @@ async function scrapePage(url: string, firecrawlApiKey: string): Promise<ScrapeR
   }
 }
 
+// Subpage path patterns worth scraping for deal intelligence
+const SUBPAGE_PATTERNS = [
+  /^\/(about|about-us|who-we-are|our-story|company)/i,
+  /^\/(services|our-services|what-we-do|solutions|capabilities)/i,
+  /^\/(team|our-team|leadership|management|staff|people)/i,
+  /^\/(contact|contact-us|locations|our-locations|branches|offices)/i,
+  /^\/(industries|markets|sectors|industries-served)/i,
+  /^\/(projects|portfolio|case-studies|work|our-work)/i,
+];
+
+const MAX_SUBPAGES = 3;
+const SUBPAGE_TIMEOUT_MS = 10000; // 10s per subpage
+
 /**
- * Scrape the homepage and assemble website content.
+ * Extract internal links from scraped markdown content and return
+ * up to MAX_SUBPAGES high-value subpage URLs.
+ */
+function extractSubpageUrls(homepageContent: string, baseUrl: string): string[] {
+  const base = new URL(baseUrl);
+  const found = new Set<string>();
+
+  // Match markdown links: [text](url)
+  const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = linkRegex.exec(homepageContent)) !== null) {
+    const href = match[2];
+    try {
+      const resolved = new URL(href, baseUrl);
+      // Only same-host links
+      if (resolved.hostname !== base.hostname) continue;
+      const path = resolved.pathname;
+      // Skip homepage, anchors, files
+      if (path === '/' || path === '') continue;
+      if (/\.(pdf|jpg|jpeg|png|gif|svg|css|js|xml|zip)$/i.test(path)) continue;
+
+      if (SUBPAGE_PATTERNS.some(pattern => pattern.test(path))) {
+        found.add(resolved.origin + resolved.pathname);
+      }
+    } catch { /* skip malformed URLs */ }
+  }
+
+  // Also try matching bare href="..." patterns (in case markdown has raw HTML)
+  const hrefRegex = /href=["']([^"']+)["']/g;
+  while ((match = hrefRegex.exec(homepageContent)) !== null) {
+    const href = match[1];
+    try {
+      const resolved = new URL(href, baseUrl);
+      if (resolved.hostname !== base.hostname) continue;
+      const path = resolved.pathname;
+      if (path === '/' || path === '') continue;
+      if (/\.(pdf|jpg|jpeg|png|gif|svg|css|js|xml|zip)$/i.test(path)) continue;
+
+      if (SUBPAGE_PATTERNS.some(pattern => pattern.test(path))) {
+        found.add(resolved.origin + resolved.pathname);
+      }
+    } catch { /* skip malformed URLs */ }
+  }
+
+  return Array.from(found).slice(0, MAX_SUBPAGES);
+}
+
+/**
+ * Scrape the homepage plus up to 3 high-value subpages and assemble website content.
  */
 export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string): Promise<{
   scrapedPages: ScrapeResult[];
@@ -136,9 +197,32 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
 }> {
   const scrapedPages: ScrapeResult[] = [];
 
-  console.log(`Will scrape homepage only: ${websiteUrl}`);
+  console.log(`Scraping homepage: ${websiteUrl}`);
   const homepageResult = await scrapePage(websiteUrl, firecrawlApiKey);
   scrapedPages.push(homepageResult);
+
+  // Extract and scrape high-value subpages from homepage links
+  if (homepageResult.success && homepageResult.content.length > 50) {
+    const subpageUrls = extractSubpageUrls(homepageResult.content, websiteUrl);
+    if (subpageUrls.length > 0) {
+      console.log(`Found ${subpageUrls.length} high-value subpages to scrape: ${subpageUrls.join(', ')}`);
+      const subpageResults = await Promise.allSettled(
+        subpageUrls.map(url => {
+          // Use a shorter timeout for subpages
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), SUBPAGE_TIMEOUT_MS);
+          return scrapePage(url, firecrawlApiKey).finally(() => clearTimeout(timer));
+        })
+      );
+      for (const result of subpageResults) {
+        if (result.status === 'fulfilled') {
+          scrapedPages.push(result.value);
+        }
+      }
+    } else {
+      console.log('No high-value subpage links found on homepage');
+    }
+  }
 
   const successfulScrapes = scrapedPages.filter(p => p.success);
   console.log(`Successfully scraped ${successfulScrapes.length} of ${scrapedPages.length} pages`);

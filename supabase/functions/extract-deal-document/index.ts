@@ -258,7 +258,6 @@ Industry: ${industryName}`;
               employees: { type: "number" },
               founded: { type: "number" },
               ownership: { type: "string" },
-              competitive_position: { type: "string" },
               growth_story: { type: "string" },
               key_risks: { type: "array", items: { type: "string" } },
               asking_price: { type: "number" },

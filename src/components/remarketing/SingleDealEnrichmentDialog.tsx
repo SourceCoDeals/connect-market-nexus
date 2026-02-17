@@ -31,7 +31,6 @@ export interface SingleDealEnrichmentResult {
 // Map database field names to human-readable labels
 const FIELD_LABELS: Record<string, string> = {
   executive_summary: "Executive Summary",
-  business_model: "Business Model",
   geographic_states: "Geographic States",
   industry: "Industry",
   services: "Services",
@@ -54,7 +53,6 @@ const FIELD_LABELS: Record<string, string> = {
   key_selling_points: "Key Selling Points",
   growth_opportunities: "Growth Opportunities",
   technology_systems: "Technology Systems",
-  competitive_position: "Competitive Position",
   key_risks: "Key Risks",
   number_of_locations: "Number of Locations",
 };

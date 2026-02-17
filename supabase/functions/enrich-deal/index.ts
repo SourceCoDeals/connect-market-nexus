@@ -298,6 +298,56 @@ serve(async (req) => {
     }
 
     // ========================================================================
+    // STEP 0.5: NOTES ANALYSIS (medium priority — between transcripts and website)
+    // ========================================================================
+    const notesContent = [
+      deal.general_notes,
+      deal.owner_notes,
+      deal.internal_notes,
+    ].filter(Boolean).join('\n\n');
+
+    let notesFieldsUpdated: string[] = [];
+    if (notesContent.length >= 20) {
+      console.log(`[Notes] Analyzing deal notes (${notesContent.length} chars)...`);
+      try {
+        const notesResponse = await fetch(`${supabaseUrl}/functions/v1/analyze-deal-notes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ dealId, notesText: notesContent }),
+          signal: AbortSignal.timeout(120000), // 2 min timeout for notes analysis
+        });
+
+        if (notesResponse.ok) {
+          const notesResult = await notesResponse.json();
+          notesFieldsUpdated = notesResult.fieldsUpdated || [];
+          console.log(`[Notes] Analysis complete: ${notesFieldsUpdated.length} fields updated:`, notesFieldsUpdated);
+        } else {
+          const errText = await notesResponse.text().catch(() => `HTTP ${notesResponse.status}`);
+          console.warn(`[Notes] Analysis failed (non-fatal): ${notesResponse.status} - ${errText.substring(0, 200)}`);
+        }
+      } catch (notesErr) {
+        console.warn('[Notes] Analysis error (non-fatal):', getErrorMessage(notesErr));
+      }
+
+      // Re-fetch deal after notes analysis to get updated extraction_sources
+      // This ensures website enrichment has the latest priority data
+      const { data: refreshedDeal, error: refreshErr } = await supabase
+        .from('listings')
+        .select('*, extraction_sources')
+        .eq('id', dealId)
+        .single();
+
+      if (!refreshErr && refreshedDeal) {
+        Object.assign(deal, refreshedDeal);
+      }
+    } else {
+      console.log('[Notes] No notes content to analyze (skipping)');
+    }
+
+    // ========================================================================
     // STEP 1: WEBSITE SCRAPING
     // ========================================================================
     const lockVersion = deal.enriched_at;
@@ -308,15 +358,20 @@ serve(async (req) => {
     if (!websiteUrl) {
       await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
-      if (transcriptFieldsApplied > 0) {
+      const allNonWebFields = [...new Set([...transcriptFieldNames, ...notesFieldsUpdated])];
+      if (transcriptFieldsApplied > 0 || notesFieldsUpdated.length > 0) {
         const { error: markEnrichedErr } = await supabase.from('listings').update({ enriched_at: new Date().toISOString() }).eq('id', dealId);
         if (markEnrichedErr) console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr);
+        const parts = [];
+        if (transcriptFieldsApplied > 0) parts.push(`${transcriptReport.appliedFromExisting} from transcripts`);
+        if (notesFieldsUpdated.length > 0) parts.push(`${notesFieldsUpdated.length} from notes`);
         return new Response(
           JSON.stringify({
             success: true,
-            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: no website URL found.`,
-            fieldsUpdated: transcriptFieldNames,
+            message: `Enrichment completed (${parts.join(', ')}). Website scraping skipped: no website URL found.`,
+            fieldsUpdated: allNonWebFields,
             transcriptReport,
+            notesFieldsUpdated,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -407,14 +462,16 @@ serve(async (req) => {
         .eq('id', dealId);
       if (markEnrichedErr3) console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr3);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
+      const nonWebFields = [...new Set([...transcriptFieldNames, ...notesFieldsUpdated])];
       return new Response(
         JSON.stringify({
           success: true,
-          message: transcriptFieldsApplied > 0
-            ? `Transcript enrichment completed (${transcriptFieldsApplied} fields applied). Website scraping failed: could not reach homepage.`
+          message: (transcriptFieldsApplied > 0 || notesFieldsUpdated.length > 0)
+            ? `Enrichment completed (${transcriptFieldsApplied} from transcripts, ${notesFieldsUpdated.length} from notes). Website scraping failed: could not reach homepage.`
             : 'Website could not be scraped (site may be down or blocking). Deal marked as enriched with limited data.',
-          fieldsUpdated: transcriptFieldNames,
+          fieldsUpdated: nonWebFields,
           transcriptReport,
+          notesFieldsUpdated,
           warning: 'website_scrape_failed',
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -703,14 +760,17 @@ serve(async (req) => {
       }
     }
 
-    const allFieldsUpdated = [...new Set([...transcriptFieldNames, ...websiteFieldsUpdated])];
-    console.log(`Updated ${allFieldsUpdated.length} fields (${transcriptFieldNames.length} transcript + ${websiteFieldsUpdated.length} website):`, allFieldsUpdated);
+    const allFieldsUpdated = [...new Set([...transcriptFieldNames, ...notesFieldsUpdated, ...websiteFieldsUpdated])];
+    const sourceParts = [];
+    if (transcriptFieldNames.length > 0) sourceParts.push(`${transcriptFieldNames.length} from transcripts`);
+    if (notesFieldsUpdated.length > 0) sourceParts.push(`${notesFieldsUpdated.length} from notes`);
+    sourceParts.push(`${websiteFieldsUpdated.length} from website`);
+    console.log(`Updated ${allFieldsUpdated.length} fields (${sourceParts.join(', ')}):`, allFieldsUpdated);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully enriched deal with ${allFieldsUpdated.length} fields` +
-          (transcriptFieldNames.length > 0 ? ` (${transcriptFieldNames.length} from transcripts, ${websiteFieldsUpdated.length} from website)` : ''),
+        message: `Successfully enriched deal with ${allFieldsUpdated.length} fields (${sourceParts.join(', ')})`,
         fieldsUpdated: allFieldsUpdated,
         extracted,
         scrapeReport: {
@@ -720,6 +780,7 @@ serve(async (req) => {
           pages: scrapedPagesSummary,
         },
         transcriptReport,
+        notesFieldsUpdated,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
