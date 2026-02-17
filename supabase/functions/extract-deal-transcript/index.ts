@@ -223,7 +223,7 @@ Scan the ENTIRE transcript for financial context beyond revenue/EBITDA. Include 
 
 If NOTHING beyond revenue/EBITDA mentioned: "No additional financial context provided in this call."
 
-## SECTION 2: EXECUTIVE SUMMARY (string — 5-8 sentences)
+## SECTION 2: EXECUTIVE SUMMARY (string — 5-12 sentences)
 
 This is the SINGLE MOST IMPORTANT field. It must be a comprehensive, investor-ready overview that covers everything a PE buyer needs to evaluate the opportunity at a glance. This field replaces separate "business model" and "competitive position" fields, so it MUST weave those themes in.
 
@@ -235,17 +235,19 @@ Write a summary a PE investor could scan in 60 seconds. MUST include ALL of the 
 5. **Customer base quality** — type of customers (residential, commercial, government, insurance), recurring/repeat rates, contract vs spot work, key account relationships.
 6. **Growth trajectory** — how fast they've grown AND where they could go with investment. Specific levers: geographic expansion, new services, acquisitions, sales team, commercial push.
 7. **Acquisition attractiveness** — platform opportunity? strong add-on? geographic gap filler? What's the thesis?
+8. **Owner goals and transaction motivation (1-2 sentences, IF available)** — why the owner wants to sell or partner, what they're looking for in a deal (retirement, growth capital, partial liquidity, health reasons, partner buyout, etc.). Only include if the transcript contains this information; omit entirely if not discussed.
 
 **Style rules:**
 - Write in third person ("The company..." not "They...").
 - Use SPECIFIC numbers from the transcript, not vague language.
 - Do NOT include risks in executive summary — those go in other fields.
-- Do NOT include owner goals/transition preferences here.
 - Lead with the most compelling aspect.
+- The business overview (points 1-7) should be 5-10 sentences depending on the level of detail available in the transcript.
+- Owner goals (point 8) should be 1-2 sentences appended at the end, only if discussed in the transcript.
 - Every sentence should contain at least one SPECIFIC fact, number, or detail.
-- 5-8 sentences MINIMUM. This is NOT a brief tagline — it's a full investment summary.
+- This is NOT a brief tagline — it's a full investment summary.
 
-**Example:** "ABC Restoration is a $8.2M revenue fire and water restoration company based in Sellersburg, IN, operating across southern Indiana and the Louisville metro area with 45 full-time staff across two locations. The company generates approximately $1.5M in adjusted EBITDA (18% margins) through a diversified service model spanning fire restoration (~40%), water restoration (~35%), and a growing roofing segment (~25%), with approximately 60% residential and 40% commercial mix. Revenue is driven by a combination of insurance-referred restoration projects (recurring via DRP partnerships with State Farm, Allstate, and USAA) and direct-to-consumer retail work, creating a resilient demand profile. The company holds IICRC certifications, maintains preferred vendor status with three major insurance carriers, and has built an 18-year track record and strong regional reputation that creates significant barriers to entry for competitors. Founded in 2005, the business has grown from $2M to $8.2M over five years, with recent expansion into commercial roofing opening a substantial new revenue stream. This represents an attractive platform opportunity in the fragmented $70B restoration services market, with clear organic growth levers (geographic expansion into Kentucky, commercial segment growth) and add-on acquisition potential (two smaller competitors identified as targets)."
+**Example:** "ABC Restoration is a $8.2M revenue fire and water restoration company based in Sellersburg, IN, operating across southern Indiana and the Louisville metro area with 45 full-time staff across two locations. The company generates approximately $1.5M in adjusted EBITDA (18% margins) through a diversified service model spanning fire restoration (~40%), water restoration (~35%), and a growing roofing segment (~25%), with approximately 60% residential and 40% commercial mix. Revenue is driven by a combination of insurance-referred restoration projects (recurring via DRP partnerships with State Farm, Allstate, and USAA) and direct-to-consumer retail work, creating a resilient demand profile. The company holds IICRC certifications, maintains preferred vendor status with three major insurance carriers, and has built an 18-year track record and strong regional reputation that creates significant barriers to entry for competitors. Founded in 2005, the business has grown from $2M to $8.2M over five years, with recent expansion into commercial roofing opening a substantial new revenue stream. This represents an attractive platform opportunity in the fragmented $70B restoration services market, with clear organic growth levers (geographic expansion into Kentucky, commercial segment growth) and add-on acquisition potential (two smaller competitors identified as targets). The owner is seeking a full exit within the next 12-18 months, primarily motivated by retirement after 20 years of ownership, and is open to a transition period of up to one year to ensure continuity of key insurance carrier relationships."
 
 ## SECTION 3: SERVICES
 
@@ -434,7 +436,7 @@ CORE RULES:
 10. IGNORE THE INTERVIEWER: Extract data from the business owner/seller only.
 
 DEPTH REQUIREMENTS — Every text field should be DETAILED with MAXIMUM CONTEXT:
-- executive_summary: 5-8 sentences — this is the MOST IMPORTANT field. Must cover what the company does, business model (how it makes money), size indicators, geography, competitive advantages (certifications, preferred vendor status, proprietary processes, market position), customer base quality, growth trajectory, and acquisition attractiveness. Write like a PE investor memo. Every sentence must contain specific facts or numbers.
+- executive_summary: 5-12 sentences — this is the MOST IMPORTANT field. 5-10 sentences covering what the company does, business model (how it makes money), size indicators, geography, competitive advantages (certifications, preferred vendor status, proprietary processes, market position), customer base quality, growth trajectory, and acquisition attractiveness. Then 1-2 sentences on owner goals and why they want to transact (only if discussed in transcript). Write like a PE investor memo. Every sentence must contain specific facts or numbers.
 - service_mix: 2-4 sentences with revenue percentages if stated, residential vs commercial split, recurring vs project-based, how services interrelate, in-house vs subcontracted.
 - owner_goals: 2-4 sentences with primary motivation, desired deal type, financial expectations, beyond-money goals, urgency signals. Include owner's exact words.
 - transition_preferences: 2-3 sentences covering duration, role, willing vs not willing, key relationships held, training plan, non-compete.
