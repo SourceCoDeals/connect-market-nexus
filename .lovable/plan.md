@@ -1,51 +1,50 @@
 
 
-# Fix: Deploy Edge Function and Eliminate Double-Toast
+# Fix: Drop Stale Enrichment Triggers That Reference Removed Column
 
-## What's Wrong
+## Root Cause
 
-1. **Edge function not deployed**: The code fix (returning HTTP 200 instead of 400 for validation failures) was saved to the file but the edge function was never redeployed. The live function still returns 400, which makes `supabase.functions.invoke` throw an error before the client can read the validation details.
+The column `enrichment_scheduled_at` was dropped from the `listings` table (migration `20260217130000_drop_dead_columns.sql`), but **two database triggers still reference it**:
 
-2. **Double-toast on failure**: When auto-publish fails, two toasts appear:
-   - First: "Created as Draft — Listing saved to Research tab. To publish: ..." (from auto-publish handler)
-   - Second: "Listing Created as Draft — use Publish to make it visible" (from onSuccess callback)
-   The second toast overwrites the first, hiding the actionable validation message.
+1. **`auto_enrich_new_listing`** (AFTER INSERT trigger) -- runs `UPDATE listings SET enrichment_scheduled_at = NOW()` on every new listing
+2. **`auto_enrich_updated_listing`** (BEFORE INSERT/UPDATE trigger) -- sets `NEW.enrichment_scheduled_at := NOW()` on every insert/update
 
-## Publishing Requirements
+Every listing creation attempt hits one of these triggers and crashes with: `column "enrichment_scheduled_at" does not exist`.
 
-For a listing to auto-publish to the marketplace, it must meet ALL of these:
+## Fix
+
+Write a single migration that:
+
+1. Drops the two broken triggers
+2. Recreates them without the `enrichment_scheduled_at` references (they still do useful work -- queuing listings for enrichment via the `enrichment_queue` table)
+
+The triggers' core logic (inserting into `enrichment_queue`) is still valid and needed. Only the lines that stamp `enrichment_scheduled_at` need to be removed.
+
+```text
+Trigger: auto_enrich_new_listing (AFTER INSERT)
+  Keep: INSERT INTO enrichment_queue ...
+  Remove: UPDATE listings SET enrichment_scheduled_at = NOW() ...
+
+Trigger: auto_enrich_updated_listing (BEFORE INSERT/UPDATE)  
+  Keep: INSERT INTO enrichment_queue ...
+  Remove: NEW.enrichment_scheduled_at := NOW()
+```
+
+## Downstream Impact
+
+Once this migration runs, listing creation will succeed again, and the auto-publish flow (Marketplace tab) will work end-to-end for listings that meet all validation requirements:
 - Title at least 5 characters
 - Description at least 50 characters
 - At least one category
 - Location provided
 - Revenue is a positive number
-- EBITDA is provided (can be zero or negative)
-- Not linked to remarketing systems
+- EBITDA provided
 
-If all conditions are met and the listing was created from the Marketplace tab, it will auto-publish immediately.
-
-## Fixes
-
-### Fix 1: Deploy the edge function
-Redeploy `publish-listing` so the 200-status fix goes live. No code changes needed -- the file is already correct.
-
-### Fix 2: Prevent double-toast in `use-robust-listing-creation.ts`
-
-Track whether an auto-publish toast was already shown, and skip the generic `onSuccess` toast in that case. The mutation function will set a flag on the returned data to indicate the toast was already handled.
-
-**In the mutationFn** (around line 260-296): When an auto-publish toast is shown (success or failure), mark the result so onSuccess knows not to show another toast.
-
-**In onSuccess** (line 305-326): Check if the auto-publish path already showed a toast, and skip the duplicate.
-
-### Fix 3: Same double-toast fix in `use-create-listing.ts`
-
-Apply the same pattern to the legacy creation hook for consistency, since both hooks have identical auto-publish + onSuccess toast logic.
+No other code changes are needed -- the client-side auto-publish logic and edge function are already correct.
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `supabase/functions/publish-listing/index.ts` | Deploy only (code already correct) |
-| `src/hooks/admin/listings/use-robust-listing-creation.ts` | Add flag to prevent double-toast when auto-publish already showed feedback |
-| `src/hooks/admin/listings/use-create-listing.ts` | Same double-toast fix for consistency |
+| New migration SQL | Drop and recreate `auto_enrich_new_listing` and `auto_enrich_updated_listing` triggers/functions without `enrichment_scheduled_at` references |
 
