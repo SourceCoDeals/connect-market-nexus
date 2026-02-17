@@ -44,8 +44,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ScoreTierBadge, getTierFromScore, PipelineSummaryCard, DealBuyerChat, DealSourceBadge } from "@/components/remarketing";
 import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
-import { FirefliesTranscriptSync } from "@/components/remarketing/FirefliesTranscriptSync";
-import { FirefliesManualLink } from "@/components/remarketing/FirefliesManualLink";
 import {
   GeneralNotesSection,
   OwnerResponseSection,
@@ -1075,27 +1073,6 @@ const ReMarketingDealDetail = () => {
         </Card>
       )}
 
-      {/* Fireflies Transcript Sync */}
-      <FirefliesTranscriptSync
-        listingId={dealId!}
-        contactEmail={deal.main_contact_email ?? deal.primary_contact_email ?? null}
-        contactName={deal.main_contact_name ?? deal.primary_contact_name ?? null}
-        existingTranscripts={transcripts?.filter((t: any) => t.source === 'fireflies').length || 0}
-        onSyncComplete={() => {
-          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-        }}
-      />
-
-      {/* Manual Fireflies Search & Link */}
-      <FirefliesManualLink
-        listingId={dealId!}
-        companyName={deal.internal_company_name || deal.title || ''}
-        onTranscriptLinked={() => {
-          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-        }}
-      />
-
-
       <DealTranscriptSection
         dealId={dealId!}
         transcripts={transcripts || []}
@@ -1104,6 +1081,15 @@ const ReMarketingDealDetail = () => {
           company_name: deal.internal_company_name || deal.title,
           primary_contact_email: deal.primary_contact_email,
           main_contact_email: deal.main_contact_email,
+        }}
+        contactEmail={deal.main_contact_email ?? deal.primary_contact_email ?? null}
+        contactName={deal.main_contact_name ?? deal.primary_contact_name ?? null}
+        companyName={deal.internal_company_name || deal.title || ''}
+        onSyncComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+        }}
+        onTranscriptLinked={() => {
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
         }}
       />
 

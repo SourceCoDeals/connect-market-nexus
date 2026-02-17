@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText,
   Plus,
@@ -55,6 +56,10 @@ import {
   AlertTriangle,
   Zap,
   Search,
+  ExternalLink,
+  Clock,
+  Link2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card as ProgressCard, CardContent as ProgressCardContent } from "@/components/ui/card";
@@ -94,9 +99,15 @@ interface DealTranscriptSectionProps {
     primary_contact_name?: string;
     main_contact_email?: string;
   };
+  /** Fireflies sync props */
+  contactEmail?: string | null;
+  contactName?: string | null;
+  companyName?: string;
+  onSyncComplete?: () => void;
+  onTranscriptLinked?: () => void;
 }
 
-export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo }: DealTranscriptSectionProps) {
+export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo, contactEmail, contactName, companyName, onSyncComplete, onTranscriptLinked }: DealTranscriptSectionProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -113,6 +124,277 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [showEnrichmentDialog, setShowEnrichmentDialog] = useState(false);
   const [enrichmentPhase, setEnrichmentPhase] = useState<'transcripts' | 'website' | null>(null);
   const [enrichmentProgress, setEnrichmentProgress] = useState({ current: 0, total: 0 });
+
+  // Fireflies sync state
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [linkedCount, setLinkedCount] = useState(transcripts?.filter((t: any) => t.source === 'fireflies').length || 0);
+
+  // Fireflies manual link state
+  const [ffQuery, setFfQuery] = useState(companyName || '');
+  const [ffSearchLoading, setFfSearchLoading] = useState(false);
+  const [ffResults, setFfResults] = useState<any[]>([]);
+  const [ffLinking, setFfLinking] = useState<string | null>(null);
+  const [firefliesUrl, setFirefliesUrl] = useState("");
+  const [linkingUrl, setLinkingUrl] = useState(false);
+  const [ffUploading, setFfUploading] = useState(false);
+  const ffFileInputRef = useRef<HTMLInputElement>(null);
+  const [showLinkPanel, setShowLinkPanel] = useState(false);
+
+  // Fireflies sync handler
+  const handleFirefliesSync = async () => {
+    if (!contactEmail) return;
+    setSyncLoading(true);
+    const toastId = toast.loading(`Searching Fireflies for ${contactEmail}...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
+        body: { listingId: dealId, contactEmail, limit: 50 },
+      });
+      if (error) throw error;
+      if (data.linked > 0) {
+        toast.success(`Linked ${data.linked} new transcript${data.linked !== 1 ? 's' : ''}`, { id: toastId });
+        setLinkedCount(prev => prev + data.linked);
+        onSyncComplete?.();
+      } else if (data.skipped > 0) {
+        toast.info(`All ${data.skipped} transcript${data.skipped !== 1 ? 's' : ''} already linked`, { id: toastId });
+      } else {
+        toast.info(`No Fireflies calls found for ${contactEmail}`, { id: toastId });
+      }
+      setLastSynced(new Date());
+      if (data.errors?.length > 0) {
+        toast.warning(`${data.errors.length} transcript${data.errors.length !== 1 ? 's' : ''} failed to link`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? `Failed: ${error.message}` : "Failed to sync", { id: toastId });
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // Fireflies quick search handler (link panel)
+  const handleFfQuickSearch = async () => {
+    const trimmed = ffQuery.trim();
+    if (!trimmed) return;
+    setFfSearchLoading(true);
+    const toastId = toast.loading(`Searching Fireflies for "${trimmed}"...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+        body: { query: trimmed, limit: 30 },
+      });
+      if (error) throw error;
+      setFfResults(data.results || []);
+      toast[data.results?.length ? 'success' : 'info'](
+        data.results?.length ? `Found ${data.results.length} call${data.results.length !== 1 ? 's' : ''}` : `No calls found`,
+        { id: toastId }
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Search failed", { id: toastId });
+    } finally {
+      setFfSearchLoading(false);
+    }
+  };
+
+  // Link a search result
+  const handleLinkSearchResult = async (transcript: any) => {
+    setFfLinking(transcript.id);
+    try {
+      const { error } = await supabase.from('deal_transcripts').insert({
+        listing_id: dealId,
+        fireflies_transcript_id: transcript.id,
+        fireflies_meeting_id: transcript.id,
+        transcript_url: transcript.meeting_url,
+        title: transcript.title,
+        call_date: transcript.date,
+        participants: transcript.participants,
+        duration_minutes: transcript.duration_minutes,
+        transcript_text: transcript.summary || 'Fireflies transcript',
+        source: 'fireflies',
+        auto_linked: false,
+      });
+      if (error) {
+        if (error.code === '23505') toast.info("Already linked");
+        else throw error;
+      } else {
+        toast.success("Transcript linked");
+        setFfResults(prev => prev.filter(r => r.id !== transcript.id));
+        onTranscriptLinked?.();
+      }
+    } catch (error) {
+      toast.error("Failed to link transcript");
+    } finally {
+      setFfLinking(null);
+    }
+  };
+
+  // Link by URL
+  const handleLinkByUrl = async () => {
+    const url = firefliesUrl.trim();
+    if (!url) return;
+    setLinkingUrl(true);
+    try {
+      const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
+      const transcriptId = match ? match[1] : `url-${Date.now()}`;
+      const { error } = await supabase.from('deal_transcripts').insert({
+        listing_id: dealId,
+        fireflies_transcript_id: transcriptId,
+        transcript_url: url,
+        title: match ? `Fireflies: ${transcriptId}` : 'Fireflies Transcript',
+        transcript_text: 'Linked via URL - pending fetch',
+        source: 'fireflies',
+        auto_linked: false,
+      });
+      if (error) {
+        if (error.code === '23505') toast.info("Already linked");
+        else throw error;
+      } else {
+        toast.success("Transcript linked");
+        setFirefliesUrl("");
+        onTranscriptLinked?.();
+      }
+    } catch (error) {
+      toast.error("Failed to link");
+    } finally {
+      setLinkingUrl(false);
+    }
+  };
+
+  // File upload handler
+  const handleFfFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    setFfUploading(true);
+    let successCount = 0;
+    for (const file of Array.from(files)) {
+      const toastId = toast.loading(`Uploading ${file.name}...`);
+      try {
+        const textTypes = ['.txt', '.vtt', '.srt', '.md'];
+        const isTextFile = textTypes.some(ext => file.name.toLowerCase().endsWith(ext));
+        let transcriptText = '';
+        if (isTextFile) {
+          transcriptText = await file.text();
+        } else {
+          transcriptText = `Uploaded file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        }
+        const docTypes = ['.pdf', '.doc', '.docx'];
+        if (docTypes.some(ext => file.name.toLowerCase().endsWith(ext))) {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('listingId', dealId);
+            const { data, error } = await supabase.functions.invoke('parse-transcript-file', { body: formData });
+            if (!error && data?.text) transcriptText = data.text;
+          } catch {}
+        }
+        const { error } = await supabase.from('deal_transcripts').insert({
+          listing_id: dealId,
+          fireflies_transcript_id: `upload-${Date.now()}-${file.name}`,
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          transcript_text: transcriptText || `Uploaded: ${file.name}`,
+          source: 'upload',
+          auto_linked: false,
+        });
+        if (error) {
+          if (error.code === '23505') toast.info(`${file.name} already linked`, { id: toastId });
+          else throw error;
+        } else {
+          toast.success(`${file.name} uploaded`, { id: toastId });
+          successCount++;
+        }
+      } catch {
+        toast.error(`Failed to upload ${file.name}`, { id: toastId });
+      }
+    }
+    if (successCount > 0) onTranscriptLinked?.();
+    setFfUploading(false);
+    if (ffFileInputRef.current) ffFileInputRef.current.value = '';
+  };
+
+  // Render the link panel (Fireflies sync + manual link tabs)
+  const renderLinkPanel = () => (
+    <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+      {/* Auto-sync row */}
+      {contactEmail && (
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <p>Contact: {contactName || contactEmail}</p>
+            {contactName && <p>{contactEmail}</p>}
+            {lastSynced && <p>Last synced: {lastSynced.toLocaleTimeString()}</p>}
+          </div>
+          <Button size="sm" variant="outline" onClick={handleFirefliesSync} disabled={syncLoading} className="shrink-0">
+            {syncLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+            {syncLoading ? 'Syncing...' : 'Auto-Sync'}
+          </Button>
+        </div>
+      )}
+      {!contactEmail && (
+        <div className="flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+          <p className="text-xs text-muted-foreground">Add a contact email to enable auto-sync from Fireflies</p>
+        </div>
+      )}
+
+      {/* Manual link tabs */}
+      <Tabs defaultValue="link" className="space-y-3">
+        <TabsList className="grid w-full grid-cols-3 h-8">
+          <TabsTrigger value="link" className="text-xs"><Link2 className="h-3.5 w-3.5 mr-1" />Paste Link</TabsTrigger>
+          <TabsTrigger value="upload" className="text-xs"><Upload className="h-3.5 w-3.5 mr-1" />Upload</TabsTrigger>
+          <TabsTrigger value="search" className="text-xs"><Search className="h-3.5 w-3.5 mr-1" />Search</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="link" className="space-y-2">
+          <div className="flex gap-2">
+            <Input placeholder="https://app.fireflies.ai/view/..." value={firefliesUrl} onChange={e => setFirefliesUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && !linkingUrl && handleLinkByUrl()} className="flex-1 h-8 text-sm" />
+            <Button onClick={handleLinkByUrl} disabled={linkingUrl || !firefliesUrl.trim()} size="sm" className="h-8">
+              {linkingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LinkIcon className="h-4 w-4 mr-1" />Link</>}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Paste a Fireflies transcript URL to link it</p>
+        </TabsContent>
+
+        <TabsContent value="upload" className="space-y-2">
+          <input ref={ffFileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.vtt,.srt,.md" multiple onChange={handleFfFileUpload} className="hidden" />
+          <Button variant="outline" className="w-full h-16 border-dashed" onClick={() => ffFileInputRef.current?.click()} disabled={ffUploading}>
+            {ffUploading ? (
+              <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Uploading...</span></div>
+            ) : (
+              <div className="flex flex-col items-center gap-1"><Upload className="h-5 w-5 text-muted-foreground" /><span className="text-xs text-muted-foreground">PDF, DOC, TXT, VTT, SRT</span></div>
+            )}
+          </Button>
+        </TabsContent>
+
+        <TabsContent value="search" className="space-y-3">
+          <div className="flex gap-2">
+            <Input placeholder="Search by company name, keywords..." value={ffQuery} onChange={e => setFfQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && !ffSearchLoading && handleFfQuickSearch()} className="flex-1 h-8 text-sm" />
+            <Button onClick={handleFfQuickSearch} disabled={ffSearchLoading || !ffQuery.trim()} size="sm" className="h-8">
+              {ffSearchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
+          {ffResults.length > 0 && (
+            <div className="space-y-2 max-h-64 overflow-auto">
+              {ffResults.map(r => (
+                <div key={r.id} className="border rounded p-2 flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{r.title}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(r.date).toLocaleDateString()}</span>
+                      {r.duration_minutes && <span>{r.duration_minutes}m</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {r.meeting_url && <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.open(r.meeting_url, '_blank')}><ExternalLink className="h-3.5 w-3.5" /></Button>}
+                    <Button size="sm" className="h-7" onClick={() => handleLinkSearchResult(r)} disabled={ffLinking === r.id}>
+                      {ffLinking === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><LinkIcon className="h-3.5 w-3.5 mr-1" />Link</>}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+
   // Enrich deal with AI
   const handleEnrichDeal = async (forceReExtract = false) => {
     setIsEnriching(true);
@@ -1565,7 +1847,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           </CardContent>
         )}
         
-        <CardContent className="py-2 pt-0">
+        <CardContent className="py-2 pt-0 space-y-3">
+          {renderLinkPanel()}
           <p className="text-sm text-muted-foreground">No transcripts linked yet.</p>
         </CardContent>
         
@@ -1687,6 +1970,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
+            {/* Link Panel - Fireflies sync + manual linking */}
+            {renderLinkPanel()}
             {/* Deduplicate + failed extraction cleanup */}
             {(() => {
               // Normalize title: strip .pdf/.docx/.doc suffix for grouping
