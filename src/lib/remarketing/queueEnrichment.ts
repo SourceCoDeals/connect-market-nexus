@@ -32,6 +32,7 @@ export async function queueDealEnrichment(dealIds: string[]): Promise<number> {
     status: "pending",
     attempts: 0,
     queued_at: new Date().toISOString(),
+    force: true,
   }));
 
   const { error } = await supabase
@@ -84,6 +85,7 @@ export async function queueBuyerEnrichment(buyerIds: string[], universeId?: stri
     status: "pending",
     attempts: 0,
     queued_at: new Date().toISOString(),
+    force: true,
   }));
 
   const { error } = await supabase
