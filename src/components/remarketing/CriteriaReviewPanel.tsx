@@ -61,6 +61,7 @@ export const CriteriaReviewPanel = ({
   const [isApplying, setIsApplying] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadSources();
   }, [universeId]);

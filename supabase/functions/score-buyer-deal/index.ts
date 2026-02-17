@@ -1024,7 +1024,7 @@ function calculateServiceOverlap(
   }
 
   // Tokenize for word-level matching (e.g., "fire restoration" matches "restoration")
-  const tokenize = (s: string) => s.split(/[\s\-\/&]+/).filter(w => w.length > 2);
+  const tokenize = (s: string) => s.split(/[\s\-/&]+/).filter(w => w.length > 2);
 
   const matching = dealServices.filter((ds: string) =>
     buyerServices.some((bs: string) => {
@@ -1513,10 +1513,10 @@ async function scoreSingleBuyer(
   const serviceCriteria: ServiceCriteria | null = universe.service_criteria || null;
 
   // Default weights per spec: Services 45%, Size 30%, Geography 20%, Owner Goals 5%
-  let sizeWeight = universe.size_weight || 30;
-  let geoWeight = universe.geography_weight || 20;
-  let serviceWeight = universe.service_weight || 45;
-  let ownerGoalsWeight = universe.owner_goals_weight || 5;
+  const sizeWeight = universe.size_weight || 30;
+  const geoWeight = universe.geography_weight || 20;
+  const serviceWeight = universe.service_weight || 45;
+  const ownerGoalsWeight = universe.owner_goals_weight || 5;
 
   // === Steps a-e: Score all dimensions (parallelize ALL independent calls including thesis) ===
   const sizeResult = calculateSizeScore(listing, buyer, behavior);
@@ -1599,8 +1599,8 @@ async function scoreSingleBuyer(
   );
 
   // === Step g+h: Apply gates only for dimensions that were actually scored ===
-  let effectiveSizeMultiplier = (!buyerHasSizeData || !dealHasFinancials) ? 1.0 : sizeResult.multiplier;
-  let effectiveServiceMultiplier = (!buyerHasServiceData || !dealHasServices) ? 1.0 : serviceResult.multiplier;
+  const effectiveSizeMultiplier = (!buyerHasSizeData || !dealHasFinancials) ? 1.0 : sizeResult.multiplier;
+  const effectiveServiceMultiplier = (!buyerHasServiceData || !dealHasServices) ? 1.0 : serviceResult.multiplier;
 
   let gatedScore = Math.round(weightedBase * effectiveSizeMultiplier * effectiveServiceMultiplier);
   gatedScore = Math.max(0, Math.min(100, gatedScore));

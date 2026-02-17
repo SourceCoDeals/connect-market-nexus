@@ -46,7 +46,7 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
         case 'oldest':
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         
-        case 'buyer_priority':
+        case 'buyer_priority': {
           const priorityA = getBuyerPriority(a.user?.buyer_type);
           const priorityB = getBuyerPriority(b.user?.buyer_type);
           if (priorityB !== priorityA) {
@@ -54,8 +54,9 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
           }
           // If same priority, sort by newest
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        
-        case 'deal_size':
+        }
+
+        case 'deal_size': {
           const revenueA = a.listing?.revenue || 0;
           const revenueB = b.listing?.revenue || 0;
           if (revenueB !== revenueA) {
@@ -63,6 +64,7 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
           }
           // If same revenue, sort by newest
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
         
         case 'approval_date':
           // Only consider approved requests for this sort

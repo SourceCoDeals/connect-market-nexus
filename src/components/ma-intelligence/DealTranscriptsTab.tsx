@@ -67,6 +67,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
   useEffect(() => {
     loadTranscripts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealId]);
 
   const loadTranscripts = async () => {

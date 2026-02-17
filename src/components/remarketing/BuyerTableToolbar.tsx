@@ -92,6 +92,7 @@ export const BuyerTableToolbar = ({
   const [enrichElapsed, setEnrichElapsed] = useState(0);
   const enrichStartRef = useRef<number | null>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isEnriching && enrichmentProgress && enrichmentProgress.current > 0) {
       if (!enrichStartRef.current) {
@@ -125,19 +126,20 @@ export const BuyerTableToolbar = ({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const alignmentStartTimeRef = useRef<number | null>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isScoringAlignment && alignmentProgress && alignmentProgress.current > 0) {
       // Set start time on first progress update
       if (!alignmentStartTimeRef.current) {
         alignmentStartTimeRef.current = alignmentProgress.startTime || Date.now();
       }
-      
+
       const interval = setInterval(() => {
         if (alignmentStartTimeRef.current) {
           setElapsedSeconds(Math.floor((Date.now() - alignmentStartTimeRef.current) / 1000));
         }
       }, 1000);
-      
+
       return () => clearInterval(interval);
     } else if (!isScoringAlignment) {
       // Reset when not scoring

@@ -252,7 +252,7 @@ function sanitizeUrl(url: string): string {
 function sanitizePhoneNumber(phone: string): string {
   if (!phone) return '';
   // Keep only digits, spaces, dashes, parentheses, and plus sign
-  return phone.replace(/[^\d\s\-\(\)\+]/g, '').trim();
+  return phone.replace(/[^\d\s\-()+]/g, '').trim();
 }
 
 function sanitizeNumber(value: any): number | undefined {
@@ -276,7 +276,7 @@ function isValidUrl(url: string): boolean {
 
 function isValidPhoneNumber(phone: string): boolean {
   // Basic phone number validation (international format)
-  const phoneRegex = /^\+?[\d\s\-\(\)]{10,15}$/;
+  const phoneRegex = /^\+?[\d\s\-()]{10,15}$/;
   return phoneRegex.test(phone);
 }
 
@@ -286,8 +286,8 @@ function containsSuspiciousContent(text: string): boolean {
     /\b(?:click\s*here|free\s*money|guaranteed\s*profit)\b/i,
     /\b(?:urgent|act\s*now|limited\s*time)\b/i,
     /<script|javascript:|on\w+\s*=/i, // Basic XSS detection
-    /\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b/, // Credit card patterns
-    /\b\d{3}[\s\-]?\d{2}[\s\-]?\d{4}\b/, // SSN patterns
+    /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/, // Credit card patterns
+    /\b\d{3}[\s-]?\d{2}[\s-]?\d{4}\b/, // SSN patterns
   ];
   
   return suspiciousPatterns.some(pattern => pattern.test(text));

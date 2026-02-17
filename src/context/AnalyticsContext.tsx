@@ -24,7 +24,7 @@ const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefin
 // REMOVED: currentSessionId local variable - now uses SessionContext's UUID
 
 // Analytics health tracking
-let analyticsStats = {
+const analyticsStats = {
   totalInsertions: 0,
   failedInsertions: 0,
   circuitBreakerOpen: false,
@@ -83,7 +83,7 @@ const updateAnalyticsStats = (success: boolean, error?: any) => {
   if (success) {
     // Reset failure count on success
     if (analyticsStats.failedInsertions > 0) {
-      
+      // Reset failure count on success - no action needed
     }
   } else {
     analyticsStats.failedInsertions++;
@@ -189,9 +189,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     updateAnalyticsStats(result.success, result.error);
 
-    if (result.success) {
-      
-    } else {
+    if (!result.success) {
       console.error('❌ Failed to track event after retries:', result.error);
     }
 
@@ -227,9 +225,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     updateAnalyticsStats(result.success, result.error);
 
-    if (result.success) {
-      
-    } else {
+    if (!result.success) {
       console.error('❌ Failed to track page view after retries:', result.error);
     }
 
@@ -265,9 +261,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     updateAnalyticsStats(result.success, result.error);
 
-    if (result.success) {
-      
-    } else {
+    if (!result.success) {
       console.error('❌ Failed to track listing view after retries:', result.error);
     }
 
@@ -303,9 +297,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     updateAnalyticsStats(result.success, result.error);
 
-    if (result.success) {
-      
-    } else {
+    if (!result.success) {
       console.error('❌ Failed to track listing save after retries:', result.error);
     }
 
@@ -341,9 +333,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     updateAnalyticsStats(result.success, result.error);
 
-    if (result.success) {
-      
-    } else {
+    if (!result.success) {
       console.error('❌ Failed to track connection request after retries:', result.error);
     }
 
@@ -380,9 +370,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     updateAnalyticsStats(result.success, result.error);
 
-    if (result.success) {
-      
-    } else {
+    if (!result.success) {
       console.error('❌ Failed to track search after retries:', result.error);
     }
 
@@ -419,6 +407,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAnalytics() {
   const context = useContext(AnalyticsContext);
   if (context === undefined) {

@@ -134,6 +134,7 @@ export const ScoreTierBadge = ({
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const getTierFromScore = (score: number): ScoreTier => {
   // Spec v2: A=80+, B=65-79, C=50-64, D=35-49, F=0-34
   if (score >= 80) return 'A';

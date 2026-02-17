@@ -16,29 +16,41 @@ CREATE TABLE IF NOT EXISTS public.captarget_sync_exclusions (
 );
 
 -- 2. Indexes
-CREATE INDEX idx_captarget_exclusions_excluded_at
+CREATE INDEX IF NOT EXISTS idx_captarget_exclusions_excluded_at
   ON public.captarget_sync_exclusions (excluded_at DESC);
 
-CREATE INDEX idx_captarget_exclusions_category
+CREATE INDEX IF NOT EXISTS idx_captarget_exclusions_category
   ON public.captarget_sync_exclusions (exclusion_category);
 
 -- 3. RLS (mirrors captarget_sync_log pattern)
 ALTER TABLE public.captarget_sync_exclusions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admin users can view captarget sync exclusions"
-  ON public.captarget_sync_exclusions FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Admin users can view captarget sync exclusions'
+  ) THEN
+    CREATE POLICY "Admin users can view captarget sync exclusions"
+      ON public.captarget_sync_exclusions FOR SELECT
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles
+          WHERE profiles.id = auth.uid()
+          AND profiles.role = 'admin'
+        )
+      );
+  END IF;
+END $$;
 
-CREATE POLICY "Service role can manage captarget sync exclusions"
-  ON public.captarget_sync_exclusions FOR ALL
-  USING (true)
-  WITH CHECK (true);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Service role can manage captarget sync exclusions'
+  ) THEN
+    CREATE POLICY "Service role can manage captarget sync exclusions"
+      ON public.captarget_sync_exclusions FOR ALL
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
 -- 4. Add rows_excluded to sync log
 ALTER TABLE public.captarget_sync_log

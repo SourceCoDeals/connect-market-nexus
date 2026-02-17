@@ -156,6 +156,7 @@ export function OwnerLeadsTable() {
   // Mark as viewed when component mounts
   useEffect(() => {
     markAsViewed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter leads

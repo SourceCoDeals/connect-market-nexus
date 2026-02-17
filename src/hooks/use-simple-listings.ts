@@ -84,7 +84,7 @@ async function fetchListings(state: PaginationState) {
 }
 
 async function fetchMetadata() {
-  let query = supabase
+  const query = supabase
     .from('listings')
     .select('category, location')
     .eq('status', 'active')

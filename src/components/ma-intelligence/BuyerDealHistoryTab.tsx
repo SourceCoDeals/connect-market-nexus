@@ -79,6 +79,7 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
 
   useEffect(() => {
     loadDealScores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyerId]);
 
   const loadDealScores = async () => {

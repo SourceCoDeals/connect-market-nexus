@@ -103,6 +103,7 @@ export function PipelineShell() {
     return () => {
       window.removeEventListener('open-deal-from-notification', handleOpenDealFromNotification as EventListener);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pipeline.deals, pipeline.setSelectedDeal]);
 
   // Check URL params ONCE on mount for deep linking from notifications
@@ -127,6 +128,7 @@ export function PipelineShell() {
         console.log('[PipelineShell] Cleared URL params to prevent re-processing');
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pipeline.deals]);
 
   // Reset URL param processing flag on unmount

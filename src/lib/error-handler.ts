@@ -1,6 +1,7 @@
 import React from 'react';
 import { toast } from '@/hooks/use-toast';
 import { errorLogger } from '@/lib/error-logger';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -212,7 +213,6 @@ export const withErrorBoundary = <P extends object>(
   errorFallback?: React.ComponentType<{ error: Error }>
 ) => {
   return (props: P) => {
-    const { ErrorBoundary } = require('@/components/ErrorBoundary');
     const fallbackElement = errorFallback ? React.createElement(errorFallback, { error: new Error('Component error') }) : undefined;
     
     return React.createElement(

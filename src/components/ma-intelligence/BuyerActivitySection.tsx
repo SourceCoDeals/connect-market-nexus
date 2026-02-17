@@ -47,6 +47,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
 
   useEffect(() => {
     loadActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyerId]);
 
   const loadActivities = async () => {

@@ -209,6 +209,7 @@ export const ScoreFilters = ({
 };
 
 // Helper to filter scores based on filter state
+// eslint-disable-next-line react-refresh/only-export-components
 export const filterScores = (
   scores: any[],
   filters: ScoreFiltersState

@@ -40,7 +40,7 @@ export function MyDealsTab() {
           return !isTerminal && !d.followed_up;
         });
         break;
-      case 'stale':
+      case 'stale': {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         filtered = filtered.filter(d => {
@@ -48,6 +48,7 @@ export function MyDealsTab() {
           return !isTerminal && new Date(d.stage_entered_at) < weekAgo;
         });
         break;
+      }
       case 'closed':
         // Show only closed deals
         filtered = filtered.filter(d => 
@@ -64,7 +65,7 @@ export function MyDealsTab() {
       case 'value':
         filtered.sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
         break;
-      case 'urgency':
+      case 'urgency': {
         const weekAgoUrgency = new Date();
         weekAgoUrgency.setDate(weekAgoUrgency.getDate() - 7);
         filtered.sort((a, b) => {
@@ -77,6 +78,7 @@ export function MyDealsTab() {
           return (bStale + bFollowUp) - (aStale + aFollowUp);
         });
         break;
+      }
     }
     
     return filtered;

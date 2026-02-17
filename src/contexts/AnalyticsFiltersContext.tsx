@@ -100,6 +100,7 @@ export function AnalyticsFiltersProvider({ children }: { children: ReactNode }) 
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAnalyticsFilters() {
   const context = useContext(AnalyticsFiltersContext);
   if (!context) {

@@ -1285,7 +1285,7 @@ const ReMarketingDeals = () => {
           aVal = a.linkedin_employee_count || 0;
           bVal = b.linkedin_employee_count || 0;
           break;
-        case "linkedinRange":
+        case "linkedinRange": {
           const parseRangeA = (r: string | null) => {
             if (!r) return 0;
             const match = r.match(/^(\d+)/);
@@ -1294,6 +1294,7 @@ const ReMarketingDeals = () => {
           aVal = parseRangeA(a.linkedin_employee_range);
           bVal = parseRangeA(b.linkedin_employee_range);
           break;
+        }
         case "googleReviews":
           aVal = a.google_review_count || 0;
           bVal = b.google_review_count || 0;

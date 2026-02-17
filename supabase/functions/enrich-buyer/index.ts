@@ -351,7 +351,7 @@ Deno.serve(async (req) => {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let billingError: { code: string; message: string } | null = null;
-    let provenanceViolations: string[] = [];
+    const provenanceViolations: string[] = [];
 
     // Determine source type from URL
     const getSourceType = (url: string | null | undefined): SourceType => {

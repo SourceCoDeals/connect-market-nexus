@@ -238,9 +238,9 @@ export function extractFinancialMetrics(description: string): ExtractedFinancial
   
   // Enhanced margin extraction
   const marginPatterns = [
-    /(\d+(?:\.\d+)?)\%\s*(?:gross\s+|net\s+|EBITDA\s+)?margin/i,
-    /margin.*?(\d+(?:\.\d+)?)\%/i,
-    /profitability.*?(\d+(?:\.\d+)?)\%/i,
+    /(\d+(?:\.\d+)?)%\s*(?:gross\s+|net\s+|EBITDA\s+)?margin/i,
+    /margin.*?(\d+(?:\.\d+)?)%/i,
+    /profitability.*?(\d+(?:\.\d+)?)%/i,
   ];
   
   for (const pattern of marginPatterns) {

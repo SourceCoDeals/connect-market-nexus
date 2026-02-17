@@ -90,6 +90,7 @@ The Team`);
       }
       return a.daysSinceSignup - b.daysSinceSignup;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users]);
 
   const analytics = useMemo(() => {

@@ -311,7 +311,7 @@ function parseBuyerProfilesBlock(block: string): BuyerProfile[] {
       if (colonIndex === -1) continue;
       
       const key = trimmed.slice(1, colonIndex).trim();
-      const value = trimmed.slice(colonIndex + 1).trim().replace(/[\[\]]/g, '');
+      const value = trimmed.slice(colonIndex + 1).trim().replace(/[[\]]/g, '');
       
       switch (key) {
         case 'id':
@@ -502,7 +502,7 @@ function parseCriteriaBlock(block: string): ExtractedCriteria {
     else if (trimmed.startsWith('-')) {
       const [key, value] = trimmed.slice(1).split(':').map(s => s.trim());
       if (key && value) {
-        const cleanValue = value.replace(/[\[\]]/g, '');
+        const cleanValue = value.replace(/[[\]]/g, '');
         
         if (currentSection === 'size') {
           const num = parseFloat(cleanValue.replace(/[,$]/g, ''));

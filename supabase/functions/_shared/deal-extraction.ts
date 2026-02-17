@@ -525,7 +525,7 @@ export function validateLinkedInUrl(extracted: Record<string, unknown>): void {
   const linkedinUrlStr = String(extracted.linkedin_url).trim();
   const linkedinCompanyPattern = /^https?:\/\/(www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+\/?$/;
   if (linkedinCompanyPattern.test(linkedinUrlStr)) {
-    const match = linkedinUrlStr.match(/linkedin\.com\/company\/([^\/\?]+)/);
+    const match = linkedinUrlStr.match(/linkedin\.com\/company\/([^/?]+)/);
     if (match) {
       extracted.linkedin_url = `https://www.linkedin.com/company/${match[1]}`;
       console.log(`Validated LinkedIn URL: ${extracted.linkedin_url}`);

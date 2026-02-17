@@ -47,7 +47,7 @@ export const ProfileDataInspector: React.FC = () => {
 
   const stats = useMemo(() => {
     const rows = data || [];
-    let total = rows.length;
+    const total = rows.length;
     let catDiff = 0;
     let locDiff = 0;
     let significantLoss = 0;

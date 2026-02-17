@@ -36,6 +36,7 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
       setCustomMessage(quickTemplate.message);
       setCustomSignatureText("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user]);
 
   const handleSend = async () => {

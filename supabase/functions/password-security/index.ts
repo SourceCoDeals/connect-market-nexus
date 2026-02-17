@@ -111,7 +111,7 @@ async function validatePasswordStrength(password?: string, email?: string): Prom
     feedback.push('Include numbers');
   }
   
-  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     score += 15;
   } else {
     feedback.push('Include special characters');
@@ -164,7 +164,7 @@ async function validatePasswordStrength(password?: string, email?: string): Prom
   const hasLower = /[a-z]/.test(password);
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /\d/.test(password);
-  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password);
   const typesMet = [hasLower, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
   const meetsPolicy = score >= 50 && password.length >= 8 && typesMet >= 3;
   
@@ -233,7 +233,7 @@ async function enforcePasswordPolicy(password?: string, userId?: string) {
     violations.push('Password must contain numbers');
   }
   
-  if (policy.require_special && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (policy.require_special && !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     violations.push('Password must contain special characters');
   }
   

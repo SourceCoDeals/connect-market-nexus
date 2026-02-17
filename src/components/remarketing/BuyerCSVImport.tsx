@@ -191,6 +191,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     return { validRows: valid, skippedRows: skipped, skippedRowDetails: skippedDetails };
   }, [csvData, mappings]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -395,8 +396,8 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
             dateValue = `${value}-01`;
           }
           // Handle "11/2025" or "11-2025" format (MM/YYYY)
-          else if (/^\d{1,2}[\/\-]\d{4}$/.test(value)) {
-            const parts = value.split(/[\/\-]/);
+          else if (/^\d{1,2}[/-]\d{4}$/.test(value)) {
+            const parts = value.split(/[/-]/);
             dateValue = `${parts[1]}-${parts[0].padStart(2, '0')}-01`;
           }
           // Handle "Nov 2025" or "November 2025" format

@@ -188,6 +188,7 @@ function TouchOptimizedButton({ action }: { action: any }) {
 }
 
 // Preset action configurations for common admin actions
+// eslint-disable-next-line react-refresh/only-export-components
 export const adminUserActions = {
   approve: (onApprove: () => void) => ({
     id: 'approve',

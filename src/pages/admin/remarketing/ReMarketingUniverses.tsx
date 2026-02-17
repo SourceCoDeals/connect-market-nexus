@@ -307,7 +307,7 @@ const ReMarketingUniverses = () => {
   const sortedUniverses = useMemo(() => {
     if (!universes) return [];
     
-    let filtered = universes.filter(u => {
+    const filtered = universes.filter(u => {
       if (!search) return true;
       return u.name.toLowerCase().includes(search.toLowerCase()) ||
         u.description?.toLowerCase().includes(search.toLowerCase());
@@ -330,7 +330,7 @@ const ReMarketingUniverses = () => {
           aVal = dealStats?.[a.id] || 0;
           bVal = dealStats?.[b.id] || 0;
           break;
-        case 'coverage':
+        case 'coverage': {
           const aStats = buyerStats?.[a.id];
           const bStats = buyerStats?.[b.id];
           // Calculate coverage using two-tier system: website (50%) + transcripts (50%)
@@ -341,6 +341,7 @@ const ReMarketingUniverses = () => {
           aVal = aWebsite + aTranscript;
           bVal = bWebsite + bTranscript;
           break;
+        }
         default:
           return 0;
       }

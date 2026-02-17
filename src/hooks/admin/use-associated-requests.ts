@@ -65,7 +65,7 @@ export function useAssociatedRequests(
             (data || []).map((item: any) => item.related_request?.user_id).filter(Boolean)
           ));
 
-          let profileMap = new Map<string, any>();
+          const profileMap = new Map<string, any>();
           if (userIds.length > 0) {
             const { data: profs } = await supabase
               .from('profiles')
@@ -110,7 +110,7 @@ export function useAssociatedRequests(
         const profileIds = (profiles || []).map(p => p.id);
 
         // Step 2: Find connection requests from these users OR with matching lead_company
-        let query = supabase
+        const query = supabase
           .from('connection_requests')
           .select(`
             id,
@@ -162,7 +162,7 @@ export function useAssociatedRequests(
 
         // Step 4: Enrich connection requests with user profiles FIRST (before filtering)
         const userIds = Array.from(new Set((crData || []).map((r: any) => r.user_id).filter(Boolean)));
-        let profileMap = new Map<string, any>();
+        const profileMap = new Map<string, any>();
         if (userIds.length > 0) {
           const { data: profs } = await supabase
             .from('profiles')

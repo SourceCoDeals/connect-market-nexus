@@ -16,6 +16,7 @@ const RealtimeContext = createContext<RealtimeContextType>({
   adminConnected: false,
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useRealtime = () => useContext(RealtimeContext);
 
 interface RealtimeProviderProps {

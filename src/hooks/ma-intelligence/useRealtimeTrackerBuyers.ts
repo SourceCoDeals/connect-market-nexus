@@ -165,6 +165,6 @@ export function useRealtimeTrackerBuyers(params: {
     };
     // NOTE: buyers is intentionally excluded from deps; we use onChange to reconcile
     // and polling refresh to keep things correct. Including buyers would resubscribe per render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [trackerId, enabled, onRefresh, onChange]);
 }

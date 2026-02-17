@@ -19,7 +19,7 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
   // Calculate quality score
   const calculateQuality = () => {
     let score = 0;
-    let items = [];
+    const items = [];
     
     if (formValues.title && formValues.title.length >= 20) {
       score += 20;

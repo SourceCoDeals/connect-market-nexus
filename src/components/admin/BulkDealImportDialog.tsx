@@ -344,12 +344,12 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           toast.info('Skipped duplicate entry');
           break;
 
-        case 'merge':
+        case 'merge': {
           // Append new message to existing request
           const existingMessage = duplicateInfo.existingMessage || '';
           const newMessageWithDate = `\n\nNew message (${deal.date?.toLocaleDateString() || new Date().toLocaleDateString()}):\n${deal.message}`;
           const mergedMessage = existingMessage + newMessageWithDate;
-          
+
           const { error: mergeError } = await supabase
             .from('connection_requests')
             .update({
@@ -361,8 +361,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           if (mergeError) throw mergeError;
           toast.success('Messages merged successfully');
           break;
+        }
 
-        case 'replace':
+        case 'replace': {
           // Replace existing request data with new CSV data
           const { error: replaceError } = await supabase
             .from('connection_requests')
@@ -378,8 +379,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           if (replaceError) throw replaceError;
           toast.success('Request replaced successfully');
           break;
+        }
 
-        case 'create':
+        case 'create': {
           // Create new request anyway (force duplicate)
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('Not authenticated');
@@ -417,6 +419,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           if (createError) throw createError;
           toast.success('Created new request (duplicate allowed)');
           break;
+        }
       }
     } catch (error: any) {
       toast.error('Failed to process duplicate', {

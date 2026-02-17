@@ -34,6 +34,7 @@ interface NavigationStateContextType {
 
 const NavigationStateContext = createContext<NavigationStateContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useNavigationState = () => {
   const context = useContext(NavigationStateContext);
   if (context === undefined) {

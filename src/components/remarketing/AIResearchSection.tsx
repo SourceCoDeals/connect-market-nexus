@@ -315,6 +315,7 @@ export const AIResearchSection = ({
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
@@ -329,6 +330,7 @@ export const AIResearchSection = ({
   }, [existingContent]);
 
   // Check for existing generation in progress on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeId) {
       checkExistingGeneration();
@@ -1083,7 +1085,7 @@ export const AIResearchSection = ({
                 setExtractedCriteria(event.criteria);
                 break;
 
-              case 'complete':
+              case 'complete': {
                 setState('complete');
                 const finalContent = event.content || fullContent;
                 const finalWordCount = event.totalWords || finalContent.split(/\s+/).length;
@@ -1112,8 +1114,9 @@ export const AIResearchSection = ({
                   saveGuideToDocuments(finalContent, industryName, universeId, onDocumentAdded);
                 }
                 break;
+              }
 
-              case 'error':
+              case 'error': {
                 // Set detailed error info for the error panel
                 const errorCode = event.error_code || 'unknown';
                 setErrorDetails({
@@ -1143,6 +1146,7 @@ export const AIResearchSection = ({
                   throw err;
                 }
                 throw new Error(event.message);
+              }
 
               case 'timeout_warning':
                 // Show toast warning about approaching timeout

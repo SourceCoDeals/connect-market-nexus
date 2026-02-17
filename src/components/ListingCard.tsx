@@ -1,3 +1,4 @@
+import { useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAnalytics } from "@/context/AnalyticsContext";
@@ -12,15 +13,7 @@ import ListingCardTitle from "./listing/ListingCardTitle";
 import ListingCardFinancials from "./listing/ListingCardFinancials";
 import ListingCardActions from "./listing/ListingCardActions";
 import ListingStatusTag from "./listing/ListingStatusTag";
-
-// Try to import SearchSessionContext - may not always be available
-let useSearchSessionContext: (() => any) | null = null;
-try {
-  const mod = require('@/contexts/SearchSessionContext');
-  useSearchSessionContext = mod.useSearchSessionContext;
-} catch {
-  // Context not available
-}
+import { SearchSessionContext } from "@/contexts/SearchSessionContext";
 
 interface ListingCardProps {
   listing: Listing;
@@ -43,15 +36,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { trackSearchResultClick } = useAnalyticsTracking();
   const navigate = useNavigate();
 
-  // Try to get search session context for tracking
-  let searchSession: any = null;
-  try {
-    if (useSearchSessionContext) {
-      searchSession = useSearchSessionContext();
-    }
-  } catch {
-    // Not within SearchSessionProvider - that's fine
-  }
+  // Get search session context for tracking (returns undefined if not within provider)
+  const searchSession = useContext(SearchSessionContext);
 
   const connectionExists = connectionStatus?.exists || false;
   

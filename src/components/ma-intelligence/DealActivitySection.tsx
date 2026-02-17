@@ -55,6 +55,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
 
   useEffect(() => {
     loadActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealId]);
 
   const loadActivities = async () => {

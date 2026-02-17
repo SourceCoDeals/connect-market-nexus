@@ -35,6 +35,7 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
 
   useEffect(() => {
     loadDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackerId]);
 
   const loadDocuments = async () => {

@@ -34,7 +34,7 @@ export function parseNumericValue(value: string | null | undefined): number | nu
   
   // Remove currency symbols, commas, and other non-numeric characters
   cleaned = cleaned.replace(/[$,]/g, "");
-  cleaned = cleaned.replace(/[^0-9.\-]/g, "");
+  cleaned = cleaned.replace(/[^0-9.-]/g, "");
   
   const num = parseFloat(cleaned);
   return isNaN(num) ? null : num * multiplier;

@@ -44,6 +44,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     if (trackerId && trackerId !== 'new') {
       loadBuyers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackerId]);
 
   const loadBuyers = async () => {

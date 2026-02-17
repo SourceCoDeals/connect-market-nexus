@@ -67,10 +67,12 @@ export function EnhancedFeedbackManagement() {
   useEffect(() => {
     loadFeedbackMessages();
     setupRealtimeSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     filterMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedbackMessages, searchQuery, statusFilter, categoryFilter, priorityFilter]);
 
   const setupRealtimeSubscription = () => {

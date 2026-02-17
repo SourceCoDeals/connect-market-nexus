@@ -691,7 +691,7 @@ function isLinkedInCompanyUrl(url: string): boolean {
 }
 
 function normalizeLinkedInUrl(url: string): string {
-  const match = url.match(/linkedin\.com\/company\/([^\/\?]+)/);
+  const match = url.match(/linkedin\.com\/company\/([^/?]+)/);
   if (match) {
     return `https://www.linkedin.com/company/${match[1]}`;
   }
@@ -702,7 +702,7 @@ function generateLinkedInUrlVariations(companyName: string): string[] {
   const variations: string[] = [];
   const baseUrl = 'https://www.linkedin.com/company/';
 
-  let cleanName = companyName.toLowerCase()
+  const cleanName = companyName.toLowerCase()
     .trim()
     .replace(/\s*(inc\.?|llc\.?|ltd\.?|corp\.?|corporation|company|co\.?|limited|plc|group)$/gi, '')
     .trim();

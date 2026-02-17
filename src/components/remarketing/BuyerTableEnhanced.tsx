@@ -139,19 +139,21 @@ export const BuyerTableEnhanced = ({
         case 'company_name':
           return multiplier * (a.company_name || '').localeCompare(b.company_name || '');
 
-        case 'pe_firm_name':
+        case 'pe_firm_name': {
           const peA = a.pe_firm_name || '';
           const peB = b.pe_firm_name || '';
           if (!peA && !peB) return 0;
           if (!peA) return 1;
           if (!peB) return -1;
           return multiplier * peA.localeCompare(peB);
+        }
 
-        case 'data_completeness':
+        case 'data_completeness': {
           const orderMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
           const compA = orderMap[a.data_completeness || 'low'] || 0;
           const compB = orderMap[b.data_completeness || 'low'] || 0;
           return multiplier * (compA - compB);
+        }
 
         case 'alignment_score':
           // Null scores go to the end

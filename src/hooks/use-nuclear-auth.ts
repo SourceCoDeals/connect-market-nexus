@@ -31,7 +31,7 @@ export function useNuclearAuth() {
         
         if (session?.user) {
           // Fetch profile data directly
-          let { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
