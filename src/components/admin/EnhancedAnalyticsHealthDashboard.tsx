@@ -139,22 +139,21 @@ export function EnhancedAnalyticsHealthDashboard() {
       const searchSuccess = await analytics.trackSearch('test query', { category: 'test' }, 5);
       logTestResult('Search Tracking', searchSuccess);
 
-      // Test 6: Verify data was inserted
-      setTimeout(async () => {
-        try {
-          const { count: pageViewCount } = await supabase.from('page_views').select('*', { count: 'exact', head: true });
-          const { count: eventCount } = await supabase.from('user_events').select('*', { count: 'exact', head: true });
-          const { count: listingCount } = await supabase.from('listing_analytics').select('*', { count: 'exact', head: true });
-          const { count: searchCount } = await supabase.from('search_analytics').select('*', { count: 'exact', head: true });
+      // Test 6: Verify data was inserted (wait for writes to propagate)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      try {
+        const { count: pageViewCount } = await supabase.from('page_views').select('*', { count: 'exact', head: true });
+        const { count: eventCount } = await supabase.from('user_events').select('*', { count: 'exact', head: true });
+        const { count: listingCount } = await supabase.from('listing_analytics').select('*', { count: 'exact', head: true });
+        const { count: searchCount } = await supabase.from('search_analytics').select('*', { count: 'exact', head: true });
 
-          logTestResult('Data Verification', 
-            (pageViewCount || 0) > 0 && (eventCount || 0) > 0 && (listingCount || 0) > 0 && (searchCount || 0) > 0,
-            { pageViewCount, eventCount, listingCount, searchCount }
-          );
-        } catch (error) {
-          logTestResult('Data Verification', false, error);
-        }
-      }, 2000);
+        logTestResult('Data Verification',
+          (pageViewCount || 0) > 0 && (eventCount || 0) > 0 && (listingCount || 0) > 0 && (searchCount || 0) > 0,
+          { pageViewCount, eventCount, listingCount, searchCount }
+        );
+      } catch (error) {
+        logTestResult('Data Verification', false, error);
+      }
 
       toast({
         title: "Comprehensive Test Completed",

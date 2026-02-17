@@ -26,6 +26,9 @@ export function AssignOwnerDialog({ open, onOpenChange, dealTitle, onConfirm }: 
       setIsLoading(true);
       supabase.from('profiles').select('id, email, first_name, last_name').eq('is_admin', true).order('first_name').then((result: any) => {
         if (result.data) setAdmins(result.data);
+      }).catch((err) => {
+        console.error('Failed to load admins:', err);
+      }).finally(() => {
         setIsLoading(false);
       });
     }

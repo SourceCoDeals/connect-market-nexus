@@ -84,7 +84,8 @@ export function FeedbackManagement({ className }: FeedbackManagementProps) {
       const { data, error } = await supabase
         .from("feedback_messages")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       if (error) throw error;
       setFeedbackMessages(data || []);
