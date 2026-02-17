@@ -15,7 +15,6 @@ SET
   ebitda_metric_subtitle = NULL,
   ebitda_margin = NULL,
   ebitda_score = NULL,
-  estimated_ebitda = NULL,
   financial_notes = NULL,
   financial_followup_questions = NULL
 WHERE l.deal_source = 'captarget'
