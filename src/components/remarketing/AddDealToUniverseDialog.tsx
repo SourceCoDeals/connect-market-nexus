@@ -213,23 +213,9 @@ export const AddDealToUniverseDialog = ({
         }
       }
       
-      // Trigger background scoring for each deal
-      toast.info("Scoring buyers in the background...");
-      for (const listingId of listingIds) {
-        supabase.functions.invoke("score-buyer-deal", {
-          body: {
-            bulk: true,
-            listingId,
-            universeId,
-          },
-        }).then(({ data, error }) => {
-          if (error) {
-            console.error("Background scoring error:", error);
-          } else {
-            queryClient.invalidateQueries({ queryKey: ["remarketing", "scores", listingId] });
-          }
-        });
-      }
+      // Queue background scoring for each deal
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoring({ universeId, listingIds });
       
       setSelectedListings([]);
       onDealAdded?.();
@@ -452,22 +438,9 @@ export const AddDealToUniverseDialog = ({
         });
       }
       
-      // Trigger background scoring
-      toast.info("Scoring buyers in the background...");
-      supabase.functions.invoke("score-buyer-deal", {
-        body: {
-          bulk: true,
-          listingId: listing.id,
-          universeId,
-        },
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error("Background scoring error:", error);
-        } else {
-          toast.success(`Scored ${data.totalProcessed} buyers`);
-          queryClient.invalidateQueries({ queryKey: ["remarketing", "scores", listing.id] });
-        }
-      });
+      // Queue background scoring
+      const { queueDealScoring: queueNewDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueNewDealScoring({ universeId, listingIds: [listing.id] });
       
       setNewDealForm({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "" });
       setTranscriptFiles([]);

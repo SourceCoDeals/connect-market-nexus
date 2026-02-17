@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useCallback } from "react";
+import { queueAlignmentScoring } from "@/lib/remarketing/queueScoring";
 import { toast } from "sonner";
 
 interface AlignmentScoringProgress {
@@ -25,23 +25,14 @@ export function useAlignmentScoring(universeId: string | undefined) {
     failed: 0,
     creditsDepleted: false,
   });
-  const cancelRef = useRef(false);
 
   const reset = useCallback(() => {
     setIsScoring(false);
-    setProgress({
-      current: 0,
-      total: 0,
-      successful: 0,
-      failed: 0,
-      creditsDepleted: false,
-    });
-    cancelRef.current = false;
+    setProgress({ current: 0, total: 0, successful: 0, failed: 0, creditsDepleted: false });
   }, []);
 
   const cancel = useCallback(() => {
-    cancelRef.current = true;
-    toast.info("Stopping alignment scoring...");
+    toast.info("Scoring runs in the background — check the activity bar for progress.");
   }, []);
 
   const scoreBuyers = useCallback(
@@ -51,127 +42,26 @@ export function useAlignmentScoring(universeId: string | undefined) {
         return;
       }
 
-      // Filter to only unscored buyers
       const unscoredBuyers = buyers.filter((b) => b.alignment_score === null);
-
       if (unscoredBuyers.length === 0) {
         toast.info("All buyers have already been scored");
         return;
       }
 
       setIsScoring(true);
-      cancelRef.current = false;
-      setProgress({
-        current: 0,
-        total: unscoredBuyers.length,
-        successful: 0,
-        failed: 0,
-        creditsDepleted: false,
-      });
-
-      const MAX_RETRIES = 3;
-      const BASE_DELAY = 4000; // 4s between requests
-      let successful = 0;
-      let failed = 0;
+      setProgress({ current: 0, total: unscoredBuyers.length, successful: 0, failed: 0, creditsDepleted: false });
 
       try {
-        for (let i = 0; i < unscoredBuyers.length; i++) {
-          if (cancelRef.current) {
-            toast.info("Alignment scoring cancelled");
-            break;
-          }
+        const queued = await queueAlignmentScoring({
+          universeId,
+          buyerIds: unscoredBuyers.map((b) => b.id),
+        });
 
-          const buyer = unscoredBuyers[i];
-          let scored = false;
-
-          for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            if (cancelRef.current) break;
-
-            // On retry, wait with exponential backoff
-            if (attempt > 0) {
-              const backoff = BASE_DELAY * Math.pow(2, attempt); // 8s, 16s
-              console.log(`Retry ${attempt} for ${buyer.company_name}, waiting ${backoff}ms`);
-              await new Promise((resolve) => setTimeout(resolve, backoff));
-            }
-
-            const response = await supabase.functions.invoke("score-industry-alignment", {
-              body: { buyerId: buyer.id, universeId },
-            });
-
-            // Check for M&A guide missing error
-            if (response.data?.error_code === "ma_guide_missing") {
-              toast.error(
-                "M&A Guide required. Please create an industry guide before scoring.",
-                { duration: 10000 }
-              );
-              cancelRef.current = true;
-              break;
-            }
-
-            // Check for credit errors
-            if (response.data?.error_code === "payment_required") {
-              setProgress((prev) => ({ ...prev, creditsDepleted: true }));
-              toast.error(
-                "AI credits depleted. Please add credits to continue scoring.",
-                { duration: 10000 }
-              );
-              cancelRef.current = true;
-              break;
-            }
-
-            if (response.data?.error_code === "rate_limited") {
-              console.warn(`Rate limited on ${buyer.company_name}, attempt ${attempt + 1}`);
-              // Will retry after backoff
-              continue;
-            }
-
-            if (response.data?.success || (!response.error && !response.data?.error_code)) {
-              successful++;
-              scored = true;
-              break;
-            }
-
-            if (response.error) {
-              console.error("Scoring error:", response.error);
-              failed++;
-              scored = true; // Don't retry non-rate-limit errors
-              break;
-            }
-          }
-
-          if (!scored && !cancelRef.current) {
-            failed++;
-            console.warn(`Failed after ${MAX_RETRIES} retries: ${buyer.company_name}`);
-          }
-
-          // Check if we need to stop
-          if (cancelRef.current) break;
-
-          // Update progress
-          setProgress({
-            current: i + 1,
-            total: unscoredBuyers.length,
-            successful,
-            failed,
-            creditsDepleted: false,
-          });
-
-          // Delay before next buyer
-          if (i + 1 < unscoredBuyers.length && !cancelRef.current) {
-            await new Promise((resolve) => setTimeout(resolve, BASE_DELAY));
-          }
-        }
-
-        if (!cancelRef.current) {
-          toast.success(
-            `Alignment scoring complete: ${successful} scored${failed > 0 ? `, ${failed} failed` : ""}`
-          );
-        }
-
+        setProgress((prev) => ({ ...prev, current: queued, successful: queued }));
         onComplete?.();
       } catch (error) {
-        console.error("Alignment scoring failed:", error);
-        toast.error("Failed to score buyers. Please try again.");
+        console.error("Failed to queue alignment scoring:", error);
+        toast.error("Failed to queue scoring. Please try again.");
       } finally {
         setIsScoring(false);
       }
@@ -179,13 +69,7 @@ export function useAlignmentScoring(universeId: string | undefined) {
     [universeId]
   );
 
-  return {
-    isScoring,
-    progress,
-    scoreBuyers,
-    cancel,
-    reset,
-  };
+  return { isScoring, progress, scoreBuyers, cancel, reset };
 }
 
 export default useAlignmentScoring;
