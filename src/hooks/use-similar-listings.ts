@@ -17,6 +17,7 @@ export function useSimilarListings(currentListing: Listing | undefined, limit = 
         .from('listings')
         .select('*')
         .eq('status', 'active')
+        .eq('is_internal_deal', false)
         .neq('id', currentListing.id);
 
       if (error) throw error;
