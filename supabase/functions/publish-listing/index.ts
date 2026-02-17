@@ -43,6 +43,10 @@ function validateListingQuality(listing: any): ValidationResult {
     errors.push('EBITDA is required');
   }
 
+  if (!listing.image_url || listing.image_url.trim().length === 0) {
+    errors.push('An image is required for marketplace listings');
+  }
+
   return {
     valid: errors.length === 0,
     errors,
