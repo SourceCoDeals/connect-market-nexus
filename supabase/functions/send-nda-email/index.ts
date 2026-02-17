@@ -138,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get default NDA document if no attachments provided
-    let finalAttachments = [...attachments];
+    const finalAttachments = [...attachments];
     
     if (finalAttachments.length === 0) {
       console.log('📎 No attachments provided, fetching default NDA document...');
@@ -171,8 +171,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Determine sender information with admin profile lookup
-    let senderEmail = providedAdminEmail;
-    let senderName = providedAdminName;
+    const senderEmail = providedAdminEmail;
+    const senderName = providedAdminName;
     let adminTitle = '';
     let adminPhone = '';
     let adminCalendly = '';
@@ -224,7 +224,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (customSignature?.signature_text) {
       // Prioritize text signature and build HTML from it
       console.log('✅ Using custom text signature (prioritized)');
-      let signatureParts = customSignature.signature_text.split('\n').filter(line => line.trim());
+      const signatureParts = customSignature.signature_text.split('\n').filter(line => line.trim());
       
       // Add optional phone and calendly if provided
       if (customSignature.phone_number?.trim()) {
@@ -243,7 +243,7 @@ const handler = async (req: Request): Promise<Response> => {
         </div>`;
     } else {
       // Create template signature with conditional elements
-      let signatureParts = [
+      const signatureParts = [
         `<strong>${senderName}</strong>`,
         adminTitle,
         `<a href="mailto:${senderEmail}" style="color: #0066cc; text-decoration: none;">${senderEmail}</a>`

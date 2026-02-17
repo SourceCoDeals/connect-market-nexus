@@ -179,7 +179,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (customSignature?.signature_text) {
       // Prioritize text signature and build HTML from it
       console.log('✅ Using custom text signature (prioritized)');
-      let signatureParts = customSignature.signature_text.split('\n').filter(line => line.trim());
+      const signatureParts = customSignature.signature_text.split('\n').filter(line => line.trim());
       
       // Add optional phone and calendly if provided
       if (customSignature.phone_number?.trim()) {
@@ -198,7 +198,7 @@ const handler = async (req: Request): Promise<Response> => {
         </div>`;
     } else {
       // Create template signature with conditional elements
-      let signatureParts = [
+      const signatureParts = [
         `<strong>${effectiveAdminName}</strong>`,
         adminTitle,
         `<a href="mailto:${adminEmail}" style="color: #0066cc; text-decoration: none;">${adminEmail}</a>`
@@ -266,7 +266,7 @@ ${adminSignature}
 </div>`;
 
     // Process attachments once for all recipients
-    let processedAttachments: any[] = [];
+    const processedAttachments: any[] = [];
     
     if (attachments && attachments.length > 0) {
       console.log(`📎 Starting attachment processing for ${attachments.length} attachment(s)`);

@@ -24,7 +24,7 @@ const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefin
 // REMOVED: currentSessionId local variable - now uses SessionContext's UUID
 
 // Analytics health tracking
-let analyticsStats = {
+const analyticsStats = {
   totalInsertions: 0,
   failedInsertions: 0,
   circuitBreakerOpen: false,

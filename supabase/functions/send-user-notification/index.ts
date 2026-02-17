@@ -38,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
     // For connection_approved emails, use plain text format
     const isPlainText = type === 'connection_approved';
     let htmlContent = '';
-    let textContent = message;
+    const textContent = message;
 
     if (isPlainText) {
       // Simple HTML wrapper for plain text message

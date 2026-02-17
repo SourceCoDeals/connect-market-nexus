@@ -125,7 +125,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (employeeCount > 0)   empPts = 6;
 
     // Step 1-2: Employee scoring
-    let empScore = 0;
+    const empScore = 0;
     if (employeeCount > 0) {
       linkedinBoost = empPts;
       notes.push(`${employeeSource}: ~${Math.round(employeeCount)} employees (size proxy)`);

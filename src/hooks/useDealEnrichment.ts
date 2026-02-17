@@ -83,7 +83,7 @@ export function useDealEnrichment(universeId?: string) {
 
     let successful = 0;
     let failed = 0;
-    let skipped = 0;
+    const skipped = 0;
     let creditsDepleted = false;
     let rateLimited = false;
 

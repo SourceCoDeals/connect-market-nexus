@@ -378,7 +378,7 @@ export function useEnhancedRealTimeAnalytics() {
         .map(s => (s as any).visitor_id)
         .filter(Boolean) as string[];
       
-      let visitorHistory: Record<string, {
+      const visitorHistory: Record<string, {
         totalSessions: number;
         firstSeen: string;
         totalTime: number;

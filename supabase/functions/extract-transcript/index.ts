@@ -92,8 +92,8 @@ serve(async (req) => {
     let transcriptTextToProcess: string;
     let buyerIdToUpdate: string | undefined = buyerId;
     let listingIdToUpdate: string | undefined;
-    let transcriptIdForTracking: string | undefined = transcriptId || transcript_id;
-    let buyerTranscriptIdToUpdate: string | undefined = transcriptId;
+    const transcriptIdForTracking: string | undefined = transcriptId || transcript_id;
+    const buyerTranscriptIdToUpdate: string | undefined = transcriptId;
 
     // NEW API: Direct text passed from buyer_transcripts flow
     if (transcriptText && buyerId) {

@@ -307,7 +307,7 @@ const ReMarketingUniverses = () => {
   const sortedUniverses = useMemo(() => {
     if (!universes) return [];
     
-    let filtered = universes.filter(u => {
+    const filtered = universes.filter(u => {
       if (!search) return true;
       return u.name.toLowerCase().includes(search.toLowerCase()) ||
         u.description?.toLowerCase().includes(search.toLowerCase());
