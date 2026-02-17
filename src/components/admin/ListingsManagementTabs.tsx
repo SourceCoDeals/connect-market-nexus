@@ -24,7 +24,7 @@ const ListingsManagementTabs = () => {
       if (editingListing) {
         await updateListing({ id: editingListing.id, listing: data, image });
       } else {
-        await createListing({ listing: data, image, sendDealAlerts });
+        await createListing({ listing: data, image, sendDealAlerts, targetType: activeTab });
       }
       handleFormClose();
     } catch (error) {
@@ -44,6 +44,7 @@ const ListingsManagementTabs = () => {
           listing={editingListing}
           onSubmit={handleFormSubmit}
           isLoading={isCreating || isUpdating}
+          targetType={activeTab}
         />
         <div className="mt-6">
           <Button variant="outline" onClick={handleFormClose}>
