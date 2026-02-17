@@ -213,7 +213,7 @@ LOCATION COUNT RULES:
 - Single location business = 1
 
 Website Content:
-${websiteContent.substring(0, 25000)}
+${websiteContent.substring(0, 50000)}
 
 Extract all available business information using the provided tool. Be EXHAUSTIVE — capture every detail. The address_city and address_state fields are REQUIRED.`;
 }

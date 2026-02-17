@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
-import { DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { GEMINI_25_FLASH_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -599,13 +599,13 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
       GEMINI_API_URL,
       getGeminiHeaders(geminiApiKey),
       {
-        model: DEFAULT_GEMINI_MODEL,
+        model: GEMINI_25_FLASH_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: extractionPrompt },
         ],
         temperature: 0,
-        max_tokens: 8192,
+        max_tokens: 16384,
         response_format: { type: 'json_object' },
       },
       90000,

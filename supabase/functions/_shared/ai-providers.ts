@@ -19,6 +19,7 @@ export const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta
 
 // Default models
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+export const GEMINI_25_FLASH_MODEL = "gemini-2.5-flash";
 export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.0-pro-exp";
 
 /**
