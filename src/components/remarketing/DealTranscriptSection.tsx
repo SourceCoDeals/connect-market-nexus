@@ -327,12 +327,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
       if (pollInterval) clearInterval(pollInterval);
 
-      setEnrichmentResult({
-        success: true,
-        message: 'Deal queued for background enrichment',
-        fieldsUpdated: [],
-      });
-      setShowEnrichmentDialog(true);
+      // Don't show the "Enrichment Complete" dialog — the deal is queued for background processing.
+      // The toast from queueDealEnrichment already informs the user.
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
     } catch (error: any) {
