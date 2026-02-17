@@ -679,6 +679,7 @@ export type Database = {
           buyer_id: string
           completed_at: string | null
           created_at: string
+          force: boolean | null
           id: string
           last_error: string | null
           queued_at: string
@@ -693,6 +694,7 @@ export type Database = {
           buyer_id: string
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           queued_at?: string
@@ -707,6 +709,7 @@ export type Database = {
           buyer_id?: string
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           queued_at?: string
@@ -3429,6 +3432,7 @@ export type Database = {
           attempts: number
           completed_at: string | null
           created_at: string
+          force: boolean | null
           id: string
           last_error: string | null
           listing_id: string
@@ -3441,6 +3445,7 @@ export type Database = {
           attempts?: number
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           listing_id: string
@@ -3453,6 +3458,7 @@ export type Database = {
           attempts?: number
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           listing_id?: string
