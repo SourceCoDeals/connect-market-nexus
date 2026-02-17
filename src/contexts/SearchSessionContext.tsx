@@ -14,6 +14,7 @@ interface SearchSessionContextValue {
   hasActiveSearch: () => boolean;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const SearchSessionContext = createContext<SearchSessionContextValue | undefined>(undefined);
 
 export const SearchSessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -26,6 +27,7 @@ export const SearchSessionProvider: React.FC<{ children: ReactNode }> = ({ child
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSearchSessionContext = () => {
   const context = useContext(SearchSessionContext);
   if (!context) {

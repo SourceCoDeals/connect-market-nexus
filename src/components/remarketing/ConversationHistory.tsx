@@ -45,6 +45,7 @@ export function ConversationHistory({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Load conversations for this context
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadConversations();
   }, [context.type, context.dealId, context.universeId]);

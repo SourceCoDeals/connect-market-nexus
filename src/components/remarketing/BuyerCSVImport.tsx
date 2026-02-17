@@ -191,6 +191,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     return { validRows: valid, skippedRows: skipped, skippedRowDetails: skippedDetails };
   }, [csvData, mappings]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;

@@ -315,6 +315,7 @@ export const AIResearchSection = ({
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
@@ -329,6 +330,7 @@ export const AIResearchSection = ({
   }, [existingContent]);
 
   // Check for existing generation in progress on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeId) {
       checkExistingGeneration();

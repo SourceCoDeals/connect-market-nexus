@@ -77,6 +77,7 @@ export const EmailPreviewDialog = ({
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Initialize emails when dialog opens
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (open && buyers.length > 0) {
       setEmails(buyers.map(b => ({
