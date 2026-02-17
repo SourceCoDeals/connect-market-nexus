@@ -1,79 +1,69 @@
 
 
-# Fix: Newly Created Listings Invisible in Admin
+# Fix: Streamline Listing Creation to Marketplace
+
+## Problem
+
+Every listing created via `/admin/listings` defaults to `is_internal_deal = true`, placing it in the **Research Deals** tab. To make it public, you must then find the listing in Research, open its menu, and click "Publish to Marketplace." This two-step workflow is unintuitive when your intent is to create a public marketplace listing.
 
 ## Root Cause
 
-The admin listing tabs use a **flawed two-bucket classification** that creates a gap:
+Two files hardcode `is_internal_deal: true` on every create:
+- `src/hooks/admin/listings/use-create-listing.ts` (line 48)
+- `src/hooks/admin/listings/use-robust-listing-creation.ts` (line 137)
 
-| Tab | Filter Logic | Your Listing |
-|-----|-------------|--------------|
-| Marketplace | `is_internal_deal = false` AND has image | `is_internal_deal = true` -- EXCLUDED |
-| Research | `is_internal_deal = true` AND no image | Has image -- EXCLUDED |
+There is no option in the creation form or submission flow to choose the listing type.
 
-New listings created via the admin form default to `is_internal_deal = true` (correct safety behavior) and can have images attached. This combination matches **neither tab**, making them invisible.
+## Solution: Auto-Publish After Creation
 
-## The Fix
+Rather than changing the safe default (internal draft), we add an **auto-publish step** after creation when the listing is being created from the Marketplace tab. This preserves the safety guardrails while eliminating the manual second step.
 
-The Research/Internal tab filter is wrong. Internal deals should show regardless of image status. The image filter was originally meant to separate "admin-quality listings" from "data-only research imports," but it creates this blind spot.
+### Change 1: Pass listing type context through the creation flow
 
-### Change 1: Fix `use-listings-by-type.ts`
+In `ListingsManagementTabs.tsx`, pass the current `activeTab` value to the form submit handler so the system knows whether the admin intended a marketplace or research listing.
 
-Remove the image-based exclusion from the research/internal tab. Internal deals should show whether or not they have an image.
+### Change 2: Auto-publish for marketplace-intended listings
 
-```text
-// BEFORE (line 52-56):
-query = query
-  .eq('is_internal_deal', true)
-  .or('image_url.is.null,image_url.eq.');
-
-// AFTER:
-query = query
-  .eq('is_internal_deal', true);
-```
-
-### Change 2: Fix `useListingTypeCounts` in the same file
-
-Update the research count query (lines 135-141) to match:
+In `use-create-listing.ts`, after the listing is successfully created (and image uploaded), automatically call the `publish-listing` edge function if the listing was created from the Marketplace tab. This reuses the existing publish validation (title, description, image, financials) so no unvetted listing can go public.
 
 ```text
-// BEFORE:
-supabase
-  .from('listings')
-  .select('id', { count: 'exact', head: true })
-  .is('deleted_at', null)
-  .or('image_url.is.null,image_url.eq.')
-  .eq('is_internal_deal', true)
+Flow for Marketplace tab:
+  1. Insert listing (is_internal_deal = true) -- safe default
+  2. Upload image
+  3. Call publish-listing edge function -- flips is_internal_deal to false
+  4. Listing appears in Marketplace tab immediately
 
-// AFTER:
-supabase
-  .from('listings')
-  .select('id', { count: 'exact', head: true })
-  .is('deleted_at', null)
-  .eq('is_internal_deal', true)
+Flow for Research tab:
+  1. Insert listing (is_internal_deal = true)
+  2. Upload image (optional)
+  3. Done -- stays in Research tab
 ```
 
-### Change 3: Fix the older `use-listings-query.ts`
+### Change 3: Update toast message based on outcome
 
-Remove the image requirement filter (lines 45-46) since it creates the same blind spot for any code paths still using this hook:
+- If auto-publish succeeds: "Listing created and published to marketplace"
+- If auto-publish fails (e.g., missing required fields): "Listing created as draft in Research tab. To publish, complete the required fields and use Publish to Marketplace."
 
-```text
-// REMOVE these two lines:
-.not('image_url', 'is', null)
-.neq('image_url', '')
-```
+### Change 4: Update the form UI
 
-## Why This Is Safe
+Add a visible indicator at the top of the creation form showing which tab the listing will target:
+- From Marketplace tab: "This listing will be published to the public marketplace"
+- From Research tab: "This listing will be saved as an internal research deal"
 
-- The `is_internal_deal` flag is the authoritative visibility control, not the image URL
-- The publish-listing edge function already validates image presence before publishing to the marketplace
-- Marketplace tab still requires `is_internal_deal = false` (only set via the publish flow), so no unvetted listings leak to buyers
-- Internal/draft listings with images simply appear in the Research/Internal tab where admins can manage and eventually publish them
-
-## Summary
+## Files to Change
 
 | File | Change |
 |------|--------|
-| `src/hooks/admin/listings/use-listings-by-type.ts` | Remove `.or('image_url.is.null,image_url.eq.')` from research query and count query |
-| `src/hooks/admin/listings/use-listings-query.ts` | Remove `.not('image_url', 'is', null)` and `.neq('image_url', '')` filters |
+| `src/components/admin/ListingsManagementTabs.tsx` | Pass `activeTab` to `handleFormSubmit`, forward to create mutation |
+| `src/hooks/admin/listings/use-create-listing.ts` | Accept optional `targetType` param; auto-call `publish-listing` edge function after creation when type is `marketplace` |
+| `src/hooks/admin/listings/use-robust-listing-creation.ts` | Same auto-publish logic for the robust creation path |
+| `src/components/admin/ListingForm.tsx` / `ImprovedListingEditor` | Accept and display `targetType` prop as a banner |
+
+## Why This Is Safe
+
+- The `is_internal_deal = true` default remains -- every listing starts as a draft
+- The `publish-listing` edge function is the single gateway to marketplace visibility; it validates image, title, description, and financials before flipping the flag
+- If publish validation fails, the listing stays as an internal draft with a clear message to the admin
+- Research tab listings are unaffected -- no auto-publish when creating from that tab
+- Database constraints (`listings_marketplace_requires_image`, `published_at`/`published_by_admin_id` audit) remain enforced
 
