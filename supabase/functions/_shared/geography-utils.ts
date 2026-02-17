@@ -6,6 +6,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { normalizeState } from './geography.ts';
 
 // Cache for adjacency data
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -283,7 +284,8 @@ export async function getProximityTier(
 }
 
 /**
- * Normalize state code variations to 2-letter uppercase
+ * Normalize state code variations to 2-letter uppercase.
+ * Delegates to the canonical STATE_MAPPINGS in geography.ts.
  *
  * @param state - State name, code, or variant
  * @returns 2-letter state code or null if invalid
@@ -293,27 +295,11 @@ export function normalizeStateCode(state: string): string | null {
 
   const trimmed = state.trim().toUpperCase();
 
-  // Already 2-letter code
+  // Already 2-letter code — pass through (preserves original behavior)
   if (trimmed.length === 2 && /^[A-Z]{2}$/.test(trimmed)) {
     return trimmed;
   }
 
-  // Common state name to code mappings (add more as needed)
-  const stateNames: Record<string, string> = {
-    'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR',
-    'CALIFORNIA': 'CA', 'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE',
-    'FLORIDA': 'FL', 'GEORGIA': 'GA', 'HAWAII': 'HI', 'IDAHO': 'ID',
-    'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA', 'KANSAS': 'KS',
-    'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
-    'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS',
-    'MISSOURI': 'MO', 'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV',
-    'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ', 'NEW MEXICO': 'NM', 'NEW YORK': 'NY',
-    'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH', 'OKLAHOMA': 'OK',
-    'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
-    'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT',
-    'VERMONT': 'VT', 'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV',
-    'WISCONSIN': 'WI', 'WYOMING': 'WY', 'DISTRICT OF COLUMBIA': 'DC'
-  };
-
-  return stateNames[trimmed] || null;
+  // Delegate to canonical normalizeState from geography.ts
+  return normalizeState(state);
 }

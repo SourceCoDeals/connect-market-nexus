@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
+import { GEMINI_API_URL, getGeminiHeaders, fetchWithAutoRetry } from "../_shared/ai-providers.ts";
 import { normalizeState, normalizeConfidenceScore } from "../_shared/criteria-validation.ts";
 
 const corsHeaders = {
@@ -32,7 +32,6 @@ interface ExtractionRequest {
 async function extractCriteriaFromGuide(
   guideContent: string,
   industryName: string,
-  retryCount = 0
 ): Promise<any> {
   console.log('[EXTRACTION_START] Beginning criteria extraction');
   console.log(`[GUIDE_LENGTH] ${guideContent.length} characters, ~${Math.round(guideContent.split(/\s+/).length)} words`);
@@ -243,8 +242,10 @@ ${guideContent.slice(0, 50000)}`;
     function: { name: t.name, description: t.description, parameters: t.input_schema },
   }));
 
-  try {
-    const response = await fetch(GEMINI_API_URL, {
+  // Use shared fetchWithAutoRetry for retry on 429/5xx/timeout
+  const response = await fetchWithAutoRetry(
+    GEMINI_API_URL,
+    {
       method: 'POST',
       headers: getGeminiHeaders(GEMINI_API_KEY),
       body: JSON.stringify({
@@ -257,49 +258,32 @@ ${guideContent.slice(0, 50000)}`;
         tool_choice: { type: 'function', function: { name: 'extract_buyer_criteria' } },
         temperature: 0,
       }),
-      signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
-    });
+      signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS),
+    },
+    { maxRetries: MAX_RETRIES, baseDelayMs: 2000, callerName: 'extract-buyer-criteria' }
+  );
 
-    if (response.status === 429 || response.status >= 500) {
-      if (retryCount < MAX_RETRIES) {
-        const delay = Math.pow(2, retryCount + 1) * 1000;
-        console.log(`[EXTRACTION] Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
-        await new Promise(r => setTimeout(r, delay));
-        return extractCriteriaFromGuide(guideContent, industryName, retryCount + 1);
-      }
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 300)}`);
-    }
-
-    const result = await response.json();
-    const duration = Date.now() - startTime;
-
-    console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
-    console.log(`[USAGE] Input: ${result.usage?.prompt_tokens}, Output: ${result.usage?.completion_tokens}`);
-
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      throw new Error('No tool call found in Gemini response');
-    }
-
-    const parsed = typeof toolCall.function.arguments === 'string'
-      ? JSON.parse(toolCall.function.arguments)
-      : toolCall.function.arguments;
-
-    return parsed;
-
-  } catch (error: any) {
-    if (error.name === 'TimeoutError' && retryCount < MAX_RETRIES) {
-      const delay = Math.pow(2, retryCount + 1) * 1000;
-      console.log(`[EXTRACTION] Timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
-      await new Promise(r => setTimeout(r, delay));
-      return extractCriteriaFromGuide(guideContent, industryName, retryCount + 1);
-    }
-    throw error;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 300)}`);
   }
+
+  const result = await response.json();
+  const duration = Date.now() - startTime;
+
+  console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
+  console.log(`[USAGE] Input: ${result.usage?.prompt_tokens}, Output: ${result.usage?.completion_tokens}`);
+
+  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) {
+    throw new Error('No tool call found in Gemini response');
+  }
+
+  const parsed = typeof toolCall.function.arguments === 'string'
+    ? JSON.parse(toolCall.function.arguments)
+    : toolCall.function.arguments;
+
+  return parsed;
 }
 
 serve(async (req) => {

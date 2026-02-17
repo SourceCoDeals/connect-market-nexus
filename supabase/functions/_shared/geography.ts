@@ -3,8 +3,8 @@
  * Centralizes state normalization and local context detection per spec.
  */
 
-// Complete US state mapping
-const STATE_MAPPINGS: Record<string, string> = {
+// Complete US state mapping (canonical source for all edge functions)
+export const STATE_MAPPINGS: Record<string, string> = {
   // Full names to codes
   'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR',
   'california': 'CA', 'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE',
@@ -41,8 +41,16 @@ const STATE_MAPPINGS: Record<string, string> = {
   'wi': 'WI', 'wy': 'WY', 'dc': 'DC',
 };
 
+// Set of valid 2-letter US state codes (derived from STATE_MAPPINGS, US-only)
+export const VALID_US_STATE_CODES = new Set([
+  'AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN',
+  'IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH',
+  'NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT',
+  'VT','VA','WA','WV','WI','WY',
+]);
+
 // Major city to state mapping for local context detection
-const CITY_TO_STATE: Record<string, string> = {
+export const CITY_TO_STATE: Record<string, string> = {
   // Major metros
   'new york': 'NY', 'nyc': 'NY', 'manhattan': 'NY', 'brooklyn': 'NY',
   'los angeles': 'CA', 'la': 'CA', 'san francisco': 'CA', 'sf': 'CA', 'san diego': 'CA',
@@ -98,7 +106,7 @@ const CITY_TO_STATE: Record<string, string> = {
 };
 
 // Regional patterns
-const REGIONAL_PATTERNS: { pattern: RegExp; states: string[] }[] = [
+export const REGIONAL_PATTERNS: { pattern: RegExp; states: string[] }[] = [
   { pattern: /\b(tri-state|tristate)\b/i, states: ['NY', 'NJ', 'CT'] },
   { pattern: /\bnew england\b/i, states: ['MA', 'CT', 'RI', 'VT', 'NH', 'ME'] },
   { pattern: /\b(southeast|south east)\b/i, states: ['FL', 'GA', 'SC', 'NC', 'TN', 'AL', 'MS', 'LA'] },

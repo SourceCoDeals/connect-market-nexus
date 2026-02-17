@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { GEMINI_API_BASE } from "../_shared/ai-providers.ts";
+import { GEMINI_API_BASE, fetchWithAutoRetry } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,58 +53,49 @@ serve(async (req) => {
         throw new Error('GEMINI_API_KEY not configured');
       }
 
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
       const geminiUrl = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`;
 
-      const makeRequest = () =>
-        fetch(geminiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    inline_data: {
-                      mime_type: mimeType,
-                      data: base64Content,
+      let aiResponse: Response;
+      try {
+        aiResponse = await fetchWithAutoRetry(
+          geminiUrl,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      inline_data: {
+                        mime_type: mimeType,
+                        data: base64Content,
+                      },
                     },
-                  },
-                  {
-                    text: 'Extract ALL text content from this document verbatim. This is a meeting transcript — preserve every speaker label, timestamp, and spoken word exactly as written. Return ONLY the extracted text with no commentary, no summaries, no omissions. Include every single page from start to finish.',
-                  },
-                ],
+                    {
+                      text: 'Extract ALL text content from this document verbatim. This is a meeting transcript — preserve every speaker label, timestamp, and spoken word exactly as written. Return ONLY the extracted text with no commentary, no summaries, no omissions. Include every single page from start to finish.',
+                    },
+                  ],
+                },
+              ],
+              generationConfig: {
+                maxOutputTokens: 65536,
+                temperature: 0,
               },
-            ],
-            generationConfig: {
-              maxOutputTokens: 65536,
-              temperature: 0,
-            },
-          }),
-        });
-
-      // Retry on 429s with exponential backoff (up to 5 attempts)
-      let aiResponse: Response | null = null;
-      let lastErrorText = '';
-      for (let attempt = 0; attempt < 5; attempt++) {
-        aiResponse = await makeRequest();
-        if (aiResponse.ok) break;
-
-        lastErrorText = await aiResponse.text();
-        console.error(`Gemini API error (attempt ${attempt + 1}/5):`, lastErrorText);
-
-        if (aiResponse.status === 429 && attempt < 4) {
-          const delayMs = 2000 * Math.pow(2, attempt);
-          console.log(`Rate limited, retrying in ${delayMs}ms...`);
-          await sleep(delayMs);
-          continue;
-        }
-        break;
+            }),
+          },
+          { maxRetries: 4, baseDelayMs: 2000, callerName: 'parse-transcript-file' }
+        );
+      } catch (fetchErr) {
+        const message = fetchErr instanceof Error ? fetchErr.message : 'Network error';
+        return new Response(
+          JSON.stringify({ error: `Failed to process document: ${message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      if (!aiResponse || !aiResponse.ok) {
-        const status = aiResponse?.status ?? 500;
+      if (!aiResponse.ok) {
+        const status = aiResponse.status;
 
         if (status === 429) {
           return new Response(
@@ -113,9 +104,9 @@ serve(async (req) => {
           );
         }
 
-        const snippet = (lastErrorText || '').slice(0, 800);
+        const snippet = await aiResponse.text().catch(() => '');
         return new Response(
-          JSON.stringify({ error: `Failed to process document: ${status}`, details: snippet }),
+          JSON.stringify({ error: `Failed to process document: ${status}`, details: snippet.slice(0, 800) }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

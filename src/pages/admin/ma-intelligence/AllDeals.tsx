@@ -80,10 +80,11 @@ export default function MAAllDeals() {
   }, []);
 
   const loadDeals = async () => {
+    try {
     const [dealsRes, trackersRes, scoresRes] = await Promise.all([
-      supabase.from("deals").select("*").order("created_at", { ascending: false }),
-      supabase.from("industry_trackers").select("id, name"),
-      supabase.from("remarketing_scores").select("listing_id, status"),
+      supabase.from("deals").select("*").order("created_at", { ascending: false }).limit(1000),
+      supabase.from("industry_trackers").select("id, name").limit(500),
+      supabase.from("remarketing_scores").select("listing_id, status").limit(10000),
     ]);
 
     // Map deals to our interface
@@ -129,6 +130,11 @@ export default function MAAllDeals() {
     setBuyerCounts(counts);
 
     setIsLoading(false);
+    } catch (error: any) {
+      console.error("Failed to load deals:", error);
+      toast({ title: "Error loading deals", description: error.message || "Something went wrong", variant: "destructive" });
+      setIsLoading(false);
+    }
   };
 
   const archiveDeal = async (e: React.MouseEvent, dealId: string, dealName: string) => {
