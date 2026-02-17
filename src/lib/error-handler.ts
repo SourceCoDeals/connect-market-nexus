@@ -217,8 +217,7 @@ export const withErrorBoundary = <P extends object>(
     
     return React.createElement(
       ErrorBoundary,
-      { fallback: fallbackElement },
-      React.createElement(Component, props)
+      { fallback: fallbackElement, children: React.createElement(Component, props) }
     );
   };
 };
