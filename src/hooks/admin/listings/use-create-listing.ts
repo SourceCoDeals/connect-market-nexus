@@ -114,6 +114,7 @@ export function useCreateListing() {
         }
         
         // Step 3: Auto-publish if created from Marketplace tab
+        let _toastAlreadyShown = false;
         if (targetType === 'marketplace') {
           try {
             console.log('🚀 Auto-publishing to marketplace...');
@@ -128,6 +129,7 @@ export function useCreateListing() {
                 title: 'Created as Draft',
                 description: `Listing created but auto-publish failed: ${publishError.message}. Find it in the Research tab and publish manually.`,
               });
+              _toastAlreadyShown = true;
             } else if (publishResult && !publishResult.success) {
               const validationMsg = publishResult.validationErrors?.join(', ') || publishResult.error || 'Unknown error';
               console.warn('⚠️ Auto-publish validation failed:', validationMsg);
@@ -136,12 +138,17 @@ export function useCreateListing() {
                 title: 'Created as Draft',
                 description: `Listing saved to Research tab. To publish: ${validationMsg}`,
               });
+              _toastAlreadyShown = true;
             } else {
               console.log('✅ Auto-published to marketplace');
-              // Return the published listing data
               if (publishResult?.listing) {
                 updatedListing = publishResult.listing;
               }
+              toast({
+                title: 'Published to Marketplace',
+                description: `"${updatedListing.title}" is now live on the marketplace.`,
+              });
+              _toastAlreadyShown = true;
             }
           } catch (publishErr: any) {
             console.warn('⚠️ Auto-publish error:', publishErr);
@@ -150,9 +157,11 @@ export function useCreateListing() {
               title: 'Created as Draft',
               description: 'Listing created but could not be auto-published. Find it in the Research tab.',
             });
+            _toastAlreadyShown = true;
           }
         }
         
+        (updatedListing as any)._toastAlreadyShown = _toastAlreadyShown;
         return updatedListing as AdminListing;
       } catch (error: any) {
         console.error('Error creating listing:', error);
@@ -196,13 +205,16 @@ export function useCreateListing() {
         });
       }, 100);
       
-      const isPublished = data.is_internal_deal === false;
-      toast({
-        title: isPublished ? 'Published to Marketplace' : 'Listing Created as Draft',
-        description: isPublished 
-          ? `"${data.title}" is now live on the marketplace.`
-          : `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
-      });
+      // Skip toast if auto-publish path already showed one
+      if (!(data as any)._toastAlreadyShown) {
+        const isPublished = data.is_internal_deal === false;
+        toast({
+          title: isPublished ? 'Published to Marketplace' : 'Listing Created as Draft',
+          description: isPublished 
+            ? `"${data.title}" is now live on the marketplace.`
+            : `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
+        });
+      }
     },
     onError: (error: any) => {
       console.error('Error in create listing mutation:', error);
