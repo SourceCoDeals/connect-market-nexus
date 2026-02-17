@@ -257,6 +257,7 @@ export function useRobustListingCreation() {
         }
 
         // Step 6: Auto-publish if created from Marketplace tab
+        let _toastAlreadyShown = false;
         if (targetType === 'marketplace') {
           try {
             console.log('🚀 Auto-publishing to marketplace...');
@@ -271,6 +272,7 @@ export function useRobustListingCreation() {
                 title: 'Created as Draft',
                 description: `Listing created but auto-publish failed. Find it in the Research tab and publish manually.`,
               });
+              _toastAlreadyShown = true;
             } else if (publishResult && !publishResult.success) {
               const validationMsg = publishResult.validationErrors?.join(', ') || publishResult.error || 'Unknown error';
               console.warn('⚠️ Auto-publish validation failed:', validationMsg);
@@ -279,11 +281,17 @@ export function useRobustListingCreation() {
                 title: 'Created as Draft',
                 description: `Listing saved to Research tab. To publish: ${validationMsg}`,
               });
+              _toastAlreadyShown = true;
             } else {
               console.log('✅ Auto-published to marketplace');
               if (publishResult?.listing) {
                 finalListing = publishResult.listing;
               }
+              toast({
+                title: 'Published to Marketplace',
+                description: `"${finalListing.title}" is now live on the marketplace.`,
+              });
+              _toastAlreadyShown = true;
             }
           } catch (publishErr: any) {
             console.warn('⚠️ Auto-publish error:', publishErr);
@@ -292,9 +300,12 @@ export function useRobustListingCreation() {
               title: 'Created as Draft',
               description: 'Listing created but could not be auto-published. Find it in the Research tab.',
             });
+            _toastAlreadyShown = true;
           }
         }
 
+        // Attach flag so onSuccess knows whether to show a toast
+        (finalListing as any)._toastAlreadyShown = _toastAlreadyShown;
         return finalListing as AdminListing;
 
       } catch (error: any) {
@@ -317,13 +328,16 @@ export function useRobustListingCreation() {
         queryClient.invalidateQueries({ queryKey });
       });
 
-      const isPublished = data.is_internal_deal === false;
-      toast({
-        title: isPublished ? 'Published to Marketplace' : 'Listing Created as Draft',
-        description: isPublished
-          ? `"${data.title}" is now live on the marketplace.`
-          : `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
-      });
+      // Skip toast if auto-publish path already showed one
+      if (!(data as any)._toastAlreadyShown) {
+        const isPublished = data.is_internal_deal === false;
+        toast({
+          title: isPublished ? 'Published to Marketplace' : 'Listing Created as Draft',
+          description: isPublished
+            ? `"${data.title}" is now live on the marketplace.`
+            : `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
+        });
+      }
     },
     onError: (error: any) => {
       console.error('❌ Listing creation mutation failed:', error);
