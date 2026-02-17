@@ -6,7 +6,6 @@ import {
   Building,
   Target,
   Quote,
-  AlertTriangle,
   Sparkles,
 } from "lucide-react";
 
@@ -19,11 +18,11 @@ const formatCurrency = (value: number) => {
 export function ExtractedIntelligenceView({ extractedData }: { extractedData: Record<string, unknown> }) {
   const extracted = extractedData;
   const hasFinancial = extracted.revenue || extracted.ebitda || extracted.ebitda_margin || extracted.asking_price;
-  const hasBusiness = extracted.industry || extracted.location || extracted.full_time_employees || extracted.founded_year;
-  const hasServices = (extracted.services as string[] | undefined)?.length || extracted.service_mix || extracted.business_model;
+  const hasBusiness = extracted.industry || extracted.location;
+  const hasServices = (extracted.services as string[] | undefined)?.length || extracted.service_mix;
   const hasGeography = (extracted.geographic_states as string[] | undefined)?.length || extracted.number_of_locations;
   const hasOwner = extracted.owner_goals || extracted.transition_preferences || extracted.timeline_notes;
-  const hasStrategic = extracted.executive_summary || extracted.competitive_position || extracted.growth_trajectory || extracted.key_risks;
+  const hasStrategic = extracted.executive_summary || extracted.growth_trajectory;
   const safeKeyQuotes = Array.isArray(extracted.key_quotes) ? extracted.key_quotes : (typeof extracted.key_quotes === 'string' && extracted.key_quotes ? [extracted.key_quotes] : []);
   const hasQuotes = safeKeyQuotes.length;
 
@@ -91,12 +90,6 @@ export function ExtractedIntelligenceView({ extractedData }: { extractedData: Re
               {extracted.location && (
                 <div><span className="text-muted-foreground">Location:</span>{' '}<span className="font-medium">{extracted.location as string}</span></div>
               )}
-              {extracted.full_time_employees && (
-                <div><span className="text-muted-foreground">Employees:</span>{' '}<span className="font-medium">{extracted.full_time_employees as number}</span></div>
-              )}
-              {extracted.founded_year && (
-                <div><span className="text-muted-foreground">Founded:</span>{' '}<span className="font-medium">{extracted.founded_year as number}</span></div>
-              )}
             </div>
           </div>
         )}
@@ -116,9 +109,6 @@ export function ExtractedIntelligenceView({ extractedData }: { extractedData: Re
             ) : null}
             {extracted.service_mix && (
               <p><span className="text-muted-foreground">Mix:</span> {extracted.service_mix as string}</p>
-            )}
-            {extracted.business_model && (
-              <p><span className="text-muted-foreground">Model:</span> {extracted.business_model as string}</p>
             )}
           </div>
         )}
@@ -167,17 +157,8 @@ export function ExtractedIntelligenceView({ extractedData }: { extractedData: Re
             {extracted.executive_summary && (
               <p className="bg-background rounded p-2 text-sm">{extracted.executive_summary as string}</p>
             )}
-            {extracted.competitive_position && (
-              <p><span className="text-muted-foreground">Competitive Position:</span> {extracted.competitive_position as string}</p>
-            )}
             {extracted.growth_trajectory && (
               <p><span className="text-muted-foreground">Growth:</span> {extracted.growth_trajectory as string}</p>
-            )}
-            {extracted.key_risks && (
-              <p className="flex items-start gap-1">
-                <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
-                <span><span className="text-muted-foreground">Risks:</span> {extracted.key_risks as string}</span>
-              </p>
             )}
           </div>
         )}

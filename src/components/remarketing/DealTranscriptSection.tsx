@@ -770,14 +770,11 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (extracted.ebitda) { updateData.ebitda = extracted.ebitda; appliedFields.push('EBITDA'); }
 
       // Business basics
-      if (extracted.full_time_employees) { updateData.full_time_employees = extracted.full_time_employees; appliedFields.push('Employees'); }
       if (extracted.location) { updateData.location = extracted.location; appliedFields.push('Location'); }
-      if (extracted.founded_year) { updateData.founded_year = extracted.founded_year; appliedFields.push('Founded Year'); }
       if (extracted.industry) { updateData.industry = extracted.industry; appliedFields.push('Industry'); }
       if (extracted.website) { updateData.website = extracted.website; appliedFields.push('Website'); }
-      // Services & Business model
+      // Services
       if (extracted.service_mix) { updateData.service_mix = extracted.service_mix; appliedFields.push('Service Mix'); }
-      if (extracted.business_model) { updateData.business_model = extracted.business_model; appliedFields.push('Business Model'); }
 
       // Services array (now has column!)
       const mergedServices = mergeArrays(
@@ -820,18 +817,13 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
       // Owner & Transaction
       if (extracted.owner_goals) { updateData.owner_goals = extracted.owner_goals; appliedFields.push('Owner Goals'); }
-      if (extracted.special_requirements) { updateData.special_requirements = extracted.special_requirements; appliedFields.push('Special Requirements'); }
 
       // Customers
       if (extracted.customer_types) { updateData.customer_types = extracted.customer_types; appliedFields.push('Customer Types'); }
 
       // Strategic info
       if (extracted.executive_summary) { updateData.executive_summary = extracted.executive_summary; appliedFields.push('Executive Summary'); }
-      if (extracted.competitive_position) { updateData.competitive_position = extracted.competitive_position; appliedFields.push('Competitive Position'); }
       if (extracted.growth_trajectory) { updateData.growth_trajectory = extracted.growth_trajectory; appliedFields.push('Growth Trajectory'); }
-      if (extracted.key_risks) { updateData.key_risks = extracted.key_risks; appliedFields.push('Key Risks'); }
-      if (extracted.technology_systems) { updateData.technology_systems = extracted.technology_systems; appliedFields.push('Technology'); }
-      if (extracted.real_estate_info) { updateData.real_estate_info = extracted.real_estate_info; appliedFields.push('Real Estate'); }
 
       // Contact info
       if (extracted.main_contact_name) { updateData.main_contact_name = extracted.main_contact_name; appliedFields.push('Contact Name'); }

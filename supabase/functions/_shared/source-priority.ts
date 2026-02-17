@@ -34,7 +34,6 @@ const PROTECTED_FIELDS = new Set([
   'ebitda',
   'owner_goals',
   'transition_preferences',
-  'special_requirements',
   'key_quotes',
 ]);
 

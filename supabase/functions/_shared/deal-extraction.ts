@@ -599,22 +599,11 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
     const n = toFiniteNumber(extracted?.number_of_locations);
     if (n != null) out.number_of_locations = n;
   }
-  {
-    const n = toFiniteNumber(extracted?.full_time_employees);
-    if (n != null) out.full_time_employees = n;
-  }
-  {
-    const n = toFiniteNumber(extracted?.founded_year);
-    if (n != null) out.founded_year = n;
-  }
-
   if (extracted?.service_mix) out.service_mix = extracted.service_mix;
-  if (extracted?.business_model) out.business_model = extracted.business_model;
   if (extracted?.industry) out.industry = extracted.industry;
 
   if (extracted?.owner_goals) out.owner_goals = extracted.owner_goals;
   if (extracted?.transition_preferences) out.transition_preferences = extracted.transition_preferences;
-  if (extracted?.special_requirements) out.special_requirements = extracted.special_requirements;
   if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
 
   if (extracted?.customer_types) out.customer_types = extracted.customer_types;
@@ -633,22 +622,12 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
     }
   }
   if (extracted?.customer_geography) out.customer_geography = extracted.customer_geography;
-  if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
 
   if (extracted?.executive_summary) out.executive_summary = extracted.executive_summary;
-  if (extracted?.competitive_position) out.competitive_position = extracted.competitive_position;
   if (extracted?.growth_trajectory) out.growth_trajectory = extracted.growth_trajectory;
-  if (Array.isArray(extracted?.key_risks) && extracted.key_risks.length) {
-    out.key_risks = extracted.key_risks.map((r: string) => `• ${r}`).join('\n');
-  }
-  if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
-  if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
 
   if (Array.isArray(extracted?.key_quotes) && extracted.key_quotes.length) out.key_quotes = extracted.key_quotes;
   if (extracted?.financial_notes) out.financial_notes = extracted.financial_notes;
-  if (Array.isArray(extracted?.financial_followup_questions) && extracted.financial_followup_questions.length) {
-    out.financial_followup_questions = extracted.financial_followup_questions;
-  }
 
   if (extracted?.main_contact_name) out.main_contact_name = extracted.main_contact_name;
   if (extracted?.main_contact_email) out.main_contact_email = extracted.main_contact_email;
@@ -658,10 +637,6 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
   if (extracted?.website) out.website = extracted.website;
   if (extracted?.location) out.location = extracted.location;
-  {
-    const pt = toFiniteNumber(extracted?.part_time_employees);
-    if (pt != null) out.part_time_employees = pt;
-  }
 
   // Filter to known listing columns (defensive)
   const filtered: Record<string, unknown> = {};
