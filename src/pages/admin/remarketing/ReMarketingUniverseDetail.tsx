@@ -907,14 +907,10 @@ const ReMarketingUniverseDetail = () => {
                             }
                             setIsScoringAllDeals(true);
                             try {
-                              for (const deal of universeDeals) {
-                                if (deal.listing?.id) {
-                                  await supabase.functions.invoke('score-buyer-deal', {
-                                    body: { bulk: true, listingId: deal.listing.id, universeId: id }
-                                  });
-                                }
-                              }
-                              toast.success(`Scored ${universeDeals.length} deals`);
+                              const listingIds = universeDeals.filter((d: any) => d.listing?.id).map((d: any) => d.listing.id);
+                              const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+                              await queueDealScoring({ universeId: id!, listingIds });
+                              toast.success(`Queued ${listingIds.length} deals for scoring`);
                               queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
                             } catch (error) {
                               toast.error('Failed to score deals');
@@ -1005,10 +1001,8 @@ const ReMarketingUniverseDetail = () => {
                       }}
                       onScoreDeal={async (listingId) => {
                         try {
-                          await supabase.functions.invoke('score-buyer-deal', {
-                            body: { bulk: true, listingId, universeId: id }
-                          });
-                          toast.success('Deal scored');
+                          const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+                          await queueDealScoring({ universeId: id!, listingIds: [listingId] });
                           queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
                         } catch (error) {
                           toast.error('Failed to score deal');
@@ -1364,12 +1358,8 @@ const ReMarketingUniverseDetail = () => {
                 .select('listing_id')
                 .eq('universe_id', id);
               if (deals && deals.length > 0) {
-                toast.info('Scoring new buyers against deals...');
-                for (const deal of deals) {
-                  supabase.functions.invoke('score-buyer-deal', {
-                    body: { bulk: true, listingId: deal.listing_id, universeId: id }
-                  });
-                }
+                const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+                await queueDealScoring({ universeId: id!, listingIds: deals.map(d => d.listing_id) });
               }
             }
           }}

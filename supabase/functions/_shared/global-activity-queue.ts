@@ -206,7 +206,7 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
       deal_enrichment: 'process-enrichment-queue',
       buyer_enrichment: 'process-buyer-enrichment-queue',
       guide_generation: 'process-ma-guide-queue',
-      buyer_scoring: 'score-buyer-deal',
+      buyer_scoring: 'process-scoring-queue',
     };
     const functionName = processorMap[nextOp.operation_type];
     if (functionName) {

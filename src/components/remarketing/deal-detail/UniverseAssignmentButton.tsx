@@ -78,26 +78,9 @@ export function UniverseAssignmentButton({
 
       if (error) throw error;
 
-      // Trigger background scoring
-      toast.info("Scoring buyers in the background...");
-      
-      supabase.functions
-        .invoke("score-buyer-deal", {
-          body: {
-            bulk: true,
-            listingId: dealId,
-            universeId,
-          },
-        })
-        .then(({ data, error }) => {
-          if (error) {
-            console.error("Background scoring error:", error);
-            toast.warning("Deal added but scoring failed. Try manual scoring.");
-          } else {
-            toast.success(`Scored ${data?.totalProcessed || 0} buyers`);
-            queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-scores", dealId] });
-          }
-        });
+      // Queue background scoring
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoring({ universeId, listingIds: [dealId] });
 
       return universeId;
     },

@@ -107,39 +107,15 @@ export const BulkScoringPanel = ({
         });
       }, 500);
 
-      setProgressMessage("AI analyzing buyer-deal fit...");
+      setProgressMessage("Queuing scoring task...");
 
-      const { data, error } = await supabase.functions.invoke('score-buyer-deal', {
-        body: {
-          bulk: true,
-          listingId,
-          universeId: selectedUniverse,
-          options: {
-            rescoreExisting,
-            minDataCompleteness: minDataCompleteness === 'all' ? undefined : minDataCompleteness
-          }
-        }
-      });
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId] });
 
       clearInterval(progressInterval);
       setProgress(100);
-
-      if (error) {
-        console.error('Scoring error:', error);
-        toast.error('Failed to score buyers');
-        setProgressMessage("Scoring failed");
-        return;
-      }
-
-      setLastResult(data as ScoringResult);
-
-      if (data.errors && data.errors.length > 0) {
-        toast.warning(`Scored ${data.totalProcessed} buyers with ${data.errors.length} errors`);
-        setProgressMessage(`Completed with warnings`);
-      } else {
-        toast.success(`Successfully scored ${data.totalProcessed} buyers`);
-        setProgressMessage(`Completed successfully`);
-      }
+      toast.success("Scoring queued — processing in background");
+      setProgressMessage("Queued for background processing");
       
       onScoringComplete();
     } catch (error) {

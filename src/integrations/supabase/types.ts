@@ -6957,6 +6957,95 @@ export type Database = {
           },
         ]
       }
+      remarketing_scoring_queue: {
+        Row: {
+          attempts: number
+          buyer_id: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          listing_id: string | null
+          processed_at: string | null
+          score_type: string
+          status: string
+          universe_id: string
+        }
+        Insert: {
+          attempts?: number
+          buyer_id?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          listing_id?: string | null
+          processed_at?: string | null
+          score_type: string
+          status?: string
+          universe_id: string
+        }
+        Update: {
+          attempts?: number
+          buyer_id?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          listing_id?: string | null
+          processed_at?: string | null
+          score_type?: string
+          status?: string
+          universe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_scoring_queue_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remarketing_universe_deals: {
         Row: {
           added_at: string | null
