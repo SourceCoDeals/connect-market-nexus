@@ -46,7 +46,9 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
     status: "pending" as const,
   }));
 
-  const { error } = await supabase.from("remarketing_scoring_queue").insert(rows);
+  const { error } = await supabase
+    .from("remarketing_scoring_queue")
+    .upsert(rows, { onConflict: "universe_id,listing_id,score_type", ignoreDuplicates: false });
   if (error) {
     console.error("Failed to queue deal scoring:", error);
     toast.error("Failed to queue scoring");
@@ -91,7 +93,9 @@ export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlign
     status: "pending" as const,
   }));
 
-  const { error } = await supabase.from("remarketing_scoring_queue").insert(rows);
+  const { error } = await supabase
+    .from("remarketing_scoring_queue")
+    .upsert(rows, { onConflict: "universe_id,buyer_id,score_type", ignoreDuplicates: false });
   if (error) {
     console.error("Failed to queue alignment scoring:", error);
     toast.error("Failed to queue scoring");
