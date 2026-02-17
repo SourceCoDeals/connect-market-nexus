@@ -90,9 +90,13 @@ export async function reportRateLimit(
   provider: AIProviderName,
   retryAfterSeconds?: number
 ): Promise<void> {
-  const cooldownMs = retryAfterSeconds
+  const baseCooldownMs = retryAfterSeconds
     ? retryAfterSeconds * 1000
     : PROVIDER_LIMITS[provider].cooldownMs;
+
+  // Add 10-20% jitter to the cooldown to spread recovery across concurrent functions
+  const jitterMs = baseCooldownMs * (0.1 + Math.random() * 0.1);
+  const cooldownMs = baseCooldownMs + jitterMs;
 
   const backoffUntil = new Date(Date.now() + cooldownMs).toISOString();
 
@@ -240,7 +244,7 @@ export async function waitForProviderSlot(
   supabase: SupabaseClient,
   provider: AIProviderName,
   maxWaitMs: number = 30000
-): Promise<{ proceeded: boolean; waitedMs: number }> {
+): Promise<{ proceeded: boolean; waitedMs: number; rateLimited: boolean }> {
   const start = Date.now();
 
   const availability = await checkProviderAvailability(supabase, provider);
@@ -250,21 +254,27 @@ export async function waitForProviderSlot(
     if (availability.waitRecommended) {
       const jitter = Math.random() * 2000;
       await new Promise(r => setTimeout(r, jitter));
-      return { proceeded: true, waitedMs: jitter };
+      return { proceeded: true, waitedMs: jitter, rateLimited: false };
     }
-    return { proceeded: true, waitedMs: 0 };
+    return { proceeded: true, waitedMs: 0, rateLimited: false };
   }
 
   // Provider is in cooldown — wait if within our budget
   const retryAfter = availability.retryAfterMs || PROVIDER_LIMITS[provider].cooldownMs;
 
   if (retryAfter > maxWaitMs) {
-    console.log(`[rate-limiter] ${provider} cooldown (${retryAfter}ms) exceeds max wait (${maxWaitMs}ms) — proceeding anyway`);
-    return { proceeded: true, waitedMs: 0 };
+    // Signal that we're rate limited and couldn't wait long enough.
+    // Callers should NOT proceed — they should schedule delayed retry instead.
+    console.log(`[rate-limiter] ${provider} cooldown (${retryAfter}ms) exceeds max wait (${maxWaitMs}ms) — signaling rate limited`);
+    return { proceeded: false, waitedMs: 0, rateLimited: true };
   }
 
-  console.log(`[rate-limiter] Waiting ${retryAfter}ms for ${provider} cooldown...`);
-  await new Promise(r => setTimeout(r, retryAfter));
+  // Add jitter (0-2s) to prevent thundering herd when multiple functions
+  // wake up simultaneously after the same cooldown period
+  const jitter = Math.random() * 2000;
+  const totalWait = retryAfter + jitter;
+  console.log(`[rate-limiter] Waiting ${Math.round(totalWait)}ms for ${provider} cooldown (${retryAfter}ms + ${Math.round(jitter)}ms jitter)...`);
+  await new Promise(r => setTimeout(r, totalWait));
 
-  return { proceeded: true, waitedMs: Date.now() - start };
+  return { proceeded: true, waitedMs: Date.now() - start, rateLimited: false };
 }

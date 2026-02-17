@@ -215,6 +215,12 @@ serve(async (req) => {
       errors: [] as string[],
     };
 
+    // Circuit breaker: if consecutive failures exceed threshold, stop processing.
+    // This prevents burning through all attempts when the AI provider is down.
+    const CIRCUIT_BREAKER_THRESHOLD = 3; // 3 consecutive failures → trip
+    let consecutiveFailures = 0;
+    let circuitBroken = false;
+
     // Process items in PARALLEL chunks with inter-chunk delays
     // Moderate parallelism (3 at a time) balances speed vs. API rate limit safety
     const chunks = chunkArray(queueItems, CONCURRENCY_LIMIT);
@@ -224,6 +230,13 @@ serve(async (req) => {
       // Safety cutoff - check before each chunk
       if (Date.now() - startedAt > MAX_FUNCTION_RUNTIME_MS) {
         console.log('Stopping early to avoid function timeout');
+        break;
+      }
+
+      // Circuit breaker: stop if we've hit too many consecutive failures
+      if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+        console.warn(`[CIRCUIT BREAKER] ${consecutiveFailures} consecutive failures — stopping to prevent attempt exhaustion. Remaining items will retry on next invocation.`);
+        circuitBroken = true;
         break;
       }
 
@@ -238,8 +251,16 @@ serve(async (req) => {
         // Check if Gemini is in cooldown before starting next chunk
         const availability = await checkProviderAvailability(supabase, 'gemini');
         if (!availability.ok && availability.retryAfterMs) {
-          const cooldownWait = Math.min(availability.retryAfterMs, 30000);
-          console.log(`Gemini in cooldown — waiting ${cooldownWait}ms before next chunk`);
+          // If cooldown exceeds our remaining runtime budget, break and let
+          // self-continuation handle it after the cooldown passes.
+          const timeRemaining = MAX_FUNCTION_RUNTIME_MS - (Date.now() - startedAt);
+          if (availability.retryAfterMs > timeRemaining) {
+            console.log(`Gemini cooldown (${Math.round(availability.retryAfterMs / 1000)}s) exceeds remaining runtime (${Math.round(timeRemaining / 1000)}s) — breaking for delayed continuation`);
+            circuitBroken = true; // Use circuit breaker path for delayed continuation
+            break;
+          }
+          const cooldownWait = availability.retryAfterMs + Math.random() * 2000; // Add jitter
+          console.log(`Gemini in cooldown — waiting ${Math.round(cooldownWait / 1000)}s before next chunk`);
           await new Promise(r => setTimeout(r, cooldownWait));
         } else {
           console.log(`Waiting ${INTER_CHUNK_DELAY_MS}ms between chunks to avoid rate limits...`);
@@ -312,6 +333,7 @@ serve(async (req) => {
 
             console.log(`Successfully enriched listing ${item.listing_id}: ${pipeline.fieldsUpdated.length} fields`);
             results.succeeded++;
+            consecutiveFailures = 0; // Reset circuit breaker on success
             await updateGlobalQueueProgress(supabase, 'deal_enrichment', { completedDelta: 1 });
           } else {
             // Pipeline error
@@ -327,6 +349,7 @@ serve(async (req) => {
 
             console.error(`Enrichment failed for listing ${item.listing_id}: ${pipeline.error}`);
             results.failed++;
+            consecutiveFailures++;
             results.errors.push(`${item.listing_id}: ${pipeline.error}`);
             await updateGlobalQueueProgress(supabase, 'deal_enrichment', {
               failedDelta: 1,
@@ -369,6 +392,7 @@ serve(async (req) => {
            }
 
            results.failed++;
+           consecutiveFailures++;
            await updateGlobalQueueProgress(supabase, 'deal_enrichment', {
              failedDelta: 1,
              errorEntry: { itemId: item?.listing_id || 'unknown', error: errorMsg },
@@ -377,7 +401,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed} processed`);
+    console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed} processed${circuitBroken ? ' [CIRCUIT BREAKER TRIPPED]' : ''}`);
 
     // Check if all items in the enrichment_queue are done (no more pending)
     const { count: remainingPending } = await supabase
@@ -388,18 +412,41 @@ serve(async (req) => {
     if (remainingPending === 0) {
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
     } else if ((remainingPending ?? 0) > 0) {
-      // Fire-and-forget self-invocation to continue processing remaining items
-      console.log(`${remainingPending} items remaining — triggering continuation...`);
+      // When circuit breaker tripped, delay continuation to let the provider recover.
+      // Otherwise continue immediately. Retry self-invocation up to 3 times on failure.
+      const continuationDelayMs = circuitBroken ? 30000 + Math.random() * 10000 : 0;
+      if (circuitBroken) {
+        console.log(`${remainingPending} items remaining — scheduling delayed continuation in ${Math.round(continuationDelayMs / 1000)}s (circuit breaker recovery)...`);
+      } else {
+        console.log(`${remainingPending} items remaining — triggering continuation...`);
+      }
+
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-      fetch(`${supabaseUrl}/functions/v1/process-enrichment-queue`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-          'apikey': anonKey,
-        },
-        body: JSON.stringify({ source: 'self-continuation' }),
-      }).catch(err => console.warn('Self-invocation failed (non-fatal):', err));
+      const triggerContinuation = async () => {
+        if (continuationDelayMs > 0) {
+          await new Promise(r => setTimeout(r, continuationDelayMs));
+        }
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/process-enrichment-queue`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'apikey': anonKey,
+              },
+              body: JSON.stringify({ source: 'self-continuation' }),
+              signal: AbortSignal.timeout(30_000),
+            });
+            return; // success
+          } catch (err) {
+            console.warn(`Self-continuation attempt ${attempt + 1} failed:`, err);
+            if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+          }
+        }
+        console.error('Self-continuation failed after 3 attempts — queue may stall until next manual trigger.');
+      };
+      triggerContinuation().catch(() => {});
     }
 
     return new Response(
