@@ -7,7 +7,7 @@ import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { parseCurrency, formatNumber } from "@/lib/currency-utils";
-import { Loader2, Save, Eye } from "lucide-react";
+import { Loader2, Save, Eye, Globe, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Import section components
@@ -123,6 +123,7 @@ interface ImprovedListingEditorProps {
   onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: any }, image?: File | null) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
+  targetType?: 'marketplace' | 'research';
 }
 
 const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => {
@@ -170,6 +171,7 @@ export function ImprovedListingEditor({
   onSubmit,
   listing,
   isLoading = false,
+  targetType,
 }: ImprovedListingEditorProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
@@ -350,6 +352,28 @@ export function ImprovedListingEditor({
     <div className="max-w-[1920px] mx-auto px-12 py-8">
       <Form {...form}>
         <form onSubmit={handleFormSubmit}>
+          {/* Target type banner */}
+          {!listing && targetType && (
+            <div className={cn(
+              "mb-6 flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium",
+              targetType === 'marketplace' 
+                ? "border-primary/30 bg-primary/5 text-primary" 
+                : "border-amber-500/30 bg-amber-500/5 text-amber-700"
+            )}>
+              {targetType === 'marketplace' ? (
+                <>
+                  <Globe className="h-4 w-4 shrink-0" />
+                  This listing will be published to the public marketplace upon creation
+                </>
+              ) : (
+                <>
+                  <Target className="h-4 w-4 shrink-0" />
+                  This listing will be saved as an internal research deal
+                </>
+              )}
+            </div>
+          )}
+          
           {/* TOP BAR - Critical fields */}
           <EditorTopBar form={form} />
           

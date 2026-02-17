@@ -5,6 +5,7 @@ interface ListingFormProps {
   onSubmit: (data: any, image?: File | null) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
+  targetType?: 'marketplace' | 'research';
 }
 
 export function ListingForm(props: ListingFormProps) {

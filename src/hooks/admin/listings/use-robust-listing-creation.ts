@@ -97,10 +97,12 @@ export function useRobustListingCreation() {
       listing,
       image,
       sendDealAlerts,
+      targetType,
     }: {
       listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
       image?: File | null;
       sendDealAlerts?: boolean;
+      targetType?: 'marketplace' | 'research';
     }) => {
       console.log('🚀 Starting robust listing creation...');
       
@@ -254,6 +256,45 @@ export function useRobustListingCreation() {
           }
         }
 
+        // Step 6: Auto-publish if created from Marketplace tab
+        if (targetType === 'marketplace') {
+          try {
+            console.log('🚀 Auto-publishing to marketplace...');
+            const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-listing', {
+              body: { listingId: finalListing.id, action: 'publish' }
+            });
+            
+            if (publishError) {
+              console.warn('⚠️ Auto-publish failed:', publishError);
+              toast({
+                variant: 'destructive',
+                title: 'Created as Draft',
+                description: `Listing created but auto-publish failed. Find it in the Research tab and publish manually.`,
+              });
+            } else if (publishResult && !publishResult.success) {
+              const validationMsg = publishResult.validationErrors?.join(', ') || publishResult.error || 'Unknown error';
+              console.warn('⚠️ Auto-publish validation failed:', validationMsg);
+              toast({
+                variant: 'destructive',
+                title: 'Created as Draft',
+                description: `Listing saved to Research tab. To publish: ${validationMsg}`,
+              });
+            } else {
+              console.log('✅ Auto-published to marketplace');
+              if (publishResult?.listing) {
+                finalListing = publishResult.listing;
+              }
+            }
+          } catch (publishErr: any) {
+            console.warn('⚠️ Auto-publish error:', publishErr);
+            toast({
+              variant: 'destructive',
+              title: 'Created as Draft',
+              description: 'Listing created but could not be auto-published. Find it in the Research tab.',
+            });
+          }
+        }
+
         return finalListing as AdminListing;
 
       } catch (error: any) {
@@ -276,9 +317,12 @@ export function useRobustListingCreation() {
         queryClient.invalidateQueries({ queryKey });
       });
 
+      const isPublished = data.is_internal_deal === false;
       toast({
-        title: 'Listing Created as Draft',
-        description: `"${data.title}" has been created. Use the Publish button to make it visible on the marketplace.`,
+        title: isPublished ? 'Published to Marketplace' : 'Listing Created as Draft',
+        description: isPublished
+          ? `"${data.title}" is now live on the marketplace.`
+          : `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
       });
     },
     onError: (error: any) => {
