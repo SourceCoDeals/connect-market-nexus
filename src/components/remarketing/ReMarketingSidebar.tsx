@@ -10,7 +10,7 @@ import {
   ChevronRight,
   BarChart3,
   Settings,
-  
+  Calculator,
   Handshake,
   Activity,
   Crosshair,
@@ -64,6 +64,11 @@ export function ReMarketingSidebar() {
       label: "GP Partner Deals",
       href: "/admin/remarketing/gp-partner-deals",
       icon: <Briefcase className="h-5 w-5" />,
+    },
+    {
+      label: "Valuation Leads",
+      href: "/admin/remarketing/valuation-leads",
+      icon: <Calculator className="h-5 w-5" />,
     },
     {
       label: "Referral Partners",

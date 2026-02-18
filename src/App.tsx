@@ -202,6 +202,7 @@ function App() {
               <Route path="captarget-deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route path="gp-partner-deals" element={<GPPartnerDeals />} />
               <Route path="gp-partner-deals/:dealId" element={<ReMarketingDealDetail />} />
+              <Route path="valuation-leads" element={<ValuationLeads />} />
               <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
               <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
               <Route path="activity-queue" element={<ReMarketingActivityQueue />} />

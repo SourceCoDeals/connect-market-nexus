@@ -67,7 +67,7 @@ function scorePillClass(score: number | null): string {
 function isAllDealVisible(d: DealRow): boolean {
   if (d.status === "archived" || d.status === "inactive") return false;
   const src = d.deal_source;
-  if (src === "captarget" || src === "gp_partners") return d.pushed_to_all_deals === true;
+  if (src === "captarget" || src === "gp_partners" || src === "valuation_calculator") return d.pushed_to_all_deals === true;
   return true;
 }
 
@@ -97,6 +97,7 @@ const SOURCE_COLORS: Record<string, string> = {
   gp_partners: "#ea580c",
   referral: "#7c3aed",
   marketplace: "#16a34a",
+  valuation_calculator: "#10b981",
   manual: "#94a3b8",
 };
 
@@ -105,6 +106,7 @@ const SOURCE_LABELS: Record<string, string> = {
   gp_partners: "GP Partners",
   referral: "Referral",
   marketplace: "Marketplace",
+  valuation_calculator: "Calculator",
   manual: "Manual",
 };
 
