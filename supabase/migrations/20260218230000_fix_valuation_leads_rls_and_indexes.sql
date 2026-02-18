@@ -37,3 +37,17 @@ CREATE INDEX IF NOT EXISTS idx_valuation_leads_email_calctype
 UPDATE valuation_leads
 SET email = REPLACE(email, '"', '')
 WHERE email LIKE '%"%';
+
+-- ─── 4. Clean bad website values ───
+-- Fix email addresses stored in website field
+UPDATE valuation_leads SET website = NULL
+WHERE website LIKE '%@%';
+
+-- Fix malformed protocol typo (htpps → https)
+UPDATE valuation_leads SET website = REPLACE(website, 'htpps://', 'https://')
+WHERE website LIKE 'htpps://%';
+
+-- Fix obvious garbage domains (comma instead of dot, placeholder domains)
+UPDATE valuation_leads SET website = NULL
+WHERE website LIKE '%,%'
+   OR website IN ('no.com', 'www.blahblah,com');

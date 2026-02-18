@@ -111,6 +111,28 @@ const GENERIC_EMAIL_DOMAINS = new Set([
   "mail.com", "zoho.com", "yandex.com", "protonmail.com",
 ]);
 
+/** Clean a raw website value down to just the domain (no protocol, no www, no path). Returns null if invalid. */
+function cleanWebsiteToDomain(raw: string | null): string | null {
+  if (!raw || !raw.trim()) return null;
+  const v = raw.trim();
+  // Skip if it's an email address, not a URL
+  if (v.includes("@")) return null;
+  // Skip obviously invalid (commas, spaces in domain)
+  if (/[,\s]/.test(v.replace(/^https?:\/\//i, "").split("/")[0])) return null;
+  // Strip any protocol (including common typos like htpps://)
+  const noProto = v.replace(/^[a-z]{3,6}:\/\//i, "");
+  // Strip www. prefix
+  const noWww = noProto.replace(/^www\./i, "");
+  // Strip path and query string — keep only hostname
+  const domain = noWww.split("/")[0].split("?")[0].split("#")[0];
+  if (!domain || !domain.includes(".")) return null;
+  // Skip blacklisted placeholder domains
+  if (/^(test|no|example)\./i.test(domain)) return null;
+  return domain.toLowerCase();
+}
+
+const TLD_REGEX = /\.(com|net|org|io|co|ai|us|uk|ca|au|nz|ae|za|se|nl|br|fj|in|de|fr|es|it|jp|kr|mx|school|pro|app|dev|vc)(\.[a-z]{2})?$/i;
+
 /** Extract a presentable business name from website or email domain. */
 function extractBusinessName(lead: ValuationLead): string {
   // Use DB business_name if it's already good
@@ -119,12 +141,9 @@ function extractBusinessName(lead: ValuationLead): string {
   }
 
   // Try website domain first
-  if (lead.website && lead.website.trim() !== "") {
-    const cleaned = lead.website
-      .replace(/^https?:\/\//i, "")
-      .replace(/^www\./i, "")
-      .replace(/\/.*$/, "")
-      .replace(/\.(com|net|org|io|co|ai|us|uk|ca|au|nz|ae|za|se|nl|br|fj|school|pro)(\.[a-z]{2})?$/i, "");
+  const domain = cleanWebsiteToDomain(lead.website);
+  if (domain) {
+    const cleaned = domain.replace(TLD_REGEX, "");
     if (cleaned && !cleaned.match(/^(test|no|example)$/i)) {
       return toTitleCase(cleaned.replace(/[-_.]/g, " "));
     }
@@ -132,9 +151,9 @@ function extractBusinessName(lead: ValuationLead): string {
 
   // Try email domain (skip generic providers)
   if (lead.email) {
-    const domain = lead.email.split("@")[1]?.toLowerCase();
-    if (domain && !GENERIC_EMAIL_DOMAINS.has(domain)) {
-      const name = domain
+    const emailDomain = lead.email.split("@")[1]?.toLowerCase();
+    if (emailDomain && !GENERIC_EMAIL_DOMAINS.has(emailDomain)) {
+      const name = emailDomain
         .split(".")[0]
         .replace(/[0-9]+$/, "")
         .replace(/[-_]/g, " ");
@@ -148,13 +167,12 @@ function extractBusinessName(lead: ValuationLead): string {
 
 /** Infer a displayable website URL from the lead's website or email domain. */
 function inferWebsite(lead: ValuationLead): string | null {
-  if (lead.website && lead.website.trim() !== "") {
-    return lead.website.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
-  }
+  const domain = cleanWebsiteToDomain(lead.website);
+  if (domain) return domain;
   if (lead.email) {
-    const domain = lead.email.split("@")[1]?.toLowerCase();
-    if (domain && !GENERIC_EMAIL_DOMAINS.has(domain)) {
-      return domain;
+    const emailDomain = lead.email.split("@")[1]?.toLowerCase();
+    if (emailDomain && !GENERIC_EMAIL_DOMAINS.has(emailDomain)) {
+      return emailDomain;
     }
   }
   return null;
@@ -171,7 +189,7 @@ function toTitleCase(str: string): string {
 /** Build a full listing insert object from a valuation lead, preserving all valuable data. */
 function buildListingFromLead(lead: ValuationLead) {
   const businessName = extractBusinessName(lead);
-  const inferredWeb = inferWebsite(lead);
+  const cleanDomain = inferWebsite(lead);
   const title = businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead";
 
   // Build seller motivation from exit timing + open_to_intros
@@ -214,7 +232,7 @@ function buildListingFromLead(lead: ValuationLead) {
     main_contact_name: lead.full_name || null,
     main_contact_email: lead.email || null,
     main_contact_phone: lead.phone || null,
-    website: lead.website || (inferredWeb ? `https://${inferredWeb}` : null),
+    website: cleanDomain ? `https://${cleanDomain}` : null,
     linkedin_url: lead.linkedin_url || null,
 
     // Business
