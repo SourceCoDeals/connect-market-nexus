@@ -39,6 +39,12 @@ export interface WebsiteScrapingResult {
 export function resolveWebsiteUrl(deal: any): string | null {
   let websiteUrl = deal.website;
 
+  // Reject email addresses stored in website field
+  if (websiteUrl && websiteUrl.includes('@')) {
+    console.log(`[Website] Rejecting email address in website field: "${websiteUrl}"`);
+    websiteUrl = null;
+  }
+
   // Reject placeholder values
   if (websiteUrl && WEBSITE_PLACEHOLDERS.includes(websiteUrl.trim().toLowerCase())) {
     console.log(`[Website] Rejecting placeholder website value: "${websiteUrl}"`);
@@ -68,6 +74,13 @@ export function resolveWebsiteUrl(deal: any): string | null {
     websiteUrl = urls[0];
     console.log(`Multiple URLs detected, using first: "${websiteUrl}" (from ${urls.length} URLs)`);
   }
+
+  // Normalize malformed protocols (e.g. "htpps://", "htp://") before the prefix check
+  websiteUrl = websiteUrl.replace(/^[a-z]{3,6}:\/\//i, (match: string) => {
+    if (match === 'http://' || match === 'https://') return match;
+    console.log(`[Website] Normalizing malformed protocol "${match}" → "https://"`);
+    return 'https://';
+  });
 
   // Ensure https prefix
   if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {

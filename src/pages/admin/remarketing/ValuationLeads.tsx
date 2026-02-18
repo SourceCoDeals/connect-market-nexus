@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import {
   Building2,
@@ -41,6 +40,7 @@ import {
   Users,
   Clock,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,7 @@ interface ValuationLead {
   business_name: string | null;
   website: string | null;
   phone: string | null;
+  linkedin_url: string | null;
   industry: string | null;
   region: string | null;
   location: string | null;
@@ -71,6 +72,10 @@ interface ValuationLead {
   cta_clicked: boolean | null;
   readiness_score: number | null;
   growth_trend: string | null;
+  owner_dependency: string | null;
+  locations_count: number | null;
+  buyer_lane: string | null;
+  revenue_model: string | null;
   lead_score: number | null;
   scoring_notes: string | null;
   pushed_to_all_deals: boolean | null;
@@ -80,6 +85,13 @@ interface ValuationLead {
   excluded: boolean | null;
   exclusion_reason: string | null;
   created_at: string;
+  updated_at: string;
+  lead_source: string | null;
+  source_submission_id: string | null;
+  synced_at: string | null;
+  calculator_specific_data: Record<string, unknown> | null;
+  raw_calculator_inputs: Record<string, unknown> | null;
+  raw_valuation_results: Record<string, unknown> | null;
 }
 
 type Timeframe = "today" | "7d" | "14d" | "30d" | "90d" | "all";
@@ -98,6 +110,162 @@ type SortColumn =
 type SortDirection = "asc" | "desc";
 
 // ─── Helpers ───
+
+const GENERIC_EMAIL_DOMAINS = new Set([
+  "gmail.com", "yahoo.com", "hotmail.com", "aol.com", "outlook.com",
+  "proton.me", "icloud.com", "live.com", "yahoo.com.au", "hotmail.se",
+  "bellsouth.net", "mac.com", "webxio.pro", "leabro.com", "coursora.com",
+  "mail.com", "zoho.com", "yandex.com", "protonmail.com",
+]);
+
+/** Clean a raw website value down to just the domain (no protocol, no www, no path). Returns null if invalid. */
+function cleanWebsiteToDomain(raw: string | null): string | null {
+  if (!raw || !raw.trim()) return null;
+  const v = raw.trim();
+  // Skip if it's an email address, not a URL
+  if (v.includes("@")) return null;
+  // Skip obviously invalid (commas, spaces in domain)
+  if (/[,\s]/.test(v.replace(/^https?:\/\//i, "").split("/")[0])) return null;
+  // Strip any protocol (including common typos like htpps://)
+  const noProto = v.replace(/^[a-z]{3,6}:\/\//i, "");
+  // Strip www. prefix
+  const noWww = noProto.replace(/^www\./i, "");
+  // Strip path and query string — keep only hostname
+  const domain = noWww.split("/")[0].split("?")[0].split("#")[0];
+  if (!domain || !domain.includes(".")) return null;
+  // Skip blacklisted placeholder domains
+  if (/^(test|no|example)\./i.test(domain)) return null;
+  return domain.toLowerCase();
+}
+
+const TLD_REGEX = /\.(com|net|org|io|co|ai|us|uk|ca|au|nz|ae|za|se|nl|br|fj|in|de|fr|es|it|jp|kr|mx|school|pro|app|dev|vc)(\.[a-z]{2})?$/i;
+
+/** Extract a presentable business name from website or email domain. */
+function extractBusinessName(lead: ValuationLead): string {
+  // Use DB business_name if it's already good
+  if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
+    return lead.business_name;
+  }
+
+  // Try website domain first
+  const domain = cleanWebsiteToDomain(lead.website);
+  if (domain) {
+    const cleaned = domain.replace(TLD_REGEX, "");
+    if (cleaned && !cleaned.match(/^(test|no|example)$/i)) {
+      return toTitleCase(cleaned.replace(/[-_.]/g, " "));
+    }
+  }
+
+  // Try email domain (skip generic providers)
+  if (lead.email) {
+    const emailDomain = lead.email.split("@")[1]?.toLowerCase();
+    if (emailDomain && !GENERIC_EMAIL_DOMAINS.has(emailDomain)) {
+      const name = emailDomain
+        .split(".")[0]
+        .replace(/[0-9]+$/, "")
+        .replace(/[-_]/g, " ");
+      if (name) return toTitleCase(name);
+    }
+  }
+
+  // Final fallback
+  return lead.display_name || "\u2014";
+}
+
+/** Infer a displayable website URL from the lead's website or email domain. */
+function inferWebsite(lead: ValuationLead): string | null {
+  const domain = cleanWebsiteToDomain(lead.website);
+  if (domain) return domain;
+  if (lead.email) {
+    const emailDomain = lead.email.split("@")[1]?.toLowerCase();
+    if (emailDomain && !GENERIC_EMAIL_DOMAINS.has(emailDomain)) {
+      return emailDomain;
+    }
+  }
+  return null;
+}
+
+function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Build a full listing insert object from a valuation lead, preserving all valuable data. */
+function buildListingFromLead(lead: ValuationLead) {
+  const businessName = extractBusinessName(lead);
+  const cleanDomain = inferWebsite(lead);
+  const title = businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead";
+
+  // Build seller motivation from exit timing + open_to_intros
+  const motivationParts: string[] = [];
+  if (lead.exit_timing === "now") motivationParts.push("Looking to exit now");
+  else if (lead.exit_timing === "1-2years") motivationParts.push("Exit in 1-2 years");
+  else if (lead.exit_timing === "exploring") motivationParts.push("Exploring options");
+  if (lead.open_to_intros) motivationParts.push("Open to buyer introductions");
+
+  // Build internal notes with lead intelligence summary
+  const noteLines: string[] = [
+    `--- Valuation Calculator Lead Intelligence ---`,
+    `Source: ${lead.calculator_type === "auto_shop" ? "Auto Shop" : lead.calculator_type === "general" ? "General" : lead.calculator_type} Calculator`,
+    `Submitted: ${new Date(lead.created_at).toLocaleDateString()}`,
+  ];
+  if (lead.lead_score != null) noteLines.push(`Lead Score: ${lead.lead_score}/100`);
+  if (lead.quality_label) noteLines.push(`Quality: ${lead.quality_label} (tier: ${lead.quality_tier || "—"})`);
+  if (lead.readiness_score != null) noteLines.push(`Readiness: ${lead.readiness_score}/100`);
+  if (lead.exit_timing) noteLines.push(`Exit Timing: ${lead.exit_timing}`);
+  if (lead.open_to_intros != null) noteLines.push(`Open to Intros: ${lead.open_to_intros ? "Yes" : "No"}`);
+  if (lead.owner_dependency) noteLines.push(`Owner Dependency: ${lead.owner_dependency}`);
+  if (lead.buyer_lane) noteLines.push(`Buyer Lane: ${lead.buyer_lane}`);
+  if (lead.valuation_low != null && lead.valuation_high != null) {
+    noteLines.push(`Self-Assessed Valuation: $${(lead.valuation_low / 1e6).toFixed(1)}M – $${(lead.valuation_high / 1e6).toFixed(1)}M (mid: $${((lead.valuation_mid || 0) / 1e6).toFixed(1)}M)`);
+  }
+  if (lead.scoring_notes) noteLines.push(`Scoring Notes: ${lead.scoring_notes}`);
+
+  // Parse "City, ST, Country" → address_city, address_state
+  const locationParts = lead.location?.split(",").map(s => s.trim());
+  const address_city = locationParts?.[0] || null;
+  const address_state = locationParts?.[1]?.length === 2 ? locationParts[1] : null;
+
+  return {
+    // Identity
+    title,
+    internal_company_name: title,
+    deal_source: "valuation_calculator",
+    deal_identifier: `vlead_${lead.id.slice(0, 8)}`,
+    status: "active",
+    is_internal_deal: true,
+    pushed_to_all_deals: true,
+    pushed_to_all_deals_at: new Date().toISOString(),
+
+    // Contact
+    main_contact_name: lead.full_name || null,
+    main_contact_email: lead.email || null,
+    main_contact_phone: lead.phone || null,
+    website: cleanDomain ? `https://${cleanDomain}` : null,
+    linkedin_url: lead.linkedin_url || null,
+
+    // Business
+    industry: lead.industry || null,
+    location: lead.location || null,
+    address_city,
+    address_state,
+    revenue: lead.revenue,
+    ebitda: lead.ebitda,
+    revenue_model: lead.revenue_model || null,
+    growth_trajectory: lead.growth_trend || null,
+    number_of_locations: lead.locations_count || null,
+
+    // Seller intelligence
+    seller_motivation: motivationParts.join(". ") || null,
+    owner_goals: lead.exit_timing ? `Exit timing: ${lead.exit_timing}${lead.open_to_intros ? ". Open to buyer introductions." : ""}` : null,
+
+    // Internal intelligence (admin-only)
+    internal_notes: noteLines.join("\n"),
+  } as never;
+}
 
 function getFromDate(tf: Timeframe): string | null {
   if (tf === "all") return null;
@@ -166,13 +334,13 @@ function calculatorBadge(type: string) {
 
 export default function ValuationLeads() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+
 
   // Calculator type tab
   const [activeTab, setActiveTab] = useState<string>("all");
 
   // Timeframe
-  const [timeframe, setTimeframe] = useState<Timeframe>("30d");
+  const [timeframe, setTimeframe] = useState<Timeframe>("all");
   const fromDate = getFromDate(timeframe);
 
   // Sorting
@@ -228,6 +396,7 @@ export default function ValuationLeads() {
             valuation_high: row.valuation_high != null ? Number(row.valuation_high) : null,
             lead_score: row.lead_score != null ? Number(row.lead_score) : null,
             readiness_score: row.readiness_score != null ? Number(row.readiness_score) : null,
+            locations_count: row.locations_count != null ? Number(row.locations_count) : null,
           }));
           allData.push(...normalized);
           offset += batchSize;
@@ -328,9 +497,10 @@ export default function ValuationLeads() {
     return filteredLeads.slice(start, start + PAGE_SIZE);
   }, [filteredLeads, safePage]);
 
-  // Reset page on filter change
+  // Reset page and clear selection on filter change
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds(new Set());
   }, [activeTab, timeframe, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
@@ -365,43 +535,27 @@ export default function ValuationLeads() {
   // Push to All Deals — creates a listing row from valuation_leads data
   const handlePushToAllDeals = useCallback(
     async (leadIds: string[]) => {
-      if (leadIds.length === 0) return;
+      if (leadIds.length === 0 || isPushing) return;
       setIsPushing(true);
 
       const leadsToProcess = (leads || []).filter((l) => leadIds.includes(l.id) && !l.pushed_to_all_deals);
 
       let successCount = 0;
+      let errorCount = 0;
       for (const lead of leadsToProcess) {
-        // Create listing row
         const { data: listing, error: insertError } = await supabase
           .from("listings")
-          .insert({
-            title: lead.business_name || lead.full_name || lead.display_name || "Valuation Lead",
-            internal_company_name: lead.business_name || lead.full_name || null,
-            website: lead.website || null,
-            main_contact_name: lead.full_name || null,
-            main_contact_email: lead.email || null,
-            main_contact_phone: lead.phone || null,
-            industry: lead.industry || null,
-            location: lead.location || null,
-            revenue: lead.revenue,
-            ebitda: lead.ebitda,
-            deal_source: "valuation_calculator",
-            status: "active",
-            is_internal_deal: true,
-            pushed_to_all_deals: true,
-            pushed_to_all_deals_at: new Date().toISOString(),
-          } as never)
+          .insert(buildListingFromLead(lead))
           .select("id")
           .single();
 
         if (insertError) {
           console.error("Failed to create listing for lead:", lead.id, insertError);
+          errorCount++;
           continue;
         }
 
-        // Update the valuation_leads row
-        await supabase
+        const { error: updateError } = await supabase
           .from("valuation_leads")
           .update({
             pushed_to_all_deals: true,
@@ -411,6 +565,10 @@ export default function ValuationLeads() {
           } as never)
           .eq("id", lead.id);
 
+        if (updateError) {
+          console.error("Listing created but failed to mark lead as pushed:", lead.id, updateError);
+        }
+
         successCount++;
       }
 
@@ -418,18 +576,107 @@ export default function ValuationLeads() {
       setSelectedIds(new Set());
 
       if (successCount > 0) {
-        toast({
-          title: "Pushed to All Deals",
-          description: `${successCount} lead${successCount !== 1 ? "s" : ""} pushed to All Deals.`,
-        });
+        sonnerToast.success(`Pushed ${successCount} lead${successCount !== 1 ? "s" : ""} to All Deals${errorCount > 0 ? ` (${errorCount} failed)` : ""}`);
       } else {
-        toast({ title: "Nothing to push", description: "Selected leads were already pushed or not found." });
+        sonnerToast.info("Nothing to push — selected leads were already pushed or not found.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
     },
-    [leads, toast, queryClient]
+    [leads, isPushing, queryClient]
+  );
+
+  // Push to All Deals AND Enrich — creates listings then queues enrichment
+  const handlePushAndEnrich = useCallback(
+    async (leadIds: string[]) => {
+      if (leadIds.length === 0 || isPushing) return;
+      setIsPushing(true);
+
+      const leadsToProcess = (leads || []).filter((l) => leadIds.includes(l.id) && !l.pushed_to_all_deals);
+
+      const createdListingIds: string[] = [];
+      let errorCount = 0;
+      for (const lead of leadsToProcess) {
+        const { data: listing, error: insertError } = await supabase
+          .from("listings")
+          .insert(buildListingFromLead(lead))
+          .select("id")
+          .single();
+
+        if (insertError) {
+          console.error("Failed to create listing for lead:", lead.id, insertError);
+          errorCount++;
+          continue;
+        }
+
+        const { error: updateError } = await supabase
+          .from("valuation_leads")
+          .update({
+            pushed_to_all_deals: true,
+            pushed_to_all_deals_at: new Date().toISOString(),
+            pushed_listing_id: listing.id,
+            status: "pushed",
+          } as never)
+          .eq("id", lead.id);
+
+        if (updateError) {
+          console.error("Listing created but failed to mark lead as pushed:", lead.id, updateError);
+        }
+
+        createdListingIds.push(listing.id);
+      }
+
+      setIsPushing(false);
+      setSelectedIds(new Set());
+
+      if (createdListingIds.length > 0) {
+        // Queue all created listings for enrichment — wrapped in try-catch
+        try {
+          const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+          const queued = await queueDealEnrichment(createdListingIds);
+          sonnerToast.success(
+            `Pushed ${createdListingIds.length} lead${createdListingIds.length !== 1 ? "s" : ""} and queued ${queued} for enrichment${errorCount > 0 ? ` (${errorCount} failed)` : ""}`
+          );
+        } catch (enrichErr) {
+          console.error("Enrichment queue failed:", enrichErr);
+          sonnerToast.warning(
+            `Pushed ${createdListingIds.length} lead${createdListingIds.length !== 1 ? "s" : ""} but enrichment queue failed. Use Re-Enrich to retry.`
+          );
+        }
+      } else {
+        sonnerToast.info("Nothing to push — selected leads were already pushed or not found.");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+    },
+    [leads, isPushing, queryClient]
+  );
+
+  // Enrich already-pushed leads (re-enrich from their listing)
+  const handleEnrichPushed = useCallback(
+    async (leadIds: string[]) => {
+      const leadsToEnrich = (leads || []).filter(
+        (l) => leadIds.includes(l.id) && l.pushed_to_all_deals && l.pushed_listing_id
+      );
+
+      if (leadsToEnrich.length === 0) {
+        sonnerToast.info("No pushed leads to enrich in selection");
+        return;
+      }
+
+      const listingIds = leadsToEnrich.map((l) => l.pushed_listing_id!);
+      try {
+        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+        const queued = await queueDealEnrichment(listingIds);
+        sonnerToast.success(`Queued ${queued} listing${queued !== 1 ? "s" : ""} for re-enrichment`);
+      } catch (err) {
+        console.error("Re-enrichment queue failed:", err);
+        sonnerToast.error("Failed to queue re-enrichment. Please try again.");
+      }
+    },
+    [leads]
   );
 
   // Push & Enrich — pushes leads to listings then queues them in enrichment_queue
@@ -912,7 +1159,7 @@ export default function ValuationLeads() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground text-sm truncate max-w-[200px]">
-                            {lead.display_name || "\u2014"}
+                            {extractBusinessName(lead)}
                           </span>
                           {lead.full_name && (
                             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
@@ -922,6 +1169,11 @@ export default function ValuationLeads() {
                           {lead.email && (
                             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                               {lead.email}
+                            </span>
+                          )}
+                          {inferWebsite(lead) && (
+                            <span className="text-xs text-blue-500 truncate max-w-[200px]">
+                              {inferWebsite(lead)}
                             </span>
                           )}
                         </div>
