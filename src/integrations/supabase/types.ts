@@ -8172,6 +8172,183 @@ export type Database = {
         }
         Relationships: []
       }
+      valuation_leads: {
+        Row: {
+          business_name: string | null
+          buyer_lane: string | null
+          calculator_specific_data: Json | null
+          calculator_type: string
+          created_at: string | null
+          cta_clicked: boolean | null
+          display_name: string | null
+          ebitda: number | null
+          email: string | null
+          excluded: boolean | null
+          exclusion_reason: string | null
+          exit_timing: string | null
+          full_name: string | null
+          growth_trend: string | null
+          id: string
+          industry: string | null
+          lead_score: number | null
+          lead_source: string | null
+          linkedin_url: string | null
+          location: string | null
+          locations_count: number | null
+          open_to_intros: boolean | null
+          owner_dependency: string | null
+          phone: string | null
+          pushed_listing_id: string | null
+          pushed_to_all_deals: boolean | null
+          pushed_to_all_deals_at: string | null
+          quality_label: string | null
+          quality_tier: string | null
+          raw_calculator_inputs: Json | null
+          raw_valuation_results: Json | null
+          readiness_score: number | null
+          region: string | null
+          revenue: number | null
+          revenue_model: string | null
+          scoring_notes: string | null
+          source_submission_id: string | null
+          status: string | null
+          synced_at: string | null
+          updated_at: string | null
+          valuation_high: number | null
+          valuation_low: number | null
+          valuation_mid: number | null
+          website: string | null
+        }
+        Insert: {
+          business_name?: string | null
+          buyer_lane?: string | null
+          calculator_specific_data?: Json | null
+          calculator_type?: string
+          created_at?: string | null
+          cta_clicked?: boolean | null
+          display_name?: string | null
+          ebitda?: number | null
+          email?: string | null
+          excluded?: boolean | null
+          exclusion_reason?: string | null
+          exit_timing?: string | null
+          full_name?: string | null
+          growth_trend?: string | null
+          id?: string
+          industry?: string | null
+          lead_score?: number | null
+          lead_source?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          locations_count?: number | null
+          open_to_intros?: boolean | null
+          owner_dependency?: string | null
+          phone?: string | null
+          pushed_listing_id?: string | null
+          pushed_to_all_deals?: boolean | null
+          pushed_to_all_deals_at?: string | null
+          quality_label?: string | null
+          quality_tier?: string | null
+          raw_calculator_inputs?: Json | null
+          raw_valuation_results?: Json | null
+          readiness_score?: number | null
+          region?: string | null
+          revenue?: number | null
+          revenue_model?: string | null
+          scoring_notes?: string | null
+          source_submission_id?: string | null
+          status?: string | null
+          synced_at?: string | null
+          updated_at?: string | null
+          valuation_high?: number | null
+          valuation_low?: number | null
+          valuation_mid?: number | null
+          website?: string | null
+        }
+        Update: {
+          business_name?: string | null
+          buyer_lane?: string | null
+          calculator_specific_data?: Json | null
+          calculator_type?: string
+          created_at?: string | null
+          cta_clicked?: boolean | null
+          display_name?: string | null
+          ebitda?: number | null
+          email?: string | null
+          excluded?: boolean | null
+          exclusion_reason?: string | null
+          exit_timing?: string | null
+          full_name?: string | null
+          growth_trend?: string | null
+          id?: string
+          industry?: string | null
+          lead_score?: number | null
+          lead_source?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          locations_count?: number | null
+          open_to_intros?: boolean | null
+          owner_dependency?: string | null
+          phone?: string | null
+          pushed_listing_id?: string | null
+          pushed_to_all_deals?: boolean | null
+          pushed_to_all_deals_at?: string | null
+          quality_label?: string | null
+          quality_tier?: string | null
+          raw_calculator_inputs?: Json | null
+          raw_valuation_results?: Json | null
+          readiness_score?: number | null
+          region?: string | null
+          revenue?: number | null
+          revenue_model?: string | null
+          scoring_notes?: string | null
+          source_submission_id?: string | null
+          status?: string | null
+          synced_at?: string | null
+          updated_at?: string | null
+          valuation_high?: number | null
+          valuation_low?: number | null
+          valuation_mid?: number | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
+            columns: ["pushed_listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
+            columns: ["pushed_listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
+            columns: ["pushed_listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
+            columns: ["pushed_listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
+            columns: ["pushed_listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       linkedin_manual_review_queue: {

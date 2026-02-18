@@ -367,9 +367,9 @@ serve(async (req) => {
 
             // Enrichment job progress (non-blocking)
             if (enrichmentJobId) {
-              supabase.rpc('update_enrichment_job_progress', {
+              Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
                 p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.listing_id,
-              }).catch(() => {});
+              })).catch(() => {});
             }
             // Enrichment event (non-blocking)
             logEnrichmentEvent(supabase, {
@@ -400,10 +400,10 @@ serve(async (req) => {
 
             // Enrichment job progress (non-blocking)
             if (enrichmentJobId) {
-              supabase.rpc('update_enrichment_job_progress', {
+              Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
                 p_job_id: enrichmentJobId, p_failed_delta: 1,
                 p_last_processed_id: item.listing_id, p_error_message: pipeline.error,
-              }).catch(() => {});
+              })).catch(() => {});
             }
             // Enrichment event (non-blocking)
             logEnrichmentEvent(supabase, {
@@ -462,11 +462,11 @@ serve(async (req) => {
     // Complete enrichment job (non-blocking)
     if (enrichmentJobId) {
       const jobStatus = circuitBroken ? 'paused' : results.failed > 0 ? 'failed' : 'completed';
-      supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus }).catch(() => {});
+      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch(() => {});
       if (circuitBroken) {
-        supabase.rpc('update_enrichment_job_progress', {
+        Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
           p_job_id: enrichmentJobId, p_circuit_breaker: true,
-        }).catch(() => {});
+        })).catch(() => {});
       }
     }
 

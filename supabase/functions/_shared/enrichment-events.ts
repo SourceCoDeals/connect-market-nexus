@@ -35,20 +35,22 @@ export function logEnrichmentEvent(
   supabase: SupabaseClient,
   params: EnrichmentEventParams
 ): void {
-  supabase.rpc('log_enrichment_event', {
-    p_entity_type: params.entityType,
-    p_entity_id: params.entityId,
-    p_provider: params.provider,
-    p_function_name: params.functionName,
-    p_status: params.status,
-    p_step_name: params.stepName || null,
-    p_job_id: params.jobId || null,
-    p_error_message: params.errorMessage?.substring(0, 500) || null,
-    p_duration_ms: params.durationMs || null,
-    p_fields_updated: params.fieldsUpdated || 0,
-    p_tokens_used: params.tokensUsed || 0,
-  }).then(({ error }) => {
-    if (error) console.warn('[enrichment-events] Failed to log event:', error.message);
+  Promise.resolve(
+    supabase.rpc('log_enrichment_event', {
+      p_entity_type: params.entityType,
+      p_entity_id: params.entityId,
+      p_provider: params.provider,
+      p_function_name: params.functionName,
+      p_status: params.status,
+      p_step_name: params.stepName || null,
+      p_job_id: params.jobId || null,
+      p_error_message: params.errorMessage?.substring(0, 500) || null,
+      p_duration_ms: params.durationMs || null,
+      p_fields_updated: params.fieldsUpdated || 0,
+      p_tokens_used: params.tokensUsed || 0,
+    })
+  ).then((result: any) => {
+    if (result?.error) console.warn('[enrichment-events] Failed to log event:', result.error.message);
   }).catch((err: unknown) => {
     console.warn('[enrichment-events] Event logging error:', err);
   });

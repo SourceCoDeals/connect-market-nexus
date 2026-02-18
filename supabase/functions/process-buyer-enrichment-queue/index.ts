@@ -256,9 +256,9 @@ Deno.serve(async (req) => {
 
           // Track rate limit in enrichment job
           if (enrichmentJobId) {
-            supabase.rpc('update_enrichment_job_progress', {
+            Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
               p_job_id: enrichmentJobId, p_rate_limited: true,
-            }).catch(() => {});
+            })).catch(() => {});
           }
           logEnrichmentEvent(supabase, {
             entityType: 'buyer', entityId: item.buyer_id, provider: 'gemini',
@@ -302,9 +302,9 @@ Deno.serve(async (req) => {
 
         // Enrichment job progress (non-blocking)
         if (enrichmentJobId) {
-          supabase.rpc('update_enrichment_job_progress', {
+          Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
             p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.buyer_id,
-          }).catch(() => {});
+          })).catch(() => {});
         }
         logEnrichmentEvent(supabase, {
           entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline',
@@ -337,10 +337,10 @@ Deno.serve(async (req) => {
 
         // Enrichment job progress (non-blocking)
         if (enrichmentJobId) {
-          supabase.rpc('update_enrichment_job_progress', {
+          Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
             p_job_id: enrichmentJobId, p_failed_delta: 1,
             p_last_processed_id: item.buyer_id, p_error_message: errorMsg,
-          }).catch(() => {});
+          })).catch(() => {});
         }
         logEnrichmentEvent(supabase, {
           entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline',
@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
     // Complete enrichment job (non-blocking)
     if (enrichmentJobId) {
       const jobStatus = totalRateLimited > 0 ? 'paused' : totalFailed > 0 ? 'failed' : 'completed';
-      supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus }).catch(() => {});
+      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch(() => {});
     }
 
     // If we processed some but queue isn't empty, trigger another invocation.
