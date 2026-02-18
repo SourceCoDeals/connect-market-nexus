@@ -76,7 +76,7 @@ export async function applyExistingTranscriptData(
       updates = { ...flat };
       sourceUpdates = {};
       for (const key of Object.keys(flat)) {
-        sourceUpdates[key] = createFieldSource('transcript', t.id);
+        sourceUpdates[key] = createFieldSource('transcript', t.id, undefined, t.title || undefined);
       }
     } else {
       const result = buildPriorityUpdates(
@@ -85,7 +85,8 @@ export async function applyExistingTranscriptData(
         flat as any,
         'transcript',
         t.id,
-        isPlaceholder
+        isPlaceholder,
+        t.title || undefined
       );
       updates = result.updates as Record<string, unknown>;
       sourceUpdates = result.sourceUpdates;

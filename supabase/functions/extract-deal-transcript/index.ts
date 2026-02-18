@@ -118,10 +118,11 @@ serve(async (req) => {
 
     // Fetch transcript text from database if not provided
     let transcriptText = providedText;
+    let transcriptTitle: string | null = null;
     if (!transcriptText) {
       const { data: transcript, error: fetchError } = await supabase
         .from('deal_transcripts')
-        .select('transcript_text, listing_id')
+        .select('transcript_text, listing_id, title')
         .eq('id', transcriptId)
         .single();
 
@@ -133,6 +134,7 @@ serve(async (req) => {
       }
 
       transcriptText = transcript.transcript_text;
+      transcriptTitle = transcript.title || null;
 
       if (!transcriptText || transcriptText.trim().length === 0) {
         return new Response(
@@ -142,7 +144,17 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Extracting intelligence from transcript ${transcriptId}, text length: ${transcriptText.length}`);
+    // If title not available from initial fetch, try to get it separately
+    if (!transcriptTitle) {
+      const { data: tMeta } = await supabase
+        .from('deal_transcripts')
+        .select('title')
+        .eq('id', transcriptId)
+        .single();
+      transcriptTitle = tMeta?.title || null;
+    }
+
+    console.log(`Extracting intelligence from transcript ${transcriptId}${transcriptTitle ? ` ("${transcriptTitle}")` : ''}, text length: ${transcriptText.length}`);
 
     // Use AI to extract intelligence
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
@@ -704,7 +716,8 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           filteredExtracted,
           'transcript',
           transcriptId,
-          isPlaceholder
+          isPlaceholder,
+          transcriptTitle || undefined
         );
 
         // Merge geographic_states instead of replacing

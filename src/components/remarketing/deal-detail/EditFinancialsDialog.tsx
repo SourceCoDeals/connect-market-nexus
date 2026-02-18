@@ -32,6 +32,7 @@ interface EditFinancialsDialogProps {
     ebitda?: number;
     revenue_confidence?: string;
     ebitda_confidence?: string;
+    _manualEdit?: boolean;
   }) => void;
   isSaving?: boolean;
 }
@@ -70,6 +71,7 @@ export const EditFinancialsDialog = ({
       ebitda: parseNumber(formData.ebitda),
       revenue_confidence: formData.revenueConfidence,
       ebitda_confidence: formData.ebitdaConfidence,
+      _manualEdit: true,
     });
   };
 

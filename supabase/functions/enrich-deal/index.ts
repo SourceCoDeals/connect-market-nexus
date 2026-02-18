@@ -172,7 +172,7 @@ serve(async (req) => {
     // ========================================================================
     const { data: allTranscripts, error: transcriptsError } = await supabase
       .from('deal_transcripts')
-      .select('id, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id, transcript_url')
+      .select('id, title, transcript_text, processed_at, extracted_data, applied_to_deal, source, fireflies_transcript_id, transcript_url')
       .eq('listing_id', dealId)
       .order('created_at', { ascending: false });
 
