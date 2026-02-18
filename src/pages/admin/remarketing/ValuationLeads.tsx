@@ -832,9 +832,9 @@ export default function ValuationLeads() {
                       <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
                       <TableCell className="text-center">
                         {lead.open_to_intros === true ? (
-                          <span className="text-emerald-600 font-medium text-sm">{"\u2713"}</span>
+                          <span className="text-emerald-600 font-bold text-lg leading-none">✓</span>
                         ) : lead.open_to_intros === false ? (
-                          <span className="text-muted-foreground text-sm">{"\u2014"}</span>
+                          <span className="text-muted-foreground text-base">—</span>
                         ) : (
                           <span className="text-muted-foreground text-sm">{"\u2014"}</span>
                         )}
