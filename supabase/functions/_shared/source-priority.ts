@@ -13,6 +13,7 @@ export interface FieldSource {
   source: ExtractionSource;
   timestamp: string;
   transcriptId?: string;
+  transcriptTitle?: string;
   confidence?: 'high' | 'medium' | 'low';
 }
 
@@ -107,12 +108,14 @@ export function getFieldSource(
 export function createFieldSource(
   source: ExtractionSource,
   transcriptId?: string,
-  confidence?: 'high' | 'medium' | 'low'
+  confidence?: 'high' | 'medium' | 'low',
+  transcriptTitle?: string
 ): FieldSource {
   return {
     source,
     timestamp: new Date().toISOString(),
     ...(transcriptId && { transcriptId }),
+    ...(transcriptTitle && { transcriptTitle }),
     ...(confidence && { confidence }),
   };
 }
@@ -144,7 +147,8 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
   newData: Partial<T>,
   newSource: ExtractionSource,
   transcriptId?: string,
-  isPlaceholderFn?: (v: unknown) => boolean
+  isPlaceholderFn?: (v: unknown) => boolean,
+  transcriptTitle?: string
 ): { updates: Partial<T>; sourceUpdates: ExtractionSources; rejected: string[] } {
   const updates: Partial<T> = {};
   const sourceUpdates: ExtractionSources = {};
@@ -163,7 +167,8 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
         newSource,
         transcriptId,
         // Add confidence for financial fields if available
-        key === 'revenue' || key === 'ebitda' ? 'high' : undefined
+        key === 'revenue' || key === 'ebitda' ? 'high' : undefined,
+        transcriptTitle
       );
     } else {
       // Track rejected updates for logging

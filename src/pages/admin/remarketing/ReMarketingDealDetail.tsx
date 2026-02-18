@@ -813,21 +813,61 @@ const ReMarketingDealDetail = () => {
                 )}
               </div>
               <span className="text-2xl font-bold">{formatCurrency(deal.revenue)}</span>
-              {deal.revenue_source_quote && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
-                      View source
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72">
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
-                      <p className="text-sm italic">"{deal.revenue_source_quote}"</p>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
+              {(() => {
+                const sources = deal.extraction_sources as Record<string, any> | null;
+                const revSource = sources?.revenue;
+                const sourceType = revSource?.source as string | undefined;
+                const transcriptTitle = revSource?.transcriptTitle as string | undefined;
+                const hasQuote = !!deal.revenue_source_quote;
+                const isManual = sourceType === 'manual';
+                const isTranscript = sourceType === 'transcript';
+                const showPopover = hasQuote || isManual || isTranscript;
+
+                return showPopover ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
+                        {isManual ? 'Manually entered' : 'View source'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={
+                            isManual ? "bg-blue-50 text-blue-700 border-blue-200 text-xs"
+                            : isTranscript ? "bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                            : "bg-gray-50 text-gray-600 border-gray-200 text-xs"
+                          }>
+                            {isManual ? 'Manual' : isTranscript ? 'Transcript' : sourceType || 'Unknown'}
+                          </Badge>
+                          {revSource?.timestamp && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(revSource.timestamp).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        {isTranscript && transcriptTitle && (
+                          <p className="text-xs text-muted-foreground">
+                            From: <span className="font-medium text-foreground">{transcriptTitle}</span>
+                          </p>
+                        )}
+                        {hasQuote && (
+                          <>
+                            <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
+                            <p className="text-sm italic border-l-2 border-primary/30 pl-2">"{deal.revenue_source_quote}"</p>
+                          </>
+                        )}
+                        {isManual && !hasQuote && (
+                          <p className="text-xs text-muted-foreground">Value was entered manually by a team member.</p>
+                        )}
+                        {deal.revenue_is_inferred && (
+                          <p className="text-xs text-amber-600">Inferred from other financial data</p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : null;
+              })()}
             </div>
             
             {/* EBITDA */}
@@ -853,21 +893,61 @@ const ReMarketingDealDetail = () => {
                 )}
               </div>
               <span className="text-2xl font-bold">{formatCurrency(deal.ebitda)}</span>
-              {deal.ebitda_source_quote && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
-                      View source
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72">
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
-                      <p className="text-sm italic">"{deal.ebitda_source_quote}"</p>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
+              {(() => {
+                const sources = deal.extraction_sources as Record<string, any> | null;
+                const ebitdaSource = sources?.ebitda;
+                const sourceType = ebitdaSource?.source as string | undefined;
+                const transcriptTitle = ebitdaSource?.transcriptTitle as string | undefined;
+                const hasQuote = !!deal.ebitda_source_quote;
+                const isManual = sourceType === 'manual';
+                const isTranscript = sourceType === 'transcript';
+                const showPopover = hasQuote || isManual || isTranscript;
+
+                return showPopover ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto mt-1 block">
+                        {isManual ? 'Manually entered' : 'View source'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={
+                            isManual ? "bg-blue-50 text-blue-700 border-blue-200 text-xs"
+                            : isTranscript ? "bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                            : "bg-gray-50 text-gray-600 border-gray-200 text-xs"
+                          }>
+                            {isManual ? 'Manual' : isTranscript ? 'Transcript' : sourceType || 'Unknown'}
+                          </Badge>
+                          {ebitdaSource?.timestamp && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(ebitdaSource.timestamp).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        {isTranscript && transcriptTitle && (
+                          <p className="text-xs text-muted-foreground">
+                            From: <span className="font-medium text-foreground">{transcriptTitle}</span>
+                          </p>
+                        )}
+                        {hasQuote && (
+                          <>
+                            <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
+                            <p className="text-sm italic border-l-2 border-primary/30 pl-2">"{deal.ebitda_source_quote}"</p>
+                          </>
+                        )}
+                        {isManual && !hasQuote && (
+                          <p className="text-xs text-muted-foreground">Value was entered manually by a team member.</p>
+                        )}
+                        {deal.ebitda_is_inferred && (
+                          <p className="text-xs text-amber-600">Inferred from other financial data</p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : null;
+              })()}
             </div>
             
             {/* EBITDA Margin */}
@@ -903,7 +983,31 @@ const ReMarketingDealDetail = () => {
           ebitda_confidence: deal.ebitda_confidence,
         }}
         onSave={async (data) => {
-          await updateDealMutation.mutateAsync(data);
+          const { _manualEdit, ...financialData } = data;
+          const updates: Record<string, any> = { ...financialData };
+
+          // When manually editing financials, mark source as manual in extraction_sources
+          if (_manualEdit) {
+            const existingSources = (deal.extraction_sources as Record<string, any>) || {};
+            const manualSource = { source: 'manual', timestamp: new Date().toISOString() };
+            const sourceUpdates: Record<string, any> = { ...existingSources };
+            if (data.revenue !== undefined) {
+              sourceUpdates.revenue = manualSource;
+              sourceUpdates.revenue_confidence = manualSource;
+              sourceUpdates.revenue_source_quote = manualSource;
+            }
+            if (data.ebitda !== undefined) {
+              sourceUpdates.ebitda = manualSource;
+              sourceUpdates.ebitda_confidence = manualSource;
+              sourceUpdates.ebitda_source_quote = manualSource;
+            }
+            updates.extraction_sources = sourceUpdates;
+            // Clear source quotes since this is now manually entered
+            if (data.revenue !== undefined) updates.revenue_source_quote = null;
+            if (data.ebitda !== undefined) updates.ebitda_source_quote = null;
+          }
+
+          await updateDealMutation.mutateAsync(updates);
           setEditFinancialsOpen(false);
         }}
         isSaving={updateDealMutation.isPending}
