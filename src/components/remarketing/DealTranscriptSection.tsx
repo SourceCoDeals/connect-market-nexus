@@ -293,55 +293,19 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   };
 
   // Enrich deal with AI
-  const handleEnrichDeal = async (forceReExtract = false) => {
+  const handleEnrichDeal = async (_forceReExtract = false) => {
     setIsEnriching(true);
     setEnrichmentResult(null);
-
-    const totalTranscripts = transcripts.length;
-    const unprocessedTranscripts = transcripts.filter(t => !t.processed_at);
-    const totalToProcess = forceReExtract ? totalTranscripts : unprocessedTranscripts.length;
-
-    setEnrichmentPhase(totalTranscripts > 0 ? 'transcripts' : 'website');
-    setEnrichmentProgress({ current: 0, total: totalToProcess });
-
-    // Poll deal_transcripts for real-time progress during enrichment
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
-    if (totalToProcess > 0) {
-      pollInterval = setInterval(async () => {
-        try {
-          const { data: updated } = await supabase
-            .from('deal_transcripts')
-            .select('id, processed_at, extracted_data')
-            .eq('listing_id', dealId);
-          if (updated) {
-            const processed = updated.filter(t => t.processed_at && t.extracted_data).length;
-            setEnrichmentProgress(prev => ({
-              ...prev,
-              current: processed,
-            }));
-            // Switch to website phase when all transcripts are done
-            if (processed >= totalToProcess) {
-              setEnrichmentPhase('website');
-            }
-          }
-        } catch {
-          // Non-critical polling failure, ignore
-        }
-      }, 2000);
-    }
 
     try {
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueDealEnrichment([dealId]);
-
-      if (pollInterval) clearInterval(pollInterval);
 
       // Start polling enrichment_queue so the user gets auto-notified when it completes
       setEnrichmentPollingEnabled(true);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
     } catch (error: any) {
-      if (pollInterval) clearInterval(pollInterval);
       console.error('Enrich error:', error);
 
       const errorMessage = error.message || '';
@@ -369,7 +333,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         setShowEnrichmentDialog(true);
       }
     } finally {
-      if (pollInterval) clearInterval(pollInterval);
       setIsEnriching(false);
       setEnrichmentPhase(null);
       setEnrichmentProgress({ current: 0, total: 0 });
