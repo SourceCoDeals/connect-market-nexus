@@ -216,7 +216,18 @@ export default function ValuationLeads() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          allData.push(...(data as ValuationLead[]));
+          // PostgREST may return NUMERIC columns as strings — normalize at boundary
+          const normalized = (data as ValuationLead[]).map((row) => ({
+            ...row,
+            revenue: row.revenue != null ? Number(row.revenue) : null,
+            ebitda: row.ebitda != null ? Number(row.ebitda) : null,
+            valuation_low: row.valuation_low != null ? Number(row.valuation_low) : null,
+            valuation_mid: row.valuation_mid != null ? Number(row.valuation_mid) : null,
+            valuation_high: row.valuation_high != null ? Number(row.valuation_high) : null,
+            lead_score: row.lead_score != null ? Number(row.lead_score) : null,
+            readiness_score: row.readiness_score != null ? Number(row.readiness_score) : null,
+          }));
+          allData.push(...normalized);
           offset += batchSize;
           hasMore = data.length === batchSize;
         } else {

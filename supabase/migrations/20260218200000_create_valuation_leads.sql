@@ -77,11 +77,11 @@ CREATE INDEX idx_valuation_leads_pushed ON valuation_leads (pushed_to_all_deals)
 CREATE INDEX idx_valuation_leads_score ON valuation_leads (lead_score DESC NULLS LAST);
 CREATE INDEX idx_valuation_leads_created ON valuation_leads (created_at DESC);
 
--- Auto-update updated_at
+-- Auto-update updated_at (uses existing function from 20250716 migration)
 CREATE TRIGGER set_valuation_leads_updated_at
   BEFORE UPDATE ON valuation_leads
   FOR EACH ROW
-  EXECUTE FUNCTION moddatetime(updated_at);
+  EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================
 -- Display name trigger: auto-generate sequential names

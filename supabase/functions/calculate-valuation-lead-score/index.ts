@@ -64,10 +64,17 @@ interface ScoreRequest {
   leadId?: string;
 }
 
+/** Safely convert a PostgREST value (may be string for NUMERIC columns) to number or null */
+function toNum(val: unknown): number | null {
+  if (val == null) return null;
+  const n = Number(val);
+  return isNaN(n) ? null : n;
+}
+
 function scoreFinancial(lead: Record<string, unknown>): { score: number; note: string } {
-  const ebitda = lead.ebitda as number | null;
-  const revenue = lead.revenue as number | null;
-  const valuationMid = lead.valuation_mid as number | null;
+  const ebitda = toNum(lead.ebitda);
+  const revenue = toNum(lead.revenue);
+  const valuationMid = toNum(lead.valuation_mid);
 
   let score = 0;
   let note = "";
@@ -144,7 +151,7 @@ function scoreMotivation(lead: Record<string, unknown>): { score: number; note: 
 
 function scoreQuality(lead: Record<string, unknown>): { score: number; note: string } {
   const calculatorType = lead.calculator_type as string;
-  const readinessScore = lead.readiness_score as number | null;
+  const readinessScore = toNum(lead.readiness_score);
   const qualityLabel = lead.quality_label as string | null;
 
   if (calculatorType === "general") {
@@ -168,7 +175,7 @@ function scoreQuality(lead: Record<string, unknown>): { score: number; note: str
 
 function scoreMarket(lead: Record<string, unknown>): { score: number; note: string } {
   const industry = ((lead.industry as string) || "").toLowerCase();
-  const locationsCount = lead.locations_count as number | null;
+  const locationsCount = toNum(lead.locations_count);
   const growthTrend = lead.growth_trend as string | null;
   const revenueModel = lead.revenue_model as string | null;
 
