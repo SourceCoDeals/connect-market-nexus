@@ -75,6 +75,7 @@ const ReMarketingReferralPartners = lazy(() => import("@/pages/admin/remarketing
 const ReMarketingReferralPartnerDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingReferralPartnerDetail"));
 const CapTargetDeals = lazy(() => import("@/pages/admin/remarketing/CapTargetDeals"));
 const GPPartnerDeals = lazy(() => import("@/pages/admin/remarketing/GPPartnerDeals"));
+const ValuationLeads = lazy(() => import("@/pages/admin/remarketing/ValuationLeads"));
 
 // M&A Intelligence pages - lazy loaded (admin subsystem)
 const MAIntelligenceLayout = lazy(() => import("@/components/ma-intelligence").then(m => ({ default: m.MAIntelligenceLayout })));
@@ -185,6 +186,7 @@ function App() {
               <Route path="captarget-deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route path="gp-partner-deals" element={<GPPartnerDeals />} />
               <Route path="gp-partner-deals/:dealId" element={<ReMarketingDealDetail />} />
+              <Route path="valuation-leads" element={<ValuationLeads />} />
               <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
               <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
               <Route path="activity-queue" element={<ReMarketingActivityQueue />} />

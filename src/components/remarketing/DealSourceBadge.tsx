@@ -18,6 +18,10 @@ const SOURCE_CONFIG: Record<string, { label: string; className: string }> = {
     label: "GP Partners",
     className: "bg-orange-50 text-orange-700 border-orange-200",
   },
+  valuation_calculator: {
+    label: "Calculator",
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
   manual: {
     label: "Manual",
     className: "bg-gray-50 text-gray-600 border-gray-200",
