@@ -7,9 +7,10 @@
 -- Step 1: Drop email UNIQUE constraint (multiple submissions per email are normal)
 ALTER TABLE valuation_leads DROP CONSTRAINT IF EXISTS valuation_leads_email_key;
 
--- Step 2: Add UNIQUE partial index on source_submission_id for dedup safety
+-- Step 2: Add UNIQUE index on source_submission_id for dedup safety
+-- (PostgreSQL already allows multiple NULLs in unique indexes)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_valuation_leads_source_submission_id
-  ON valuation_leads (source_submission_id) WHERE source_submission_id IS NOT NULL;
+  ON valuation_leads (source_submission_id);
 
 -- ============================================================
 -- Block 1: General Calculator (184 rows)
