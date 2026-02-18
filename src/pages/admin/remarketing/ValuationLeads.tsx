@@ -100,6 +100,70 @@ type SortDirection = "asc" | "desc";
 
 // ─── Helpers ───
 
+const GENERIC_EMAIL_DOMAINS = new Set([
+  "gmail.com", "yahoo.com", "hotmail.com", "aol.com", "outlook.com",
+  "proton.me", "icloud.com", "live.com", "yahoo.com.au", "hotmail.se",
+  "bellsouth.net", "mac.com", "webxio.pro", "leabro.com", "coursora.com",
+  "mail.com", "zoho.com", "yandex.com", "protonmail.com",
+]);
+
+/** Extract a presentable business name from website or email domain. */
+function extractBusinessName(lead: ValuationLead): string {
+  // Use DB business_name if it's already good
+  if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
+    return lead.business_name;
+  }
+
+  // Try website domain first
+  if (lead.website && lead.website.trim() !== "") {
+    const cleaned = lead.website
+      .replace(/^https?:\/\//i, "")
+      .replace(/^www\./i, "")
+      .replace(/\/.*$/, "")
+      .replace(/\.(com|net|org|io|co|ai|us|uk|ca|au|nz|ae|za|se|nl|br|fj|school|pro)(\.[a-z]{2})?$/i, "");
+    if (cleaned && !cleaned.match(/^(test|no|example)$/i)) {
+      return toTitleCase(cleaned.replace(/[-_.]/g, " "));
+    }
+  }
+
+  // Try email domain (skip generic providers)
+  if (lead.email) {
+    const domain = lead.email.split("@")[1]?.toLowerCase();
+    if (domain && !GENERIC_EMAIL_DOMAINS.has(domain)) {
+      const name = domain
+        .split(".")[0]
+        .replace(/[0-9]+$/, "")
+        .replace(/[-_]/g, " ");
+      if (name) return toTitleCase(name);
+    }
+  }
+
+  // Final fallback
+  return lead.display_name || "\u2014";
+}
+
+/** Infer a displayable website URL from the lead's website or email domain. */
+function inferWebsite(lead: ValuationLead): string | null {
+  if (lead.website && lead.website.trim() !== "") {
+    return lead.website.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+  }
+  if (lead.email) {
+    const domain = lead.email.split("@")[1]?.toLowerCase();
+    if (domain && !GENERIC_EMAIL_DOMAINS.has(domain)) {
+      return domain;
+    }
+  }
+  return null;
+}
+
+function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 function getFromDate(tf: Timeframe): string | null {
   if (tf === "all") return null;
   const now = new Date();
@@ -173,7 +237,7 @@ export default function ValuationLeads() {
   const [activeTab, setActiveTab] = useState<string>("all");
 
   // Timeframe
-  const [timeframe, setTimeframe] = useState<Timeframe>("30d");
+  const [timeframe, setTimeframe] = useState<Timeframe>("all");
   const fromDate = getFromDate(timeframe);
 
   // Sorting
@@ -898,9 +962,7 @@ export default function ValuationLeads() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground text-sm truncate max-w-[200px]">
-                            {lead.business_name && !lead.business_name.endsWith("'s Business")
-                              ? lead.business_name
-                              : lead.display_name || "\u2014"}
+                            {extractBusinessName(lead)}
                           </span>
                           {lead.full_name && (
                             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
@@ -912,9 +974,9 @@ export default function ValuationLeads() {
                               {lead.email}
                             </span>
                           )}
-                          {lead.website && (
+                          {inferWebsite(lead) && (
                             <span className="text-xs text-blue-500 truncate max-w-[200px]">
-                              {lead.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                              {inferWebsite(lead)}
                             </span>
                           )}
                         </div>
