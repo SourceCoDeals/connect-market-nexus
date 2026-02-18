@@ -188,6 +188,8 @@ export default function ValuationLeads() {
 
   // Action states
   const [isPushing, setIsPushing] = useState(false);
+  const [isPushEnriching, setIsPushEnriching] = useState(false);
+  const [isReEnriching, setIsReEnriching] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
 
   // Fetch valuation leads
@@ -428,6 +430,106 @@ export default function ValuationLeads() {
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
     },
     [leads, toast, queryClient]
+  );
+
+  // Push & Enrich — pushes leads to listings then queues them in enrichment_queue
+  const handlePushAndEnrich = useCallback(
+    async (leadIds: string[]) => {
+      if (leadIds.length === 0) return;
+      setIsPushEnriching(true);
+
+      const leadsToProcess = (leads || []).filter((l) => leadIds.includes(l.id) && !l.pushed_to_all_deals);
+      let pushed = 0;
+      let enrichQueued = 0;
+      const listingIds: string[] = [];
+
+      for (const lead of leadsToProcess) {
+        const { data: listing, error: insertError } = await supabase
+          .from("listings")
+          .insert({
+            title: lead.business_name || lead.full_name || lead.display_name || "Valuation Lead",
+            internal_company_name: lead.business_name || lead.full_name || null,
+            website: lead.website || null,
+            location: lead.location || null,
+            revenue: lead.revenue,
+            ebitda: lead.ebitda,
+            deal_source: "valuation_calculator",
+            status: "active",
+            is_internal_deal: true,
+          } as never)
+          .select("id")
+          .single();
+
+        if (insertError || !listing) continue;
+
+        listingIds.push(listing.id);
+
+        await supabase
+          .from("valuation_leads")
+          .update({ pushed_to_all_deals: true, pushed_listing_id: listing.id } as never)
+          .eq("id", lead.id);
+
+        pushed++;
+      }
+
+      // Queue all pushed listings for enrichment
+      for (const listingId of listingIds) {
+        const { error } = await supabase
+          .from("enrichment_queue")
+          .upsert({ listing_id: listingId, status: "pending", force: true } as never, {
+            onConflict: "listing_id",
+            ignoreDuplicates: false,
+          });
+        if (!error) enrichQueued++;
+      }
+
+      setIsPushEnriching(false);
+      setSelectedIds(new Set());
+
+      if (pushed > 0) {
+        sonnerToast.success(`Pushed ${pushed} lead${pushed !== 1 ? "s" : ""} and queued ${enrichQueued} for enrichment`);
+      } else {
+        sonnerToast.info("No unpushed leads selected");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+    },
+    [leads, queryClient]
+  );
+
+  // Re-Enrich — re-queues already-pushed leads in the enrichment_queue
+  const handleReEnrich = useCallback(
+    async (leadIds: string[]) => {
+      if (leadIds.length === 0) return;
+      setIsReEnriching(true);
+
+      const leadsToProcess = (leads || []).filter(
+        (l) => leadIds.includes(l.id) && l.pushed_to_all_deals && l.pushed_listing_id
+      );
+
+      let queued = 0;
+      for (const lead of leadsToProcess) {
+        if (!lead.pushed_listing_id) continue;
+        const { error } = await supabase
+          .from("enrichment_queue")
+          .upsert({ listing_id: lead.pushed_listing_id, status: "pending", force: true } as never, {
+            onConflict: "listing_id",
+            ignoreDuplicates: false,
+          });
+        if (!error) queued++;
+      }
+
+      setIsReEnriching(false);
+      setSelectedIds(new Set());
+
+      if (queued > 0) {
+        sonnerToast.success(`Re-queued ${queued} lead${queued !== 1 ? "s" : ""} for enrichment`);
+      } else {
+        sonnerToast.info("No pushed leads with listing IDs found");
+      }
+    },
+    [leads]
   );
 
   // Score leads
@@ -683,8 +785,9 @@ export default function ValuationLeads() {
 
           <Button
             size="sm"
+            variant="outline"
             onClick={() => handlePushToAllDeals(Array.from(selectedIds))}
-            disabled={isPushing}
+            disabled={isPushing || isPushEnriching}
             className="gap-2"
           >
             {isPushing ? (
@@ -693,6 +796,33 @@ export default function ValuationLeads() {
               <CheckCircle2 className="h-4 w-4" />
             )}
             Push to All Deals
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => handlePushAndEnrich(Array.from(selectedIds))}
+            disabled={isPushEnriching || isPushing}
+            className="gap-2"
+          >
+            {isPushEnriching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Push &amp; Enrich
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => handleReEnrich(Array.from(selectedIds))}
+            disabled={isReEnriching}
+            className="gap-2"
+          >
+            {isReEnriching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Re-Enrich Pushed
           </Button>
         </div>
       )}
@@ -886,6 +1016,21 @@ export default function ValuationLeads() {
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Push to All Deals
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePushAndEnrich([lead.id])}
+                              disabled={!!lead.pushed_to_all_deals}
+                            >
+                              <Zap className="h-4 w-4 mr-2" />
+                              Push &amp; Enrich
+                            </DropdownMenuItem>
+                            {lead.pushed_to_all_deals && lead.pushed_listing_id && (
+                              <DropdownMenuItem
+                                onClick={() => handleReEnrich([lead.id])}
+                              >
+                                <Zap className="h-4 w-4 mr-2" />
+                                Re-Enrich
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={async () => {
