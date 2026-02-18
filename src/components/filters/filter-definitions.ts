@@ -741,6 +741,135 @@ export const GP_PARTNER_FIELDS: FilterFieldDef[] = [
   },
 ];
 
+/** Valuation Calculator Leads */
+export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
+  {
+    key: "display_name",
+    label: "Lead Name",
+    type: "text",
+    group: "Core",
+    icon: Building2,
+    accessor: (item: any) => item.business_name || item.display_name || item.full_name || "",
+  },
+  {
+    key: "full_name",
+    label: "Contact Name",
+    type: "text",
+    group: "Contact",
+    icon: Users,
+  },
+  {
+    key: "email",
+    label: "Email",
+    type: "text",
+    group: "Contact",
+    icon: Users,
+  },
+  {
+    key: "website",
+    label: "Website",
+    type: "text",
+    group: "Core",
+    icon: Globe,
+  },
+  {
+    key: "industry",
+    label: "Industry",
+    type: "select",
+    group: "Business",
+    icon: Briefcase,
+    dynamicOptions: true,
+  },
+  {
+    key: "exit_timing",
+    label: "Exit Timing",
+    type: "select",
+    group: "Status",
+    icon: Activity,
+    options: [
+      { label: "Exit Now", value: "now" },
+      { label: "1-2 Years", value: "1-2years" },
+      { label: "Exploring", value: "exploring" },
+    ],
+  },
+  {
+    key: "open_to_intros",
+    label: "Open to Intros",
+    type: "boolean",
+    group: "Status",
+    icon: Activity,
+  },
+  {
+    key: "pushed_to_all_deals",
+    label: "Pushed to All Deals",
+    type: "boolean",
+    group: "Status",
+    icon: Activity,
+  },
+  {
+    key: "quality_label",
+    label: "Quality Tier",
+    type: "select",
+    group: "Scoring",
+    icon: TrendingUp,
+  },
+  {
+    key: "lead_score",
+    label: "Lead Score",
+    type: "number",
+    group: "Scoring",
+    icon: TrendingUp,
+  },
+  {
+    key: "readiness_score",
+    label: "Readiness Score",
+    type: "number",
+    group: "Scoring",
+    icon: TrendingUp,
+  },
+  {
+    key: "revenue",
+    label: "Revenue",
+    type: "currency",
+    group: "Financial",
+    icon: DollarSign,
+  },
+  {
+    key: "ebitda",
+    label: "EBITDA",
+    type: "currency",
+    group: "Financial",
+    icon: DollarSign,
+  },
+  {
+    key: "calculator_type",
+    label: "Calculator Type",
+    type: "select",
+    group: "Source",
+    icon: Tag,
+    options: [
+      { label: "General", value: "general" },
+      { label: "Auto Shop", value: "auto_shop" },
+      { label: "HVAC", value: "hvac" },
+      { label: "Collision", value: "collision" },
+    ],
+  },
+  {
+    key: "location",
+    label: "Location",
+    type: "text",
+    group: "Location",
+    icon: MapPin,
+  },
+  {
+    key: "created_at",
+    label: "Created Date",
+    type: "date",
+    group: "Admin",
+    icon: Calendar,
+  },
+];
+
 /** Activity Dashboard */
 export const ACTIVITY_FIELDS: FilterFieldDef[] = [
   {

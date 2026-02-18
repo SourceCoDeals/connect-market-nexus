@@ -1,9 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { formatCompactCurrency } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -20,9 +22,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast as sonnerToast } from "sonner";
+import { FilterBar, TimeframeSelector, VALUATION_LEAD_FIELDS } from "@/components/filters";
+import { useTimeframe } from "@/hooks/use-timeframe";
+import { useFilterEngine } from "@/hooks/use-filter-engine";
+import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useAuth } from "@/context/AuthContext";
 import {
   Building2,
   ArrowUpDown,
@@ -41,6 +56,9 @@ import {
   Clock,
   Zap,
   Sparkles,
+  ExternalLink,
+  Star,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -92,9 +110,9 @@ interface ValuationLead {
   calculator_specific_data: Record<string, unknown> | null;
   raw_calculator_inputs: Record<string, unknown> | null;
   raw_valuation_results: Record<string, unknown> | null;
+  // For deal owner display (assigned after push)
+  deal_owner_id?: string | null;
 }
-
-type Timeframe = "today" | "7d" | "14d" | "30d" | "90d" | "all";
 
 type SortColumn =
   | "display_name"
@@ -106,7 +124,8 @@ type SortColumn =
   | "quality"
   | "score"
   | "created_at"
-  | "pushed";
+  | "pushed"
+  | "owner";
 type SortDirection = "asc" | "desc";
 
 // ─── Helpers ───
@@ -118,36 +137,25 @@ const GENERIC_EMAIL_DOMAINS = new Set([
   "mail.com", "zoho.com", "yandex.com", "protonmail.com",
 ]);
 
-/** Clean a raw website value down to just the domain (no protocol, no www, no path). Returns null if invalid. */
 function cleanWebsiteToDomain(raw: string | null): string | null {
   if (!raw || !raw.trim()) return null;
   const v = raw.trim();
-  // Skip if it's an email address, not a URL
   if (v.includes("@")) return null;
-  // Skip obviously invalid (commas, spaces in domain)
   if (/[,\s]/.test(v.replace(/^https?:\/\//i, "").split("/")[0])) return null;
-  // Strip any protocol (including common typos like htpps://)
   const noProto = v.replace(/^[a-z]{3,6}:\/\//i, "");
-  // Strip www. prefix
   const noWww = noProto.replace(/^www\./i, "");
-  // Strip path and query string — keep only hostname
   const domain = noWww.split("/")[0].split("?")[0].split("#")[0];
   if (!domain || !domain.includes(".")) return null;
-  // Skip blacklisted placeholder domains
   if (/^(test|no|example)\./i.test(domain)) return null;
   return domain.toLowerCase();
 }
 
 const TLD_REGEX = /\.(com|net|org|io|co|ai|us|uk|ca|au|nz|ae|za|se|nl|br|fj|in|de|fr|es|it|jp|kr|mx|school|pro|app|dev|vc)(\.[a-z]{2})?$/i;
 
-/** Extract a presentable business name from website or email domain. */
 function extractBusinessName(lead: ValuationLead): string {
-  // Use DB business_name if it's already good
   if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
     return lead.business_name;
   }
-
-  // Try website domain first
   const domain = cleanWebsiteToDomain(lead.website);
   if (domain) {
     const cleaned = domain.replace(TLD_REGEX, "");
@@ -155,8 +163,6 @@ function extractBusinessName(lead: ValuationLead): string {
       return toTitleCase(cleaned.replace(/[-_.]/g, " "));
     }
   }
-
-  // Try email domain (skip generic providers)
   if (lead.email) {
     const emailDomain = lead.email.split("@")[1]?.toLowerCase();
     if (emailDomain && !GENERIC_EMAIL_DOMAINS.has(emailDomain)) {
@@ -167,12 +173,9 @@ function extractBusinessName(lead: ValuationLead): string {
       if (name) return toTitleCase(name);
     }
   }
-
-  // Final fallback
-  return lead.display_name || "\u2014";
+  return lead.display_name || "—";
 }
 
-/** Infer a displayable website URL from the lead's website or email domain. */
 function inferWebsite(lead: ValuationLead): string | null {
   const domain = cleanWebsiteToDomain(lead.website);
   if (domain) return domain;
@@ -197,16 +200,14 @@ function toTitleCase(str: string): string {
 function buildListingFromLead(lead: ValuationLead) {
   const businessName = extractBusinessName(lead);
   const cleanDomain = inferWebsite(lead);
-  const title = businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead";
+  const title = businessName !== "—" ? businessName : lead.full_name || "Valuation Lead";
 
-  // Build seller motivation from exit timing + open_to_intros
   const motivationParts: string[] = [];
   if (lead.exit_timing === "now") motivationParts.push("Looking to exit now");
   else if (lead.exit_timing === "1-2years") motivationParts.push("Exit in 1-2 years");
   else if (lead.exit_timing === "exploring") motivationParts.push("Exploring options");
   if (lead.open_to_intros) motivationParts.push("Open to buyer introductions");
 
-  // Build internal notes with lead intelligence summary
   const noteLines: string[] = [
     `--- Valuation Calculator Lead Intelligence ---`,
     `Source: ${lead.calculator_type === "auto_shop" ? "Auto Shop" : lead.calculator_type === "general" ? "General" : lead.calculator_type} Calculator`,
@@ -224,13 +225,11 @@ function buildListingFromLead(lead: ValuationLead) {
   }
   if (lead.scoring_notes) noteLines.push(`Scoring Notes: ${lead.scoring_notes}`);
 
-  // Parse "City, ST, Country" → address_city, address_state
   const locationParts = lead.location?.split(",").map(s => s.trim());
   const address_city = locationParts?.[0] || null;
   const address_state = locationParts?.[1]?.length === 2 ? locationParts[1] : null;
 
   return {
-    // Identity
     title,
     internal_company_name: title,
     deal_source: "valuation_calculator",
@@ -239,15 +238,11 @@ function buildListingFromLead(lead: ValuationLead) {
     is_internal_deal: true,
     pushed_to_all_deals: true,
     pushed_to_all_deals_at: new Date().toISOString(),
-
-    // Contact
     main_contact_name: lead.full_name || null,
     main_contact_email: lead.email || null,
     main_contact_phone: lead.phone || null,
     website: cleanDomain ? `https://${cleanDomain}` : null,
     linkedin_url: lead.linkedin_url || null,
-
-    // Business
     industry: lead.industry || null,
     location: lead.location || null,
     address_city,
@@ -257,31 +252,26 @@ function buildListingFromLead(lead: ValuationLead) {
     revenue_model: lead.revenue_model || null,
     growth_trajectory: lead.growth_trend || null,
     number_of_locations: lead.locations_count || null,
-
-    // Seller intelligence
     seller_motivation: motivationParts.join(". ") || null,
     owner_goals: lead.exit_timing ? `Exit timing: ${lead.exit_timing}${lead.open_to_intros ? ". Open to buyer introductions." : ""}` : null,
-
-    // Internal intelligence (admin-only)
     internal_notes: noteLines.join("\n"),
   } as never;
 }
 
-function getFromDate(tf: Timeframe): string | null {
-  if (tf === "all") return null;
-  const now = new Date();
-  const days = tf === "today" ? 1 : tf === "7d" ? 7 : tf === "14d" ? 14 : tf === "30d" ? 30 : 90;
-  now.setDate(now.getDate() - days);
-  return now.toISOString();
-}
+const QUALITY_ORDER: Record<string, number> = {
+  "Very Strong": 4,
+  "Solid": 3,
+  "Average": 2,
+  "Needs Work": 1,
+};
 
 function scorePillClass(score: number | null): string {
-  if (score == null) return "bg-gray-100 text-gray-600";
+  if (score == null) return "bg-muted text-muted-foreground";
   if (score >= 80) return "bg-emerald-100 text-emerald-800";
   if (score >= 60) return "bg-blue-100 text-blue-800";
   if (score >= 40) return "bg-amber-100 text-amber-800";
   if (score >= 20) return "bg-orange-100 text-orange-800";
-  return "bg-gray-100 text-gray-600";
+  return "bg-muted text-muted-foreground";
 }
 
 function exitTimingBadge(timing: string | null) {
@@ -291,7 +281,7 @@ function exitTimingBadge(timing: string | null) {
     "1-2years": { label: "1-2 Years", className: "bg-amber-50 text-amber-700 border-amber-200" },
     exploring: { label: "Exploring", className: "bg-blue-50 text-blue-700 border-blue-200" },
   };
-  const c = config[timing] || { label: timing, className: "bg-gray-50 text-gray-600 border-gray-200" };
+  const c = config[timing] || { label: timing, className: "bg-muted text-muted-foreground border-border" };
   return (
     <Badge variant="outline" className={cn("text-[10px] font-semibold px-1.5 py-0", c.className)}>
       {c.label}
@@ -307,7 +297,7 @@ function qualityBadge(label: string | null) {
     "Average": "bg-amber-50 text-amber-700 border-amber-200",
     "Needs Work": "bg-red-50 text-red-700 border-red-200",
   };
-  const cls = config[label] || "bg-gray-50 text-gray-600 border-gray-200";
+  const cls = config[label] || "bg-muted text-muted-foreground border-border";
   return (
     <Badge variant="outline" className={cn("text-[10px] font-semibold px-1.5 py-0", cls)}>
       {label}
@@ -322,7 +312,7 @@ function calculatorBadge(type: string) {
     hvac: { label: "HVAC", className: "bg-orange-50 text-orange-700 border-orange-200" },
     collision: { label: "Collision", className: "bg-purple-50 text-purple-700 border-purple-200" },
   };
-  const c = config[type] || { label: type.replace(/_/g, " "), className: "bg-gray-50 text-gray-600 border-gray-200" };
+  const c = config[type] || { label: type.replace(/_/g, " "), className: "bg-muted text-muted-foreground border-border" };
   return (
     <Badge variant="outline" className={cn("text-[10px] font-semibold px-1.5 py-0", c.className)}>
       {c.label}
@@ -330,18 +320,64 @@ function calculatorBadge(type: string) {
   );
 }
 
+function exportLeadsToCSV(leads: ValuationLead[]) {
+  const headers = [
+    "Business Name", "Contact Name", "Email", "Phone", "Website",
+    "Industry", "Location", "Revenue", "EBITDA",
+    "Valuation Low", "Valuation Mid", "Valuation High",
+    "Lead Score", "Quality", "Exit Timing", "Open to Intros",
+    "Calculator Type", "Status", "Pushed", "Pushed At", "Created At",
+  ];
+  const rows = leads.map(l => [
+    extractBusinessName(l),
+    l.full_name || "",
+    l.email || "",
+    l.phone || "",
+    inferWebsite(l) || "",
+    l.industry || "",
+    l.location || "",
+    l.revenue ?? "",
+    l.ebitda ?? "",
+    l.valuation_low ?? "",
+    l.valuation_mid ?? "",
+    l.valuation_high ?? "",
+    l.lead_score ?? "",
+    l.quality_label || "",
+    l.exit_timing || "",
+    l.open_to_intros != null ? (l.open_to_intros ? "Yes" : "No") : "",
+    l.calculator_type,
+    l.status || "",
+    l.pushed_to_all_deals ? "Yes" : "No",
+    l.pushed_to_all_deals_at ? format(new Date(l.pushed_to_all_deals_at), "yyyy-MM-dd") : "",
+    format(new Date(l.created_at), "yyyy-MM-dd"),
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `valuation-leads-${format(new Date(), "yyyy-MM-dd")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── Component ───
 
 export default function ValuationLeads() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { completeOperation, updateProgress } = useGlobalActivityMutations();
 
+  // Admin profiles for deal owner display
+  const { data: adminProfiles } = useAdminProfiles();
 
   // Calculator type tab
   const [activeTab, setActiveTab] = useState<string>("all");
 
-  // Timeframe
-  const [timeframe, setTimeframe] = useState<Timeframe>("all");
-  const fromDate = getFromDate(timeframe);
+  // Timeframe (standardized hook)
+  const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
 
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
@@ -359,6 +395,7 @@ export default function ValuationLeads() {
   const [isPushEnriching, setIsPushEnriching] = useState(false);
   const [isReEnriching, setIsReEnriching] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
 
   // Fetch valuation leads
   const {
@@ -386,7 +423,6 @@ export default function ValuationLeads() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          // PostgREST may return NUMERIC columns as strings — normalize at boundary
           const normalized = (data as ValuationLead[]).map((row) => ({
             ...row,
             revenue: row.revenue != null ? Number(row.revenue) : null,
@@ -417,10 +453,20 @@ export default function ValuationLeads() {
     return Array.from(types).sort();
   }, [leads]);
 
-  // Filter by tab + timeframe
+  // Filter engine for advanced filtering
+  const {
+    filteredItems: engineFiltered,
+    filterState,
+    setFilterState,
+    activeFilterCount,
+    dynamicOptions,
+    filteredCount,
+    totalCount: engineTotal,
+  } = useFilterEngine(leads ?? [], VALUATION_LEAD_FIELDS);
+
+  // Apply tab + timeframe on top of engine-filtered results, then sort
   const filteredLeads = useMemo(() => {
-    if (!leads) return [];
-    let filtered = leads;
+    let filtered = engineFiltered;
 
     // Tab filter
     if (activeTab !== "all") {
@@ -428,9 +474,7 @@ export default function ValuationLeads() {
     }
 
     // Timeframe filter
-    if (fromDate) {
-      filtered = filtered.filter((l) => l.created_at >= fromDate);
-    }
+    filtered = filtered.filter((l) => isInRange(l.created_at));
 
     // Sort
     const sorted = [...filtered];
@@ -438,8 +482,8 @@ export default function ValuationLeads() {
       let valA: any, valB: any;
       switch (sortColumn) {
         case "display_name":
-          valA = (a.display_name || "").toLowerCase();
-          valB = (b.display_name || "").toLowerCase();
+          valA = extractBusinessName(a).toLowerCase();
+          valB = extractBusinessName(b).toLowerCase();
           break;
         case "industry":
           valA = (a.industry || "").toLowerCase();
@@ -457,14 +501,16 @@ export default function ValuationLeads() {
           valA = a.valuation_mid ?? -1;
           valB = b.valuation_mid ?? -1;
           break;
-        case "exit_timing":
+        case "exit_timing": {
           const timingOrder: Record<string, number> = { now: 3, "1-2years": 2, exploring: 1 };
           valA = timingOrder[a.exit_timing || ""] ?? 0;
           valB = timingOrder[b.exit_timing || ""] ?? 0;
           break;
+        }
         case "quality":
-          valA = a.readiness_score ?? -1;
-          valB = b.readiness_score ?? -1;
+          // Sort by quality tier order, not readiness_score
+          valA = QUALITY_ORDER[a.quality_label || ""] ?? 0;
+          valB = QUALITY_ORDER[b.quality_label || ""] ?? 0;
           break;
         case "score":
           valA = a.lead_score ?? -1;
@@ -478,6 +524,13 @@ export default function ValuationLeads() {
           valA = a.pushed_to_all_deals ? 1 : 0;
           valB = b.pushed_to_all_deals ? 1 : 0;
           break;
+        case "owner": {
+          const ownerA = a.deal_owner_id ? (adminProfiles?.[a.deal_owner_id]?.displayName || "") : "";
+          const ownerB = b.deal_owner_id ? (adminProfiles?.[b.deal_owner_id]?.displayName || "") : "";
+          valA = ownerA.toLowerCase();
+          valB = ownerB.toLowerCase();
+          break;
+        }
         default:
           return 0;
       }
@@ -487,7 +540,7 @@ export default function ValuationLeads() {
     });
 
     return sorted;
-  }, [leads, activeTab, fromDate, sortColumn, sortDirection]);
+  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
@@ -501,7 +554,7 @@ export default function ValuationLeads() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  }, [activeTab, timeframe, sortColumn, sortDirection]);
+  }, [activeTab, timeframe, sortColumn, sortDirection, filterState]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -523,7 +576,8 @@ export default function ValuationLeads() {
     }
   };
 
-  const toggleSelect = (id: string) => {
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -532,7 +586,15 @@ export default function ValuationLeads() {
     });
   };
 
-  // Push to All Deals — creates a listing row from valuation_leads data
+  // Row click handler — pushed leads navigate to deal detail, others open lead detail
+  const handleRowClick = (lead: ValuationLead) => {
+    if (lead.pushed_listing_id) {
+      navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`);
+    }
+    // Unpushed leads: no navigation (could add drawer in future)
+  };
+
+  // Push to All Deals
   const handlePushToAllDeals = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0 || isPushing) return;
@@ -587,32 +649,7 @@ export default function ValuationLeads() {
     [leads, isPushing, queryClient]
   );
 
-  // Enrich already-pushed leads (re-enrich from their listing)
-  const handleEnrichPushed = useCallback(
-    async (leadIds: string[]) => {
-      const leadsToEnrich = (leads || []).filter(
-        (l) => leadIds.includes(l.id) && l.pushed_to_all_deals && l.pushed_listing_id
-      );
-
-      if (leadsToEnrich.length === 0) {
-        sonnerToast.info("No pushed leads to enrich in selection");
-        return;
-      }
-
-      const listingIds = leadsToEnrich.map((l) => l.pushed_listing_id!);
-      try {
-        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-        const queued = await queueDealEnrichment(listingIds);
-        sonnerToast.success(`Queued ${queued} listing${queued !== 1 ? "s" : ""} for re-enrichment`);
-      } catch (err) {
-        console.error("Re-enrichment queue failed:", err);
-        sonnerToast.error("Failed to queue re-enrichment. Please try again.");
-      }
-    },
-    [leads]
-  );
-
-  // Push & Enrich — pushes leads to listings then queues them in enrichment_queue
+  // Push & Enrich — uses buildListingFromLead to preserve ALL fields
   const handlePushAndEnrich = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0) return;
@@ -624,29 +661,28 @@ export default function ValuationLeads() {
       const listingIds: string[] = [];
 
       for (const lead of leadsToProcess) {
+        // Use buildListingFromLead to preserve all 20+ fields
         const { data: listing, error: insertError } = await supabase
           .from("listings")
-          .insert({
-            title: lead.business_name || lead.full_name || lead.display_name || "Valuation Lead",
-            internal_company_name: lead.business_name || lead.full_name || null,
-            website: lead.website || null,
-            location: lead.location || null,
-            revenue: lead.revenue,
-            ebitda: lead.ebitda,
-            deal_source: "valuation_calculator",
-            status: "active",
-            is_internal_deal: true,
-          } as never)
+          .insert(buildListingFromLead(lead))
           .select("id")
           .single();
 
-        if (insertError || !listing) continue;
+        if (insertError || !listing) {
+          console.error("Failed to create listing:", insertError);
+          continue;
+        }
 
         listingIds.push(listing.id);
 
         await supabase
           .from("valuation_leads")
-          .update({ pushed_to_all_deals: true, pushed_listing_id: listing.id } as never)
+          .update({
+            pushed_to_all_deals: true,
+            pushed_to_all_deals_at: new Date().toISOString(),
+            pushed_listing_id: listing.id,
+            status: "pushed",
+          } as never)
           .eq("id", lead.id);
 
         pushed++;
@@ -678,7 +714,7 @@ export default function ValuationLeads() {
     [leads, queryClient]
   );
 
-  // Re-Enrich — re-queues already-pushed leads in the enrichment_queue
+  // Re-Enrich — re-queues already-pushed leads
   const handleReEnrich = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0) return;
@@ -710,6 +746,84 @@ export default function ValuationLeads() {
       }
     },
     [leads]
+  );
+
+  // Enrich All Pushed — global bulk enrich (matching GP Partners pattern)
+  const handleBulkEnrich = useCallback(
+    async (mode: "unenriched" | "all") => {
+      const pushedLeads = (leads || []).filter((l) => l.pushed_to_all_deals && l.pushed_listing_id);
+      const targets = mode === "unenriched"
+        ? pushedLeads // We don't have enriched_at on valuation_leads, so treat all pushed as candidates
+        : pushedLeads;
+
+      if (!targets.length) {
+        sonnerToast.info("No pushed leads to enrich");
+        return;
+      }
+
+      setIsEnriching(true);
+
+      let activityItem: { id: string } | null = null;
+      try {
+        const result = await startOrQueueMajorOp({
+          operationType: "deal_enrichment",
+          totalItems: targets.length,
+          description: `Enriching ${targets.length} valuation lead listings`,
+          userId: user?.id || "",
+          contextJson: { source: "valuation_leads_bulk" },
+        });
+        activityItem = result.item;
+      } catch {
+        // Non-blocking
+      }
+
+      const now = new Date().toISOString();
+      const seen = new Set<string>();
+      const rows = targets
+        .filter((l) => {
+          if (!l.pushed_listing_id || seen.has(l.pushed_listing_id)) return false;
+          seen.add(l.pushed_listing_id!);
+          return true;
+        })
+        .map((l) => ({
+          listing_id: l.pushed_listing_id!,
+          status: "pending" as const,
+          attempts: 0,
+          queued_at: now,
+          force: mode === "all",
+        }));
+
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("enrichment_queue")
+          .upsert(chunk, { onConflict: "listing_id" });
+
+        if (error) {
+          console.error("Queue upsert error:", error);
+          sonnerToast.error("Failed to queue enrichment");
+          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          setIsEnriching(false);
+          return;
+        }
+      }
+
+      sonnerToast.success(`Queued ${rows.length} pushed leads for enrichment`);
+
+      try {
+        await supabase.functions.invoke("process-enrichment-queue", {
+          body: { source: "valuation_leads_bulk" },
+        });
+      } catch {
+        // Non-blocking
+      }
+
+      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+      setIsEnriching(false);
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+    },
+    [leads, user, startOrQueueMajorOp, completeOperation, queryClient]
   );
 
   // Score leads
@@ -746,10 +860,25 @@ export default function ValuationLeads() {
     [filteredLeads, queryClient]
   );
 
-  // KPI Stats
+  // Assign deal owner to pushed listing
+  const handleAssignOwner = useCallback(async (lead: ValuationLead, ownerId: string | null) => {
+    if (!lead.pushed_listing_id) return;
+    const { error } = await supabase
+      .from("listings")
+      .update({ deal_owner_id: ownerId })
+      .eq("id", lead.pushed_listing_id);
+    if (error) {
+      sonnerToast.error("Failed to update owner");
+    } else {
+      sonnerToast.success(ownerId ? "Owner assigned" : "Owner removed");
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+    }
+  }, [queryClient]);
+
+  // KPI Stats (based on timeframe-filtered tab data)
   const kpiStats = useMemo(() => {
     const tabLeads = activeTab === "all" ? leads || [] : (leads || []).filter((l) => l.calculator_type === activeTab);
-    const timeFiltered = fromDate ? tabLeads.filter((l) => l.created_at >= fromDate) : tabLeads;
+    const timeFiltered = tabLeads.filter((l) => isInRange(l.created_at));
 
     const totalLeads = timeFiltered.length;
     const openToIntros = timeFiltered.filter((l) => l.open_to_intros === true).length;
@@ -757,11 +886,11 @@ export default function ValuationLeads() {
     const pushedCount = timeFiltered.filter((l) => l.pushed_to_all_deals === true).length;
 
     return { totalLeads, openToIntros, exitNow, pushedCount };
-  }, [leads, activeTab, fromDate]);
+  }, [leads, activeTab, isInRange]);
 
-  // Summary stats
   const totalLeads = leads?.length || 0;
   const unscoredCount = leads?.filter((l) => l.lead_score == null).length || 0;
+  const pushedTotal = leads?.filter((l) => l.pushed_to_all_deals).length || 0;
 
   const SortHeader = ({
     column,
@@ -784,15 +913,6 @@ export default function ValuationLeads() {
     </button>
   );
 
-  const timeframes: { label: string; value: Timeframe }[] = [
-    { label: "Today", value: "today" },
-    { label: "7d", value: "7d" },
-    { label: "14d", value: "14d" },
-    { label: "30d", value: "30d" },
-    { label: "90d", value: "90d" },
-    { label: "All", value: "all" },
-  ];
-
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
@@ -812,11 +932,35 @@ export default function ValuationLeads() {
             Valuation Calculator Leads
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {totalLeads} total &middot; {unscoredCount} unscored
+            {totalLeads} total &middot; {unscoredCount} unscored &middot; {pushedTotal} pushed
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Enrich All Pushed */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={isEnriching}>
+                {isEnriching ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-1" />
+                )}
+                Enrich
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleBulkEnrich("unenriched")}>
+                Enrich Unenriched Pushed
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBulkEnrich("all")}>
+                Re-enrich All Pushed
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Score */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" disabled={isScoring}>
@@ -840,22 +984,7 @@ export default function ValuationLeads() {
           </DropdownMenu>
 
           {/* Timeframe selector */}
-          <div className="flex items-center bg-muted rounded-lg p-0.5">
-            {timeframes.map((tf) => (
-              <button
-                key={tf.value}
-                onClick={() => setTimeframe(tf.value)}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
-                  timeframe === tf.value
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {tf.label}
-              </button>
-            ))}
-          </div>
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} compact />
         </div>
       </div>
 
@@ -950,6 +1079,16 @@ export default function ValuationLeads() {
         </Card>
       </div>
 
+      {/* Filter Bar */}
+      <FilterBar
+        filterState={filterState}
+        onFilterStateChange={setFilterState}
+        fieldDefinitions={VALUATION_LEAD_FIELDS}
+        dynamicOptions={dynamicOptions}
+        totalCount={engineTotal}
+        filteredCount={filteredCount}
+      />
+
       {/* Bulk Actions (selection-based) */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
@@ -1000,9 +1139,24 @@ export default function ValuationLeads() {
             {isReEnriching ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Zap className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" />
             )}
             Re-Enrich Pushed
+          </Button>
+
+          <div className="h-5 w-px bg-border" />
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const selected = filteredLeads.filter((l) => selectedIds.has(l.id));
+              exportLeadsToCSV(selected);
+            }}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
           </Button>
         </div>
       )}
@@ -1020,6 +1174,7 @@ export default function ValuationLeads() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
+                  <TableHead className="w-[40px] text-center text-muted-foreground">#</TableHead>
                   <TableHead>
                     <SortHeader column="display_name">Lead</SortHeader>
                   </TableHead>
@@ -1049,6 +1204,9 @@ export default function ValuationLeads() {
                     <SortHeader column="score">Score</SortHeader>
                   </TableHead>
                   <TableHead>
+                    <SortHeader column="owner">Owner</SortHeader>
+                  </TableHead>
+                  <TableHead>
                     <SortHeader column="created_at">Date</SortHeader>
                   </TableHead>
                   <TableHead>
@@ -1061,7 +1219,7 @@ export default function ValuationLeads() {
                 {paginatedLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={activeTab === "all" ? 14 : 13}
+                      colSpan={activeTab === "all" ? 16 : 15}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Calculator className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1072,13 +1230,15 @@ export default function ValuationLeads() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedLeads.map((lead) => (
+                  paginatedLeads.map((lead, idx) => (
                     <TableRow
                       key={lead.id}
                       className={cn(
-                        "transition-colors",
-                        lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
+                        "transition-colors cursor-pointer",
+                        lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50",
+                        !lead.pushed_to_all_deals && "hover:bg-muted/40"
                       )}
+                      onClick={() => handleRowClick(lead)}
                     >
                       <TableCell
                         onClick={(e) => e.stopPropagation()}
@@ -1088,6 +1248,9 @@ export default function ValuationLeads() {
                           checked={selectedIds.has(lead.id)}
                           onCheckedChange={() => toggleSelect(lead.id)}
                         />
+                      </TableCell>
+                      <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
+                        {(safePage - 1) * PAGE_SIZE + idx + 1}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
@@ -1116,21 +1279,21 @@ export default function ValuationLeads() {
                       )}
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
-                          {lead.industry || "\u2014"}
+                          {lead.industry || "—"}
                         </span>
                       </TableCell>
                       <TableCell>
                         {lead.revenue != null ? (
                           <span className="text-sm tabular-nums">{formatCompactCurrency(lead.revenue)}</span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {lead.ebitda != null ? (
                           <span className="text-sm tabular-nums">{formatCompactCurrency(lead.ebitda)}</span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1141,7 +1304,7 @@ export default function ValuationLeads() {
                         ) : lead.valuation_mid != null ? (
                           <span className="text-sm tabular-nums">{formatCompactCurrency(lead.valuation_mid)}</span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
@@ -1151,7 +1314,7 @@ export default function ValuationLeads() {
                         ) : lead.open_to_intros === false ? (
                           <span className="text-muted-foreground text-base">—</span>
                         ) : (
-                          <span className="text-muted-foreground text-sm">{"\u2014"}</span>
+                          <span className="text-muted-foreground text-sm">—</span>
                         )}
                       </TableCell>
                       <TableCell>{qualityBadge(lead.quality_label)}</TableCell>
@@ -1164,7 +1327,35 @@ export default function ValuationLeads() {
                             {lead.lead_score}
                           </span>
                         ) : (
-                          <span className="text-sm text-muted-foreground">{"\u2014"}</span>
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Deal Owner — only editable for pushed leads */}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {lead.pushed_listing_id && adminProfiles ? (
+                          <Select
+                            value={lead.deal_owner_id || "unassigned"}
+                            onValueChange={(val) => handleAssignOwner(lead, val === "unassigned" ? null : val)}
+                          >
+                            <SelectTrigger className="h-7 w-[120px] text-xs border-none bg-transparent hover:bg-muted">
+                              <SelectValue placeholder="Assign…">
+                                {lead.deal_owner_id && adminProfiles[lead.deal_owner_id]
+                                  ? adminProfiles[lead.deal_owner_id].displayName.split(" ")[0]
+                                  : <span className="text-muted-foreground">—</span>
+                                }
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {Object.values(adminProfiles).map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.displayName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1180,7 +1371,7 @@ export default function ValuationLeads() {
                               Pushed
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">
+                            <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
                               {lead.status || "new"}
                             </Badge>
                           )}
@@ -1194,6 +1385,18 @@ export default function ValuationLeads() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {/* View Deal — only for pushed leads */}
+                            {lead.pushed_to_all_deals && lead.pushed_listing_id && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`)}
+                                >
+                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                  View Deal
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                              </>
+                            )}
                             <DropdownMenuItem
                               onClick={() => handlePushToAllDeals([lead.id])}
                               disabled={!!lead.pushed_to_all_deals}
@@ -1212,13 +1415,14 @@ export default function ValuationLeads() {
                               <DropdownMenuItem
                                 onClick={() => handleReEnrich([lead.id])}
                               >
-                                <Zap className="h-4 w-4 mr-2" />
+                                <Sparkles className="h-4 w-4 mr-2" />
                                 Re-Enrich
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={async () => {
+                              onClick={async (e) => {
+                                e.stopPropagation();
                                 const { error } = await supabase
                                   .from("valuation_leads")
                                   .update({ excluded: true, exclusion_reason: "Manual exclusion" } as never)
