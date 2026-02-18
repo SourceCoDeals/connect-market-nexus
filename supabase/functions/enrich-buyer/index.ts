@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
+import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
 import { type RateLimitConfig } from "../_shared/ai-providers.ts";
 import { withConcurrencyTracking, reportRateLimit } from "../_shared/rate-limiter.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
@@ -542,6 +543,13 @@ Deno.serve(async (req) => {
     const fieldsUpdated = Object.keys(updateData).length - 2; // Exclude metadata fields
     console.log(`Successfully enriched buyer ${buyerId}: ${fieldsUpdated} fields updated`);
 
+    // Observability: log enrichment outcome (non-blocking)
+    logEnrichmentEvent(supabase, {
+      entityType: 'buyer', entityId: buyerId, provider: 'gemini',
+      functionName: 'enrich-buyer', status: 'success',
+      fieldsUpdated,
+    });
+
     // Cost tracking: log aggregate AI usage (non-blocking)
     logAICallCost(supabase, 'enrich-buyer', 'gemini', BUYER_AI_CONFIG.model,
       {
@@ -580,8 +588,26 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Enrichment error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+
+    // Observability: log enrichment failure (non-blocking)
+    try {
+      const sbUrl = Deno.env.get('SUPABASE_URL');
+      const sbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (sbUrl && sbKey) {
+        const errSupabase = createClient(sbUrl, sbKey);
+        const status = errorMsg.includes('429') || errorMsg.includes('rate') ? 'rate_limited'
+          : errorMsg.includes('timeout') || errorMsg.includes('abort') ? 'timeout'
+          : 'failure';
+        logEnrichmentEvent(errSupabase, {
+          entityType: 'buyer', entityId: 'unknown', provider: 'gemini',
+          functionName: 'enrich-buyer', status, errorMessage: errorMsg,
+        });
+      }
+    } catch { /* swallow */ }
+
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ success: false, error: errorMsg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

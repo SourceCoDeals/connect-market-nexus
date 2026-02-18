@@ -5,6 +5,7 @@ import { buildPriorityUpdates, updateExtractionSources } from "../_shared/source
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 import { checkProviderAvailability, reportRateLimit } from "../_shared/rate-limiter.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
+import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import {
   // Configuration
@@ -777,6 +778,13 @@ serve(async (req) => {
     sourceParts.push(`${websiteFieldsUpdated.length} from website`);
     console.log(`Updated ${allFieldsUpdated.length} fields (${sourceParts.join(', ')}):`, allFieldsUpdated);
 
+    // Observability: log enrichment outcome (non-blocking)
+    logEnrichmentEvent(supabase, {
+      entityType: 'deal', entityId: dealId, provider: 'gemini',
+      functionName: 'enrich-deal', status: 'success',
+      fieldsUpdated: allFieldsUpdated.length,
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -798,6 +806,23 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in enrich-deal:', error);
     const message = getErrorMessage(error);
+
+    // Observability: log enrichment failure (non-blocking)
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && supabaseServiceKey) {
+        const errorSupabase = createClient(supabaseUrl, supabaseServiceKey);
+        const status = message.includes('429') || message.includes('rate') ? 'rate_limited'
+          : message.includes('timeout') || message.includes('abort') ? 'timeout'
+          : 'failure';
+        logEnrichmentEvent(errorSupabase, {
+          entityType: 'deal', entityId: 'unknown', provider: 'gemini',
+          functionName: 'enrich-deal', status, errorMessage: message,
+        });
+      }
+    } catch { /* swallow — don't let logging break the error response */ }
+
     return new Response(
       JSON.stringify({ success: false, error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

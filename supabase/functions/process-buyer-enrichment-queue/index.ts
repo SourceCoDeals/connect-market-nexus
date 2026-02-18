@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused, recoverStaleOperations } from "../_shared/global-activity-queue.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { checkProviderAvailability, reportRateLimit, waitForProviderSlot } from "../_shared/rate-limiter.ts";
+import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
 
 // Configuration
 const MAX_ATTEMPTS = 3;
@@ -94,6 +95,27 @@ Deno.serve(async (req) => {
 
     if (exhaustedItems && exhaustedItems.length > 0) {
       console.log(`Marked ${exhaustedItems.length} exhausted items as failed`);
+    }
+
+    // Create enrichment job for observability tracking (non-blocking on failure)
+    let enrichmentJobId: string | null = null;
+    try {
+      // Get count of pending buyers for total_records
+      const { count: pendingCount } = await supabase
+        .from('buyer_enrichment_queue')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .lt('attempts', MAX_ATTEMPTS);
+
+      const { data: jobData } = await supabase.rpc('upsert_enrichment_job', {
+        p_job_type: 'buyer_enrichment',
+        p_total_records: pendingCount || 0,
+        p_source: 'scheduled',
+      });
+      enrichmentJobId = jobData;
+      if (enrichmentJobId) console.log(`[enrichment-jobs] Created job ${enrichmentJobId}`);
+    } catch (err) {
+      console.warn('[enrichment-jobs] Failed to create job (non-blocking):', err);
     }
 
     // LOOP: Process buyers continuously until queue is empty or time runs out
@@ -227,6 +249,19 @@ Deno.serve(async (req) => {
           console.log(`Rate limited at buyer ${item.buyer_id}, stopping loop`);
           totalRateLimited++;
           totalProcessed++;
+
+          // Track rate limit in enrichment job
+          if (enrichmentJobId) {
+            supabase.rpc('update_enrichment_job_progress', {
+              p_job_id: enrichmentJobId, p_rate_limited: true,
+            }).catch(() => {});
+          }
+          logEnrichmentEvent(supabase, {
+            entityType: 'buyer', entityId: item.buyer_id, provider: 'gemini',
+            functionName: 'process-buyer-enrichment-queue', stepName: 'enrich-buyer',
+            status: 'rate_limited', jobId: enrichmentJobId || undefined,
+          });
+
           break; // Stop processing on rate limit
         }
 
@@ -260,6 +295,18 @@ Deno.serve(async (req) => {
         await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
         totalSucceeded++;
 
+        // Enrichment job progress (non-blocking)
+        if (enrichmentJobId) {
+          supabase.rpc('update_enrichment_job_progress', {
+            p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.buyer_id,
+          }).catch(() => {});
+        }
+        logEnrichmentEvent(supabase, {
+          entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline',
+          functionName: 'process-buyer-enrichment-queue', stepName: 'enrich-buyer',
+          status: 'success', jobId: enrichmentJobId || undefined,
+        });
+
       } catch (error) {
         clearTimeout(timeoutId);
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -282,6 +329,19 @@ Deno.serve(async (req) => {
           errorEntry: { itemId: item.buyer_id, error: errorMsg },
         });
         totalFailed++;
+
+        // Enrichment job progress (non-blocking)
+        if (enrichmentJobId) {
+          supabase.rpc('update_enrichment_job_progress', {
+            p_job_id: enrichmentJobId, p_failed_delta: 1,
+            p_last_processed_id: item.buyer_id, p_error_message: errorMsg,
+          }).catch(() => {});
+        }
+        logEnrichmentEvent(supabase, {
+          entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline',
+          functionName: 'process-buyer-enrichment-queue', stepName: 'enrich-buyer',
+          status: 'failure', errorMessage: errorMsg, jobId: enrichmentJobId || undefined,
+        });
       }
 
       totalProcessed++;
@@ -290,6 +350,12 @@ Deno.serve(async (req) => {
       if (Date.now() - functionStartTime < MAX_FUNCTION_RUNTIME_MS) {
         await new Promise(r => setTimeout(r, INTER_BUYER_DELAY_MS));
       }
+    }
+
+    // Complete enrichment job (non-blocking)
+    if (enrichmentJobId) {
+      const jobStatus = totalRateLimited > 0 ? 'paused' : totalFailed > 0 ? 'failed' : 'completed';
+      supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus }).catch(() => {});
     }
 
     // If we processed some but queue isn't empty, trigger another invocation.

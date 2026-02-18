@@ -4,6 +4,7 @@ import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";
 import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { checkProviderAvailability } from "../_shared/rate-limiter.ts";
+import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
 
 // Configuration - RELIABILITY-FIRST
 // Moderate parallelism to avoid rate limits across concurrent queue processors.
@@ -155,6 +156,20 @@ serve(async (req) => {
     }
 
     console.log(`Found ${queueItems.length} items to process`);
+
+    // Create enrichment job for observability tracking (non-blocking on failure)
+    let enrichmentJobId: string | null = null;
+    try {
+      const { data: jobData } = await supabase.rpc('upsert_enrichment_job', {
+        p_job_type: 'deal_enrichment',
+        p_total_records: queueItems.length,
+        p_source: (body.source === 'self-continuation') ? 'scheduled' : 'manual',
+      });
+      enrichmentJobId = jobData;
+      if (enrichmentJobId) console.log(`[enrichment-jobs] Created job ${enrichmentJobId}`);
+    } catch (err) {
+      console.warn('[enrichment-jobs] Failed to create job (non-blocking):', err);
+    }
 
     // PRE-CHECK: Mark batch items as completed if their listings are already enriched
     // (enriched_at set — LinkedIn/Google data is optional)
@@ -335,6 +350,19 @@ serve(async (req) => {
             results.succeeded++;
             consecutiveFailures = 0; // Reset circuit breaker on success
             await updateGlobalQueueProgress(supabase, 'deal_enrichment', { completedDelta: 1 });
+
+            // Enrichment job progress (non-blocking)
+            if (enrichmentJobId) {
+              supabase.rpc('update_enrichment_job_progress', {
+                p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.listing_id,
+              }).catch(() => {});
+            }
+            // Enrichment event (non-blocking)
+            logEnrichmentEvent(supabase, {
+              entityType: 'deal', entityId: item.listing_id, provider: 'pipeline',
+              functionName: 'process-enrichment-queue', stepName: 'enrich-deal',
+              status: 'success', fieldsUpdated: pipeline.fieldsUpdated.length, jobId: enrichmentJobId || undefined,
+            });
           } else {
             // Pipeline error
             const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
@@ -354,6 +382,20 @@ serve(async (req) => {
             await updateGlobalQueueProgress(supabase, 'deal_enrichment', {
               failedDelta: 1,
               errorEntry: { itemId: item.listing_id, error: pipeline.error || 'Unknown error' },
+            });
+
+            // Enrichment job progress (non-blocking)
+            if (enrichmentJobId) {
+              supabase.rpc('update_enrichment_job_progress', {
+                p_job_id: enrichmentJobId, p_failed_delta: 1,
+                p_last_processed_id: item.listing_id, p_error_message: pipeline.error,
+              }).catch(() => {});
+            }
+            // Enrichment event (non-blocking)
+            logEnrichmentEvent(supabase, {
+              entityType: 'deal', entityId: item.listing_id, provider: 'pipeline',
+              functionName: 'process-enrichment-queue', stepName: 'enrich-deal',
+              status: 'failure', errorMessage: pipeline.error, jobId: enrichmentJobId || undefined,
             });
           }
          } else {
@@ -402,6 +444,17 @@ serve(async (req) => {
     }
 
     console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed} processed${circuitBroken ? ' [CIRCUIT BREAKER TRIPPED]' : ''}`);
+
+    // Complete enrichment job (non-blocking)
+    if (enrichmentJobId) {
+      const jobStatus = circuitBroken ? 'paused' : results.failed > 0 ? 'failed' : 'completed';
+      supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus }).catch(() => {});
+      if (circuitBroken) {
+        supabase.rpc('update_enrichment_job_progress', {
+          p_job_id: enrichmentJobId, p_circuit_breaker: true,
+        }).catch(() => {});
+      }
+    }
 
     // Check if all items in the enrichment_queue are done (no more pending)
     const { count: remainingPending } = await supabase
