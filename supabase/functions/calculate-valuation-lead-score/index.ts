@@ -120,8 +120,19 @@ function scoreMotivation(lead: Record<string, unknown>): { score: number; note: 
   const ctaClicked = lead.cta_clicked as boolean | null;
   const calculatorType = lead.calculator_type as string;
 
-  // Industry calculators default to 0 for motivation (no exit timing data)
+  // Industry calculators: use quality_label as motivation proxy since they lack exit_timing/open_to_intros
   if (calculatorType !== "general" && !exitTiming && openToIntros == null) {
+    const qualityLabel = lead.quality_label as string | null;
+    const qualityMotivation: Record<string, number> = {
+      "Very Strong": 10,
+      "Solid": 7,
+      "Average": 3,
+      "Needs Work": 1,
+    };
+    if (qualityLabel && qualityMotivation[qualityLabel] != null) {
+      const qs = qualityMotivation[qualityLabel];
+      return { score: qs, note: `Motivation: ${qs} (quality proxy: ${qualityLabel})` };
+    }
     return { score: 0, note: "Motivation: 0 (industry calc, no data)" };
   }
 
@@ -155,11 +166,11 @@ function scoreQuality(lead: Record<string, unknown>): { score: number; note: str
   const qualityLabel = lead.quality_label as string | null;
 
   if (calculatorType === "general") {
-    // General calculator: readiness_score is an average of 5 sub-scores (1-5 each)
+    // General calculator: readiness_score is 1-100 (composite of sub-scores)
     // Scale to 0-20
     if (readinessScore != null) {
-      const score = Math.min(20, Math.round((readinessScore / 5) * 20));
-      return { score, note: `Quality: ${score} (readiness ${readinessScore}/5)` };
+      const score = Math.min(20, Math.round((readinessScore / 100) * 20));
+      return { score, note: `Quality: ${score} (readiness ${readinessScore}/100)` };
     }
     return { score: 0, note: "Quality: 0 (no readiness data)" };
   }
@@ -194,8 +205,9 @@ function scoreMarket(lead: Record<string, unknown>): { score: number; note: stri
     parts.push(`${locationsCount} locations`);
   }
 
-  // Growing = 2
-  if (growthTrend === "growing" || growthTrend === "rapid_growth") {
+  // Growing = 2 (data values are percentage ranges like "25-50", "50-100", "100-plus")
+  const GROWTH_TRENDS = new Set(["growing", "rapid_growth", "25-50", "50-100", "100-plus"]);
+  if (growthTrend && GROWTH_TRENDS.has(growthTrend)) {
     score += 2;
     parts.push("growing");
   }

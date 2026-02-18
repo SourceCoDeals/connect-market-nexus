@@ -85,6 +85,13 @@ interface ValuationLead {
   excluded: boolean | null;
   exclusion_reason: string | null;
   created_at: string;
+  updated_at: string;
+  lead_source: string | null;
+  source_submission_id: string | null;
+  synced_at: string | null;
+  calculator_specific_data: Record<string, unknown> | null;
+  raw_calculator_inputs: Record<string, unknown> | null;
+  raw_valuation_results: Record<string, unknown> | null;
 }
 
 type Timeframe = "today" | "7d" | "14d" | "30d" | "90d" | "all";
@@ -217,6 +224,11 @@ function buildListingFromLead(lead: ValuationLead) {
   }
   if (lead.scoring_notes) noteLines.push(`Scoring Notes: ${lead.scoring_notes}`);
 
+  // Parse "City, ST, Country" → address_city, address_state
+  const locationParts = lead.location?.split(",").map(s => s.trim());
+  const address_city = locationParts?.[0] || null;
+  const address_state = locationParts?.[1]?.length === 2 ? locationParts[1] : null;
+
   return {
     // Identity
     title,
@@ -238,6 +250,8 @@ function buildListingFromLead(lead: ValuationLead) {
     // Business
     industry: lead.industry || null,
     location: lead.location || null,
+    address_city,
+    address_state,
     revenue: lead.revenue,
     ebitda: lead.ebitda,
     revenue_model: lead.revenue_model || null,

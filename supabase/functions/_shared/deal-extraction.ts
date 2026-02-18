@@ -113,7 +113,7 @@ export const NUMERIC_LISTING_FIELDS = new Set([
 ]);
 
 // Placeholder values to reject from any field
-export const WEBSITE_PLACEHOLDERS = ['<unknown>', 'unknown', 'n/a', 'none', 'null', 'not found', 'not specified', 'not provided'];
+export const WEBSITE_PLACEHOLDERS = ['<unknown>', 'unknown', 'n/a', 'none', 'null', 'not found', 'not specified', 'not provided', 'no.com', 'test.com', 'example.com', 'www.test.com', 'www.example.com'];
 export const ADDRESS_PLACEHOLDERS = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
 
 // ============================================================================
