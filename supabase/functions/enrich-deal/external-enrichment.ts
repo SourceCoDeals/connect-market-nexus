@@ -46,7 +46,7 @@ export async function enrichLinkedIn(
         dealId: dealId,
         companyWebsite: websiteUrl || deal.website,
       }),
-      signal: AbortSignal.timeout(180000),
+      signal: AbortSignal.timeout(30000), // 30s — must fit within 90s per-item budget
     });
 
     if (linkedinResponse.ok) {
@@ -113,7 +113,7 @@ export async function enrichGoogleReviews(
         state: extracted.address_state || deal.address_state,
         dealId: dealId,
       }),
-      signal: AbortSignal.timeout(95000),
+      signal: AbortSignal.timeout(30000), // 30s — must fit within 90s per-item budget
     });
 
     if (googleResponse.ok) {

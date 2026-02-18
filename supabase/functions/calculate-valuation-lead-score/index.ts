@@ -237,10 +237,41 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // ─── Auth: verify caller is admin ───
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: authError } = await createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey)
+        .auth.getUser(token);
+
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check admin status
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden: admin access required" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+    // If no auth header, assume service-role invocation (e.g. from cron/another function)
+
     const body: ScoreRequest = await req.json();
     const { mode, leadId } = body;
 
     // Build query
+    const BATCH_LIMIT = 500;
     let query = supabase
       .from("valuation_leads")
       .select("*")
@@ -249,7 +280,9 @@ serve(async (req) => {
     if (leadId) {
       query = query.eq("id", leadId);
     } else if (mode === "unscored") {
-      query = query.is("lead_score", null);
+      query = query.is("lead_score", null).limit(BATCH_LIMIT);
+    } else {
+      query = query.limit(BATCH_LIMIT);
     }
 
     const { data: leads, error: fetchError } = await query;

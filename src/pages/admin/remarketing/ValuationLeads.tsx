@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import {
   Building2,
@@ -231,7 +230,7 @@ function calculatorBadge(type: string) {
 
 export default function ValuationLeads() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+
 
   // Calculator type tab
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -391,9 +390,10 @@ export default function ValuationLeads() {
     return filteredLeads.slice(start, start + PAGE_SIZE);
   }, [filteredLeads, safePage]);
 
-  // Reset page on filter change
+  // Reset page and clear selection on filter change
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds(new Set());
   }, [activeTab, timeframe, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
@@ -428,20 +428,24 @@ export default function ValuationLeads() {
   // Push to All Deals — creates a listing row from valuation_leads data
   const handlePushToAllDeals = useCallback(
     async (leadIds: string[]) => {
-      if (leadIds.length === 0) return;
+      if (leadIds.length === 0 || isPushing) return;
       setIsPushing(true);
 
       const leadsToProcess = (leads || []).filter((l) => leadIds.includes(l.id) && !l.pushed_to_all_deals);
 
       let successCount = 0;
+      let errorCount = 0;
       for (const lead of leadsToProcess) {
+        const businessName = extractBusinessName(lead);
+        const inferredWebsite = inferWebsite(lead);
+
         // Create listing row
         const { data: listing, error: insertError } = await supabase
           .from("listings")
           .insert({
-            title: lead.business_name || lead.full_name || lead.display_name || "Valuation Lead",
-            internal_company_name: lead.business_name || lead.full_name || null,
-            website: lead.website || null,
+            title: businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead",
+            internal_company_name: businessName !== "\u2014" ? businessName : lead.full_name || null,
+            website: lead.website || (inferredWebsite ? `https://${inferredWebsite}` : null),
             main_contact_name: lead.full_name || null,
             main_contact_email: lead.email || null,
             main_contact_phone: lead.phone || null,
@@ -460,11 +464,12 @@ export default function ValuationLeads() {
 
         if (insertError) {
           console.error("Failed to create listing for lead:", lead.id, insertError);
+          errorCount++;
           continue;
         }
 
         // Update the valuation_leads row
-        await supabase
+        const { error: updateError } = await supabase
           .from("valuation_leads")
           .update({
             pushed_to_all_deals: true,
@@ -473,6 +478,10 @@ export default function ValuationLeads() {
             status: "pushed",
           } as never)
           .eq("id", lead.id);
+
+        if (updateError) {
+          console.error("Listing created but failed to mark lead as pushed:", lead.id, updateError);
+        }
 
         successCount++;
       }
@@ -481,36 +490,37 @@ export default function ValuationLeads() {
       setSelectedIds(new Set());
 
       if (successCount > 0) {
-        toast({
-          title: "Pushed to All Deals",
-          description: `${successCount} lead${successCount !== 1 ? "s" : ""} pushed to All Deals.`,
-        });
+        sonnerToast.success(`Pushed ${successCount} lead${successCount !== 1 ? "s" : ""} to All Deals${errorCount > 0 ? ` (${errorCount} failed)` : ""}`);
       } else {
-        toast({ title: "Nothing to push", description: "Selected leads were already pushed or not found." });
+        sonnerToast.info("Nothing to push — selected leads were already pushed or not found.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
     },
-    [leads, toast, queryClient]
+    [leads, isPushing, queryClient]
   );
 
   // Push to All Deals AND Enrich — creates listings then queues enrichment
   const handlePushAndEnrich = useCallback(
     async (leadIds: string[]) => {
-      if (leadIds.length === 0) return;
+      if (leadIds.length === 0 || isPushing) return;
       setIsPushing(true);
 
       const leadsToProcess = (leads || []).filter((l) => leadIds.includes(l.id) && !l.pushed_to_all_deals);
 
       const createdListingIds: string[] = [];
+      let errorCount = 0;
       for (const lead of leadsToProcess) {
+        const businessName = extractBusinessName(lead);
+        const inferredWebsite = inferWebsite(lead);
+
         const { data: listing, error: insertError } = await supabase
           .from("listings")
           .insert({
-            title: lead.business_name || lead.full_name || lead.display_name || "Valuation Lead",
-            internal_company_name: lead.business_name || lead.full_name || null,
-            website: lead.website || null,
+            title: businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead",
+            internal_company_name: businessName !== "\u2014" ? businessName : lead.full_name || null,
+            website: lead.website || (inferredWebsite ? `https://${inferredWebsite}` : null),
             main_contact_name: lead.full_name || null,
             main_contact_email: lead.email || null,
             main_contact_phone: lead.phone || null,
@@ -529,10 +539,11 @@ export default function ValuationLeads() {
 
         if (insertError) {
           console.error("Failed to create listing for lead:", lead.id, insertError);
+          errorCount++;
           continue;
         }
 
-        await supabase
+        const { error: updateError } = await supabase
           .from("valuation_leads")
           .update({
             pushed_to_all_deals: true,
@@ -542,6 +553,10 @@ export default function ValuationLeads() {
           } as never)
           .eq("id", lead.id);
 
+        if (updateError) {
+          console.error("Listing created but failed to mark lead as pushed:", lead.id, updateError);
+        }
+
         createdListingIds.push(listing.id);
       }
 
@@ -549,21 +564,27 @@ export default function ValuationLeads() {
       setSelectedIds(new Set());
 
       if (createdListingIds.length > 0) {
-        // Queue all created listings for enrichment
-        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-        await queueDealEnrichment(createdListingIds);
-        toast({
-          title: "Pushed & Enrichment Queued",
-          description: `${createdListingIds.length} lead${createdListingIds.length !== 1 ? "s" : ""} pushed and queued for enrichment.`,
-        });
+        // Queue all created listings for enrichment — wrapped in try-catch
+        try {
+          const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+          const queued = await queueDealEnrichment(createdListingIds);
+          sonnerToast.success(
+            `Pushed ${createdListingIds.length} lead${createdListingIds.length !== 1 ? "s" : ""} and queued ${queued} for enrichment${errorCount > 0 ? ` (${errorCount} failed)` : ""}`
+          );
+        } catch (enrichErr) {
+          console.error("Enrichment queue failed:", enrichErr);
+          sonnerToast.warning(
+            `Pushed ${createdListingIds.length} lead${createdListingIds.length !== 1 ? "s" : ""} but enrichment queue failed. Use Re-Enrich to retry.`
+          );
+        }
       } else {
-        toast({ title: "Nothing to push", description: "Selected leads were already pushed or not found." });
+        sonnerToast.info("Nothing to push — selected leads were already pushed or not found.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
     },
-    [leads, toast, queryClient]
+    [leads, isPushing, queryClient]
   );
 
   // Enrich already-pushed leads (re-enrich from their listing)
@@ -579,8 +600,14 @@ export default function ValuationLeads() {
       }
 
       const listingIds = leadsToEnrich.map((l) => l.pushed_listing_id!);
-      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-      await queueDealEnrichment(listingIds);
+      try {
+        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+        const queued = await queueDealEnrichment(listingIds);
+        sonnerToast.success(`Queued ${queued} listing${queued !== 1 ? "s" : ""} for re-enrichment`);
+      } catch (err) {
+        console.error("Re-enrichment queue failed:", err);
+        sonnerToast.error("Failed to queue re-enrichment. Please try again.");
+      }
     },
     [leads]
   );
