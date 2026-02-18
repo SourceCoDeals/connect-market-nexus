@@ -326,6 +326,7 @@ serve(async (req) => {
                 serviceRoleKey: supabaseServiceKey,
                 listingId: item.listing_id,
                 timeoutMs: PROCESSING_TIMEOUT_MS,
+                force: (item as any).force === true,
               },
               listing
             );

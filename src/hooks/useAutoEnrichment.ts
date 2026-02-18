@@ -129,7 +129,7 @@
      
       try {
         const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-        await queueDealEnrichment([dealId]);
+        await queueDealEnrichment([dealId], false);
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
      } catch (error: any) {
        console.error('[AutoEnrich] Error:', error);

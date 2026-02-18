@@ -8,6 +8,7 @@ export type EnrichmentPipelineInput = {
   serviceRoleKey: string;
   listingId: string;
   timeoutMs: number;
+  force?: boolean;
 };
 
 type ListingContext = {
@@ -72,7 +73,7 @@ export async function runListingEnrichmentPipeline(
   // 1) Website scrape + AI extraction (writes enriched_at + structured intelligence)
   // skipExternalEnrichment=true: LinkedIn/Google are called at the pipeline level (step 2)
   // to avoid nested edge-function timeout chains (queue→enrich-deal→apify would cascade-timeout)
-  const enrichDeal = await callFn(input, 'enrich-deal', { dealId: input.listingId, skipExternalEnrichment: true });
+  const enrichDeal = await callFn(input, 'enrich-deal', { dealId: input.listingId, skipExternalEnrichment: true, forceReExtract: input.force === true });
 
   // 409 = concurrent modification (another process enriched this deal) — treat as success
   if (enrichDeal.status === 409 && enrichDeal.json?.error_code === 'concurrent_modification') {
