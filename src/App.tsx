@@ -92,6 +92,7 @@ const ReMarketingReferralPartners = lazyWithRetry(() => import("@/pages/admin/re
 const ReMarketingReferralPartnerDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingReferralPartnerDetail"));
 const CapTargetDeals = lazyWithRetry(() => import("@/pages/admin/remarketing/CapTargetDeals"));
 const GPPartnerDeals = lazyWithRetry(() => import("@/pages/admin/remarketing/GPPartnerDeals"));
+const ValuationLeads = lazyWithRetry(() => import("@/pages/admin/remarketing/ValuationLeads"));
 
 // M&A Intelligence pages - lazy loaded (admin subsystem)
 const MAIntelligenceLayout = lazyWithRetry(() => import("@/components/ma-intelligence").then(m => ({ default: m.MAIntelligenceLayout })));
