@@ -6975,6 +6975,7 @@ export type Database = {
           score_type: string
           status: string
           universe_id: string
+          updated_at: string
         }
         Insert: {
           attempts?: number
@@ -6987,6 +6988,7 @@ export type Database = {
           score_type: string
           status?: string
           universe_id: string
+          updated_at?: string
         }
         Update: {
           attempts?: number
@@ -6999,6 +7001,7 @@ export type Database = {
           score_type?: string
           status?: string
           universe_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
