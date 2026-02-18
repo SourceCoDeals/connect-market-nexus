@@ -56,6 +56,7 @@ interface ValuationLead {
   business_name: string | null;
   website: string | null;
   phone: string | null;
+  linkedin_url: string | null;
   industry: string | null;
   region: string | null;
   location: string | null;
@@ -71,6 +72,10 @@ interface ValuationLead {
   cta_clicked: boolean | null;
   readiness_score: number | null;
   growth_trend: string | null;
+  owner_dependency: string | null;
+  locations_count: number | null;
+  buyer_lane: string | null;
+  revenue_model: string | null;
   lead_score: number | null;
   scoring_notes: string | null;
   pushed_to_all_deals: boolean | null;
@@ -161,6 +166,73 @@ function toTitleCase(str: string): string {
     .split(" ")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+}
+
+/** Build a full listing insert object from a valuation lead, preserving all valuable data. */
+function buildListingFromLead(lead: ValuationLead) {
+  const businessName = extractBusinessName(lead);
+  const inferredWeb = inferWebsite(lead);
+  const title = businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead";
+
+  // Build seller motivation from exit timing + open_to_intros
+  const motivationParts: string[] = [];
+  if (lead.exit_timing === "now") motivationParts.push("Looking to exit now");
+  else if (lead.exit_timing === "1-2years") motivationParts.push("Exit in 1-2 years");
+  else if (lead.exit_timing === "exploring") motivationParts.push("Exploring options");
+  if (lead.open_to_intros) motivationParts.push("Open to buyer introductions");
+
+  // Build internal notes with lead intelligence summary
+  const noteLines: string[] = [
+    `--- Valuation Calculator Lead Intelligence ---`,
+    `Source: ${lead.calculator_type === "auto_shop" ? "Auto Shop" : lead.calculator_type === "general" ? "General" : lead.calculator_type} Calculator`,
+    `Submitted: ${new Date(lead.created_at).toLocaleDateString()}`,
+  ];
+  if (lead.lead_score != null) noteLines.push(`Lead Score: ${lead.lead_score}/100`);
+  if (lead.quality_label) noteLines.push(`Quality: ${lead.quality_label} (tier: ${lead.quality_tier || "—"})`);
+  if (lead.readiness_score != null) noteLines.push(`Readiness: ${lead.readiness_score}/100`);
+  if (lead.exit_timing) noteLines.push(`Exit Timing: ${lead.exit_timing}`);
+  if (lead.open_to_intros != null) noteLines.push(`Open to Intros: ${lead.open_to_intros ? "Yes" : "No"}`);
+  if (lead.owner_dependency) noteLines.push(`Owner Dependency: ${lead.owner_dependency}`);
+  if (lead.buyer_lane) noteLines.push(`Buyer Lane: ${lead.buyer_lane}`);
+  if (lead.valuation_low != null && lead.valuation_high != null) {
+    noteLines.push(`Self-Assessed Valuation: $${(lead.valuation_low / 1e6).toFixed(1)}M – $${(lead.valuation_high / 1e6).toFixed(1)}M (mid: $${((lead.valuation_mid || 0) / 1e6).toFixed(1)}M)`);
+  }
+  if (lead.scoring_notes) noteLines.push(`Scoring Notes: ${lead.scoring_notes}`);
+
+  return {
+    // Identity
+    title,
+    internal_company_name: title,
+    deal_source: "valuation_calculator",
+    deal_identifier: `vlead_${lead.id.slice(0, 8)}`,
+    status: "active",
+    is_internal_deal: true,
+    pushed_to_all_deals: true,
+    pushed_to_all_deals_at: new Date().toISOString(),
+
+    // Contact
+    main_contact_name: lead.full_name || null,
+    main_contact_email: lead.email || null,
+    main_contact_phone: lead.phone || null,
+    website: lead.website || (inferredWeb ? `https://${inferredWeb}` : null),
+    linkedin_url: lead.linkedin_url || null,
+
+    // Business
+    industry: lead.industry || null,
+    location: lead.location || null,
+    revenue: lead.revenue,
+    ebitda: lead.ebitda,
+    revenue_model: lead.revenue_model || null,
+    growth_trajectory: lead.growth_trend || null,
+    number_of_locations: lead.locations_count || null,
+
+    // Seller intelligence
+    seller_motivation: motivationParts.join(". ") || null,
+    owner_goals: lead.exit_timing ? `Exit timing: ${lead.exit_timing}${lead.open_to_intros ? ". Open to buyer introductions." : ""}` : null,
+
+    // Internal intelligence (admin-only)
+    internal_notes: noteLines.join("\n"),
+  } as never;
 }
 
 function getFromDate(tf: Timeframe): string | null {
@@ -290,6 +362,7 @@ export default function ValuationLeads() {
             valuation_high: row.valuation_high != null ? Number(row.valuation_high) : null,
             lead_score: row.lead_score != null ? Number(row.lead_score) : null,
             readiness_score: row.readiness_score != null ? Number(row.readiness_score) : null,
+            locations_count: row.locations_count != null ? Number(row.locations_count) : null,
           }));
           allData.push(...normalized);
           offset += batchSize;
@@ -436,29 +509,9 @@ export default function ValuationLeads() {
       let successCount = 0;
       let errorCount = 0;
       for (const lead of leadsToProcess) {
-        const businessName = extractBusinessName(lead);
-        const inferredWebsite = inferWebsite(lead);
-
-        // Create listing row
         const { data: listing, error: insertError } = await supabase
           .from("listings")
-          .insert({
-            title: businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead",
-            internal_company_name: businessName !== "\u2014" ? businessName : lead.full_name || null,
-            website: lead.website || (inferredWebsite ? `https://${inferredWebsite}` : null),
-            main_contact_name: lead.full_name || null,
-            main_contact_email: lead.email || null,
-            main_contact_phone: lead.phone || null,
-            industry: lead.industry || null,
-            location: lead.location || null,
-            revenue: lead.revenue,
-            ebitda: lead.ebitda,
-            deal_source: "valuation_calculator",
-            status: "active",
-            is_internal_deal: true,
-            pushed_to_all_deals: true,
-            pushed_to_all_deals_at: new Date().toISOString(),
-          } as never)
+          .insert(buildListingFromLead(lead))
           .select("id")
           .single();
 
@@ -468,7 +521,6 @@ export default function ValuationLeads() {
           continue;
         }
 
-        // Update the valuation_leads row
         const { error: updateError } = await supabase
           .from("valuation_leads")
           .update({
@@ -512,28 +564,9 @@ export default function ValuationLeads() {
       const createdListingIds: string[] = [];
       let errorCount = 0;
       for (const lead of leadsToProcess) {
-        const businessName = extractBusinessName(lead);
-        const inferredWebsite = inferWebsite(lead);
-
         const { data: listing, error: insertError } = await supabase
           .from("listings")
-          .insert({
-            title: businessName !== "\u2014" ? businessName : lead.full_name || "Valuation Lead",
-            internal_company_name: businessName !== "\u2014" ? businessName : lead.full_name || null,
-            website: lead.website || (inferredWebsite ? `https://${inferredWebsite}` : null),
-            main_contact_name: lead.full_name || null,
-            main_contact_email: lead.email || null,
-            main_contact_phone: lead.phone || null,
-            industry: lead.industry || null,
-            location: lead.location || null,
-            revenue: lead.revenue,
-            ebitda: lead.ebitda,
-            deal_source: "valuation_calculator",
-            status: "active",
-            is_internal_deal: true,
-            pushed_to_all_deals: true,
-            pushed_to_all_deals_at: new Date().toISOString(),
-          } as never)
+          .insert(buildListingFromLead(lead))
           .select("id")
           .single();
 
