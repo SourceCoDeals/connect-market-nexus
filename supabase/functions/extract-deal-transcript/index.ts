@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
+import { isPlaceholder } from "../_shared/deal-extraction.ts";
 import { GEMINI_25_FLASH_MODEL } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
@@ -523,6 +524,16 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
       extracted.geographic_states = normalizeStates(extracted.geographic_states);
     }
 
+    // Strip placeholder strings from extracted data before saving.
+    // The AI often produces "Not discussed on this call." etc. which pollute
+    // the DB and block lower-priority sources from overwriting.
+    for (const key of Object.keys(extracted) as (keyof ExtractionResult)[]) {
+      const val = extracted[key];
+      if (typeof val === 'string' && isPlaceholder(val)) {
+        (extracted as any)[key] = null;
+      }
+    }
+
     // Update the transcript with extracted data
     const { data: transcriptRecord, error: fetchError } = await supabase
       .from('deal_transcripts')
@@ -692,7 +703,8 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           listing.extraction_sources,
           filteredExtracted,
           'transcript',
-          transcriptId
+          transcriptId,
+          isPlaceholder
         );
 
         // Merge geographic_states instead of replacing

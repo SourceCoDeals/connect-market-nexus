@@ -531,14 +531,38 @@ export const TRANSCRIPT_PLACEHOLDER_STRINGS = new Set([
   'unknown', '<unknown>', 'n/a', 'na', 'not specified', 'not provided', 'none', 'null', '-', '—',
 ]);
 
+// Patterns that match verbose AI placeholder responses like "Not discussed on this call."
+const PLACEHOLDER_PATTERNS = [
+  /^not\s+discussed/i,
+  /^not\s+mentioned/i,
+  /^not\s+provided/i,
+  /^not\s+specified/i,
+  /^not\s+disclosed/i,
+  /^not\s+available/i,
+  /^no\s+(additional\s+)?information/i,
+  /^no\s+(additional\s+)?context/i,
+  /^no\s+(additional\s+)?(financial\s+)?data/i,
+  /not\s+discussed\s+on\s+this\s+call/i,
+  /not\s+discussed\s+in\s+this\s+(call|transcript|meeting)/i,
+  /not\s+mentioned\s+(on|in)\s+this/i,
+  /recommend\s+follow[- ]?up/i,
+];
+
 /**
  * Check if a value is a placeholder that should be rejected.
+ * Catches both exact matches (e.g. "n/a") and verbose AI patterns
+ * (e.g. "Not discussed on this call.", "Ownership structure not discussed on this call.").
  */
 export function isPlaceholder(v: unknown): boolean {
   if (typeof v !== 'string') return false;
   const raw = v.trim().toLowerCase();
   const normalized = raw.replace(/^<|>$/g, '').trim();
-  return raw.length === 0 || TRANSCRIPT_PLACEHOLDER_STRINGS.has(raw) || TRANSCRIPT_PLACEHOLDER_STRINGS.has(normalized);
+  if (raw.length === 0 || TRANSCRIPT_PLACEHOLDER_STRINGS.has(raw) || TRANSCRIPT_PLACEHOLDER_STRINGS.has(normalized)) {
+    return true;
+  }
+  // Check verbose patterns — strip leading field name prefix like "Ownership structure "
+  // before matching, since the AI often echoes the field name.
+  return PLACEHOLDER_PATTERNS.some(p => p.test(raw));
 }
 
 /**

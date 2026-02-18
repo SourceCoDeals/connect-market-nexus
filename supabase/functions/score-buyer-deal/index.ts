@@ -234,6 +234,55 @@ async function fetchWithRetry(
 }
 
 // ============================================================================
+// SCORE SNAPSHOT — Immutable audit trail (Audit 4.2.2)
+// ============================================================================
+
+/**
+ * Save an immutable score snapshot for auditing.
+ * Non-blocking: swallows errors to avoid breaking the scoring pipeline.
+ */
+function saveScoreSnapshot(
+  supabase: any,
+  score: ScoredResult,
+  weights: { geography: number; size: number; service: number; owner_goals: number },
+  triggerType: 'manual' | 'bulk' | 'auto' | 'recalculation' = 'manual'
+): void {
+  supabase.from('score_snapshots').insert({
+    listing_id: score.listing_id,
+    buyer_id: score.buyer_id,
+    universe_id: score.universe_id,
+    composite_score: score.composite_score,
+    geography_score: score.geography_score,
+    size_score: score.size_score,
+    service_score: score.service_score,
+    owner_goals_score: score.owner_goals_score,
+    deal_quality_score: null,
+    engagement_score: null,
+    tier: score.tier,
+    weights_used: weights,
+    multipliers_applied: {
+      size_multiplier: score.size_multiplier,
+      service_multiplier: score.service_multiplier,
+      geography_mode_factor: score.geography_mode_factor,
+    },
+    bonuses_applied: {
+      thesis_bonus: score.thesis_alignment_bonus,
+      data_quality: score.data_quality_bonus,
+      custom: score.custom_bonus,
+      learning_penalty: -score.learning_penalty,
+    },
+    data_completeness: score.data_completeness,
+    missing_fields: score.missing_fields,
+    trigger_type: triggerType,
+    scoring_version: 'v5',
+  }).then(({ error }: { error: any }) => {
+    if (error) console.warn('[score-snapshots] Failed to save snapshot:', error.message);
+  }).catch((err: unknown) => {
+    console.warn('[score-snapshots] Snapshot error:', err);
+  });
+}
+
+// ============================================================================
 // MAIN HANDLER
 // ============================================================================
 
@@ -1777,6 +1826,14 @@ async function handleSingleScore(
     throw new Error("Failed to save score");
   }
 
+  // Save immutable score snapshot (non-blocking)
+  saveScoreSnapshot(supabase, score, {
+    geography: universe.geography_weight || 20,
+    size: universe.size_weight || 30,
+    service: universe.service_weight || 45,
+    owner_goals: universe.owner_goals_weight || 5,
+  }, 'manual');
+
   return new Response(
     JSON.stringify({ success: true, score: savedScore }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -1991,6 +2048,16 @@ async function handleBulkScore(
         errors.push("Failed to save some scores");
       } else {
         scores.push(...(savedScores || []));
+
+        // Save immutable score snapshots for bulk scoring (non-blocking)
+        for (const s of validScores) {
+          saveScoreSnapshot(supabase, s, {
+            geography: universe.geography_weight || 20,
+            size: universe.size_weight || 30,
+            service: universe.service_weight || 45,
+            owner_goals: universe.owner_goals_weight || 5,
+          }, 'bulk');
+        }
       }
     }
 
