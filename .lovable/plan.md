@@ -1,114 +1,108 @@
 
-# CTO Audit Fix Plan: Enrichment & Scoring Infrastructure
+# Populate valuation_leads with Historical Data from Both Files
 
-This plan addresses every issue identified in the audit, prioritized by severity. No cosmetic changes — only functional fixes.
+## Data Inventory
 
----
+### File 1: Calculator_1.xlsx (General Calculator)
+- 184 rows, April 2025 - February 2026
+- All rows have a unique `Submission ID` (e.g. `sub_8ip3xmsxof6`) that maps to `source_submission_id`
+- Status breakdown: most are `Completed`, some are `Duplicate`, some are `Test`
+- Key columns: Timestamp, Email, First Name, Business Name, Revenue Model, Industry, Region, Revenue, EBITDA, Exit Readiness Score, Valuation Low, Valuation High, Confidence Level (Low/Medium/High), CTA Clicked, Open to Buyer Intros, Exit Timing, Website, Location, Phone, LinkedIn URL, Submission ID, Status
 
-## CRITICAL Fix 1: `force` flag not passed to `enrich-deal` (transcripts won't re-extract)
+### File 2: auto_valuation_leads-export (Auto Shop Calculator)
+- ~10 rows total, all Adam Haile test entries from December 2025
+- Each has a UUID as the primary key
+- Contains rich JSON in `calculator_inputs` and `valuation_result` columns
+- Key data extracted from JSON: revenue_ltm, ebitda_ltm, service_type, businessValue.low/mid/high, tier, qualityLabel.label, buyerLane.lane
 
-**Root cause confirmed:** `enrichmentPipeline.ts` line 75 calls `enrich-deal` with `{ dealId, skipExternalEnrichment: true }` but never includes `forceReExtract`. The `enrich-deal` function reads `forceReExtract` from the request body (line 134) and defaults to `false`, meaning previously-extracted transcript data is never re-run even when the queue item has `force=true`.
+## Column Mapping
 
-**Fix:** The `EnrichmentPipelineInput` type must carry the `force` flag, and `process-enrichment-queue/index.ts` must pass it through to `runListingEnrichmentPipeline`, which then passes `forceReExtract: true` to the `enrich-deal` call.
+### General Calculator → valuation_leads
 
-Files changed:
-- `supabase/functions/process-enrichment-queue/enrichmentPipeline.ts` — add `force?: boolean` to `EnrichmentPipelineInput`, pass `forceReExtract: input.force` in the `enrich-deal` call body
-- `supabase/functions/process-enrichment-queue/index.ts` — pass `force: item.force ?? false` into the pipeline input object (line ~325)
+| Source | DB Column | Notes |
+|---|---|---|
+| Timestamp | created_at | ISO timestamp |
+| Email | email | |
+| First Name | full_name, display_name | |
+| Business Name | business_name | |
+| Revenue Model | revenue_model | |
+| Industry | industry | |
+| Region | region | |
+| Revenue (12mo) | revenue | Strip commas |
+| EBITDA / Profit | ebitda | Strip commas |
+| Exit Timing | exit_timing | |
+| Open to Buyer Intros | open_to_intros | TRUE/FALSE |
+| Exit Readiness Score | readiness_score | Integer |
+| Valuation Low | valuation_low | |
+| Valuation High | valuation_high | |
+| (low+high)/2 | valuation_mid | Calculated |
+| Confidence Level | quality_tier | Low/Medium/High |
+| CTA Clicked | cta_clicked | TRUE/FALSE |
+| Website | website | |
+| Location | location | |
+| Phone Number (Identified) | phone | |
+| Linkedin URL | linkedin_url | |
+| Submission ID | source_submission_id | Unique key for dedup |
+| Status | status | 'completed' for all |
+| Status = "Test" | excluded=true, exclusion_reason='test' | |
+| Status = "Duplicate" | excluded=true, exclusion_reason='duplicate' | |
+| calculator_type | 'general' (hardcoded) | |
+| lead_source | 'initial_unlock' (hardcoded) | |
 
----
+### Auto Shop Export → valuation_leads
 
-## HIGH Fix 2: Buyer worker ignores `force` flag entirely
+| Source | DB Column | Notes |
+|---|---|---|
+| id (UUID) | id | Use as primary key |
+| full_name | full_name, display_name | |
+| email | email | |
+| website | website | |
+| created_at | created_at | |
+| lead_source | lead_source | |
+| calculator_inputs.revenue_ltm | revenue | Extracted from JSON |
+| calculator_inputs.ebitda_ltm | ebitda | Extracted from JSON |
+| calculator_inputs.service_type | industry | Extracted from JSON |
+| valuation_result.businessValue.low | valuation_low | |
+| valuation_result.businessValue.mid | valuation_mid | |
+| valuation_result.businessValue.high | valuation_high | |
+| valuation_result.tier | quality_tier | A/B/C → Low/Medium/High |
+| valuation_result.qualityLabel.label | quality_label | |
+| valuation_result.buyerLane.lane | buyer_lane | |
+| calculator_inputs (full) | raw_calculator_inputs | JSONB |
+| valuation_result (full) | raw_valuation_results | JSONB |
+| calculator_type | 'auto_shop' (hardcoded) | |
+| excluded | true (all test data) | All are Adam Haile entries |
+| exclusion_reason | 'test' | |
 
-**Root cause confirmed:** `process-buyer-enrichment-queue/index.ts` line 144 selects `id, buyer_id, universe_id, status, attempts, queued_at` — `force` is not even fetched. The `enrich-buyer` call at line 229 only sends `{ buyerId, skipLock: true }`. The buyer worker also has a freshness check (lines 172-191) that skips buyers updated within the last 5 minutes based on `data_last_updated`, which will silently skip a forced re-enrichment if the buyer was recently processed.
+## Implementation Approach
 
-**Fix:**
-- Add `force` to the select query (line 144)
-- Pass `forceReExtract: item.force === true` in the `enrich-buyer` fetch body (line 229)
-- Bypass the freshness check when `item.force === true` (lines 172-191)
-- Reset `force: false` on completion update (line 286-292)
+A single database migration SQL file with two INSERT blocks:
 
-Files changed:
-- `supabase/functions/process-buyer-enrichment-queue/index.ts`
+**Block 1 — General Calculator (~184 rows)**
+- `INSERT INTO valuation_leads (...) VALUES (...), (...), ...`
+- Uses `ON CONFLICT (source_submission_id) DO NOTHING` as a safety net if re-run
+- Status logic: rows where Status = "Duplicate" get `excluded = true, exclusion_reason = 'duplicate'`; rows where Status = "Test" get `excluded = true, exclusion_reason = 'test'`; all others get `excluded = false`
+- `valuation_mid` = `(valuation_low + valuation_high) / 2`
+- `status` = 'completed' for all rows
+- Row 133 (blank email/name) will be skipped as it has no usable data
 
----
+**Block 2 — Auto Shop (~10 rows)**
+- `INSERT INTO valuation_leads (...) VALUES (...), ...`
+- Uses `ON CONFLICT (id) DO NOTHING`
+- All rows marked `excluded = true, exclusion_reason = 'test'` (all are Adam Haile test submissions from December 2025)
+- The pipe-delimited JSON strings in the export are reconstructed to valid JSON for the JSONB columns
+- Only the key extracted fields (revenue, ebitda, valuation_low/mid/high, etc.) are stored in named columns; the full JSON is stored in raw_calculator_inputs and raw_valuation_results
 
-## HIGH Fix 3: Partial unique indexes are incompatible with PostgREST `onConflict`
+## Expected Row Counts
+- General: ~183 insertable rows (1 blank row skipped)
+  - ~130 rows: excluded=false (Completed)
+  - ~40 rows: excluded=true, exclusion_reason='duplicate'
+  - ~13 rows: excluded=true, exclusion_reason='test'
+- Auto Shop: ~10 rows, all excluded=true (test)
+- **Total: ~193 rows**
 
-**Root cause confirmed:** The database has partial unique indexes:
-```
-uq_scoring_queue_deal: (universe_id, listing_id, score_type) WHERE listing_id IS NOT NULL
-uq_scoring_queue_alignment: (universe_id, buyer_id, score_type) WHERE buyer_id IS NOT NULL
-```
-
-PostgREST's `onConflict` parameter does **not** support partial indexes. When `queueScoring.ts` calls `.upsert(rows, { onConflict: "universe_id,listing_id,score_type" })`, PostgREST looks for a non-partial unique constraint matching those exact columns. It won't find one, so the behavior is undefined — it may silently insert duplicates or throw a constraint error, depending on the Postgres version and PostgREST behavior.
-
-**Fix:** Replace the partial unique indexes with full unique indexes, or add unconditional unique constraints alongside. Since `listing_id` and `buyer_id` can both be null in the same table (deal rows have no buyer_id, alignment rows have no listing_id), we need to use partial indexes but must not use PostgREST upsert against them. Instead, use a manual upsert pattern:
-
-1. Attempt insert
-2. On conflict (23505), update the existing row
-
-Or simpler: add full non-partial unique constraints using `COALESCE` or move to separate tables. The cleanest fix is to **add real unique constraints** (non-partial) by making null columns use a sentinel value, or to **use an RPC for the upsert** that runs a proper `INSERT ... ON CONFLICT DO UPDATE` with the `WHERE` clause.
-
-**Chosen approach:** Add a database migration that creates a proper `INSERT ... ON CONFLICT` RPC function for scoring queue upserts, and update `queueScoring.ts` to call `supabase.rpc('upsert_scoring_queue_items', { rows })` instead of `.upsert()`.
-
-Alternatively (simpler): Replace the two partial indexes with one composite unique index that uses `COALESCE(listing_id, buyer_id)` — but this is not directly supported either. 
-
-**Best practical fix:** Drop the partial indexes and replace with two separate upsert RPCs: one for deal scoring (`uq_scoring_queue_deal` becomes enforced via RPC), one for alignment. The RPC uses `INSERT ... ON CONFLICT (universe_id, listing_id, score_type) WHERE listing_id IS NOT NULL DO UPDATE SET status = EXCLUDED.status, updated_at = now()`.
-
-Files changed:
-- New migration: drop partial indexes, create RPC `upsert_deal_scoring_queue` and `upsert_alignment_scoring_queue`
-- `src/lib/remarketing/queueScoring.ts` — replace `.upsert()` calls with `supabase.rpc('upsert_deal_scoring_queue', ...)` and `supabase.rpc('upsert_alignment_scoring_queue', ...)`
-
----
-
-## MODERATE Fix 4: Auto-enrichment always sets `force=true` via `queueDealEnrichment`
-
-**Root cause confirmed:** `useAutoEnrichment.ts` (line 131) calls `queueDealEnrichment([dealId])`, which unconditionally sets `force: true` on every queued row. This means page-load auto-enrichment (triggered for stale/missing-fields deals) forces a full transcript re-extraction on every visit, which is wasteful and bypasses the worker's own freshness/staleness logic.
-
-**Fix:** Add an optional `force` parameter to `queueDealEnrichment` (default `false`) and `queueBuyerEnrichment` (default `false`). Manual UI-triggered calls pass `force: true`; `useAutoEnrichment` passes no argument (defaults to `false`).
-
-Files changed:
-- `src/lib/remarketing/queueEnrichment.ts` — add `force = true` parameter to both functions (keep `true` as default for backward compat with existing callers, but allow override)
-- `src/hooks/useAutoEnrichment.ts` — pass `force: false` explicitly
-
----
-
-## MODERATE Fix 5: Dead code in `useBuyerEnrichment.ts`
-
-**Root cause confirmed:** The hook contains `parseInvokeError` (lines 61-96), `BATCH_SIZE`/`BATCH_DELAY_MS` constants (lines 47-48), `AbortState` interface (lines 51-55), and `updateStatus` callback (lines 110-116) — all completely unreferenced after the migration to the queue system. The hook also imports `invokeWithTimeout` (line 3) which is unused.
-
-**Fix:** Remove all dead code. The hook's retained surface: `progress` state, `enrichBuyers`, `cancel`, `reset`. Clean up unused imports too.
-
-Files changed:
-- `src/hooks/useBuyerEnrichment.ts`
-
----
-
-## LOW Fix 6: No completion feedback for background enrichment
-
-**Current state:** After clicking "Enrich", users see a single toast "Deal queued for background enrichment" and then nothing until they manually refresh. The previous polling infrastructure was removed rather than adapted.
-
-**Fix:** Add a lightweight polling hook that subscribes to `enrichment_queue` status for the specific `listing_id`. When the row transitions from `pending/processing` to `completed/failed`, fire a toast notification and invalidate the deal query to auto-refresh the page data.
-
-This is lightweight: poll every 5 seconds, stop after `completed`/`failed` or after 5 minutes.
-
-Files changed:
-- New file: `src/hooks/useEnrichmentQueueStatus.ts` — polls `enrichment_queue` for a specific `listing_id`
-- `src/components/remarketing/DealTranscriptSection.tsx` — use the hook after queuing to fire completion toast + invalidate deal query
-
----
-
-## Technical Summary Table
-
-```text
-Fix | Severity | Files Changed
-----|----------|----------------------------------------------
-1   | CRITICAL | enrichmentPipeline.ts, process-enrichment-queue/index.ts
-2   | HIGH     | process-buyer-enrichment-queue/index.ts
-3   | HIGH     | new migration (RPC), queueScoring.ts
-4   | MODERATE | queueEnrichment.ts, useAutoEnrichment.ts
-5   | MODERATE | useBuyerEnrichment.ts (cleanup only)
-6   | LOW      | new hook, DealTranscriptSection.tsx
-```
-
-**Execution order:** Fix 3 migration runs first (no app code depends on it yet), then Fixes 1 & 2 (edge function deploys), then Fixes 4 & 5 (frontend), then Fix 6 (frontend).
+## What Will NOT Change
+- No new tables or schema changes
+- No code changes
+- No file upload infrastructure
+- Pure one-time data migration SQL only
