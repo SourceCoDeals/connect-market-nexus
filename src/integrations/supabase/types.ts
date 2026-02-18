@@ -8163,6 +8163,10 @@ export type Database = {
       }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       cleanup_zombie_extractions: { Args: never; Returns: number }
+      complete_enrichment_job: {
+        Args: { p_job_id: string; p_status?: string }
+        Returns: undefined
+      }
       convert_inbound_lead_to_request: {
         Args: { p_lead_id: string; p_listing_id: string }
         Returns: string
@@ -8392,6 +8396,22 @@ export type Database = {
         Args: { p_user_id: string; p_visitor_id: string }
         Returns: undefined
       }
+      log_enrichment_event: {
+        Args: {
+          p_duration_ms?: number
+          p_entity_id: string
+          p_entity_type: string
+          p_error_message?: string
+          p_fields_updated?: number
+          p_function_name: string
+          p_job_id?: string
+          p_provider: string
+          p_status: string
+          p_step_name?: string
+          p_tokens_used?: number
+        }
+        Returns: string
+      }
       log_fee_agreement_email: {
         Args: {
           admin_notes?: string
@@ -8463,6 +8483,7 @@ export type Database = {
         Returns: boolean
       }
       refresh_analytics_views: { Args: never; Returns: undefined }
+      refresh_audit_materialized_views: { Args: never; Returns: undefined }
       reset_all_admin_notifications:
         | { Args: never; Returns: undefined }
         | { Args: { admin_uuid: string }; Returns: undefined }
@@ -8528,6 +8549,19 @@ export type Database = {
         Returns: Json
       }
       update_engagement_scores: { Args: never; Returns: undefined }
+      update_enrichment_job_progress: {
+        Args: {
+          p_circuit_breaker?: boolean
+          p_error_message?: string
+          p_failed_delta?: number
+          p_job_id: string
+          p_last_processed_id?: string
+          p_rate_limited?: boolean
+          p_skipped_delta?: number
+          p_succeeded_delta?: number
+        }
+        Returns: undefined
+      }
       update_fee_agreement_email_status: {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
@@ -8655,6 +8689,33 @@ export type Database = {
           target_user_id: string
         }
         Returns: boolean
+      }
+      upsert_alignment_scoring_queue: {
+        Args: {
+          p_buyer_id: string
+          p_score_type: string
+          p_status?: string
+          p_universe_id: string
+        }
+        Returns: undefined
+      }
+      upsert_deal_scoring_queue: {
+        Args: {
+          p_listing_id: string
+          p_score_type: string
+          p_status?: string
+          p_universe_id: string
+        }
+        Returns: undefined
+      }
+      upsert_enrichment_job: {
+        Args: {
+          p_job_type: string
+          p_source?: string
+          p_total_records: number
+          p_triggered_by?: string
+        }
+        Returns: string
       }
       validate_reset_token: { Args: { token_value: string }; Returns: string }
       verify_production_readiness: {

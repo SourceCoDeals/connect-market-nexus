@@ -46,13 +46,23 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
     status: "pending" as const,
   }));
 
-  const { error } = await supabase
-    .from("remarketing_scoring_queue")
-    .upsert(rows, { onConflict: "universe_id,listing_id,score_type", ignoreDuplicates: false });
-  if (error) {
-    console.error("Failed to queue deal scoring:", error);
+  // Use RPC to handle partial unique index (PostgREST .upsert() can't target partial indexes)
+  const upsertErrors: string[] = [];
+  await Promise.all(
+    rows.map(async (row) => {
+      const { error } = await supabase.rpc('upsert_deal_scoring_queue', {
+        p_universe_id: row.universe_id,
+        p_listing_id: row.listing_id,
+        p_score_type: row.score_type,
+        p_status: row.status,
+      });
+      if (error) upsertErrors.push(error.message);
+    })
+  );
+  if (upsertErrors.length > 0) {
+    console.error("Failed to queue deal scoring:", upsertErrors);
     toast.error("Failed to queue scoring");
-    throw error;
+    throw new Error(upsertErrors.join('; '));
   }
 
   // Fire-and-forget worker invocation
@@ -93,13 +103,23 @@ export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlign
     status: "pending" as const,
   }));
 
-  const { error } = await supabase
-    .from("remarketing_scoring_queue")
-    .upsert(rows, { onConflict: "universe_id,buyer_id,score_type", ignoreDuplicates: false });
-  if (error) {
-    console.error("Failed to queue alignment scoring:", error);
+  // Use RPC to handle partial unique index (PostgREST .upsert() can't target partial indexes)
+  const upsertErrors: string[] = [];
+  await Promise.all(
+    rows.map(async (row) => {
+      const { error } = await supabase.rpc('upsert_alignment_scoring_queue', {
+        p_universe_id: row.universe_id,
+        p_buyer_id: row.buyer_id,
+        p_score_type: row.score_type,
+        p_status: row.status,
+      });
+      if (error) upsertErrors.push(error.message);
+    })
+  );
+  if (upsertErrors.length > 0) {
+    console.error("Failed to queue alignment scoring:", upsertErrors);
     toast.error("Failed to queue scoring");
-    throw error;
+    throw new Error(upsertErrors.join('; '));
   }
 
   supabase.functions.invoke("process-scoring-queue", {

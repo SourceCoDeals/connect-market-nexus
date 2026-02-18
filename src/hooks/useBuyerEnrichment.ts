@@ -1,6 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
+import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -43,58 +41,9 @@ export interface EnrichmentSummary {
   resetTime?: string;
 }
 
-// Gemini processing config — serialize to avoid client-side rate limit storms
-const BATCH_SIZE = 1;
-const BATCH_DELAY_MS = 500;
-
-// Shared abort signal for immediate fail-fast across parallel requests
-interface AbortState {
-  aborted: boolean;
-  reason?: 'rate_limited' | 'credits_depleted' | 'cancelled';
-  resetTime?: string;
-}
-
 export function useBuyerEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
-  const cancelledRef = useRef(false);
 
-  const parseInvokeError = (err: unknown): {
-    message: string;
-    status?: number;
-    code?: string;
-    resetTime?: string;
-  } => {
-    const anyErr = err as any;
-    const status = anyErr?.context?.status as number | undefined;
-    const json = anyErr?.context?.json as any | undefined;
-
-    // Build a helpful error message based on status code
-    let message = json?.error || anyErr?.message || 'Request failed';
-
-    // Add context for common HTTP status codes
-    if (status === 401) {
-      const detail = json?.error || 'Unauthorized';
-      message = `Authentication failed: ${detail}. The enrich-buyer function requires authentication. Make sure you're logged in and the function is properly deployed.`;
-    } else if (status === 403) {
-      message = `Permission denied: ${json?.error || 'Forbidden'}. You may not have access to this feature.`;
-    } else if (status === 429) {
-      message = `Rate limit exceeded. Too many requests. Try again later.`;
-    } else if (status === 402) {
-      message = `API credits depleted. Please add credits to your Gemini account.`;
-    } else if (status === 500) {
-      message = `Server error: ${json?.error || 'Internal server error'}. Check the edge function logs.`;
-    } else if (status && !json?.error) {
-      message = `Request failed (HTTP ${status})`;
-    }
-
-    return {
-      message,
-      status,
-      code: json?.code,
-      resetTime: json?.resetTime,
-    };
-  };
-  
   const [progress, setProgress] = useState<EnrichmentProgress>({
     current: 0,
     total: 0,
@@ -106,14 +55,6 @@ export function useBuyerEnrichment(universeId?: string) {
     creditsDepleted: false,
     rateLimited: false,
   });
-
-  const updateStatus = useCallback((buyerId: string, status: EnrichmentStatus) => {
-    setProgress(prev => {
-      const newStatuses = new Map(prev.statuses);
-      newStatuses.set(buyerId, status);
-      return { ...prev, statuses: newStatuses };
-    });
-  }, []);
 
   const enrichBuyers = useCallback(async (
     buyers: Array<{ id: string; platform_website?: string | null; pe_firm_website?: string | null; company_website?: string | null }>
@@ -168,11 +109,10 @@ export function useBuyerEnrichment(universeId?: string) {
   }, [universeId]);
 
   const cancel = useCallback(() => {
-    cancelledRef.current = true;
+    setProgress(prev => ({ ...prev, isCancelled: true, isRunning: false }));
   }, []);
 
   const reset = useCallback(() => {
-    cancelledRef.current = false;
     setProgress({
       current: 0,
       total: 0,

@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { useEnrichmentQueueStatus } from "@/hooks/useEnrichmentQueueStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +99,14 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [showEnrichmentDialog, setShowEnrichmentDialog] = useState(false);
   const [enrichmentPhase, setEnrichmentPhase] = useState<'transcripts' | 'website' | null>(null);
   const [enrichmentProgress, setEnrichmentProgress] = useState({ current: 0, total: 0 });
+  const [enrichmentPollingEnabled, setEnrichmentPollingEnabled] = useState(false);
+
+  // Poll enrichment_queue for completion and auto-refresh data + notify user
+  useEnrichmentQueueStatus({
+    listingId: dealId,
+    enabled: enrichmentPollingEnabled,
+    onComplete: () => setEnrichmentPollingEnabled(false),
+  });
 
   // Fireflies sync state
   const [syncLoading, setSyncLoading] = useState(false);
@@ -327,8 +336,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
       if (pollInterval) clearInterval(pollInterval);
 
-      // Don't show the "Enrichment Complete" dialog — the deal is queued for background processing.
-      // The toast from queueDealEnrichment already informs the user.
+      // Start polling enrichment_queue so the user gets auto-notified when it completes
+      setEnrichmentPollingEnabled(true);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
     } catch (error: any) {

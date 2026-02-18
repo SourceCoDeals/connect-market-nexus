@@ -9,7 +9,7 @@ import { toast } from "sonner";
  * Queue a single deal for enrichment via the enrichment_queue table.
  * The process-enrichment-queue worker will pick it up.
  */
-export async function queueDealEnrichment(dealIds: string[]): Promise<number> {
+export async function queueDealEnrichment(dealIds: string[], force = true): Promise<number> {
   if (dealIds.length === 0) return 0;
 
   // Check which are already queued
@@ -32,7 +32,7 @@ export async function queueDealEnrichment(dealIds: string[]): Promise<number> {
     status: "pending",
     attempts: 0,
     queued_at: new Date().toISOString(),
-    force: true,
+    force,
   }));
 
   const { error } = await supabase
@@ -61,7 +61,7 @@ export async function queueDealEnrichment(dealIds: string[]): Promise<number> {
  * Queue buyer(s) for enrichment via the buyer_enrichment_queue table.
  * The process-buyer-enrichment-queue worker will pick them up.
  */
-export async function queueBuyerEnrichment(buyerIds: string[], universeId?: string): Promise<number> {
+export async function queueBuyerEnrichment(buyerIds: string[], universeId?: string, force = true): Promise<number> {
   if (buyerIds.length === 0) return 0;
 
   // Check which are already queued
@@ -85,7 +85,7 @@ export async function queueBuyerEnrichment(buyerIds: string[], universeId?: stri
     status: "pending",
     attempts: 0,
     queued_at: new Date().toISOString(),
-    force: true,
+    force,
   }));
 
   const { error } = await supabase
