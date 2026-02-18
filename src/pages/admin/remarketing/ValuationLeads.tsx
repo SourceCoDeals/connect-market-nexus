@@ -41,6 +41,7 @@ import {
   Users,
   Clock,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -430,6 +431,96 @@ export default function ValuationLeads() {
     [leads, toast, queryClient]
   );
 
+  // Push to All Deals AND Enrich — creates listings then queues enrichment
+  const handlePushAndEnrich = useCallback(
+    async (leadIds: string[]) => {
+      if (leadIds.length === 0) return;
+      setIsPushing(true);
+
+      const leadsToProcess = (leads || []).filter((l) => leadIds.includes(l.id) && !l.pushed_to_all_deals);
+
+      const createdListingIds: string[] = [];
+      for (const lead of leadsToProcess) {
+        const { data: listing, error: insertError } = await supabase
+          .from("listings")
+          .insert({
+            title: lead.business_name || lead.full_name || lead.display_name || "Valuation Lead",
+            internal_company_name: lead.business_name || lead.full_name || null,
+            website: lead.website || null,
+            main_contact_name: lead.full_name || null,
+            main_contact_email: lead.email || null,
+            main_contact_phone: lead.phone || null,
+            industry: lead.industry || null,
+            location: lead.location || null,
+            revenue: lead.revenue,
+            ebitda: lead.ebitda,
+            deal_source: "valuation_calculator",
+            status: "active",
+            is_internal_deal: true,
+            pushed_to_all_deals: true,
+            pushed_to_all_deals_at: new Date().toISOString(),
+          } as never)
+          .select("id")
+          .single();
+
+        if (insertError) {
+          console.error("Failed to create listing for lead:", lead.id, insertError);
+          continue;
+        }
+
+        await supabase
+          .from("valuation_leads")
+          .update({
+            pushed_to_all_deals: true,
+            pushed_to_all_deals_at: new Date().toISOString(),
+            pushed_listing_id: listing.id,
+            status: "pushed",
+          } as never)
+          .eq("id", lead.id);
+
+        createdListingIds.push(listing.id);
+      }
+
+      setIsPushing(false);
+      setSelectedIds(new Set());
+
+      if (createdListingIds.length > 0) {
+        // Queue all created listings for enrichment
+        const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+        await queueDealEnrichment(createdListingIds);
+        toast({
+          title: "Pushed & Enrichment Queued",
+          description: `${createdListingIds.length} lead${createdListingIds.length !== 1 ? "s" : ""} pushed and queued for enrichment.`,
+        });
+      } else {
+        toast({ title: "Nothing to push", description: "Selected leads were already pushed or not found." });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+    },
+    [leads, toast, queryClient]
+  );
+
+  // Enrich already-pushed leads (re-enrich from their listing)
+  const handleEnrichPushed = useCallback(
+    async (leadIds: string[]) => {
+      const leadsToEnrich = (leads || []).filter(
+        (l) => leadIds.includes(l.id) && l.pushed_to_all_deals && l.pushed_listing_id
+      );
+
+      if (leadsToEnrich.length === 0) {
+        sonnerToast.info("No pushed leads to enrich in selection");
+        return;
+      }
+
+      const listingIds = leadsToEnrich.map((l) => l.pushed_listing_id!);
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment(listingIds);
+    },
+    [leads]
+  );
+
   // Score leads
   const handleScoreLeads = useCallback(
     async (mode: "unscored" | "all") => {
@@ -694,6 +785,31 @@ export default function ValuationLeads() {
             )}
             Push to All Deals
           </Button>
+
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => handlePushAndEnrich(Array.from(selectedIds))}
+            disabled={isPushing}
+            className="gap-2 bg-blue-600 hover:bg-blue-700"
+          >
+            {isPushing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Push & Enrich
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEnrichPushed(Array.from(selectedIds))}
+            className="gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            Re-Enrich Pushed
+          </Button>
         </div>
       )}
 
@@ -782,7 +898,9 @@ export default function ValuationLeads() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground text-sm truncate max-w-[200px]">
-                            {lead.display_name || "\u2014"}
+                            {lead.business_name && !lead.business_name.endsWith("'s Business")
+                              ? lead.business_name
+                              : lead.display_name || "\u2014"}
                           </span>
                           {lead.full_name && (
                             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
@@ -792,6 +910,11 @@ export default function ValuationLeads() {
                           {lead.email && (
                             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                               {lead.email}
+                            </span>
+                          )}
+                          {lead.website && (
+                            <span className="text-xs text-blue-500 truncate max-w-[200px]">
+                              {lead.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
                             </span>
                           )}
                         </div>
@@ -886,6 +1009,21 @@ export default function ValuationLeads() {
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Push to All Deals
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePushAndEnrich([lead.id])}
+                              disabled={!!lead.pushed_to_all_deals}
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Push & Enrich
+                            </DropdownMenuItem>
+                            {lead.pushed_to_all_deals && lead.pushed_listing_id && (
+                              <DropdownMenuItem
+                                onClick={() => handleEnrichPushed([lead.id])}
+                              >
+                                <Sparkles className="h-4 w-4 mr-2" />
+                                Re-Enrich
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={async () => {
