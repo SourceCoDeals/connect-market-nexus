@@ -1,5 +1,6 @@
 
 import { lazy, Suspense } from "react";
+// Note: lazy is used by lazyWithRetry helper below
 import {
   Routes,
   Route,
@@ -26,66 +27,81 @@ import Signup from "@/pages/Signup";
 import AuthCallback from "@/pages/auth/callback";
 import PendingApproval from "@/pages/PendingApproval";
 
+// Dynamic import error recovery — reload on stale chunk failures
+const lazyWithRetry = (importFn: () => Promise<any>) =>
+  lazy(() =>
+    importFn().catch((error: any) => {
+      if (
+        error?.message?.includes('Failed to fetch dynamically imported module') ||
+        error?.message?.includes('Importing a module script failed')
+      ) {
+        console.warn('[ChunkRecovery] Stale module detected, reloading...', error.message);
+        window.location.reload();
+        return new Promise(() => {}); // Never resolves — page is reloading
+      }
+      throw error;
+    })
+  );
+
 // Lazy-loaded page groups
-const Welcome = lazy(() => import("@/pages/Welcome"));
-const SignupSuccess = lazy(() => import("@/pages/SignupSuccess"));
-const OwnerInquiry = lazy(() => import("@/pages/OwnerInquiry"));
-const OwnerInquirySuccess = lazy(() => import("@/pages/OwnerInquirySuccess"));
-const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
-const Unauthorized = lazy(() => import("@/pages/Unauthorized"));
-const ReferralTrackerPage = lazy(() => import("@/pages/ReferralTrackerPage"));
+const Welcome = lazyWithRetry(() => import("@/pages/Welcome"));
+const SignupSuccess = lazyWithRetry(() => import("@/pages/SignupSuccess"));
+const OwnerInquiry = lazyWithRetry(() => import("@/pages/OwnerInquiry"));
+const OwnerInquirySuccess = lazyWithRetry(() => import("@/pages/OwnerInquirySuccess"));
+const ForgotPassword = lazyWithRetry(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazyWithRetry(() => import("@/pages/ResetPassword"));
+const Unauthorized = lazyWithRetry(() => import("@/pages/Unauthorized"));
+const ReferralTrackerPage = lazyWithRetry(() => import("@/pages/ReferralTrackerPage"));
 
 // Main app pages - lazy loaded
-const Marketplace = lazy(() => import("@/pages/Marketplace"));
-const Profile = lazy(() => import("@/pages/Profile"));
-const ListingDetail = lazy(() => import("@/pages/ListingDetail"));
-const MyRequests = lazy(() => import("@/pages/MyRequests"));
-const SavedListings = lazy(() => import("@/pages/SavedListings"));
+const Marketplace = lazyWithRetry(() => import("@/pages/Marketplace"));
+const Profile = lazyWithRetry(() => import("@/pages/Profile"));
+const ListingDetail = lazyWithRetry(() => import("@/pages/ListingDetail"));
+const MyRequests = lazyWithRetry(() => import("@/pages/MyRequests"));
+const SavedListings = lazyWithRetry(() => import("@/pages/SavedListings"));
 
 // Admin pages - lazy loaded (admin-only, heavy)
-const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
-const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
-const AdminListings = lazy(() => import("@/pages/admin/AdminListings"));
-const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
-const FirmAgreements = lazy(() => import("@/pages/admin/FirmAgreements"));
-const AdminRequests = lazy(() => import("@/pages/admin/AdminRequests"));
-const AdminDealSourcing = lazy(() => import("@/pages/admin/AdminDealSourcing"));
-const AdminPipeline = lazy(() => import("@/pages/admin/AdminPipeline"));
-const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications"));
-const WebhooksPage = lazy(() => import("@/pages/admin/settings/WebhooksPage"));
-const TranscriptAnalytics = lazy(() => import("@/pages/admin/analytics/TranscriptAnalytics"));
-const EnrichmentTest = lazy(() => import("@/pages/admin/EnrichmentTest"));
+const AdminLayout = lazyWithRetry(() => import("@/components/admin/AdminLayout"));
+const AdminDashboard = lazyWithRetry(() => import("@/pages/admin/AdminDashboard"));
+const AdminListings = lazyWithRetry(() => import("@/pages/admin/AdminListings"));
+const AdminUsers = lazyWithRetry(() => import("@/pages/admin/AdminUsers"));
+const FirmAgreements = lazyWithRetry(() => import("@/pages/admin/FirmAgreements"));
+const AdminRequests = lazyWithRetry(() => import("@/pages/admin/AdminRequests"));
+const AdminDealSourcing = lazyWithRetry(() => import("@/pages/admin/AdminDealSourcing"));
+const AdminPipeline = lazyWithRetry(() => import("@/pages/admin/AdminPipeline"));
+const AdminNotifications = lazyWithRetry(() => import("@/pages/admin/AdminNotifications"));
+const WebhooksPage = lazyWithRetry(() => import("@/pages/admin/settings/WebhooksPage"));
+const TranscriptAnalytics = lazyWithRetry(() => import("@/pages/admin/analytics/TranscriptAnalytics"));
+const EnrichmentTest = lazyWithRetry(() => import("@/pages/admin/EnrichmentTest"));
 
 // ReMarketing pages - lazy loaded (admin subsystem)
-const ReMarketingLayout = lazy(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
-const ReMarketingDashboard = lazy(() => import("@/pages/admin/remarketing/ReMarketingDashboard"));
-const ReMarketingUniverses = lazy(() => import("@/pages/admin/remarketing/ReMarketingUniverses"));
-const ReMarketingUniverseDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingUniverseDetail"));
-const ReMarketingDeals = lazy(() => import("@/pages/admin/remarketing/ReMarketingDeals"));
-const ReMarketingDealDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingDealDetail"));
-const ReMarketingBuyers = lazy(() => import("@/pages/admin/remarketing/ReMarketingBuyers"));
-const ReMarketingBuyerDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingBuyerDetail"));
-const ReMarketingDealMatching = lazy(() => import("@/pages/admin/remarketing/ReMarketingDealMatching"));
-const ReMarketingIntroductions = lazy(() => import("@/pages/admin/remarketing/ReMarketingIntroductions"));
-const ReMarketingAnalytics = lazy(() => import("@/pages/admin/remarketing/ReMarketingAnalytics"));
-const ReMarketingSettings = lazy(() => import("@/pages/admin/remarketing/ReMarketingSettings"));
-const ReMarketingActivityQueue = lazy(() => import("@/pages/admin/remarketing/ReMarketingActivityQueue"));
-const ReMarketingReferralPartners = lazy(() => import("@/pages/admin/remarketing/ReMarketingReferralPartners"));
-const ReMarketingReferralPartnerDetail = lazy(() => import("@/pages/admin/remarketing/ReMarketingReferralPartnerDetail"));
-const CapTargetDeals = lazy(() => import("@/pages/admin/remarketing/CapTargetDeals"));
-const GPPartnerDeals = lazy(() => import("@/pages/admin/remarketing/GPPartnerDeals"));
-const ValuationLeads = lazy(() => import("@/pages/admin/remarketing/ValuationLeads"));
+const ReMarketingLayout = lazyWithRetry(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
+const ReMarketingDashboard = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingDashboard"));
+const ReMarketingUniverses = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingUniverses"));
+const ReMarketingUniverseDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingUniverseDetail"));
+const ReMarketingDeals = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingDeals"));
+const ReMarketingDealDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingDealDetail"));
+const ReMarketingBuyers = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingBuyers"));
+const ReMarketingBuyerDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingBuyerDetail"));
+const ReMarketingDealMatching = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingDealMatching"));
+const ReMarketingIntroductions = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingIntroductions"));
+const ReMarketingAnalytics = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingAnalytics"));
+const ReMarketingSettings = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingSettings"));
+const ReMarketingActivityQueue = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingActivityQueue"));
+const ReMarketingReferralPartners = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingReferralPartners"));
+const ReMarketingReferralPartnerDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingReferralPartnerDetail"));
+const CapTargetDeals = lazyWithRetry(() => import("@/pages/admin/remarketing/CapTargetDeals"));
+const GPPartnerDeals = lazyWithRetry(() => import("@/pages/admin/remarketing/GPPartnerDeals"));
 
 // M&A Intelligence pages - lazy loaded (admin subsystem)
-const MAIntelligenceLayout = lazy(() => import("@/components/ma-intelligence").then(m => ({ default: m.MAIntelligenceLayout })));
-const MADashboard = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MADashboard })));
-const MATrackers = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MATrackers })));
-const MATrackerDetail = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MATrackerDetail })));
-const MAAllBuyers = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllBuyers })));
-const MABuyerDetail = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MABuyerDetail })));
-const MAAllDeals = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllDeals })));
-const MADealDetail = lazy(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MADealDetail })));
+const MAIntelligenceLayout = lazyWithRetry(() => import("@/components/ma-intelligence").then(m => ({ default: m.MAIntelligenceLayout })));
+const MADashboard = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MADashboard })));
+const MATrackers = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MATrackers })));
+const MATrackerDetail = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MATrackerDetail })));
+const MAAllBuyers = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllBuyers })));
+const MABuyerDetail = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MABuyerDetail })));
+const MAAllDeals = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllDeals })));
+const MADealDetail = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MADealDetail })));
 
 const queryClient = new QueryClient({
   defaultOptions: {

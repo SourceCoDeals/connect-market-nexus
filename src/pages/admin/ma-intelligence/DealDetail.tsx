@@ -130,9 +130,8 @@ export default function DealDetail() {
     if (!deal) return;
 
     try {
-      await supabase.functions.invoke("enrich-deal", {
-        body: { dealId: deal.id },
-      });
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment([deal.id]);
 
       toast({
         title: "Enrichment started",

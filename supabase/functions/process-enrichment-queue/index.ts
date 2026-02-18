@@ -92,7 +92,7 @@ serve(async (req) => {
     );
 
     // Define type for queue items
-    type QueueItem = { id: string; listing_id: string; status: string; attempts: number; queued_at: string };
+    type QueueItem = { id: string; listing_id: string; status: string; attempts: number; queued_at: string; force?: boolean };
     
     // Fallback to regular query if RPC doesn't exist yet
     let queueItems: QueueItem[] = claimedItems as QueueItem[] || [];
@@ -101,7 +101,7 @@ serve(async (req) => {
 
       const { data: pendingItems, error: fetchError } = await supabase
         .from('enrichment_queue')
-        .select(`id, listing_id, status, attempts, queued_at`)
+        .select(`id, listing_id, status, attempts, queued_at, force`)
         .eq('status', 'pending')
         .lt('attempts', MAX_ATTEMPTS)
         .order('queued_at', { ascending: true })
@@ -128,7 +128,7 @@ serve(async (req) => {
             })
             .eq('id', item.id)
             .eq('status', 'pending') // Only succeeds if still pending (atomic check)
-            .select('id, listing_id, status, attempts, queued_at')
+            .select('id, listing_id, status, attempts, queued_at, force')
             .maybeSingle();
 
           if (updated) {
@@ -173,54 +173,66 @@ serve(async (req) => {
 
     // PRE-CHECK: Mark batch items as completed if their listings are already enriched
     // (enriched_at set — LinkedIn/Google data is optional)
-    const listingIds = queueItems.map((item: { listing_id: string }) => item.listing_id);
-    const { data: enrichedListings } = await supabase
-      .from('listings')
-      .select('id, enriched_at')
-      .in('id', listingIds)
-      .not('enriched_at', 'is', null);
-
-    const alreadyEnrichedIds = new Set(
-      (enrichedListings || []).map(l => l.id)
-    );
+    // Items with force=true bypass this check (explicit re-enrichment request)
+    const forceItems = queueItems.filter((item: any) => item.force === true);
+    const nonForceItems = queueItems.filter((item: any) => item.force !== true);
     
-    if (alreadyEnrichedIds.size > 0) {
-      console.log(`Found ${alreadyEnrichedIds.size} listings already enriched — marking queue items as completed`);
+    if (forceItems.length > 0) {
+      console.log(`${forceItems.length} item(s) have force=true — will re-enrich regardless of enriched_at`);
+    }
+
+    if (nonForceItems.length > 0) {
+      const nonForceListingIds = nonForceItems.map((item: { listing_id: string }) => item.listing_id);
+      const { data: enrichedListings } = await supabase
+        .from('listings')
+        .select('id, enriched_at')
+        .in('id', nonForceListingIds)
+        .not('enriched_at', 'is', null);
+
+      const alreadyEnrichedIds = new Set(
+        (enrichedListings || []).map(l => l.id)
+      );
       
-      const itemsToComplete = queueItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
-      const completionResults = await Promise.allSettled(itemsToComplete.map((item: { id: string; listing_id: string }) =>
-        supabase
-          .from('enrichment_queue')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            last_error: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', item.id)
-      ));
-      for (const cr of completionResults) {
-        if (cr.status === 'rejected') {
-          console.error('Failed to mark enriched item as completed:', cr.reason);
+      if (alreadyEnrichedIds.size > 0) {
+        console.log(`Found ${alreadyEnrichedIds.size} listings already enriched — marking non-force queue items as completed`);
+        
+        const itemsToComplete = nonForceItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
+        const completionResults = await Promise.allSettled(itemsToComplete.map((item: { id: string; listing_id: string }) =>
+          supabase
+            .from('enrichment_queue')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              last_error: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id)
+        ));
+        for (const cr of completionResults) {
+          if (cr.status === 'rejected') {
+            console.error('Failed to mark enriched item as completed:', cr.reason);
+          }
         }
+        
+        // Remove completed non-force items, keep force items
+        const nonForceRemaining = nonForceItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
+        queueItems = [...forceItems, ...nonForceRemaining];
+        
+        if (queueItems.length === 0) {
+          console.log('All items were already enriched — nothing to process');
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`, 
+              processed: 0,
+              synced: alreadyEnrichedIds.size 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log(`${queueItems.length} items still need enrichment — proceeding with pipeline`);
       }
-      
-      queueItems = queueItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
-      
-      if (queueItems.length === 0) {
-        console.log('All items were already enriched — nothing to process');
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`, 
-            processed: 0,
-            synced: alreadyEnrichedIds.size 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      console.log(`${queueItems.length} items still need enrichment — proceeding with pipeline`);
     }
 
     const results = {
@@ -314,6 +326,7 @@ serve(async (req) => {
                 serviceRoleKey: supabaseServiceKey,
                 listingId: item.listing_id,
                 timeoutMs: PROCESSING_TIMEOUT_MS,
+                force: (item as any).force === true,
               },
               listing
             );
@@ -342,6 +355,7 @@ serve(async (req) => {
                 status: 'completed',
                 completed_at: new Date().toISOString(),
                 last_error: null,
+                force: false,
                 updated_at: new Date().toISOString(),
               })
               .eq('id', item.id);

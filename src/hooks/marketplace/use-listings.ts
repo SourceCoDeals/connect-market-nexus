@@ -212,6 +212,7 @@ export const useListing = (id: string | undefined) => {
             .select('*, hero_description')
             .eq('id', id)
             .is('deleted_at', null)
+            .eq('is_internal_deal', false)
             .maybeSingle();
           
           if (error) {

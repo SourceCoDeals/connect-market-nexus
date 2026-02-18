@@ -383,6 +383,29 @@ export function AdminListingCard({
             <Edit className="h-3.5 w-3.5 mr-1.5" />
             Edit
           </Button>
+          {isPublished ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => unpublishListing(listing.id)}
+              disabled={isPublishing}
+              className="h-9 px-3 text-[13px] font-medium text-emerald-700 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10"
+            >
+              <Globe className="h-3.5 w-3.5 mr-1.5" />
+              Live
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => publishListing(listing.id)}
+              disabled={isPublishing}
+              className="h-9 px-3 text-[13px] font-medium text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
+            >
+              <UploadCloud className="h-3.5 w-3.5 mr-1.5" />
+              Publish
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

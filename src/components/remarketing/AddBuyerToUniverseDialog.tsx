@@ -89,23 +89,15 @@ export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuy
         throw new Error("Buyer created but not visible — check RLS policies");
       }
 
-      // Auto-score against all deals in this universe
+      // Queue scoring against all deals in this universe
       const { data: universeDeals } = await supabase
         .from("remarketing_universe_deals")
         .select("listing_id")
         .eq("universe_id", universeId);
 
       if (universeDeals && universeDeals.length > 0) {
-        toast.info("Scoring buyer against deals in the background...");
-        for (const deal of universeDeals) {
-          supabase.functions.invoke("score-buyer-deal", {
-            body: {
-              bulk: true,
-              listingId: deal.listing_id,
-              universeId,
-            },
-          });
-        }
+        const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+        await queueDealScoring({ universeId, listingIds: universeDeals.map(d => d.listing_id) });
       }
 
       toast.success("Buyer added successfully");

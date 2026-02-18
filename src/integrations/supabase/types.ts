@@ -679,6 +679,7 @@ export type Database = {
           buyer_id: string
           completed_at: string | null
           created_at: string
+          force: boolean | null
           id: string
           last_error: string | null
           queued_at: string
@@ -693,6 +694,7 @@ export type Database = {
           buyer_id: string
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           queued_at?: string
@@ -707,6 +709,7 @@ export type Database = {
           buyer_id?: string
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           queued_at?: string
@@ -3424,11 +3427,137 @@ export type Database = {
         }
         Relationships: []
       }
+      enrichment_events: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          fields_updated: number | null
+          function_name: string
+          id: string
+          job_id: string | null
+          provider: string
+          status: string
+          step_name: string | null
+          tokens_used: number | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          fields_updated?: number | null
+          function_name: string
+          id?: string
+          job_id?: string | null
+          provider: string
+          status: string
+          step_name?: string | null
+          tokens_used?: number | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          fields_updated?: number | null
+          function_name?: string
+          id?: string
+          job_id?: string | null
+          provider?: string
+          status?: string
+          step_name?: string | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrichment_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "enrichment_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enrichment_jobs: {
+        Row: {
+          circuit_breaker_tripped: boolean
+          completed_at: string | null
+          created_at: string
+          error_count: number
+          error_summary: string | null
+          id: string
+          job_type: string
+          last_processed_id: string | null
+          last_rate_limited_at: string | null
+          rate_limit_count: number
+          records_failed: number
+          records_processed: number
+          records_skipped: number
+          records_succeeded: number
+          source: string | null
+          started_at: string | null
+          status: string
+          total_records: number
+          triggered_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          circuit_breaker_tripped?: boolean
+          completed_at?: string | null
+          created_at?: string
+          error_count?: number
+          error_summary?: string | null
+          id?: string
+          job_type: string
+          last_processed_id?: string | null
+          last_rate_limited_at?: string | null
+          rate_limit_count?: number
+          records_failed?: number
+          records_processed?: number
+          records_skipped?: number
+          records_succeeded?: number
+          source?: string | null
+          started_at?: string | null
+          status?: string
+          total_records?: number
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          circuit_breaker_tripped?: boolean
+          completed_at?: string | null
+          created_at?: string
+          error_count?: number
+          error_summary?: string | null
+          id?: string
+          job_type?: string
+          last_processed_id?: string | null
+          last_rate_limited_at?: string | null
+          rate_limit_count?: number
+          records_failed?: number
+          records_processed?: number
+          records_skipped?: number
+          records_succeeded?: number
+          source?: string | null
+          started_at?: string | null
+          status?: string
+          total_records?: number
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       enrichment_queue: {
         Row: {
           attempts: number
           completed_at: string | null
           created_at: string
+          force: boolean | null
           id: string
           last_error: string | null
           listing_id: string
@@ -3441,6 +3570,7 @@ export type Database = {
           attempts?: number
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           listing_id: string
@@ -3453,6 +3583,7 @@ export type Database = {
           attempts?: number
           completed_at?: string | null
           created_at?: string
+          force?: boolean | null
           id?: string
           last_error?: string | null
           listing_id?: string
@@ -6957,6 +7088,98 @@ export type Database = {
           },
         ]
       }
+      remarketing_scoring_queue: {
+        Row: {
+          attempts: number
+          buyer_id: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          listing_id: string | null
+          processed_at: string | null
+          score_type: string
+          status: string
+          universe_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          buyer_id?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          listing_id?: string | null
+          processed_at?: string | null
+          score_type: string
+          status?: string
+          universe_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          buyer_id?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          listing_id?: string | null
+          processed_at?: string | null
+          score_type?: string
+          status?: string
+          universe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_scoring_queue_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remarketing_universe_deals: {
         Row: {
           added_at: string | null
@@ -7093,6 +7316,114 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      score_snapshots: {
+        Row: {
+          bonuses_applied: Json | null
+          buyer_id: string
+          composite_score: number | null
+          data_completeness: string | null
+          deal_quality_score: number | null
+          engagement_score: number | null
+          geography_score: number | null
+          id: string
+          listing_id: string
+          missing_fields: Json | null
+          multipliers_applied: Json | null
+          owner_goals_score: number | null
+          scored_at: string
+          scoring_version: string | null
+          service_score: number | null
+          size_score: number | null
+          tier: string | null
+          trigger_type: string
+          universe_id: string | null
+          weights_used: Json | null
+        }
+        Insert: {
+          bonuses_applied?: Json | null
+          buyer_id: string
+          composite_score?: number | null
+          data_completeness?: string | null
+          deal_quality_score?: number | null
+          engagement_score?: number | null
+          geography_score?: number | null
+          id?: string
+          listing_id: string
+          missing_fields?: Json | null
+          multipliers_applied?: Json | null
+          owner_goals_score?: number | null
+          scored_at?: string
+          scoring_version?: string | null
+          service_score?: number | null
+          size_score?: number | null
+          tier?: string | null
+          trigger_type?: string
+          universe_id?: string | null
+          weights_used?: Json | null
+        }
+        Update: {
+          bonuses_applied?: Json | null
+          buyer_id?: string
+          composite_score?: number | null
+          data_completeness?: string | null
+          deal_quality_score?: number | null
+          engagement_score?: number | null
+          geography_score?: number | null
+          id?: string
+          listing_id?: string
+          missing_fields?: Json | null
+          multipliers_applied?: Json | null
+          owner_goals_score?: number | null
+          scored_at?: string
+          scoring_version?: string | null
+          service_score?: number | null
+          size_score?: number | null
+          tier?: string | null
+          trigger_type?: string
+          universe_id?: string | null
+          weights_used?: Json | null
+        }
+        Relationships: []
+      }
+      scoring_weights_history: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string
+          geography_weight: number
+          id: string
+          owner_goals_weight: number
+          scoring_behavior: Json | null
+          service_weight: number
+          size_weight: number
+          universe_id: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          geography_weight: number
+          id?: string
+          owner_goals_weight: number
+          scoring_behavior?: Json | null
+          service_weight: number
+          size_weight: number
+          universe_id: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          geography_weight?: number
+          id?: string
+          owner_goals_weight?: number
+          scoring_behavior?: Json | null
+          service_weight?: number
+          size_weight?: number
+          universe_id?: string
+        }
+        Relationships: []
       }
       search_analytics: {
         Row: {
@@ -7898,6 +8229,49 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_data_freshness: {
+        Row: {
+          avg_age_days: number | null
+          deal_count: number | null
+          freshness_bucket: string | null
+        }
+        Relationships: []
+      }
+      mv_enrichment_provider_stats: {
+        Row: {
+          avg_duration_ms: number | null
+          event_count: number | null
+          function_name: string | null
+          hour: string | null
+          p95_duration_ms: number | null
+          provider: string | null
+          status: string | null
+          total_fields_updated: number | null
+          total_tokens_used: number | null
+        }
+        Relationships: []
+      }
+      mv_score_distribution: {
+        Row: {
+          approval_rate_pct: number | null
+          approved_count: number | null
+          avg_score: number | null
+          match_count: number | null
+          passed_count: number | null
+          score_band: string | null
+          tier: string | null
+          universe_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_scores_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ranked_deals: {
         Row: {
           address_city: string | null
@@ -8068,6 +8442,10 @@ export type Database = {
       }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       cleanup_zombie_extractions: { Args: never; Returns: number }
+      complete_enrichment_job: {
+        Args: { p_job_id: string; p_status?: string }
+        Returns: undefined
+      }
       convert_inbound_lead_to_request: {
         Args: { p_lead_id: string; p_listing_id: string }
         Returns: string
@@ -8297,6 +8675,22 @@ export type Database = {
         Args: { p_user_id: string; p_visitor_id: string }
         Returns: undefined
       }
+      log_enrichment_event: {
+        Args: {
+          p_duration_ms?: number
+          p_entity_id: string
+          p_entity_type: string
+          p_error_message?: string
+          p_fields_updated?: number
+          p_function_name: string
+          p_job_id?: string
+          p_provider: string
+          p_status: string
+          p_step_name?: string
+          p_tokens_used?: number
+        }
+        Returns: string
+      }
       log_fee_agreement_email: {
         Args: {
           admin_notes?: string
@@ -8368,6 +8762,7 @@ export type Database = {
         Returns: boolean
       }
       refresh_analytics_views: { Args: never; Returns: undefined }
+      refresh_audit_materialized_views: { Args: never; Returns: undefined }
       reset_all_admin_notifications:
         | { Args: never; Returns: undefined }
         | { Args: { admin_uuid: string }; Returns: undefined }
@@ -8433,6 +8828,19 @@ export type Database = {
         Returns: Json
       }
       update_engagement_scores: { Args: never; Returns: undefined }
+      update_enrichment_job_progress: {
+        Args: {
+          p_circuit_breaker?: boolean
+          p_error_message?: string
+          p_failed_delta?: number
+          p_job_id: string
+          p_last_processed_id?: string
+          p_rate_limited?: boolean
+          p_skipped_delta?: number
+          p_succeeded_delta?: number
+        }
+        Returns: undefined
+      }
       update_fee_agreement_email_status: {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
@@ -8560,6 +8968,33 @@ export type Database = {
           target_user_id: string
         }
         Returns: boolean
+      }
+      upsert_alignment_scoring_queue: {
+        Args: {
+          p_buyer_id: string
+          p_score_type: string
+          p_status?: string
+          p_universe_id: string
+        }
+        Returns: undefined
+      }
+      upsert_deal_scoring_queue: {
+        Args: {
+          p_listing_id: string
+          p_score_type: string
+          p_status?: string
+          p_universe_id: string
+        }
+        Returns: undefined
+      }
+      upsert_enrichment_job: {
+        Args: {
+          p_job_type: string
+          p_source?: string
+          p_total_records: number
+          p_triggered_by?: string
+        }
+        Returns: string
       }
       validate_reset_token: { Args: { token_value: string }; Returns: string }
       verify_production_readiness: {

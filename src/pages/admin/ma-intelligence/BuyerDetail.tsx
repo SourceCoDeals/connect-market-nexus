@@ -100,10 +100,8 @@ export default function BuyerDetail() {
     if (!buyer) return;
 
     try {
-      await invokeWithTimeout("enrich-buyer", {
-        body: { buyer_id: buyer.id },
-        timeoutMs: 90_000,
-      });
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyer.id]);
 
       toast({
         title: "Enrichment started",

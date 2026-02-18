@@ -469,12 +469,8 @@ export default function ReMarketingReferralPartnerDetail() {
   const handleEnrichDeal = async (dealId: string) => {
     toast.info("Enriching deal...");
     try {
-      const { data, error } = await supabase.functions.invoke("enrich-deal", {
-        body: { listingId: dealId },
-      });
-      if (error) throw error;
-      setEnrichmentResult(data);
-      setEnrichmentDialogOpen(true);
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment([dealId]);
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
     } catch (err: any) {
       toast.error(`Enrichment failed: ${err.message}`);

@@ -97,10 +97,12 @@ export function useRobustListingCreation() {
       listing,
       image,
       sendDealAlerts,
+      targetType,
     }: {
       listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
       image?: File | null;
       sendDealAlerts?: boolean;
+      targetType?: 'marketplace' | 'research';
     }) => {
       console.log('🚀 Starting robust listing creation...');
       
@@ -278,7 +280,7 @@ export function useRobustListingCreation() {
 
       toast({
         title: 'Listing Created as Draft',
-        description: `"${data.title}" has been created. Use the Publish button to make it visible on the marketplace.`,
+        description: `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
       });
     },
     onError: (error: any) => {

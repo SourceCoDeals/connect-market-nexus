@@ -16,10 +16,12 @@ export function useCreateListing() {
       listing,
       image,
       sendDealAlerts,
+      targetType,
     }: {
       listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
       image?: File | null;
       sendDealAlerts?: boolean;
+      targetType?: 'marketplace' | 'research';
     }) => {
       try {
         
@@ -155,8 +157,8 @@ export function useCreateListing() {
       }, 100);
       
       toast({
-        title: 'Listing Created',
-        description: `The listing "${data.title}" has been created successfully and is now live on the marketplace.`,
+        title: 'Listing Created as Draft',
+        description: `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
       });
     },
     onError: (error: any) => {

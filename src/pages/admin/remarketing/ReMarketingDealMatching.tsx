@@ -556,37 +556,10 @@ const ReMarketingDealMatching = () => {
     setScoringProgress(10);
 
     try {
-      const { data, error } = await invokeWithTimeout<any>('score-buyer-deal', {
-        body: {
-          bulk: true,
-          listingId,
-          universeId: selectedUniverse,
-          customInstructions: instructions || customInstructions || undefined,
-          geographyMode: geographyMode !== 'critical' ? geographyMode : undefined,
-          options: { rescoreExisting: !!instructions }
-        },
-        timeoutMs: 120_000,
-      });
-
-      if (error) {
-        console.error('Scoring error:', error);
-        toast.error('Failed to score buyers');
-        return;
-      }
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId] });
 
       setScoringProgress(100);
-      
-      if (data.errors && data.errors.length > 0) {
-        toast.warning(`Scored ${data.totalProcessed} buyers with ${data.errors.length} errors`);
-      } else if (data.diagnostics?.scoring_summary?.qualified === 0 && data.totalProcessed > 0) {
-        const missing = data.diagnostics?.deal?.missing_fields || [];
-        toast.warning(
-          `Scored ${data.totalProcessed} buyers — all disqualified.${missing.length > 0 ? ` Deal missing: ${missing.join(', ')}` : ' Consider enriching deal data.'}`
-        );
-      } else {
-        toast.success(`Scored ${data.totalProcessed} buyers (${data.diagnostics?.scoring_summary?.qualified || 0} qualified)`);
-      }
-      
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     } catch (error) {
       console.error('Scoring error:', error);

@@ -226,7 +226,7 @@ async function fetchWithRetry(
   maxRetries: number = 3,
   baseDelayMs: number = 2000
 ): Promise<Response> {
-  return fetchWithAutoRetry(url, options, {
+  return fetchWithAutoRetry(url, options as RequestInit & { signal?: AbortSignal }, {
     maxRetries,
     baseDelayMs,
     callerName: 'score-buyer-deal',

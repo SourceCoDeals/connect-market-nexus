@@ -7,7 +7,7 @@ import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { parseCurrency, formatNumber } from "@/lib/currency-utils";
-import { Loader2, Save, Eye } from "lucide-react";
+import { Loader2, Save, Eye, Globe, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Import section components
@@ -123,6 +123,7 @@ interface ImprovedListingEditorProps {
   onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: any }, image?: File | null) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
+  targetType?: 'marketplace' | 'research';
 }
 
 const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => {
@@ -170,6 +171,7 @@ export function ImprovedListingEditor({
   onSubmit,
   listing,
   isLoading = false,
+  targetType,
 }: ImprovedListingEditorProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
@@ -251,7 +253,7 @@ export function ImprovedListingEditor({
         });
         return;
       }
-      
+
       // Get form values and call the submit handler
       const formData = form.getValues();
       
@@ -350,6 +352,14 @@ export function ImprovedListingEditor({
     <div className="max-w-[1920px] mx-auto px-12 py-8">
       <Form {...form}>
         <form onSubmit={handleFormSubmit}>
+          {/* Target type banner */}
+          {!listing && (
+            <div className="mb-6 flex items-center gap-3 rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm font-medium text-muted-foreground">
+              <Target className="h-4 w-4 shrink-0" />
+              This listing will be created as a draft. Use the Publish button on the card to make it live on the marketplace.
+            </div>
+          )}
+          
           {/* TOP BAR - Critical fields */}
           <EditorTopBar form={form} />
           

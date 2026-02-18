@@ -94,15 +94,9 @@ export function BulkAssignUniverseDialog({
         : `Added ${newDealIds.length} deal(s) to universe`;
       toast.success(msg);
 
-      // Trigger background scoring for all new deals
-      toast.info("Scoring buyers in the background...");
-      for (const dealId of newDealIds) {
-        supabase.functions
-          .invoke("score-buyer-deal", {
-            body: { bulk: true, listingId: dealId, universeId: selectedUniverse },
-          })
-          .catch(err => console.error("Background scoring error:", err));
-      }
+      // Queue background scoring for all new deals
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoring({ universeId: selectedUniverse, listingIds: newDealIds });
 
       queryClient.invalidateQueries({ queryKey: ["remarketing"] });
       setSelectedUniverse("");

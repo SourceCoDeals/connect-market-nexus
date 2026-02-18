@@ -79,25 +79,9 @@ export const AddToUniverseQuickAction = ({
 
       if (linkError) throw linkError;
 
-      // Trigger background scoring
-      toast.info("Scoring buyers in the background...");
-
-      supabase.functions
-        .invoke("score-buyer-deal", {
-          body: {
-            bulk: true,
-            listingId,
-            universeId,
-          },
-        })
-        .then(({ data, error }) => {
-          if (error) {
-            console.error("Background scoring error:", error);
-            toast.warning("Deal added but scoring failed. Try manual scoring.");
-          } else {
-            toast.success(`Scored ${data.totalProcessed} buyers`);
-          }
-        });
+      // Queue background scoring
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoring({ universeId, listingIds: [listingId] });
 
       toast.success("Deal added to universe");
       onUniverseAdded();
