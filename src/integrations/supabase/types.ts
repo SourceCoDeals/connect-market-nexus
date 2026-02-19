@@ -2285,7 +2285,35 @@ export type Database = {
             foreignKeyName: "deal_activities_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
         ]
@@ -4697,6 +4725,11 @@ export type Database = {
           metric_4_custom_subtitle: string | null
           metric_4_custom_value: string | null
           metric_4_type: string | null
+          need_buyer_universe: boolean | null
+          need_owner_contact: boolean | null
+          needs_owner_contact: boolean | null
+          needs_owner_contact_at: string | null
+          needs_owner_contact_by: string | null
           notes: string | null
           notes_analyzed_at: string | null
           number_of_locations: number | null
@@ -4746,6 +4779,9 @@ export type Database = {
           title: string
           transaction_preferences: Json | null
           transition_preferences: string | null
+          universe_build_flagged: boolean | null
+          universe_build_flagged_at: string | null
+          universe_build_flagged_by: string | null
           updated_at: string
           visible_to_buyer_types: string[] | null
           website: string | null
@@ -4861,6 +4897,11 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          need_buyer_universe?: boolean | null
+          need_owner_contact?: boolean | null
+          needs_owner_contact?: boolean | null
+          needs_owner_contact_at?: string | null
+          needs_owner_contact_by?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           number_of_locations?: number | null
@@ -4910,6 +4951,9 @@ export type Database = {
           title: string
           transaction_preferences?: Json | null
           transition_preferences?: string | null
+          universe_build_flagged?: boolean | null
+          universe_build_flagged_at?: string | null
+          universe_build_flagged_by?: string | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
           website?: string | null
@@ -5025,6 +5069,11 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          need_buyer_universe?: boolean | null
+          need_owner_contact?: boolean | null
+          needs_owner_contact?: boolean | null
+          needs_owner_contact_at?: string | null
+          needs_owner_contact_by?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           number_of_locations?: number | null
@@ -5074,6 +5123,9 @@ export type Database = {
           title?: string
           transaction_preferences?: Json | null
           transition_preferences?: string | null
+          universe_build_flagged?: boolean | null
+          universe_build_flagged_at?: string | null
+          universe_build_flagged_by?: string | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
           website?: string | null
@@ -6406,6 +6458,7 @@ export type Database = {
           description: string | null
           documents: Json | null
           documents_analyzed_at: string | null
+          fee_agreement_required: boolean | null
           fit_criteria: string | null
           fit_criteria_buyer_types: string | null
           fit_criteria_geography: string | null
@@ -6437,6 +6490,7 @@ export type Database = {
           description?: string | null
           documents?: Json | null
           documents_analyzed_at?: string | null
+          fee_agreement_required?: boolean | null
           fit_criteria?: string | null
           fit_criteria_buyer_types?: string | null
           fit_criteria_geography?: string | null
@@ -6468,6 +6522,7 @@ export type Database = {
           description?: string | null
           documents?: Json | null
           documents_analyzed_at?: string | null
+          fee_agreement_required?: boolean | null
           fit_criteria?: string | null
           fit_criteria_buyer_types?: string | null
           fit_criteria_geography?: string | null

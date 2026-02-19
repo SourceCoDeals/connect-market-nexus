@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,16 +105,9 @@ const ReMarketingDeals = () => {
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAddDealDialog, setShowAddDealDialog] = useState(false);
-  // Sorting — persisted in URL for back-navigation
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = searchParams.get("sort") || "rank";
-  const sortDirection = (searchParams.get("dir") as "asc" | "desc") || "asc";
-  const setSortColumn = (col: string) => {
-    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
-  };
-  const setSortDirection = (dir: "asc" | "desc") => {
-    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
-  };
+  const sortColumn = searchParams.get("sort") ?? "rank";
+  const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
   const [isCalculating, setIsCalculating] = useState(false);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
 
@@ -204,11 +197,14 @@ const ReMarketingDeals = () => {
           referral_partners(id, name),
           deal_source,
           deal_owner_id,
-          deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
+          deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email),
+          needs_owner_contact,
+          needs_owner_contact_at
         `)
         .eq('status', 'active')
         .neq('deal_source', 'gp_partners')
         .or('deal_source.neq.valuation_calculator,pushed_to_all_deals.eq.true')
+        .or('deal_source.neq.valuation_lead,pushed_to_all_deals.eq.true')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
         .order('deal_total_score', { ascending: false, nullsFirst: true })
         .order('created_at', { ascending: false });
@@ -376,28 +372,19 @@ const ReMarketingDeals = () => {
   // Timeframe, filter engine, and saved views
   const { timeframe, setTimeframe } = useTimeframe("all_time");
   const {
-    filteredItems: _engineFiltered,
+    filteredItems: engineFiltered,
     filterState,
     setFilterState,
     dynamicOptions,
     totalCount,
+    filteredCount,
   } = useFilterEngine(listings || [], DEAL_LISTING_FIELDS);
   const { views: savedViews, addView, removeView } = useSavedViews("remarketing-deals");
 
-  // Filter listings
+  // Filter listings - use engineFiltered (which handles search + filter rules) as the base
   const filteredListings = useMemo(() => {
-    if (!listings) return [];
-    return listings.filter(listing => {
-      if (search) {
-        const searchLower = search.toLowerCase();
-        const matchesSearch =
-          listing.title?.toLowerCase().includes(searchLower) ||
-          listing.internal_company_name?.toLowerCase().includes(searchLower) ||
-          listing.description?.toLowerCase().includes(searchLower) ||
-          listing.location?.toLowerCase().includes(searchLower) ||
-          listing.website?.toLowerCase().includes(searchLower);
-        if (!matchesSearch) return false;
-      }
+    if (!engineFiltered) return [];
+    return engineFiltered.filter(listing => {
       if (universeFilter !== "all") {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
@@ -443,7 +430,7 @@ const ReMarketingDeals = () => {
       }
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
+  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -465,12 +452,16 @@ const ReMarketingDeals = () => {
 
   // Handle sort column click
   const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
-    } else {
-      setSortColumn(column);
-      setSortDirection(column === "rank" ? "asc" : "desc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === column) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", column);
+        next.set("dir", column === "rank" ? "asc" : "desc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   // Sort listings

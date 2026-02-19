@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,8 +78,8 @@ interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
-  needs_buyer_universe: boolean | null;
-  need_to_contact_owner: boolean | null;
+  need_buyer_universe: boolean | null;
+  need_owner_contact: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
@@ -113,19 +113,14 @@ export default function CapTargetDeals() {
   // Filters
   const [search, setSearch] = useState("");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
+  const [hidePushed, setHidePushed] = useState(false);
   const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
-  // Sorting – persist in URL for back-navigation
+  // Sorting – persisted in URL so navigating back restores the sort
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = (searchParams.get("sort") as SortColumn) || "contact_date";
-  const sortDirection = (searchParams.get("dir") as SortDirection) || "desc";
-  const setSortColumn = (col: SortColumn) => {
-    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
-  };
-  const setSortDirection = (dir: SortDirection) => {
-    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
-  };
+  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "contact_date";
+  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "desc";
 
   // Column resizing
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
@@ -211,7 +206,8 @@ export default function CapTargetDeals() {
             pushed_to_all_deals, pushed_to_all_deals_at, deal_source, status, created_at,
             enriched_at, deal_total_score, linkedin_employee_count, linkedin_employee_range,
             google_rating, google_review_count, captarget_status, is_priority_target,
-            needs_buyer_universe, need_to_contact_owner, category, executive_summary, industry
+            need_buyer_universe, need_owner_contact,
+            category, executive_summary, industry
           `)
           .eq("deal_source", "captarget")
           .order("captarget_contact_date", { ascending: false, nullsFirst: false })
@@ -246,6 +242,7 @@ export default function CapTargetDeals() {
       }
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
+      if (hidePushed && deal.pushed_to_all_deals) return false;
       if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
       if (dateRange.from || dateRange.to) {
         const dateStr = deal.captarget_contact_date || deal.created_at;
@@ -256,7 +253,7 @@ export default function CapTargetDeals() {
       }
       return true;
     });
-  }, [deals, search, pushedFilter, sourceTabFilter, dateRange]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateRange, hidePushed]);
 
   const tabItems = useMemo(() => {
     if (statusTab === "all") return preTabFiltered;
@@ -316,8 +313,16 @@ export default function CapTargetDeals() {
   useEffect(() => { setCurrentPage(1); }, [filterState, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
-    if (sortColumn === col) { setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }
-    else { setSortColumn(col); setSortDirection("asc"); }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === col) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", col);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   // Selection helpers
@@ -741,6 +746,22 @@ export default function CapTargetDeals() {
       {/* Filters */}
       <FilterBar filterState={filterState} onFilterStateChange={setFilterState} fieldDefinitions={CAPTARGET_FIELDS} dynamicOptions={dynamicOptions} totalCount={engineTotal} filteredCount={filteredCount} />
 
+      {/* Hide Pushed Toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setHidePushed(h => !h)}
+          className={cn(
+            "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors",
+            hidePushed
+              ? "bg-primary/10 border-primary/30 text-primary font-medium"
+              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          <span className="text-xs">🙈</span>
+          {hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+        </button>
+      </div>
+
       {/* Bulk Actions */}
       <CapTargetBulkActions
         selectedIds={selectedIds}
@@ -829,6 +850,18 @@ export default function CapTargetDeals() {
                       onPushToAllDeals={handlePushToAllDeals}
                       onEnrichSelected={handleEnrichSelected}
                       onDeleteDeal={(id) => { setSelectedIds(new Set([id])); setShowDeleteDialog(true); }}
+                      onArchiveDeal={async (id) => {
+                        const { error } = await supabase
+                          .from('listings')
+                          .update({ status: 'archived' } as never)
+                          .eq('id', id);
+                        if (error) {
+                          toast({ title: "Error", description: error.message, variant: "destructive" });
+                        } else {
+                          toast({ title: "Deal archived", description: "Deal has been archived" });
+                          refetch();
+                        }
+                      }}
                       onRefetch={refetch}
                     />
                   ))

@@ -34,8 +34,7 @@ import {
   Archive,
   Star,
   Trash2,
-  Users2,
-  Phone,
+  PhoneCall,
 } from "lucide-react";
 import { format } from "date-fns";
 import { DealSourceBadge } from "@/components/remarketing";
@@ -158,7 +157,8 @@ export const DealTableRow = ({
       className={cn(
         "cursor-pointer hover:bg-muted/50",
         isDragging && "bg-muted/80 opacity-80 shadow-lg z-50",
-        listing.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+        listing.needs_owner_contact && "bg-red-50 hover:bg-red-100/80 dark:bg-red-950/30 dark:hover:bg-red-950/50",
+        !listing.needs_owner_contact && listing.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
       )}
       onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
     >
@@ -195,6 +195,18 @@ export const DealTableRow = ({
       <TableCell style={{ width: columnWidths.dealName, minWidth: 100 }}>
         <div>
           <p className="font-medium text-foreground flex items-center gap-1.5">
+            {listing.needs_owner_contact && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center">
+                    <PhoneCall className="h-3.5 w-3.5 text-red-500 animate-pulse shrink-0" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-red-600 font-semibold">🚨 Owner needs to be contacted — buyer is ready!</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             {displayName}
             {isEnriched && (
               <Tooltip>

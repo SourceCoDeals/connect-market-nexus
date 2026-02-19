@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,20 +75,13 @@ const ReMarketingBuyers = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<BuyerTab>('all');
-  const [universeFilter, setUniverseFilter] = useState<string>("all");
+  const universeFilter = searchParams.get("universe") ?? "all";
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  // Sorting — persisted in URL for back-navigation
-  const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = searchParams.get("sort") || "company_name";
-  const sortDirection = (searchParams.get("dir") as "asc" | "desc") || "asc";
-  const setSortColumn = (col: string) => {
-    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
-  };
-  const setSortDirection = (dir: "asc" | "desc") => {
-    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
-  };
+  const sortColumn = searchParams.get("sort") ?? "company_name";
+  const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
   // New buyer form state
   const [newBuyer, setNewBuyer] = useState({
     company_name: "",
@@ -303,12 +296,25 @@ const ReMarketingBuyers = () => {
   }, [buyers, search, sortColumn, sortDirection]);
 
   const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === column) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", column);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setUniverseFilter = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "all") next.delete("universe");
+      else next.set("universe", value);
+      return next;
+    }, { replace: true });
   };
 
   const SortIcon = ({ column }: { column: string }) => {

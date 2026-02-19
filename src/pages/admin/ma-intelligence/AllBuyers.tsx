@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -28,16 +28,9 @@ export default function MAAllBuyers() {
   const [trackers, setTrackers] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  // Sorting — persisted in URL for back-navigation
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = (searchParams.get("sort") as SortColumn) || "name";
-  const sortDirection = (searchParams.get("dir") as SortDirection) || "asc";
-  const setSortColumn = (col: SortColumn) => {
-    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
-  };
-  const setSortDirection = (dir: SortDirection) => {
-    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
-  };
+  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "name";
+  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "asc";
 
   useEffect(() => {
     loadData();
@@ -121,12 +114,16 @@ export default function MAAllBuyers() {
   }, [filteredBuyers, sortColumn, sortDirection]);
 
   const toggleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === column) {
+        next.set("dir", next.get("dir") === "desc" ? "asc" : "desc");
+      } else {
+        next.set("sort", column);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   const SortableHeader = ({ column, children }: { column: SortColumn; children: React.ReactNode }) => (

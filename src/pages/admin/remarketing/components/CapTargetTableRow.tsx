@@ -20,10 +20,10 @@ import {
   ExternalLink,
   Zap,
   Star,
-  Trash2,
-  Users2,
-  Phone,
   Archive,
+  Trash2,
+  Users,
+  Phone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -58,8 +58,8 @@ interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
-  needs_buyer_universe: boolean | null;
-  need_to_contact_owner: boolean | null;
+  need_buyer_universe: boolean | null;
+  need_owner_contact: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
@@ -92,6 +92,7 @@ interface CapTargetTableRowProps {
   onPushToAllDeals: (dealIds: string[]) => void;
   onEnrichSelected: (dealIds: string[], mode: "all" | "unenriched") => void;
   onDeleteDeal: (id: string) => void;
+  onArchiveDeal: (id: string) => void;
   onRefetch: () => void;
 }
 
@@ -104,6 +105,7 @@ export function CapTargetTableRow({
   onPushToAllDeals,
   onEnrichSelected,
   onDeleteDeal,
+  onArchiveDeal,
   onRefetch,
 }: CapTargetTableRowProps) {
   const navigate = useNavigate();
@@ -316,27 +318,25 @@ export function CapTargetTableRow({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={async () => {
-                const newValue = !deal.needs_buyer_universe;
-                const { error } = await supabase.from("listings").update({ needs_buyer_universe: newValue } as never).eq("id", deal.id);
-                if (error) { toast({ title: "Error", description: "Failed to update flag" }); }
-                else { toast({ title: newValue ? "Flagged: Needs Buyer Universe" : "Flag removed" }); onRefetch(); }
+                const newVal = !deal.need_buyer_universe;
+                const { error } = await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", deal.id);
+                if (!error) { toast({ title: newVal ? "Flagged: Needs Buyer Universe" : "Flag removed" }); onRefetch(); }
               }}
-              className={deal.needs_buyer_universe ? "text-blue-600" : ""}
+              className={deal.need_buyer_universe ? "text-blue-600" : ""}
             >
-              <Users2 className={cn("h-4 w-4 mr-2", deal.needs_buyer_universe && "text-blue-600")} />
-              {deal.needs_buyer_universe ? "Remove Buyer Universe Flag" : "Needs Buyer Universe"}
+              <Users className={cn("h-4 w-4 mr-2", deal.need_buyer_universe && "text-blue-600")} />
+              {deal.need_buyer_universe ? "✓ Needs Buyer Universe" : "Flag: Needs Buyer Universe"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={async () => {
-                const newValue = !deal.need_to_contact_owner;
-                const { error } = await supabase.from("listings").update({ need_to_contact_owner: newValue } as never).eq("id", deal.id);
-                if (error) { toast({ title: "Error", description: "Failed to update flag" }); }
-                else { toast({ title: newValue ? "Flagged: Need to Contact Owner" : "Flag removed" }); onRefetch(); }
+                const newVal = !deal.need_owner_contact;
+                const { error } = await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", deal.id);
+                if (!error) { toast({ title: newVal ? "Flagged: Need to Contact Owner" : "Flag removed" }); onRefetch(); }
               }}
-              className={deal.need_to_contact_owner ? "text-orange-600" : ""}
+              className={deal.need_owner_contact ? "text-orange-600" : ""}
             >
-              <Phone className={cn("h-4 w-4 mr-2", deal.need_to_contact_owner && "text-orange-600")} />
-              {deal.need_to_contact_owner ? "Remove Contact Owner Flag" : "Need to Contact Owner"}
+              <Phone className={cn("h-4 w-4 mr-2", deal.need_owner_contact && "text-orange-600")} />
+              {deal.need_owner_contact ? "✓ Need to Contact Owner" : "Flag: Need to Contact Owner"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onPushToAllDeals([deal.id])}
@@ -347,12 +347,8 @@ export function CapTargetTableRow({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={async () => {
-                const { error } = await supabase.from("listings").update({ status: "archived" } as never).eq("id", deal.id);
-                if (error) { toast({ title: "Error", description: "Failed to archive deal" }); }
-                else { toast({ title: "Deal archived" }); onRefetch(); }
-              }}
               className="text-amber-600 focus:text-amber-600"
+              onClick={() => onArchiveDeal(deal.id)}
             >
               <Archive className="h-4 w-4 mr-2" />
               Archive Deal

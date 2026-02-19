@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { formatCompactCurrency } from "@/lib/utils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatCompactCurrency } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ import {
   Star,
   Download,
   Trash2,
-  Users2,
+  EyeOff,
   Phone,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -689,19 +689,16 @@ export default function ValuationLeads() {
   // Timeframe (standardized hook)
   const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
 
-  // Sorting — persisted in URL for back-navigation
+  // Sorting – persisted in URL so navigating back restores the sort
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = (searchParams.get("sort") as SortColumn) || "created_at";
-  const sortDirection = (searchParams.get("dir") as SortDirection) || "desc";
-  const setSortColumn = (col: SortColumn) => {
-    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
-  };
-  const setSortDirection = (dir: SortDirection) => {
-    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
-  };
+  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "created_at";
+  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "desc";
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Hide pushed toggle
+  const [hidePushed, setHidePushed] = useState(false);
 
   // Pagination
   const PAGE_SIZE = 50;
@@ -713,6 +710,7 @@ export default function ValuationLeads() {
     description: 200,
     calculator: 110,
     industry: 130,
+    location: 110,
     owner: 130,
     revenue: 90,
     ebitda: 90,
@@ -803,11 +801,17 @@ export default function ValuationLeads() {
     },
   });
 
-  // Get distinct calculator types for tabs
+  // Get distinct calculator types for tabs — always include "general" first
   const calculatorTypes = useMemo(() => {
-    if (!leads) return [];
+    if (!leads) return ["general"];
     const types = new Set(leads.map((l) => l.calculator_type));
-    return Array.from(types).sort();
+    types.add("general"); // always show general tab
+    // Sort: general first, then rest alphabetically
+    return Array.from(types).sort((a, b) => {
+      if (a === "general") return -1;
+      if (b === "general") return 1;
+      return a.localeCompare(b);
+    });
   }, [leads]);
 
   // Filter engine for advanced filtering
@@ -839,6 +843,9 @@ export default function ValuationLeads() {
 
     // Hide archived leads by default
     filtered = filtered.filter((l) => !l.is_archived);
+
+    // Hide pushed if toggle is on
+    if (hidePushed) filtered = filtered.filter((l) => !l.pushed_to_all_deals);
 
     // Tab filter
     if (activeTab !== "all") {
@@ -950,7 +957,7 @@ export default function ValuationLeads() {
     });
 
     return sorted;
-  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles]);
+  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles, hidePushed]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
@@ -967,12 +974,16 @@ export default function ValuationLeads() {
   }, [activeTab, timeframe, sortColumn, sortDirection, filterState]);
 
   const handleSort = (col: SortColumn) => {
-    if (sortColumn === col) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(col);
-      setSortDirection("asc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === col) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", col);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   // Selection helpers
@@ -1783,6 +1794,22 @@ export default function ValuationLeads() {
         filteredCount={filteredCount}
       />
 
+      {/* Hide Pushed Toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setHidePushed(h => !h)}
+          className={cn(
+            "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors",
+            hidePushed
+              ? "bg-primary/10 border-primary/30 text-primary font-medium"
+              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+          {hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+        </button>
+      </div>
+
       {/* Enrichment Progress Bar (matching CapTarget / GP Partners / All Deals) */}
       {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
         <EnrichmentProgressIndicator
@@ -1902,6 +1929,7 @@ export default function ValuationLeads() {
                 <col style={{ width: colWidths.description }} />
                 {activeTab === "all" && <col style={{ width: colWidths.calculator }} />}
                 <col style={{ width: colWidths.industry }} />
+                <col style={{ width: colWidths.location }} />
                 <col style={{ width: colWidths.owner }} />
                 <col style={{ width: colWidths.revenue }} />
                 <col style={{ width: colWidths.ebitda }} />
@@ -1935,9 +1963,10 @@ export default function ValuationLeads() {
                       <div onMouseDown={(e) => startResize("calculator", e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
                     </TableHead>
                   )}
-                  {(["industry","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status","priority"] as const).map((col) => (
+                  {(["industry","location","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status","priority"] as const).map((col) => (
                     <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col], textAlign: ["revenue","ebitda","valuation"].includes(col) ? "right" : ["intros","priority"].includes(col) ? "center" : undefined }}>
                       {col === "industry" && <SortHeader column="industry">Industry</SortHeader>}
+                      {col === "location" && <SortHeader column="location">Location</SortHeader>}
                       {col === "owner" && <SortHeader column="owner">Deal Owner</SortHeader>}
                       {col === "revenue" && <SortHeader column="revenue">Revenue</SortHeader>}
                       {col === "ebitda" && <SortHeader column="ebitda">EBITDA</SortHeader>}
@@ -2031,6 +2060,12 @@ export default function ValuationLeads() {
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
                           {lead.industry || "—"}
+                        </span>
+                      </TableCell>
+                      {/* Location */}
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground truncate block">
+                          {lead.location || "—"}
                         </span>
                       </TableCell>
                       {/* Deal Owner */}
@@ -2175,6 +2210,34 @@ export default function ValuationLeads() {
                             >
                               <Sparkles className="h-4 w-4 mr-2" />
                               Enrich Deal
+                            </DropdownMenuItem>
+                            {/* Flag: Needs Buyer Universe */}
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
+                                const newVal = !(lead as any).need_buyer_universe;
+                                await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", lead.pushed_listing_id);
+                                sonnerToast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed");
+                                queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                              }}
+                            >
+                              <Users className="h-4 w-4 mr-2" />
+                              Flag: Needs Buyer Universe
+                            </DropdownMenuItem>
+                            {/* Flag: Need to Contact Owner */}
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
+                                const newVal = !(lead as any).need_owner_contact;
+                                await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", lead.pushed_listing_id);
+                                sonnerToast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed");
+                                queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                              }}
+                            >
+                              <Phone className="h-4 w-4 mr-2" />
+                              Flag: Need to Contact Owner
                             </DropdownMenuItem>
                             {/* Mark as Priority */}
                             <DropdownMenuItem

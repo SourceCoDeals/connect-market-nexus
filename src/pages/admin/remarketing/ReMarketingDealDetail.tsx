@@ -28,6 +28,8 @@ import {
   AlertTriangle,
   Eye,
   X,
+  Flag,
+  PhoneCall,
 } from "lucide-react";
 import {
   Tooltip,
@@ -173,6 +175,49 @@ const ReMarketingDealDetail = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
     }
+  });
+
+  // Toggle universe build flag
+  const toggleUniverseFlagMutation = useMutation({
+    mutationFn: async (flagged: boolean) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          universe_build_flagged: flagged,
+          universe_build_flagged_at: flagged ? new Date().toISOString() : null,
+          universe_build_flagged_by: flagged ? user?.id : null,
+        } as any)
+        .eq('id', dealId);
+      if (error) throw error;
+    },
+    onSuccess: (_, flagged) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      toast.success(flagged ? 'Flagged for universe build' : 'Universe build flag removed');
+    },
+    onError: () => toast.error('Failed to update flag'),
+  });
+
+  // Toggle "needs owner contact" flag
+  const toggleContactOwnerMutation = useMutation({
+    mutationFn: async (flagged: boolean) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          needs_owner_contact: flagged,
+          needs_owner_contact_at: flagged ? new Date().toISOString() : null,
+          needs_owner_contact_by: flagged ? user?.id : null,
+        } as any)
+        .eq('id', dealId);
+      if (error) throw error;
+    },
+    onSuccess: (_, flagged) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      toast.success(flagged ? '⚠️ Flagged: Owner needs to be contacted' : 'Contact owner flag cleared');
+    },
+    onError: () => toast.error('Failed to update flag'),
   });
 
   // Extract website URL from internal_deal_memo_link
@@ -621,74 +666,138 @@ const ReMarketingDealDetail = () => {
       )}
 
       {/* Website & Actions */}
-      <Card>
-        <CardHeader className="py-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Website & Actions
-            </CardTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Pencil className="h-4 w-4" />
-            </Button>
-          </div>
-          {effectiveWebsite && (
-            <p className="text-sm text-muted-foreground truncate">
-              {effectiveWebsite.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-            </p>
-          )}
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="flex flex-wrap gap-3">
-            {effectiveWebsite && (
-              <Button variant="outline" className="gap-2" asChild>
-                <a href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  View Website
-                </a>
-              </Button>
-            )}
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={handleEnrichFromWebsite}
-              disabled={isEnriching || !effectiveWebsite}
-            >
-              {isEnriching ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Enrich from Website
-            </Button>
-            <UniverseAssignmentButton
-              dealId={dealId!}
-              dealCategory={deal?.category}
-              scoreCount={scoreStats?.count || 0}
-            />
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={() => setBuyerHistoryOpen(true)}
-            >
-              <History className="h-4 w-4" />
-              Buyer History
-            </Button>
-          </div>
-          {isEnriching && (
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  {enrichmentStage}
-                </span>
-                <span className="text-muted-foreground font-medium">{Math.round(enrichmentProgress)}%</span>
+      {(() => {
+        const needsContact = (deal as any)?.needs_owner_contact;
+        return (
+          <Card className={needsContact ? "border-red-400 border-2 bg-red-50 dark:bg-red-950/20" : ""}>
+            {needsContact && (
+              <div className="bg-red-500 text-white text-sm font-semibold px-4 py-2 flex items-center gap-2 rounded-t-lg">
+                <PhoneCall className="h-4 w-4 animate-pulse" />
+                ACTION REQUIRED: Owner needs to be contacted — we have a buyer ready!
               </div>
-              <Progress value={enrichmentProgress} className="h-2" />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+            <CardHeader className="py-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className={`text-lg flex items-center gap-2 ${needsContact ? "text-red-700" : ""}`}>
+                  <Globe className="h-5 w-5" />
+                  Website & Actions
+                </CardTitle>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              {effectiveWebsite && (
+                <p className="text-sm text-muted-foreground truncate">
+                  {effectiveWebsite.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                </p>
+              )}
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-3">
+                {effectiveWebsite && (
+                  <Button variant="outline" className="gap-2" asChild>
+                    <a href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      View Website
+                    </a>
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={handleEnrichFromWebsite}
+                  disabled={isEnriching || !effectiveWebsite}
+                >
+                  {isEnriching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Enrich from Website
+                </Button>
+                <UniverseAssignmentButton
+                  dealId={dealId!}
+                  dealCategory={deal?.category}
+                  scoreCount={scoreStats?.count || 0}
+                />
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => setBuyerHistoryOpen(true)}
+                >
+                  <History className="h-4 w-4" />
+                  Buyer History
+                </Button>
+                {/* Contact Owner Flag Button */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={needsContact ? "default" : "outline"}
+                        className={`gap-2 font-semibold ${needsContact
+                          ? "bg-red-600 hover:bg-red-700 border-red-600 text-white shadow-md shadow-red-200"
+                          : "border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500"
+                        }`}
+                        onClick={() => toggleContactOwnerMutation.mutate(!needsContact)}
+                        disabled={toggleContactOwnerMutation.isPending}
+                      >
+                        {toggleContactOwnerMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <PhoneCall className={`h-4 w-4 ${needsContact ? "animate-pulse" : ""}`} />
+                        )}
+                        {needsContact ? "🚨 Needs Owner Contact" : "Flag: Contact Owner"}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {needsContact
+                        ? "This deal is flagged — team must contact the owner, we have a buyer ready! Click to clear."
+                        : "Flag this deal to alert the team that the owner needs to be contacted (buyer is ready)."}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {/* Universe Build Flag Button */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={((deal as any)?.universe_build_flagged) ? "default" : "outline"}
+                        className={`gap-2 ${((deal as any)?.universe_build_flagged) ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white" : "border-amber-400 text-amber-600 hover:bg-amber-50"}`}
+                        onClick={() => toggleUniverseFlagMutation.mutate(!((deal as any)?.universe_build_flagged))}
+                        disabled={toggleUniverseFlagMutation.isPending}
+                      >
+                        {toggleUniverseFlagMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Flag className={`h-4 w-4 ${((deal as any)?.universe_build_flagged) ? "fill-white" : ""}`} />
+                        )}
+                        {((deal as any)?.universe_build_flagged) ? "Flagged: Build Universe" : "Flag for Universe Build"}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {((deal as any)?.universe_build_flagged)
+                        ? "This deal is flagged — a team member needs to build a buyer universe for it. Click to remove flag."
+                        : "Flag this deal to indicate a buyer universe needs to be built by the team."}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {isEnriching && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      {enrichmentStage}
+                    </span>
+                    <span className="text-muted-foreground font-medium">{Math.round(enrichmentProgress)}%</span>
+                  </div>
+                  <Progress value={enrichmentProgress} className="h-2" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Buyer History Dialog */}
       <BuyerHistoryDialog
@@ -697,61 +806,68 @@ const ReMarketingDealDetail = () => {
         dealId={dealId!}
       />
 
-      {/* Company Overview - Full width with 3 columns */}
-      <CompanyOverviewCard
-        companyName={deal.internal_company_name || deal.title}
-        website={effectiveWebsite}
-        location={deal.location}
-        address={deal.address}
-        foundedYear={deal.founded_year}
-        employees={{
-          fullTime: deal.full_time_employees,
-          partTime: deal.part_time_employees,
-        }}
-        industry={deal.industry}
-        numberOfLocations={deal.number_of_locations}
-        locationRadiusRequirement={deal.location_radius_requirement}
-        category={deal.category}
-        status={deal.status}
-        // Structured address fields
-        streetAddress={deal.street_address}
-        addressCity={deal.address_city}
-        addressState={deal.address_state}
-        addressZip={deal.address_zip}
-        addressCountry={deal.address_country}
-        // Google reviews data
-        googleReviewCount={deal.google_review_count ?? undefined}
-        googleRating={deal.google_rating ?? undefined}
-        googleMapsUrl={deal.google_maps_url ?? undefined}
-        // LinkedIn data
-        linkedinUrl={deal.linkedin_url ?? undefined}
-        linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
-        linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
-        // Deal quality score (editable)
-        dealQualityScore={deal.deal_total_score ?? undefined}
-        onScoreChange={async (newScore) => {
-          await updateDealMutation.mutateAsync({
-            deal_total_score: newScore,
-          });
-        }}
-        onSave={async (data) => {
-          await updateDealMutation.mutateAsync({
-            internal_company_name: data.companyName,
-            website: data.website,
-            address: data.address,
-            founded_year: data.foundedYear,
-            industry: data.industry,
-            number_of_locations: data.numberOfLocations,
-            location_radius_requirement: data.locationRadiusRequirement,
-            // Structured address
-            street_address: data.streetAddress,
-            address_city: data.addressCity,
-            address_state: data.addressState,
-            address_zip: data.addressZip,
-            address_country: data.addressCountry,
-          });
-        }}
-      />
+      {/* Company Overview (75%) + Activity Log (25%) side by side */}
+      <div className="grid grid-cols-4 gap-4 items-start">
+        <div className="col-span-3">
+          <CompanyOverviewCard
+            companyName={deal.internal_company_name || deal.title}
+            website={effectiveWebsite}
+            location={deal.location}
+            address={deal.address}
+            foundedYear={deal.founded_year}
+            employees={{
+              fullTime: deal.full_time_employees,
+              partTime: deal.part_time_employees,
+            }}
+            industry={deal.industry}
+            numberOfLocations={deal.number_of_locations}
+            locationRadiusRequirement={deal.location_radius_requirement}
+            category={deal.category}
+            status={deal.status}
+            // Structured address fields
+            streetAddress={deal.street_address}
+            addressCity={deal.address_city}
+            addressState={deal.address_state}
+            addressZip={deal.address_zip}
+            addressCountry={deal.address_country}
+            // Google reviews data
+            googleReviewCount={deal.google_review_count ?? undefined}
+            googleRating={deal.google_rating ?? undefined}
+            googleMapsUrl={deal.google_maps_url ?? undefined}
+            // LinkedIn data
+            linkedinUrl={deal.linkedin_url ?? undefined}
+            linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
+            linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
+            // Deal quality score (editable)
+            dealQualityScore={deal.deal_total_score ?? undefined}
+            onScoreChange={async (newScore) => {
+              await updateDealMutation.mutateAsync({
+                deal_total_score: newScore,
+              });
+            }}
+            onSave={async (data) => {
+              await updateDealMutation.mutateAsync({
+                internal_company_name: data.companyName,
+                website: data.website,
+                address: data.address,
+                founded_year: data.foundedYear,
+                industry: data.industry,
+                number_of_locations: data.numberOfLocations,
+                location_radius_requirement: data.locationRadiusRequirement,
+                // Structured address
+                street_address: data.streetAddress,
+                address_city: data.addressCity,
+                address_state: data.addressState,
+                address_zip: data.addressZip,
+                address_country: data.addressCountry,
+              });
+            }}
+          />
+        </div>
+        <div className="col-span-1">
+          <DealActivityLog dealId={dealId!} maxHeight={480} />
+        </div>
+      </div>
 
       {/* Financial Overview - Full width below Company Overview */}
       <Card>
@@ -1179,8 +1295,7 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-      {/* Activity Log & Notes */}
-      <DealActivityLog dealId={dealId!} />
+
 
       {/* General Notes Section */}
       <GeneralNotesSection

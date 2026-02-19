@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -69,16 +69,9 @@ export default function MAAllDeals() {
   const [isLoading, setIsLoading] = useState(true);
   const [dealDeleteDialogOpen, setDealDeleteDialogOpen] = useState(false);
   const [dealToDelete, setDealToDelete] = useState<{ id: string; name: string } | null>(null);
-  // Sorting — persisted in URL for back-navigation
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = (searchParams.get("sort") as SortColumn) || "score";
-  const sortDirection = (searchParams.get("dir") as SortDirection) || "desc";
-  const setSortColumn = (col: SortColumn) => {
-    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
-  };
-  const setSortDirection = (dir: SortDirection) => {
-    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
-  };
+  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "score";
+  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "desc";
   const [searchQuery, setSearchQuery] = useState("");
 
   const { toast } = useToast();
@@ -308,12 +301,16 @@ export default function MAAllDeals() {
   }, [filteredDeals, sortColumn, sortDirection, trackers]);
 
   const toggleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("desc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === column) {
+        next.set("dir", next.get("dir") === "desc" ? "asc" : "desc");
+      } else {
+        next.set("sort", column);
+        next.set("dir", "desc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   const SortableHeader = ({ column, children, className = "" }: { column: SortColumn; children: React.ReactNode; className?: string }) => (
