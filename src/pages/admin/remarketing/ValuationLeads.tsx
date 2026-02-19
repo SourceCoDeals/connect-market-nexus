@@ -116,11 +116,14 @@ interface ValuationLead {
 
 type SortColumn =
   | "display_name"
+  | "website"
   | "industry"
+  | "location"
   | "revenue"
   | "ebitda"
   | "valuation"
   | "exit_timing"
+  | "intros"
   | "quality"
   | "score"
   | "created_at"
@@ -611,9 +614,17 @@ export default function ValuationLeads() {
           valA = extractBusinessName(a).toLowerCase();
           valB = extractBusinessName(b).toLowerCase();
           break;
+        case "website":
+          valA = (inferWebsite(a) || "").toLowerCase();
+          valB = (inferWebsite(b) || "").toLowerCase();
+          break;
         case "industry":
           valA = (a.industry || "").toLowerCase();
           valB = (b.industry || "").toLowerCase();
+          break;
+        case "location":
+          valA = (a.location || "").toLowerCase();
+          valB = (b.location || "").toLowerCase();
           break;
         case "revenue":
           valA = a.revenue ?? -1;
@@ -633,6 +644,10 @@ export default function ValuationLeads() {
           valB = timingOrder[b.exit_timing || ""] ?? 0;
           break;
         }
+        case "intros":
+          valA = a.open_to_intros ? 1 : 0;
+          valB = b.open_to_intros ? 1 : 0;
+          break;
         case "quality":
           // Sort by quality tier order, not readiness_score
           valA = QUALITY_ORDER[a.quality_label || ""] ?? 0;
@@ -1302,14 +1317,18 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="display_name">Lead</SortHeader>
                   </TableHead>
-                  <TableHead>Website</TableHead>
+                  <TableHead>
+                    <SortHeader column="website">Website</SortHeader>
+                  </TableHead>
                   {activeTab === "all" && (
                     <TableHead>Calculator</TableHead>
                   )}
                   <TableHead>
                     <SortHeader column="industry">Industry</SortHeader>
                   </TableHead>
-                  <TableHead>Location</TableHead>
+                  <TableHead>
+                    <SortHeader column="location">Location</SortHeader>
+                  </TableHead>
                   <TableHead>
                     <SortHeader column="revenue">Revenue</SortHeader>
                   </TableHead>
@@ -1322,7 +1341,9 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="exit_timing">Exit</SortHeader>
                   </TableHead>
-                  <TableHead className="text-center">Intros</TableHead>
+                  <TableHead className="text-center">
+                    <SortHeader column="intros">Intros</SortHeader>
+                  </TableHead>
                   <TableHead>
                     <SortHeader column="quality">Quality</SortHeader>
                   </TableHead>
