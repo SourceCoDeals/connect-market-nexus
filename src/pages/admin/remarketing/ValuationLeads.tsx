@@ -1986,25 +1986,24 @@ export default function ValuationLeads() {
                               Approve to All Deals
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {/* Delete Deal */}
+                            {/* Archive Deal */}
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={async (e) => {
-                                e.stopPropagation();
+                              onClick={async () => {
                                 const { error } = await supabase
                                   .from("valuation_leads")
-                                  .update({ is_excluded: true } as never)
+                                  .update({ is_archived: true })
                                   .eq("id", lead.id);
                                 if (error) {
-                                  sonnerToast.error("Failed to delete lead");
+                                  sonnerToast.error("Failed to archive lead");
                                 } else {
-                                  sonnerToast.success("Lead removed");
-                                  queryClient.invalidateQueries({ queryKey: ["valuation-leads"] });
+                                  sonnerToast.success("Lead archived");
+                                  refetch();
                                 }
                               }}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Deal
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive Deal
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
