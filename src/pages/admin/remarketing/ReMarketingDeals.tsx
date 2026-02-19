@@ -366,28 +366,19 @@ const ReMarketingDeals = () => {
   // Timeframe, filter engine, and saved views
   const { timeframe, setTimeframe } = useTimeframe("all_time");
   const {
-    filteredItems: _engineFiltered,
+    filteredItems: engineFiltered,
     filterState,
     setFilterState,
     dynamicOptions,
     totalCount,
+    filteredCount,
   } = useFilterEngine(listings || [], DEAL_LISTING_FIELDS);
   const { views: savedViews, addView, removeView } = useSavedViews("remarketing-deals");
 
-  // Filter listings
+  // Filter listings - use engineFiltered (which handles search + filter rules) as the base
   const filteredListings = useMemo(() => {
-    if (!listings) return [];
-    return listings.filter(listing => {
-      if (search) {
-        const searchLower = search.toLowerCase();
-        const matchesSearch =
-          listing.title?.toLowerCase().includes(searchLower) ||
-          listing.internal_company_name?.toLowerCase().includes(searchLower) ||
-          listing.description?.toLowerCase().includes(searchLower) ||
-          listing.location?.toLowerCase().includes(searchLower) ||
-          listing.website?.toLowerCase().includes(searchLower);
-        if (!matchesSearch) return false;
-      }
+    if (!engineFiltered) return [];
+    return engineFiltered.filter(listing => {
       if (universeFilter !== "all") {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
@@ -433,7 +424,7 @@ const ReMarketingDeals = () => {
       }
       return true;
     });
-  }, [listings, search, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
+  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
