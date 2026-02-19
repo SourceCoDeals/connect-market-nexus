@@ -119,6 +119,8 @@ interface ValuationLead {
   // For deal owner display (assigned after push)
   deal_owner_id?: string | null;
   is_priority_target?: boolean | null;
+  needs_buyer_universe?: boolean | null;
+  need_to_contact_owner?: boolean | null;
   is_archived?: boolean | null;
   // Joined from listings (via pushed_listing_id) — populated by enrichment
   listing_description?: string | null;
@@ -2257,6 +2259,48 @@ export default function ValuationLeads() {
                             >
                               <Star className={`h-4 w-4 mr-2 ${lead.is_priority_target ? "fill-amber-500 text-amber-500" : ""}`} />
                               {lead.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            {/* Needs Buyer Universe */}
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const newVal = !lead.needs_buyer_universe;
+                                const { error } = await supabase
+                                  .from("valuation_leads")
+                                  .update({ needs_buyer_universe: newVal } as never)
+                                  .eq("id", lead.id);
+                                if (error) {
+                                  sonnerToast.error("Failed to update flag");
+                                } else {
+                                  queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                                  sonnerToast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed");
+                                }
+                              }}
+                              className={lead.needs_buyer_universe ? "text-blue-600" : ""}
+                            >
+                              <Users2 className={cn("h-4 w-4 mr-2", lead.needs_buyer_universe && "text-blue-600")} />
+                              {lead.needs_buyer_universe ? "Remove Buyer Universe Flag" : "Needs Buyer Universe"}
+                            </DropdownMenuItem>
+                            {/* Need to Contact Owner */}
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const newVal = !lead.need_to_contact_owner;
+                                const { error } = await supabase
+                                  .from("valuation_leads")
+                                  .update({ need_to_contact_owner: newVal } as never)
+                                  .eq("id", lead.id);
+                                if (error) {
+                                  sonnerToast.error("Failed to update flag");
+                                } else {
+                                  queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                                  sonnerToast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed");
+                                }
+                              }}
+                              className={lead.need_to_contact_owner ? "text-orange-600" : ""}
+                            >
+                              <Phone className={cn("h-4 w-4 mr-2", lead.need_to_contact_owner && "text-orange-600")} />
+                              {lead.need_to_contact_owner ? "Remove Contact Owner Flag" : "Need to Contact Owner"}
                             </DropdownMenuItem>
                             {/* Approve to All Deals */}
                             <DropdownMenuItem

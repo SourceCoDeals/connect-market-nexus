@@ -1182,7 +1182,7 @@ export default function GPPartnerDeals() {
                         </div>
                       </TableCell>
                       <TableCell className="max-w-[200px]">
-                        <span className="text-xs text-muted-foreground line-clamp-2">
+                        <span className="text-xs text-muted-foreground line-clamp-3">
                           {deal.description || deal.executive_summary || "\u2014"}
                         </span>
                       </TableCell>

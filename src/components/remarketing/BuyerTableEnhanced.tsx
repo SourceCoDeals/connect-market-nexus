@@ -38,7 +38,8 @@ import {
   GripVertical,
   XCircle,
   Loader2,
-  Unlink
+  Unlink,
+  FileCheck,
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { AlignmentScoreBadge } from "./AlignmentScoreBadge";
@@ -107,6 +108,8 @@ interface BuyerTableEnhancedProps {
   onRemoveFromUniverse?: (buyerIds: string[]) => Promise<void>;
   /** When provided, back navigation from buyer detail returns to this universe */
   universeId?: string;
+  /** Called when user toggles fee agreement on a buyer */
+  onToggleFeeAgreement?: (buyerId: string, currentStatus: boolean) => void;
 }
 
 export const BuyerTableEnhanced = ({
@@ -121,6 +124,7 @@ export const BuyerTableEnhanced = ({
   onSelectionChange,
   onRemoveFromUniverse,
   universeId,
+  onToggleFeeAgreement,
 }: BuyerTableEnhancedProps) => {
   const navigate = useNavigate();
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -607,6 +611,18 @@ export const BuyerTableEnhanced = ({
                           >
                             <Sparkles className="mr-2 h-4 w-4" />
                             {isCurrentlyEnriching ? 'Enriching...' : 'Enrich Data'}
+                          </DropdownMenuItem>
+                        )}
+                        {onToggleFeeAgreement && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleFeeAgreement(buyer.id, buyer.has_fee_agreement || false);
+                            }}
+                            className={buyer.has_fee_agreement ? "text-green-600" : ""}
+                          >
+                            <FileCheck className={`mr-2 h-4 w-4 ${buyer.has_fee_agreement ? "text-green-600" : ""}`} />
+                            {buyer.has_fee_agreement ? "Remove Fee Agreement" : "Mark Fee Agreement"}
                           </DropdownMenuItem>
                         )}
                         {onDelete && (
