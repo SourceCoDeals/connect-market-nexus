@@ -318,12 +318,15 @@ function cleanFullName(raw: string | null): string | null {
 function isPlaceholderBusinessName(name: string): boolean {
   const lower = name.toLowerCase().trim();
   // Generic placeholder patterns
-  if (lower.endsWith("'s business") || lower.endsWith("\u2019s business")) return true;
+  // Any variant of "'s Business" suffix (ASCII apostrophe, curly right quote, or any Unicode apostrophe)
+  if (/[''\u2019\u02BC\u0060]s business$/i.test(lower)) return true;
   // Looks like a URL (starts with www, or is just a domain)
   if (/^www\b/i.test(lower)) return true;
   if (/\.(com|net|org|io|co|ai|us|uk|ca|au|nz|school|pro|app|dev)(\s|$)/i.test(lower)) return true;
   // Single username-like strings (no spaces, contains underscores or digits only)
   if (/^[a-z0-9_]+$/i.test(lower) && lower.includes("_")) return true;
+  // All-lowercase username with numbers (e.g. "epd1112", "bcunningham4523")
+  if (/^[a-z0-9]+\d+[a-z0-9]*$/i.test(lower) && !/\s/.test(lower)) return true;
   return false;
 }
 
@@ -493,6 +496,7 @@ function qualityBadge(label: string | null) {
   if (!label) return null;
   const config: Record<string, string> = {
     "Very Strong": "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "Strong": "bg-teal-50 text-teal-700 border-teal-200",
     "Solid": "bg-blue-50 text-blue-700 border-blue-200",
     "Average": "bg-amber-50 text-amber-700 border-amber-200",
     "Needs Work": "bg-red-50 text-red-700 border-red-200",
