@@ -703,6 +703,7 @@ export default function ValuationLeads() {
     description: 200,
     calculator: 110,
     industry: 130,
+    location: 110,
     owner: 130,
     revenue: 90,
     ebitda: 90,
@@ -1896,6 +1897,7 @@ export default function ValuationLeads() {
                 <col style={{ width: colWidths.description }} />
                 {activeTab === "all" && <col style={{ width: colWidths.calculator }} />}
                 <col style={{ width: colWidths.industry }} />
+                <col style={{ width: colWidths.location }} />
                 <col style={{ width: colWidths.owner }} />
                 <col style={{ width: colWidths.revenue }} />
                 <col style={{ width: colWidths.ebitda }} />
@@ -1929,9 +1931,10 @@ export default function ValuationLeads() {
                       <div onMouseDown={(e) => startResize("calculator", e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
                     </TableHead>
                   )}
-                  {(["industry","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status","priority"] as const).map((col) => (
+                  {(["industry","location","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status","priority"] as const).map((col) => (
                     <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col], textAlign: ["revenue","ebitda","valuation"].includes(col) ? "right" : ["intros","priority"].includes(col) ? "center" : undefined }}>
                       {col === "industry" && <SortHeader column="industry">Industry</SortHeader>}
+                      {col === "location" && <SortHeader column="location">Location</SortHeader>}
                       {col === "owner" && <SortHeader column="owner">Deal Owner</SortHeader>}
                       {col === "revenue" && <SortHeader column="revenue">Revenue</SortHeader>}
                       {col === "ebitda" && <SortHeader column="ebitda">EBITDA</SortHeader>}
@@ -2025,6 +2028,12 @@ export default function ValuationLeads() {
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
                           {lead.industry || "—"}
+                        </span>
+                      </TableCell>
+                      {/* Location */}
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground truncate block">
+                          {lead.location || "—"}
                         </span>
                       </TableCell>
                       {/* Deal Owner */}
