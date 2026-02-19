@@ -2016,14 +2016,9 @@ export default function ValuationLeads() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <span className="text-sm tabular-nums text-foreground block">
-                            {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(lead.created_at), "MMM d, yyyy")}
-                          </span>
-                        </div>
+                        <span className="text-sm tabular-nums text-foreground">
+                          {format(new Date(lead.created_at), "MMM d, yyyy")}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
