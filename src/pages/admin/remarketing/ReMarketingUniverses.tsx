@@ -620,6 +620,16 @@ const ReMarketingUniverses = () => {
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async (e) => {
+                              e.stopPropagation();
+                              const newVal = !universe.fee_agreement_required;
+                              await supabase.from("remarketing_buyer_universes").update({ fee_agreement_required: newVal } as never).eq("id", universe.id);
+                              queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+                              toast.success(newVal ? "Fee agreement required" : "Fee agreement not required");
+                            }}>
+                              <Handshake className={`h-4 w-4 mr-2 ${(universe as any).fee_agreement_required ? "text-green-600" : ""}`} />
+                              {(universe as any).fee_agreement_required ? "✓ Fee Agreement Required" : "Flag: Fee Agreement Required"}
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();

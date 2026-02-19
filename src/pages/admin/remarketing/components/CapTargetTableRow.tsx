@@ -22,6 +22,8 @@ import {
   Star,
   Archive,
   Trash2,
+  Users,
+  Phone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -56,6 +58,8 @@ interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
+  need_buyer_universe: boolean | null;
+  need_owner_contact: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
@@ -311,6 +315,28 @@ export function CapTargetTableRow({
             >
               <Star className={cn("h-4 w-4 mr-2", deal.is_priority_target && "fill-amber-500")} />
               {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={async () => {
+                const newVal = !deal.need_buyer_universe;
+                const { error } = await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", deal.id);
+                if (!error) { toast({ title: newVal ? "Flagged: Needs Buyer Universe" : "Flag removed" }); onRefetch(); }
+              }}
+              className={deal.need_buyer_universe ? "text-blue-600" : ""}
+            >
+              <Users className={cn("h-4 w-4 mr-2", deal.need_buyer_universe && "text-blue-600")} />
+              {deal.need_buyer_universe ? "✓ Needs Buyer Universe" : "Flag: Needs Buyer Universe"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={async () => {
+                const newVal = !deal.need_owner_contact;
+                const { error } = await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", deal.id);
+                if (!error) { toast({ title: newVal ? "Flagged: Need to Contact Owner" : "Flag removed" }); onRefetch(); }
+              }}
+              className={deal.need_owner_contact ? "text-orange-600" : ""}
+            >
+              <Phone className={cn("h-4 w-4 mr-2", deal.need_owner_contact && "text-orange-600")} />
+              {deal.need_owner_contact ? "✓ Need to Contact Owner" : "Flag: Need to Contact Owner"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onPushToAllDeals([deal.id])}
