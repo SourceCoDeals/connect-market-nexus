@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,8 +69,9 @@ export default function MAAllDeals() {
   const [isLoading, setIsLoading] = useState(true);
   const [dealDeleteDialogOpen, setDealDeleteDialogOpen] = useState(false);
   const [dealToDelete, setDealToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [sortColumn, setSortColumn] = useState<SortColumn>("score");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "score";
+  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "desc";
   const [searchQuery, setSearchQuery] = useState("");
 
   const { toast } = useToast();
@@ -300,12 +301,16 @@ export default function MAAllDeals() {
   }, [filteredDeals, sortColumn, sortDirection, trackers]);
 
   const toggleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection(prev => prev === "desc" ? "asc" : "desc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("desc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === column) {
+        next.set("dir", next.get("dir") === "desc" ? "asc" : "desc");
+      } else {
+        next.set("sort", column);
+        next.set("dir", "desc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   const SortableHeader = ({ column, children, className = "" }: { column: SortColumn; children: React.ReactNode; className?: string }) => (
