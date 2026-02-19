@@ -8191,6 +8191,7 @@ export type Database = {
           growth_trend: string | null
           id: string
           industry: string | null
+          is_priority_target: boolean | null
           lead_score: number | null
           lead_source: string | null
           linkedin_url: string | null
@@ -8238,6 +8239,7 @@ export type Database = {
           growth_trend?: string | null
           id?: string
           industry?: string | null
+          is_priority_target?: boolean | null
           lead_score?: number | null
           lead_source?: string | null
           linkedin_url?: string | null
@@ -8285,6 +8287,7 @@ export type Database = {
           growth_trend?: string | null
           id?: string
           industry?: string | null
+          is_priority_target?: boolean | null
           lead_score?: number | null
           lead_source?: string | null
           linkedin_url?: string | null
