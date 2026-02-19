@@ -58,7 +58,7 @@ SET excluded = true,
     exclusion_reason = 'non_north_american'
 WHERE excluded = false
   AND region IS NOT NULL
-  AND LOWER(region) NOT IN ('na', 'north america', 'us', 'usa', 'canada', 'ca', 'mexico', 'mx')
+  AND LOWER(region) NOT IN ('na', 'north america', 'north-america', 'us', 'usa', 'united states', 'canada', 'ca', 'mexico', 'mx')
   AND region != 'NA';
 
 -- ─── FINDING-013: Fix FK ON DELETE behavior ───
