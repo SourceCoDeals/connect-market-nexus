@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Eye,
   X,
+  Flag,
 } from "lucide-react";
 import {
   Tooltip,
@@ -173,6 +174,27 @@ const ReMarketingDealDetail = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
     }
+  });
+
+  // Toggle universe build flag
+  const toggleUniverseFlagMutation = useMutation({
+    mutationFn: async (flagged: boolean) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          universe_build_flagged: flagged,
+          universe_build_flagged_at: flagged ? new Date().toISOString() : null,
+          universe_build_flagged_by: flagged ? user?.id : null,
+        } as any)
+        .eq('id', dealId);
+      if (error) throw error;
+    },
+    onSuccess: (_, flagged) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      toast.success(flagged ? 'Flagged for universe build' : 'Universe build flag removed');
+    },
+    onError: () => toast.error('Failed to update flag'),
   });
 
   // Extract website URL from internal_deal_memo_link
@@ -674,6 +696,30 @@ const ReMarketingDealDetail = () => {
               <History className="h-4 w-4" />
               Buyer History
             </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={((deal as any)?.universe_build_flagged) ? "default" : "outline"}
+                    className={`gap-2 ${((deal as any)?.universe_build_flagged) ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white" : "border-amber-400 text-amber-600 hover:bg-amber-50"}`}
+                    onClick={() => toggleUniverseFlagMutation.mutate(!((deal as any)?.universe_build_flagged))}
+                    disabled={toggleUniverseFlagMutation.isPending}
+                  >
+                    {toggleUniverseFlagMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Flag className={`h-4 w-4 ${((deal as any)?.universe_build_flagged) ? "fill-white" : ""}`} />
+                    )}
+                    {((deal as any)?.universe_build_flagged) ? "Flagged: Build Universe" : "Flag for Universe Build"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {((deal as any)?.universe_build_flagged)
+                    ? "This deal is flagged — a team member needs to build a buyer universe for it. Click to remove flag."
+                    : "Flag this deal to indicate a buyer universe needs to be built by the team."}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           {isEnriching && (
             <div className="mt-4 space-y-2">

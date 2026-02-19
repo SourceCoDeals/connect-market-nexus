@@ -4774,6 +4774,9 @@ export type Database = {
           title: string
           transaction_preferences: Json | null
           transition_preferences: string | null
+          universe_build_flagged: boolean | null
+          universe_build_flagged_at: string | null
+          universe_build_flagged_by: string | null
           updated_at: string
           visible_to_buyer_types: string[] | null
           website: string | null
@@ -4938,6 +4941,9 @@ export type Database = {
           title: string
           transaction_preferences?: Json | null
           transition_preferences?: string | null
+          universe_build_flagged?: boolean | null
+          universe_build_flagged_at?: string | null
+          universe_build_flagged_by?: string | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
           website?: string | null
@@ -5102,6 +5108,9 @@ export type Database = {
           title?: string
           transaction_preferences?: Json | null
           transition_preferences?: string | null
+          universe_build_flagged?: boolean | null
+          universe_build_flagged_at?: string | null
+          universe_build_flagged_by?: string | null
           updated_at?: string
           visible_to_buyer_types?: string[] | null
           website?: string | null
