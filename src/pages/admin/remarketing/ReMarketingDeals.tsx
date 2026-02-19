@@ -385,7 +385,9 @@ const ReMarketingDeals = () => {
   const filteredListings = useMemo(() => {
     if (!engineFiltered) return [];
     return engineFiltered.filter(listing => {
-      if (universeFilter !== "all") {
+      if (universeFilter === "needs_build") {
+        if (!listing.needs_buyer_universe) return false;
+      } else if (universeFilter !== "all") {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
       }
@@ -1078,7 +1080,17 @@ const ReMarketingDeals = () => {
         onSaveView={(name, filters) => addView({ name, filters })}
         onDeleteView={removeView}
         onSelectView={(view) => setFilterState(view.filters)}
-      />
+      >
+        <Button
+          variant={universeFilter === "needs_build" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setUniverseFilter(universeFilter === "needs_build" ? "all" : "needs_build")}
+          className="whitespace-nowrap"
+        >
+          <Building2 className="h-3.5 w-3.5 mr-1.5" />
+          Needs Universe Build
+        </Button>
+      </FilterBar>
 
       {/* Bulk Actions Toolbar */}
       <DealsBulkActions
