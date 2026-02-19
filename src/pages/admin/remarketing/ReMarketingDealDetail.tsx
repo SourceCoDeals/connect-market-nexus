@@ -807,8 +807,8 @@ const ReMarketingDealDetail = () => {
       />
 
       {/* Company Overview (75%) + Activity Log (25%) side by side */}
-      <div className="grid grid-cols-4 gap-4 items-stretch">
-        <div className="col-span-3 flex flex-col">
+      <div className="grid grid-cols-4 gap-4 items-start">
+        <div className="col-span-3">
           <CompanyOverviewCard
             companyName={deal.internal_company_name || deal.title}
             website={effectiveWebsite}
@@ -864,8 +864,8 @@ const ReMarketingDealDetail = () => {
             }}
           />
         </div>
-        <div className="col-span-1 flex flex-col">
-          <DealActivityLog dealId={dealId!} />
+        <div className="col-span-1">
+          <DealActivityLog dealId={dealId!} maxHeight={480} />
         </div>
       </div>
 
