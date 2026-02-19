@@ -116,11 +116,14 @@ interface ValuationLead {
 
 type SortColumn =
   | "display_name"
+  | "website"
   | "industry"
+  | "location"
   | "revenue"
   | "ebitda"
   | "valuation"
   | "exit_timing"
+  | "intros"
   | "quality"
   | "score"
   | "created_at"
@@ -271,20 +274,30 @@ function segmentWords(input: string): string {
   }).join(" ");
 }
 
+function isPlaceholderBusinessName(name: string): boolean {
+  const lower = name.toLowerCase().trim();
+  // Generic placeholder patterns
+  if (lower.endsWith("'s business") || lower.endsWith("\u2019s business")) return true;
+  // Looks like a URL (starts with www, or is just a domain)
+  if (/^www\b/i.test(lower)) return true;
+  if (/\.(com|net|org|io|co|ai|us|uk|ca|au|nz|school|pro|app|dev)(\s|$)/i.test(lower)) return true;
+  // Single username-like strings (no spaces, contains underscores or digits only)
+  if (/^[a-z0-9_]+$/i.test(lower) && lower.includes("_")) return true;
+  return false;
+}
+
 function extractBusinessName(lead: ValuationLead): string {
-  // If the DB has a real business name (multi-word, not a placeholder), use it directly
-  if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
+  // If the DB has a real business name (not a placeholder), use it directly
+  if (lead.business_name && !isPlaceholderBusinessName(lead.business_name)) {
     const bn = lead.business_name.trim();
+    // Fix mojibake apostrophes (â€™ → ') and normalize apostrophe casing (Dino'S → Dino's)
+    const fixed = bn.replace(/â€™/g, "'").replace(/'([A-Z])/g, (_, c) => `'${c.toLowerCase()}`);
     // If it contains spaces, it's already well-formatted — return as-is
-    if (/\s/.test(bn)) {
-      // Fix mojibake apostrophes (â€™ → ')
-      return bn.replace(/â€™/g, "'");
-    }
-    // Single word from DB (e.g. "Usaquaticsinc" from INITCAP) — try to segment it
-    const segmented = segmentWords(bn.toLowerCase());
-    // If segmentation found multiple words, use that; otherwise keep original
+    if (/\s/.test(fixed)) return fixed;
+    // Single word from DB — try to segment it
+    const segmented = segmentWords(fixed.toLowerCase());
     if (segmented.includes(" ")) return segmented;
-    return bn;
+    return fixed;
   }
   const domain = cleanWebsiteToDomain(lead.website);
   if (domain) {
@@ -626,9 +639,17 @@ export default function ValuationLeads() {
           valA = extractBusinessName(a).toLowerCase();
           valB = extractBusinessName(b).toLowerCase();
           break;
+        case "website":
+          valA = (inferWebsite(a) || "").toLowerCase();
+          valB = (inferWebsite(b) || "").toLowerCase();
+          break;
         case "industry":
           valA = (a.industry || "").toLowerCase();
           valB = (b.industry || "").toLowerCase();
+          break;
+        case "location":
+          valA = (a.location || "").toLowerCase();
+          valB = (b.location || "").toLowerCase();
           break;
         case "revenue":
           valA = a.revenue ?? -1;
@@ -648,6 +669,10 @@ export default function ValuationLeads() {
           valB = timingOrder[b.exit_timing || ""] ?? 0;
           break;
         }
+        case "intros":
+          valA = a.open_to_intros ? 1 : 0;
+          valB = b.open_to_intros ? 1 : 0;
+          break;
         case "quality":
           // Sort by quality tier order, not readiness_score
           valA = QUALITY_ORDER[a.quality_label || ""] ?? 0;
@@ -727,12 +752,10 @@ export default function ValuationLeads() {
     });
   };
 
-  // Row click handler — pushed leads navigate to deal detail, others open lead detail
+  // Row click handler — pushed leads navigate to deal detail, others navigate by lead id
   const handleRowClick = (lead: ValuationLead) => {
-    if (lead.pushed_listing_id) {
-      navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`);
-    }
-    // Unpushed leads: no navigation (could add drawer in future)
+    const id = lead.pushed_listing_id ?? lead.id;
+    navigate(`/admin/remarketing/valuation-leads/${id}`);
   };
 
   // Push to All Deals
@@ -1326,14 +1349,18 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="display_name">Lead</SortHeader>
                   </TableHead>
-                  <TableHead>Website</TableHead>
+                  <TableHead>
+                    <SortHeader column="website">Website</SortHeader>
+                  </TableHead>
                   {activeTab === "all" && (
                     <TableHead>Calculator</TableHead>
                   )}
                   <TableHead>
                     <SortHeader column="industry">Industry</SortHeader>
                   </TableHead>
-                  <TableHead>Location</TableHead>
+                  <TableHead>
+                    <SortHeader column="location">Location</SortHeader>
+                  </TableHead>
                   <TableHead>
                     <SortHeader column="revenue">Revenue</SortHeader>
                   </TableHead>
@@ -1346,7 +1373,9 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="exit_timing">Exit</SortHeader>
                   </TableHead>
-                  <TableHead className="text-center">Buyer Intro</TableHead>
+                  <TableHead className="text-center">
+                    <SortHeader column="intros">Intros</SortHeader>
+                  </TableHead>
                   <TableHead>
                     <SortHeader column="quality">Quality</SortHeader>
                   </TableHead>
