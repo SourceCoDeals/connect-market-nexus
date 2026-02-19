@@ -709,6 +709,18 @@ export default function ValuationLeads() {
     totalCount: engineTotal,
   } = useFilterEngine(leads ?? [], VALUATION_LEAD_FIELDS);
 
+  // Default filter: "Website is not empty" — applied on first mount if no filter is already set
+  useEffect(() => {
+    if (filterState.rules.length === 0) {
+      setFilterState((prev) => ({
+        ...prev,
+        conjunction: "and",
+        rules: [{ id: "default-website-filter", field: "website", operator: "is_not_empty", value: "" }],
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally only on mount
+
   // Apply tab + timeframe on top of engine-filtered results, then sort
   const filteredLeads = useMemo(() => {
     let filtered = engineFiltered;
