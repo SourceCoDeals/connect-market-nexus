@@ -1197,7 +1197,7 @@ export default function ValuationLeads() {
             Valuation Calculator Leads
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {totalLeads} total &middot; {unscoredCount} unscored &middot; {pushedTotal} pushed
+            {totalLeads} total &middot; {unscoredCount} unscored &middot; {pushedTotal} in All Deals
           </p>
         </div>
 
