@@ -1199,16 +1199,21 @@ export default function ValuationLeads() {
       const allLeads = leads || [];
 
       // All leads that have a website (they can be enriched)
-      const enrichableLeads = allLeads.filter((l) => !!inferWebsite(l));
+      const leadsWithWebsite = allLeads.filter((l) => !!inferWebsite(l));
+
+      // For "unenriched" mode, only process leads that haven't been enriched yet
+      const enrichableLeads = mode === "unenriched"
+        ? leadsWithWebsite.filter((l) => !l.pushed_listing_id)
+        : leadsWithWebsite;
 
       if (!enrichableLeads.length) {
-        sonnerToast.info("No leads with websites to enrich");
+        sonnerToast.info(mode === "unenriched" ? "All leads have already been enriched" : "No leads with websites to enrich");
         return;
       }
 
       setIsEnriching(true);
 
-      // Step 1: Auto-create listings for leads that don't have one yet
+      // Step 1: Auto-create listings only for leads that don't have one yet
       const leadsNeedingListing = enrichableLeads.filter((l) => !l.pushed_listing_id);
       if (leadsNeedingListing.length > 0) {
         sonnerToast.info(`Creating listings for ${leadsNeedingListing.length} leads...`);
