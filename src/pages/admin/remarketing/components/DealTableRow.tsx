@@ -29,7 +29,6 @@ import {
   Target,
   Globe,
   Sparkles,
-  GripVertical,
   MoreHorizontal,
   Archive,
   Star,
@@ -178,17 +177,13 @@ export const DealTableRow = ({
         />
       </TableCell>
 
-      {/* Drag Handle + Rank */}
+      {/* Rank (draggable) */}
       <TableCell style={{ width: columnWidths.rank, minWidth: 50 }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-1">
-          <button
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </button>
+        <div
+          className="flex items-center justify-center cursor-grab active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
           <EditableRankCell
             value={listing.manual_rank_override ?? (index + 1)}
             onSave={(newRank) => onUpdateRank(listing.id, newRank)}
