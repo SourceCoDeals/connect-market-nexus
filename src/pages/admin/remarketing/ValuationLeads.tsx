@@ -443,11 +443,37 @@ function buildListingFromLead(lead: ValuationLead, forPush = true) {
   else if (lead.exit_timing === "exploring") motivationParts.push("Exploring options");
   if (lead.open_to_intros) motivationParts.push("Open to buyer introductions");
 
+  const calcTypeLabel = lead.calculator_type === "auto_shop" ? "Auto Shop" : lead.calculator_type === "general" ? "General" : lead.calculator_type;
+
   const noteLines: string[] = [
     `--- Valuation Calculator Lead Intelligence ---`,
-    `Source: ${lead.calculator_type === "auto_shop" ? "Auto Shop" : lead.calculator_type === "general" ? "General" : lead.calculator_type} Calculator`,
+    `Source: ${calcTypeLabel} Calculator`,
     `Submitted: ${new Date(lead.created_at).toLocaleDateString()}`,
   ];
+
+  // Contact
+  if (lead.full_name) noteLines.push(`Name: ${lead.full_name}`);
+  if (lead.email) noteLines.push(`Email: ${lead.email}`);
+  if (lead.phone) noteLines.push(`Phone: ${lead.phone}`);
+  if (lead.linkedin_url) noteLines.push(`LinkedIn: ${lead.linkedin_url}`);
+
+  // Business
+  if (lead.business_name) noteLines.push(`Business Name: ${lead.business_name}`);
+  if (lead.website) noteLines.push(`Website: ${lead.website}`);
+  if (lead.industry) noteLines.push(`Industry: ${lead.industry}`);
+  if (lead.location) noteLines.push(`Location: ${lead.location}`);
+  if (lead.locations_count != null) noteLines.push(`Number of Locations: ${lead.locations_count}`);
+  if (lead.revenue_model) noteLines.push(`Revenue Model: ${lead.revenue_model}`);
+  if (lead.growth_trend) noteLines.push(`Growth Trend: ${lead.growth_trend}`);
+
+  // Financials
+  if (lead.revenue != null) noteLines.push(`Revenue: $${(lead.revenue / 1e6).toFixed(2)}M`);
+  if (lead.ebitda != null) noteLines.push(`EBITDA: $${lead.ebitda < 1000 ? `${lead.ebitda}K` : `${(lead.ebitda / 1e6).toFixed(2)}M`}`);
+  if (lead.valuation_low != null && lead.valuation_high != null) {
+    noteLines.push(`Self-Assessed Valuation: $${(lead.valuation_low / 1e6).toFixed(1)}M – $${(lead.valuation_high / 1e6).toFixed(1)}M (mid: $${((lead.valuation_mid || 0) / 1e6).toFixed(1)}M)`);
+  }
+
+  // Lead scoring
   if (lead.lead_score != null) noteLines.push(`Lead Score: ${lead.lead_score}/100`);
   if (lead.quality_label) noteLines.push(`Quality: ${lead.quality_label} (tier: ${lead.quality_tier || "—"})`);
   if (lead.readiness_score != null) noteLines.push(`Readiness: ${lead.readiness_score}/100`);
@@ -455,10 +481,41 @@ function buildListingFromLead(lead: ValuationLead, forPush = true) {
   if (lead.open_to_intros != null) noteLines.push(`Open to Intros: ${lead.open_to_intros ? "Yes" : "No"}`);
   if (lead.owner_dependency) noteLines.push(`Owner Dependency: ${lead.owner_dependency}`);
   if (lead.buyer_lane) noteLines.push(`Buyer Lane: ${lead.buyer_lane}`);
-  if (lead.valuation_low != null && lead.valuation_high != null) {
-    noteLines.push(`Self-Assessed Valuation: $${(lead.valuation_low / 1e6).toFixed(1)}M – $${(lead.valuation_high / 1e6).toFixed(1)}M (mid: $${((lead.valuation_mid || 0) / 1e6).toFixed(1)}M)`);
-  }
+  if (lead.cta_clicked != null) noteLines.push(`CTA Clicked: ${lead.cta_clicked ? "Yes" : "No"}`);
   if (lead.scoring_notes) noteLines.push(`Scoring Notes: ${lead.scoring_notes}`);
+
+  // Raw calculator inputs (all key-value pairs)
+  if (lead.raw_calculator_inputs && Object.keys(lead.raw_calculator_inputs).length > 0) {
+    noteLines.push(`\n--- Raw Calculator Inputs ---`);
+    for (const [key, val] of Object.entries(lead.raw_calculator_inputs)) {
+      if (val != null && val !== "") {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        noteLines.push(`${label}: ${val}`);
+      }
+    }
+  }
+
+  // Raw valuation results
+  if (lead.raw_valuation_results && Object.keys(lead.raw_valuation_results).length > 0) {
+    noteLines.push(`\n--- Valuation Results ---`);
+    for (const [key, val] of Object.entries(lead.raw_valuation_results)) {
+      if (val != null && val !== "") {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        noteLines.push(`${label}: ${val}`);
+      }
+    }
+  }
+
+  // Calculator-specific data
+  if (lead.calculator_specific_data && Object.keys(lead.calculator_specific_data).length > 0) {
+    noteLines.push(`\n--- Calculator Specific Data ---`);
+    for (const [key, val] of Object.entries(lead.calculator_specific_data)) {
+      if (val != null && val !== "") {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        noteLines.push(`${label}: ${val}`);
+      }
+    }
+  }
 
   const locationParts = lead.location?.split(",").map(s => s.trim());
   const address_city = locationParts?.[0] || null;
