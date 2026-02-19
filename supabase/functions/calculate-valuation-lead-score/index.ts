@@ -43,7 +43,7 @@ const QUALITY_LABEL_SCORES: Record<string, number> = {
   "Needs Work": 5,
 };
 
-// Tier-1 industries
+// Tier-1 industries: PE-friendly verticals with recurring revenue characteristics
 const TIER_1_INDUSTRIES = new Set([
   "hvac",
   "plumbing",
@@ -57,6 +57,23 @@ const TIER_1_INDUSTRIES = new Set([
   "dental",
   "veterinary",
   "insurance",
+  "managed services",
+  "property management",
+  "healthcare",
+  "staffing",
+]);
+
+// Industries institutional investors typically can't or won't invest in
+const EXCLUDED_INDUSTRIES = new Set([
+  "oil and gas",
+  "oil & gas",
+  "cryptocurrency",
+  "crypto",
+  "cannabis",
+  "marijuana",
+  "gambling",
+  "firearms",
+  "weapons",
 ]);
 
 interface ScoreRequest {
@@ -79,6 +96,7 @@ function scoreFinancial(lead: Record<string, unknown>): { score: number; note: s
   let score = 0;
   let note = "";
 
+  // EBITDA === 0 is meaningful data (break-even), not missing data — use revenue fallback
   if (ebitda != null && ebitda > 0) {
     for (const [threshold, points] of EBITDA_TIERS) {
       if (ebitda >= threshold) {
@@ -89,6 +107,18 @@ function scoreFinancial(lead: Record<string, unknown>): { score: number; note: s
     }
     if (score === 0 && ebitda > 0) {
       note = `EBITDA $${Math.round(ebitda / 1000)}K (below threshold)`;
+    }
+  } else if (ebitda === 0) {
+    // Break-even EBITDA — fall through to revenue
+    note = "EBITDA $0 (break-even)";
+    if (revenue != null && revenue > 0) {
+      for (const [threshold, points] of REVENUE_TIERS) {
+        if (revenue >= threshold) {
+          score = points;
+          note = `EBITDA $0 + revenue fallback $${(revenue / 1_000_000).toFixed(1)}M`;
+          break;
+        }
+      }
     }
   } else if (revenue != null && revenue > 0) {
     for (const [threshold, points] of REVENUE_TIERS) {
@@ -106,7 +136,9 @@ function scoreFinancial(lead: Record<string, unknown>): { score: number; note: s
   }
 
   // Valuation floor: if valuation_mid > $5M and financial < 20, set to 20
-  if (valuationMid != null && valuationMid > 5_000_000 && score < 20) {
+  // Guard: only apply if there's real financial data (prevents junk leads gaming via valuation alone)
+  const hasFinancialData = (ebitda != null && ebitda > 0) || (revenue != null && revenue > 0);
+  if (valuationMid != null && valuationMid > 5_000_000 && score < 20 && hasFinancialData) {
     score = 20;
     note += ` + valuation floor ($${(valuationMid / 1_000_000).toFixed(1)}M)`;
   }
@@ -121,19 +153,23 @@ function scoreMotivation(lead: Record<string, unknown>): { score: number; note: 
   const calculatorType = lead.calculator_type as string;
 
   // Industry calculators: use quality_label as motivation proxy since they lack exit_timing/open_to_intros
+  // Scores are scaled to be comparable with general calculator motivation (0-30 range)
+  // to avoid penalizing SourceCo's target verticals
   if (calculatorType !== "general" && !exitTiming && openToIntros == null) {
     const qualityLabel = lead.quality_label as string | null;
     const qualityMotivation: Record<string, number> = {
-      "Very Strong": 10,
-      "Solid": 7,
-      "Average": 3,
-      "Needs Work": 1,
+      "Very Strong": 25,
+      "Strong": 20,
+      "Solid": 15,
+      "Average": 8,
+      "Needs Work": 3,
     };
     if (qualityLabel && qualityMotivation[qualityLabel] != null) {
       const qs = qualityMotivation[qualityLabel];
-      return { score: qs, note: `Motivation: ${qs} (quality proxy: ${qualityLabel})` };
+      return { score: qs, note: `Motivation: ${qs} (industry quality: ${qualityLabel})` };
     }
-    return { score: 0, note: "Motivation: 0 (industry calc, no data)" };
+    // Industry calculator with no quality data — give baseline credit for using a specialized tool
+    return { score: 5, note: "Motivation: 5 (industry calc, baseline)" };
   }
 
   let score = 0;
@@ -193,7 +229,12 @@ function scoreMarket(lead: Record<string, unknown>): { score: number; note: stri
   let score = 0;
   const parts: string[] = [];
 
-  // Tier 1 industry = 3
+  // Excluded industries (institutional investors can't invest) — score 0
+  if (EXCLUDED_INDUSTRIES.has(industry)) {
+    return { score: 0, note: "Market: 0 (excluded industry: " + industry + ")" };
+  }
+
+  // Tier 1 industry (PE-friendly, recurring revenue verticals) = 3
   if (TIER_1_INDUSTRIES.has(industry)) {
     score += 3;
     parts.push("tier-1 industry");
@@ -212,9 +253,9 @@ function scoreMarket(lead: Record<string, unknown>): { score: number; note: stri
     parts.push("growing");
   }
 
-  // Recurring revenue = 2
+  // Recurring revenue = 3 (PE-prioritized, higher weight than before)
   if (revenueModel === "recurring" || revenueModel === "subscription") {
-    score += 2;
+    score += 3;
     parts.push("recurring revenue");
   }
 
@@ -276,8 +317,18 @@ serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+    } else {
+      // No auth header — only allow if called via service-role (internal invocation).
+      // Check for the service role key in the apikey header as verification.
+      const apiKey = req.headers.get("apikey");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!apiKey || apiKey !== serviceKey) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized: auth header or service-role key required" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
-    // If no auth header, assume service-role invocation (e.g. from cron/another function)
 
     const body: ScoreRequest = await req.json();
     const { mode, leadId } = body;
@@ -348,6 +399,7 @@ serve(async (req) => {
         success: true,
         scored,
         total: leads.length,
+        hasMore: leads.length === BATCH_LIMIT,
         errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
