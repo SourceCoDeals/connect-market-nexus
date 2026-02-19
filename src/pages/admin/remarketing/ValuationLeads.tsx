@@ -213,7 +213,7 @@ const WORD_DICT = new Set([
   "comfort", "merit", "service", "dino", "dinos",
   "glass", "line", "horizon", "fox", "hunt", "wolf", "byte",
   "clear", "pay", "gain", "gainz", "loft", "wisconsin",
-  "cupola", "barn", "grain", "trace", "wealth",
+  "cupola", "barn", "trace",
   "mon", "lion", "money", "coin", "gecko",
   "hub", "bubble", "price", "hoppah", "stax",
   "tesloid", "ropella", "scorpa",
@@ -230,13 +230,21 @@ const WORD_DICT = new Set([
   "key", "lock", "code", "cipher",
   "pilot", "captain", "chief", "lead", "guide",
   "true", "trust", "loyal", "noble", "honor",
+  // Common words that were causing segmentation failures
+  "bros", "bro", "brother", "brothers",
+  "pros", "my", "your", "our", "his", "her", "its", "we",
+  "mechanic", "mechanics",
+  "made", "hand", "guy", "guys", "man", "men", "king",
+  "tax", "cab", "van", "fly", "run", "hub", "bit", "log",
+  "top", "pop", "hot", "big", "old",
 ]);
 
 /** Segment a concatenated string into words using dictionary-based dynamic programming. */
 function segmentWords(input: string): string {
   const s = input.toLowerCase();
   const n = s.length;
-  if (n <= 2) return input;
+  // Short strings (≤ 4 chars): treat as acronym → uppercase
+  if (n <= 4) return input.toUpperCase();
 
   // dp[i] = best segmentation for s[0..i-1], scored by minimizing number of non-dict chunks
   const dp: { cost: number; words: string[] }[] = new Array(n + 1);
@@ -251,13 +259,19 @@ function segmentWords(input: string): string {
       const isWord = WORD_DICT.has(substr);
       const cost = dp[j].cost + (isWord ? 0 : (substr.length <= 2 ? 2 : 1));
 
-      if (cost < dp[i].cost || (cost === dp[i].cost && dp[j].words.length + 1 < dp[i].words.length)) {
+      // Prefer lower cost; on tie, prefer MORE words (more splits = more dict matches)
+      if (cost < dp[i].cost || (cost === dp[i].cost && dp[j].words.length + 1 > dp[i].words.length)) {
         dp[i] = { cost, words: [...dp[j].words, substr] };
       }
     }
   }
 
-  return dp[n].words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  // Capitalize: dict words → Title Case, non-dict short (≤4) → UPPERCASE, non-dict long → Title Case
+  return dp[n].words.map(w => {
+    if (WORD_DICT.has(w)) return w.charAt(0).toUpperCase() + w.slice(1);
+    if (w.length <= 4) return w.toUpperCase();
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(" ");
 }
 
 function isPlaceholderBusinessName(name: string): boolean {
@@ -394,6 +408,7 @@ function buildListingFromLead(lead: ValuationLead) {
     seller_motivation: motivationParts.join(". ") || null,
     owner_goals: lead.exit_timing ? `Exit timing: ${lead.exit_timing}${lead.open_to_intros ? ". Open to buyer introductions." : ""}` : null,
     internal_notes: noteLines.join("\n"),
+    deal_owner_id: lead.deal_owner_id || null,
   } as never;
 }
 
@@ -1009,19 +1024,26 @@ export default function ValuationLeads() {
     [filteredLeads, queryClient]
   );
 
-  // Assign deal owner to pushed listing
+  // Assign deal owner to valuation lead (and synced listing if pushed)
   const handleAssignOwner = useCallback(async (lead: ValuationLead, ownerId: string | null) => {
-    if (!lead.pushed_listing_id) return;
+    // Always update the valuation_leads row
     const { error } = await supabase
-      .from("listings")
+      .from("valuation_leads")
       .update({ deal_owner_id: ownerId })
-      .eq("id", lead.pushed_listing_id);
+      .eq("id", lead.id);
     if (error) {
       sonnerToast.error("Failed to update owner");
-    } else {
-      sonnerToast.success(ownerId ? "Owner assigned" : "Owner removed");
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+      return;
     }
+    // Also update the pushed listing if one exists
+    if (lead.pushed_listing_id) {
+      await supabase
+        .from("listings")
+        .update({ deal_owner_id: ownerId })
+        .eq("id", lead.pushed_listing_id);
+    }
+    sonnerToast.success(ownerId ? "Owner assigned" : "Owner removed");
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
   }, [queryClient]);
 
   // KPI Stats (based on timeframe-filtered tab data)
@@ -1480,9 +1502,9 @@ export default function ValuationLeads() {
                       <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
                       <TableCell className="text-center">
                         {lead.open_to_intros === true ? (
-                          <span className="text-emerald-600 font-bold text-lg leading-none">✓</span>
+                          <span className="text-emerald-600 font-semibold text-sm">Yes</span>
                         ) : lead.open_to_intros === false ? (
-                          <span className="text-muted-foreground text-base">—</span>
+                          <span className="text-muted-foreground text-sm">No</span>
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}
@@ -1500,9 +1522,9 @@ export default function ValuationLeads() {
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      {/* Deal Owner — only editable for pushed leads */}
+                      {/* Deal Owner */}
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        {lead.pushed_listing_id && adminProfiles ? (
+                        {adminProfiles ? (
                           <Select
                             value={lead.deal_owner_id || "unassigned"}
                             onValueChange={(val) => handleAssignOwner(lead, val === "unassigned" ? null : val)}
