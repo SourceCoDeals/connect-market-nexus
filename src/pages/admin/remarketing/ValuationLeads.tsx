@@ -262,6 +262,11 @@ const WORD_DICT = new Set([
   "kayesk", "tbs", "mvp", "bend", "senior", "gilbert", "comfort",
   "merit", "dino", "glass", "horizon", "vault", "provider",
   "reative", "source", "morabespoke",
+  // Additional words to improve segmentation accuracy
+  "legend", "voi", "gk", "gkrestoration",
+  "musitechnic", "technic", "technica", "technics",
+  "hoppah", "clearpay", "globall", "school", "bilingual",
+  "apex", "elite", "restorations",
 ]);
 
 /** Segment a concatenated string into words using dictionary-based dynamic programming. */
