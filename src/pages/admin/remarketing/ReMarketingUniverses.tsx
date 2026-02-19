@@ -55,7 +55,8 @@ import {
   ArchiveRestore,
   Trash2,
   ArrowUpDown,
-  X
+  X,
+  Handshake
 } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceCoverageBar, ReMarketingChat } from "@/components/remarketing";
