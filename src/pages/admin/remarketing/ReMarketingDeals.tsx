@@ -1085,10 +1085,7 @@ const ReMarketingDeals = () => {
         onSaveView={(name, filters) => addView({ name, filters })}
         onDeleteView={removeView}
         onSelectView={(view) => setFilterState(view.filters)}
-      />
-
-      {/* Universe Build quick-filter */}
-      <div className="flex items-center gap-2">
+      >
         <Button
           size="sm"
           variant={universeBuildFilter ? "default" : "outline"}
@@ -1108,7 +1105,7 @@ const ReMarketingDeals = () => {
             </span>
           )}
         </Button>
-      </div>
+      </FilterBar>
 
       {/* Bulk Actions Toolbar */}
       <DealsBulkActions
