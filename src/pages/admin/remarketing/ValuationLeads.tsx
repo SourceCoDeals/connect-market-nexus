@@ -59,6 +59,7 @@ import {
   ExternalLink,
   Star,
   Download,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -1705,41 +1706,33 @@ export default function ValuationLeads() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {/* View Deal — only for pushed leads */}
-                            {lead.pushed_to_all_deals && lead.pushed_listing_id && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => navigate('/admin/remarketing/deals/' + lead.pushed_listing_id, { state: { from: '/admin/remarketing/valuation-leads' } })}
-                                >
-                                  <ExternalLink className="h-4 w-4 mr-2" />
-                                  View Deal
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                              </>
-                            )}
+                            {/* View Deal */}
                             <DropdownMenuItem
-                              onClick={() => handlePushToAllDeals([lead.id])}
-                              disabled={!!lead.pushed_to_all_deals}
+                              onClick={() => {
+                                if (lead.pushed_listing_id) {
+                                  navigate('/admin/remarketing/deals/' + lead.pushed_listing_id, { state: { from: '/admin/remarketing/valuation-leads' } });
+                                } else {
+                                  handleRowClick(lead);
+                                }
+                              }}
                             >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Push to All Deals
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Deal
                             </DropdownMenuItem>
+                            {/* Enrich Deal */}
                             <DropdownMenuItem
-                              onClick={() => handlePushAndEnrich([lead.id])}
-                              disabled={!!lead.pushed_to_all_deals}
+                              onClick={() => {
+                                if (lead.pushed_to_all_deals && lead.pushed_listing_id) {
+                                  handleReEnrich([lead.id]);
+                                } else {
+                                  handlePushAndEnrich([lead.id]);
+                                }
+                              }}
                             >
-                              <Zap className="h-4 w-4 mr-2" />
-                              Push &amp; Enrich
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Enrich Deal
                             </DropdownMenuItem>
-                            {lead.pushed_to_all_deals && lead.pushed_listing_id && (
-                              <DropdownMenuItem
-                                onClick={() => handleReEnrich([lead.id])}
-                              >
-                                <Sparkles className="h-4 w-4 mr-2" />
-                                Re-Enrich
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
+                            {/* Mark as Priority */}
                             <DropdownMenuItem
                               onClick={async (e) => {
                                 e.stopPropagation();
@@ -1760,25 +1753,34 @@ export default function ValuationLeads() {
                               <Star className={`h-4 w-4 mr-2 ${lead.is_priority_target ? "fill-amber-500 text-amber-500" : ""}`} />
                               {lead.is_priority_target ? "Remove Priority" : "Mark as Priority"}
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
+                            {/* Approve to All Deals */}
                             <DropdownMenuItem
+                              onClick={() => handlePushToAllDeals([lead.id])}
+                              disabled={!!lead.pushed_to_all_deals}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Approve to All Deals
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {/* Delete Deal */}
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 const { error } = await supabase
                                   .from("valuation_leads")
-                                  .update({ excluded: true, exclusion_reason: "Manual exclusion" } as never)
+                                  .update({ is_excluded: true } as never)
                                   .eq("id", lead.id);
                                 if (error) {
-                                  sonnerToast.error("Failed to exclude lead");
+                                  sonnerToast.error("Failed to delete lead");
                                 } else {
-                                  sonnerToast.success("Lead excluded");
-                                  queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                                  sonnerToast.success("Lead removed");
+                                  queryClient.invalidateQueries({ queryKey: ["valuation-leads"] });
                                 }
                               }}
-                              className="text-destructive"
                             >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Exclude Lead
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Deal
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
