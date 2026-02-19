@@ -4695,6 +4695,8 @@ export type Database = {
           metric_4_custom_subtitle: string | null
           metric_4_custom_value: string | null
           metric_4_type: string | null
+          need_buyer_universe: boolean | null
+          need_owner_contact: boolean | null
           notes: string | null
           notes_analyzed_at: string | null
           number_of_locations: number | null
@@ -4857,6 +4859,8 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          need_buyer_universe?: boolean | null
+          need_owner_contact?: boolean | null
           notes?: string | null
           notes_analyzed_at?: string | null
           number_of_locations?: number | null
@@ -5019,6 +5023,8 @@ export type Database = {
           metric_4_custom_subtitle?: string | null
           metric_4_custom_value?: string | null
           metric_4_type?: string | null
+          need_buyer_universe?: boolean | null
+          need_owner_contact?: boolean | null
           notes?: string | null
           notes_analyzed_at?: string | null
           number_of_locations?: number | null
@@ -6400,6 +6406,7 @@ export type Database = {
           description: string | null
           documents: Json | null
           documents_analyzed_at: string | null
+          fee_agreement_required: boolean | null
           fit_criteria: string | null
           fit_criteria_buyer_types: string | null
           fit_criteria_geography: string | null
@@ -6431,6 +6438,7 @@ export type Database = {
           description?: string | null
           documents?: Json | null
           documents_analyzed_at?: string | null
+          fee_agreement_required?: boolean | null
           fit_criteria?: string | null
           fit_criteria_buyer_types?: string | null
           fit_criteria_geography?: string | null
@@ -6462,6 +6470,7 @@ export type Database = {
           description?: string | null
           documents?: Json | null
           documents_analyzed_at?: string | null
+          fee_agreement_required?: boolean | null
           fit_criteria?: string | null
           fit_criteria_buyer_types?: string | null
           fit_criteria_geography?: string | null

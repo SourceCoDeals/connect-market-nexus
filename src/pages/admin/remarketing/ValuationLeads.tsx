@@ -63,6 +63,8 @@ import {
   Star,
   Download,
   Trash2,
+  EyeOff,
+  Phone,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -693,6 +695,9 @@ export default function ValuationLeads() {
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Hide pushed toggle
+  const [hidePushed, setHidePushed] = useState(false);
+
   // Pagination
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
@@ -831,6 +836,9 @@ export default function ValuationLeads() {
     // Hide archived leads by default
     filtered = filtered.filter((l) => !l.is_archived);
 
+    // Hide pushed if toggle is on
+    if (hidePushed) filtered = filtered.filter((l) => !l.pushed_to_all_deals);
+
     // Tab filter
     if (activeTab !== "all") {
       filtered = filtered.filter((l) => l.calculator_type === activeTab);
@@ -941,7 +949,7 @@ export default function ValuationLeads() {
     });
 
     return sorted;
-  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles]);
+  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles, hidePushed]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
@@ -1778,6 +1786,22 @@ export default function ValuationLeads() {
         filteredCount={filteredCount}
       />
 
+      {/* Hide Pushed Toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setHidePushed(h => !h)}
+          className={cn(
+            "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors",
+            hidePushed
+              ? "bg-primary/10 border-primary/30 text-primary font-medium"
+              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+          {hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+        </button>
+      </div>
+
       {/* Enrichment Progress Bar (matching CapTarget / GP Partners / All Deals) */}
       {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
         <EnrichmentProgressIndicator
@@ -2178,6 +2202,34 @@ export default function ValuationLeads() {
                             >
                               <Sparkles className="h-4 w-4 mr-2" />
                               Enrich Deal
+                            </DropdownMenuItem>
+                            {/* Flag: Needs Buyer Universe */}
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
+                                const newVal = !(lead as any).need_buyer_universe;
+                                await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", lead.pushed_listing_id);
+                                sonnerToast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed");
+                                queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                              }}
+                            >
+                              <Users className="h-4 w-4 mr-2" />
+                              Flag: Needs Buyer Universe
+                            </DropdownMenuItem>
+                            {/* Flag: Need to Contact Owner */}
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
+                                const newVal = !(lead as any).need_owner_contact;
+                                await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", lead.pushed_listing_id);
+                                sonnerToast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed");
+                                queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                              }}
+                            >
+                              <Phone className="h-4 w-4 mr-2" />
+                              Flag: Need to Contact Owner
                             </DropdownMenuItem>
                             {/* Mark as Priority */}
                             <DropdownMenuItem

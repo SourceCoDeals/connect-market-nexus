@@ -65,6 +65,9 @@ import {
   Zap,
   Archive,
   Download,
+  Users,
+  Phone,
+  EyeOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -102,6 +105,8 @@ interface GPPartnerDeal {
   google_rating: number | null;
   google_review_count: number | null;
   is_priority_target: boolean | null;
+  need_buyer_universe: boolean | null;
+  need_owner_contact: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
@@ -151,6 +156,9 @@ export default function GPPartnerDeals() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Hide pushed toggle
+  const [hidePushed, setHidePushed] = useState(false);
 
   // Pagination
   const PAGE_SIZE = 50;
@@ -222,6 +230,8 @@ export default function GPPartnerDeals() {
             google_rating,
             google_review_count,
             is_priority_target,
+            need_buyer_universe,
+            need_owner_contact,
             category,
             executive_summary,
             industry,
@@ -267,7 +277,9 @@ export default function GPPartnerDeals() {
 
   // Sort the engine-filtered results
   const filteredDeals = useMemo(() => {
-    const sorted = [...engineFiltered];
+    let items = [...engineFiltered];
+    if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
+    const sorted = items;
     sorted.sort((a, b) => {
       let valA: any, valB: any;
       switch (sortColumn) {
@@ -331,7 +343,7 @@ export default function GPPartnerDeals() {
       return 0;
     });
     return sorted;
-  }, [engineFiltered, sortColumn, sortDirection]);
+  }, [engineFiltered, sortColumn, sortDirection, hidePushed]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
@@ -944,6 +956,22 @@ export default function GPPartnerDeals() {
         filteredCount={filteredCount}
       />
 
+      {/* Hide Pushed Toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setHidePushed(h => !h)}
+          className={cn(
+            "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors",
+            hidePushed
+              ? "bg-primary/10 border-primary/30 text-primary font-medium"
+              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+          {hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+        </button>
+      </div>
+
       {/* Bulk Actions (selection-based) */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
@@ -1304,6 +1332,28 @@ export default function GPPartnerDeals() {
                             >
                               <Star className={cn("h-4 w-4 mr-2", deal.is_priority_target && "fill-amber-500")} />
                               {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newVal = !deal.need_buyer_universe;
+                                const { error } = await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", deal.id);
+                                if (!error) { sonnerToast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] }); }
+                              }}
+                              className={deal.need_buyer_universe ? "text-blue-600" : ""}
+                            >
+                              <Users className={cn("h-4 w-4 mr-2", deal.need_buyer_universe && "text-blue-600")} />
+                              {deal.need_buyer_universe ? "✓ Needs Buyer Universe" : "Flag: Needs Buyer Universe"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newVal = !deal.need_owner_contact;
+                                const { error } = await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", deal.id);
+                                if (!error) { sonnerToast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] }); }
+                              }}
+                              className={deal.need_owner_contact ? "text-orange-600" : ""}
+                            >
+                              <Phone className={cn("h-4 w-4 mr-2", deal.need_owner_contact && "text-orange-600")} />
+                              {deal.need_owner_contact ? "✓ Need to Contact Owner" : "Flag: Need to Contact Owner"}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handlePushToAllDeals([deal.id])}

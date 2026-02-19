@@ -78,6 +78,8 @@ interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
+  need_buyer_universe: boolean | null;
+  need_owner_contact: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
@@ -111,6 +113,7 @@ export default function CapTargetDeals() {
   // Filters
   const [search, setSearch] = useState("");
   const [pushedFilter, setPushedFilter] = useState<string>("all");
+  const [hidePushed, setHidePushed] = useState(false);
   const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
@@ -203,6 +206,7 @@ export default function CapTargetDeals() {
             pushed_to_all_deals, pushed_to_all_deals_at, deal_source, status, created_at,
             enriched_at, deal_total_score, linkedin_employee_count, linkedin_employee_range,
             google_rating, google_review_count, captarget_status, is_priority_target,
+            need_buyer_universe, need_owner_contact,
             category, executive_summary, industry
           `)
           .eq("deal_source", "captarget")
@@ -238,6 +242,7 @@ export default function CapTargetDeals() {
       }
       if (pushedFilter === "pushed" && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === "not_pushed" && deal.pushed_to_all_deals) return false;
+      if (hidePushed && deal.pushed_to_all_deals) return false;
       if (sourceTabFilter !== "all" && deal.captarget_sheet_tab !== sourceTabFilter) return false;
       if (dateRange.from || dateRange.to) {
         const dateStr = deal.captarget_contact_date || deal.created_at;
@@ -248,7 +253,7 @@ export default function CapTargetDeals() {
       }
       return true;
     });
-  }, [deals, search, pushedFilter, sourceTabFilter, dateRange]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateRange, hidePushed]);
 
   const tabItems = useMemo(() => {
     if (statusTab === "all") return preTabFiltered;
@@ -740,6 +745,22 @@ export default function CapTargetDeals() {
 
       {/* Filters */}
       <FilterBar filterState={filterState} onFilterStateChange={setFilterState} fieldDefinitions={CAPTARGET_FIELDS} dynamicOptions={dynamicOptions} totalCount={engineTotal} filteredCount={filteredCount} />
+
+      {/* Hide Pushed Toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setHidePushed(h => !h)}
+          className={cn(
+            "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors",
+            hidePushed
+              ? "bg-primary/10 border-primary/30 text-primary font-medium"
+              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          <span className="text-xs">🙈</span>
+          {hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+        </button>
+      </div>
 
       {/* Bulk Actions */}
       <CapTargetBulkActions
