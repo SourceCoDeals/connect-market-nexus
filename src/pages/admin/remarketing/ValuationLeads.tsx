@@ -1217,10 +1217,10 @@ export default function ValuationLeads() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => handleBulkEnrich("unenriched")}>
-                Enrich Unenriched Pushed
+                Enrich Unenriched
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleBulkEnrich("all")}>
-                Re-enrich All Pushed
+                Re-enrich All
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1336,7 +1336,7 @@ export default function ValuationLeads() {
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pushed to All Deals</p>
+                <p className="text-sm text-muted-foreground">Added to All Deals</p>
                 <p className="text-2xl font-bold text-green-600">{kpiStats.pushedCount}</p>
               </div>
             </div>
