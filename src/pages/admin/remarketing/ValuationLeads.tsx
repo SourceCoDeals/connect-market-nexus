@@ -54,6 +54,7 @@ import {
   Calculator,
   XCircle,
   MoreHorizontal,
+  Archive,
   Users,
   Clock,
   Zap,
@@ -116,6 +117,7 @@ interface ValuationLead {
   // For deal owner display (assigned after push)
   deal_owner_id?: string | null;
   is_priority_target?: boolean | null;
+  is_archived?: boolean | null;
 }
 
 type SortColumn =
@@ -698,6 +700,9 @@ export default function ValuationLeads() {
   const filteredLeads = useMemo(() => {
     let filtered = engineFiltered;
 
+    // Hide archived leads by default
+    filtered = filtered.filter((l) => !l.is_archived);
+
     // Tab filter
     if (activeTab !== "all") {
       filtered = filtered.filter((l) => l.calculator_type === activeTab);
@@ -1146,6 +1151,22 @@ export default function ValuationLeads() {
     },
     [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
+
+  // Archive selected leads (soft-delete, hidden from default view)
+  const handleArchive = useCallback(async (leadIds: string[]) => {
+    if (leadIds.length === 0) return;
+    const { error } = await supabase
+      .from("valuation_leads")
+      .update({ is_archived: true } as never)
+      .in("id", leadIds);
+    if (error) {
+      sonnerToast.error("Failed to archive leads");
+      return;
+    }
+    sonnerToast.success(`Archived ${leadIds.length} lead${leadIds.length !== 1 ? "s" : ""}`);
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+  }, [queryClient]);
 
   // Enrich All — enriches any lead that has an associated listing (pushed or auto-created via row click)
   const handleBulkEnrich = useCallback(
@@ -1614,6 +1635,16 @@ export default function ValuationLeads() {
           >
             <Download className="h-4 w-4" />
             Export CSV
+          </Button>
+          <div className="h-5 w-px bg-border" />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleArchive(Array.from(selectedIds))}
+            className="gap-2 text-destructive hover:text-destructive"
+          >
+            <Archive className="h-4 w-4" />
+            Archive
           </Button>
         </div>
       )}
