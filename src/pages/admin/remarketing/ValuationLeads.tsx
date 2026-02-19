@@ -889,9 +889,9 @@ export default function ValuationLeads() {
       setSelectedIds(new Set());
 
       if (successCount > 0) {
-        sonnerToast.success(`Pushed ${successCount} lead${successCount !== 1 ? "s" : ""} to All Deals${errorCount > 0 ? ` (${errorCount} failed)` : ""}`);
+        sonnerToast.success(`Added ${successCount} lead${successCount !== 1 ? "s" : ""} to All Deals${errorCount > 0 ? ` (${errorCount} failed)` : ""}`);
       } else {
-        sonnerToast.info("Nothing to push — selected leads were already pushed or not found.");
+        sonnerToast.info("Nothing to add — selected leads are already in All Deals.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
@@ -961,9 +961,9 @@ export default function ValuationLeads() {
       setSelectedIds(new Set());
 
       if (pushed > 0) {
-        sonnerToast.success(`Pushed ${pushed} lead${pushed !== 1 ? "s" : ""} and queued ${enrichQueued} for enrichment`);
+        sonnerToast.success(`Added ${pushed} lead${pushed !== 1 ? "s" : ""} to All Deals and queued ${enrichQueued} for enrichment`);
       } else {
-        sonnerToast.info("No unpushed leads selected");
+        sonnerToast.info("Select leads that haven't been added to All Deals yet.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
@@ -1000,7 +1000,7 @@ export default function ValuationLeads() {
       if (queued > 0) {
         sonnerToast.success(`Re-queued ${queued} lead${queued !== 1 ? "s" : ""} for enrichment`);
       } else {
-        sonnerToast.info("No pushed leads with listing IDs found");
+        sonnerToast.info("No leads in All Deals found to re-enrich");
       }
     },
     [leads]
@@ -1015,7 +1015,7 @@ export default function ValuationLeads() {
         : pushedLeads;
 
       if (!targets.length) {
-        sonnerToast.info("No pushed leads to enrich");
+        sonnerToast.info("No leads in All Deals to enrich — add leads to All Deals first");
         return;
       }
 
@@ -1067,7 +1067,7 @@ export default function ValuationLeads() {
         }
       }
 
-      sonnerToast.success(`Queued ${rows.length} pushed leads for enrichment`);
+      sonnerToast.success(`Queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} in All Deals for enrichment`);
 
       try {
         await supabase.functions.invoke("process-enrichment-queue", {
