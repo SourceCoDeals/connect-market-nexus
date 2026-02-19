@@ -198,7 +198,7 @@ const ReMarketingDeals = () => {
         `)
         .eq('status', 'active')
         .neq('deal_source', 'gp_partners')
-        .neq('deal_source', 'valuation_calculator')
+        .or('deal_source.neq.valuation_calculator,pushed_to_all_deals.eq.true')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
         .order('deal_total_score', { ascending: false, nullsFirst: true })
         .order('created_at', { ascending: false });
