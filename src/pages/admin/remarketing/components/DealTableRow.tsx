@@ -38,7 +38,6 @@ import {
   Network,
 } from "lucide-react";
 import { format } from "date-fns";
-import { DealSourceBadge } from "@/components/remarketing";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
@@ -65,6 +64,7 @@ export const DealTableRow = ({
   onUpdateRank,
   adminProfiles,
   onAssignOwner,
+  universesByListing,
 }: {
   listing: DealListing;
   index: number;
@@ -85,6 +85,7 @@ export const DealTableRow = ({
   onUpdateRank: (dealId: string, newRank: number) => Promise<void> | void;
   adminProfiles?: Record<string, { id: string; email: string; first_name: string; last_name: string; displayName: string }>;
   onAssignOwner: (dealId: string, ownerId: string | null) => void;
+  universesByListing?: Record<string, { id: string; name: string }[]>;
 }) => {
   const {
     attributes,
@@ -104,6 +105,12 @@ export const DealTableRow = ({
   const domain = formatWebsiteDomain(effectiveWebsite);
   const isEnriched = !!listing.enriched_at;
   const displayName = listing.internal_company_name || listing.title;
+  const needsOwnerContact = !!listing.needs_owner_contact;
+  const needsUniverseBuild = !!listing.universe_build_flagged;
+
+  // Buyer universe membership for this listing
+  const listingUniverses = universesByListing?.[listing.id] || [];
+  const hasUniverses = listingUniverses.length > 0;
 
   // City, State display only - normalize state to abbreviation
   const normalizeState = (state: string | null): string | null => {
@@ -156,8 +163,7 @@ export const DealTableRow = ({
       className={cn(
         "cursor-pointer hover:bg-muted/50",
         isDragging && "bg-muted/80 opacity-80 shadow-lg z-50",
-        listing.needs_owner_contact && "bg-red-50 hover:bg-red-100/80 dark:bg-red-950/30 dark:hover:bg-red-950/50",
-        !listing.needs_owner_contact && listing.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+        listing.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
       )}
       onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
     >
@@ -190,56 +196,81 @@ export const DealTableRow = ({
         </div>
       </TableCell>
 
-      {/* Deal Name */}
-      <TableCell style={{ width: columnWidths.dealName, minWidth: 100 }}>
+      {/* Deal Name — red cell if needs owner contact */}
+      <TableCell
+        style={{ width: columnWidths.dealName, minWidth: 100 }}
+        className={cn(
+          needsOwnerContact && "bg-red-100 border-l-2 border-red-500 dark:bg-red-950/40"
+        )}
+      >
         <div>
-          <p className="font-medium text-foreground flex items-center gap-1.5">
-            {listing.needs_owner_contact && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex items-center">
-                    <PhoneCall className="h-3.5 w-3.5 text-red-500 animate-pulse shrink-0" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-red-600 font-semibold">🚨 Owner needs to be contacted — buyer is ready!</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+          {/* Name on first line */}
+          <p className="font-medium text-foreground leading-tight">
             {displayName}
-            {listing.universe_build_flagged && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex items-center">
-                    <Network className="h-3.5 w-3.5 text-blue-500 animate-pulse shrink-0" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-blue-600 font-semibold">🔵 Needs Buyer Universe Build</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {isEnriched && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Enriched on {format(new Date(listing.enriched_at!), 'dd/MM/yyyy')}</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-            <DealSourceBadge source={listing.deal_source} />
           </p>
-          {domain && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Globe className="h-3 w-3" />
-              {domain}
-            </p>
+          {/* Flag icon row beneath name */}
+          {(isEnriched || needsOwnerContact || needsUniverseBuild) && (
+            <div className="flex items-center gap-1.5 mt-1">
+              {isEnriched && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center">
+                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Enriched on {format(new Date(listing.enriched_at!), 'MMM d, yyyy')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {needsOwnerContact && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center">
+                      <PhoneCall className="h-3.5 w-3.5 text-red-500 animate-pulse shrink-0" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-semibold">Owner needs to be contacted — buyer is ready!</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {needsUniverseBuild && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center">
+                      <Network className="h-3.5 w-3.5 text-blue-500 animate-pulse shrink-0" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-semibold">Buyer Universe needs to be created</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           )}
         </div>
+      </TableCell>
+
+      {/* Website (new column) */}
+      <TableCell
+        style={{ width: columnWidths.website, minWidth: 80 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {effectiveWebsite && domain ? (
+          <a
+            href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-blue-600 hover:underline truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Globe className="h-3 w-3 shrink-0" />
+            <span className="truncate">{domain}</span>
+          </a>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </TableCell>
 
       {/* Referral Source */}
@@ -271,6 +302,40 @@ export const DealTableRow = ({
             <span className="text-muted-foreground">—</span>
           );
         })()}
+      </TableCell>
+
+      {/* Buyer Universe (new column) */}
+      <TableCell style={{ width: columnWidths.buyerUniverse, minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
+        {hasUniverses ? (
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200 truncate max-w-[110px]">
+              {listingUniverses[0].name}
+            </span>
+            {listingUniverses.length > 1 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200 cursor-default">
+                    +{listingUniverses.length - 1}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="space-y-0.5">
+                    {listingUniverses.slice(1).map(u => (
+                      <p key={u.id} className="text-xs">{u.name}</p>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        ) : needsUniverseBuild ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
+            <Network className="h-3 w-3 shrink-0" />
+            Needs Creation
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </TableCell>
 
       {/* Description */}

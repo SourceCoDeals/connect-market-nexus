@@ -293,6 +293,25 @@ const ReMarketingDeals = () => {
     }
   });
 
+  // Fetch universe membership map: listing_id -> array of universes
+  const { data: universeDealMap } = useQuery({
+    queryKey: ['remarketing', 'universe-deal-map'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_universe_deals')
+        .select('listing_id, universe_id, remarketing_buyer_universes(id, name)');
+      if (error) throw error;
+      const map: Record<string, { id: string; name: string }[]> = {};
+      data?.forEach((row: any) => {
+        const u = row.remarketing_buyer_universes as any;
+        if (!u || !u.name) return;
+        if (!map[row.listing_id]) map[row.listing_id] = [];
+        map[row.listing_id].push({ id: u.id, name: u.name });
+      });
+      return map;
+    }
+  });
+
   // Fetch score stats for engagement metrics
   const { data: scoreStats } = useQuery({
     queryKey: ['remarketing', 'deal-score-stats'],
@@ -1133,11 +1152,17 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.dealName} onResize={(w) => handleColumnResize('dealName', w)} minWidth={100}>
                       <SortableHeader column="deal_name" label="Deal Name" />
                     </ResizableHeader>
+                    <ResizableHeader width={columnWidths.website} onResize={(w) => handleColumnResize('website', w)} minWidth={60}>
+                      <span className="text-muted-foreground font-medium">Website</span>
+                    </ResizableHeader>
                     <ResizableHeader width={columnWidths.referralSource} onResize={(w) => handleColumnResize('referralSource', w)} minWidth={60}>
                       <SortableHeader column="referral_source" label="Referral Source" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.industry} onResize={(w) => handleColumnResize('industry', w)} minWidth={60}>
                       <SortableHeader column="industry" label="Industry" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.buyerUniverse} onResize={(w) => handleColumnResize('buyerUniverse', w)} minWidth={80}>
+                      <span className="text-muted-foreground font-medium">Buyer Universe</span>
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.description} onResize={(w) => handleColumnResize('description', w)} minWidth={100}>
                       <span className="text-muted-foreground font-medium">Description</span>
@@ -1189,22 +1214,26 @@ const ReMarketingDeals = () => {
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
                         <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-8" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-14" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-10" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
                         <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                       </TableRow>
                     ))
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
@@ -1236,6 +1265,7 @@ const ReMarketingDeals = () => {
                           onToggleUniverseBuild={handleToggleUniverseBuild}
                           adminProfiles={adminProfiles}
                           onAssignOwner={handleAssignOwner}
+                          universesByListing={universeDealMap ?? {}}
                           onUpdateRank={async (dealId, newRank) => {
                             const rankSorted = [...localOrder].sort((a, b) =>
                               (a.manual_rank_override ?? 9999) - (b.manual_rank_override ?? 9999)

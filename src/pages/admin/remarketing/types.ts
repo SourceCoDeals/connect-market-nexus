@@ -54,8 +54,10 @@ export interface ColumnWidths {
   select: number;
   rank: number;
   dealName: number;
+  website: number;
   referralSource: number;
   industry: number;
+  buyerUniverse: number;
   description: number;
   location: number;
   revenue: number;
@@ -77,8 +79,10 @@ export const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   select: 40,
   rank: 60,
   dealName: 200,
+  website: 120,
   referralSource: 120,
   industry: 120,
+  buyerUniverse: 160,
   description: 180,
   location: 100,
   revenue: 90,
