@@ -98,10 +98,10 @@ const ReMarketingUniverses = () => {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const [search, setSearch] = useState("");
+  const search = searchParams.get("q") ?? "";
   const [showArchived, setShowArchived] = useState(false);
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const sortField = (searchParams.get("sort") as SortField) ?? "name";
+  const sortOrder = (searchParams.get("dir") as SortOrder) ?? "asc";
   
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -298,12 +298,25 @@ const ReMarketingUniverses = () => {
 
   // Sort handler
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === field) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", field);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setSearch = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("q", value);
+      else next.delete("q");
+      return next;
+    }, { replace: true });
   };
 
   // Filter and sort universes
@@ -401,7 +414,7 @@ const ReMarketingUniverses = () => {
             {universes?.length || 0} universes {archivedCount ? `· ${archivedCount} archived` : ''}
           </p>
         </div>
-        <Button onClick={() => setSearchParams({ new: 'true' })} className="gap-2">
+        <Button onClick={() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('new', 'true'); return n; })} className="gap-2">
           <Plus className="h-4 w-4" />
           New Universe
         </Button>
@@ -511,7 +524,7 @@ const ReMarketingUniverses = () => {
                     <Button 
                       variant="outline" 
                       className="mt-4"
-                      onClick={() => setSearchParams({ new: 'true' })}
+                      onClick={() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('new', 'true'); return n; })}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Create Universe
@@ -651,7 +664,7 @@ const ReMarketingUniverses = () => {
       </Card>
 
       {/* New Universe Dialog */}
-      <Dialog open={showNewDialog} onOpenChange={(open) => !open && setSearchParams({})}>
+      <Dialog open={showNewDialog} onOpenChange={(open) => !open && setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('new'); return n; })}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Buyer Universe</DialogTitle>
@@ -680,7 +693,7 @@ const ReMarketingUniverses = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSearchParams({})}>
+            <Button variant="outline" onClick={() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('new'); return n; })}>
               Cancel
             </Button>
             <Button 

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,8 +105,9 @@ const ReMarketingDeals = () => {
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAddDealDialog, setShowAddDealDialog] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string>("rank");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = searchParams.get("sort") ?? "rank";
+  const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
   const [isCalculating, setIsCalculating] = useState(false);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
 
@@ -446,12 +447,16 @@ const ReMarketingDeals = () => {
 
   // Handle sort column click
   const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
-    } else {
-      setSortColumn(column);
-      setSortDirection(column === "rank" ? "asc" : "desc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === column) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", column);
+        next.set("dir", column === "rank" ? "asc" : "desc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   // Sort listings

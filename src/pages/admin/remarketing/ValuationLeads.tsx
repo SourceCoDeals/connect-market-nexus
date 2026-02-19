@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { formatCompactCurrency } from "@/lib/utils";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { formatCompactCurrency } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -685,9 +685,10 @@ export default function ValuationLeads() {
   // Timeframe (standardized hook)
   const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
 
-  // Sorting
-  const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  // Sorting – persisted in URL so navigating back restores the sort
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "created_at";
+  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "desc";
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -956,12 +957,16 @@ export default function ValuationLeads() {
   }, [activeTab, timeframe, sortColumn, sortDirection, filterState]);
 
   const handleSort = (col: SortColumn) => {
-    if (sortColumn === col) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(col);
-      setSortDirection("asc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === col) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", col);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   // Selection helpers
