@@ -972,7 +972,7 @@ export default function ValuationLeads() {
         : pushedLeads;
 
       if (!targets.length) {
-        sonnerToast.info("No pushed leads to enrich");
+        sonnerToast.info("No leads in All Deals to enrich — push leads to All Deals first");
         return;
       }
 
