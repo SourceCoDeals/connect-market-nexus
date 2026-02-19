@@ -300,7 +300,11 @@ export const DealTableRow = ({
       </TableCell>
 
       {/* Buyer Universe (new column) */}
-      <TableCell style={{ width: columnWidths.buyerUniverse, minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
+      <TableCell
+        style={{ width: columnWidths.buyerUniverse, minWidth: 100 }}
+        onClick={(e) => e.stopPropagation()}
+        className={cn(!hasUniverses && needsUniverseBuild && "bg-green-50 dark:bg-green-950/30")}
+      >
         {hasUniverses ? (
           <div className="flex items-center gap-1 flex-wrap">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200 truncate max-w-[110px]">
