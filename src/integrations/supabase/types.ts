@@ -4725,6 +4725,9 @@ export type Database = {
           metric_4_type: string | null
           need_buyer_universe: boolean | null
           need_owner_contact: boolean | null
+          needs_owner_contact: boolean | null
+          needs_owner_contact_at: string | null
+          needs_owner_contact_by: string | null
           notes: string | null
           notes_analyzed_at: string | null
           number_of_locations: number | null
@@ -4892,6 +4895,9 @@ export type Database = {
           metric_4_type?: string | null
           need_buyer_universe?: boolean | null
           need_owner_contact?: boolean | null
+          needs_owner_contact?: boolean | null
+          needs_owner_contact_at?: string | null
+          needs_owner_contact_by?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           number_of_locations?: number | null
@@ -5059,6 +5065,9 @@ export type Database = {
           metric_4_type?: string | null
           need_buyer_universe?: boolean | null
           need_owner_contact?: boolean | null
+          needs_owner_contact?: boolean | null
+          needs_owner_contact_at?: string | null
+          needs_owner_contact_by?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           number_of_locations?: number | null

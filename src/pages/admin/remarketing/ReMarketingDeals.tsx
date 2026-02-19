@@ -195,7 +195,9 @@ const ReMarketingDeals = () => {
           referral_partners(id, name),
           deal_source,
           deal_owner_id,
-          deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
+          deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email),
+          needs_owner_contact,
+          needs_owner_contact_at
         `)
         .eq('status', 'active')
         .neq('deal_source', 'gp_partners')
