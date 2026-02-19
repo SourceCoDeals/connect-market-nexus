@@ -64,6 +64,7 @@ import {
   ArrowUpDown,
   Users,
   Star,
+  EyeOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -114,6 +115,7 @@ export default function ReMarketingReferralPartnerDetail() {
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "archive" | "delete"; ids: string[] } | null>(null);
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
+  const [hidePushed, setHidePushed] = useState(false);
   const [sortField, setSortField] = useState<SortField>(() => {
     const saved = sessionStorage.getItem(`referral-sort-${partnerId}`);
     return saved ? (JSON.parse(saved).field as SortField) : "added";
@@ -158,11 +160,12 @@ export default function ReMarketingReferralPartnerDetail() {
       const { data, error } = await supabase
         .from("listings")
         .select(
-           `id, title, internal_company_name, location, revenue, ebitda, category, website,
+         `id, title, internal_company_name, location, revenue, ebitda, category, website,
            status, created_at, full_time_employees, address_city, address_state,
-           enriched_at, deal_total_score,
+           enriched_at, deal_total_score, pushed_to_all_deals,
            linkedin_employee_count, linkedin_employee_range,
            google_review_count, google_rating, is_priority_target,
+           need_buyer_universe, need_owner_contact,
            main_contact_name, main_contact_title, main_contact_email, deal_source`
         )
         .eq("referral_partner_id", partnerId!)
@@ -227,7 +230,9 @@ export default function ReMarketingReferralPartnerDetail() {
   // Sorted deals
   const sortedDeals = useMemo(() => {
     if (!deals) return [];
-    return [...deals].sort((a, b) => {
+    let items = [...deals];
+    if (hidePushed) items = items.filter((d) => !(d as any).pushed_to_all_deals);
+    return items.sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
       const getValue = (deal: typeof a) => {
         switch (sortField) {
@@ -252,7 +257,7 @@ export default function ReMarketingReferralPartnerDetail() {
       if (typeof va === "string" && typeof vb === "string") return va.localeCompare(vb) * dir;
       return ((va as number) - (vb as number)) * dir;
     });
-  }, [deals, sortField, sortDir]);
+  }, [deals, sortField, sortDir, hidePushed]);
 
   // Enrichment queue progress
   const enrichmentProgress = useMemo(() => {
@@ -895,6 +900,20 @@ export default function ReMarketingReferralPartnerDetail() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                {/* Hide Pushed Toggle */}
+                <button
+                  onClick={() => setHidePushed(h => !h)}
+                  className={cn(
+                    "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors",
+                    hidePushed
+                      ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                      : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <EyeOff className="h-3.5 w-3.5" />
+                  {hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+                </button>
               </div>
             </div>
           </CardHeader>
@@ -1227,6 +1246,28 @@ export default function ReMarketingReferralPartnerDetail() {
                               >
                                 <Star className={`h-3 w-3 mr-2 ${deal.is_priority_target ? "fill-amber-500" : ""}`} />
                                 {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const newVal = !(deal as any).need_buyer_universe;
+                                  const { error } = await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", deal.id);
+                                  if (!error) { toast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] }); }
+                                }}
+                                className={(deal as any).need_buyer_universe ? "text-blue-600" : ""}
+                              >
+                                <Users className={cn("h-3 w-3 mr-2", (deal as any).need_buyer_universe && "text-blue-600")} />
+                                {(deal as any).need_buyer_universe ? "✓ Needs Buyer Universe" : "Flag: Needs Buyer Universe"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const newVal = !(deal as any).need_owner_contact;
+                                  const { error } = await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", deal.id);
+                                  if (!error) { toast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] }); }
+                                }}
+                                className={(deal as any).need_owner_contact ? "text-orange-600" : ""}
+                              >
+                                <Phone className={cn("h-3 w-3 mr-2", (deal as any).need_owner_contact && "text-orange-600")} />
+                                {(deal as any).need_owner_contact ? "✓ Need to Contact Owner" : "Flag: Need to Contact Owner"}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
