@@ -148,11 +148,12 @@ function cleanWebsiteToDomain(raw: string | null): string | null {
   if (!raw || !raw.trim()) return null;
   const v = raw.trim();
   if (v.includes("@")) return null;
-  if (/[,\s]/.test(v.replace(/^https?:\/\//i, "").split("/")[0])) return null;
-  const noProto = v.replace(/^[a-z]{3,6}:\/\//i, "");
+  // Strip protocol (handles both "https://" and malformed "https:" with no slashes)
+  const noProto = v.replace(/^[a-z]{2,8}:\/\//i, "").replace(/^[a-z]{2,8}:/i, "");
   const noWww = noProto.replace(/^www\./i, "");
   const domain = noWww.split("/")[0].split("?")[0].split("#")[0];
   if (!domain || !domain.includes(".")) return null;
+  if (/[,\s]/.test(domain)) return null;
   if (/^(test|no|example)\./i.test(domain)) return null;
   return domain.toLowerCase();
 }
@@ -241,6 +242,13 @@ const WORD_DICT = new Set([
   "made", "hand", "guy", "guys", "man", "men", "king",
   "tax", "cab", "van", "fly", "run", "hub", "bit", "log",
   "top", "pop", "hot", "big", "old",
+  // Additional brand/domain words found in practice
+  "sims", "funerals", "funeral", "bespoke", "kreative", "kreate",
+  "kayes", "ksd", "mvp", "polka", "audio", "plumbing", "gainz",
+  "willow", "legacy", "corp", "sanmora", "masource", "boyland",
+  "kayesk", "tbs", "mvp", "bend", "senior", "gilbert", "comfort",
+  "merit", "dino", "glass", "horizon", "vault", "provider",
+  "reative", "source", "morabespoke",
 ]);
 
 /** Segment a concatenated string into words using dictionary-based dynamic programming. */
@@ -350,11 +358,15 @@ function extractBusinessName(lead: ValuationLead): string {
   if (domain) {
     const cleaned = domain.replace(TLD_REGEX, "");
     if (cleaned && !cleaned.match(/^(test|no|example)$/i)) {
-      // If domain has separators, just title-case; otherwise, use word segmentation
-      if (/[-_.]/.test(cleaned)) {
+      // Reject purely alphanumeric with digits (e.g. "tbs23", "abc123") — not a real name
+      if (/^[a-z0-9]+$/i.test(cleaned) && /\d/.test(cleaned)) {
+        // fall through to email/name fallback
+      } else if (/[-_.]/.test(cleaned)) {
+        // Has separators — just title-case
         return toTitleCase(cleaned.replace(/[-_.]/g, " "));
+      } else {
+        return segmentWords(cleaned);
       }
-      return segmentWords(cleaned);
     }
   }
   if (lead.email) {
@@ -1122,14 +1134,12 @@ export default function ValuationLeads() {
         }
       }
 
-      sonnerToast.success(`Re-queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} for enrichment`);
-      setSelectedIds(new Set());
-
-      if (queued > 0) {
-        sonnerToast.success(`Re-queued ${queued} lead${queued !== 1 ? "s" : ""} for enrichment`);
+      if (rows.length > 0) {
+        sonnerToast.success(`Re-queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} for enrichment`);
       } else {
         sonnerToast.info("No leads in All Deals found to re-enrich");
       }
+      setSelectedIds(new Set());
 
       setIsReEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
