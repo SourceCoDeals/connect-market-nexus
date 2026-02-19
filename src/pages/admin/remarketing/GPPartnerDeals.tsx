@@ -1189,14 +1189,14 @@ export default function GPPartnerDeals() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        {deal.revenue != null ? (
+                        {deal.revenue != null && deal.revenue !== 0 ? (
                           <span className="text-sm tabular-nums">{formatCompactCurrency(deal.revenue)}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">{"\u2014"}</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {deal.ebitda != null ? (
+                        {deal.ebitda != null && deal.ebitda !== 0 ? (
                           <span className="text-sm tabular-nums">{formatCompactCurrency(deal.ebitda)}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">{"\u2014"}</span>
