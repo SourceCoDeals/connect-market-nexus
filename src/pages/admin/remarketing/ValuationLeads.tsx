@@ -210,7 +210,7 @@ const WORD_DICT = new Set([
   "comfort", "merit", "service", "dino", "dinos",
   "glass", "line", "horizon", "fox", "hunt", "wolf", "byte",
   "clear", "pay", "gain", "gainz", "loft", "wisconsin",
-  "cupola", "barn", "grain", "trace", "wealth",
+  "cupola", "barn", "trace",
   "mon", "lion", "money", "coin", "gecko",
   "hub", "bubble", "price", "hoppah", "stax",
   "tesloid", "ropella", "scorpa",
@@ -227,13 +227,21 @@ const WORD_DICT = new Set([
   "key", "lock", "code", "cipher",
   "pilot", "captain", "chief", "lead", "guide",
   "true", "trust", "loyal", "noble", "honor",
+  // Common words that were causing segmentation failures
+  "bros", "bro", "brother", "brothers",
+  "pros", "my", "your", "our", "his", "her", "its", "we",
+  "mechanic", "mechanics",
+  "made", "hand", "guy", "guys", "man", "men", "king",
+  "tax", "cab", "van", "fly", "run", "hub", "bit", "log",
+  "top", "pop", "hot", "big", "old",
 ]);
 
 /** Segment a concatenated string into words using dictionary-based dynamic programming. */
 function segmentWords(input: string): string {
   const s = input.toLowerCase();
   const n = s.length;
-  if (n <= 2) return input;
+  // Short strings (≤ 4 chars): treat as acronym → uppercase
+  if (n <= 4) return input.toUpperCase();
 
   // dp[i] = best segmentation for s[0..i-1], scored by minimizing number of non-dict chunks
   const dp: { cost: number; words: string[] }[] = new Array(n + 1);
@@ -248,13 +256,19 @@ function segmentWords(input: string): string {
       const isWord = WORD_DICT.has(substr);
       const cost = dp[j].cost + (isWord ? 0 : (substr.length <= 2 ? 2 : 1));
 
-      if (cost < dp[i].cost || (cost === dp[i].cost && dp[j].words.length + 1 < dp[i].words.length)) {
+      // Prefer lower cost; on tie, prefer MORE words (more splits = more dict matches)
+      if (cost < dp[i].cost || (cost === dp[i].cost && dp[j].words.length + 1 > dp[i].words.length)) {
         dp[i] = { cost, words: [...dp[j].words, substr] };
       }
     }
   }
 
-  return dp[n].words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  // Capitalize: dict words → Title Case, non-dict short (≤4) → UPPERCASE, non-dict long → Title Case
+  return dp[n].words.map(w => {
+    if (WORD_DICT.has(w)) return w.charAt(0).toUpperCase() + w.slice(1);
+    if (w.length <= 4) return w.toUpperCase();
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(" ");
 }
 
 function extractBusinessName(lead: ValuationLead): string {
