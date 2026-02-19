@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,13 +38,8 @@ const handler = async (req: Request): Promise<Response> => {
       assignedByName
     }: NewOwnerNotificationRequest = await req.json();
 
-    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    if (!brevoApiKey) {
-      throw new Error("BREVO_API_KEY is not set");
-    }
-
     const subject = `✨ New Deal Assigned: ${dealTitle}`;
-    
+
     const htmlContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <!-- Header -->
@@ -52,7 +48,7 @@ const handler = async (req: Request): Promise<Response> => {
           <h1 style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0; line-height: 1.3;">New Deal Assigned to You</h1>
           <p style="color: #cbd5e1; font-size: 14px; margin: 8px 0 0 0;">You've been assigned as the owner of a deal</p>
         </div>
-        
+
         <!-- Alert Box -->
         <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px 20px; border-radius: 4px; margin-bottom: 24px;">
           <p style="margin: 0; color: #1e40af; font-weight: 500; font-size: 14px;">
@@ -63,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
         <!-- Deal Information -->
         <div style="background: #f8fafc; padding: 24px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
           <h2 style="margin: 0 0 16px 0; color: #0f172a; font-size: 16px; font-weight: 700;">Deal Information</h2>
-          
+
           ${companyName ? `
           <table style="width: 100%; margin-bottom: 12px;">
             <tr>
@@ -72,7 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
             </tr>
           </table>
           ` : ''}
-          
+
           <table style="width: 100%; margin-bottom: 12px;">
             <tr>
               <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Contact</td>
@@ -113,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         <!-- CTA Button -->
         <div style="text-align: center; margin-bottom: 32px;">
-          <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}" 
+          <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}"
              style="background-color: #d7b65c; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; text-align: center; display: inline-block; padding: 12px 32px; border-radius: 6px;">
             View Deal Details
           </a>
@@ -140,54 +136,42 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     console.log("Sending new owner notification to:", newOwnerEmail);
-    
-    const emailPayload = {
-      sender: { name: "SourceCo Notifications", email: "notifications@sourcecodeals.com" },
-      to: [{ email: newOwnerEmail, name: newOwnerName }],
-      subject: subject,
-      htmlContent: htmlContent,
-    };
 
-    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "api-key": brevoApiKey,
-      },
-      body: JSON.stringify(emailPayload),
+    const result = await sendViaBervo({
+      to: newOwnerEmail,
+      toName: newOwnerName,
+      subject,
+      htmlContent,
     });
 
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      throw new Error(`Failed to send email: ${errorText}`);
+    if (!result.success) {
+      throw new Error(result.error || "Failed to send email");
     }
 
-    const emailResult = await emailResponse.json();
-    console.log("Email sent successfully to new owner:", emailResult);
+    console.log("Email sent successfully to new owner:", result.messageId);
 
     return new Response(
-      JSON.stringify({ success: true, messageId: emailResult.messageId }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          "Content-Type": "application/json" 
-        } 
+      JSON.stringify({ success: true, messageId: result.messageId }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
       }
     );
 
   } catch (error: any) {
     console.error("Error sending new owner notification:", error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message
       }),
       {
         status: 500,
-        headers: { 
-          ...corsHeaders, 
-          "Content-Type": "application/json" 
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
         }
       }
     );

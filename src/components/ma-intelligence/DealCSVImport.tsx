@@ -46,16 +46,28 @@ export function DealCSVImport({ open, onOpenChange, trackerId, onDealsImported }
       // Parse header
       const headers = rows[0].split(",").map(h => h.trim());
 
-      // Call deal column mapping edge function
-      const { data: mappingData, error: mappingError } = await supabase.functions.invoke("map-deal-csv-columns", {
+      // Call unified column mapping edge function
+      const { data: mappingData, error: mappingError } = await supabase.functions.invoke("map-csv-columns", {
         body: {
           columns: headers,
+          targetType: 'deal',
         },
       });
 
       if (mappingError) throw mappingError;
 
-      const columnMapping = mappingData.mapping;
+      // Convert array mappings to Record<header, field> for column lookup
+      const columnMapping: Record<string, string> = {};
+      if (Array.isArray(mappingData?.mappings)) {
+        for (const m of mappingData.mappings) {
+          if (m.csvColumn && m.targetField) {
+            columnMapping[m.csvColumn] = m.targetField;
+          }
+        }
+      } else if (mappingData?.mappings && typeof mappingData.mappings === 'object') {
+        // Fallback: already a Record (legacy format)
+        Object.assign(columnMapping, mappingData.mappings);
+      }
 
       // Parse and import data
       const deals = [];

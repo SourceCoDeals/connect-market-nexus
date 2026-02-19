@@ -297,7 +297,7 @@ export function useNuclearAuth() {
           company: userData.company || ''
         };
         
-        await supabase.functions.invoke('admin-notification', {
+        await supabase.functions.invoke('enhanced-admin-notification', {
           body: adminNotificationPayload
         });
         // Admin notification sent for new user registration

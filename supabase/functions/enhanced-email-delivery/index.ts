@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,6 @@ interface EmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,7 +29,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { to, subject, content, email_type, correlation_id, metadata }: EmailRequest = await req.json();
 
-    console.log('📧 Enhanced Email Delivery Request:', {
+    console.log('Enhanced Email Delivery Request:', {
       to,
       subject,
       email_type,
@@ -50,40 +50,55 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (logError) {
-      console.error('❌ Failed to log email delivery:', logError);
+      console.error('Failed to log email delivery:', logError);
       throw new Error(`Failed to log email delivery: ${logError.message}`);
     }
 
-    console.log('✅ Email delivery logged with ID:', logData.id);
+    console.log('Email delivery logged with ID:', logData.id);
 
-    // For now, simulate email sending since we don't have a real email service configured
-    // In production, this would integrate with Resend, SendGrid, or another email service
-    
-    // Simulate a delay and success
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Send via Brevo using shared sender
+    const result = await sendViaBervo({
+      to,
+      subject,
+      htmlContent: content,
+      senderName: "SourceCo Marketplace",
+      senderEmail: Deno.env.get("SENDER_EMAIL") || "adam.haile@sourcecodeals.com",
+      replyToEmail: Deno.env.get("SENDER_EMAIL") || "adam.haile@sourcecodeals.com",
+      replyToName: Deno.env.get("SENDER_NAME") || "Adam Haile",
+    });
 
-    // Update delivery status to success
-    const { error: updateError } = await supabase
-      .from('email_delivery_logs')
-      .update({
-        status: 'delivered',
-        sent_at: new Date().toISOString()
-      })
-      .eq('id', logData.id);
+    if (result.success) {
+      // Update delivery status to success
+      await supabase
+        .from('email_delivery_logs')
+        .update({
+          status: 'delivered',
+          sent_at: new Date().toISOString()
+        })
+        .eq('id', logData.id);
 
-    if (updateError) {
-      console.error('❌ Failed to update delivery status:', updateError);
-      throw new Error(`Failed to update delivery status: ${updateError.message}`);
+      console.log('Email delivered successfully via Brevo');
+    } else {
+      // Update delivery status to failed
+      await supabase
+        .from('email_delivery_logs')
+        .update({
+          status: 'failed',
+          error_message: result.error
+        })
+        .eq('id', logData.id);
+
+      console.error('Email delivery failed:', result.error);
+      throw new Error(result.error || 'Email delivery failed');
     }
-
-    console.log('✅ Email marked as delivered');
 
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Email delivered successfully',
         delivery_id: logData.id,
-        correlation_id
+        correlation_id,
+        message_id: result.messageId
       }),
       {
         status: 200,
@@ -95,8 +110,8 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error('❌ Enhanced email delivery error:', error);
-    
+    console.error('Enhanced email delivery error:', error);
+
     return new Response(
       JSON.stringify({
         success: false,
