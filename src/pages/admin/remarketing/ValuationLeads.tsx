@@ -1193,20 +1193,68 @@ export default function ValuationLeads() {
     queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
   }, [queryClient]);
 
-  // Enrich All — enriches any lead that has an associated listing (pushed or auto-created via row click)
+  // Enrich All — auto-creates listings for leads that don't have one yet, then queues all for enrichment
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
       const allLeads = leads || [];
 
-      // Include any lead with a listing ID — either formally pushed or auto-created via row click
-      const targets = allLeads.filter((l) => !!l.pushed_listing_id);
+      // All leads that have a website (they can be enriched)
+      const enrichableLeads = allLeads.filter((l) => !!inferWebsite(l));
 
-      if (!targets.length) {
-        sonnerToast.info("No leads with listings to enrich — open a lead first to create its listing");
+      if (!enrichableLeads.length) {
+        sonnerToast.info("No leads with websites to enrich");
         return;
       }
 
       setIsEnriching(true);
+
+      // Step 1: Auto-create listings for leads that don't have one yet
+      const leadsNeedingListing = enrichableLeads.filter((l) => !l.pushed_listing_id);
+      if (leadsNeedingListing.length > 0) {
+        sonnerToast.info(`Creating listings for ${leadsNeedingListing.length} leads...`);
+        const LISTING_BATCH = 50;
+        for (let i = 0; i < leadsNeedingListing.length; i += LISTING_BATCH) {
+          const batch = leadsNeedingListing.slice(i, i + LISTING_BATCH);
+          await Promise.all(
+            batch.map(async (lead) => {
+              try {
+                const dealIdentifier = `vlead_${lead.id.slice(0, 8)}`;
+                // Check if listing already exists
+                const { data: existing } = await supabase
+                  .from("listings")
+                  .select("id")
+                  .eq("deal_identifier", dealIdentifier)
+                  .maybeSingle();
+
+                let listingId: string;
+                if (existing?.id) {
+                  listingId = existing.id;
+                } else {
+                  const { data: listing, error: insertError } = await supabase
+                    .from("listings")
+                    .insert(buildListingFromLead(lead, false))
+                    .select("id")
+                    .single();
+                  if (insertError || !listing) return;
+                  listingId = listing.id;
+                }
+                // Save the listing reference back to the lead
+                await supabase
+                  .from("valuation_leads")
+                  .update({ pushed_listing_id: listingId } as never)
+                  .eq("id", lead.id);
+                // Update in-memory so queue step picks it up
+                lead.pushed_listing_id = listingId;
+              } catch {
+                // Non-blocking per-lead
+              }
+            })
+          );
+        }
+      }
+
+      // Step 2: Collect all listing IDs (now including newly created ones)
+      const targets = enrichableLeads.filter((l) => !!l.pushed_listing_id);
 
       let activityItem: { id: string } | null = null;
       try {
