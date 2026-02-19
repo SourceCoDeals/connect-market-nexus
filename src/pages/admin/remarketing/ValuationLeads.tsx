@@ -64,7 +64,7 @@ import {
   Download,
   Trash2,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───
@@ -1736,13 +1736,10 @@ export default function ValuationLeads() {
                     />
                   </TableHead>
                   <TableHead className="w-[40px] text-center text-muted-foreground">#</TableHead>
-                  <TableHead>
-                    <SortHeader column="display_name">Lead</SortHeader>
+                  <TableHead className="min-w-[160px]">
+                    <SortHeader column="display_name">Company</SortHeader>
                   </TableHead>
-                  <TableHead>
-                    <SortHeader column="website">Website</SortHeader>
-                  </TableHead>
-                  <TableHead className="min-w-[200px]">Description</TableHead>
+                  <TableHead className="min-w-[180px]">Description</TableHead>
                   {activeTab === "all" && (
                     <TableHead>Calculator</TableHead>
                   )}
@@ -1750,22 +1747,22 @@ export default function ValuationLeads() {
                     <SortHeader column="industry">Industry</SortHeader>
                   </TableHead>
                   <TableHead>
-                    <SortHeader column="location">Location</SortHeader>
+                    <SortHeader column="owner">Deal Owner</SortHeader>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     <SortHeader column="revenue">Revenue</SortHeader>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     <SortHeader column="ebitda">EBITDA</SortHeader>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     <SortHeader column="valuation">Valuation</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="exit_timing">Exit</SortHeader>
                   </TableHead>
                   <TableHead className="text-center">
-                    <SortHeader column="intros">Buyer Intro</SortHeader>
+                    <SortHeader column="intros">Intros</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="quality">Quality</SortHeader>
@@ -1774,10 +1771,7 @@ export default function ValuationLeads() {
                     <SortHeader column="score">Score</SortHeader>
                   </TableHead>
                   <TableHead>
-                    <SortHeader column="owner">Owner</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="created_at">Date</SortHeader>
+                    <SortHeader column="created_at">Added</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="pushed">Status</SortHeader>
@@ -1789,7 +1783,7 @@ export default function ValuationLeads() {
                 {paginatedLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={activeTab === "all" ? 18 : 17}
+                      colSpan={activeTab === "all" ? 17 : 16}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Calculator className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1820,108 +1814,48 @@ export default function ValuationLeads() {
                           onCheckedChange={() => toggleSelect(lead.id)}
                         />
                       </TableCell>
+                      {/* # */}
                       <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
                         {(safePage - 1) * PAGE_SIZE + idx + 1}
                       </TableCell>
+                      {/* Company + Website (merged, like DealTableRow) */}
                       <TableCell>
-                        <span className="font-medium text-foreground text-sm truncate max-w-[200px] block">
-                          {extractBusinessName(lead)}
-                        </span>
+                        <div>
+                          <p className="font-medium text-foreground leading-tight">
+                            {extractBusinessName(lead)}
+                          </p>
+                          {inferWebsite(lead) && (
+                            <a
+                              href={`https://${inferWebsite(lead)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-muted-foreground hover:text-primary hover:underline truncate max-w-[180px] block"
+                            >
+                              {inferWebsite(lead)}
+                            </a>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        {inferWebsite(lead) && (
-                          <a
-                            href={`https://${inferWebsite(lead)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate max-w-[180px] block"
-                          >
-                            {inferWebsite(lead)}
-                          </a>
-                        )}
-                      </TableCell>
+                      {/* Description */}
                       <TableCell className="max-w-[220px]">
                         {lead.listing_description ? (
-                          <span className="text-xs text-muted-foreground line-clamp-2 leading-relaxed" title={lead.listing_description}>
+                          <span className="text-sm text-muted-foreground line-clamp-2 leading-tight" title={lead.listing_description}>
                             {lead.listing_description}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground/40">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
+                      {/* Calculator type (only on All tab) */}
                       {activeTab === "all" && (
                         <TableCell>{calculatorBadge(lead.calculator_type)}</TableCell>
                       )}
+                      {/* Industry */}
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
                           {lead.industry || "—"}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        {lead.location ? (
-                          <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
-                            {(() => {
-                              const parts = lead.location.split(",").map(s => s.trim());
-                              if (parts.length >= 2) {
-                                const city = parts[0];
-                                const state = parts[1].length <= 3 ? parts[1] : parts[1];
-                                return `${city}, ${state}`;
-                              }
-                              return lead.location;
-                            })()}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.revenue != null ? (
-                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.revenue)}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.ebitda != null ? (
-                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.ebitda)}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.valuation_low != null && lead.valuation_high != null ? (
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {formatCompactCurrency(lead.valuation_low)}–{formatCompactCurrency(lead.valuation_high)}
-                          </span>
-                        ) : lead.valuation_mid != null ? (
-                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.valuation_mid)}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
-                      <TableCell className="text-center">
-                        {lead.open_to_intros === true ? (
-                          <span className="text-emerald-600 font-semibold text-sm">Yes</span>
-                        ) : lead.open_to_intros === false ? (
-                          <span className="text-muted-foreground text-sm">No</span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{qualityBadge(lead.quality_label)}</TableCell>
-                      <TableCell className="text-center">
-                        {lead.lead_score != null ? (
-                          <span className={cn(
-                            "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
-                            scorePillClass(lead.lead_score)
-                          )}>
-                            {lead.lead_score}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
                       </TableCell>
                       {/* Deal Owner */}
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -1930,11 +1864,11 @@ export default function ValuationLeads() {
                             value={lead.deal_owner_id || "unassigned"}
                             onValueChange={(val) => handleAssignOwner(lead, val === "unassigned" ? null : val)}
                           >
-                            <SelectTrigger className="h-7 w-[120px] text-xs border-none bg-transparent hover:bg-muted">
+                            <SelectTrigger className="h-7 w-[110px] text-xs border-none bg-transparent hover:bg-muted">
                               <SelectValue placeholder="Assign…">
                                 {lead.deal_owner_id && adminProfiles[lead.deal_owner_id]
                                   ? adminProfiles[lead.deal_owner_id].displayName.split(" ")[0]
-                                  : <span className="text-muted-foreground">—</span>
+                                  : <span className="text-muted-foreground">Assign…</span>
                                 }
                               </SelectValue>
                             </SelectTrigger>
@@ -1951,10 +1885,70 @@ export default function ValuationLeads() {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
+                      {/* Revenue */}
+                      <TableCell className="text-right">
+                        {lead.revenue != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.revenue)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* EBITDA */}
+                      <TableCell className="text-right">
+                        {lead.ebitda != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.ebitda)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Valuation */}
+                      <TableCell className="text-right">
+                        {lead.valuation_low != null && lead.valuation_high != null ? (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {formatCompactCurrency(lead.valuation_low)}–{formatCompactCurrency(lead.valuation_high)}
+                          </span>
+                        ) : lead.valuation_mid != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.valuation_mid)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Exit timing */}
+                      <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
+                      {/* Buyer Intro */}
+                      <TableCell className="text-center">
+                        {lead.open_to_intros === true ? (
+                          <span className="text-emerald-600 font-semibold text-sm">Yes</span>
+                        ) : lead.open_to_intros === false ? (
+                          <span className="text-muted-foreground text-sm">No</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Quality */}
+                      <TableCell>{qualityBadge(lead.quality_label)}</TableCell>
+                      {/* Score */}
+                      <TableCell className="text-center">
+                        {lead.lead_score != null ? (
+                          <span className={cn(
+                            "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
+                            scorePillClass(lead.lead_score)
+                          )}>
+                            {lead.lead_score}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>
-                        <span className="text-sm tabular-nums text-foreground">
-                          {format(new Date(lead.created_at), "MMM d, yyyy")}
-                        </span>
+                        <div>
+                          <span className="text-sm tabular-nums text-foreground block">
+                            {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(lead.created_at), "MMM d, yyyy")}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
