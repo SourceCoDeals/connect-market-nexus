@@ -204,6 +204,29 @@ const WORD_DICT = new Set([
   "bon", "terra", "vita", "sol", "luna", "alta", "bella",
   "com", "compost", "vermont", "carolina", "texas", "florida",
   "boyland", "raintree",
+  // Additional words for better segmentation
+  "willow", "watts", "vault", "box", "clinic", "valens",
+  "provider", "accreditation", "senior", "bend", "gilbert",
+  "comfort", "merit", "service", "dino", "dinos",
+  "glass", "line", "horizon", "fox", "hunt", "wolf", "byte",
+  "clear", "pay", "gain", "gainz", "loft", "wisconsin",
+  "cupola", "barn", "grain", "trace", "wealth",
+  "mon", "lion", "money", "coin", "gecko",
+  "hub", "bubble", "price", "hoppah", "stax",
+  "tesloid", "ropella", "scorpa",
+  "bee", "hive", "bear", "eagle", "hawk", "falcon",
+  "apex", "summit", "peak", "crest", "ridge",
+  "haven", "harbor", "harbour", "port", "gate", "way",
+  "link", "bridge", "path", "trail", "road",
+  "tower", "point", "view", "scape",
+  "micro", "macro", "mega", "nano", "multi",
+  "rest", "restore", "restoration", "restorations",
+  "test", "testing", "audit", "compliance",
+  "pass", "flash", "dash", "rush",
+  "ace", "alpha", "beta", "omega", "delta", "sigma",
+  "key", "lock", "code", "cipher",
+  "pilot", "captain", "chief", "lead", "guide",
+  "true", "trust", "loyal", "noble", "honor",
 ]);
 
 /** Segment a concatenated string into words using dictionary-based dynamic programming. */
@@ -235,8 +258,19 @@ function segmentWords(input: string): string {
 }
 
 function extractBusinessName(lead: ValuationLead): string {
+  // If the DB has a real business name (multi-word, not a placeholder), use it directly
   if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
-    return lead.business_name;
+    const bn = lead.business_name.trim();
+    // If it contains spaces, it's already well-formatted — return as-is
+    if (/\s/.test(bn)) {
+      // Fix mojibake apostrophes (â€™ → ')
+      return bn.replace(/â€™/g, "'");
+    }
+    // Single word from DB (e.g. "Usaquaticsinc" from INITCAP) — try to segment it
+    const segmented = segmentWords(bn.toLowerCase());
+    // If segmentation found multiple words, use that; otherwise keep original
+    if (segmented.includes(" ")) return segmented;
+    return bn;
   }
   const domain = cleanWebsiteToDomain(lead.website);
   if (domain) {
@@ -1270,6 +1304,7 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="display_name">Lead</SortHeader>
                   </TableHead>
+                  <TableHead>Website</TableHead>
                   {activeTab === "all" && (
                     <TableHead>Calculator</TableHead>
                   )}
@@ -1312,7 +1347,7 @@ export default function ValuationLeads() {
                 {paginatedLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={activeTab === "all" ? 17 : 16}
+                      colSpan={activeTab === "all" ? 18 : 17}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Calculator className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1346,22 +1381,22 @@ export default function ValuationLeads() {
                         {(safePage - 1) * PAGE_SIZE + idx + 1}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium text-foreground text-sm truncate max-w-[200px]">
-                            {extractBusinessName(lead)}
-                          </span>
-                          {inferWebsite(lead) && (
-                            <a
-                              href={`https://${inferWebsite(lead)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate max-w-[200px]"
-                            >
-                              {inferWebsite(lead)}
-                            </a>
-                          )}
-                        </div>
+                        <span className="font-medium text-foreground text-sm truncate max-w-[200px] block">
+                          {extractBusinessName(lead)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {inferWebsite(lead) && (
+                          <a
+                            href={`https://${inferWebsite(lead)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate max-w-[180px] block"
+                          >
+                            {inferWebsite(lead)}
+                          </a>
+                        )}
                       </TableCell>
                       {activeTab === "all" && (
                         <TableCell>{calculatorBadge(lead.calculator_type)}</TableCell>
