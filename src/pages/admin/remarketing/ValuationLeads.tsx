@@ -1300,12 +1300,28 @@ export default function ValuationLeads() {
       const CHUNK = 500;
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
+        const listingIds = chunk.map((r) => r.listing_id);
+
+        // First: reset any existing rows so force/status/attempts are always overwritten
+        const { error: updateError } = await supabase
+          .from("enrichment_queue")
+          .update({
+            status: "pending",
+            force: mode === "all",
+            attempts: 0,
+            queued_at: now,
+            completed_at: null,
+            last_error: null,
+            started_at: null,
+          })
+          .in("listing_id", listingIds);
+
+        if (updateError) console.warn("Queue pre-update error (non-fatal):", updateError);
+
+        // Then: insert rows that don't exist yet (upsert will skip existing due to prior update)
         const { error } = await supabase
           .from("enrichment_queue")
-          .upsert(chunk, {
-            onConflict: "listing_id",
-            ignoreDuplicates: false, // ensure status/force get updated
-          });
+          .upsert(chunk, { onConflict: "listing_id", ignoreDuplicates: true });
 
         if (error) {
           console.error("Queue upsert error:", error);
