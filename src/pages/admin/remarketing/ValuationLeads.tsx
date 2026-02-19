@@ -752,10 +752,13 @@ export default function ValuationLeads() {
     });
   };
 
-  // Row click handler — pushed leads navigate to deal detail, others navigate by lead id
+  // Row click handler — pushed leads navigate to deal detail, unpushed leads prompt to push first
   const handleRowClick = (lead: ValuationLead) => {
-    const id = lead.pushed_listing_id ?? lead.id;
-    navigate(`/admin/remarketing/valuation-leads/${id}`);
+    if (lead.pushed_listing_id) {
+      navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`);
+    } else {
+      sonnerToast.info("Push this lead to All Deals first to view the deal page");
+    }
   };
 
   // Push to All Deals
@@ -1374,7 +1377,7 @@ export default function ValuationLeads() {
                     <SortHeader column="exit_timing">Exit</SortHeader>
                   </TableHead>
                   <TableHead className="text-center">
-                    <SortHeader column="intros">Intros</SortHeader>
+                    <SortHeader column="intros">Buyer Intro</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="quality">Quality</SortHeader>
@@ -1563,8 +1566,8 @@ export default function ValuationLeads() {
                               Pushed
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
-                              {lead.status || "new"}
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              New
                             </Badge>
                           )}
                         </div>
