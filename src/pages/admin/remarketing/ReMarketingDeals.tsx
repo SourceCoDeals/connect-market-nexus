@@ -198,7 +198,7 @@ const ReMarketingDeals = () => {
         `)
         .eq('status', 'active')
         .neq('deal_source', 'gp_partners')
-        .neq('deal_source', 'valuation_calculator')
+        .or('deal_source.neq.valuation_calculator,pushed_to_all_deals.eq.true')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
         .order('deal_total_score', { ascending: false, nullsFirst: true })
         .order('created_at', { ascending: false });
@@ -532,6 +532,10 @@ const ReMarketingDeals = () => {
         case "added":
           aVal = new Date(a.created_at).getTime();
           bVal = new Date(b.created_at).getTime();
+          break;
+        case "priority":
+          aVal = a.is_priority_target ? 1 : 0;
+          bVal = b.is_priority_target ? 1 : 0;
           break;
         default:
           aVal = a.manual_rank_override ?? 9999;
@@ -1117,6 +1121,9 @@ const ReMarketingDeals = () => {
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.added} onResize={(w) => handleColumnResize('added', w)} minWidth={60}>
                       <SortableHeader column="added" label="Added" />
+                    </ResizableHeader>
+                    <ResizableHeader width={columnWidths.priority} onResize={(w) => handleColumnResize('priority', w)} minWidth={50} className="text-center">
+                      <SortableHeader column="priority" label="Priority" className="mx-auto" />
                     </ResizableHeader>
                     <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: columnWidths.actions, minWidth: 40 }}></th>
                   </tr>

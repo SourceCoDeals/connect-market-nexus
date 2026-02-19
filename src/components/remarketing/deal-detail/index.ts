@@ -12,3 +12,4 @@ export { KeyQuotesCard } from './KeyQuotesCard';
 export { UniverseAssignmentButton } from './UniverseAssignmentButton';
 export { BuyerHistoryDialog } from './BuyerHistoryDialog';
 export { EditFinancialsDialog } from './EditFinancialsDialog';
+export { DealActivityLog } from './DealActivityLog';

@@ -59,6 +59,7 @@ import {
   UniverseAssignmentButton,
   BuyerHistoryDialog,
   EditFinancialsDialog,
+  DealActivityLog,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -1177,6 +1178,9 @@ const ReMarketingDealDetail = () => {
           queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
         }}
       />
+
+      {/* Activity Log & Notes */}
+      <DealActivityLog dealId={dealId!} />
 
       {/* General Notes Section */}
       <GeneralNotesSection

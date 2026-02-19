@@ -54,6 +54,7 @@ import {
   Calculator,
   XCircle,
   MoreHorizontal,
+  Archive,
   Users,
   Clock,
   Zap,
@@ -63,7 +64,7 @@ import {
   Download,
   Trash2,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───
@@ -116,6 +117,9 @@ interface ValuationLead {
   // For deal owner display (assigned after push)
   deal_owner_id?: string | null;
   is_priority_target?: boolean | null;
+  is_archived?: boolean | null;
+  // Joined from listings (via pushed_listing_id) — populated by enrichment
+  listing_description?: string | null;
 }
 
 type SortColumn =
@@ -132,7 +136,8 @@ type SortColumn =
   | "score"
   | "created_at"
   | "pushed"
-  | "owner";
+  | "owner"
+  | "priority";
 type SortDirection = "asc" | "desc";
 
 // ─── Helpers ───
@@ -148,11 +153,12 @@ function cleanWebsiteToDomain(raw: string | null): string | null {
   if (!raw || !raw.trim()) return null;
   const v = raw.trim();
   if (v.includes("@")) return null;
-  if (/[,\s]/.test(v.replace(/^https?:\/\//i, "").split("/")[0])) return null;
-  const noProto = v.replace(/^[a-z]{3,6}:\/\//i, "");
+  // Strip protocol (handles both "https://" and malformed "https:" with no slashes)
+  const noProto = v.replace(/^[a-z]{2,8}:\/\//i, "").replace(/^[a-z]{2,8}:/i, "");
   const noWww = noProto.replace(/^www\./i, "");
   const domain = noWww.split("/")[0].split("?")[0].split("#")[0];
   if (!domain || !domain.includes(".")) return null;
+  if (/[,\s]/.test(domain)) return null;
   if (/^(test|no|example)\./i.test(domain)) return null;
   return domain.toLowerCase();
 }
@@ -166,6 +172,15 @@ const WORD_DICT = new Set([
   "inc", "llc", "ltd", "corp", "co", "group", "global", "usa", "us",
   // Common business words
   "the", "and", "pro", "plus", "max", "tech", "solutions", "services",
+  // Engineering & trades
+  "engineer", "engineering", "engineers", "fluid", "mechanical", "electrical",
+  "civil", "structural", "industrial", "chemical", "aerospace", "systems",
+  "design", "designs", "designer", "designers", "build", "builds", "builder",
+  "builders", "construct", "construction", "fabrication", "fabricate",
+  "automation", "automate", "automated", "controls", "control", "precision",
+  "technical", "technologies", "technology", "innovations", "innovation",
+  "innovative", "creative", "creations", "creation", "develop", "development",
+  "developers", "developer",
   "management", "consulting", "construction", "roofing", "plumbing",
   "electric", "electrical", "mechanical", "heating", "cooling", "hvac",
   "air", "auto", "automotive", "car", "cars", "motor", "motors",
@@ -241,6 +256,18 @@ const WORD_DICT = new Set([
   "made", "hand", "guy", "guys", "man", "men", "king",
   "tax", "cab", "van", "fly", "run", "hub", "bit", "log",
   "top", "pop", "hot", "big", "old",
+  // Additional brand/domain words found in practice
+  "sims", "funerals", "funeral", "bespoke", "kreative", "kreate",
+  "kayes", "ksd", "mvp", "polka", "audio", "plumbing", "gainz",
+  "willow", "legacy", "corp", "sanmora", "masource", "boyland",
+  "kayesk", "tbs", "mvp", "bend", "senior", "gilbert", "comfort",
+  "merit", "dino", "glass", "horizon", "vault", "provider",
+  "reative", "source", "morabespoke",
+  // Additional words to improve segmentation accuracy
+  "legend", "voi", "gk", "gkrestoration",
+  "musitechnic", "technic", "technica", "technics",
+  "hoppah", "clearpay", "globall", "school", "bilingual",
+  "apex", "elite", "restorations",
 ]);
 
 /** Segment a concatenated string into words using dictionary-based dynamic programming. */
@@ -350,11 +377,15 @@ function extractBusinessName(lead: ValuationLead): string {
   if (domain) {
     const cleaned = domain.replace(TLD_REGEX, "");
     if (cleaned && !cleaned.match(/^(test|no|example)$/i)) {
-      // If domain has separators, just title-case; otherwise, use word segmentation
-      if (/[-_.]/.test(cleaned)) {
+      // Reject purely alphanumeric with digits (e.g. "tbs23", "abc123") — not a real name
+      if (/^[a-z0-9]+$/i.test(cleaned) && /\d/.test(cleaned)) {
+        // fall through to email/name fallback
+      } else if (/[-_.]/.test(cleaned)) {
+        // Has separators — just title-case
         return toTitleCase(cleaned.replace(/[-_.]/g, " "));
+      } else {
+        return segmentWords(cleaned);
       }
-      return segmentWords(cleaned);
     }
   }
   if (lead.email) {
@@ -413,11 +444,37 @@ function buildListingFromLead(lead: ValuationLead, forPush = true) {
   else if (lead.exit_timing === "exploring") motivationParts.push("Exploring options");
   if (lead.open_to_intros) motivationParts.push("Open to buyer introductions");
 
+  const calcTypeLabel = lead.calculator_type === "auto_shop" ? "Auto Shop" : lead.calculator_type === "general" ? "General" : lead.calculator_type;
+
   const noteLines: string[] = [
     `--- Valuation Calculator Lead Intelligence ---`,
-    `Source: ${lead.calculator_type === "auto_shop" ? "Auto Shop" : lead.calculator_type === "general" ? "General" : lead.calculator_type} Calculator`,
+    `Source: ${calcTypeLabel} Calculator`,
     `Submitted: ${new Date(lead.created_at).toLocaleDateString()}`,
   ];
+
+  // Contact
+  if (lead.full_name) noteLines.push(`Name: ${lead.full_name}`);
+  if (lead.email) noteLines.push(`Email: ${lead.email}`);
+  if (lead.phone) noteLines.push(`Phone: ${lead.phone}`);
+  if (lead.linkedin_url) noteLines.push(`LinkedIn: ${lead.linkedin_url}`);
+
+  // Business
+  if (lead.business_name) noteLines.push(`Business Name: ${lead.business_name}`);
+  if (lead.website) noteLines.push(`Website: ${lead.website}`);
+  if (lead.industry) noteLines.push(`Industry: ${lead.industry}`);
+  if (lead.location) noteLines.push(`Location: ${lead.location}`);
+  if (lead.locations_count != null) noteLines.push(`Number of Locations: ${lead.locations_count}`);
+  if (lead.revenue_model) noteLines.push(`Revenue Model: ${lead.revenue_model}`);
+  if (lead.growth_trend) noteLines.push(`Growth Trend: ${lead.growth_trend}`);
+
+  // Financials
+  if (lead.revenue != null) noteLines.push(`Revenue: $${(lead.revenue / 1e6).toFixed(2)}M`);
+  if (lead.ebitda != null) noteLines.push(`EBITDA: $${lead.ebitda < 1000 ? `${lead.ebitda}K` : `${(lead.ebitda / 1e6).toFixed(2)}M`}`);
+  if (lead.valuation_low != null && lead.valuation_high != null) {
+    noteLines.push(`Self-Assessed Valuation: $${(lead.valuation_low / 1e6).toFixed(1)}M – $${(lead.valuation_high / 1e6).toFixed(1)}M (mid: $${((lead.valuation_mid || 0) / 1e6).toFixed(1)}M)`);
+  }
+
+  // Lead scoring
   if (lead.lead_score != null) noteLines.push(`Lead Score: ${lead.lead_score}/100`);
   if (lead.quality_label) noteLines.push(`Quality: ${lead.quality_label} (tier: ${lead.quality_tier || "—"})`);
   if (lead.readiness_score != null) noteLines.push(`Readiness: ${lead.readiness_score}/100`);
@@ -425,10 +482,41 @@ function buildListingFromLead(lead: ValuationLead, forPush = true) {
   if (lead.open_to_intros != null) noteLines.push(`Open to Intros: ${lead.open_to_intros ? "Yes" : "No"}`);
   if (lead.owner_dependency) noteLines.push(`Owner Dependency: ${lead.owner_dependency}`);
   if (lead.buyer_lane) noteLines.push(`Buyer Lane: ${lead.buyer_lane}`);
-  if (lead.valuation_low != null && lead.valuation_high != null) {
-    noteLines.push(`Self-Assessed Valuation: $${(lead.valuation_low / 1e6).toFixed(1)}M – $${(lead.valuation_high / 1e6).toFixed(1)}M (mid: $${((lead.valuation_mid || 0) / 1e6).toFixed(1)}M)`);
-  }
+  if (lead.cta_clicked != null) noteLines.push(`CTA Clicked: ${lead.cta_clicked ? "Yes" : "No"}`);
   if (lead.scoring_notes) noteLines.push(`Scoring Notes: ${lead.scoring_notes}`);
+
+  // Raw calculator inputs (all key-value pairs)
+  if (lead.raw_calculator_inputs && Object.keys(lead.raw_calculator_inputs).length > 0) {
+    noteLines.push(`\n--- Raw Calculator Inputs ---`);
+    for (const [key, val] of Object.entries(lead.raw_calculator_inputs)) {
+      if (val != null && val !== "") {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        noteLines.push(`${label}: ${val}`);
+      }
+    }
+  }
+
+  // Raw valuation results
+  if (lead.raw_valuation_results && Object.keys(lead.raw_valuation_results).length > 0) {
+    noteLines.push(`\n--- Valuation Results ---`);
+    for (const [key, val] of Object.entries(lead.raw_valuation_results)) {
+      if (val != null && val !== "") {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        noteLines.push(`${label}: ${val}`);
+      }
+    }
+  }
+
+  // Calculator-specific data
+  if (lead.calculator_specific_data && Object.keys(lead.calculator_specific_data).length > 0) {
+    noteLines.push(`\n--- Calculator Specific Data ---`);
+    for (const [key, val] of Object.entries(lead.calculator_specific_data)) {
+      if (val != null && val !== "") {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        noteLines.push(`${label}: ${val}`);
+      }
+    }
+  }
 
   const locationParts = lead.location?.split(",").map(s => s.trim());
   const address_city = locationParts?.[0] || null;
@@ -608,6 +696,44 @@ export default function ValuationLeads() {
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Column resizing
+  const DEFAULT_COL_WIDTHS: Record<string, number> = {
+    company: 160,
+    description: 200,
+    calculator: 110,
+    industry: 130,
+    owner: 130,
+    revenue: 90,
+    ebitda: 90,
+    valuation: 100,
+    exit: 80,
+    intros: 70,
+    quality: 80,
+    score: 65,
+    added: 90,
+    status: 90,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(DEFAULT_COL_WIDTHS);
+
+  const startResize = useCallback(
+    (col: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = colWidths[col] ?? DEFAULT_COL_WIDTHS[col] ?? 120;
+      const onMouseMove = (mv: MouseEvent) => {
+        const newW = Math.max(60, startW + mv.clientX - startX);
+        setColWidths((prev) => ({ ...prev, [col]: newW }));
+      };
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [colWidths]
+  );
+
   // Action states
   const [isPushing, setIsPushing] = useState(false);
   const [isPushEnriching, setIsPushEnriching] = useState(false);
@@ -633,7 +759,7 @@ export default function ValuationLeads() {
       while (hasMore) {
         const { data, error } = await supabase
           .from("valuation_leads")
-          .select("*")
+          .select("*, listings!valuation_leads_pushed_listing_id_fkey(description, executive_summary)")
           .eq("excluded", false)
           .order("created_at", { ascending: false })
           .range(offset, offset + batchSize - 1);
@@ -641,8 +767,10 @@ export default function ValuationLeads() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          const normalized = (data as ValuationLead[]).map((row) => ({
+          const normalized = (data as any[]).map((row) => ({
             ...row,
+            listing_description: row.listings?.description || row.listings?.executive_summary || null,
+            listings: undefined, // strip the join object
             revenue: row.revenue != null ? Number(row.revenue) : null,
             ebitda: row.ebitda != null ? Number(row.ebitda) : null,
             valuation_low: row.valuation_low != null ? Number(row.valuation_low) : null,
@@ -682,9 +810,24 @@ export default function ValuationLeads() {
     totalCount: engineTotal,
   } = useFilterEngine(leads ?? [], VALUATION_LEAD_FIELDS);
 
+  // Default filter: "Website is not empty" — applied on first mount if no filter is already set
+  useEffect(() => {
+    if (filterState.rules.length === 0) {
+      setFilterState((prev) => ({
+        ...prev,
+        conjunction: "and",
+        rules: [{ id: "default-website-filter", field: "website", operator: "is_not_empty", value: "" }],
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally only on mount
+
   // Apply tab + timeframe on top of engine-filtered results, then sort
   const filteredLeads = useMemo(() => {
     let filtered = engineFiltered;
+
+    // Hide archived leads by default
+    filtered = filtered.filter((l) => !l.is_archived);
 
     // Tab filter
     if (activeTab !== "all") {
@@ -693,6 +836,28 @@ export default function ValuationLeads() {
 
     // Timeframe filter
     filtered = filtered.filter((l) => isInRange(l.created_at));
+
+    // Deduplicate by normalized domain — keep the best record per website
+    // (highest lead_score, or most recent if tied)
+    const domainMap = new Map<string, ValuationLead>();
+    for (const lead of filtered) {
+      const domain = cleanWebsiteToDomain(lead.website);
+      const key = domain ?? `__no_domain_${lead.id}`;
+      const existing = domainMap.get(key);
+      if (!existing) {
+        domainMap.set(key, lead);
+      } else {
+        const existingScore = existing.lead_score ?? -1;
+        const newScore = lead.lead_score ?? -1;
+        const existingDate = existing.created_at ?? "";
+        const newDate = lead.created_at ?? "";
+        // Prefer higher score; on tie prefer more recent
+        if (newScore > existingScore || (newScore === existingScore && newDate > existingDate)) {
+          domainMap.set(key, lead);
+        }
+      }
+    }
+    filtered = Array.from(domainMap.values());
 
     // Sort
     const sorted = [...filtered];
@@ -753,6 +918,10 @@ export default function ValuationLeads() {
         case "pushed":
           valA = a.pushed_to_all_deals ? 1 : 0;
           valB = b.pushed_to_all_deals ? 1 : 0;
+          break;
+        case "priority":
+          valA = a.is_priority_target ? 1 : 0;
+          valB = b.is_priority_target ? 1 : 0;
           break;
         case "owner": {
           const ownerA = a.deal_owner_id ? (adminProfiles?.[a.deal_owner_id]?.displayName || "") : "";
@@ -1105,6 +1274,9 @@ export default function ValuationLeads() {
           attempts: 0,
           queued_at: now,
           force: true,
+          completed_at: null,
+          last_error: null,
+          started_at: null,
         }));
 
       const CHUNK = 500;
@@ -1122,14 +1294,12 @@ export default function ValuationLeads() {
         }
       }
 
-      sonnerToast.success(`Re-queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} for enrichment`);
-      setSelectedIds(new Set());
-
-      if (queued > 0) {
-        sonnerToast.success(`Re-queued ${queued} lead${queued !== 1 ? "s" : ""} for enrichment`);
+      if (rows.length > 0) {
+        sonnerToast.success(`Re-queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} for enrichment`);
       } else {
         sonnerToast.info("No leads in All Deals found to re-enrich");
       }
+      setSelectedIds(new Set());
 
       setIsReEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
@@ -1137,19 +1307,89 @@ export default function ValuationLeads() {
     [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Enrich All — enriches any lead that has an associated listing (pushed or auto-created via row click)
+  // Archive selected leads (soft-delete, hidden from default view)
+  const handleArchive = useCallback(async (leadIds: string[]) => {
+    if (leadIds.length === 0) return;
+    const { error } = await supabase
+      .from("valuation_leads")
+      .update({ is_archived: true } as never)
+      .in("id", leadIds);
+    if (error) {
+      sonnerToast.error("Failed to archive leads");
+      return;
+    }
+    sonnerToast.success(`Archived ${leadIds.length} lead${leadIds.length !== 1 ? "s" : ""}`);
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+  }, [queryClient]);
+
+  // Enrich All — auto-creates listings for leads that don't have one yet, then queues all for enrichment
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      // Include any lead with a listing ID — either formally pushed or auto-created via row click
-      const allLeads = (leads || []).filter((l) => !!l.pushed_listing_id);
-      const targets = allLeads;
+      const allLeads = leads || [];
 
-      if (!targets.length) {
-        sonnerToast.info("No leads with listings to enrich — open a lead first to create its listing");
+      // All leads that have a website (they can be enriched)
+      const leadsWithWebsite = allLeads.filter((l) => !!inferWebsite(l));
+
+      // For "unenriched" mode, only process leads that haven't been enriched yet
+      const enrichableLeads = mode === "unenriched"
+        ? leadsWithWebsite.filter((l) => !l.pushed_listing_id)
+        : leadsWithWebsite;
+
+      if (!enrichableLeads.length) {
+        sonnerToast.info(mode === "unenriched" ? "All leads have already been enriched" : "No leads with websites to enrich");
         return;
       }
 
       setIsEnriching(true);
+
+      // Step 1: Auto-create listings only for leads that don't have one yet
+      const leadsNeedingListing = enrichableLeads.filter((l) => !l.pushed_listing_id);
+      if (leadsNeedingListing.length > 0) {
+        sonnerToast.info(`Creating listings for ${leadsNeedingListing.length} leads...`);
+        const LISTING_BATCH = 50;
+        for (let i = 0; i < leadsNeedingListing.length; i += LISTING_BATCH) {
+          const batch = leadsNeedingListing.slice(i, i + LISTING_BATCH);
+          await Promise.all(
+            batch.map(async (lead) => {
+              try {
+                const dealIdentifier = `vlead_${lead.id.slice(0, 8)}`;
+                // Check if listing already exists
+                const { data: existing } = await supabase
+                  .from("listings")
+                  .select("id")
+                  .eq("deal_identifier", dealIdentifier)
+                  .maybeSingle();
+
+                let listingId: string;
+                if (existing?.id) {
+                  listingId = existing.id;
+                } else {
+                  const { data: listing, error: insertError } = await supabase
+                    .from("listings")
+                    .insert(buildListingFromLead(lead, false))
+                    .select("id")
+                    .single();
+                  if (insertError || !listing) return;
+                  listingId = listing.id;
+                }
+                // Save the listing reference back to the lead
+                await supabase
+                  .from("valuation_leads")
+                  .update({ pushed_listing_id: listingId } as never)
+                  .eq("id", lead.id);
+                // Update in-memory so queue step picks it up
+                lead.pushed_listing_id = listingId;
+              } catch {
+                // Non-blocking per-lead
+              }
+            })
+          );
+        }
+      }
+
+      // Step 2: Collect all listing IDs (now including newly created ones)
+      const targets = enrichableLeads.filter((l) => !!l.pushed_listing_id);
 
       let activityItem: { id: string } | null = null;
       try {
@@ -1179,14 +1419,36 @@ export default function ValuationLeads() {
           attempts: 0,
           queued_at: now,
           force: mode === "all",
+          completed_at: null,
+          last_error: null,
+          started_at: null,
         }));
 
       const CHUNK = 500;
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
+        const listingIds = chunk.map((r) => r.listing_id);
+
+        // First: reset any existing rows so force/status/attempts are always overwritten
+        const { error: updateError } = await supabase
+          .from("enrichment_queue")
+          .update({
+            status: "pending",
+            force: mode === "all",
+            attempts: 0,
+            queued_at: now,
+            completed_at: null,
+            last_error: null,
+            started_at: null,
+          })
+          .in("listing_id", listingIds);
+
+        if (updateError) console.warn("Queue pre-update error (non-fatal):", updateError);
+
+        // Then: insert rows that don't exist yet (upsert will skip existing due to prior update)
         const { error } = await supabase
           .from("enrichment_queue")
-          .upsert(chunk, { onConflict: "listing_id" });
+          .upsert(chunk, { onConflict: "listing_id", ignoreDuplicates: true });
 
         if (error) {
           console.error("Queue upsert error:", error);
@@ -1604,6 +1866,16 @@ export default function ValuationLeads() {
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
+          <div className="h-5 w-px bg-border" />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleArchive(Array.from(selectedIds))}
+            className="gap-2 text-destructive hover:text-destructive"
+          >
+            <Archive className="h-4 w-4" />
+            Archive
+          </Button>
         </div>
       )}
 
@@ -1611,7 +1883,26 @@ export default function ValuationLeads() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}>
+              <colgroup>
+                <col style={{ width: 40 }} />
+                <col style={{ width: 40 }} />
+                <col style={{ width: colWidths.company }} />
+                <col style={{ width: colWidths.description }} />
+                {activeTab === "all" && <col style={{ width: colWidths.calculator }} />}
+                <col style={{ width: colWidths.industry }} />
+                <col style={{ width: colWidths.owner }} />
+                <col style={{ width: colWidths.revenue }} />
+                <col style={{ width: colWidths.ebitda }} />
+                <col style={{ width: colWidths.valuation }} />
+                <col style={{ width: colWidths.exit }} />
+                <col style={{ width: colWidths.intros }} />
+                <col style={{ width: colWidths.quality }} />
+                <col style={{ width: colWidths.score }} />
+                <col style={{ width: colWidths.added }} />
+                <col style={{ width: colWidths.status }} />
+                <col style={{ width: 50 }} />
+              </colgroup>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40px]">
@@ -1621,51 +1912,35 @@ export default function ValuationLeads() {
                     />
                   </TableHead>
                   <TableHead className="w-[40px] text-center text-muted-foreground">#</TableHead>
-                  <TableHead>
-                    <SortHeader column="display_name">Lead</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="website">Website</SortHeader>
-                  </TableHead>
+                  {(["company","description"] as const).map((col, i) => (
+                    <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col] }}>
+                      {col === "company" ? <SortHeader column="display_name">Company</SortHeader> : "Description"}
+                      <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    </TableHead>
+                  ))}
                   {activeTab === "all" && (
-                    <TableHead>Calculator</TableHead>
+                    <TableHead className="relative overflow-visible" style={{ width: colWidths.calculator }}>
+                      Calculator
+                      <div onMouseDown={(e) => startResize("calculator", e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    </TableHead>
                   )}
-                  <TableHead>
-                    <SortHeader column="industry">Industry</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="location">Location</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="revenue">Revenue</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="ebitda">EBITDA</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="valuation">Valuation</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="exit_timing">Exit</SortHeader>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <SortHeader column="intros">Buyer Intro</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="quality">Quality</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="score">Score</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="owner">Owner</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="created_at">Date</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="pushed">Status</SortHeader>
-                  </TableHead>
+                  {(["industry","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status","priority"] as const).map((col) => (
+                    <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col], textAlign: ["revenue","ebitda","valuation"].includes(col) ? "right" : ["intros","priority"].includes(col) ? "center" : undefined }}>
+                      {col === "industry" && <SortHeader column="industry">Industry</SortHeader>}
+                      {col === "owner" && <SortHeader column="owner">Deal Owner</SortHeader>}
+                      {col === "revenue" && <SortHeader column="revenue">Revenue</SortHeader>}
+                      {col === "ebitda" && <SortHeader column="ebitda">EBITDA</SortHeader>}
+                      {col === "valuation" && <SortHeader column="valuation">Valuation</SortHeader>}
+                      {col === "exit" && <SortHeader column="exit_timing">Exit</SortHeader>}
+                      {col === "intros" && <SortHeader column="intros">Intros</SortHeader>}
+                      {col === "quality" && <SortHeader column="quality">Quality</SortHeader>}
+                      {col === "score" && <SortHeader column="score">Score</SortHeader>}
+                      {col === "added" && <SortHeader column="created_at">Added</SortHeader>}
+                      {col === "status" && <SortHeader column="pushed">Status</SortHeader>}
+                      {col === "priority" && <SortHeader column="priority">Priority</SortHeader>}
+                      <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    </TableHead>
+                  ))}
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -1673,7 +1948,7 @@ export default function ValuationLeads() {
                 {paginatedLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={activeTab === "all" ? 18 : 17}
+                      colSpan={activeTab === "all" ? 17 : 16}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Calculator className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1704,99 +1979,48 @@ export default function ValuationLeads() {
                           onCheckedChange={() => toggleSelect(lead.id)}
                         />
                       </TableCell>
+                      {/* # */}
                       <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
                         {(safePage - 1) * PAGE_SIZE + idx + 1}
                       </TableCell>
+                      {/* Company + Website (merged, like DealTableRow) */}
                       <TableCell>
-                        <span className="font-medium text-foreground text-sm truncate max-w-[200px] block">
-                          {extractBusinessName(lead)}
-                        </span>
+                        <div>
+                          <p className="font-medium text-foreground leading-tight">
+                            {extractBusinessName(lead)}
+                          </p>
+                          {inferWebsite(lead) && (
+                            <a
+                              href={`https://${inferWebsite(lead)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-muted-foreground hover:text-primary hover:underline truncate max-w-[180px] block"
+                            >
+                              {inferWebsite(lead)}
+                            </a>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        {inferWebsite(lead) && (
-                          <a
-                            href={`https://${inferWebsite(lead)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate max-w-[180px] block"
-                          >
-                            {inferWebsite(lead)}
-                          </a>
+                      {/* Description */}
+                      <TableCell className="max-w-[220px]">
+                        {lead.listing_description ? (
+                          <span className="text-sm text-muted-foreground line-clamp-3 leading-tight" title={lead.listing_description}>
+                            {lead.listing_description}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
+                      {/* Calculator type (only on All tab) */}
                       {activeTab === "all" && (
                         <TableCell>{calculatorBadge(lead.calculator_type)}</TableCell>
                       )}
+                      {/* Industry */}
                       <TableCell>
                         <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
                           {lead.industry || "—"}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        {lead.location ? (
-                          <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
-                            {(() => {
-                              const parts = lead.location.split(",").map(s => s.trim());
-                              if (parts.length >= 2) {
-                                const city = parts[0];
-                                const state = parts[1].length <= 3 ? parts[1] : parts[1];
-                                return `${city}, ${state}`;
-                              }
-                              return lead.location;
-                            })()}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.revenue != null ? (
-                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.revenue)}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.ebitda != null ? (
-                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.ebitda)}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.valuation_low != null && lead.valuation_high != null ? (
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {formatCompactCurrency(lead.valuation_low)}–{formatCompactCurrency(lead.valuation_high)}
-                          </span>
-                        ) : lead.valuation_mid != null ? (
-                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.valuation_mid)}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
-                      <TableCell className="text-center">
-                        {lead.open_to_intros === true ? (
-                          <span className="text-emerald-600 font-semibold text-sm">Yes</span>
-                        ) : lead.open_to_intros === false ? (
-                          <span className="text-muted-foreground text-sm">No</span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{qualityBadge(lead.quality_label)}</TableCell>
-                      <TableCell className="text-center">
-                        {lead.lead_score != null ? (
-                          <span className={cn(
-                            "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
-                            scorePillClass(lead.lead_score)
-                          )}>
-                            {lead.lead_score}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
                       </TableCell>
                       {/* Deal Owner */}
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -1805,11 +2029,11 @@ export default function ValuationLeads() {
                             value={lead.deal_owner_id || "unassigned"}
                             onValueChange={(val) => handleAssignOwner(lead, val === "unassigned" ? null : val)}
                           >
-                            <SelectTrigger className="h-7 w-[120px] text-xs border-none bg-transparent hover:bg-muted">
+                            <SelectTrigger className="h-7 w-[110px] text-xs border-none bg-transparent hover:bg-muted">
                               <SelectValue placeholder="Assign…">
                                 {lead.deal_owner_id && adminProfiles[lead.deal_owner_id]
                                   ? adminProfiles[lead.deal_owner_id].displayName.split(" ")[0]
-                                  : <span className="text-muted-foreground">—</span>
+                                  : <span className="text-muted-foreground">Assign…</span>
                                 }
                               </SelectValue>
                             </SelectTrigger>
@@ -1824,6 +2048,61 @@ export default function ValuationLeads() {
                           </Select>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Revenue */}
+                      <TableCell className="text-right">
+                        {lead.revenue != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.revenue)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* EBITDA */}
+                      <TableCell className="text-right">
+                        {lead.ebitda != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.ebitda)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Valuation */}
+                      <TableCell className="text-right">
+                        {lead.valuation_low != null && lead.valuation_high != null ? (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {formatCompactCurrency(lead.valuation_low)}–{formatCompactCurrency(lead.valuation_high)}
+                          </span>
+                        ) : lead.valuation_mid != null ? (
+                          <span className="text-sm tabular-nums">{formatCompactCurrency(lead.valuation_mid)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Exit timing */}
+                      <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
+                      {/* Buyer Intro */}
+                      <TableCell className="text-center">
+                        {lead.open_to_intros === true ? (
+                          <span className="text-emerald-600 font-semibold text-sm">Yes</span>
+                        ) : lead.open_to_intros === false ? (
+                          <span className="text-muted-foreground text-sm">No</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {/* Quality */}
+                      <TableCell>{qualityBadge(lead.quality_label)}</TableCell>
+                      {/* Score */}
+                      <TableCell className="text-center">
+                        {lead.lead_score != null ? (
+                          <span className={cn(
+                            "text-sm font-medium px-2 py-0.5 rounded tabular-nums",
+                            scorePillClass(lead.lead_score)
+                          )}>
+                            {lead.lead_score}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1844,6 +2123,13 @@ export default function ValuationLeads() {
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {lead.is_priority_target ? (
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-400 mx-auto" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
@@ -1909,25 +2195,24 @@ export default function ValuationLeads() {
                               Approve to All Deals
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {/* Delete Deal */}
+                            {/* Archive Deal */}
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={async (e) => {
-                                e.stopPropagation();
+                              onClick={async () => {
                                 const { error } = await supabase
                                   .from("valuation_leads")
-                                  .update({ is_excluded: true } as never)
+                                  .update({ is_archived: true })
                                   .eq("id", lead.id);
                                 if (error) {
-                                  sonnerToast.error("Failed to delete lead");
+                                  sonnerToast.error("Failed to archive lead");
                                 } else {
-                                  sonnerToast.success("Lead removed");
-                                  queryClient.invalidateQueries({ queryKey: ["valuation-leads"] });
+                                  sonnerToast.success("Lead archived");
+                                  refetch();
                                 }
                               }}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Deal
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive Deal
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

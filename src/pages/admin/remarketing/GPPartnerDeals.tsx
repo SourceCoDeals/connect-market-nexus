@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { formatCompactCurrency } from "@/lib/utils";
 import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -125,7 +125,8 @@ type SortColumn =
   | "google_review_count"
   | "google_rating"
   | "created_at"
-  | "pushed";
+  | "pushed"
+  | "priority";
 type SortDirection = "asc" | "desc";
 
 export default function GPPartnerDeals() {
@@ -142,9 +143,10 @@ export default function GPPartnerDeals() {
   // Filters
   const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
 
-  // Sorting
-  const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  // Sorting – persisted in URL so going back restores the sort
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "created_at";
+  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "desc";
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -316,6 +318,10 @@ export default function GPPartnerDeals() {
           valA = a.pushed_to_all_deals ? 1 : 0;
           valB = b.pushed_to_all_deals ? 1 : 0;
           break;
+        case "priority":
+          valA = a.is_priority_target ? 1 : 0;
+          valB = b.is_priority_target ? 1 : 0;
+          break;
         default:
           return 0;
       }
@@ -340,12 +346,16 @@ export default function GPPartnerDeals() {
   }, [filterState, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
-    if (sortColumn === col) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(col);
-      setSortDirection("asc");
-    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (sortColumn === col) {
+        next.set("dir", sortDirection === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", col);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
   };
 
   // Selection helpers
@@ -992,7 +1002,7 @@ export default function GPPartnerDeals() {
                   } else {
                     sonnerToast.success(newValue ? `${dealIds.length} deal(s) marked as priority` : `${dealIds.length} deal(s) priority removed`);
                     setSelectedIds(new Set());
-                    queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] });
+                    queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
                   }
                 }}
               >
@@ -1072,6 +1082,9 @@ export default function GPPartnerDeals() {
                   <TableHead>
                     <SortHeader column="pushed">Status</SortHeader>
                   </TableHead>
+                  <TableHead>
+                    <SortHeader column="priority">Priority</SortHeader>
+                  </TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -1079,7 +1092,7 @@ export default function GPPartnerDeals() {
                 {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={16}
+                      colSpan={17}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1255,6 +1268,13 @@ export default function GPPartnerDeals() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell className="text-center">
+                        {deal.is_priority_target ? (
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-400 mx-auto" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1276,8 +1296,8 @@ export default function GPPartnerDeals() {
                               onClick={async () => {
                                 const newValue = !deal.is_priority_target;
                                 const { error } = await supabase.from("listings").update({ is_priority_target: newValue } as never).eq("id", deal.id);
-                                if (error) { sonnerToast.error("Failed to update priority"); }
-                                else { sonnerToast.success(newValue ? "Marked as priority" : "Priority removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                if (error) { sonnerToast.error("Failed to update priority"); }
+                                else { sonnerToast.success(newValue ? "Marked as priority" : "Priority removed"); queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] }); }
                               }}
                               className={deal.is_priority_target ? "text-amber-600" : ""}
                             >

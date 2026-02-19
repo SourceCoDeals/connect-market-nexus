@@ -411,6 +411,15 @@ export const DealTableRow = ({
         {format(new Date(listing.created_at), 'MM/dd/yyyy')}
       </TableCell>
 
+      {/* Priority */}
+      <TableCell className="text-center" style={{ width: columnWidths.priority, minWidth: 50 }}>
+        {listing.is_priority_target ? (
+          <Star className="h-4 w-4 fill-amber-400 text-amber-400 mx-auto" />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
+
       {/* Actions */}
       <TableCell style={{ width: columnWidths.actions, minWidth: 40 }}>
         <DropdownMenu>

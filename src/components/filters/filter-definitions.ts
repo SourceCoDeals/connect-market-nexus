@@ -604,6 +604,26 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     group: "Admin",
     icon: Calendar,
   },
+  {
+    key: "website",
+    label: "Website",
+    type: "text",
+    group: "Core",
+    icon: Globe,
+    accessor: (item: any) => {
+      const raw = item.website;
+      if (!raw || !raw.trim() || raw.includes("@")) return null;
+      const v = raw.trim().replace(/^[a-z]{3,6}:\/\//i, "").replace(/^www\./i, "").split("/")[0].split("?")[0].split("#")[0];
+      return (v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v)) ? v : null;
+    },
+  },
+  {
+    key: "deal_owner_id",
+    label: "Deal Owner",
+    type: "user",
+    group: "Admin",
+    icon: Users,
+  },
 ];
 
 /** GP Partner Deals */
@@ -636,6 +656,12 @@ export const GP_PARTNER_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Globe,
+    accessor: (item: any) => {
+      const raw = item.website;
+      if (!raw || !raw.trim() || raw.includes("@")) return null;
+      const v = raw.trim().replace(/^[a-z]{3,6}:\/\//i, "").replace(/^www\./i, "").split("/")[0].split("?")[0].split("#")[0];
+      return (v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v)) ? v : null;
+    },
   },
   {
     key: "industry",
@@ -738,6 +764,13 @@ export const GP_PARTNER_FIELDS: FilterFieldDef[] = [
     type: "date",
     group: "Admin",
     icon: Calendar,
+  },
+  {
+    key: "deal_owner_id",
+    label: "Deal Owner",
+    type: "user",
+    group: "Admin",
+    icon: Users,
   },
 ];
 
@@ -869,6 +902,13 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     icon: Activity,
   },
   // ── Status ────────────────────────────────────────────────────────
+  {
+    key: "is_priority_target",
+    label: "Priority Target",
+    type: "boolean",
+    group: "Status",
+    icon: Star,
+  },
   {
     key: "pushed_to_all_deals",
     label: "Pushed to All Deals",
