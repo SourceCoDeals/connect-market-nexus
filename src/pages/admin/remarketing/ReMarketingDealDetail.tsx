@@ -697,61 +697,68 @@ const ReMarketingDealDetail = () => {
         dealId={dealId!}
       />
 
-      {/* Company Overview - Full width with 3 columns */}
-      <CompanyOverviewCard
-        companyName={deal.internal_company_name || deal.title}
-        website={effectiveWebsite}
-        location={deal.location}
-        address={deal.address}
-        foundedYear={deal.founded_year}
-        employees={{
-          fullTime: deal.full_time_employees,
-          partTime: deal.part_time_employees,
-        }}
-        industry={deal.industry}
-        numberOfLocations={deal.number_of_locations}
-        locationRadiusRequirement={deal.location_radius_requirement}
-        category={deal.category}
-        status={deal.status}
-        // Structured address fields
-        streetAddress={deal.street_address}
-        addressCity={deal.address_city}
-        addressState={deal.address_state}
-        addressZip={deal.address_zip}
-        addressCountry={deal.address_country}
-        // Google reviews data
-        googleReviewCount={deal.google_review_count ?? undefined}
-        googleRating={deal.google_rating ?? undefined}
-        googleMapsUrl={deal.google_maps_url ?? undefined}
-        // LinkedIn data
-        linkedinUrl={deal.linkedin_url ?? undefined}
-        linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
-        linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
-        // Deal quality score (editable)
-        dealQualityScore={deal.deal_total_score ?? undefined}
-        onScoreChange={async (newScore) => {
-          await updateDealMutation.mutateAsync({
-            deal_total_score: newScore,
-          });
-        }}
-        onSave={async (data) => {
-          await updateDealMutation.mutateAsync({
-            internal_company_name: data.companyName,
-            website: data.website,
-            address: data.address,
-            founded_year: data.foundedYear,
-            industry: data.industry,
-            number_of_locations: data.numberOfLocations,
-            location_radius_requirement: data.locationRadiusRequirement,
-            // Structured address
-            street_address: data.streetAddress,
-            address_city: data.addressCity,
-            address_state: data.addressState,
-            address_zip: data.addressZip,
-            address_country: data.addressCountry,
-          });
-        }}
-      />
+      {/* Company Overview (75%) + Activity Log (25%) side by side */}
+      <div className="grid grid-cols-4 gap-4 items-start">
+        <div className="col-span-3">
+          <CompanyOverviewCard
+            companyName={deal.internal_company_name || deal.title}
+            website={effectiveWebsite}
+            location={deal.location}
+            address={deal.address}
+            foundedYear={deal.founded_year}
+            employees={{
+              fullTime: deal.full_time_employees,
+              partTime: deal.part_time_employees,
+            }}
+            industry={deal.industry}
+            numberOfLocations={deal.number_of_locations}
+            locationRadiusRequirement={deal.location_radius_requirement}
+            category={deal.category}
+            status={deal.status}
+            // Structured address fields
+            streetAddress={deal.street_address}
+            addressCity={deal.address_city}
+            addressState={deal.address_state}
+            addressZip={deal.address_zip}
+            addressCountry={deal.address_country}
+            // Google reviews data
+            googleReviewCount={deal.google_review_count ?? undefined}
+            googleRating={deal.google_rating ?? undefined}
+            googleMapsUrl={deal.google_maps_url ?? undefined}
+            // LinkedIn data
+            linkedinUrl={deal.linkedin_url ?? undefined}
+            linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
+            linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
+            // Deal quality score (editable)
+            dealQualityScore={deal.deal_total_score ?? undefined}
+            onScoreChange={async (newScore) => {
+              await updateDealMutation.mutateAsync({
+                deal_total_score: newScore,
+              });
+            }}
+            onSave={async (data) => {
+              await updateDealMutation.mutateAsync({
+                internal_company_name: data.companyName,
+                website: data.website,
+                address: data.address,
+                founded_year: data.foundedYear,
+                industry: data.industry,
+                number_of_locations: data.numberOfLocations,
+                location_radius_requirement: data.locationRadiusRequirement,
+                // Structured address
+                street_address: data.streetAddress,
+                address_city: data.addressCity,
+                address_state: data.addressState,
+                address_zip: data.addressZip,
+                address_country: data.addressCountry,
+              });
+            }}
+          />
+        </div>
+        <div className="col-span-1">
+          <DealActivityLog dealId={dealId!} />
+        </div>
+      </div>
 
       {/* Financial Overview - Full width below Company Overview */}
       <Card>
@@ -1179,8 +1186,7 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-      {/* Activity Log & Notes */}
-      <DealActivityLog dealId={dealId!} />
+
 
       {/* General Notes Section */}
       <GeneralNotesSection
