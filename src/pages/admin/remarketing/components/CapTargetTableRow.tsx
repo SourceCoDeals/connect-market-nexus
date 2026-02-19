@@ -273,6 +273,13 @@ export function CapTargetTableRow({
           )}
         </div>
       </TableCell>
+      <TableCell className="text-center">
+        {deal.is_priority_target ? (
+          <Star className="h-4 w-4 fill-amber-400 text-amber-400 mx-auto" />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

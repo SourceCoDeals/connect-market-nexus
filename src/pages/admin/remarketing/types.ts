@@ -60,6 +60,7 @@ export interface ColumnWidths {
   engagement: number;
   dealOwner: number;
   added: number;
+  priority: number;
   actions: number;
 }
 
@@ -82,6 +83,7 @@ export const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   engagement: 130,
   dealOwner: 130,
   added: 90,
+  priority: 70,
   actions: 50,
 };
 
