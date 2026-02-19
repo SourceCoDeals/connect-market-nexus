@@ -180,7 +180,7 @@ const ReMarketingUniverseDetail = () => {
       console.log('[BuyerQuery] Fetching buyers for universe:', id);
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement, marketplace_firm_id, fee_agreement_source')
+        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
         .eq('universe_id', id)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
@@ -602,9 +602,9 @@ const ReMarketingUniverseDetail = () => {
     // Fetch the buyer to get website/firm info for marketplace bridging
     const { data: buyer } = await supabase
       .from('remarketing_buyers')
-      .select('id, company_name, company_website, pe_firm_name, pe_firm_website, marketplace_firm_id, fee_agreement_source, buyer_type')
+      .select('id, company_name, company_website, pe_firm_name, pe_firm_website, buyer_type')
       .eq('id', buyerId)
-      .single();
+      .single() as any;
 
     if (!buyer) {
       toast.error('Buyer not found');
