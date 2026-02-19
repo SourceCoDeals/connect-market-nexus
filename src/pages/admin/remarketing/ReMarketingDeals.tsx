@@ -1145,9 +1145,6 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.dealName} onResize={(w) => handleColumnResize('dealName', w)} minWidth={100}>
                       <SortableHeader column="deal_name" label="Deal Name" />
                     </ResizableHeader>
-                    <ResizableHeader width={columnWidths.website} onResize={(w) => handleColumnResize('website', w)} minWidth={60}>
-                      <span className="text-muted-foreground font-medium">Website</span>
-                    </ResizableHeader>
                     <ResizableHeader width={columnWidths.referralSource} onResize={(w) => handleColumnResize('referralSource', w)} minWidth={60}>
                       <SortableHeader column="referral_source" label="Referral Source" />
                     </ResizableHeader>
