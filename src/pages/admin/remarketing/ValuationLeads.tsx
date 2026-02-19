@@ -260,20 +260,30 @@ function segmentWords(input: string): string {
   return dp[n].words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+function isPlaceholderBusinessName(name: string): boolean {
+  const lower = name.toLowerCase().trim();
+  // Generic placeholder patterns
+  if (lower.endsWith("'s business") || lower.endsWith("\u2019s business")) return true;
+  // Looks like a URL (starts with www, or is just a domain)
+  if (/^www\b/i.test(lower)) return true;
+  if (/\.(com|net|org|io|co|ai|us|uk|ca|au|nz|school|pro|app|dev)(\s|$)/i.test(lower)) return true;
+  // Single username-like strings (no spaces, contains underscores or digits only)
+  if (/^[a-z0-9_]+$/i.test(lower) && lower.includes("_")) return true;
+  return false;
+}
+
 function extractBusinessName(lead: ValuationLead): string {
-  // If the DB has a real business name (multi-word, not a placeholder), use it directly
-  if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
+  // If the DB has a real business name (not a placeholder), use it directly
+  if (lead.business_name && !isPlaceholderBusinessName(lead.business_name)) {
     const bn = lead.business_name.trim();
+    // Fix mojibake apostrophes (â€™ → ') and normalize apostrophe casing (Dino'S → Dino's)
+    const fixed = bn.replace(/â€™/g, "'").replace(/'([A-Z])/g, (_, c) => `'${c.toLowerCase()}`);
     // If it contains spaces, it's already well-formatted — return as-is
-    if (/\s/.test(bn)) {
-      // Fix mojibake apostrophes (â€™ → ')
-      return bn.replace(/â€™/g, "'");
-    }
-    // Single word from DB (e.g. "Usaquaticsinc" from INITCAP) — try to segment it
-    const segmented = segmentWords(bn.toLowerCase());
-    // If segmentation found multiple words, use that; otherwise keep original
+    if (/\s/.test(fixed)) return fixed;
+    // Single word from DB — try to segment it
+    const segmented = segmentWords(fixed.toLowerCase());
     if (segmented.includes(" ")) return segmented;
-    return bn;
+    return fixed;
   }
   const domain = cleanWebsiteToDomain(lead.website);
   if (domain) {
