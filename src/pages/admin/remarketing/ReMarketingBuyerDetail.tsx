@@ -88,11 +88,14 @@ interface BuyerData {
   data_completeness: string | null;
   data_last_updated: string | null;
   pe_firm_name: string | null;
+  pe_firm_website: string | null;
   platform_website: string | null;
   hq_city: string | null;
   hq_state: string | null;
   hq_country: string | null;
   has_fee_agreement: boolean | null;
+  marketplace_firm_id: string | null;
+  fee_agreement_source: string | null;
   industry_vertical: string | null;
   business_summary: string | null;
   specialized_focus: string | null;
@@ -317,18 +320,73 @@ const ReMarketingBuyerDetail = () => {
 
   const updateFeeAgreementMutation = useMutation({
     mutationFn: async (hasFeeAgreement: boolean) => {
-      const { error } = await supabase
-        .from('remarketing_buyers')
-        .update({ has_fee_agreement: hasFeeAgreement })
-        .eq('id', id);
-      if (error) throw error;
+      if (!buyer) throw new Error('No buyer data');
+
+      if (hasFeeAgreement) {
+        // TURNING ON: Sync to marketplace firm_agreements
+        let firmId = buyer.marketplace_firm_id;
+
+        if (!firmId) {
+          const firmName = buyer.pe_firm_name || buyer.company_name;
+          const firmWebsite = buyer.pe_firm_website || buyer.company_website;
+
+          if (firmName) {
+            const { data: createdFirmId } = await supabase.rpc('get_or_create_firm', {
+              p_company_name: firmName,
+              p_website: firmWebsite,
+              p_email: null,
+            });
+
+            if (createdFirmId) {
+              firmId = createdFirmId;
+              await supabase
+                .from('remarketing_buyers')
+                .update({ marketplace_firm_id: firmId } as any)
+                .eq('id', id);
+            }
+          }
+        }
+
+        if (firmId) {
+          await supabase.rpc('update_fee_agreement_firm_status', {
+            p_firm_id: firmId,
+            p_is_signed: true,
+            p_signed_by_user_id: null,
+            p_signed_at: new Date().toISOString(),
+          });
+        }
+
+        const { error } = await supabase
+          .from('remarketing_buyers')
+          .update({
+            has_fee_agreement: true,
+            fee_agreement_source: firmId ? 'marketplace_synced' : 'manual_override',
+          } as any)
+          .eq('id', id);
+        if (error) throw error;
+      } else {
+        // TURNING OFF: Only remove manual overrides
+        if (buyer.fee_agreement_source === 'marketplace_synced' || buyer.fee_agreement_source === 'pe_firm_inherited') {
+          throw new Error('This fee agreement comes from the marketplace. Remove it from Firm Agreements instead.');
+        }
+
+        const { error } = await supabase
+          .from('remarketing_buyers')
+          .update({
+            has_fee_agreement: false,
+            fee_agreement_source: null,
+          } as any)
+          .eq('id', id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyer', id] });
-      toast.success('Fee agreement updated');
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      toast.success('Fee agreement updated — synced to marketplace');
     },
-    onError: () => {
-      toast.error('Failed to update fee agreement');
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to update fee agreement');
     }
   });
 

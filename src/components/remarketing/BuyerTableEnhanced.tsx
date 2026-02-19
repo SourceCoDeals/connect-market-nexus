@@ -483,9 +483,22 @@ export const BuyerTableEnhanced = ({
                             </Badge>
                           )}
                           {buyer.has_fee_agreement && (
-                            <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-xs px-1.5 py-0 flex items-center gap-1">
+                            <Badge
+                              variant="default"
+                              className={`text-xs px-1.5 py-0 flex items-center gap-1 ${
+                                (buyer as any).fee_agreement_source === 'pe_firm_inherited'
+                                  ? 'bg-blue-600 hover:bg-blue-700'
+                                  : (buyer as any).fee_agreement_source === 'manual_override'
+                                  ? 'bg-amber-600 hover:bg-amber-700'
+                                  : 'bg-green-600 hover:bg-green-700'
+                              }`}
+                            >
                               <DollarSign className="h-3 w-3" />
-                              Fee Agreed
+                              {(buyer as any).fee_agreement_source === 'pe_firm_inherited'
+                                ? `via ${buyer.pe_firm_name || 'PE Firm'}`
+                                : (buyer as any).fee_agreement_source === 'manual_override'
+                                ? 'Manual'
+                                : 'Fee Agreed'}
                             </Badge>
                           )}
                         </div>
