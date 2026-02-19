@@ -1,235 +1,131 @@
 
-# CTO-Level Audit: Valuation Calculator Leads Section
+# Deal Table Layout Improvements
 
-## Executive Summary
+## Summary of Changes
 
-The Valuation Leads page has solid foundational data and core push mechanics, but is **missing several critical features** that exist in peer tracker pages (GP Partners, CapTarget). It is not yet at parity with those modules and cannot support a full operator workflow without the following gaps being addressed.
+Six focused improvements to the All Deals tracker table layout, improving scannability and surfacing key workflow flags visually.
 
 ---
 
-## 1. Critical Missing Feature: No Click-Through to Deal Detail Page
+## 1. Deal Name Cell Redesign
 
-**Severity: HIGH — Blocking**
+**Current state:** The deal name cell contains the company name, source badge (Marketplace/Manual), all three flag icons inline with the name text, and the website link below.
 
-- GP Partners: Each row is clickable → navigates to `/admin/remarketing/gp-partner-deals/:dealId` (the full `ReMarketingDealDetail` page)
-- CapTarget: Same pattern — clickable rows, full detail page
-- **Valuation Leads: NO row click navigation.** The `TableRow` has no `onClick` handler and no `cursor-pointer` class.
+**Changes:**
+- Move the `DealSourceBadge` (Marketplace/Manual) OUT of the name cell. Per the user's request, this becomes its own column **later** — for now it is simply removed from the name cell. The "Referral Source" column remains unchanged.
+- Move the three flag icons **below** the name as a compact icon row, not inline with the name text.
+- Flags shown as small icon pills below the name:
+  - `Sparkles` (purple/primary) — Enriched (with tooltip showing enriched date)
+  - `PhoneCall` (red, pulsing) — Owner Needs Contacted
+  - `Network` (blue, pulsing) — Buyer Universe Needs Created
+- The website link moves OUT of the name cell into its own column (see #3).
 
-**Two distinct scenarios need handling:**
-1. **Pushed leads** (`pushed_listing_id` is set) → should navigate to `/admin/remarketing/deals/:pushed_listing_id` (the existing `ReMarketingDealDetail` page, reused)
-2. **Unpushed leads** (no `pushed_listing_id`) → should open a **lead detail drawer/modal** or a dedicated page at `/admin/remarketing/valuation-leads/:leadId` showing:
-   - Full contact info, raw calculator inputs, valuation range, scoring notes
-   - Push / Push & Enrich buttons
-   - Raw JSON from `raw_calculator_inputs` and `raw_valuation_results`
+**Result:** Clean name-only display on the first line; status icons on a second line beneath.
 
-**Current router config (App.tsx line 206):**
+---
+
+## 2. Deal Name Cell: Red Background for "Needs Owner Contact"
+
+**Current state:** The entire `TableRow` gets `bg-red-50` when `needs_owner_contact` is true. The user wants the **Deal Name cell specifically** to be red, while keeping the rest of the row the normal color (yellow for priority, transparent otherwise).
+
+**Change:**
+- Remove `needs_owner_contact`-based red background from the `TableRow` className.
+- Keep the amber background on the row for priority targets as-is.
+- Add a targeted `bg-red-100 dark:bg-red-950/40` class to only the **Deal Name `TableCell`** when `needs_owner_contact` is true, with a subtle left red border (`border-l-2 border-red-500`) for emphasis.
+- The `PhoneCall` icon in the icon row below the name already provides the signal; the red cell background makes it immediately visible.
+
+---
+
+## 3. Website Column (New)
+
+**Current state:** Website domain is shown as a small link beneath the deal name.
+
+**Change:**
+- Add a new `website` key to `ColumnWidths` and `DEFAULT_COLUMN_WIDTHS` (default width: `120px`).
+- Add a new `ResizableHeader` column header labeled "Website" in `ReMarketingDeals.tsx`, positioned immediately after the Deal Name column.
+- In `DealTableRow.tsx`, add a new `TableCell` that renders the domain as a clickable `<a>` link (with `Globe` icon), stopping click propagation so it doesn't navigate to the deal detail page.
+- Remove the website domain line from inside the Deal Name cell.
+
+---
+
+## 4. Buyer Universe Column (New)
+
+**Current state:** No column exists for buyer universe membership. The `universe_build_flagged` flag is shown as a `Network` icon in the name cell only.
+
+**Change:**
+- Add a new `buyerUniverse` key to `ColumnWidths` and `DEFAULT_COLUMN_WIDTHS` (default width: `140px`).
+- Position the column **immediately after the Industry column** in both the header and row.
+- In `ReMarketingDeals.tsx`, fetch `remarketing_universe_deals` with universe names joined, keyed by `listing_id` — stored in a `universesByListing` lookup map. This can be added as a separate `useQuery` alongside the existing `scoreStats` query.
+- Column display logic:
+  - **In a universe:** Show the universe name(s) as green pill badges (e.g., `bg-green-50 text-green-700 border-green-200`). If multiple universes, show the first and a `+N` count.
+  - **Flagged but not yet in a universe (`universe_build_flagged = true`, no universe records):** Show a styled pill: `bg-blue-50 text-blue-700 border-blue-200` with `Network` icon + "Needs Creation" text.
+  - **Neither:** Show `—`.
+
+---
+
+## 5. Source Badge Column Stub (Deferred)
+
+The user said "that should be its own column we can address that later." We will simply **remove** the `DealSourceBadge` from the Deal Name cell for now. No new column is added in this pass.
+
+---
+
+## Technical Details
+
+### Files to Modify
+
+**`src/pages/admin/remarketing/types.ts`**
+- Add `website` and `buyerUniverse` keys to `ColumnWidths` interface
+- Add defaults to `DEFAULT_COLUMN_WIDTHS`
+
+**`src/pages/admin/remarketing/ReMarketingDeals.tsx`**
+- Add `useQuery` for `remarketing_universe_deals` joined with universe names — returns a `Record<string, { id: string; name: string }[]>` map keyed by `listing_id`
+- Pass `universesByListing` down to `DealTableRow` as a prop
+- Add `ResizableHeader` for "Website" after Deal Name column header
+- Add `ResizableHeader` for "Universe" after Industry column header
+- Handle column resize for both new columns
+- Update loading skeleton row to include two extra cells
+
+**`src/pages/admin/remarketing/components/DealTableRow.tsx`**
+- Accept `universesByListing` prop (type: `Record<string, { id: string; name: string }[]>`)
+- **Deal Name cell:**
+  - Remove `DealSourceBadge` from the name line
+  - Remove website domain sub-line
+  - Move all three flag icons to a second `div` below the name (icon row)
+  - Apply `bg-red-100 border-l-2 border-red-500` to the `TableCell` (not `TableRow`) when `needs_owner_contact` is true
+- **TableRow:** Remove red background class for `needs_owner_contact` (keep amber for priority)
+- **New Website `TableCell`:** Renders the domain link with `Globe` icon, `onClick` stops propagation
+- **New Buyer Universe `TableCell`:** Renders universe pill(s), "Needs Creation" pill, or `—`
+
+### Column Order After Changes
+
+```text
+[ ✓ ] [ # ] [ Deal Name + flags ] [ Website ] [ Referral ] [ Industry ] [ Universe ] [ Description ] [ Location ] ...
 ```
-<Route path="valuation-leads" element={<ValuationLeads />} />
+
+### Buyer Universe Data Fetch
+
+```typescript
+const { data: universeDealMap } = useQuery({
+  queryKey: ['remarketing', 'universe-deal-map'],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('remarketing_universe_deals')
+      .select('listing_id, universe_id, remarketing_buyer_universes(id, name)')
+      .eq('remarketing_buyer_universes.archived', false);
+    if (error) throw error;
+    // Build map: listing_id -> array of universe objects
+    const map: Record<string, { id: string; name: string }[]> = {};
+    data?.forEach(row => {
+      const u = row.remarketing_buyer_universes as any;
+      if (!u || !u.name) return;
+      if (!map[row.listing_id]) map[row.listing_id] = [];
+      map[row.listing_id].push({ id: u.id, name: u.name });
+    });
+    return map;
+  }
+});
 ```
-There is no `valuation-leads/:leadId` child route.
 
----
+### No Schema Changes Required
 
-## 2. Missing: "Enrich All" Global Button
-
-**Severity: HIGH**
-
-- GP Partners header has: **Enrich (dropdown: Enrich Unenriched / Re-enrich All)** — uses `process-enrichment-queue`
-- CapTarget header has the same pattern
-- **Valuation Leads: No global "Enrich All" button in the header.** The only enrichment actions are selection-based (bulk toolbar) for pushed leads only.
-
-What's needed:
-- "Enrich All Pushed" — finds all leads with `pushed_listing_id` and queues them via `enrichment_queue`
-- "Enrich Unenriched Pushed" — same but filtered to those never enriched
-- Should integrate with the Global Activity Queue (`useGlobalGateCheck`) like GP Partners does, for progress tracking
-
-The `Score` dropdown IS present (Score Unscored / Recalculate All), but it only scores leads in `valuation_leads`, not the downstream listings.
-
----
-
-## 3. Missing: Advanced Filter Bar
-
-**Severity: MEDIUM**
-
-- GP Partners uses `useFilterEngine` + `FilterBar` + `GP_PARTNER_FIELDS` — supports dynamic multi-field filtering (industry, owner, revenue range, enriched status, etc.)
-- CapTarget uses `useFilterEngine` + `FilterBar` + `CAPTARGET_FIELDS`
-- **Valuation Leads: No filter bar at all.** Only a timeframe selector and tab-based calculator type filter exist.
-
-What's missing:
-- Filter by industry, exit timing, quality tier, lead score range, pushed/unpushed status, open to intros
-- Search box (currently no search input)
-- A `VALUATION_LEAD_FIELDS` filter definition needs to be created and integrated with `useFilterEngine`
-
----
-
-## 4. Missing: Export CSV Button
-
-**Severity: MEDIUM**
-
-- GP Partners bulk toolbar has: Export CSV
-- **Valuation Leads: No CSV export at all**, neither in the header nor in the selection toolbar
-
-Fields to export: business name, contact name, email, phone, website, industry, revenue, EBITDA, valuation range, lead score, exit timing, open to intros, status, pushed date.
-
----
-
-## 5. Dual "Push & Enrich" Logic Inconsistency
-
-**Severity: MEDIUM — Data Quality Risk**
-
-There are **two separate `handlePushAndEnrich` implementations** in `ValuationLeads.tsx`:
-
-1. **Lines 616–679**: The cleaner version — uses `buildListingFromLead()` (which maps all 20+ fields), queues via `enrichment_queue` upsert directly
-2. **Lines (previously removed in last diff)**: An older version that used a simplified insert (only 9 fields), losing contact info, seller motivation, internal notes, etc.
-
-The current surviving version at lines 616–679 has a bug: it **does NOT use `buildListingFromLead()`** — it uses an inline simplified object (line 629–641) with only: `title`, `internal_company_name`, `website`, `location`, `revenue`, `ebitda`, `deal_source`, `status`, `is_internal_deal`. This means ~15 fields from `buildListingFromLead()` (contact name, phone, email, seller motivation, internal notes, address breakdown, etc.) are **lost** on Push & Enrich.
-
-Meanwhile, `handlePushToAllDeals` (lines 536–588) correctly uses `buildListingFromLead()`.
-
----
-
-## 6. Missing: Row Number Column
-
-**Severity: LOW**
-
-- GP Partners table has a `#` column showing row index (e.g., 1, 2, 3...)
-- CapTarget table has the same
-- **Valuation Leads: No row number.** Makes it harder to reference specific records in conversation
-
----
-
-## 7. Missing: Deal Owner Assignment
-
-**Severity: LOW-MEDIUM**
-
-- GP Partners has an inline `Select` dropdown in each row for assigning a deal owner (via `profiles` table)
-- CapTarget has the same
-- **Valuation Leads: No deal owner assignment.** The `buildListingFromLead()` function also doesn't set `deal_owner_id`.
-
-This matters when pushed leads become internal deals — no one is assigned to follow up.
-
----
-
-## 8. Missing: Priority Flag
-
-**Severity: LOW**
-
-- GP Partners: bulk action bar has "Mark as Priority" / "Remove Priority" — sets `is_priority_target` on the listing, rows highlight amber
-- CapTarget: same
-- **Valuation Leads: No priority marking.** High-score leads (e.g., score ≥ 80) cannot be flagged for priority follow-up.
-
----
-
-## 9. Missing: Enrichment Status Column
-
-**Severity: MEDIUM**
-
-- GP Partners Status column shows two badges: **Pushed** (green) + **Enriched** (blue) when `enriched_at` is populated
-- **Valuation Leads Status column: Only shows "Pushed" or the raw `status` value.** No "Enriched" badge, no way to see if a pushed lead's listing has been enriched.
-
-The data is available: after push, you have `pushed_listing_id` — you could join back or track `enriched_at` in a secondary query.
-
----
-
-## 10. Quality Score Uses Wrong Field for Sort
-
-**Severity: LOW**
-
-The `Quality` column shows `qualityBadge(lead.quality_label)` but the sort for `"quality"` column sorts by `readiness_score`, not `quality_label` order. This creates confusing sort behavior where clicking "Quality" sorts by readiness score (a different metric) rather than the quality tier displayed.
-
----
-
-## 11. Missing: "View in All Deals" Link for Pushed Leads
-
-**Severity: MEDIUM**
-
-- When a lead is pushed, `pushed_listing_id` is set.
-- **There is no direct link to view that listing** in All Deals / deal detail from the Valuation Leads table.
-- Per-row dropdown only shows: Push to All Deals, Push & Enrich, Re-Enrich, Exclude. No "View Deal" option for pushed leads.
-
----
-
-## 12. Missing: useTimeframe Hook (Non-standard Timeframe Implementation)
-
-**Severity: LOW**
-
-- GP Partners and CapTarget use `useTimeframe("all_time")` (the shared hook with standardized "all_time" / "7d" / "30d" etc. values)
-- **Valuation Leads implements its own custom timeframe logic** with manual `getFromDate()` and a custom toggle UI, using different value strings ("all" vs "all_time")
-
-This means the Valuation Leads page doesn't integrate with any global time context and diverges from the standardized pattern across the platform.
-
----
-
-## Summary Table
-
-| # | Gap | Severity | Equivalent in GP Partners / CapTarget |
-|---|-----|----------|----------------------------------------|
-| 1 | No click-through to deal detail | HIGH | ✅ Both have it |
-| 2 | No "Enrich All" button | HIGH | ✅ Both have it |
-| 3 | No advanced filter bar | MEDIUM | ✅ Both have it |
-| 4 | No CSV export | MEDIUM | ✅ GP Partners has it |
-| 5 | Push & Enrich uses incomplete insert | MEDIUM | N/A |
-| 6 | No row number column | LOW | ✅ Both have it |
-| 7 | No deal owner assignment | LOW-MEDIUM | ✅ GP Partners has it |
-| 8 | No priority flag | LOW | ✅ GP Partners has it |
-| 9 | No enrichment status badge | MEDIUM | ✅ GP Partners has it |
-| 10 | Quality sort uses wrong field | LOW | N/A |
-| 11 | No "View Deal" link for pushed leads | MEDIUM | ✅ Both have it |
-| 12 | Non-standard timeframe hook | LOW | ✅ Both use `useTimeframe` |
-
----
-
-## Implementation Plan (Priority Order)
-
-### Phase 1 — Critical (blocking operator workflow)
-
-**1A. Row click navigation + route**
-- Add `useNavigate` to `ValuationLeads.tsx`
-- Add `onClick` to `TableRow` with `cursor-pointer`: if `pushed_listing_id` exists → navigate to `/admin/remarketing/deals/:pushed_listing_id`, else → open a slide-over drawer showing the full lead detail
-- Add "View Deal" to the per-row dropdown for pushed leads
-- Add `<Route path="valuation-leads/:leadId" ...>` in `App.tsx` (or use a drawer approach to avoid needing a separate page)
-
-**1B. "Enrich All" global header button**
-- Add an `Enrich` dropdown (matching GP Partners) to the header action bar
-- Options: "Enrich Unenriched Pushed" and "Re-enrich All Pushed"
-- Use `useGlobalGateCheck` + `process-enrichment-queue` pattern from `GPPartnerDeals.tsx`
-- Integrate with Global Activity Queue for progress tracking
-
-### Phase 2 — High Impact
-
-**2A. Fix Push & Enrich to use `buildListingFromLead()`**
-- The inline insert in `handlePushAndEnrich` (lines 629–641) should be replaced with `buildListingFromLead(lead)` to preserve all 20+ fields
-
-**2B. Add "Enriched" badge to Status column**
-- Requires either joining `listings.enriched_at` in a second query, or storing `enriched_at` on the lead after push
-
-**2C. Add "View Deal" to per-row dropdown**
-- Only shown when `pushed_listing_id` is not null
-- Navigates to `/admin/remarketing/deals/:pushed_listing_id`
-
-**2D. CSV Export**
-- Add Export CSV to the selection bulk toolbar (matching GP Partners)
-- Can reuse `exportDealsToCSV` for pushed leads, or generate a custom CSV for unpushed leads
-
-### Phase 3 — Polish
-
-**3A. Filter bar**
-- Create `VALUATION_LEAD_FIELDS` definitions
-- Integrate `useFilterEngine` replacing the manual sort/filter logic
-- Add search input
-
-**3B. Deal owner assignment column**
-- Use `useAdminProfiles` + inline `Select` component (same as GP Partners)
-
-**3C. Priority flag support**
-- Bulk action: "Mark as Priority" toggle
-- Row highlight for high-score leads
-
-**3D. Row number column**
-- Simple index display
-
-**3E. Fix quality sort**
-- Sort by `quality_tier` ordering (Very Strong → Solid → Average → Needs Work) instead of `readiness_score`
-
-**3F. Migrate to `useTimeframe` hook**
-- Replace custom `getFromDate` + timeframe toggle with the standard `useTimeframe` hook
+All data is already in the database. No new migrations needed.
