@@ -204,7 +204,7 @@ function App() {
               <Route path="gp-partner-deals" element={<GPPartnerDeals />} />
               <Route path="gp-partner-deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route path="valuation-leads" element={<ValuationLeads />} />
-              <Route path="valuation-leads/:dealId" element={<ReMarketingDealDetail />} />
+              
               <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
               <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
               <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
