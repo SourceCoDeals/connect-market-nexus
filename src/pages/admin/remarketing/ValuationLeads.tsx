@@ -813,29 +813,52 @@ export default function ValuationLeads() {
         return;
       }
 
-      // Auto-create a listing so the detail page works (not pushed to All Deals)
-      const { data: listing, error: insertError } = await supabase
+      const dealIdentifier = `vlead_${lead.id.slice(0, 8)}`;
+
+      // Check if a listing was already created for this lead (e.g. from a previous click)
+      // to avoid hitting the unique constraint on deal_identifier
+      const { data: existing } = await supabase
         .from("listings")
-        .insert(buildListingFromLead(lead, false))
         .select("id")
-        .single();
+        .eq("deal_identifier", dealIdentifier)
+        .maybeSingle();
 
-      if (insertError || !listing) {
-        console.error("Failed to create listing for lead:", lead.id, insertError);
-        sonnerToast.error("Failed to open deal page");
-        return;
+      let listingId: string;
+
+      if (existing?.id) {
+        // Reuse the existing listing and heal the missing pushed_listing_id link
+        listingId = existing.id;
+        await supabase
+          .from("valuation_leads")
+          .update({ pushed_listing_id: listingId } as never)
+          .eq("id", lead.id);
+      } else {
+        // Auto-create a listing so the detail page works (not pushed to All Deals)
+        const { data: listing, error: insertError } = await supabase
+          .from("listings")
+          .insert(buildListingFromLead(lead, false))
+          .select("id")
+          .single();
+
+        if (insertError || !listing) {
+          console.error("Failed to create listing for lead:", lead.id, insertError);
+          sonnerToast.error("Failed to open deal page");
+          return;
+        }
+
+        listingId = listing.id;
+
+        // Save the listing reference on the valuation lead
+        await supabase
+          .from("valuation_leads")
+          .update({ pushed_listing_id: listingId } as never)
+          .eq("id", lead.id);
       }
-
-      // Save the listing reference on the valuation lead
-      await supabase
-        .from("valuation_leads")
-        .update({ pushed_listing_id: listing.id } as never)
-        .eq("id", lead.id);
 
       // Refresh so the table shows the updated listing_id
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
 
-      navigate('/admin/remarketing/deals/' + listing.id, {
+      navigate('/admin/remarketing/deals/' + listingId, {
         state: { from: "/admin/remarketing/valuation-leads" },
       });
     },
