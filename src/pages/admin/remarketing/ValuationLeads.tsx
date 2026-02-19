@@ -395,6 +395,7 @@ function buildListingFromLead(lead: ValuationLead) {
     seller_motivation: motivationParts.join(". ") || null,
     owner_goals: lead.exit_timing ? `Exit timing: ${lead.exit_timing}${lead.open_to_intros ? ". Open to buyer introductions." : ""}` : null,
     internal_notes: noteLines.join("\n"),
+    deal_owner_id: lead.deal_owner_id || null,
   } as never;
 }
 
@@ -1000,19 +1001,26 @@ export default function ValuationLeads() {
     [filteredLeads, queryClient]
   );
 
-  // Assign deal owner to pushed listing
+  // Assign deal owner to valuation lead (and synced listing if pushed)
   const handleAssignOwner = useCallback(async (lead: ValuationLead, ownerId: string | null) => {
-    if (!lead.pushed_listing_id) return;
+    // Always update the valuation_leads row
     const { error } = await supabase
-      .from("listings")
+      .from("valuation_leads")
       .update({ deal_owner_id: ownerId })
-      .eq("id", lead.pushed_listing_id);
+      .eq("id", lead.id);
     if (error) {
       sonnerToast.error("Failed to update owner");
-    } else {
-      sonnerToast.success(ownerId ? "Owner assigned" : "Owner removed");
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+      return;
     }
+    // Also update the pushed listing if one exists
+    if (lead.pushed_listing_id) {
+      await supabase
+        .from("listings")
+        .update({ deal_owner_id: ownerId })
+        .eq("id", lead.pushed_listing_id);
+    }
+    sonnerToast.success(ownerId ? "Owner assigned" : "Owner removed");
+    queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
   }, [queryClient]);
 
   // KPI Stats (based on timeframe-filtered tab data)
@@ -1485,9 +1493,9 @@ export default function ValuationLeads() {
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      {/* Deal Owner — only editable for pushed leads */}
+                      {/* Deal Owner */}
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        {lead.pushed_listing_id && adminProfiles ? (
+                        {adminProfiles ? (
                           <Select
                             value={lead.deal_owner_id || "unassigned"}
                             onValueChange={(val) => handleAssignOwner(lead, val === "unassigned" ? null : val)}
