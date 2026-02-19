@@ -60,7 +60,20 @@ interface DealRow {
   last_enriched_at: string | null;
   created_at: string;
   priority_rank: number | null;
+  source: string | null;
 }
+
+const SOURCE_LABELS: Record<string, string> = {
+  gp_partners: "GP Partners",
+  captarget: "CapTarget",
+  valuation_calculator: "Valuation Calculator",
+};
+
+const getSourceLabel = (source: string | null): string => {
+  if (!source) return "Referral";
+  const key = source.toLowerCase().replace(/\s+/g, "_");
+  return SOURCE_LABELS[key] || "Referral";
+};
 
 export default function MAAllDeals() {
   const [deals, setDeals] = useState<DealRow[]>([]);
@@ -104,6 +117,7 @@ export default function MAAllDeals() {
       last_enriched_at: d.last_enriched_at ?? null,
       created_at: d.created_at,
       priority_rank: d.priority_rank ?? null,
+      source: d.source ?? null,
     }));
     // Sort by priority_rank (nulls last) as default ordering
     mappedDeals.sort((a, b) => {
@@ -335,7 +349,7 @@ export default function MAAllDeals() {
   };
 
   // Sortable Row Component for drag and drop
-  const SortableRow = ({ deal, trackers, buyerCounts }: { deal: DealRow; trackers: Record<string, TrackerInfo>; buyerCounts: Record<string, BuyerCounts> }) => {
+  const SortableRow = ({ deal, index, trackers, buyerCounts }: { deal: DealRow; index: number; trackers: Record<string, TrackerInfo>; buyerCounts: Record<string, BuyerCounts> }) => {
     const {
       attributes,
       listeners,
@@ -368,7 +382,7 @@ export default function MAAllDeals() {
               <GripVertical className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
             </button>
             <span className="text-sm font-medium text-muted-foreground">
-              {deal.priority_rank || "—"}
+              {index}
             </span>
           </div>
         </TableCell>
@@ -399,6 +413,13 @@ export default function MAAllDeals() {
           >
             {tracker?.industry_name || "Unknown"}
           </Link>
+        </TableCell>
+
+        {/* Source */}
+        <TableCell>
+          <Badge variant="outline" className="text-xs whitespace-nowrap">
+            {getSourceLabel(deal.source)}
+          </Badge>
         </TableCell>
 
         {/* Description */}
@@ -574,6 +595,7 @@ export default function MAAllDeals() {
                     <TableHead className="w-[60px]">#</TableHead>
                     <SortableHeader column="deal_name">Deal Name</SortableHeader>
                     <SortableHeader column="tracker">Buyer Universe</SortableHeader>
+                    <TableHead>Source</TableHead>
                     <TableHead>Description</TableHead>
                     <SortableHeader column="geography">Geography</SortableHeader>
                     <SortableHeader column="revenue" className="text-right">Revenue</SortableHeader>
@@ -590,10 +612,11 @@ export default function MAAllDeals() {
                     items={sortedDeals.map((d) => d.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {sortedDeals.map((deal) => (
+                    {sortedDeals.map((deal, i) => (
                       <SortableRow
                         key={deal.id}
                         deal={deal}
+                        index={i + 1}
                         trackers={trackers}
                         buyerCounts={buyerCounts}
                       />

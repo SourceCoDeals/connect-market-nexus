@@ -180,7 +180,7 @@ const ReMarketingUniverseDetail = () => {
       console.log('[BuyerQuery] Fetching buyers for universe:', id);
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
+        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement, marketplace_firm_id, fee_agreement_source')
         .eq('universe_id', id)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
@@ -598,18 +598,96 @@ const ReMarketingUniverseDetail = () => {
 
   const handleToggleFeeAgreement = async (buyerId: string, currentStatus: boolean) => {
     const newStatus = !currentStatus;
-    const { error } = await supabase
-      .from('remarketing_buyers')
-      .update({ has_fee_agreement: newStatus })
-      .eq('id', buyerId);
 
-    if (error) {
-      toast.error('Failed to update fee agreement');
+    // Fetch the buyer to get website/firm info for marketplace bridging
+    const { data: buyer } = await supabase
+      .from('remarketing_buyers')
+      .select('id, company_name, company_website, pe_firm_name, pe_firm_website, marketplace_firm_id, fee_agreement_source, buyer_type')
+      .eq('id', buyerId)
+      .single();
+
+    if (!buyer) {
+      toast.error('Buyer not found');
       return;
     }
 
-    toast.success(newStatus ? 'Fee agreement marked' : 'Fee agreement removed');
+    if (newStatus) {
+      // TURNING ON: Write to both remarketing_buyers AND firm_agreements
+      let firmId = buyer.marketplace_firm_id;
+
+      if (!firmId) {
+        // Try to find or create the firm in marketplace via get_or_create_firm()
+        const firmName = buyer.pe_firm_name || buyer.company_name;
+        const firmWebsite = buyer.pe_firm_website || buyer.company_website;
+
+        if (firmName) {
+          const { data: createdFirmId } = await supabase.rpc('get_or_create_firm', {
+            p_company_name: firmName,
+            p_website: firmWebsite,
+            p_email: null,
+          });
+
+          if (createdFirmId) {
+            firmId = createdFirmId;
+            // Link the buyer to the marketplace firm
+            await supabase
+              .from('remarketing_buyers')
+              .update({ marketplace_firm_id: firmId } as any)
+              .eq('id', buyerId);
+          }
+        }
+      }
+
+      if (firmId) {
+        // Sign the fee agreement on the marketplace side (uses existing cascading function)
+        await supabase.rpc('update_fee_agreement_firm_status', {
+          p_firm_id: firmId,
+          p_is_signed: true,
+          p_signed_by_user_id: null,
+          p_signed_at: new Date().toISOString(),
+        });
+      }
+
+      // Update remarketing buyer directly (the trigger may also fire, but this ensures it)
+      const { error } = await supabase
+        .from('remarketing_buyers')
+        .update({
+          has_fee_agreement: true,
+          fee_agreement_source: firmId ? 'marketplace_synced' : 'manual_override',
+        } as any)
+        .eq('id', buyerId);
+
+      if (error) {
+        toast.error('Failed to update fee agreement');
+        return;
+      }
+
+      toast.success('Fee agreement marked — synced to marketplace');
+    } else {
+      // TURNING OFF: Only allow removal of manual overrides
+      if (buyer.fee_agreement_source === 'marketplace_synced' || buyer.fee_agreement_source === 'pe_firm_inherited') {
+        toast.error('This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('remarketing_buyers')
+        .update({
+          has_fee_agreement: false,
+          fee_agreement_source: null,
+        } as any)
+        .eq('id', buyerId);
+
+      if (error) {
+        toast.error('Failed to remove fee agreement');
+        return;
+      }
+
+      toast.success('Fee agreement removed');
+    }
+
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+    queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
   };
 
    // Handler for bulk removal of selected buyers from universe

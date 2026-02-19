@@ -85,40 +85,54 @@ export function useFirmAgreements() {
 
       if (error) throw error;
 
-      // Fetch stats for each firm
-      const firmsWithStats = await Promise.all(
-        (data || []).map(async (firm) => {
-          const [leadsResult, requestsResult, dealsResult] = await Promise.all([
-            supabase
-              .from('inbound_leads')
-              .select('id', { count: 'exact', head: true })
-              .eq('firm_id', firm.id),
-            supabase
-              .from('connection_requests')
-              .select('id', { count: 'exact', head: true })
-              .eq('firm_id', firm.id),
-            supabase
-              .from('deals')
-              .select('id', { count: 'exact', head: true })
-              .in('connection_request_id', 
-                await supabase
-                  .from('connection_requests')
-                  .select('id')
-                  .eq('firm_id', firm.id)
-                  .then(({ data }) => data?.map(r => r.id) || [])
-              ),
-          ]);
+      const firms = data || [];
+      if (firms.length === 0) return [] as FirmAgreement[];
 
-          return {
-            ...firm,
-            lead_count: leadsResult.count || 0,
-            request_count: requestsResult.count || 0,
-            deal_count: dealsResult.count || 0,
-          } as FirmAgreement;
-        })
-      );
+      const firmIds = firms.map(f => f.id);
 
-      return firmsWithStats;
+      // Batch-fetch stats: 2-3 queries total instead of 4*N
+      const [leadsRes, requestsRes] = await Promise.all([
+        supabase.from('inbound_leads').select('firm_id').in('firm_id', firmIds),
+        supabase.from('connection_requests').select('id, firm_id').in('firm_id', firmIds),
+      ]);
+
+      // Count leads per firm
+      const leadCounts: Record<string, number> = {};
+      (leadsRes.data || []).forEach((l: any) => {
+        leadCounts[l.firm_id] = (leadCounts[l.firm_id] || 0) + 1;
+      });
+
+      // Count requests per firm & collect request IDs for deal lookup
+      const requestCounts: Record<string, number> = {};
+      const requestToFirm: Record<string, string> = {};
+      (requestsRes.data || []).forEach((r: any) => {
+        requestCounts[r.firm_id] = (requestCounts[r.firm_id] || 0) + 1;
+        requestToFirm[r.id] = r.firm_id;
+      });
+
+      // Count deals per firm via connection_request_id
+      const dealCounts: Record<string, number> = {};
+      const allRequestIds = Object.keys(requestToFirm);
+      if (allRequestIds.length > 0) {
+        const { data: dealsData } = await supabase
+          .from('deals')
+          .select('connection_request_id')
+          .in('connection_request_id', allRequestIds);
+
+        (dealsData || []).forEach((d: any) => {
+          const firmId = requestToFirm[d.connection_request_id];
+          if (firmId) {
+            dealCounts[firmId] = (dealCounts[firmId] || 0) + 1;
+          }
+        });
+      }
+
+      return firms.map(firm => ({
+        ...firm,
+        lead_count: leadCounts[firm.id] || 0,
+        request_count: requestCounts[firm.id] || 0,
+        deal_count: dealCounts[firm.id] || 0,
+      })) as FirmAgreement[];
     },
   });
 }

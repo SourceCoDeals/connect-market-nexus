@@ -41,11 +41,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
-  Users, 
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  Users,
   Building,
   Pencil,
   Trash2,
@@ -55,6 +55,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Check,
+  Minus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
@@ -511,6 +513,7 @@ const ReMarketingBuyers = () => {
                   <span className="flex items-center">Universe <SortIcon column="universe" /></span>
                 </TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead className="w-[90px]">Fee Agmt</TableHead>
                 <TableHead className="w-[130px]">Intel</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -523,13 +526,14 @@ const ReMarketingBuyers = () => {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredBuyers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-3 opacity-50" />
                     <p className="font-medium">No buyers found</p>
                     <p className="text-sm">Add buyers manually or import from CSV</p>
@@ -637,9 +641,34 @@ const ReMarketingBuyers = () => {
                         )}
                       </TableCell>
 
+                      {/* Fee Agreement Column */}
+                      <TableCell>
+                        {buyer.has_fee_agreement ? (
+                          <Badge
+                            variant="default"
+                            className={`text-xs px-1.5 py-0 flex items-center gap-1 w-fit ${
+                              buyer.fee_agreement_source === 'pe_firm_inherited'
+                                ? 'bg-blue-600 hover:bg-blue-700'
+                                : buyer.fee_agreement_source === 'manual_override'
+                                ? 'bg-amber-600 hover:bg-amber-700'
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                          >
+                            <Check className="h-3 w-3" />
+                            {buyer.fee_agreement_source === 'pe_firm_inherited'
+                              ? `via ${buyer.pe_firm_name || 'PE'}`
+                              : buyer.fee_agreement_source === 'manual_override'
+                              ? 'Manual'
+                              : 'Signed'}
+                          </Badge>
+                        ) : (
+                          <Minus className="h-4 w-4 text-muted-foreground/40" />
+                        )}
+                      </TableCell>
+
                       {/* Intel Column */}
                       <TableCell>
-                        <IntelligenceBadge 
+                        <IntelligenceBadge
                           completeness={buyer.data_completeness as DataCompleteness | null}
                           hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
                           size="sm"

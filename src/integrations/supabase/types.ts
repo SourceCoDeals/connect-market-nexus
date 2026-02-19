@@ -6585,6 +6585,8 @@ export type Database = {
           investment_date: string | null
           key_quotes: string[] | null
           last_contact_discovery_at: string | null
+          marketplace_firm_id: string | null
+          fee_agreement_source: string | null
           notes: string | null
           notes_analyzed_at: string | null
           num_employees: number | null
@@ -6664,6 +6666,8 @@ export type Database = {
           investment_date?: string | null
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
+          marketplace_firm_id?: string | null
+          fee_agreement_source?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           num_employees?: number | null
@@ -6743,6 +6747,8 @@ export type Database = {
           investment_date?: string | null
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
+          marketplace_firm_id?: string | null
+          fee_agreement_source?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           num_employees?: number | null
@@ -6781,6 +6787,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "remarketing_buyers_marketplace_firm_id_fkey"
+            columns: ["marketplace_firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "remarketing_buyers_industry_tracker_id_fkey"
             columns: ["industry_tracker_id"]
