@@ -63,6 +63,7 @@ import {
   MoreHorizontal,
   ExternalLink,
   Zap,
+  Archive,
   Download,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -1310,6 +1311,25 @@ export default function GPPartnerDeals() {
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Approve to All Deals
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-amber-600 focus:text-amber-600"
+                              onClick={async () => {
+                                const { error } = await supabase
+                                  .from('listings')
+                                  .update({ status: 'archived' } as never)
+                                  .eq('id', deal.id);
+                                if (error) {
+                                  toast({ title: "Error", description: error.message, variant: "destructive" });
+                                } else {
+                                  toast({ title: "Deal archived", description: "Deal has been archived" });
+                                  refetch();
+                                }
+                              }}
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive Deal
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

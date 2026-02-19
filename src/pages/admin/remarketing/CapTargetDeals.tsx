@@ -829,6 +829,18 @@ export default function CapTargetDeals() {
                       onPushToAllDeals={handlePushToAllDeals}
                       onEnrichSelected={handleEnrichSelected}
                       onDeleteDeal={(id) => { setSelectedIds(new Set([id])); setShowDeleteDialog(true); }}
+                      onArchiveDeal={async (id) => {
+                        const { error } = await supabase
+                          .from('listings')
+                          .update({ status: 'archived' } as never)
+                          .eq('id', id);
+                        if (error) {
+                          toast({ title: "Error", description: error.message, variant: "destructive" });
+                        } else {
+                          toast({ title: "Deal archived", description: "Deal has been archived" });
+                          refetch();
+                        }
+                      }}
                       onRefetch={refetch}
                     />
                   ))

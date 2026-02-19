@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Zap,
   Star,
+  Archive,
   Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -87,6 +88,7 @@ interface CapTargetTableRowProps {
   onPushToAllDeals: (dealIds: string[]) => void;
   onEnrichSelected: (dealIds: string[], mode: "all" | "unenriched") => void;
   onDeleteDeal: (id: string) => void;
+  onArchiveDeal: (id: string) => void;
   onRefetch: () => void;
 }
 
@@ -99,6 +101,7 @@ export function CapTargetTableRow({
   onPushToAllDeals,
   onEnrichSelected,
   onDeleteDeal,
+  onArchiveDeal,
   onRefetch,
 }: CapTargetTableRowProps) {
   const navigate = useNavigate();
@@ -317,6 +320,13 @@ export function CapTargetTableRow({
               Approve to All Deals
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-amber-600 focus:text-amber-600"
+              onClick={() => onArchiveDeal(deal.id)}
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Archive Deal
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive"
               onClick={() => onDeleteDeal(deal.id)}
