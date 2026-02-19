@@ -4,9 +4,10 @@
 -- This migration:
 --   1. Adds marketplace_firm_id FK to remarketing_buyers (the bridge)
 --   2. Adds fee_agreement_source to track where the status came from
---   3. Auto-links existing remarketing buyers to marketplace firms by domain
---   4. Populates has_fee_agreement from linked firm_agreements
---   5. Creates a trigger to propagate marketplace changes to remarketing
+--   3. Creates extract_domain() helper if it doesn't exist
+--   4. Auto-links existing remarketing buyers to marketplace firms by domain
+--   5. Populates has_fee_agreement from linked firm_agreements
+--   6. Creates a trigger to propagate marketplace changes to remarketing
 --
 -- SAFETY: All changes are additive (new columns, new trigger). No existing
 -- columns are dropped or renamed. Fully reversible by dropping new columns.
@@ -27,8 +28,41 @@ CREATE INDEX IF NOT EXISTS idx_remarketing_buyers_marketplace_firm_id
   WHERE marketplace_firm_id IS NOT NULL;
 
 
--- 2. Auto-link remarketing buyers to marketplace firms by domain matching
--- Uses the existing extract_domain() function to normalize URLs before comparison
+-- 2. Create extract_domain() if it doesn't already exist
+-- This normalizes URLs like "https://www.example.com/path" → "example.com"
+CREATE OR REPLACE FUNCTION public.extract_domain(url TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  domain TEXT;
+BEGIN
+  IF url IS NULL OR url = '' THEN
+    RETURN NULL;
+  END IF;
+
+  -- Remove protocol
+  domain := regexp_replace(url, '^https?://', '', 'i');
+  -- Remove www.
+  domain := regexp_replace(domain, '^www\.', '', 'i');
+  -- Remove path, query string, fragment
+  domain := regexp_replace(domain, '[/?#].*$', '');
+  -- Remove trailing dot
+  domain := regexp_replace(domain, '\.$', '');
+  -- Lowercase
+  domain := lower(trim(domain));
+
+  IF domain = '' THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN domain;
+END;
+$$;
+
+
+-- 3. Auto-link remarketing buyers to marketplace firms by domain matching
 -- Priority: pe_firm_website first (for platforms backed by PE), then company_website
 
 -- Match by pe_firm_website → firm_agreements.website_domain
@@ -59,7 +93,7 @@ WHERE rb.marketplace_firm_id IS NULL
   AND rb.email_domain = fa.email_domain;
 
 
--- 3. Populate has_fee_agreement from linked marketplace firms
+-- 4. Populate has_fee_agreement from linked marketplace firms
 -- Only SET to true if the linked firm has fee_agreement_signed = true
 -- Never overwrite an existing manual true with false (preserve manual overrides)
 UPDATE public.remarketing_buyers rb
@@ -87,7 +121,7 @@ WHERE platform_buyer.pe_firm_website IS NOT NULL
   AND platform_buyer.id != pe_buyer.id;
 
 
--- 4. Create trigger function: when firm_agreements.fee_agreement_signed changes,
+-- 5. Create trigger function: when firm_agreements.fee_agreement_signed changes,
 -- propagate to all linked remarketing_buyers
 CREATE OR REPLACE FUNCTION public.sync_fee_agreement_to_remarketing()
 RETURNS TRIGGER
@@ -142,7 +176,7 @@ BEGIN
 END;
 $$;
 
--- Create the trigger on firm_agreements
+-- 6. Create the trigger on firm_agreements
 DROP TRIGGER IF EXISTS trg_sync_fee_agreement_to_remarketing ON public.firm_agreements;
 CREATE TRIGGER trg_sync_fee_agreement_to_remarketing
   AFTER UPDATE ON public.firm_agreements
