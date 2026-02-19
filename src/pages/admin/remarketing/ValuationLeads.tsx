@@ -1675,14 +1675,9 @@ export default function ValuationLeads() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-foreground tabular-nums">
-                            {formatAge(lead.created_at)}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground tabular-nums">
-                            {format(new Date(lead.created_at), "MMM d, yyyy")}
-                          </span>
-                        </div>
+                        <span className="text-sm tabular-nums text-foreground">
+                          {format(new Date(lead.created_at), "MMM d, yyyy")}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
