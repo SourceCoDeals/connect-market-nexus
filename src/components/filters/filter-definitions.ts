@@ -757,6 +757,17 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     label: "Website",
     type: "text",
     group: "Core",
+    // Use the same logic as inferWebsite in ValuationLeads: raw website first, then email domain fallback
+    accessor: (item: any) => {
+      const raw = item.website;
+      if (raw && raw.trim()) return raw.trim();
+      // Fallback: derive domain from email
+      if (item.email) {
+        const at = item.email.indexOf("@");
+        if (at !== -1) return item.email.slice(at + 1);
+      }
+      return null;
+    },
     icon: Globe,
   },
   {
