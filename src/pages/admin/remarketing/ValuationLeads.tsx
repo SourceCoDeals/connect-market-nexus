@@ -171,6 +171,15 @@ const WORD_DICT = new Set([
   "inc", "llc", "ltd", "corp", "co", "group", "global", "usa", "us",
   // Common business words
   "the", "and", "pro", "plus", "max", "tech", "solutions", "services",
+  // Engineering & trades
+  "engineer", "engineering", "engineers", "fluid", "mechanical", "electrical",
+  "civil", "structural", "industrial", "chemical", "aerospace", "systems",
+  "design", "designs", "designer", "designers", "build", "builds", "builder",
+  "builders", "construct", "construction", "fabrication", "fabricate",
+  "automation", "automate", "automated", "controls", "control", "precision",
+  "technical", "technologies", "technology", "innovations", "innovation",
+  "innovative", "creative", "creations", "creation", "develop", "development",
+  "developers", "developer",
   "management", "consulting", "construction", "roofing", "plumbing",
   "electric", "electrical", "mechanical", "heating", "cooling", "hvac",
   "air", "auto", "automotive", "car", "cars", "motor", "motors",
