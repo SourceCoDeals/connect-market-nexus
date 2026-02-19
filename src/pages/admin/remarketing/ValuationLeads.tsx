@@ -1140,10 +1140,9 @@ export default function ValuationLeads() {
   // Enrich All — enriches any lead that has an associated listing (pushed or auto-created via row click)
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      const allLeads = leads || [];
-
       // Include any lead with a listing ID — either formally pushed or auto-created via row click
-      const targets = allLeads.filter((l) => !!l.pushed_listing_id);
+      const allLeads = (leads || []).filter((l) => !!l.pushed_listing_id);
+      const targets = allLeads;
 
       if (!targets.length) {
         sonnerToast.info("No leads with listings to enrich — open a lead first to create its listing");
@@ -1297,18 +1296,18 @@ export default function ValuationLeads() {
     queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
   }, [queryClient]);
 
-  // KPI Stats (based on timeframe-filtered tab data)
+  // KPI Stats (based on current view: tab + timeframe + filters)
   const kpiStats = useMemo(() => {
-    const tabLeads = activeTab === "all" ? leads || [] : (leads || []).filter((l) => l.calculator_type === activeTab);
-    const timeFiltered = tabLeads.filter((l) => isInRange(l.created_at));
+    const totalLeads = filteredLeads.length;
+    const openToIntros = filteredLeads.filter((l) => l.open_to_intros === true).length;
+    const exitNow = filteredLeads.filter((l) => l.exit_timing === "now").length;
+    const pushedCount = filteredLeads.filter((l) => l.pushed_to_all_deals === true).length;
+    const avgScore = filteredLeads.length > 0
+      ? Math.round(filteredLeads.reduce((sum, l) => sum + (l.lead_score ?? 0), 0) / filteredLeads.length)
+      : 0;
 
-    const totalLeads = timeFiltered.length;
-    const openToIntros = timeFiltered.filter((l) => l.open_to_intros === true).length;
-    const exitNow = timeFiltered.filter((l) => l.exit_timing === "now").length;
-    const pushedCount = timeFiltered.filter((l) => l.pushed_to_all_deals === true).length;
-
-    return { totalLeads, openToIntros, exitNow, pushedCount };
-  }, [leads, activeTab, isInRange]);
+    return { totalLeads, openToIntros, exitNow, pushedCount, avgScore };
+  }, [filteredLeads]);
 
   const totalLeads = leads?.length || 0;
   const unscoredCount = leads?.filter((l) => l.lead_score == null).length || 0;

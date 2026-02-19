@@ -66,7 +66,8 @@ export function useEnrichmentProgress() {
     lastFetchRef.current = now;
 
     try {
-      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      // 8-hour cutoff: at 4-6 items/minute, a 1400-item batch takes ~4-6 hours
+      const cutoff = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString();
 
       // Use lightweight count queries instead of fetching all rows
       const [pendingRes, processingRes, completedRes, failedRes, pausedRes] = await Promise.all([
