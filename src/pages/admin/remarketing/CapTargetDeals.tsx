@@ -167,6 +167,8 @@ export default function CapTargetDeals() {
   const [isScoring, setIsScoring] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const syncAbortRef = useRef<AbortController | null>(null);
+  const scoringRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scoringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [syncProgress, setSyncProgress] = useState({ inserted: 0, updated: 0, skipped: 0, excluded: 0, page: 0 });
   const [syncSummaryOpen, setSyncSummaryOpen] = useState(false);
   const [syncSummary, setSyncSummary] = useState<{ inserted: number; updated: number; skipped: number; excluded: number; status: "success" | "error"; message?: string } | null>(null);
@@ -310,6 +312,14 @@ export default function CapTargetDeals() {
     return filteredDeals.slice(start, start + PAGE_SIZE);
   }, [filteredDeals, safePage]);
 
+  // Cleanup scoring refresh interval on unmount
+  useEffect(() => {
+    return () => {
+      if (scoringRefreshRef.current) clearInterval(scoringRefreshRef.current);
+      if (scoringTimeoutRef.current) clearTimeout(scoringTimeoutRef.current);
+    };
+  }, []);
+
   useEffect(() => { setCurrentPage(1); }, [filterState, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
@@ -441,10 +451,19 @@ export default function CapTargetDeals() {
       if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
     }
 
-    const refreshInterval = setInterval(() => {
+    // Clear any previous scoring refresh interval
+    if (scoringRefreshRef.current) clearInterval(scoringRefreshRef.current);
+    if (scoringTimeoutRef.current) clearTimeout(scoringTimeoutRef.current);
+
+    scoringRefreshRef.current = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     }, 10000);
-    setTimeout(() => clearInterval(refreshInterval), 20 * 60 * 1000);
+    scoringTimeoutRef.current = setTimeout(() => {
+      if (scoringRefreshRef.current) {
+        clearInterval(scoringRefreshRef.current);
+        scoringRefreshRef.current = null;
+      }
+    }, 20 * 60 * 1000);
     setIsScoring(false);
   }, [deals, user, startOrQueueMajorOp, completeOperation, queryClient]);
 

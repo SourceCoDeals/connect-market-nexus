@@ -36,13 +36,16 @@ export function useUserNotifications() {
     staleTime: 1000 * 30, // 30 seconds
   });
 
-  // Real-time subscription
+  // Real-time subscription — use cancelled flag to prevent channel leak on fast unmount
   useEffect(() => {
-    const setupSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-      const channel = supabase
+    const setup = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      channel = supabase
         .channel('user-notifications-realtime')
         .on(
           'postgres_changes',
@@ -57,15 +60,15 @@ export function useUserNotifications() {
           }
         )
         .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     };
 
-    const cleanup = setupSubscription();
+    setup();
+
     return () => {
-      cleanup.then(cleanupFn => cleanupFn?.());
+      cancelled = true;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [queryClient]);
 

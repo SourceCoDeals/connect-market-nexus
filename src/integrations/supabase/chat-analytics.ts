@@ -1,10 +1,11 @@
 /**
  * Chat Analytics & Feedback Client Utilities
  *
- * These utilities reference tables (chat_analytics, chat_feedback) and
- * functions (get_chat_analytics_summary) that may not yet exist in the
- * database schema.  We use `as any` on the supabase client to avoid
- * type errors until the corresponding migrations are applied.
+ * We use `as any` on the supabase client because the generated types
+ * for chat_analytics require fields that may differ from the runtime
+ * schema. The tables and RPC functions exist in the database (created
+ * by chatbot_v6_restructured migration). The cast bypasses the
+ * TypeScript-level type mismatch only.
  */
 
 import { supabase } from './client';
