@@ -992,7 +992,7 @@ export default function GPPartnerDeals() {
                   } else {
                     sonnerToast.success(newValue ? `${dealIds.length} deal(s) marked as priority` : `${dealIds.length} deal(s) priority removed`);
                     setSelectedIds(new Set());
-                    queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] });
+                    queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
                   }
                 }}
               >
@@ -1276,8 +1276,8 @@ export default function GPPartnerDeals() {
                               onClick={async () => {
                                 const newValue = !deal.is_priority_target;
                                 const { error } = await supabase.from("listings").update({ is_priority_target: newValue } as never).eq("id", deal.id);
-                                if (error) { sonnerToast.error("Failed to update priority"); }
-                                else { sonnerToast.success(newValue ? "Marked as priority" : "Priority removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                if (error) { sonnerToast.error("Failed to update priority"); }
+                                else { sonnerToast.success(newValue ? "Marked as priority" : "Priority removed"); queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] }); }
                               }}
                               className={deal.is_priority_target ? "text-amber-600" : ""}
                             >
