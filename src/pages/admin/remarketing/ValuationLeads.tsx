@@ -152,6 +152,88 @@ function cleanWebsiteToDomain(raw: string | null): string | null {
 
 const TLD_REGEX = /\.(com|net|org|io|co|ai|us|uk|ca|au|nz|ae|za|se|nl|br|fj|in|de|fr|es|it|jp|kr|mx|school|pro|app|dev|vc)(\.[a-z]{2})?$/i;
 
+// ─── Word segmentation for concatenated domain names ───
+// Dictionary of common English words + business suffixes for splitting "thebrassworksinc" → "the brass works inc"
+const WORD_DICT = new Set([
+  // Business suffixes
+  "inc", "llc", "ltd", "corp", "co", "group", "global", "usa", "us",
+  // Common business words
+  "the", "and", "pro", "plus", "max", "tech", "solutions", "services",
+  "management", "consulting", "construction", "roofing", "plumbing",
+  "electric", "electrical", "mechanical", "heating", "cooling", "hvac",
+  "air", "auto", "automotive", "car", "cars", "motor", "motors",
+  "mountain", "top", "iron", "horse", "brass", "works", "steel",
+  "gold", "silver", "blue", "green", "red", "black", "white",
+  "north", "south", "east", "west", "central", "pacific", "atlantic",
+  "american", "national", "premier", "elite", "prime", "first", "best",
+  "all", "star", "sun", "moon", "sky", "bay", "lake", "river", "rock",
+  "stone", "wood", "fire", "water", "rain", "tree", "oak", "pine", "elm",
+  "capital", "venture", "equity", "asset", "wealth", "financial", "finance",
+  "invest", "investment", "investments", "fund", "funding", "partners",
+  "partner", "advisory", "advisors", "advisor", "strategy", "strategic",
+  "home", "homes", "house", "land", "lands", "property", "properties",
+  "real", "estate", "build", "builder", "builders", "building",
+  "design", "creative", "digital", "media", "web", "net", "online",
+  "cloud", "data", "soft", "ware", "software", "systems", "system",
+  "health", "care", "healthcare", "medical", "dental", "wellness",
+  "food", "foods", "fresh", "organic", "natural", "clean", "pure",
+  "energy", "power", "solar", "wind", "bright", "light",
+  "safe", "safety", "guard", "security", "shield", "protect",
+  "fast", "quick", "speed", "rapid", "express", "direct",
+  "smart", "wise", "logic", "genius", "mind", "brain",
+  "city", "town", "urban", "metro", "rural", "village",
+  "new", "next", "future", "modern", "classic", "legacy",
+  "king", "crown", "royal", "regal", "noble",
+  "aquatic", "aquatics", "marine", "ocean", "sea", "coast", "coastal",
+  "tropical", "collision", "body", "shop", "repair", "fix",
+  "project", "foundry", "forge", "craft", "made", "custom",
+  "nursery", "garden", "gardens", "lawn", "landscape", "landscaping",
+  "paint", "painting", "color", "colours", "colors",
+  "supply", "supplies", "source", "store", "market", "trading",
+  "transport", "transportation", "freight", "logistics", "fleet",
+  "print", "printing", "sign", "signs", "signage",
+  "event", "events", "party", "catering", "venue",
+  "sport", "sports", "fit", "fitness", "gym", "athletic",
+  "pet", "pets", "vet", "veterinary", "animal", "animals",
+  "spa", "salon", "beauty", "hair", "skin", "nail", "nails",
+  "bar", "grill", "cafe", "coffee", "tea", "brew", "brewing",
+  "farm", "farms", "ranch", "harvest", "crop", "grain",
+  "school", "academy", "learning", "education", "training",
+  "law", "legal", "justice", "court",
+  "dental", "ortho", "vision", "eye", "eyes", "optical",
+  "bon", "terra", "vita", "sol", "luna", "alta", "bella",
+  "com", "compost", "vermont", "carolina", "texas", "florida",
+  "boyland", "raintree",
+]);
+
+/** Segment a concatenated string into words using dictionary-based dynamic programming. */
+function segmentWords(input: string): string {
+  const s = input.toLowerCase();
+  const n = s.length;
+  if (n <= 2) return input;
+
+  // dp[i] = best segmentation for s[0..i-1], scored by minimizing number of non-dict chunks
+  const dp: { cost: number; words: string[] }[] = new Array(n + 1);
+  dp[0] = { cost: 0, words: [] };
+
+  for (let i = 1; i <= n; i++) {
+    // Default: take single character (worst case)
+    dp[i] = { cost: dp[i - 1].cost + 1, words: [...dp[i - 1].words, s[i - 1]] };
+
+    for (let j = 0; j < i; j++) {
+      const substr = s.slice(j, i);
+      const isWord = WORD_DICT.has(substr);
+      const cost = dp[j].cost + (isWord ? 0 : (substr.length <= 2 ? 2 : 1));
+
+      if (cost < dp[i].cost || (cost === dp[i].cost && dp[j].words.length + 1 < dp[i].words.length)) {
+        dp[i] = { cost, words: [...dp[j].words, substr] };
+      }
+    }
+  }
+
+  return dp[n].words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
 function extractBusinessName(lead: ValuationLead): string {
   if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
     return lead.business_name;
@@ -160,7 +242,11 @@ function extractBusinessName(lead: ValuationLead): string {
   if (domain) {
     const cleaned = domain.replace(TLD_REGEX, "");
     if (cleaned && !cleaned.match(/^(test|no|example)$/i)) {
-      return toTitleCase(cleaned.replace(/[-_.]/g, " "));
+      // If domain has separators, just title-case; otherwise, use word segmentation
+      if (/[-_.]/.test(cleaned)) {
+        return toTitleCase(cleaned.replace(/[-_.]/g, " "));
+      }
+      return segmentWords(cleaned);
     }
   }
   if (lead.email) {
@@ -170,7 +256,13 @@ function extractBusinessName(lead: ValuationLead): string {
         .split(".")[0]
         .replace(/[0-9]+$/, "")
         .replace(/[-_]/g, " ");
-      if (name) return toTitleCase(name);
+      if (name) {
+        // If it's a single concatenated word, segment it
+        if (!/\s/.test(name)) {
+          return segmentWords(name);
+        }
+        return toTitleCase(name);
+      }
     }
   }
   return lead.display_name || "—";
@@ -1184,6 +1276,7 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="industry">Industry</SortHeader>
                   </TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>
                     <SortHeader column="revenue">Revenue</SortHeader>
                   </TableHead>
@@ -1219,7 +1312,7 @@ export default function ValuationLeads() {
                 {paginatedLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={activeTab === "all" ? 16 : 15}
+                      colSpan={activeTab === "all" ? 17 : 16}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Calculator className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1253,24 +1346,20 @@ export default function ValuationLeads() {
                         {(safePage - 1) * PAGE_SIZE + idx + 1}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-0.5">
                           <span className="font-medium text-foreground text-sm truncate max-w-[200px]">
                             {extractBusinessName(lead)}
                           </span>
-                          {lead.full_name && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {lead.full_name}
-                            </span>
-                          )}
-                          {lead.email && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {lead.email}
-                            </span>
-                          )}
                           {inferWebsite(lead) && (
-                            <span className="text-xs text-blue-500 truncate max-w-[200px]">
+                            <a
+                              href={`https://${inferWebsite(lead)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate max-w-[200px]"
+                            >
                               {inferWebsite(lead)}
-                            </span>
+                            </a>
                           )}
                         </div>
                       </TableCell>
@@ -1281,6 +1370,23 @@ export default function ValuationLeads() {
                         <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
                           {lead.industry || "—"}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {lead.location ? (
+                          <span className="text-sm text-muted-foreground truncate max-w-[140px] block">
+                            {(() => {
+                              const parts = lead.location.split(",").map(s => s.trim());
+                              if (parts.length >= 2) {
+                                const city = parts[0];
+                                const state = parts[1].length <= 3 ? parts[1] : parts[1];
+                                return `${city}, ${state}`;
+                              }
+                              return lead.location;
+                            })()}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {lead.revenue != null ? (
