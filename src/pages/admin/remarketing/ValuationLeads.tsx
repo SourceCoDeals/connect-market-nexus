@@ -118,22 +118,464 @@ const GENERIC_EMAIL_DOMAINS = new Set([
   "mail.com", "zoho.com", "yandex.com", "protonmail.com",
 ]);
 
+// ─── Word-segmentation dictionary for splitting concatenated domain names ───
+const DOMAIN_WORDS = new Set([
+  "the","and","for","all","one","two","new","pro","our","any","now","own",
+  "way","out","off","top","big","old","net","key","hub","air","bay","van",
+  "web","age","art","bar","bed","bit","bus","can","cup","cut","dry","eat",
+  "fan","fit","fly","fox","fun","gas","gem","gym","hat","hot","ice","inn",
+  "jet","joy","lab","map","mix","oak","pad","pay","pet","pin","pot","pub",
+  "raw","ray","rig","rod","run","set","six","spa","sub","tab","tax","tea",
+  "tin","tip","toe","toy","tub","use","vet","wax","zen","zip",
+  "able","also","area","auto","back","base","bath","bear","best","bill",
+  "bird","blue","boat","body","bold","bond","book","boss","bulk","buzz",
+  "cafe","cage","cake","call","calm","camp","cape","card","care","cart",
+  "case","cash","cave","chef","chip","city","clan","clay","clip","club",
+  "coal","coat","code","coin","cold","cook","cool","copy","core","corn",
+  "cost","cove","crew","crop","cure","dale","dark","data","dawn","deal",
+  "deck","deep","deer","dell","demo","desk","dial","diet","dirt","disc",
+  "dock","dome","done","door","down","draw","drop","drum","dual","duke",
+  "dust","duty","each","earn","ease","east","easy","edge","ever","exec",
+  "expo","face","fact","fair","fall","fame","farm","fast","feed","feel",
+  "file","fill","film","find","fine","fire","firm","fish","five","flag",
+  "flat","flex","flip","flow","foam","fold","folk","food","foot","ford",
+  "fore","form","fort","four","free","from","fuel","full","fund","fuse",
+  "gain","game","gate","gear","gift","glen","glow","glue","goat","gold",
+  "golf","good","grab","gray","grey","grid","grip","grow","gulf","guru",
+  "hack","half","hall","hand","hard","hare","hawk","head","heal","heat",
+  "help","herb","here","hero","hide","high","hike","hill","hire","hold",
+  "hole","home","hood","hook","hope","horn","host","huge","hunt","icon",
+  "idea","info","iron","isle","item","jack","jade","jazz","jobs","john",
+  "join","jump","just","keen","keep","kind","king","kite","knit","know",
+  "lace","lack","lake","lamp","land","lane","last","late","lead","leaf",
+  "lean","left","lend","lens","less","life","lift","like","lime","line",
+  "link","lion","list","lite","live","load","loan","lock","loft","logo",
+  "long","look","loop","lord","loud","love","luck","made","mail","main",
+  "make","male","mall","many","mark","mart","mass","mate","maze","meal",
+  "meat","meet","melt","memo","menu","mesh","mild","mile","mill","mind",
+  "mine","mint","mode","mold","moon","more","moss","most","move","much",
+  "must","nail","name","navy","near","neat","neck","need","nest","news",
+  "next","nice","nine","node","none","noon","norm","nose","note","nova",
+  "oaks","omni","once","only","onto","open","orca","oven","over","pace",
+  "pack","page","paid","pair","pale","palm","pane","park","part","pass",
+  "past","path","peak","pear","peer","pine","pink","pipe","plan","play",
+  "plot","plus","polo","pond","pool","port","pose","post","pour","pros",
+  "pull","pump","pure","push","quad","race","rack","rage","rail","rain",
+  "rake","ramp","rank","rare","rate","read","real","reed","reef","reel",
+  "rest","rice","rich","ride","ring","rise","risk","road","rock","role",
+  "roll","roof","room","root","rope","rose","ruby","rule","rush","rust",
+  "safe","sage","said","sail","sake","sale","salt","same","sand","save",
+  "seal","seed","self","semi","send","serv","shed","ship","shoe","shop",
+  "show","side","sign","silk","sing","sink","site","size","skip","slim",
+  "slip","slow","snap","snow","soap","soar","sock","soft","soil","sole",
+  "solo","some","soon","sort","soul","span","spec","spin","spot","spur",
+  "star","stay","stem","step","stop","such","suit","sure","surf","swan",
+  "swap","sync","tail","take","tale","talk","tall","tank","tape","task",
+  "taxi","team","tell","temp","tend","tent","term","test","text","thin",
+  "tick","tide","tier","tile","till","time","tiny","toll","tone","tool",
+  "tops","tour","town","trap","tray","tree","trek","trim","trio","trip",
+  "true","tube","tuck","tune","turf","turn","twin","type","unit","upon",
+  "vail","vale","vane","vast","vent","very","vest","vibe","view","vine",
+  "void","volt","vote","wade","wage","wait","wake","walk","wall","ward",
+  "warm","warn","warp","wash","wave","weak","wear","well","west","wide",
+  "wild","will","wind","wine","wing","wipe","wire","wise","wish","with",
+  "wood","wool","word","work","worm","wrap","yard","year","yoga","your",
+  "zero","zinc","zone",
+  "admin","agent","agile","alert","align","angel","angle","apply","arena",
+  "asset","atlas","audit","award","aware","badge","basin","batch","beach",
+  "bench","berry","blade","blank","blast","blaze","blend","bliss","block",
+  "bloom","board","bonus","boost","bound","brain","brand","brass","brave",
+  "break","breed","brick","brief","bring","broad","brook","brown","brush",
+  "build","burst","cabin","candy","cargo","cause","cedar","chain","chair",
+  "chalk","charm","chart","chase","cheap","check","chess","chief","cider",
+  "civic","claim","class","clean","clear","clerk","click","cliff","climb",
+  "clock","clone","close","cloth","cloud","coach","coast","color","combo",
+  "coral","count","court","cover","crack","craft","crane","crash","cream",
+  "creek","crest","cross","crowd","crush","cubic","curve","cycle","daily",
+  "dairy","deals","decor","delta","dense","depot","depth","derby","diner",
+  "dodge","draft","drain","drake","dream","dress","drift","drink","drive",
+  "drone","dwell","eager","eagle","earth","eight","elect","elite","email",
+  "ember","empty","enjoy","enter","equal","equip","essay","event","every",
+  "exact","exist","extra","fable","faith","fancy","feast","fence","fetch",
+  "fever","fiber","field","fifth","fifty","fight","final","first","fixed",
+  "flame","flash","fleet","flesh","float","flood","floor","flora","fluid",
+  "flush","focal","focus","force","forge","forth","forum","found","frame",
+  "frank","fresh","front","frost","fruit","gauge","genre","ghost","giant",
+  "given","glass","glide","globe","glory","going","grace","grade","grain",
+  "grand","grant","graph","grasp","grass","grave","great","green","grind",
+  "gross","group","grove","grown","guard","guess","guest","guide","guild",
+  "happy","hardy","haven","heart","heavy","hedge","helix","herbs","hobby",
+  "honor","horse","hotel","house","human","humor","hyper","ideal","image",
+  "inbox","index","indie","inner","input","inter","intro","ivory","jewel",
+  "joint","judge","juice","knack","knock","known","label","lance","large",
+  "laser","later","layer","learn","lease","legal","level","lever","light",
+  "limit","linen","lives","local","lodge","logic","loose","lotus","lower",
+  "loyal","lucky","lunar","lunch","macro","magic","major","maker","manor",
+  "maple","march","match","mayor","media","merge","merit","metal","meter",
+  "metro","micro","might","minor","minus","model","money","month","moral",
+  "motor","mount","mouse","mouth","multi","music","naval","nerve","night",
+  "noble","noise","north","noted","novel","nurse","oasis","ocean","offer",
+  "olive","omega","onion","opera","orbit","order","other","outer","oxide",
+  "panel","paper","parts","party","patch","pause","peace","peach","penny",
+  "petal","phase","phone","photo","piece","pilot","pixel","pizza","place",
+  "plain","plane","plant","plate","plaza","plumb","point","polar","power",
+  "press","price","pride","prime","print","prior","prize","proof","proud",
+  "prove","proxy","pulse","punch","quest","queue","quick","quiet","quota",
+  "quote","radar","radio","raise","rally","ranch","range","rapid","ratio",
+  "reach","react","ready","realm","rebel","reign","relay","renew","rider",
+  "ridge","right","rigid","rival","river","robin","robot","rocky","rouge",
+  "rough","round","route","rover","royal","rural","saint","salad","salon",
+  "sandy","sauce","sauna","scale","scene","scope","score","scout","serve",
+  "seven","shade","shaft","shake","shape","share","shark","sharp","sheep",
+  "sheer","sheet","shelf","shell","shift","shine","shirt","shock","shore",
+  "short","shout","sight","sigma","sixty","skill","slate","sleep","slice",
+  "slide","slope","smart","smell","smile","smith","smoke","snake","solar",
+  "solid","solve","sonic","south","space","spare","spark","speak","speed",
+  "spend","spice","spine","spoke","sport","spray","squad","stack","staff",
+  "stage","stain","stake","stall","stamp","stand","stark","start","state",
+  "steam","steel","steep","steer","stern","still","stock","stone","store",
+  "storm","story","stove","strap","strip","stuff","style","sugar","suite",
+  "sunny","super","surge","swamp","sweet","swift","swing","sword","table",
+  "taste","teach","tempo","theta","thick","think","third","thorn","three",
+  "throw","tiger","tight","titan","title","today","token","total","touch",
+  "tough","tower","trace","track","trade","trail","train","trait","trend",
+  "trial","tribe","trick","trust","truth","tulip","turbo","twist","ultra",
+  "under","union","unite","unity","until","upper","urban","usage","usual",
+  "valid","valor","value","vapor","vault","verse","vigor","vinyl","viral",
+  "visit","vista","vital","vivid","vocal","voice","watch","water","weave",
+  "wedge","wheel","where","which","while","white","whole","wider","woman",
+  "women","world","worst","worth","would","wound","write","yacht","yield",
+  "young","youth",
+  "absorb","access","action","active","actual","alpine","always","anchor",
+  "annual","answer","appeal","arctic","assist","aurora","autumn","avenue",
+  "beacon","beauty","beaver","before","beside","beyond","binary","blazer",
+  "bonded","border","bounce","branch","breach","bridge","bright","bronze",
+  "broker","bucket","budget","buffer","bundle","bureau","button","bypass",
+  "candle","cannon","canvas","carbon","castle","casual","center","centre",
+  "chance","change","chapel","charge","choice","chrome","circle","claims",
+  "client","clinic","clouds","clutch","cobalt","coffee","colony","colour",
+  "column","combat","comedy","common","comply","copper","corner","cosmos",
+  "cotton","course","covers","cradle","create","credit","cruise","custom",
+  "daring","decode","deeper","defend","define","degree","demand","dental",
+  "deploy","desert","design","desire","detail","detect","device","diesel",
+  "differ","digest","dinner","direct","divine","domain","double","driven",
+  "driver","earned","easily","editor","effect","effort","empire","enable",
+  "encore","endure","energy","engage","engine","enough","ensure","entire",
+  "equity","escort","estate","evolve","exceed","expand","expect","expert",
+  "export","extend","extent","fabric","factor","family","farmer","faster",
+  "fellow","filter","finder","finish","fiscal","flower","flying","follow",
+  "forest","formal","format","foster","fourth","freeze","friend","frozen",
+  "fusion","future","galaxy","garage","garden","gather","gender","genius",
+  "gentle","global","golden","ground","growth","guitar","handle","harbor",
+  "health","hearts","height","helper","hidden","hollow","honest","horses",
+  "hybrid","iconic","impact","import","income","indoor","inform","inland",
+  "insert","inside","intact","intent","invest","inward","island","itself",
+  "jaguar","jersey","jungle","junior","kernel","knight","launch","laurel",
+  "layout","leader","league","legacy","legend","lender","length","lesson",
+  "letter","likely","linden","linear","lining","liquid","listen","little",
+  "living","locker","lumber","luxury","magnet","maiden","manage","manner",
+  "marble","margin","marine","market","master","matter","meadow","medium",
+  "member","memory","mental","mentor","method","metric","middle","mighty",
+  "miller","minute","mirror","mobile","modest","module","moment","monkey",
+  "motion","moving","mutual","myrtle","narrow","nation","native","nature",
+  "nearby","nearly","needle","neural","nickel","nimble","normal","notice",
+  "notion","number","object","obtain","occupy","offset","online","opener",
+  "option","orange","orient","origin","osprey","others","outlet","output",
+  "oxford","oyster","palace","parcel","parent","parish","parker","patent",
+  "patrol","patron","pebble","pencil","people","pepper","permit","person",
+  "photon","pierce","pillar","pirate","planet","plasma","player","pledge",
+  "plenty","plunge","pocket","poetry","poison","polish","portal","poster",
+  "powder","prefer","pretty","prince","prison","profit","prompt","proper",
+  "proven","public","purple","pursue","python","rabbit","radius","random",
+  "ranger","rather","rating","reason","rebate","reboot","recipe","record",
+  "reduce","reform","region","relate","relief","remain","remedy","remote",
+  "render","rental","repair","repeat","report","rescue","resort","result",
+  "retail","retain","retire","return","reveal","review","revive","reward",
+  "ribbon","rising","ritual","robust","rocket","roller","salmon","sample",
+  "sandal","saving","school","screen","scroll","search","season","second",
+  "sector","secure","select","seller","senior","server","shadow","shield",
+  "sierra","signal","silent","silver","simple","single","smooth","socket",
+  "source","sphere","spider","spiral","spirit","splash","spring","sprint",
+  "square","stable","status","steady","stereo","stocks","strain","strand",
+  "stream","street","stress","strict","stride","strike","string","stroke",
+  "strong","studio","submit","subtle","summit","sunday","sunset","superb",
+  "supply","survey","switch","symbol","system","tackle","talent","target",
+  "temple","tender","thanks","thread","thrift","throne","thrust","ticket",
+  "timber","tissue","toggle","tongue","toward","trader","travel","treaty",
+  "tribal","triple","trophy","tunnel","turtle","tycoon","unique","unlock",
+  "update","uphold","uptown","upward","urgent","valley","vanity","vector",
+  "vendor","verify","vessel","viking","vision","visual","volume","voyage",
+  "walker","wallet","wander","wealth","weapon","weekly","weight","widely",
+  "willow","window","winter","wisdom","within","wizard","wonder","wooden",
+  "worker",
+  "academy","account","achieve","acquire","address","admiral","advance",
+  "advisor","aligned","ambient","america","ancient","applied","aquatic",
+  "archive","artisan","balance","banking","barrier","battery","bearing",
+  "benefit","between","billion","biotech","blended","booking","brewing",
+  "brother","builder","cabinet","caliber","calling","capable","capital",
+  "captain","capture","cardiac","careful","catalog","caution","century",
+  "ceramic","certain","chamber","channel","chapter","charter","chimney",
+  "circuit","citizen","classic","climate","cluster","coastal","collect",
+  "college","command","company","compare","compete","complex","concept",
+  "concern","conduct","confirm","connect","consent","consult","contact",
+  "contain","content","context","control","convert","cooking","correct",
+  "counsel","counter","country","courage","covered","crucial","crystal",
+  "culture","current","customs","cutting","dealing","declare","decline",
+  "default","defense","deficit","deliver","density","deposit","desktop",
+  "destiny","develop","devoted","diamond","digital","diploma","display",
+  "dismiss","dispute","distant","diverse","dolphin","dynamic","eastern",
+  "economy","edition","educate","elected","elegant","element","elevate",
+  "embrace","emerald","empower","enabled","endless","enforce","engaged",
+  "enquiry","epsilon","essence","ethical","evening","evident","examine",
+  "example","excited","exclude","execute","exhibit","expense","explore",
+  "express","extreme","factory","faculty","fashion","feature","federal",
+  "finance","fintech","firefly","fitness","fixture","focused","foreign",
+  "forever","formula","fortune","forward","founder","freedom","freight",
+  "fulfill","funding","furnace","gallery","gateway","general","genesis",
+  "genuine","glacier","glamour","granite","gravity","greater","grounds",
+  "growing","habitat","halfway","harbour","harmony","harvest","heading",
+  "healthy","heating","highway","history","holding","holiday","horizon",
+  "hosting","housing","imagery","imagine","imaging","immense","implied",
+  "improve","impulse","include","indexed","initial","insight","inspect",
+  "inspire","install","instant","insured","integer","interim","inverse",
+  "invoice","involve","isolate","jewelry","journey","justice","keeping",
+  "kitchen","landing","lasting","laundry","leading","leather","lending",
+  "leopard","liberty","library","license","limited","listing","literal",
+  "loading","locally","machine","managed","manager","mandate","mapping",
+  "masonry","massive","mastery","maximum","measure","medical","meeting",
+  "mercury","message","methods","midland","million","mineral","minimum",
+  "mission","mixture","modular","monitor","monthly","morning","mounted",
+  "musical","mystery","natural","neglect","neither","network","neutral",
+  "notable","nothing","nucleus","nursing","nurture","organic","origins",
+  "outdoor","outlook","outside","overall","pacific","package","parking",
+  "partial","partner","passage","passing","passion","patriot","pattern",
+  "payment","payroll","penalty","pending","pension","perfect","perhaps",
+  "persist","phoenix","pioneer","pivotal","planned","planner","plastic",
+  "polygon","popular","portage","portion","pottery","poverty","powered",
+  "precise","predict","premier","premium","prepare","present","prevent",
+  "primary","printer","privacy","private","problem","proceed","process",
+  "produce","product","profile","program","project","promise","promote",
+  "prosper","protect","protein","provide","publish","purpose","pyramid",
+  "qualify","quality","quantum","quarter","quickly","radical","reactor",
+  "readily","realize","rebuild","receipt","receive","recover","recruit",
+  "reduced","refined","reflect","refresh","regular","related","release",
+  "reliant","remains","renewal","replace","replica","request","require",
+  "reserve","resolve","respond","restore","results","retired","retreat",
+  "revenue","reverse","rolling","roofing","routine","salvage","scarlet",
+  "scholar","science","seaside","seating","segment","seminar","several",
+  "shelter","shifted","shorter","shuttle","silence","silicon","similar",
+  "simpler","sitting","skilled","slender","smaller","society","soldier",
+  "sunrise","support","surface","surplus","surgeon","sustain","synergy",
+  "tactics","teacher","testing","therapy","thermal","thought","thunder",
+  "toolbar","tourism","tractor","trading","traffic","trainer","transit",
+  "trigger","triumph","trouble","trusted","turning","twisted","unified",
+  "uniform","venture","verdict","village","vintage","virtual","visible",
+  "vitamin","volcano","warrant","warrior","weather","website","weekend",
+  "welcome","welfare","western","whether","whisper","wildcat","willing",
+  "winding","winning","working",
+  "absolute","abstract","academic","accurate","achiever","activate",
+  "adaptive","adequate","adjacent","advanced","advisory","advocate",
+  "alliance","ambition","american","analysis","animated","anything",
+  "anywhere","apparent","approach","approval","assemble","atlantic",
+  "audience","automate","aviation","backbone","balanced","baseline",
+  "bathroom","becoming","behavior","boarding","bodywork","bookmark",
+  "borrowed","boundary","boutique","branding","breeding","broadband",
+  "broadway","building","business","calendar","campaign","capacity",
+  "catering","cellular","ceremony","champion","chemical","children",
+  "circular","cleaning","clearance","clinical","coaching","combined",
+  "comeback","commerce","communal","commuter","complete","compound",
+  "computer","concrete","congress","conquest","consider","constant",
+  "consumer","continue","contract","convince","corridor","cosmetic",
+  "coverage","creative","creature","criteria","critical","crossing",
+  "cultural","customer","database","deadline","decision","decrease",
+  "dedicate","defender","definite","delicate","delivery","demanded",
+  "designer","detailed","detector","dialogue","director","disabled",
+  "discount","discover","dispatch","disposal","distinct","district",
+  "dividend","doctrine","document","domestic","dominant","download",
+  "downtown","dramatic","drilling","driveway","duration","dynamics",
+  "earnings","economic","educate","education","educator","eighteen",
+  "electric","electron","elevated","emerging","emission","emphasis",
+  "employee","endeavor","endpoint","engineer","enormous","ensemble",
+  "entirely","entrance","envelope","equality","equipped","espresso",
+  "estimate","evaluate","everyday","evidence","exchange","exercise",
+  "expanded","expedite","expenses","explicit","explorer","exponent",
+  "external","facility","familiar","featured","feedback","fidelity",
+  "finalize","finished","flagship","flexible","floating","followed",
+  "football","footwear","forecast","forensic","formerly","fortress",
+  "founding","fourteen","fraction","fragment","friction","frontier",
+  "fulfilled","fulltime","function","generate","genetics","generous",
+  "geometry","gradient","graphics","grateful","grounded","grooming",
+  "guardian","guidance","handmade","hardware","headline","heritage",
+  "homeland","homework","honestly","horizons","hospital","humanity",
+  "identify","imperial","imported","improved","inactive","incident",
+  "included","increase","indicate","indirect","industry","infinite",
+  "informal","infrared","inherent","initiate","innovate","inspired",
+  "instance","integral","intended","interact","interest","interior",
+  "internal","internet","interval","intimate","inventor","invested",
+  "investor","involved","isolated","keyboard","kindness","knockout",
+  "labeling","landlord","landmark","language","latitude","lavender",
+  "leverage","liberate","lifetime","lighting","likewise","limiting",
+  "literacy","location","logistic","magnetic","mainland","maintain",
+  "manifest","maritime","material","maximize","mechanic","membrane",
+  "memorial","merchant","midnight","migrated","military","minimize",
+  "ministry","moderate","momentum","monetary","monopoly","mortgage",
+  "mountain","mounting","movement","multiple","navigate","negative",
+  "nineteen","nitrogen","normally","northern","notebook","numerous",
+  "nutrient","observer","obstacle","obtained","occasion","occupied",
+  "offering","official","offshore","operates","operator","opponent",
+  "opposite","optimist","optional","ordinary","organism","organize",
+  "oriented","original","overlook","overtime","overview","painting",
+  "panorama","paradigm","parallel","parental","partners","passport",
+  "patience","pavilion","peaceful","pedestal","perceive","periodic",
+  "personal","persuade","petition","physical","pinnacle","pipeline",
+  "platform","pleasant","plumbing","pointing","polished","politics",
+  "portable","portrait","position","positive","possible","powerful",
+  "practice","precious","premiere","prepared","presence","preserve",
+  "pressing","prestige","previous","princess","printing","priority",
+  "probable","proceeds","producer","profound","progress","prohibit",
+  "prolific","promoter","promptly","properly","property","proposal",
+  "proposed","prospect","protocol","province","publicly","purchase",
+  "pursuing","quantity","quarters","rational","readable","realized",
+  "reasoned","received","recovery","recycled","redesign","referred",
+  "reformed","regional","register","regulate","relating","relation",
+  "released","relevant","reliable","remember","removing","renowned",
+  "required","research","reserved","resident","resigned","resolved",
+  "resource","response","restless","restored","retailer","retained",
+  "revealed","reversal","revision","revolved","robotics","romantic",
+  "sampling","sandwich","scaffold","schedule","scissors","seamless",
+  "seasonal","security","selected","semester","sensible","sentence",
+  "sequence","services","sessions","settings","shipment","shipping",
+  "shoulder","showroom","shutdown","sidewalk","simplify","simulate",
+  "singular","situated","skeleton","sleeping","slowdown","smallest",
+  "snapshot","socially","softened","software","solution","somebody",
+  "somewhat","southern","speaking","spectrum","spending","sporting",
+  "spotless","staffing","standard","standing","sterling","stimulus",
+  "stopping","straight","strategy","strength","stressed","strictly",
+  "striking","strongly","struggle","suburban","suddenly","suggests",
+  "suitable","superior","supplier","supposed","surgical","surprise",
+  "surround","survival","survivor","swimming","switched","symbolic",
+  "sympathy","syndrome","tangible","targeted","taxation","teaching",
+  "teamwork","terminal","terrific","thankful","thirteen","thorough",
+  "thousand","together","tomorrow","topology","touching","tracking",
+  "training","transfer","transmit","treasure","treating","trillion",
+  "ultimate","umbrella","uncommon","underway","universe","updating",
+  "upgraded","upstream","utilized","vacation","validate","valuable",
+  "variable","velocity","verified","vertical","vicinity","vigorous",
+  "vineyard","volatile","warranty","watchdog","waterway","weakness",
+  "weighted","welcomed","wellness","wherever","widening","wildfire",
+  "wireless","withdrew","woodland","workable","workshop","yourself",
+  "continuing","automotive","consulting","commercial","commission",
+  "compliance","conference","connection","contractor","convention",
+  "coordinate","counseling","decoration","delivering","deployment",
+  "determined","developing","diagnostic","discovering","discussing",
+  "dispensary","disruption","distribute","documented","electrical",
+  "electronic","employment","encouraged","engagement","engineered",
+  "enterprise","everything","excellence","experience","experiment",
+  "expression","facilitate","foundation","frequently","fulfilling",
+  "generation","governance","government","guaranteed","healthcare",
+  "horizontal","identified","illuminate","impossible","incredible",
+  "industrial","informatics","instrument","integrated","intelligent",
+  "interested","interstate","introduced","investment","laboratory",
+  "leadership","legitimate","limitation","maintained","management",
+  "meaningful","mechanical","networking","newsletter","operations",
+  "opposition","originated","outperform","parameters","particular",
+  "performing","permission","personally","phenomenon","population",
+  "possession","preference","preventing","proceeding","processing",
+  "production","productive","profession","profitable","programmer",
+  "properties","proportion","protection","protective","publishing",
+  "recognized","recovering","regardless","registered","regulation",
+  "renovation","reputation","researched","resolution","responsive",
+  "restaurant","retirement","revolution","simplicity","simulation",
+  "smartphone","structured","subscriber","succeeding","suggestion",
+  "supplement","supporting","surprising","technology","throughout",
+  "transplant","tremendous","ultimately","understand","unexpected",
+  "university","visibility","vulnerable","waterfront","widespread",
+  // Business compound parts & plurals
+  "works","ware","wares","craft","smith","house","lands","fields","woods",
+  "berg","burg","shire","worth","ton","son",
+  "solutions","services","systems","partners","associates","holdings",
+  "ventures","products","networks","concepts","designs","innovations",
+  "enterprises","industries","investments","technologies","properties",
+  "resources","logistics","dynamics","analytics","creations","builders",
+  "advisors","makers","traders","dealers","crafters","masters",
+  "consultants","specialists","professionals","connections","expressions",
+  "foundations","strategies","landscapes","interiors","exteriors",
+  "automations","integrations","communications","constructions",
+  // Abbreviated words common in domains
+  "serv","mgmt","intl","natl","corp","assoc","dept","govt","tech","info",
+  "comm","mech","elec","engr","acct","inc","llc",
+  // Common first/last names in business domains
+  "david","allen","adam","james","john","mark","mike","paul","tom","bob",
+  "bill","joe","jack","sam","will","dan","ben","chris","matt","jeff",
+  "steve","scott","brian","kevin","gary","rick","ray","dale","lee","carl",
+  "eric","greg","neil","phil","todd","wade","brad","chad","dean","doug",
+  "earl","fred","glen","hans","ivan","joel","karl","kent","kurt","lars",
+  "leon","luis","marc","nick","noel","omar","pete","ralph","ross","roy",
+  "sean","seth","ted","tony","troy","vern","walt","wayne","alan","bruce",
+  "clyde","derek","ernie","frank","grant","harry","henry","jason","jimmy",
+  "keith","larry","lloyd","marty","oscar","peter","randy","roger","rudy",
+  "terry","tyler","vince","wesley","wyatt",
+  "smith","jones","brown","davis","clark","lewis","moore","hall","young",
+  "white","harris","baker","green","adams","nelson","hill","king","wright",
+  "lopez","mitchell","roberts","carter","turner","parker","evans","edwards",
+  "collins","stewart","morris","murphy","cook","rogers","morgan","cooper",
+  "kelly","ward","cox","reed","wood","ross","long","fox","cole","west",
+  "ford","bell","hunt","gray","webb","rice","shaw","mason","stone","mills",
+  "quinn","casey","fisher","hayes","wells","porter","foster","bennett",
+  "brooks","sanders","price","powell","jordan",
+  // Plural/possessive forms common in business domains
+  "smugglers","smuggler","settlers","founders","pioneers","explorers",
+  "travelers","wanderers","dreamers","seekers","keepers","hunters","riders",
+]);
+
+/** DP-based word segmentation: split a concatenated string into known words. */
+function segmentDomainWords(input: string): string[] | null {
+  const str = input.toLowerCase().replace(/[^a-z]/g, "");
+  const n = str.length;
+  if (n <= 2) return null;
+
+  // dp[i] = min words to cover str[0..i]; parent[i] = start of last word
+  const dp: number[] = new Array(n + 1).fill(Infinity);
+  const parent: number[] = new Array(n + 1).fill(-1);
+  dp[0] = 0;
+
+  for (let i = 1; i <= n; i++) {
+    for (let len = Math.min(i, 20); len >= 3; len--) {
+      const j = i - len;
+      if (dp[j] < Infinity && DOMAIN_WORDS.has(str.slice(j, i)) && dp[j] + 1 < dp[i]) {
+        dp[i] = dp[j] + 1;
+        parent[i] = j;
+      }
+    }
+  }
+  if (dp[n] === Infinity) return null;
+  if (n / dp[n] < 2.8) return null; // reject over-segmentation
+
+  const words: string[] = [];
+  let pos = n;
+  while (pos > 0) { words.unshift(str.slice(parent[pos], pos)); pos = parent[pos]; }
+  return words;
+}
+
+/** Format a raw domain slug into a presentable business name. */
+function formatDomainAsName(slug: string): string {
+  const withSpaces = slug.replace(/[-_.]/g, " ").trim();
+  if (withSpaces.includes(" ")) return toTitleCase(withSpaces);
+  const segmented = segmentDomainWords(slug);
+  if (segmented) return toTitleCase(segmented.join(" "));
+  return slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+
 /** Clean a raw website value down to just the domain (no protocol, no www, no path). Returns null if invalid. */
 function cleanWebsiteToDomain(raw: string | null): string | null {
   if (!raw || !raw.trim()) return null;
   const v = raw.trim();
-  // Skip if it's an email address, not a URL
   if (v.includes("@")) return null;
-  // Skip obviously invalid (commas, spaces in domain)
   if (/[,\s]/.test(v.replace(/^https?:\/\//i, "").split("/")[0])) return null;
-  // Strip any protocol (including common typos like htpps://)
   const noProto = v.replace(/^[a-z]{3,6}:\/\//i, "");
-  // Strip www. prefix
   const noWww = noProto.replace(/^www\./i, "");
-  // Strip path and query string — keep only hostname
   const domain = noWww.split("/")[0].split("?")[0].split("#")[0];
   if (!domain || !domain.includes(".")) return null;
-  // Skip blacklisted placeholder domains
   if (/^(test|no|example)\./i.test(domain)) return null;
   return domain.toLowerCase();
 }
@@ -142,9 +584,14 @@ const TLD_REGEX = /\.(com|net|org|io|co|ai|us|uk|ca|au|nz|ae|za|se|nl|br|fj|in|d
 
 /** Extract a presentable business name from website or email domain. */
 function extractBusinessName(lead: ValuationLead): string {
-  // Use DB business_name if it's already good
+  // Use DB business_name if it looks properly formatted (has spaces)
   if (lead.business_name && !lead.business_name.endsWith("'s Business")) {
-    return lead.business_name;
+    if (lead.business_name.includes(" ")) return lead.business_name;
+    // Single word from DB — try to segment it
+    const segmented = segmentDomainWords(lead.business_name);
+    if (segmented) return toTitleCase(segmented.join(" "));
+    // Short single word is likely a real brand name (e.g. "Tesloid")
+    if (lead.business_name.length <= 12) return lead.business_name;
   }
 
   // Try website domain first
@@ -152,7 +599,7 @@ function extractBusinessName(lead: ValuationLead): string {
   if (domain) {
     const cleaned = domain.replace(TLD_REGEX, "");
     if (cleaned && !cleaned.match(/^(test|no|example)$/i)) {
-      return toTitleCase(cleaned.replace(/[-_.]/g, " "));
+      return formatDomainAsName(cleaned);
     }
   }
 
@@ -160,15 +607,11 @@ function extractBusinessName(lead: ValuationLead): string {
   if (lead.email) {
     const emailDomain = lead.email.split("@")[1]?.toLowerCase();
     if (emailDomain && !GENERIC_EMAIL_DOMAINS.has(emailDomain)) {
-      const name = emailDomain
-        .split(".")[0]
-        .replace(/[0-9]+$/, "")
-        .replace(/[-_]/g, " ");
-      if (name) return toTitleCase(name);
+      const name = emailDomain.split(".")[0].replace(/[0-9]+$/, "");
+      if (name) return formatDomainAsName(name);
     }
   }
 
-  // Final fallback
   return lead.display_name || "\u2014";
 }
 
