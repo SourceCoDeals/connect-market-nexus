@@ -274,6 +274,46 @@ function segmentWords(input: string): string {
   }).join(" ");
 }
 
+/** Format a date string as a relative age: "4d ago", "2mo ago", "1y ago" */
+function formatAge(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "1d ago";
+  if (diffDays < 30) return `${diffDays}d ago`;
+  const diffMonths = Math.floor(diffDays / 30.44);
+  if (diffMonths < 12) return `${diffMonths}mo ago`;
+  const diffYears = Math.floor(diffMonths / 12);
+  return `${diffYears}y ago`;
+}
+
+/** Clean a full_name username into a human-readable display string.
+ *  e.g. "louis_castelli" → "Louis Castelli"
+ *  Rejects usernames like "epd1112", "xiyokeh495", "jpqzancanaro"
+ */
+function cleanFullName(raw: string | null): string | null {
+  if (!raw) return null;
+  const cleaned = raw.trim()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Must have at least some letters
+  if (!/[a-zA-Z]/.test(cleaned)) return null;
+  // Skip pure usernames: no spaces + contains digits OR all lowercase single token with no real words
+  if (!cleaned.includes(" ")) {
+    // Single token — only accept if it looks like a real first name (all letters, ≥3 chars, no digits)
+    if (/\d/.test(cleaned)) return null;
+    // Very short or looks like a username handle — skip
+    if (cleaned.length < 3) return null;
+  }
+  // Must have at least one letter-only word of length ≥ 2
+  const words = cleaned.split(" ").filter(w => /^[a-zA-Z]{2,}$/.test(w));
+  if (words.length === 0) return null;
+  return toTitleCase(cleaned);
+}
+
 function isPlaceholderBusinessName(name: string): boolean {
   const lower = name.toLowerCase().trim();
   // Generic placeholder patterns
@@ -326,6 +366,9 @@ function extractBusinessName(lead: ValuationLead): string {
       }
     }
   }
+  // Try to use full_name as a human-readable fallback before falling back to "General Calculator #N"
+  const humanName = cleanFullName(lead.full_name);
+  if (humanName) return humanName;
   return lead.display_name || "—";
 }
 
@@ -1551,9 +1594,14 @@ export default function ValuationLeads() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(lead.created_at), "MMM d, yyyy")}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-foreground tabular-nums">
+                            {formatAge(lead.created_at)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground tabular-nums">
+                            {format(new Date(lead.created_at), "MMM d, yyyy")}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
