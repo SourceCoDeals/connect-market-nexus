@@ -199,73 +199,50 @@ export const DealTableRow = ({
         )}
       >
         <div>
-          {/* Name on first line */}
-          <p className="font-medium text-foreground leading-tight">
-            {displayName}
-          </p>
-          {/* Flag icon row beneath name */}
-          {(isEnriched || needsOwnerContact || needsUniverseBuild) && (
-            <div className="flex items-center gap-1.5 mt-1">
-              {isEnriched && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="flex items-center">
-                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Enriched on {format(new Date(listing.enriched_at!), 'MMM d, yyyy')}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {needsOwnerContact && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="flex items-center">
-                      <PhoneCall className="h-3.5 w-3.5 text-red-500 animate-pulse shrink-0" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="font-semibold">Owner needs to be contacted — buyer is ready!</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {needsUniverseBuild && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="flex items-center">
-                      <Network className="h-3.5 w-3.5 text-blue-500 animate-pulse shrink-0" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="font-semibold">Buyer Universe needs to be created</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
+          {/* Name + inline status icons */}
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-foreground leading-tight">
+              {displayName}
+            </p>
+            {isEnriched && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center">
+                    <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Enriched on {format(new Date(listing.enriched_at!), 'MMM d, yyyy')}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {needsOwnerContact && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center">
+                    <PhoneCall className="h-3.5 w-3.5 text-red-500 animate-pulse shrink-0" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">Owner needs to be contacted — buyer is ready!</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          {/* Website under name */}
+          {effectiveWebsite && domain && (
+            <a
+              href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-blue-600 hover:underline mt-0.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Globe className="h-3 w-3 shrink-0" />
+              <span className="truncate">{domain}</span>
+            </a>
           )}
         </div>
-      </TableCell>
-
-      {/* Website (new column) */}
-      <TableCell
-        style={{ width: columnWidths.website, minWidth: 80 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {effectiveWebsite && domain ? (
-          <a
-            href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-blue-600 hover:underline truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Globe className="h-3 w-3 shrink-0" />
-            <span className="truncate">{domain}</span>
-          </a>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
       </TableCell>
 
       {/* Referral Source */}
