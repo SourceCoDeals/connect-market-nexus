@@ -1034,17 +1034,16 @@ export default function ValuationLeads() {
     [leads]
   );
 
-  // Enrich All Pushed — only enriches leads that have already been added to All Deals
+  // Enrich All — enriches any lead that has an associated listing (pushed or auto-created via row click)
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
       const allLeads = leads || [];
 
-      // Only enrich leads that have already been added to All Deals
-      const pushedLeads = allLeads.filter((l) => l.pushed_to_all_deals && l.pushed_listing_id);
-      const targets = pushedLeads;
+      // Include any lead with a listing ID — either formally pushed or auto-created via row click
+      const targets = allLeads.filter((l) => !!l.pushed_listing_id);
 
       if (!targets.length) {
-        sonnerToast.info("No leads in All Deals to enrich — use 'Add to All Deals' on individual leads first");
+        sonnerToast.info("No leads with listings to enrich — open a lead first to create its listing");
         return;
       }
 
