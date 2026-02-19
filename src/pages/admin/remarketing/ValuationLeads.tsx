@@ -799,11 +799,17 @@ export default function ValuationLeads() {
     },
   });
 
-  // Get distinct calculator types for tabs
+  // Get distinct calculator types for tabs — always include "general" first
   const calculatorTypes = useMemo(() => {
-    if (!leads) return [];
+    if (!leads) return ["general"];
     const types = new Set(leads.map((l) => l.calculator_type));
-    return Array.from(types).sort();
+    types.add("general"); // always show general tab
+    // Sort: general first, then rest alphabetically
+    return Array.from(types).sort((a, b) => {
+      if (a === "general") return -1;
+      if (b === "general") return 1;
+      return a.localeCompare(b);
+    });
   }, [leads]);
 
   // Filter engine for advanced filtering
