@@ -125,7 +125,8 @@ type SortColumn =
   | "google_review_count"
   | "google_rating"
   | "created_at"
-  | "pushed";
+  | "pushed"
+  | "priority";
 type SortDirection = "asc" | "desc";
 
 export default function GPPartnerDeals() {
@@ -315,6 +316,10 @@ export default function GPPartnerDeals() {
         case "pushed":
           valA = a.pushed_to_all_deals ? 1 : 0;
           valB = b.pushed_to_all_deals ? 1 : 0;
+          break;
+        case "priority":
+          valA = a.is_priority_target ? 1 : 0;
+          valB = b.is_priority_target ? 1 : 0;
           break;
         default:
           return 0;
@@ -1072,6 +1077,9 @@ export default function GPPartnerDeals() {
                   <TableHead>
                     <SortHeader column="pushed">Status</SortHeader>
                   </TableHead>
+                  <TableHead>
+                    <SortHeader column="priority">Priority</SortHeader>
+                  </TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -1079,7 +1087,7 @@ export default function GPPartnerDeals() {
                 {paginatedDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={16}
+                      colSpan={17}
                       className="text-center py-12 text-muted-foreground"
                     >
                       <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
@@ -1254,6 +1262,13 @@ export default function GPPartnerDeals() {
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {deal.is_priority_target ? (
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-400 mx-auto" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
