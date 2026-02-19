@@ -392,8 +392,10 @@ function toTitleCase(str: string): string {
     .join(" ");
 }
 
-/** Build a full listing insert object from a valuation lead, preserving all valuable data. */
-function buildListingFromLead(lead: ValuationLead) {
+/** Build a full listing insert object from a valuation lead, preserving all valuable data.
+ *  forPush=true (default) marks the listing as pushed to All Deals.
+ *  forPush=false creates the listing for detail-page viewing without pushing. */
+function buildListingFromLead(lead: ValuationLead, forPush = true) {
   const businessName = extractBusinessName(lead);
   const cleanDomain = inferWebsite(lead);
   const title = businessName !== "—" ? businessName : lead.full_name || "Valuation Lead";
@@ -432,8 +434,8 @@ function buildListingFromLead(lead: ValuationLead) {
     deal_identifier: `vlead_${lead.id.slice(0, 8)}`,
     status: "active",
     is_internal_deal: true,
-    pushed_to_all_deals: true,
-    pushed_to_all_deals_at: new Date().toISOString(),
+    pushed_to_all_deals: forPush,
+    ...(forPush ? { pushed_to_all_deals_at: new Date().toISOString() } : {}),
     main_contact_name: lead.full_name || null,
     main_contact_email: lead.email || null,
     main_contact_phone: lead.phone || null,
@@ -795,13 +797,47 @@ export default function ValuationLeads() {
     });
   };
 
-  // Row click handler — pushed leads navigate to deal detail, others navigate by lead id
-  const handleRowClick = (lead: ValuationLead) => {
-    const id = lead.pushed_listing_id ?? lead.id;
-    navigate(`/admin/remarketing/valuation-leads/${id}`);
-  };
+  // Row click handler — navigate to deal detail for every lead.
+  // Auto-creates a listing (without pushing) if one doesn't exist yet.
+  const handleRowClick = useCallback(
+    async (lead: ValuationLead) => {
+      if (lead.pushed_listing_id) {
+        navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`, {
+          state: { from: "/admin/remarketing/valuation-leads" },
+        });
+        return;
+      }
 
-  // Push to All Deals
+      // Auto-create a listing so the detail page works (not pushed to All Deals)
+      const { data: listing, error: insertError } = await supabase
+        .from("listings")
+        .insert(buildListingFromLead(lead, false))
+        .select("id")
+        .single();
+
+      if (insertError || !listing) {
+        console.error("Failed to create listing for lead:", lead.id, insertError);
+        sonnerToast.error("Failed to open deal page");
+        return;
+      }
+
+      // Save the listing reference on the valuation lead
+      await supabase
+        .from("valuation_leads")
+        .update({ pushed_listing_id: listing.id } as never)
+        .eq("id", lead.id);
+
+      // Refresh so the table shows the updated listing_id
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+
+      navigate(`/admin/remarketing/valuation-leads/${listing.id}`, {
+        state: { from: "/admin/remarketing/valuation-leads" },
+      });
+    },
+    [navigate, queryClient]
+  );
+
+  // Push to All Deals — handles leads with or without an existing listing
   const handlePushToAllDeals = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0 || isPushing) return;
@@ -812,16 +848,24 @@ export default function ValuationLeads() {
       let successCount = 0;
       let errorCount = 0;
       for (const lead of leadsToProcess) {
-        const { data: listing, error: insertError } = await supabase
-          .from("listings")
-          .insert(buildListingFromLead(lead))
-          .select("id")
-          .single();
+        let listingId = lead.pushed_listing_id;
 
-        if (insertError) {
-          console.error("Failed to create listing for lead:", lead.id, insertError);
-          errorCount++;
-          continue;
+        if (listingId) {
+          // Listing already exists (auto-created on row click) — just mark as pushed
+          const { error } = await supabase
+            .from("listings")
+            .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
+            .eq("id", listingId);
+          if (error) { console.error("Failed to update listing:", error); errorCount++; continue; }
+        } else {
+          // No listing yet — create one marked as pushed
+          const { data: listing, error: insertError } = await supabase
+            .from("listings")
+            .insert(buildListingFromLead(lead, true))
+            .select("id")
+            .single();
+          if (insertError || !listing) { console.error("Failed to create listing:", insertError); errorCount++; continue; }
+          listingId = listing.id;
         }
 
         const { error: updateError } = await supabase
@@ -829,7 +873,7 @@ export default function ValuationLeads() {
           .update({
             pushed_to_all_deals: true,
             pushed_to_all_deals_at: new Date().toISOString(),
-            pushed_listing_id: listing.id,
+            pushed_listing_id: listingId,
             status: "pushed",
           } as never)
           .eq("id", lead.id);
@@ -856,7 +900,7 @@ export default function ValuationLeads() {
     [leads, isPushing, queryClient]
   );
 
-  // Push & Enrich — uses buildListingFromLead to preserve ALL fields
+  // Push & Enrich — handles leads with or without an existing listing
   const handlePushAndEnrich = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0) return;
@@ -868,26 +912,33 @@ export default function ValuationLeads() {
       const listingIds: string[] = [];
 
       for (const lead of leadsToProcess) {
-        // Use buildListingFromLead to preserve all 20+ fields
-        const { data: listing, error: insertError } = await supabase
-          .from("listings")
-          .insert(buildListingFromLead(lead))
-          .select("id")
-          .single();
+        let listingId = lead.pushed_listing_id;
 
-        if (insertError || !listing) {
-          console.error("Failed to create listing:", insertError);
-          continue;
+        if (listingId) {
+          // Listing already exists — mark as pushed
+          const { error } = await supabase
+            .from("listings")
+            .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
+            .eq("id", listingId);
+          if (error) { console.error("Failed to update listing:", error); continue; }
+        } else {
+          const { data: listing, error: insertError } = await supabase
+            .from("listings")
+            .insert(buildListingFromLead(lead, true))
+            .select("id")
+            .single();
+          if (insertError || !listing) { console.error("Failed to create listing:", insertError); continue; }
+          listingId = listing.id;
         }
 
-        listingIds.push(listing.id);
+        listingIds.push(listingId);
 
         await supabase
           .from("valuation_leads")
           .update({
             pushed_to_all_deals: true,
             pushed_to_all_deals_at: new Date().toISOString(),
-            pushed_listing_id: listing.id,
+            pushed_listing_id: listingId,
             status: "pushed",
           } as never)
           .eq("id", lead.id);
@@ -1417,7 +1468,7 @@ export default function ValuationLeads() {
                     <SortHeader column="exit_timing">Exit</SortHeader>
                   </TableHead>
                   <TableHead className="text-center">
-                    <SortHeader column="intros">Intros</SortHeader>
+                    <SortHeader column="intros">Buyer Intro</SortHeader>
                   </TableHead>
                   <TableHead>
                     <SortHeader column="quality">Quality</SortHeader>
@@ -1611,8 +1662,8 @@ export default function ValuationLeads() {
                               Pushed
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
-                              {lead.status || "new"}
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              New
                             </Badge>
                           )}
                         </div>
