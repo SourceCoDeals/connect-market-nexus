@@ -596,6 +596,22 @@ const ReMarketingUniverseDetail = () => {
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
   };
 
+  const handleToggleFeeAgreement = async (buyerId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    const { error } = await supabase
+      .from('remarketing_buyers')
+      .update({ has_fee_agreement: newStatus })
+      .eq('id', buyerId);
+
+    if (error) {
+      toast.error('Failed to update fee agreement');
+      return;
+    }
+
+    toast.success(newStatus ? 'Fee agreement marked' : 'Fee agreement removed');
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
+  };
+
    // Handler for bulk removal of selected buyers from universe
    const handleRemoveSelectedBuyers = async () => {
      if (!selectedBuyerIds.length) return;
@@ -837,6 +853,7 @@ const ReMarketingUniverseDetail = () => {
                       onRemoveFromUniverse={handleRemoveBuyersFromUniverse}
                       onEnrich={handleEnrichSingleBuyer}
                       onDelete={handleDeleteBuyer}
+                      onToggleFeeAgreement={handleToggleFeeAgreement}
                       onSelectionChange={setSelectedBuyerIds}
                       universeId={id}
                     />

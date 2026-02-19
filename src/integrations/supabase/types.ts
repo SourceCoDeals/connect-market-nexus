@@ -4667,6 +4667,8 @@ export type Database = {
           investment_thesis: string | null
           is_internal_deal: boolean
           is_priority_target: boolean | null
+          need_to_contact_owner: boolean | null
+          needs_buyer_universe: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           lead_source_id: string | null
@@ -4829,6 +4831,8 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          need_to_contact_owner?: boolean | null
+          needs_buyer_universe?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           lead_source_id?: string | null
@@ -4991,6 +4995,8 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          need_to_contact_owner?: boolean | null
+          needs_buyer_universe?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           lead_source_id?: string | null
@@ -8193,6 +8199,8 @@ export type Database = {
           industry: string | null
           is_archived: boolean
           is_priority_target: boolean | null
+          need_to_contact_owner: boolean | null
+          needs_buyer_universe: boolean | null
           lead_score: number | null
           lead_source: string | null
           linkedin_url: string | null
@@ -8242,6 +8250,8 @@ export type Database = {
           industry?: string | null
           is_archived?: boolean
           is_priority_target?: boolean | null
+          need_to_contact_owner?: boolean | null
+          needs_buyer_universe?: boolean | null
           lead_score?: number | null
           lead_source?: string | null
           linkedin_url?: string | null
@@ -8291,6 +8301,8 @@ export type Database = {
           industry?: string | null
           is_archived?: boolean
           is_priority_target?: boolean | null
+          need_to_contact_owner?: boolean | null
+          needs_buyer_universe?: boolean | null
           lead_score?: number | null
           lead_source?: string | null
           linkedin_url?: string | null

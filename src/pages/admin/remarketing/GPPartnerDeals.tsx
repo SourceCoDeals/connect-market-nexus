@@ -64,6 +64,8 @@ import {
   ExternalLink,
   Zap,
   Download,
+  Users2,
+  Phone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -101,6 +103,8 @@ interface GPPartnerDeal {
   google_rating: number | null;
   google_review_count: number | null;
   is_priority_target: boolean | null;
+  needs_buyer_universe: boolean | null;
+  need_to_contact_owner: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
@@ -221,6 +225,8 @@ export default function GPPartnerDeals() {
             google_rating,
             google_review_count,
             is_priority_target,
+            needs_buyer_universe,
+            need_to_contact_owner,
             category,
             executive_summary,
             industry,
@@ -1303,6 +1309,30 @@ export default function GPPartnerDeals() {
                             >
                               <Star className={cn("h-4 w-4 mr-2", deal.is_priority_target && "fill-amber-500")} />
                               {deal.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newValue = !deal.needs_buyer_universe;
+                                const { error } = await supabase.from("listings").update({ needs_buyer_universe: newValue } as never).eq("id", deal.id);
+                                if (error) { sonnerToast.error("Failed to update flag"); }
+                                else { sonnerToast.success(newValue ? "Flagged: Needs Buyer Universe" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                              }}
+                              className={deal.needs_buyer_universe ? "text-blue-600" : ""}
+                            >
+                              <Users2 className={cn("h-4 w-4 mr-2", deal.needs_buyer_universe && "text-blue-600")} />
+                              {deal.needs_buyer_universe ? "Remove Buyer Universe Flag" : "Needs Buyer Universe"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const newValue = !deal.need_to_contact_owner;
+                                const { error } = await supabase.from("listings").update({ need_to_contact_owner: newValue } as never).eq("id", deal.id);
+                                if (error) { sonnerToast.error("Failed to update flag"); }
+                                else { sonnerToast.success(newValue ? "Flagged: Need to Contact Owner" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                              }}
+                              className={deal.need_to_contact_owner ? "text-orange-600" : ""}
+                            >
+                              <Phone className={cn("h-4 w-4 mr-2", deal.need_to_contact_owner && "text-orange-600")} />
+                              {deal.need_to_contact_owner ? "Remove Contact Owner Flag" : "Need to Contact Owner"}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handlePushToAllDeals([deal.id])}

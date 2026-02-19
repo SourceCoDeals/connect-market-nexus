@@ -185,6 +185,8 @@ const ReMarketingDeals = () => {
           google_review_count,
           google_rating,
           is_priority_target,
+          needs_buyer_universe,
+          need_to_contact_owner,
           deal_total_score,
           seller_interest_score,
           manual_rank_override,
@@ -702,6 +704,50 @@ const ReMarketingDeals = () => {
     });
   }, [toast]);
 
+  const handleToggleNeedsBuyerUniverse = useCallback(async (dealId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    setLocalOrder(prev => prev.map(deal =>
+      deal.id === dealId ? { ...deal, needs_buyer_universe: newStatus } : deal
+    ));
+    const { error } = await supabase
+      .from('listings')
+      .update({ needs_buyer_universe: newStatus })
+      .eq('id', dealId);
+    if (error) {
+      setLocalOrder(prev => prev.map(deal =>
+        deal.id === dealId ? { ...deal, needs_buyer_universe: currentStatus } : deal
+      ));
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: newStatus ? "Flagged: Needs Buyer Universe" : "Flag removed",
+      description: newStatus ? "Deal flagged as needing a buyer universe" : "Buyer universe flag removed"
+    });
+  }, [toast]);
+
+  const handleToggleNeedToContactOwner = useCallback(async (dealId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    setLocalOrder(prev => prev.map(deal =>
+      deal.id === dealId ? { ...deal, need_to_contact_owner: newStatus } : deal
+    ));
+    const { error } = await supabase
+      .from('listings')
+      .update({ need_to_contact_owner: newStatus })
+      .eq('id', dealId);
+    if (error) {
+      setLocalOrder(prev => prev.map(deal =>
+        deal.id === dealId ? { ...deal, need_to_contact_owner: currentStatus } : deal
+      ));
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: newStatus ? "Flagged: Need to Contact Owner" : "Flag removed",
+      description: newStatus ? "Deal flagged as needing owner contact" : "Contact owner flag removed"
+    });
+  }, [toast]);
+
   const handleAssignOwner = useCallback(async (dealId: string, ownerId: string | null) => {
     const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
     setLocalOrder(prev => prev.map(deal =>
@@ -1177,6 +1223,8 @@ const ReMarketingDeals = () => {
                           onArchive={handleArchiveDeal}
                           onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
+                          onToggleNeedsBuyerUniverse={handleToggleNeedsBuyerUniverse}
+                          onToggleNeedToContactOwner={handleToggleNeedToContactOwner}
                           adminProfiles={adminProfiles}
                           onAssignOwner={handleAssignOwner}
                           onUpdateRank={async (dealId, newRank) => {

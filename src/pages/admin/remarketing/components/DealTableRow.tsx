@@ -34,6 +34,8 @@ import {
   Archive,
   Star,
   Trash2,
+  Users2,
+  Phone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { DealSourceBadge } from "@/components/remarketing";
@@ -59,6 +61,8 @@ export const DealTableRow = ({
   onArchive,
   onDelete,
   onTogglePriority,
+  onToggleNeedsBuyerUniverse,
+  onToggleNeedToContactOwner,
   onUpdateRank,
   adminProfiles,
   onAssignOwner,
@@ -78,6 +82,8 @@ export const DealTableRow = ({
   onArchive: (dealId: string, dealName: string) => void;
   onDelete: (dealId: string, dealName: string) => void;
   onTogglePriority: (dealId: string, currentStatus: boolean) => void;
+  onToggleNeedsBuyerUniverse: (dealId: string, currentStatus: boolean) => void;
+  onToggleNeedToContactOwner: (dealId: string, currentStatus: boolean) => void;
   onUpdateRank: (dealId: string, newRank: number) => Promise<void> | void;
   adminProfiles?: Record<string, { id: string; email: string; first_name: string; last_name: string; displayName: string }>;
   onAssignOwner: (dealId: string, ownerId: string | null) => void;
@@ -467,6 +473,27 @@ export const DealTableRow = ({
               <Star className={cn("h-4 w-4 mr-2", listing.is_priority_target && "fill-amber-500")} />
               {listing.is_priority_target ? "Remove Priority" : "Mark as Priority"}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleNeedsBuyerUniverse(listing.id, listing.needs_buyer_universe || false);
+              }}
+              className={listing.needs_buyer_universe ? "text-blue-600" : ""}
+            >
+              <Users2 className={cn("h-4 w-4 mr-2", listing.needs_buyer_universe && "text-blue-600")} />
+              {listing.needs_buyer_universe ? "Remove Buyer Universe Flag" : "Needs Buyer Universe"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleNeedToContactOwner(listing.id, listing.need_to_contact_owner || false);
+              }}
+              className={listing.need_to_contact_owner ? "text-orange-600" : ""}
+            >
+              <Phone className={cn("h-4 w-4 mr-2", listing.need_to_contact_owner && "text-orange-600")} />
+              {listing.need_to_contact_owner ? "Remove Contact Owner Flag" : "Need to Contact Owner"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();

@@ -78,6 +78,8 @@ interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
+  needs_buyer_universe: boolean | null;
+  need_to_contact_owner: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
@@ -211,7 +213,7 @@ export default function CapTargetDeals() {
             pushed_to_all_deals, pushed_to_all_deals_at, deal_source, status, created_at,
             enriched_at, deal_total_score, linkedin_employee_count, linkedin_employee_range,
             google_rating, google_review_count, captarget_status, is_priority_target,
-            category, executive_summary, industry
+            needs_buyer_universe, need_to_contact_owner, category, executive_summary, industry
           `)
           .eq("deal_source", "captarget")
           .order("captarget_contact_date", { ascending: false, nullsFirst: false })
